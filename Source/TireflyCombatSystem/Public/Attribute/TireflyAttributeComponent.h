@@ -7,6 +7,7 @@
 #include "TireflyAttributeComponent.generated.h"
 
 
+
 UCLASS(ClassGroup = (TireflyCombatSystem), Meta = (BlueprintSpawnableComponent, DisplayName = "Tirefly Attribute Comp"))
 class TIREFLYCOMBATSYSTEM_API UTireflyAttributeComponent : public UActorComponent
 {

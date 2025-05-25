@@ -40,7 +40,8 @@ public class TireflyCombatSystem : ModuleRules
 				"SlateCore",
 				"GameplayTags",
 				"StateTreeModule",
-				"GameplayStateTreeModule"
+				"GameplayStateTreeModule",
+				"DeveloperSettings",
 				// ... add private dependencies that you statically link with here ...	
 			}
 			);

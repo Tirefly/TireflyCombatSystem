@@ -4,18 +4,19 @@
 
 #include "CoreMinimal.h"
 #include "UObject/Interface.h"
-#include "CombatEntityInterface.generated.h"
+#include "GameplayTagContainer.h"
+#include "TireflyCombatEntityInterface.generated.h"
 
 
 // This class does not need to be modified.
-UINTERFACE()
-class UCombatEntityInterface : public UInterface
+UINTERFACE(Blueprintable)
+class UTireflyCombatEntityInterface : public UInterface
 {
 	GENERATED_BODY()
 };
 
 
-class TIREFLYCOMBATSYSTEM_API ICombatEntityInterface
+class TIREFLYCOMBATSYSTEM_API ITireflyCombatEntityInterface
 {
 	GENERATED_BODY()
 
@@ -31,4 +32,8 @@ public:
 	// 获取战斗实体的属性组件
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = TireflyCombatSystem)
 	class UTireflyAttributeComponent* GetAttributeComponent() const;
+
+	// 获取战斗实体的类型
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = TireflyCombatSystem)
+	FGameplayTag GetCombatEntityType() const;
 };
