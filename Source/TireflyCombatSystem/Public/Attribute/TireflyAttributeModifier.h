@@ -46,6 +46,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Modifier")
 	ETireflyAttributeModifierMode ModifierMode = ETireflyAttributeModifierMode::CurrentValue;
 
+	// 修改器操作数
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Operation")
+	TArray<FName> OperandNames;
+
 	// 修改器执行器
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Operation")
 	TSubclassOf<class UTireflyAttributeModifierExecution> ModifierType;
@@ -73,6 +77,10 @@ public:
 	// 修改器实例Id
 	UPROPERTY(BlueprintReadOnly)
 	int32 ModifierInstId = -1;
+
+	// 修改器来源对象
+	UPROPERTY(BlueprintReadOnly)
+	TObjectPtr<UObject> SourceObject;
 
 	// 修改器操作数
 	UPROPERTY(BlueprintReadOnly)

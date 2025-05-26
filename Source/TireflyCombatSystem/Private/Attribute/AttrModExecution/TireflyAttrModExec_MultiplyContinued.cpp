@@ -10,7 +10,6 @@
 void UTireflyAttrModExec_MultiplyContinued::Execute_Implementation(
 	AActor* Instigator,
 	AActor* Target,
-	UObject* SourceObject,
 	const FTireflyAttributeModifierInstance& ModInst,
 	TMap<FName, float>& BaseValues,
 	TMap<FName, float>& CurrentValues)

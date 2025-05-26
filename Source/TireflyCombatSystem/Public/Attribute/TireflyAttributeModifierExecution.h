@@ -21,7 +21,6 @@ public:
 	 * 
 	 * @param Instigator 属性修改流程的发起者
 	 * @param Target 属性修改流程的目标
-	 * @param SourceObject 属性修改流程的源对象（技能、Buff）
 	 * @param ModInst 属性修改器实例
 	 * @param BaseValues 要修改的所有属性的基础值
 	 * @param CurrentValues 要修改的所有属性的当前值
@@ -30,14 +29,12 @@ public:
 	void Execute(
 		AActor* Instigator,
 		AActor* Target,
-		UObject* SourceObject,
 		const FTireflyAttributeModifierInstance& ModInst,
 		UPARAM(ref) TMap<FName, float>& BaseValues,
 		UPARAM(ref) TMap<FName, float>& CurrentValues);
 	virtual void Execute_Implementation(
 		AActor* Instigator,
 		AActor* Target,
-		UObject* SourceObject,
 		const FTireflyAttributeModifierInstance& ModInst,
 		UPARAM(ref) TMap<FName, float>& BaseValues,
 		UPARAM(ref) TMap<FName, float>& CurrentValues) {}
