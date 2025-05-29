@@ -5,7 +5,8 @@
 
 
 
-void UTireflyAttrModMerger_UseMinimum::Merge_Implementation(TArray<FTireflyAttributeModifierInstance>& ModifiersToMerge,
+void UTireflyAttrModMerger_UseMinimum::Merge_Implementation(
+	TArray<FTireflyAttributeModifierInstance>& ModifiersToMerge,
 	TArray<FTireflyAttributeModifierInstance>& MergedModifiers)
 {
 	if (ModifiersToMerge.IsEmpty())
@@ -13,19 +14,19 @@ void UTireflyAttrModMerger_UseMinimum::Merge_Implementation(TArray<FTireflyAttri
 		return;
 	}
 
-	FTireflyAttributeModifierInstance MinMagnitudeMod = ModifiersToMerge[0];
-	for (const FTireflyAttributeModifierInstance& Modifier : ModifiersToMerge)
+	const FName MagnitudeKey = FName("Magnitude");
+	int32 MinIndex = 0;
+	const float* MinMagnitude = ModifiersToMerge[0].Operands.Find(MagnitudeKey);
+
+	for (int32 i = 1; i < ModifiersToMerge.Num(); ++i)
 	{
-		const float* BiggestMagnitude = MinMagnitudeMod.Operands.Find(FName("Magnitude"));
-		const float* ModifierMagnitude = Modifier.Operands.Find(FName("Magnitude"));
-		if (BiggestMagnitude && ModifierMagnitude)
+		const float* CurrentMagnitude = ModifiersToMerge[i].Operands.Find(MagnitudeKey);
+		if (CurrentMagnitude && (!MinMagnitude || *CurrentMagnitude < *MinMagnitude))
 		{
-			if (*ModifierMagnitude < *BiggestMagnitude)
-			{
-				MinMagnitudeMod = Modifier;
-			}
+			MinMagnitude = CurrentMagnitude;
+			MinIndex = i;
 		}
 	}
 
-	MergedModifiers.Add(MinMagnitudeMod);
+	MergedModifiers.Add(ModifiersToMerge[MinIndex]);
 }

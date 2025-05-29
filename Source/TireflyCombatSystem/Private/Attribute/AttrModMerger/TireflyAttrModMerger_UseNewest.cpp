@@ -12,14 +12,14 @@ void UTireflyAttrModMerger_UseNewest::Merge_Implementation(
 		return;
 	}
 
-	FTireflyAttributeModifierInstance NewestMod = ModifiersToMerge[0];
-	for (const FTireflyAttributeModifierInstance& Modifier : ModifiersToMerge)
+	int32 NewestModIndex = 0;
+	for (int32 i = 1; i < ModifiersToMerge.Num(); i++)
 	{
-		if (Modifier.ApplyTimestamp > NewestMod.ApplyTimestamp)
+		if (ModifiersToMerge[i].ApplyTimestamp > ModifiersToMerge[NewestModIndex].ApplyTimestamp)
 		{
-			NewestMod = Modifier;
+			NewestModIndex = i;
 		}
 	}
 
-	MergedModifiers.Add(NewestMod);
+	MergedModifiers.Add(ModifiersToMerge[NewestModIndex]);
 }

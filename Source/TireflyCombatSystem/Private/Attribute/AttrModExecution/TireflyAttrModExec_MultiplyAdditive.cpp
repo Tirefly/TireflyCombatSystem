@@ -24,28 +24,21 @@ void UTireflyAttrModExec_MultiplyAdditive::Execute_Implementation(
 			*AttrToMod.ToString());
 		return;
 	}
-	
-	switch (ModInst.ModifierDef.ModifierMode)
+
+	if (const float* Magnitude = ModInst.Operands.Find(FName("Magnitude")))
 	{
-	case ETireflyAttributeModifierMode::BaseValue:
+		switch (ModInst.ModifierDef.ModifierMode)
 		{
-			float MultiplyOperand = 1.f;
-			for (const TPair<FName, float>& Pair : ModInst.Operands)
+		case ETireflyAttributeModifierMode::BaseValue:
 			{
-				MultiplyOperand += Pair.Value;
+				*BaseValue *= (1.f + *Magnitude);
+				break;
 			}
-			*BaseValue *= MultiplyOperand;
-			break;
-		}
-	case ETireflyAttributeModifierMode::CurrentValue:
-		{
-			float MultiplyOperand = 1.f;
-			for  (const TPair<FName, float>& Pair : ModInst.Operands)
+		case ETireflyAttributeModifierMode::CurrentValue:
 			{
-				MultiplyOperand += Pair.Value;
+				*CurrentValue *= (1.f + *Magnitude);
+				break;
 			}
-			*CurrentValue *= MultiplyOperand;
-			break;
 		}
 	}
 }

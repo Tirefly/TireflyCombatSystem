@@ -9,19 +9,14 @@ void UTireflyAttrModMerger_UseOldest::Merge_Implementation(
 	TArray<FTireflyAttributeModifierInstance>& ModifiersToMerge,
 	TArray<FTireflyAttributeModifierInstance>& MergedModifiers)
 {
-	if (ModifiersToMerge.IsEmpty())
+	int32 OldestModIndex = 0;
+	for (int32 i = 1; i < ModifiersToMerge.Num(); i++)
 	{
-		return;
-	}
-
-	FTireflyAttributeModifierInstance OldestMod = ModifiersToMerge[0];
-	for (const FTireflyAttributeModifierInstance& Modifier : ModifiersToMerge)
-	{
-		if (Modifier.ApplyTimestamp < OldestMod.ApplyTimestamp)
+		if (ModifiersToMerge[i].ApplyTimestamp < ModifiersToMerge[OldestModIndex].ApplyTimestamp)
 		{
-			OldestMod = Modifier;
+			OldestModIndex = i;
 		}
 	}
 
-	MergedModifiers.Add(OldestMod);
+	MergedModifiers.Add(ModifiersToMerge[OldestModIndex]);
 }

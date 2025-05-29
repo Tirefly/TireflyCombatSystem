@@ -6,7 +6,7 @@
 
 
 void UTireflyAttrModMerger_UseMaximum::Merge_Implementation(
-	TArray<FTireflyAttributeModifierInstance>& ModifiersToMerge,
+	UPARAM(ref) TArray<FTireflyAttributeModifierInstance>& ModifiersToMerge,
 	TArray<FTireflyAttributeModifierInstance>& MergedModifiers)
 {
 	if (ModifiersToMerge.IsEmpty())
@@ -14,19 +14,19 @@ void UTireflyAttrModMerger_UseMaximum::Merge_Implementation(
 		return;
 	}
 
-	FTireflyAttributeModifierInstance MaxMagnitudeMod = ModifiersToMerge[0];
-	for (const FTireflyAttributeModifierInstance& Modifier : ModifiersToMerge)
+	const FName MagnitudeKey = FName("Magnitude");
+	int32 MaxIndex = 0;
+	const float* MaxMagnitude = ModifiersToMerge[0].Operands.Find(MagnitudeKey);
+
+	for (int32 i = 1; i < ModifiersToMerge.Num(); ++i)
 	{
-		const float* BiggestMagnitude = MaxMagnitudeMod.Operands.Find(FName("Magnitude"));
-		const float* ModifierMagnitude = Modifier.Operands.Find(FName("Magnitude"));
-		if (BiggestMagnitude && ModifierMagnitude)
+		const float* CurrentMagnitude = ModifiersToMerge[i].Operands.Find(MagnitudeKey);
+		if (CurrentMagnitude && (!MaxMagnitude || *CurrentMagnitude > *MaxMagnitude))
 		{
-			if (*ModifierMagnitude > *BiggestMagnitude)
-			{
-				MaxMagnitudeMod = Modifier;
-			}
+			MaxMagnitude = CurrentMagnitude;
+			MaxIndex = i;
 		}
 	}
 
-	MergedModifiers.Add(MaxMagnitudeMod);
+	MergedModifiers.Add(ModifiersToMerge[MaxIndex]);
 }

@@ -15,15 +15,15 @@ void UTireflyAttrModMerger_UseAdditiveSum::Merge_Implementation(
 		return;
 	}
 
-	FTireflyAttributeModifierInstance MergedModifier = ModifiersToMerge[0];
+	const FName MagnitudeKey = FName("Magnitude");
+	FTireflyAttributeModifierInstance& MergedModifier = ModifiersToMerge[0];
+	float* MagnitudeToMerge = MergedModifier.Operands.Find(MagnitudeKey);
+	
 	for (const FTireflyAttributeModifierInstance& Modifier : ModifiersToMerge)
 	{
-		for (const TPair<FName, float>& ModOperand : Modifier.Operands)
+		if (const float* Magnitude = Modifier.Operands.Find(MagnitudeKey))
 		{
-			if (float* OperandValue = MergedModifier.Operands.Find(ModOperand.Key))
-			{
-				*OperandValue += ModOperand.Value;
-			}
+			*MagnitudeToMerge += *Magnitude;
 		}
 	}
 
