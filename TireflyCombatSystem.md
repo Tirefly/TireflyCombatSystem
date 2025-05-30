@@ -1,83 +1,7 @@
-# Attribute模块代码
+# 一、属性模块
 
-## 枚举类型
+## 1.1 属性定义
 
-### ETireflyAttributeRangeType
-```cpp
-// 属性范围类型
-UENUM(BlueprintType)
-enum class ETireflyAttributeRangeType : uint8
-{
-	None  = 0		UMETA(ToolTip = "One side (minimum or maximum) of the value range for Attribute has no limit."),
-	Static = 1		UMETA(ToolTip = "One side (minimum or maximum) of the value range for Attribute is a constant numeric value."),
-	Dynamic = 2		UMETA(ToolTip = "One side (minimum or maximum) of the value range for Attribute is dynamic, which is affected by another attribute value.")
-};
-```
-
-### ETireflyAttributeModifierMode
-```cpp
-// 修改器修改属性的方式
-UENUM(BlueprintType)
-enum class ETireflyAttributeModifierMode : uint8
-{
-	BaseValue			UMETA(ToolTip = "The base value of the attribute."),
-	CurrentValue		UMETA(ToolTip = "The current value, modified by skill or buff, of the attribute.")
-};
-```
-
-## 结构体
-
-### FTireflyAttributeRange
-```cpp
-// 属性范围
-USTRUCT(BlueprintType)
-struct TIREFLYCOMBATSYSTEM_API FTireflyAttributeRange
-{
-	GENERATED_BODY()
-
-#pragma region MinValue
-
-public:
-	// 最小值类型
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Min Value")
-	ETireflyAttributeRangeType MinValueType = ETireflyAttributeRangeType::None;
-
-	// 最小值（静态：常数）
-	UPROPERTY(Meta = (EditCondition = "MinValueType == ETireflyAttributeRangeType::Static",  EditConditionHides),
-		EditAnywhere, BlueprintReadOnly, Category = "Min Value")
-	float MinValue = 0.f;
-
-	// 最小值（动态：属性）
-	UPROPERTY(Meta = (EditCondition = "MinValueType == ETireflyAttributeRangeType::Dynamic",  EditConditionHides,
-		GetOptions = "TireflyCombatSystemLibrary.GetAttributeNames"),
-		EditAnywhere, BlueprintReadOnly, Category = "Min Value")
-	FName MinValueAttribute = NAME_None;
-
-#pragma endregion
-
-#pragma region MaxValue
-
-public:
-	// 最大值类型
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Max Value")
-	ETireflyAttributeRangeType MaxValueType = ETireflyAttributeRangeType::None;
-
-	// 最大值（静态：常数）
-	UPROPERTY(Meta = (EditCondition = "MaxValueType == ETireflyAttributeRangeType::Static",  EditConditionHides),
-		EditAnywhere, BlueprintReadOnly, Category = "Max Value")
-	float MaxValue = 0.f;
-
-	// 最大值（动态：属性）
-	UPROPERTY(Meta = (EditCondition = "MaxValueType == ETireflyAttributeRangeType::Dynamic",  EditConditionHides,
-		GetOptions = "TireflyCombatSystemLibrary.GetAttributeNames"),
-		EditAnywhere, BlueprintReadOnly, Category = "Max Value")
-	FName MaxValueAttribute = NAME_None;
-
-#pragma endregion
-};
-```
-
-### FTireflyAttributeDefinition
 ```cpp
 // 属性定义表
 USTRUCT(BlueprintType)
@@ -124,7 +48,73 @@ public:
 };
 ```
 
-### FTireflyAttributeInstance
+### a. 属性数值范围类型
+
+```cpp
+// 属性范围类型
+UENUM(BlueprintType)
+enum class ETireflyAttributeRangeType : uint8
+{
+	None  = 0		UMETA(ToolTip = "One side (minimum or maximum) of the value range for Attribute has no limit."),
+	Static = 1		UMETA(ToolTip = "One side (minimum or maximum) of the value range for Attribute is a constant numeric value."),
+	Dynamic = 2		UMETA(ToolTip = "One side (minimum or maximum) of the value range for Attribute is dynamic, which is affected by another attribute value."),
+};
+```
+
+### b. 属性数值范围结构
+
+```cpp
+// 属性范围
+USTRUCT(BlueprintType)
+struct TIREFLYCOMBATSYSTEM_API FTireflyAttributeRange
+{
+	GENERATED_BODY()
+
+#pragma region MinValue
+	
+public:
+	// 最小值类型
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Min Value")
+	ETireflyAttributeRangeType MinValueType = ETireflyAttributeRangeType::None;
+
+	// 最小值（静态：常数）
+	UPROPERTY(Meta = (EditCondition = "MinValueType == ETireflyAttributeRangeType::Static",  EditConditionHides),
+		EditAnywhere, BlueprintReadOnly, Category = "Min Value")
+	float MinValue = 0.f;
+
+	// 最小值（动态：属性）
+	UPROPERTY(Meta = (EditCondition = "MinValueType == ETireflyAttributeRangeType::Dynamic",  EditConditionHides,
+		GetOptions = "TireflyCombatSystemLibrary.GetAttributeNames"),
+		EditAnywhere, BlueprintReadOnly, Category = "Min Value")
+	FName MinValueAttribute = NAME_None;
+
+#pragma endregion
+
+
+#pragma region MaxValue
+	
+public:
+	// 最大值类型
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Max Value")
+	ETireflyAttributeRangeType MaxValueType = ETireflyAttributeRangeType::None;
+
+	// 最大值（静态：常数）
+	UPROPERTY(Meta = (EditCondition = "MaxValueType == ETireflyAttributeRangeType::Static",  EditConditionHides),
+		EditAnywhere, BlueprintReadOnly, Category = "Max Value")
+	float MaxValue = 0.f;
+
+	// 最大值（动态：属性）
+	UPROPERTY(Meta = (EditCondition = "MaxValueType == ETireflyAttributeRangeType::Dynamic",  EditConditionHides,
+		GetOptions = "TireflyCombatSystemLibrary.GetAttributeNames"),
+		EditAnywhere, BlueprintReadOnly, Category = "Max Value")
+	FName MaxValueAttribute = NAME_None;
+
+#pragma endregion
+};
+```
+
+## 1.2 属性实例
+
 ```cpp
 // 属性实例
 USTRUCT(BlueprintType)
@@ -155,7 +145,8 @@ public:
 };
 ```
 
-### FTireflyAttributeModifierDefinition
+## 1.3 属性修改器
+
 ```cpp
 // 属性修改器定义
 USTRUCT()
@@ -199,7 +190,20 @@ public:
 };
 ```
 
-### FTireflyAttributeModifierInstance
+### a. 属性修改器操作方式
+
+```cpp
+// 修改器修改属性的方式
+UENUM(BlueprintType)
+enum class ETireflyAttributeModifierMode : uint8
+{
+	BaseValue			UMETA(ToolTip = "The base value of the attribute."),
+	CurrentValue		UMETA(ToolTip = "The current value, modified by skill or buff, of the attribute."),
+};
+```
+
+## 1.4 属性修改器实例
+
 ```cpp
 // 属性修改器实例
 USTRUCT(BlueprintType)
@@ -238,7 +242,7 @@ public:
 
 
 #pragma region Constructors
-
+	
 public:
 	FTireflyAttributeModifierInstance(){}
 
@@ -259,9 +263,8 @@ public:
 };
 ```
 
-## 类
+## 1.5 属性修改器执行算法
 
-### UTireflyAttributeModifierExecution
 ```cpp
 // 属性修改器执行算法
 UCLASS(BlueprintType, Blueprintable, Abstract, ClassGroup = (TireflyCombatSystem))
@@ -295,7 +298,152 @@ public:
 };
 ```
 
-### UTireflyAttributeModifierMerger
+### a. 属性修改执行算法：加法运算
+
+```cpp
+// 属性修改器执行算法：加法
+UCLASS(Meta = (DisplayName = "属性修改器执行算法：加法"))
+class TIREFLYCOMBATSYSTEM_API UTireflyAttrModExec_Addition : public UTireflyAttributeModifierExecution
+{
+	GENERATED_BODY()
+
+public:
+	virtual void Execute_Implementation(
+		AActor* Instigator,
+		AActor* Target,
+		const FTireflyAttributeModifierInstance& ModInst,
+		UPARAM(ref) TMap<FName, float>& BaseValues,
+		UPARAM(ref) TMap<FName, float>& CurrentValues) override
+	{
+		const FName& AttrToMod = ModInst.ModifierDef.AttributeName;
+		float* BaseValue = BaseValues.Find(AttrToMod);
+		float* CurrentValue = CurrentValues.Find(AttrToMod);
+		if (!BaseValue || !CurrentValue)
+		{
+			UE_LOG(LogTcsAttrModExec, Warning, TEXT("[%s] Attribute '%s' not found."),
+				*FString(__FUNCTION__),
+				*AttrToMod.ToString());
+			return;
+		}
+
+		if (const float* Magnitude = ModInst.Operands.Find(FName("Magnitude")))
+		{
+			switch (ModInst.ModifierDef.ModifierMode)
+			{
+			case ETireflyAttributeModifierMode::BaseValue:
+				{
+					*BaseValue += *Magnitude;
+					break;
+				}
+			case ETireflyAttributeModifierMode::CurrentValue:
+				{
+					*CurrentValue += *Magnitude;
+					break;
+				}
+			}
+		}
+	}
+};
+```
+
+### b. 属性修改执行算法：乘法结合律
+
+```cpp
+// 属性修改器执行算法：乘法结合律
+UCLASS(Meta = (DisplayName = "属性修改器执行算法：乘法结合律"))
+class TIREFLYCOMBATSYSTEM_API UTireflyAttrModExec_MultiplyAdditive : public UTireflyAttributeModifierExecution
+{
+	GENERATED_BODY()
+
+public:
+	virtual void Execute_Implementation(
+		AActor* Instigator,
+		AActor* Target,
+		const FTireflyAttributeModifierInstance& ModInst,
+		UPARAM(ref) TMap<FName, float>& BaseValues,
+		UPARAM(ref) TMap<FName, float>& CurrentValues) override
+	{
+		const FName& AttrToMod = ModInst.ModifierDef.AttributeName;
+		float* BaseValue = BaseValues.Find(AttrToMod);
+		float* CurrentValue = CurrentValues.Find(AttrToMod);
+		if (!BaseValue || !CurrentValue)
+		{
+			UE_LOG(LogTcsAttrModExec, Warning, TEXT("[%s] Attribute '%s' not found."),
+				*FString(__FUNCTION__),
+				*AttrToMod.ToString());
+			return;
+		}
+
+		if (const float* Magnitude = ModInst.Operands.Find(FName("Magnitude")))
+		{
+			switch (ModInst.ModifierDef.ModifierMode)
+			{
+			case ETireflyAttributeModifierMode::BaseValue:
+				{
+					*BaseValue *= (1.f + *Magnitude);
+					break;
+				}
+			case ETireflyAttributeModifierMode::CurrentValue:
+				{
+					*CurrentValue *= (1.f + *Magnitude);
+					break;
+				}
+			}
+		}
+	}
+};
+```
+
+### c. 属性修改执行算法：乘法连乘
+
+```cpp
+// 属性修改器执行算法：乘法连乘
+UCLASS(Meta = (DisplayName = "属性修改器执行算法：乘法连乘"))
+class TIREFLYCOMBATSYSTEM_API UTireflyAttrModExec_MultiplyContinued : public UTireflyAttributeModifierExecution
+{
+	GENERATED_BODY()
+
+public:
+	virtual void Execute_Implementation(
+		AActor* Instigator,
+		AActor* Target,
+		const FTireflyAttributeModifierInstance& ModInst,
+		UPARAM(ref) TMap<FName, float>& BaseValues,
+		UPARAM(ref) TMap<FName, float>& CurrentValues) override
+	{
+		const FName& AttrToMod = ModInst.ModifierDef.AttributeName;
+		float* BaseValue = BaseValues.Find(AttrToMod);
+		float* CurrentValue = CurrentValues.Find(AttrToMod);
+		if (!BaseValue || !CurrentValue)
+		{
+			UE_LOG(LogTcsAttrModExec, Warning, TEXT("[%s] Attribute '%s' not found."),
+				*FString(__FUNCTION__),
+				*AttrToMod.ToString());
+			return;
+		}
+
+		if (const float* Magnitude = ModInst.Operands.Find(FName("Magnitude")))
+		{
+			switch (ModInst.ModifierDef.ModifierMode)
+			{
+			case ETireflyAttributeModifierMode::BaseValue:
+				{
+					*BaseValue *= *Magnitude;
+					break;
+				}
+			case ETireflyAttributeModifierMode::CurrentValue:
+				{
+					*CurrentValue *= *Magnitude;
+					break;
+				}
+			}
+		}
+	}
+};
+```
+
+## 1.6 属性修改器合并算法
+
 ```cpp
 // 属性修改器合并算法
 UCLASS(BlueprintType, Blueprintable, Abstract, ClassGroup = (TireflyCombatSystem))
@@ -320,180 +468,8 @@ public:
 };
 ```
 
-### UTireflyAttrModExec_Addition
-```cpp
-// 属性修改器：加法
-UCLASS(Meta = (DisplayName = "属性修改器：加法"))
-class TIREFLYCOMBATSYSTEM_API UTireflyAttrModExec_Addition : public UTireflyAttributeModifierExecution
-{
-	GENERATED_BODY()
+### a. 属性修改器合并操作：取加法和值
 
-public:
-	virtual void Execute_Implementation(
-		AActor* Instigator,
-		AActor* Target,
-		const FTireflyAttributeModifierInstance& ModInst,
-		UPARAM(ref) TMap<FName, float>& BaseValues,
-		UPARAM(ref) TMap<FName, float>& CurrentValues) override;
-};
-```
-
-#### 实现: UTireflyAttrModExec_Addition
-```cpp
-// 属性修改器：加法
-void UTireflyAttrModExec_Addition::Execute_Implementation(
-	AActor* Instigator,
-	AActor* Target,
-	const FTireflyAttributeModifierInstance& ModInst,
-	UPARAM(ref) TMap<FName, float>& BaseValues,
-	UPARAM(ref) TMap<FName, float>& CurrentValues)
-{
-	const FName& AttrToMod = ModInst.ModifierDef.AttributeName;
-	float* BaseValue = BaseValues.Find(AttrToMod);
-	float* CurrentValue = CurrentValues.Find(AttrToMod);
-	if (!BaseValue || !CurrentValue)
-	{
-		UE_LOG(LogTcsAttrModExec, Warning, TEXT("[%s] Attribute '%s' not found."),
-			*FString(__FUNCTION__),
-			*AttrToMod.ToString());
-		return;
-	}
-
-	switch (ModInst.ModifierDef.ModifierMode)
-	{
-	case ETireflyAttributeModifierMode::BaseValue:
-		{
-			for (const TPair<FName, float>& Pair : ModInst.Operands)
-			{
-				*BaseValue += Pair.Value;
-			}
-			break;
-		}
-	case ETireflyAttributeModifierMode::CurrentValue:
-		{
-			for  (const TPair<FName, float>& Pair : ModInst.Operands)
-			{
-				*CurrentValue += Pair.Value;
-			}
-			break;
-		}
-	}
-}
-```
-
-### UTireflyAttrModExec_MultiplyAdditive
-```cpp
-// 属性修改器：乘法结合律
-UCLASS(Meta = (DisplayName = "属性修改器：乘法结合律"))
-class TIREFLYCOMBATSYSTEM_API UTireflyAttrModExec_MultiplyAdditive : public UTireflyAttributeModifierExecution
-{
-	GENERATED_BODY()
-
-public:
-	virtual void Execute_Implementation(
-		AActor* Instigator,
-		AActor* Target,
-		const FTireflyAttributeModifierInstance& ModInst,
-		UPARAM(ref) TMap<FName, float>& BaseValues,
-		UPARAM(ref) TMap<FName, float>& CurrentValues) override;
-};
-```
-
-#### 实现: UTireflyAttrModExec_MultiplyAdditive
-```cpp
-// 属性修改器：乘法结合律
-void UTireflyAttrModExec_MultiplyAdditive::Execute_Implementation(
-	AActor* Instigator,
-	AActor* Target,
-	const FTireflyAttributeModifierInstance& ModInst,
-	TMap<FName, float>& BaseValues,
-	TMap<FName, float>& CurrentValues)
-{
-	const FName& AttrToMod = ModInst.ModifierDef.AttributeName;
-	float* BaseValue = BaseValues.Find(AttrToMod);
-	float* CurrentValue = CurrentValues.Find(AttrToMod);
-	if (!BaseValue || !CurrentValue)
-	{
-		UE_LOG(LogTcsAttrModExec, Warning, TEXT("[%s] Attribute '%s' not found."),
-			*FString(__FUNCTION__),
-			*AttrToMod.ToString());
-		return;
-	}
-
-	switch (ModInst.ModifierDef.ModifierMode)
-	{
-	case ETireflyAttributeModifierMode::BaseValue:
-		{
-			float MultiplyOperand = 1.f;
-			for (const TPair<FName, float>& Pair : ModInst.Operands)
-			{
-				MultiplyOperand += Pair.Value;
-			}
-			*BaseValue *= MultiplyOperand;
-			break;
-		}
-	case ETireflyAttributeModifierMode::CurrentValue:
-		{
-			float MultiplyOperand = 1.f;
-			for  (const TPair<FName, float>& Pair : ModInst.Operands)
-			{
-				MultiplyOperand += Pair.Value;
-			}
-			*CurrentValue *= MultiplyOperand;
-			break;
-		}
-	}
-}
-```
-
-### UTireflyAttrModExec_MultiplyContinued
-```cpp
-// 属性修改器：乘法连乘
-UCLASS(Meta = (DisplayName = "属性修改器：乘法连乘"))
-class TIREFLYCOMBATSYSTEM_API UTireflyAttrModExec_MultiplyContinued : public UTireflyAttributeModifierExecution
-{
-	GENERATED_BODY()
-
-public:
-	virtual void Execute_Implementation(
-		AActor* Instigator,
-		AActor* Target,
-		const FTireflyAttributeModifierInstance& ModInst,
-		UPARAM(ref) TMap<FName, float>& BaseValues,
-		UPARAM(ref) TMap<FName, float>& CurrentValues) override;
-};
-```
-
-#### 实现: UTireflyAttrModExec_MultiplyContinued
-```cpp
-// 属性修改器：乘法连乘
-void UTireflyAttrModMerger_UseAdditiveSum::Merge_Implementation(
-	TArray<FTireflyAttributeModifierInstance>& ModifiersToMerge,
-	TArray<FTireflyAttributeModifierInstance>& MergedModifiers)
-{
-	if (ModifiersToMerge.Num() <= 1)
-	{
-		MergedModifiers.Append(ModifiersToMerge);
-		return;
-	}
-
-	FTireflyAttributeModifierInstance MergedModifier = ModifiersToMerge[0];
-	for (const FTireflyAttributeModifierInstance& Modifier : ModifiersToMerge)
-	{
-		for (const TPair<FName, float>& Pair : Modifier.Operands)
-		{
-			if (float* OperandValue = MergedModifier.Operands.Find(Pair.Key))
-			{
-				*OperandValue += Pair.Value;
-			}
-		}
-	}
-
-	MergedModifiers.Add(MergedModifier);
-}
-```
-
-### UTireflyAttrModMerger_UseAdditiveSum
 ```cpp
 // 属性修改器合并操作：取加法和值
 UCLASS(Meta = (DisplayName = "属性修改器合并操作：取加法和值"))
@@ -505,40 +481,32 @@ public:
 	virtual void Merge_Implementation(
 		UPARAM(ref) TArray<FTireflyAttributeModifierInstance>& ModifiersToMerge,
 		TArray<FTireflyAttributeModifierInstance>& MergedModifiers) override;
+	{
+		if (ModifiersToMerge.Num() <= 1)
+		{
+			MergedModifiers.Append(ModifiersToMerge);
+			return;
+		}
+
+		const FName MagnitudeKey = FName("Magnitude");
+		FTireflyAttributeModifierInstance& MergedModifier = ModifiersToMerge[0];
+		float* MagnitudeToMerge = MergedModifier.Operands.Find(MagnitudeKey);
+	
+		for (const FTireflyAttributeModifierInstance& Modifier : ModifiersToMerge)
+		{
+			if (const float* Magnitude = Modifier.Operands.Find(MagnitudeKey))
+			{
+				*MagnitudeToMerge += *Magnitude;
+			}
+		}
+
+		MergedModifiers.Add(MergedModifier);
+	}
 };
 ```
 
-#### 实现: UTireflyAttrModMerger_UseAdditiveSum
-```cpp
-// 属性修改器合并操作：取操作数最大
-void UTireflyAttrModMerger_UseMaximum::Merge_Implementation(
-	TArray<FTireflyAttributeModifierInstance>& ModifiersToMerge,
-	TArray<FTireflyAttributeModifierInstance>& MergedModifiers)
-{
-	if (ModifiersToMerge.IsEmpty())
-	{
-		return;
-	}
+### b. 属性修改器合并操作：取操作数最大
 
-	FTireflyAttributeModifierInstance MaxMagnitudeMod = ModifiersToMerge[0];
-	for (const FTireflyAttributeModifierInstance& Modifier : ModifiersToMerge)
-	{
-		const float* BiggestMagnitude = MaxMagnitudeMod.Operands.Find(FName("Magnitude"));
-		const float* ModifierMagnitude = Modifier.Operands.Find(FName("Magnitude"));
-		if (BiggestMagnitude && ModifierMagnitude)
-	{
-			if (*ModifierMagnitude > *BiggestMagnitude)
-			{
-				MaxMagnitudeMod = Modifier;
-			}
-		}
-	}
-
-	MergedModifiers.Add(MaxMagnitudeMod);
-}
-```
-
-### UTireflyAttrModMerger_UseMaximum
 ```cpp
 // 属性修改器合并操作：取操作数最大
 UCLASS(Meta = (DisplayName = "属性修改器合并操作：取操作数最大"))
@@ -550,42 +518,34 @@ public:
 	virtual void Merge_Implementation(
 		UPARAM(ref) TArray<FTireflyAttributeModifierInstance>& ModifiersToMerge,
 		TArray<FTireflyAttributeModifierInstance>& MergedModifiers) override;
+	{
+		if (ModifiersToMerge.IsEmpty())
+		{
+			return;
+		}
+
+		const FName MagnitudeKey = FName("Magnitude");
+		int32 MaxIndex = 0;
+		const float* MaxMagnitude = ModifiersToMerge[0].Operands.Find(MagnitudeKey);
+
+		for (int32 i = 1; i < ModifiersToMerge.Num(); ++i)
+		{
+			const float* CurrentMagnitude = ModifiersToMerge[i].Operands.Find(MagnitudeKey);
+			if (CurrentMagnitude && (!MaxMagnitude || *CurrentMagnitude > *MaxMagnitude))
+			{
+				MaxMagnitude = CurrentMagnitude;
+				MaxIndex = i;
+			}
+		}
+
+		MergedModifiers.Add(ModifiersToMerge[MaxIndex]);
+	}
 };
 ```
 
-#### 实现: UTireflyAttrModMerger_UseMaximum
+### c. 属性修改器合并操作：取操作数最小
+
 ```cpp
-// 属性修改器合并操作：取最小
-void UTireflyAttrModMerger_UseMinimum::Merge_Implementation(
-	TArray<FTireflyAttributeModifierInstance>& ModifiersToMerge,
-	TArray<FTireflyAttributeModifierInstance>& MergedModifiers)
-{
-	if (ModifiersToMerge.IsEmpty())
-	{
-		return;
-	}
-
-	FTireflyAttributeModifierInstance MinMagnitudeMod = ModifiersToMerge[0];
-	for (const FTireflyAttributeModifierInstance& Modifier : ModifiersToMerge)
-	{
-		const float* BiggestMagnitude = MinMagnitudeMod.Operands.Find(FName("Magnitude"));
-		const float* ModifierMagnitude = Modifier.Operands.Find(FName("Magnitude"));
-		if (BiggestMagnitude && ModifierMagnitude)
-	{
-			if (*ModifierMagnitude < *BiggestMagnitude)
-			{
-				MinMagnitudeMod = Modifier;
-			}
-		}
-	}
-
-	MergedModifiers.Add(MinMagnitudeMod);
-}
-```
-
-### UTireflyAttrModMerger_UseMinimum
-```cpp
-// 属性修改器合并操作：取最小
 UCLASS()
 class TIREFLYCOMBATSYSTEM_API UTireflyAttrModMerger_UseMinimum : public UTireflyAttributeModifierMerger
 {
@@ -594,44 +554,37 @@ class TIREFLYCOMBATSYSTEM_API UTireflyAttrModMerger_UseMinimum : public UTirefly
 public:
 	virtual void Merge_Implementation(
 		UPARAM(ref) TArray<FTireflyAttributeModifierInstance>& ModifiersToMerge,
-		TArray<FTireflyAttributeModifierInstance>& MergedModifiers) override;
+		TArray<FTireflyAttributeModifierInstance>& MergedModifiers) override
+	{
+		if (ModifiersToMerge.IsEmpty())
+		{
+			return;
+		}
+
+		const FName MagnitudeKey = FName("Magnitude");
+		int32 MinIndex = 0;
+		const float* MinMagnitude = ModifiersToMerge[0].Operands.Find(MagnitudeKey);
+
+		for (int32 i = 1; i < ModifiersToMerge.Num(); ++i)
+		{
+			const float* CurrentMagnitude = ModifiersToMerge[i].Operands.Find(MagnitudeKey);
+			if (CurrentMagnitude && (!MinMagnitude || *CurrentMagnitude < *MinMagnitude))
+			{
+				MinMagnitude = CurrentMagnitude;
+				MinIndex = i;
+			}
+		}
+
+		MergedModifiers.Add(ModifiersToMerge[MinIndex]);
+	}
 };
 ```
 
-#### 实现: UTireflyAttrModMerger_UseMinimum
-```cpp
-// 属性修改器合并操作：取最小
-void UTireflyAttrModMerger_UseMinimum::Merge_Implementation(
-	TArray<FTireflyAttributeModifierInstance>& ModifiersToMerge,
-	TArray<FTireflyAttributeModifierInstance>& MergedModifiers)
-{
-	if (ModifiersToMerge.IsEmpty())
-	{
-		return;
-	}
+### d. 属性修改器合并操作：取最新
 
-	FTireflyAttributeModifierInstance MinMagnitudeMod = ModifiersToMerge[0];
-	for (const FTireflyAttributeModifierInstance& Modifier : ModifiersToMerge)
-	{
-		const float* BiggestMagnitude = MinMagnitudeMod.Operands.Find(FName("Magnitude"));
-		const float* ModifierMagnitude = Modifier.Operands.Find(FName("Magnitude"));
-		if (BiggestMagnitude && ModifierMagnitude)
-	{
-			if (*ModifierMagnitude < *BiggestMagnitude)
-			{
-				MinMagnitudeMod = Modifier;
-			}
-		}
-	}
-
-	MergedModifiers.Add(MinMagnitudeMod);
-}
-```
-
-### UTireflyAttrModMerger_UseNewest
 ```cpp
 // 属性修改器合并操作：取最新
-UCLASS(Meta = (DisplayName = "属性修改器合并操作：取最大"))
+UCLASS(Meta = (DisplayName = "属性修改器合并操作：取最新"))
 class TIREFLYCOMBATSYSTEM_API UTireflyAttrModMerger_UseNewest : public UTireflyAttributeModifierMerger
 {
 	GENERATED_BODY()
@@ -639,36 +592,29 @@ class TIREFLYCOMBATSYSTEM_API UTireflyAttrModMerger_UseNewest : public UTireflyA
 public:
 	virtual void Merge_Implementation(
 		UPARAM(ref) TArray<FTireflyAttributeModifierInstance>& ModifiersToMerge,
-		TArray<FTireflyAttributeModifierInstance>& MergedModifiers) override;
+		TArray<FTireflyAttributeModifierInstance>& MergedModifiers) override
+	{
+		if (ModifiersToMerge.IsEmpty())
+		{
+			return;
+		}
+
+		int32 NewestModIndex = 0;
+		for (int32 i = 1; i < ModifiersToMerge.Num(); i++)
+		{
+			if (ModifiersToMerge[i].ApplyTimestamp > ModifiersToMerge[NewestModIndex].ApplyTimestamp)
+			{
+				NewestModIndex = i;
+			}
+		}
+
+		MergedModifiers.Add(ModifiersToMerge[NewestModIndex]);
+	}
 };
 ```
 
-#### 实现: UTireflyAttrModMerger_UseNewest
-```cpp
-// 属性修改器合并操作：取最新
-void UTireflyAttrModMerger_UseNewest::Merge_Implementation(
-	TArray<FTireflyAttributeModifierInstance>& ModifiersToMerge,
-	TArray<FTireflyAttributeModifierInstance>& MergedModifiers)
-{
-	if (ModifiersToMerge.IsEmpty())
-	{
-		return;
-	}
+### e. 属性修改器合并操作：取最旧
 
-	FTireflyAttributeModifierInstance NewestMod = ModifiersToMerge[0];
-	for (const FTireflyAttributeModifierInstance& Modifier : ModifiersToMerge)
-	{
-		if (Modifier.ApplyTimestamp > NewestMod.ApplyTimestamp)
-		{
-			NewestMod = Modifier;
-		}
-	}
-
-	MergedModifiers.Add(NewestMod);
-}
-```
-
-### UTireflyAttrModMerger_UseOldest
 ```cpp
 // 属性修改器合并操作：取最旧
 UCLASS(Meta = (DisplayName = "属性修改器合并操作：取最旧"))
@@ -679,38 +625,30 @@ class TIREFLYCOMBATSYSTEM_API UTireflyAttrModMerger_UseOldest : public UTireflyA
 public:
 	virtual void Merge_Implementation(
 		UPARAM(ref) TArray<FTireflyAttributeModifierInstance>& ModifiersToMerge,
-		TArray<FTireflyAttributeModifierInstance>& MergedModifiers) override;
+		TArray<FTireflyAttributeModifierInstance>& MergedModifiers) override
+	{
+		if (ModifiersToMerge.IsEmpty())
+		{
+			return;
+		}
+	
+		int32 OldestModIndex = 0;
+		for (int32 i = 1; i < ModifiersToMerge.Num(); i++)
+		{
+			if (ModifiersToMerge[i].ApplyTimestamp < ModifiersToMerge[OldestModIndex].ApplyTimestamp)
+			{
+				OldestModIndex = i;
+			}
+		}
+
+		MergedModifiers.Add(ModifiersToMerge[OldestModIndex]);
+	}
 };
 ```
 
-#### 实现: UTireflyAttrModMerger_UseOldest
+## 1.7 属性组件
+
 ```cpp
-// 属性修改器合并操作：取最旧
-void UTireflyAttrModMerger_UseOldest::Merge_Implementation(
-	TArray<FTireflyAttributeModifierInstance>& ModifiersToMerge,
-	TArray<FTireflyAttributeModifierInstance>& MergedModifiers)
-{
-	if (ModifiersToMerge.IsEmpty())
-	{
-		return;
-	}
-
-	FTireflyAttributeModifierInstance OldestMod = ModifiersToMerge[0];
-	for (const FTireflyAttributeModifierInstance& Modifier : ModifiersToMerge)
-	{
-		if (Modifier.ApplyTimestamp < OldestMod.ApplyTimestamp)
-		{
-			OldestMod = Modifier;
-		}
-	}
-
-	MergedModifiers.Add(OldestMod);
-}
-```
-
-### UTireflyAttributeComponent
-```cpp
-// 属性组件
 UCLASS(ClassGroup = (TireflyCombatSystem), Meta = (BlueprintSpawnableComponent, DisplayName = "Tirefly Attribute Comp"))
 class TIREFLYCOMBATSYSTEM_API UTireflyAttributeComponent : public UActorComponent
 {
@@ -719,34 +657,21 @@ class TIREFLYCOMBATSYSTEM_API UTireflyAttributeComponent : public UActorComponen
 #pragma region ActorComponent
 
 public:
-	UTireflyAttributeComponent();
+	UTireflyAttributeComponent() {}
 
 protected:
-	virtual void BeginPlay() override;
+	virtual void BeginPlay() override {}
 
 #pragma endregion
 };
 ```
 
-#### 实现: UTireflyAttributeComponent
-```cpp
-// 属性组件实现
-inline UTireflyAttributeComponent::UTireflyAttributeComponent()
-{
-	PrimaryComponentTick.bCanEverTick = false;
-}
+## 1.8 属性管理器子系统
 
-inline void UTireflyAttributeComponent::BeginPlay()
-{
-	Super::BeginPlay();
-}
-```
-
-### UTireflyAttributeManagerSubsystem
 ```cpp
-// 属性管理子系统
 UCLASS()
 class TIREFLYCOMBATSYSTEM_API UTireflyAttributeManagerSubsystem : public UWorldSubsystem
 {
 	GENERATED_BODY()
 };
+```
