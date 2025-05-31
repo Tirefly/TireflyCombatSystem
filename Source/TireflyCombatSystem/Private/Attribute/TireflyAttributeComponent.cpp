@@ -13,3 +13,47 @@ void UTireflyAttributeComponent::BeginPlay()
 {
 	Super::BeginPlay();
 }
+
+bool UTireflyAttributeComponent::GetAttributeValue(FName AttributeName, float& OutValue) const
+{
+	if (const FTireflyAttributeInstance* AttrInst = Attributes.Find(AttributeName))
+	{
+		OutValue = AttrInst->CurrentValue;
+		return true;
+	}
+
+	return false;
+}
+
+bool UTireflyAttributeComponent::GetAttributeBaseValue(FName AttributeName, float& OutValue) const
+{
+	if (const FTireflyAttributeInstance* AttrInst = Attributes.Find(AttributeName))
+	{
+		OutValue = AttrInst->BaseValue;
+		return true;
+	}
+
+	return false;
+}
+
+TMap<FName, float> UTireflyAttributeComponent::GetAttributeValues() const
+{
+	TMap<FName, float> AttributeValues;
+	 for (const auto& AttrInst : Attributes)
+	{
+		AttributeValues.Add(AttrInst.Key, AttrInst.Value.CurrentValue);
+	}
+	
+	return AttributeValues;
+}
+
+TMap<FName, float> UTireflyAttributeComponent::GetAttributeBaseValues() const
+{
+	TMap<FName, float> AttributeValues;
+	for (const auto& AttrInst : Attributes)
+	{
+		AttributeValues.Add(AttrInst.Key, AttrInst.Value.BaseValue);
+	}
+	
+	return AttributeValues;
+}

@@ -16,7 +16,7 @@ class TIREFLYCOMBATSYSTEM_API UTireflyCombatSystemLibrary : public UBlueprintFun
 
 public:
 	// 获取所有属性名称
-	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Attribute")
+	UFUNCTION(BlueprintCallable, CallInEditor, Category = "TireflyCombatSystem|Attribute")
 	static TArray<FName> GetAttributeNames();
 
 #pragma endregion

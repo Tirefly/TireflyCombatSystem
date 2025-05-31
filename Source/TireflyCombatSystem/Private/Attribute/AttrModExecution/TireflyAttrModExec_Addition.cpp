@@ -8,8 +8,6 @@
 
 
 void UTireflyAttrModExec_Addition::Execute_Implementation(
-	AActor* Instigator,
-	AActor* Target,
 	const FTireflyAttributeModifierInstance& ModInst,
 	UPARAM(ref) TMap<FName, float>& BaseValues,
 	UPARAM(ref) TMap<FName, float>& CurrentValues)

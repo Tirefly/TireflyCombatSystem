@@ -8,8 +8,8 @@
 
 
 
-// 属性修改器合并操作：取操作数最小
-UCLASS(Meta = (DisplayName = "属性修改器合并操作：取操作数最小"))
+// 属性修改器合并器：取操作数最小
+UCLASS(Meta = (DisplayName = "属性修改器合并器：取操作数最小"))
 class TIREFLYCOMBATSYSTEM_API UTireflyAttrModMerger_UseMinimum : public UTireflyAttributeModifierMerger
 {
 	GENERATED_BODY()

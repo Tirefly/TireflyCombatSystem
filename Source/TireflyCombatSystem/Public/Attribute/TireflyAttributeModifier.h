@@ -82,6 +82,14 @@ public:
 	UPROPERTY(BlueprintReadOnly)
 	TObjectPtr<UObject> SourceObject;
 
+	// 修改器发起者
+	UPROPERTY(BlueprintReadOnly)
+	TObjectPtr<AActor> Instigator;
+
+	// 修改器目标
+	UPROPERTY(BlueprintReadOnly)
+	TObjectPtr<AActor> Target;
+
 	// 修改器操作数
 	UPROPERTY(BlueprintReadOnly)
 	TMap<FName, float> Operands;
@@ -113,6 +121,23 @@ public:
 		return ModifierDef.ModifierName != NAME_None
 			&& ModifierInstId >= 0
 			&& ApplyTimestamp >= 0;
+	}
+
+	bool operator==(const FTireflyAttributeModifierInstance& Other) const
+	{
+		return ModifierDef.ModifierName == Other.ModifierDef.ModifierName
+			&& ModifierInstId == Other.ModifierInstId
+			&& ApplyTimestamp == Other.ApplyTimestamp;
+	}
+
+	bool operator!=(const FTireflyAttributeModifierInstance& Other) const
+	{
+		return !(*this == Other);
+	}
+
+	bool operator<(const FTireflyAttributeModifierInstance& Other) const
+	{
+		return ModifierDef.Priority < Other.ModifierDef.Priority;
 	}
 
 #pragma endregion

@@ -4,13 +4,13 @@
 
 #include "CoreMinimal.h"
 #include "Attribute/TireflyAttributeModifierMerger.h"
-#include "TireflyAttrModMerger_UseOldest.generated.h"
+#include "TireflyAttrModMerger_NoMerge.generated.h"
 
 
 
-// 属性修改器合并器：取最旧
-UCLASS(Meta = (DisplayName = "属性修改器合并器：取最旧"))
-class TIREFLYCOMBATSYSTEM_API UTireflyAttrModMerger_UseOldest : public UTireflyAttributeModifierMerger
+// 属性修改器合并器：不合并
+UCLASS(Meta = (DisplayName = "属性修改器合并器：不合并"))
+class TIREFLYCOMBATSYSTEM_API UTireflyAttrModMerger_NoMerge : public UTireflyAttributeModifierMerger
 {
 	GENERATED_BODY()
 

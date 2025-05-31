@@ -9,7 +9,7 @@
 
 
 
-// 属性修改器合并算法
+// 属性修改器合并器
 UCLASS(BlueprintType, Blueprintable, Abstract, ClassGroup = (TireflyCombatSystem))
 class TIREFLYCOMBATSYSTEM_API UTireflyAttributeModifierMerger : public UObject
 {
@@ -17,7 +17,7 @@ class TIREFLYCOMBATSYSTEM_API UTireflyAttributeModifierMerger : public UObject
 
 public:
 	/**
-	 * 属性修改器合并算法
+	 * 属性修改器合并器
 	 * 
 	 * @param ModifiersToMerge 要合并的属性修改器
 	 * @param MergedModifiers 合并后的属性修改器

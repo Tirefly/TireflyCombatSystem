@@ -8,8 +8,8 @@
 
 
 
-// 属性修改器合并操作：取最新
-UCLASS(Meta = (DisplayName = "属性修改器合并操作：取最新"))
+// 属性修改器合并器：取最新
+UCLASS(Meta = (DisplayName = "属性修改器合并器：取最新"))
 class TIREFLYCOMBATSYSTEM_API UTireflyAttrModMerger_UseNewest : public UTireflyAttributeModifierMerger
 {
 	GENERATED_BODY()

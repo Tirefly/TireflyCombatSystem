@@ -130,6 +130,10 @@ public:
 	UPROPERTY(BlueprintReadOnly)
 	int32 AttributeInstId = -1;
 
+	//  属性拥有者
+	UPROPERTY(BlueprintReadOnly)
+	TWeakObjectPtr<AActor> Owner;
+
 	// 基础值
 	UPROPERTY(BlueprintReadOnly)
 	float BaseValue = 0.0f;
@@ -138,7 +142,14 @@ public:
 	UPROPERTY(BlueprintReadOnly)
 	float CurrentValue = 0.0f;
 
-	//  属性拥有者
-	UPROPERTY(BlueprintReadOnly)
-	TWeakObjectPtr<AActor> Owner;
+public:
+	FTireflyAttributeInstance() {}
+
+	FTireflyAttributeInstance(const FTireflyAttributeDefinition& AttrDef, int32 InstId, AActor* Owner)
+		: AttributeDef(AttrDef), AttributeInstId(InstId), Owner(Owner), BaseValue(0.f), CurrentValue(0.f)
+	{}
+
+	FTireflyAttributeInstance(const FTireflyAttributeDefinition& AttrDef, int32 InstId, AActor* Owner, float InitValue)
+		: AttributeDef(AttrDef), AttributeInstId(InstId), Owner(Owner), BaseValue(InitValue), CurrentValue(InitValue)
+	{}
 };

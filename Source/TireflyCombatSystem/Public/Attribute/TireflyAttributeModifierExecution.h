@@ -9,7 +9,7 @@
 
 
 
-// 属性修改器执行算法
+// 属性修改器执行器
 UCLASS(BlueprintType, Blueprintable, Abstract, ClassGroup = (TireflyCombatSystem))
 class TIREFLYCOMBATSYSTEM_API UTireflyAttributeModifierExecution : public UObject
 {
@@ -17,24 +17,18 @@ class TIREFLYCOMBATSYSTEM_API UTireflyAttributeModifierExecution : public UObjec
 
 public:
 	/**
-	 * 属性修改器执行算法
+	 * 属性修改器执行器
 	 * 
-	 * @param Instigator 属性修改流程的发起者
-	 * @param Target 属性修改流程的目标
 	 * @param ModInst 属性修改器实例
 	 * @param BaseValues 要修改的所有属性的基础值
 	 * @param CurrentValues 要修改的所有属性的当前值
 	 */
 	UFUNCTION(BlueprintNativeEvent, Category = TireflyCombatSystem)
 	void Execute(
-		AActor* Instigator,
-		AActor* Target,
 		const FTireflyAttributeModifierInstance& ModInst,
 		UPARAM(ref) TMap<FName, float>& BaseValues,
 		UPARAM(ref) TMap<FName, float>& CurrentValues);
 	virtual void Execute_Implementation(
-		AActor* Instigator,
-		AActor* Target,
 		const FTireflyAttributeModifierInstance& ModInst,
 		UPARAM(ref) TMap<FName, float>& BaseValues,
 		UPARAM(ref) TMap<FName, float>& CurrentValues) {}

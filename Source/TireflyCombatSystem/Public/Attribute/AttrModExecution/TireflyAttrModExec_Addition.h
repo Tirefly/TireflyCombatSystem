@@ -8,16 +8,14 @@
 
 
 
-// 属性修改器执行算法：加法
-UCLASS(Meta = (DisplayName = "属性修改器执行算法：加法"))
+// 属性修改器执行器：加法
+UCLASS(Meta = (DisplayName = "属性修改器执行器：加法"))
 class TIREFLYCOMBATSYSTEM_API UTireflyAttrModExec_Addition : public UTireflyAttributeModifierExecution
 {
 	GENERATED_BODY()
 
 public:
 	virtual void Execute_Implementation(
-		AActor* Instigator,
-		AActor* Target,
 		const FTireflyAttributeModifierInstance& ModInst,
 		UPARAM(ref) TMap<FName, float>& BaseValues,
 		UPARAM(ref) TMap<FName, float>& CurrentValues) override;

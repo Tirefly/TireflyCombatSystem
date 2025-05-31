@@ -8,8 +8,8 @@
 
 
 
-// 属性修改器合并操作：取操作数最大
-UCLASS(Meta = (DisplayName = "属性修改器合并操作：取操作数最大"))
+// 属性修改器合并器：取操作数最大
+UCLASS(Meta = (DisplayName = "属性修改器合并器：取操作数最大"))
 class TIREFLYCOMBATSYSTEM_API UTireflyAttrModMerger_UseMaximum : public UTireflyAttributeModifierMerger
 {
 	GENERATED_BODY()

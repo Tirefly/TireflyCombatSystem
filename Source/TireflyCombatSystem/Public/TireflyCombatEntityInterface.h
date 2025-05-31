@@ -22,18 +22,18 @@ class TIREFLYCOMBATSYSTEM_API ITireflyCombatEntityInterface
 
 public:
 	// 获取战斗实体的状态组件
-	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = TireflyCombatSystem)
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "TireflyCombatSystem")
 	class UTireflyStateComponent* GetStateComponent() const;
 
 	// 获取战斗实体的技能组件
-	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = TireflyCombatSystem)
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "TireflyCombatSystem")
 	class UTireflySkillComponent* GetSkillComponent() const;
 
 	// 获取战斗实体的属性组件
-	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = TireflyCombatSystem)
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "TireflyCombatSystem")
 	class UTireflyAttributeComponent* GetAttributeComponent() const;
 
 	// 获取战斗实体的类型
-	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = TireflyCombatSystem)
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "TireflyCombatSystem")
 	FGameplayTag GetCombatEntityType() const;
 };

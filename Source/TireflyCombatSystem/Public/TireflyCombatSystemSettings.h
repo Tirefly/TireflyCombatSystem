@@ -44,5 +44,9 @@ public:
 	UPROPERTY(Config, EditAnywhere, Category = "DataTable")
 	TSoftObjectPtr<UDataTable> AttributeDefTable;
 
+	// 属性修改器定义数据表
+	UPROPERTY(Config, EditAnywhere, Category = "DataTable")
+	TSoftObjectPtr<UDataTable> AttributeModifierDefTable;
+
 #pragma endregion
 };
