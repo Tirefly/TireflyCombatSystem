@@ -19,14 +19,14 @@ class TIREFLYCOMBATSYSTEM_API UTireflyAttributeManagerSubsystem : public UWorldS
 
 public:
 	// 给战斗实体添加属性
-	UFUNCTION(BlueprintCallable, Category = "Attribute")
+	UFUNCTION(BlueprintCallable, Category = "TireflyCombatSystem|Attribute")
 	void AddAttribute(
 		AActor* CombatEntity,
-		UPARAM(Meta = (GetParamOptions = "TireflyCombatSystem.GetAttributeNames"))FName AttributeName,
+		UPARAM(Meta = (GetParamOptions = "TireflyCombatSystemLibrary.GetAttributeNames"))FName AttributeName,
 		float InitValue = 0.f);
 
 	// 批量给战斗实体添加属性
-	UFUNCTION(BlueprintCallable, Category = "Attribute")
+	UFUNCTION(BlueprintCallable, Category = "TireflyCombatSystem|Attribute")
 	void AddAttributes(
 		AActor* CombatEntity,
 		const TArray<FName>& AttributeNames);
@@ -45,7 +45,9 @@ protected:
 
 #pragma region AttribtueModifier
 
-public:	
+public:
+	// TODO: 创建属性修改器实例
+	
 	// 给战斗实体应用多个属性修改器
 	UFUNCTION(BlueprintCallable,  Category = "TireflyCombatSystem|Attribute")
 	void ApplyModifier(AActor* CombatEntity, UPARAM(ref)TArray<FTireflyAttributeModifierInstance>& Modifiers);
@@ -64,6 +66,12 @@ protected:
 
 	// 重新计算战斗实体的属性当前值
 	static void RecalculateAttributeCurrentValues(const AActor* CombatEntity);
+
+	// 属性修改器合并
+	static void MergeAttributeModifiers(
+		const AActor* CombatEntity,
+		const TArray<FTireflyAttributeModifierInstance>& Modifiers,
+		TArray<FTireflyAttributeModifierInstance>& MergedModifiers);
 
 	// 将属性的给定值限制在指定范围内
 	static void ClampAttributeValueInRange(UTireflyAttributeComponent* AttributeComponent, const FName& AttributeName, float& NewValue);

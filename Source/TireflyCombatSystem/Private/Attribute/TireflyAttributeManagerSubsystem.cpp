@@ -12,7 +12,6 @@
 #include "Attribute/TireflyAttributeModifierMerger.h"
 
 
-
 void UTireflyAttributeManagerSubsystem::AddAttribute(
 	AActor* CombatEntity,
 	FName AttributeName,
@@ -106,6 +105,7 @@ void UTireflyAttributeManagerSubsystem::ApplyModifier(
 
 	TArray<FTireflyAttributeModifierInstance> ModifiersToExecute;// 对属性Base值执行操作的属性修改器
 	TArray<FTireflyAttributeModifierInstance> ModifiersToApply;// 对属性Current值应用的属性修改器
+	const int64 UtcNow = FDateTime::UtcNow().ToUnixTimestamp();
 
 	// 区分好修改属性Base值和Current值的两种修改器
 	for (FTireflyAttributeModifierInstance& Modifier : Modifiers)
@@ -114,12 +114,15 @@ void UTireflyAttributeManagerSubsystem::ApplyModifier(
 		{
 		case ETireflyAttributeModifierMode::BaseValue:
 			{
+				// 添加到执行列表
 				ModifiersToExecute.Add(Modifier);
 				break;
 			}
 		case ETireflyAttributeModifierMode::CurrentValue:
 			{
-				Modifier.ApplyTimestamp = FDateTime::UtcNow().ToUnixTimestamp();
+				// 添加到应用列表并设置应用时间戳
+				Modifier.ApplyTimestamp = UtcNow;
+				Modifier.UpdateTimestamp = UtcNow;
 				ModifiersToApply.Add(Modifier);
 				break;
 			}
@@ -135,6 +138,15 @@ void UTireflyAttributeManagerSubsystem::ApplyModifier(
 	// 再执行针对属性Base值的修改器
 	if (!ModifiersToApply.IsEmpty())
 	{
+		// 把以经营用过但有改变的属性修改器更新一下，并从待应用列表中移除
+		for (FTireflyAttributeModifierInstance& Modifier : AttributeComponent->AttributeModifiers)
+		{
+			if (ModifiersToApply.Contains(Modifier))
+			{
+				Modifier.UpdateTimestamp = UtcNow;
+				ModifiersToApply.Remove(Modifier);
+			}
+		}
 		AttributeComponent->AttributeModifiers.Append(ModifiersToApply);
 	}
 	
@@ -161,6 +173,7 @@ void UTireflyAttributeManagerSubsystem::RemoveModifier(
 		}
 	}
 
+	// 如果确实有属性修改器被移除，则更新属性的当前值
 	if (bModified)
 	{
 		RecalculateAttributeCurrentValues(CombatEntity);
@@ -178,12 +191,13 @@ void UTireflyAttributeManagerSubsystem::HandleModifierUpdated(
 	}
 
 	bool bModified = false;
+	const int64 UtcNow = FDateTime::UtcNow().ToUnixTimestamp();
 	for (FTireflyAttributeModifierInstance& Modifier : Modifiers)
 	{
 		if (AttributeComponent->AttributeModifiers.Contains(Modifier))
 		{
 			const int32 ModifierInstId = AttributeComponent->AttributeModifiers.Find(Modifier);
-			Modifier.UpdateTimestamp = FDateTime::UtcNow().ToUnixTimestamp();
+			Modifier.UpdateTimestamp = UtcNow;
 			AttributeComponent->AttributeModifiers[ModifierInstId] = Modifier;
 			
 			bModified = true;
@@ -206,9 +220,18 @@ void UTireflyAttributeManagerSubsystem::RecalculateAttributeBaseValues(
 		return;
 	}
 
+	// 按类型整理所有属性修改器，方便后续执行修改器合并
+	TArray<FTireflyAttributeModifierInstance> MergedModifiers;
+	MergeAttributeModifiers(CombatEntity, Modifiers, MergedModifiers);
+	// 按照优先级对属性修改器进行排序
+	MergedModifiers.Sort();
+
+	// 属性修改事件记录
+	TMap<FName, FTireflyAttributeChangeEventPayload> ChangeEventPayloads;
+
 	// 执行对属性基础值的修改计算
 	TMap<FName, float> BaseValues = AttributeComponent->GetAttributeBaseValues();
-	for (const FTireflyAttributeModifierInstance& Modifier : Modifiers)
+	for (const FTireflyAttributeModifierInstance& Modifier : MergedModifiers)
 	{
 		if (!Modifier.ModifierDef.ModifierType)
 		{
@@ -218,21 +241,54 @@ void UTireflyAttributeManagerSubsystem::RecalculateAttributeBaseValues(
 			return;
 		}
 
+		// 缓存属性基础值的上一次修改最终值
+		TMap<FName, float> BaseValuesCached = BaseValues;
+
+		// 执行修改器
 		auto Execution = Modifier.ModifierDef.ModifierType->GetDefaultObject<UTireflyAttributeModifierExecution>();
 		Execution->Execute(Modifier, BaseValues, BaseValues);
+
+		// 记录属性修改过程
+		float* NewValue = BaseValues.Find(Modifier.ModifierDef.AttributeName);
+		float* OldValue = BaseValuesCached.Find(Modifier.ModifierDef.AttributeName);
+		if (NewValue && OldValue)
+		{
+			FTireflyAttributeChangeEventPayload& Payload = ChangeEventPayloads.FindOrAdd(Modifier.ModifierDef.AttributeName);
+			Payload.AttributeName = Modifier.ModifierDef.AttributeName;
+			float& PayloadValue = Payload.ChangeSourceRecord.FindOrAdd(Modifier.SourceName);
+			PayloadValue += *NewValue - *OldValue;
+		}
 	}
 	
 	// 对修改后的属性基础值进行范围修正，然后更新属性基础值
 	for (TPair<FName, float>& Pair : BaseValues)
 	{
-		if (FTireflyAttributeInstance* Attr = AttributeComponent->Attributes.Find(Pair.Key))
+		if (FTireflyAttributeInstance* Attribute = AttributeComponent->Attributes.Find(Pair.Key))
 		{
 			ClampAttributeValueInRange(AttributeComponent, Pair.Key, Pair.Value);
-			Attr->BaseValue = Pair.Value;
+			if (FMath::IsNearlyEqual(Attribute->BaseValue, Pair.Value))
+			{
+				continue;
+			}
+
+			// 记录属性修改事件的最终结果
+			if (FTireflyAttributeChangeEventPayload* Payload = ChangeEventPayloads.Find(Pair.Key))
+			{
+				Payload->NewValue = Pair.Value;
+				Payload->OldValue = Attribute->BaseValue;
+			}
+
+			// 把属性基础值的最终修改赋值
+			Attribute->BaseValue = Pair.Value;
 		}
 	}
 
-	// TODO: 属性基础值更新广播
+	// 属性基础值更新广播
+	if (!ChangeEventPayloads.IsEmpty())
+	{
+		TArray<FTireflyAttributeChangeEventPayload> Payloads;
+		AttributeComponent->BroadcastAttributeBaseValueChangeEvent(Payloads);
+	}
 }
 
 void UTireflyAttributeManagerSubsystem::RecalculateAttributeCurrentValues(const AActor* CombatEntity)
@@ -243,19 +299,95 @@ void UTireflyAttributeManagerSubsystem::RecalculateAttributeCurrentValues(const 
 		return;
 	}
 
+	// 按类型整理所有属性修改器，方便后续执行修改器合并
+	TArray<FTireflyAttributeModifierInstance> MergedModifiers;
+	MergeAttributeModifiers(CombatEntity, AttributeComponent->AttributeModifiers, MergedModifiers);
+	// 按照优先级对属性修改器进行排序
+	MergedModifiers.Sort();
+
+	// 属性修改事件记录
+	TMap<FName, FTireflyAttributeChangeEventPayload> ChangeEventPayloads;
+	int64 UtcNow = FDateTime::UtcNow().ToUnixTimestamp();
+
 	// 先声明用于更新计算的临时属性值容器
 	TMap<FName, float> BaseValues = AttributeComponent->GetAttributeBaseValues();
 	TMap<FName, float> CurrentValues = BaseValues;
 
+	// 执行属性修改器的修改计算
+	for (const FTireflyAttributeModifierInstance& Modifier : MergedModifiers)
+	{
+		if (!Modifier.ModifierDef.ModifierType)
+		{
+			UE_LOG(LogTcsAttrModExec, Warning, TEXT("[%s] AttrModDef %s has no valid AttributeModifierExecution type. Entity: %s"),
+				*FString(__FUNCTION__), 
+				*Modifier.ModifierDef.ModifierName.ToString(),
+				CombatEntity ? *CombatEntity->GetName() : TEXT("Unknown"));
+			continue;
+		}
+
+		// 缓存属性当前值的上一次修改最终值
+		TMap<FName, float> CurrentValuesCached = CurrentValues;
+
+		// 执行修改器
+		auto Execution = Modifier.ModifierDef.ModifierType->GetDefaultObject<UTireflyAttributeModifierExecution>();
+		Execution->Execute(Modifier, BaseValues, CurrentValues);
+
+		// 记录属性修改过程，需要属性修改器的更新时间为最新
+		float* NewValue = CurrentValues.Find(Modifier.ModifierDef.AttributeName);
+		float* OldValue = CurrentValuesCached.Find(Modifier.ModifierDef.AttributeName);
+		if (NewValue && OldValue && Modifier.UpdateTimestamp == UtcNow)
+		{
+			FTireflyAttributeChangeEventPayload& Payload = ChangeEventPayloads.FindOrAdd(Modifier.ModifierDef.AttributeName);
+			Payload.AttributeName = Modifier.ModifierDef.AttributeName;
+			float& PayloadValue = Payload.ChangeSourceRecord.FindOrAdd(Modifier.SourceName);
+			PayloadValue += *NewValue - *OldValue;
+		}
+	}
+
+	// 对修改后的属性当前值进行范围修正，然后更新属性当前值
+	for (TPair<FName, float>& Pair : CurrentValues)
+	{
+		if (FTireflyAttributeInstance* Attribute = AttributeComponent->Attributes.Find(Pair.Key))
+		{
+			ClampAttributeValueInRange(AttributeComponent, Pair.Key, Pair.Value);
+			if (FMath::IsNearlyEqual(Attribute->CurrentValue, Pair.Value))
+			{
+				continue;
+			}
+
+			// 记录属性修改事件的最终结果
+			if (FTireflyAttributeChangeEventPayload* Payload = ChangeEventPayloads.Find(Pair.Key))
+			{
+				Payload->NewValue = Pair.Value;
+				Payload->OldValue = Attribute->CurrentValue;
+			}
+
+			// 把属性当前值的最终修改赋值
+			Attribute->CurrentValue = Pair.Value;
+		}
+	}
+
+	// 属性当前值更新广播
+	if (!ChangeEventPayloads.IsEmpty())
+	{
+		TArray<FTireflyAttributeChangeEventPayload> Payloads;
+		AttributeComponent->BroadcastAttributeValueChangeEvent(Payloads);
+	}
+}
+
+void UTireflyAttributeManagerSubsystem::MergeAttributeModifiers(
+	const AActor* CombatEntity,
+	const TArray<FTireflyAttributeModifierInstance>& Modifiers,
+	TArray<FTireflyAttributeModifierInstance>& MergedModifiers)
+{
 	// 按类型整理所有属性修改器，方便后续执行修改器合并
 	TMap<FName, TArray<FTireflyAttributeModifierInstance>> ModifiersToMerge;
-	for (const FTireflyAttributeModifierInstance& Modifier : AttributeComponent->AttributeModifiers)
+	for (const FTireflyAttributeModifierInstance& Modifier : Modifiers)
 	{
 		ModifiersToMerge.FindOrAdd(Modifier.ModifierDef.ModifierName).Add(Modifier);
 	}
 	
 	// 执行修改器合并
-	TArray<FTireflyAttributeModifierInstance> MergedModifiers;
 	for (TPair<FName, TArray<FTireflyAttributeModifierInstance>>& Pair : ModifiersToMerge)
 	{
 		if (Pair.Value.IsEmpty() || !Pair.Value[0].ModifierDef.MergerType)
@@ -270,37 +402,6 @@ void UTireflyAttributeManagerSubsystem::RecalculateAttributeCurrentValues(const 
 		auto Merger = Pair.Value[0].ModifierDef.MergerType->GetDefaultObject<UTireflyAttributeModifierMerger>();
 		Merger->Merge(Pair.Value, MergedModifiers);
 	}
-
-	// 按照优先级对属性修改器进行排序
-	MergedModifiers.Sort();
-
-	// 执行属性修改器的修改计算
-	for (const FTireflyAttributeModifierInstance& Modifier : MergedModifiers)
-	{
-		if (!Modifier.ModifierDef.ModifierType)
-		{
-			UE_LOG(LogTcsAttrModExec, Warning, TEXT("[%s] AttrModDef %s has no valid AttributeModifierExecution type. Entity: %s"),
-				*FString(__FUNCTION__), 
-				*Modifier.ModifierDef.ModifierName.ToString(),
-				CombatEntity ? *CombatEntity->GetName() : TEXT("Unknown"));
-			continue;
-		}
-
-		auto Execution = Modifier.ModifierDef.ModifierType->GetDefaultObject<UTireflyAttributeModifierExecution>();
-		Execution->Execute(Modifier, BaseValues, CurrentValues);
-	}
-
-	// 对修改后的属性当前值进行范围修正，然后更新属性当前值
-	for (TPair<FName, float>& Pair : CurrentValues)
-	{
-		if (FTireflyAttributeInstance* Attribute = AttributeComponent->Attributes.Find(Pair.Key))
-		{
-			ClampAttributeValueInRange(AttributeComponent, Pair.Key, Pair.Value);
-			Attribute->CurrentValue = Pair.Value;
-		}
-	}
-
-	// TODO: 属性当前值更新广播
 }
 
 void UTireflyAttributeManagerSubsystem::ClampAttributeValueInRange(

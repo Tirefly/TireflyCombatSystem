@@ -33,6 +33,10 @@
 		{
 			"Name": "TireflyObjectPool",
 			"Enabled": true
+		},
+		{
+			"Name": "GameplayMessageRouter",
+			"Enabled": true
 		}
 	]
 }

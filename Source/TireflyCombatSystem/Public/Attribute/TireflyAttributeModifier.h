@@ -78,9 +78,9 @@ public:
 	UPROPERTY(BlueprintReadOnly)
 	int32 ModifierInstId = -1;
 
-	// 修改器来源对象
+	// 修改器来源
 	UPROPERTY(BlueprintReadOnly)
-	TObjectPtr<UObject> SourceObject;
+	FName SourceName = NAME_None;
 
 	// 修改器发起者
 	UPROPERTY(BlueprintReadOnly)

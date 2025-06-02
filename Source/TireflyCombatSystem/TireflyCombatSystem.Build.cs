@@ -42,6 +42,7 @@ public class TireflyCombatSystem : ModuleRules
 				"StateTreeModule",
 				"GameplayStateTreeModule",
 				"DeveloperSettings",
+				"GameplayMessageRuntime"
 				// ... add private dependencies that you statically link with here ...	
 			}
 			);

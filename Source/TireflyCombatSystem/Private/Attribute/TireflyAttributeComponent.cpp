@@ -39,7 +39,7 @@ bool UTireflyAttributeComponent::GetAttributeBaseValue(FName AttributeName, floa
 TMap<FName, float> UTireflyAttributeComponent::GetAttributeValues() const
 {
 	TMap<FName, float> AttributeValues;
-	 for (const auto& AttrInst : Attributes)
+	for (const auto& AttrInst : Attributes)
 	{
 		AttributeValues.Add(AttrInst.Key, AttrInst.Value.CurrentValue);
 	}
@@ -56,4 +56,22 @@ TMap<FName, float> UTireflyAttributeComponent::GetAttributeBaseValues() const
 	}
 	
 	return AttributeValues;
+}
+
+void UTireflyAttributeComponent::BroadcastAttributeValueChangeEvent(
+	const TArray<FTireflyAttributeChangeEventPayload>& Payloads) const
+{
+	if (!Payloads.IsEmpty() && OnAttributeValueChanged.IsBound())
+	{
+		OnAttributeValueChanged.Broadcast(Payloads);
+	}
+}
+
+void UTireflyAttributeComponent::BroadcastAttributeBaseValueChangeEvent(
+	const TArray<FTireflyAttributeChangeEventPayload>& Payloads) const
+{
+	if (!Payloads.IsEmpty() && OnAttributeBaseValueChanged.IsBound())
+	{
+		OnAttributeBaseValueChanged.Broadcast(Payloads);
+	}
 }
