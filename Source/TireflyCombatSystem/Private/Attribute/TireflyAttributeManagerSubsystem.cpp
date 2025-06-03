@@ -4,8 +4,8 @@
 #include "Attribute/TireflyAttributeManagerSubsystem.h"
 
 #include "TireflyCombatEntityInterface.h"
+#include "TireflyCombatSystemLibrary.h"
 #include "TireflyCombatSystemLogChannels.h"
-#include "TireflyCombatSystemSettings.h"
 #include "Attribute/TireflyAttribute.h"
 #include "Attribute/TireflyAttributeComponent.h"
 #include "Attribute/TireflyAttributeModifierExecution.h"
@@ -24,8 +24,7 @@ void UTireflyAttributeManagerSubsystem::AddAttribute(
 		return;
 	}
 	
-	const UTireflyCombatSystemSettings* Settings = GetDefault<UTireflyCombatSystemSettings>();
-	const UDataTable* AttributeDefTable = Settings->AttributeDefTable.LoadSynchronous();
+	const UDataTable* AttributeDefTable = UTireflyCombatSystemLibrary::GetAttributeDefTable();
 	if (!IsValid(AttributeDefTable))
 	{
 		UE_LOG(LogTcsAttribute, Error, TEXT("[%s] AttributeDefTable in TcsDevSettings is not valid"), *FString(__FUNCTION__));
@@ -54,8 +53,7 @@ void UTireflyAttributeManagerSubsystem::AddAttributes(AActor* CombatEntity, cons
 		return;
 	}
 	
-	const UTireflyCombatSystemSettings* Settings = GetDefault<UTireflyCombatSystemSettings>();
-	const UDataTable* AttributeDefTable = Settings->AttributeDefTable.LoadSynchronous();
+	const UDataTable* AttributeDefTable = UTireflyCombatSystemLibrary::GetAttributeDefTable();
 	if (!IsValid(AttributeDefTable))
 	{
 		UE_LOG(LogTcsAttribute, Error, TEXT("[%s] AttributeDefTable in TcsDevSettings is not valid"), *FString(__FUNCTION__));
@@ -91,6 +89,50 @@ UTireflyAttributeComponent* UTireflyAttributeManagerSubsystem::GetAttributeCompo
 	}
 
 	return CombatEntity->FindComponentByClass<UTireflyAttributeComponent>();
+}
+
+bool UTireflyAttributeManagerSubsystem::CreateAttributeModifier(
+	FName ModifierId,
+	FName SourceName,
+	AActor* Instigator,
+	AActor* Target,
+	const TMap<FName, float>& Operands,
+	FTireflyAttributeModifierInstance& OutModifierInst)
+{
+	if (!IsValid(Instigator) || !IsValid(Target))
+	{
+		UE_LOG(LogTcsAttribute, Error, TEXT("[%s] Instigator or Target is not valid"), *FString(__FUNCTION__));
+		return false;
+	}
+	
+	UDataTable* AttributeModifierDefTable = UTireflyCombatSystemLibrary::GetAttributeModifierDefTable();
+	if (!IsValid(AttributeModifierDefTable))
+	{
+		UE_LOG(LogTcsAttribute, Error, TEXT("[%s] AttributeModifierDefTable in TcsDevSettings is not valid"), *FString(__FUNCTION__));
+		return false;
+	}
+
+	FTireflyAttributeModifierDefinition* ModifierDef = AttributeModifierDefTable->FindRow<FTireflyAttributeModifierDefinition>(ModifierId, FString(__FUNCTION__));
+	if (!ModifierDef)
+	{
+		UE_LOG(LogTcsAttribute, Error, TEXT("[%s] AttributeModifierDefTable does not contain ModifierId %s"),
+			*FString(__FUNCTION__),
+			*ModifierId.ToString());
+		return false;
+	}
+
+	// TODO: 验证Source是否有效
+	// TODO: 验证Operands是否正确
+
+	OutModifierInst = FTireflyAttributeModifierInstance();
+	OutModifierInst.ModifierDef = *ModifierDef;
+	OutModifierInst.ModifierInstId = ++GlobalAttributeModifierInstanceIdMgr;
+	OutModifierInst.Instigator = Instigator;
+	OutModifierInst.Target = Target;
+	OutModifierInst.Operands = Operands;
+	OutModifierInst.SourceName = SourceName;
+
+	return true;
 }
 
 void UTireflyAttributeManagerSubsystem::ApplyModifier(

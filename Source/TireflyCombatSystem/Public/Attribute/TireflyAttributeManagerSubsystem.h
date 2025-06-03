@@ -46,19 +46,37 @@ protected:
 #pragma region AttribtueModifier
 
 public:
-	// TODO: 创建属性修改器实例
+	// 创建属性修改器实例
+	UFUNCTION(BlueprintCallable, Category = "TireflyCombatSystem|Attribute")
+	bool CreateAttributeModifier(
+		UPARAM(Meta = (GetParamOptions = "TireflyCombatSystemLibrary.GetAttributeModifierIds"))FName ModifierId,
+		FName SourceName,
+		AActor* Instigator,
+		AActor* Target,
+		const TMap<FName, float>& Operands,
+		FTireflyAttributeModifierInstance& OutModifierInst);
 	
 	// 给战斗实体应用多个属性修改器
-	UFUNCTION(BlueprintCallable,  Category = "TireflyCombatSystem|Attribute")
+	UFUNCTION(BlueprintCallable, Category = "TireflyCombatSystem|Attribute")
 	void ApplyModifier(AActor* CombatEntity, UPARAM(ref)TArray<FTireflyAttributeModifierInstance>& Modifiers);
 
 	// 从战斗实体身上移除多个属性修改器
-	UFUNCTION(BlueprintCallable,  Category = "TireflyCombatSystem|Attribute")
+	UFUNCTION(BlueprintCallable, Category = "TireflyCombatSystem|Attribute")
 	void RemoveModifier(AActor* CombatEntity, UPARAM(ref)TArray<FTireflyAttributeModifierInstance>& Modifiers);
 
 	// 处理战斗实体的属性修改器更新时的逻辑
-	UFUNCTION(BlueprintCallable,  Category = "TireflyCombatSystem|Attribute")
+	UFUNCTION(BlueprintCallable, Category = "TireflyCombatSystem|Attribute")
 	void HandleModifierUpdated(AActor* CombatEntity, UPARAM(ref)TArray<FTireflyAttributeModifierInstance>& Modifiers);
+
+protected:
+	// 全局属性修改器实例ID管理器
+	UPROPERTY()
+	int32 GlobalAttributeModifierInstanceIdMgr = -1;
+
+#pragma endregion
+
+
+#pragma region AttributeCalculation
 
 protected:
 	// 重新计算战斗实体的属性基值

@@ -48,7 +48,7 @@ public:
 
 	// 修改器操作数
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Operation")
-	TArray<FName> OperandNames;
+	TArray<FName> OperandNames = { TEXT("Magnitude") };
 
 	// 修改器执行器
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Operation")
