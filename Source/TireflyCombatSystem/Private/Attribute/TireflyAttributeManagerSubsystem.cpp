@@ -277,10 +277,11 @@ void UTireflyAttributeManagerSubsystem::RecalculateAttributeBaseValues(
 	{
 		if (!Modifier.ModifierDef.ModifierType)
 		{
-			UE_LOG(LogTcsAttrModExec, Warning, TEXT("[%s] AttrModDef %s has no valid AttributeModifierExecution type"),
-				*FString(__FUNCTION__),
-				*Modifier.ModifierDef.ModifierName.ToString());
-			return;
+			UE_LOG(LogTcsAttrModExec, Warning, TEXT("[%s] AttrModDef %s has no valid AttributeModifierExecution type. Entity: %s"),
+				*FString(__FUNCTION__), 
+				*Modifier.ModifierDef.ModifierName.ToString(),
+				CombatEntity ? *CombatEntity->GetName() : TEXT("Unknown"));
+			continue;
 		}
 
 		// 缓存属性基础值的上一次修改最终值
@@ -329,6 +330,7 @@ void UTireflyAttributeManagerSubsystem::RecalculateAttributeBaseValues(
 	if (!ChangeEventPayloads.IsEmpty())
 	{
 		TArray<FTireflyAttributeChangeEventPayload> Payloads;
+		ChangeEventPayloads.GenerateValueArray(Payloads);
 		AttributeComponent->BroadcastAttributeBaseValueChangeEvent(Payloads);
 	}
 }
@@ -413,6 +415,7 @@ void UTireflyAttributeManagerSubsystem::RecalculateAttributeCurrentValues(const 
 	if (!ChangeEventPayloads.IsEmpty())
 	{
 		TArray<FTireflyAttributeChangeEventPayload> Payloads;
+		ChangeEventPayloads.GenerateValueArray(Payloads);
 		AttributeComponent->BroadcastAttributeValueChangeEvent(Payloads);
 	}
 }
