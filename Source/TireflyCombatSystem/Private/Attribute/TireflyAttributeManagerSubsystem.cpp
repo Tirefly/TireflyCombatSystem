@@ -285,21 +285,23 @@ void UTireflyAttributeManagerSubsystem::RecalculateAttributeBaseValues(
 		}
 
 		// 缓存属性基础值的上一次修改最终值
-		TMap<FName, float> BaseValuesCached = BaseValues;
+		TMap<FName, float> LastModifiedResults = BaseValues;
 
 		// 执行修改器
 		auto Execution = Modifier.ModifierDef.ModifierType->GetDefaultObject<UTireflyAttributeModifierExecution>();
 		Execution->Execute(Modifier, BaseValues, BaseValues);
 
 		// 记录属性修改过程
-		float* NewValue = BaseValues.Find(Modifier.ModifierDef.AttributeName);
-		float* OldValue = BaseValuesCached.Find(Modifier.ModifierDef.AttributeName);
-		if (NewValue && OldValue)
+		for (const TPair<FName, float>& LastPair : LastModifiedResults)
 		{
-			FTireflyAttributeChangeEventPayload& Payload = ChangeEventPayloads.FindOrAdd(Modifier.ModifierDef.AttributeName);
-			Payload.AttributeName = Modifier.ModifierDef.AttributeName;
-			float& PayloadValue = Payload.ChangeSourceRecord.FindOrAdd(Modifier.SourceName);
-			PayloadValue += *NewValue - *OldValue;
+			const float& NewValue = BaseValues.FindRef(LastPair.Key);
+			if (NewValue != LastPair.Value)
+			{
+				FTireflyAttributeChangeEventPayload& Payload = ChangeEventPayloads.FindOrAdd(LastPair.Key);
+				Payload.AttributeName = LastPair.Key;
+				float& PayloadValue = Payload.ChangeSourceRecord.FindOrAdd(Modifier.SourceName);
+				PayloadValue += NewValue - LastPair.Value;
+			}
 		}
 	}
 	
@@ -353,9 +355,12 @@ void UTireflyAttributeManagerSubsystem::RecalculateAttributeCurrentValues(const 
 	TMap<FName, FTireflyAttributeChangeEventPayload> ChangeEventPayloads;
 	int64 UtcNow = FDateTime::UtcNow().ToUnixTimestamp();
 
-	// 先声明用于更新计算的临时属性值容器
+	// 获取属性基础值，用于计算
 	TMap<FName, float> BaseValues = AttributeComponent->GetAttributeBaseValues();
-	TMap<FName, float> CurrentValues = BaseValues;
+	// 重新计算属性当前新值前，保存属性旧值
+	TMap<FName, float> OldCurrentValues = AttributeComponent->GetAttributeValues();
+	// 用于更新计算的临时属性值容器，基于属性的基础值
+	TMap<FName, float> CurrentValuesToCalc = BaseValues;
 
 	// 执行属性修改器的修改计算
 	for (const FTireflyAttributeModifierInstance& Modifier : MergedModifiers)
@@ -370,26 +375,28 @@ void UTireflyAttributeManagerSubsystem::RecalculateAttributeCurrentValues(const 
 		}
 
 		// 缓存属性当前值的上一次修改最终值
-		TMap<FName, float> CurrentValuesCached = CurrentValues;
+		TMap<FName, float> LastModifiedResults = CurrentValuesToCalc;
 
 		// 执行修改器
 		auto Execution = Modifier.ModifierDef.ModifierType->GetDefaultObject<UTireflyAttributeModifierExecution>();
-		Execution->Execute(Modifier, BaseValues, CurrentValues);
+		Execution->Execute(Modifier, BaseValues, CurrentValuesToCalc);
 
 		// 记录属性修改过程，需要属性修改器的更新时间为最新
-		float* NewValue = CurrentValues.Find(Modifier.ModifierDef.AttributeName);
-		float* OldValue = CurrentValuesCached.Find(Modifier.ModifierDef.AttributeName);
-		if (NewValue && OldValue && Modifier.UpdateTimestamp == UtcNow)
+		for (const TPair<FName, float>& LastPair : LastModifiedResults)
 		{
-			FTireflyAttributeChangeEventPayload& Payload = ChangeEventPayloads.FindOrAdd(Modifier.ModifierDef.AttributeName);
-			Payload.AttributeName = Modifier.ModifierDef.AttributeName;
-			float& PayloadValue = Payload.ChangeSourceRecord.FindOrAdd(Modifier.SourceName);
-			PayloadValue += *NewValue - *OldValue;
+			const float& NewValue = CurrentValuesToCalc.FindRef(LastPair.Key);
+			if (NewValue != LastPair.Value && Modifier.UpdateTimestamp == UtcNow)
+			{
+				FTireflyAttributeChangeEventPayload& Payload = ChangeEventPayloads.FindOrAdd(LastPair.Key);
+				Payload.AttributeName = LastPair.Key;
+				float& PayloadValue = Payload.ChangeSourceRecord.FindOrAdd(Modifier.SourceName);
+				PayloadValue += NewValue - LastPair.Value;
+			}
 		}
 	}
 
 	// 对修改后的属性当前值进行范围修正，然后更新属性当前值
-	for (TPair<FName, float>& Pair : CurrentValues)
+	for (TPair<FName, float>& Pair : CurrentValuesToCalc)
 	{
 		if (FTireflyAttributeInstance* Attribute = AttributeComponent->Attributes.Find(Pair.Key))
 		{
@@ -399,18 +406,17 @@ void UTireflyAttributeManagerSubsystem::RecalculateAttributeCurrentValues(const 
 				continue;
 			}
 
-			// 记录属性修改事件的最终结果
-			if (FTireflyAttributeChangeEventPayload* Payload = ChangeEventPayloads.Find(Pair.Key))
-			{
-				Payload->NewValue = Pair.Value;
-				Payload->OldValue = Attribute->CurrentValue;
-			}
+			// 记录属性修改事件的最终结果，因为修改器移除导致的属性当前值变更，不会有修改记录，所以需要在此处查漏补缺
+			FTireflyAttributeChangeEventPayload & Payload = ChangeEventPayloads.FindOrAdd(Pair.Key);
+			Payload.AttributeName = Pair.Key;
+			Payload.NewValue = Pair.Value;
+			Payload.OldValue = Attribute->CurrentValue;
 
 			// 把属性当前值的最终修改赋值
 			Attribute->CurrentValue = Pair.Value;
 		}
 	}
-
+	
 	// 属性当前值更新广播
 	if (!ChangeEventPayloads.IsEmpty())
 	{
