@@ -8,7 +8,7 @@
 
 
 UCLASS()
-class TIREFLYCOMBATSYSTEM_API UTireflySkillManagerSubsystem : public UTickableWorldSubsystem
+class TIREFLYCOMBATSYSTEM_API UTireflySkillManagerSubsystem : public UWorldSubsystem
 {
 	GENERATED_BODY()
 };

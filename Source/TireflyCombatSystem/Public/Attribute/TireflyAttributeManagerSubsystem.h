@@ -19,14 +19,14 @@ class TIREFLYCOMBATSYSTEM_API UTireflyAttributeManagerSubsystem : public UWorldS
 
 public:
 	// 给战斗实体添加属性
-	UFUNCTION(BlueprintCallable, Category = "TireflyCombatSystem|Attribute")
+	UFUNCTION(BlueprintCallable, Category = "TireflyCombatSystem|Attribute", Meta = (DefaultToSelf = "CombatEntity"))
 	void AddAttribute(
 		AActor* CombatEntity,
 		UPARAM(Meta = (GetParamOptions = "TireflyCombatSystemLibrary.GetAttributeNames"))FName AttributeName,
 		float InitValue = 0.f);
 
 	// 批量给战斗实体添加属性
-	UFUNCTION(BlueprintCallable, Category = "TireflyCombatSystem|Attribute")
+	UFUNCTION(BlueprintCallable, Category = "TireflyCombatSystem|Attribute", Meta = (DefaultToSelf = "CombatEntity"))
 	void AddAttributes(
 		AActor* CombatEntity,
 		const TArray<FName>& AttributeNames);
@@ -43,7 +43,7 @@ protected:
 #pragma endregion
 	
 
-#pragma region AttribtueModifier
+#pragma region AttributeModifier
 
 public:
 	// 创建属性修改器实例
@@ -57,15 +57,15 @@ public:
 		FTireflyAttributeModifierInstance& OutModifierInst);
 	
 	// 给战斗实体应用多个属性修改器
-	UFUNCTION(BlueprintCallable, Category = "TireflyCombatSystem|Attribute")
+	UFUNCTION(BlueprintCallable, Category = "TireflyCombatSystem|Attribute", Meta = (DefaultToSelf = "CombatEntity"))
 	void ApplyModifier(AActor* CombatEntity, UPARAM(ref)TArray<FTireflyAttributeModifierInstance>& Modifiers);
 
 	// 从战斗实体身上移除多个属性修改器
-	UFUNCTION(BlueprintCallable, Category = "TireflyCombatSystem|Attribute")
+	UFUNCTION(BlueprintCallable, Category = "TireflyCombatSystem|Attribute", Meta = (DefaultToSelf = "CombatEntity"))
 	void RemoveModifier(AActor* CombatEntity, UPARAM(ref)TArray<FTireflyAttributeModifierInstance>& Modifiers);
 
 	// 处理战斗实体的属性修改器更新时的逻辑
-	UFUNCTION(BlueprintCallable, Category = "TireflyCombatSystem|Attribute")
+	UFUNCTION(BlueprintCallable, Category = "TireflyCombatSystem|Attribute", Meta = (DefaultToSelf = "CombatEntity"))
 	void HandleModifierUpdated(AActor* CombatEntity, UPARAM(ref)TArray<FTireflyAttributeModifierInstance>& Modifiers);
 
 protected:

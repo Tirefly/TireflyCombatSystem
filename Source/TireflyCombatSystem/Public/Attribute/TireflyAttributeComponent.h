@@ -41,13 +41,13 @@ public:
 	// 获取特定属性的当前值
 	UFUNCTION(BlueprintCallable, Category = "Attribute")
 	bool GetAttributeValue(
-		UPARAM(Meta = (GetParamOptions = "TireflyCombatSystemLibrary.GetAttribtueNames"))FName AttributeName,
+		UPARAM(Meta = (GetParamOptions = "TireflyCombatSystemLibrary.GetAttributeNames"))FName AttributeName,
 		float& OutValue) const;
 
 	// 获取特定属性的当前值
 	UFUNCTION(BlueprintCallable, Category = "Attribute")
 	bool GetAttributeBaseValue(
-		UPARAM(Meta = (GetParamOptions = "TireflyCombatSystemLibrary.GetAttribtueNames"))FName AttributeName,
+		UPARAM(Meta = (GetParamOptions = "TireflyCombatSystemLibrary.GetAttributeNames"))FName AttributeName,
 		float& OutValue) const;
 
 	// 获取所有属性的当前值

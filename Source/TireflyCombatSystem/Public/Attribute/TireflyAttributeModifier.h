@@ -119,15 +119,13 @@ public:
 	bool IsValid() const
 	{
 		return ModifierDef.ModifierName != NAME_None
-			&& ModifierInstId >= 0
-			&& ApplyTimestamp >= 0;
+			&& ModifierInstId >= 0;
 	}
 
 	bool operator==(const FTireflyAttributeModifierInstance& Other) const
 	{
 		return ModifierDef.ModifierName == Other.ModifierDef.ModifierName
-			&& ModifierInstId == Other.ModifierInstId
-			&& ApplyTimestamp == Other.ApplyTimestamp;
+			&& ModifierInstId == Other.ModifierInstId;
 	}
 
 	bool operator!=(const FTireflyAttributeModifierInstance& Other) const
