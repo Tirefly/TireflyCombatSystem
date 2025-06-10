@@ -12,9 +12,9 @@
 UENUM(BlueprintType)
 enum class ETireflyAttributeRangeType : uint8
 {
-	None  = 0		UMETA(ToolTip = "One side (minimum or maximum) of the value range for Attribute has no limit."),
-	Static = 1		UMETA(ToolTip = "One side (minimum or maximum) of the value range for Attribute is a constant numeric value."),
-	Dynamic = 2		UMETA(ToolTip = "One side (minimum or maximum) of the value range for Attribute is dynamic, which is affected by another attribute value."),
+	ART_None  = 0		UMETA(DisplayName = "无", ToolTip = "属性值范围的一侧（最小值或最大值）没有限制"),
+	ART_Static = 1		UMETA(DisplayName = "静态", ToolTip = "属性值范围的一侧（最小值或最大值）是一个恒定的数值"),
+	ART_Dynamic = 2		UMETA(DisplayName = "动态", ToolTip = "属性值范围的一侧（最小值或最大值）是动态的，受另一个属性值的影响"),
 };
 
 
@@ -30,15 +30,15 @@ struct TIREFLYCOMBATSYSTEM_API FTireflyAttributeRange
 public:
 	// 最小值类型
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Min Value")
-	ETireflyAttributeRangeType MinValueType = ETireflyAttributeRangeType::None;
+	ETireflyAttributeRangeType MinValueType = ETireflyAttributeRangeType::ART_None;
 
 	// 最小值（静态：常数）
-	UPROPERTY(Meta = (EditCondition = "MinValueType == ETireflyAttributeRangeType::Static",  EditConditionHides),
+	UPROPERTY(Meta = (EditCondition = "MinValueType == ETireflyAttributeRangeType::ART_Static",  EditConditionHides),
 		EditAnywhere, BlueprintReadOnly, Category = "Min Value")
 	float MinValue = 0.f;
 
 	// 最小值（动态：属性）
-	UPROPERTY(Meta = (EditCondition = "MinValueType == ETireflyAttributeRangeType::Dynamic",  EditConditionHides,
+	UPROPERTY(Meta = (EditCondition = "MinValueType == ETireflyAttributeRangeType::ART_Dynamic",  EditConditionHides,
 		GetOptions = "TireflyCombatSystemLibrary.GetAttributeNames"),
 		EditAnywhere, BlueprintReadOnly, Category = "Min Value")
 	FName MinValueAttribute = NAME_None;
@@ -51,15 +51,15 @@ public:
 public:
 	// 最大值类型
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Max Value")
-	ETireflyAttributeRangeType MaxValueType = ETireflyAttributeRangeType::None;
+	ETireflyAttributeRangeType MaxValueType = ETireflyAttributeRangeType::ART_None;
 
 	// 最大值（静态：常数）
-	UPROPERTY(Meta = (EditCondition = "MaxValueType == ETireflyAttributeRangeType::Static",  EditConditionHides),
+	UPROPERTY(Meta = (EditCondition = "MaxValueType == ETireflyAttributeRangeType::ART_Static",  EditConditionHides),
 		EditAnywhere, BlueprintReadOnly, Category = "Max Value")
 	float MaxValue = 0.f;
 
 	// 最大值（动态：属性）
-	UPROPERTY(Meta = (EditCondition = "MaxValueType == ETireflyAttributeRangeType::Dynamic",  EditConditionHides,
+	UPROPERTY(Meta = (EditCondition = "MaxValueType == ETireflyAttributeRangeType::ART_Dynamic",  EditConditionHides,
 		GetOptions = "TireflyCombatSystemLibrary.GetAttributeNames"),
 		EditAnywhere, BlueprintReadOnly, Category = "Max Value")
 	FName MaxValueAttribute = NAME_None;

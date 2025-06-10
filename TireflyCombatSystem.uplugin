@@ -31,11 +31,11 @@
 			"Enabled": true
 		},
 		{
-			"Name": "TireflyObjectPool",
+			"Name": "GameplayMessageRouter",
 			"Enabled": true
 		},
 		{
-			"Name": "GameplayMessageRouter",
+			"Name": "TireflyObjectPool",
 			"Enabled": true
 		}
 	]

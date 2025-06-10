@@ -33,7 +33,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Definition")
 	FGameplayTagContainer Tags;
 
-	// 修改器优先级（值越小，优先级越高）
+	// 修改器优先级（值越小，优先级越高，最高优先级为0）
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Modifier")
 	int32 Priority = 0;
 

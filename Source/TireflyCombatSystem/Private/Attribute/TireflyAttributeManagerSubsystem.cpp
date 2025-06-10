@@ -476,16 +476,16 @@ void UTireflyAttributeManagerSubsystem::ClampAttributeValueInRange(
 	float MinValue = NewValue;
 	switch (Range.MinValueType)
 	{
-	case ETireflyAttributeRangeType::None:
+	case ETireflyAttributeRangeType::ART_None:
 		{
 			break;
 		}
-	case ETireflyAttributeRangeType::Static:
+	case ETireflyAttributeRangeType::ART_Static:
 		{
 			MinValue = Range.MinValue;
 			break;
 		}
-	case ETireflyAttributeRangeType::Dynamic:
+	case ETireflyAttributeRangeType::ART_Dynamic:
 		{
 			if (!AttributeComponent->GetAttributeValue(Range.MinValueAttribute, MinValue))
 			{
@@ -504,16 +504,16 @@ void UTireflyAttributeManagerSubsystem::ClampAttributeValueInRange(
 	float MaxValue = NewValue;
 	switch (Range.MaxValueType)
 	{
-	case ETireflyAttributeRangeType::None:
+	case ETireflyAttributeRangeType::ART_None:
 		{
 			break;
 		}
-	case ETireflyAttributeRangeType::Static:
+	case ETireflyAttributeRangeType::ART_Static:
 		{
 			MaxValue = Range.MaxValue;
 			break;
 		}
-	case ETireflyAttributeRangeType::Dynamic:
+	case ETireflyAttributeRangeType::ART_Dynamic:
 		{
 			if (!AttributeComponent->GetAttributeValue(Range.MaxValueAttribute, MaxValue))
 			{
