@@ -1,6 +1,6 @@
 # 一、属性模块
 
-## 1.1 属性定义
+## 1.1 属性定义（待修改）
 
 ```cpp
 // 属性定义表
@@ -490,7 +490,6 @@ public:
 		UPARAM(ref) TArray<FTireflyAttributeModifierInstance>& ModifiersToMerge,
 		TArray<FTireflyAttributeModifierInstance>& MergedModifiers) {}
 };
-
 ```
 
 ### a. 属性修改器合并操作：不合并
@@ -1356,3 +1355,4 @@ protected:
 #pragma endregion
 };
 ```
+
