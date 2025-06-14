@@ -31,29 +31,6 @@ enum ETireflyStateDurationType : uint8
 
 
 
-// 同状态合并策略（来自同一个发起者）
-UENUM(BlueprintType)
-enum ETireflyStateSameInstigatorMergePolicy : uint8
-{
-	SMP_None = 0		UMETA(DisplayName = "None", ToolTip = "新老状态并行执行，彼此间互不影响"),
-	SMP_RemoveOlder		UMETA(DisplayName = "DiscardOlder", ToolTip = "丢弃旧状态，保留新状态"),
-	SMP_RemoveNewer		UMETA(DisplayName = "DiscardNewer", ToolTip = "丢弃新状态，保留旧状态"),
-	SMP_Stack			UMETA(DisplayName = "Stack", ToolTip = "新状态叠加到旧状态上"),
-};
-
-
-
-// 同状态合并策略（来自不同的发起者）
-UENUM(BlueprintType)
-enum ETireflyStateDiffInstigatorMergePolicy : uint8
-{
-	DMP_None = 0			UMETA(DisplayName = "None", ToolTip = "新老状态并行执行，彼此间互不影响"),
-	DMP_DiscardOlder		UMETA(DisplayName = "DiscardOlder", ToolTip = "丢弃旧状态，保留新状态"),
-	DMP_DiscardNewer		UMETA(DisplayName = "DiscardNewer", ToolTip = "丢弃新状态，保留旧状态"),
-};
-
-
-
 // 状态定义表
 USTRUCT(BlueprintType)
 struct FTireflyStateDefinition : public FTableRowBase
@@ -108,9 +85,9 @@ public:
 
 	// 同状态合并策略（来自同一个发起者）
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stack")
-	TEnumAsByte<ETireflyStateSameInstigatorMergePolicy> SameInstigatorMergePolicy = ETireflyStateSameInstigatorMergePolicy::SMP_None;
+	TSubclassOf<class UTireflyStateMerger> SameInstigatorMergerType;
 
 	// 同状态合并策略（来自不同的发起者）
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stack")
-	TEnumAsByte<ETireflyStateDiffInstigatorMergePolicy> DiffInstigatorMergePolicy = ETireflyStateDiffInstigatorMergePolicy::DMP_None;
+	TSubclassOf<class UTireflyStateMerger> DiffInstigatorMergerType;
 };
