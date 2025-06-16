@@ -4,8 +4,13 @@
 
 #include "CoreMinimal.h"
 #include "UObject/Object.h"
-#include "TireflyState.h"
 #include "TireflyStateMerger.generated.h"
+
+
+
+class UTireflyStateInstance;
+
+
 
 // 状态合并器
 UCLASS(BlueprintType, Blueprintable, Abstract, ClassGroup = (TireflyCombatSystem))
@@ -19,15 +24,12 @@ public:
 	 * 
 	 * @param StatesToMerge 要合并的状态列表
 	 * @param MergedStates 合并后的状态列表
-	 * @param bSameInstigator 是否来自同一个发起者
 	 */
 	UFUNCTION(BlueprintNativeEvent, Category = TireflyCombatSystem)
 	void Merge(
-		UPARAM(ref) TArray<FTireflyStateInstance>& StatesToMerge,
-		TArray<FTireflyStateInstance>& MergedStates,
-		bool bSameInstigator);
+		UPARAM(ref) TArray<UTireflyStateInstance*>& StatesToMerge,
+		TArray<UTireflyStateInstance*>& MergedStates);
 	virtual void Merge_Implementation(
-		UPARAM(ref) TArray<FTireflyStateInstance>& StatesToMerge,
-		TArray<FTireflyStateInstance>& MergedStates,
-		bool bSameInstigator) {}
+		UPARAM(ref) TArray<UTireflyStateInstance*>& StatesToMerge,
+		TArray<UTireflyStateInstance*>& MergedStates) {}
 }; 

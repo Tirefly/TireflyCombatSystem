@@ -6,6 +6,8 @@
 #include "State/TireflyStateMerger.h"
 #include "TireflyStateMerger_NoMerge.generated.h"
 
+
+
 // 状态合并器：不合并
 UCLASS(Meta = (DisplayName = "状态合并器：不合并"))
 class TIREFLYCOMBATSYSTEM_API UTireflyStateMerger_NoMerge : public UTireflyStateMerger
@@ -14,7 +16,6 @@ class TIREFLYCOMBATSYSTEM_API UTireflyStateMerger_NoMerge : public UTireflyState
 
 public:
 	virtual void Merge_Implementation(
-		UPARAM(ref) TArray<FTireflyStateInstance>& StatesToMerge,
-		TArray<FTireflyStateInstance>& MergedStates,
-		bool bSameInstigator) override;
+		UPARAM(ref) TArray<UTireflyStateInstance*>& StatesToMerge,
+		TArray<UTireflyStateInstance*>& MergedStates) override;
 }; 

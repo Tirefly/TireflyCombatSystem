@@ -233,68 +233,76 @@ public:
 // 状态定义
 struct FTireflyStateDefinition : public FTableRowBase
 {
-// 状态 配置
+// 状态元数据
 public:
-	ETireflyStateType StateType = ETireflyStateType::State;// 状态类型
-	FGameplayTag StateSlotType;// 状态槽类型
-	int Priority = 0;// 状态优先级
+	ETireflyStateType StateType = ST_State;        // 状态类型
+	FGameplayTag StateSlotType;                    // 状态槽类型
+	int32 Priority = -1;                           // 状态优先级（值越小，优先级越高，最高优先级为0）
 
-// 状态 标签
+// 状态标签
 public:
-	FGameplayTagContainer CategoryTags;// 状态类别标签
-	FGameplayTagContainer FunctionTags;// 状态功能标签
+	FGameplayTagContainer CategoryTags;            // 状态类别标签
+	FGameplayTagContainer FunctionTags;            // 状态功能标签
 
 // 状态树
 public:
-	FStateTreeReference StateTreeRef;// 状态树资产引用，作为状态的运行时脚本
-	TArray<TSubclassOf<UTireflyStateCondition>> ActiveConditions;// 状态的激活条件
-	TMap<FName, FTireflyStateParameter> Parameters;// 状态的参数集
+	FStateTreeReference StateTreeRef;              // 状态树资产引用，作为状态的运行时脚本
+	TArray<TSubclassOf<UTireflyStateCondition>> ActiveConditions;  // 状态的激活条件
+	TMap<FName, FTireflyStateParameter> Parameters;  // 状态的参数集
 
-//  状态 持续时间
+// 状态持续时间
 public:
-	ETireflyStateDurationType DurationType;// 持续时间类型
-	float Duration;// 持续时间
+	ETireflyStateDurationType DurationType = SDT_None;  // 持续时间类型
+	float Duration = 0.f;                           // 持续时间
 
-//  状态 叠层
+// 状态叠层
 public:
-	int MaxStackCount;// 最大叠层数
-	ETireflyStateStackPolicy SameInstigatorStackPolicy;// 同一个技能者叠层处理策略
-	ETireflyStateStackPolicy DiffInstigatorStackPolicy;// 不同技能者叠层处理策略
+	int32 MaxStackCount = 1;                       // 最大叠层数
+	TSubclassOf<UTireflyStateMerger> SameInstigatorMergerType;  // 同状态合并策略（来自同一个发起者）
+	TSubclassOf<UTireflyStateMerger> DiffInstigatorMergerType;  // 同状态合并策略（来自不同的发起者）
 };
 ```
 
 ### a. 状态类型
 
 ```cpp
-enum class ETireflyStateType : uint8
+enum ETireflyStateType : uint8
 {
-	State,// 状态
-	Skill,// 技能
-	Buff,// buff
+	ST_State = 0,    // 状态
+	ST_Skill,        // 技能
+	ST_Buff,         // BUFF效果
 };
 ```
 
 ### b. 状态持续时间类型
 
 ```cpp
-enum class ETireflyStateDurationType : uint8
+enum ETireflyStateDurationType : uint8
 {
-	None,// 无持续时间
-	Duration,// 有限时间
-	Infinite,// 无限制
+	SDT_None = 0,    // 无持续时间
+	SDT_Duration,    // 有持续时间
+	SDT_Infinite,    // 无限持续时间
 };
 ```
 
 ### c. 状态叠层策略
 
 ```cpp
-enum class ETireflyStateStackPolicy : uint8
+class UTireflyStateMerger : public UObject
 {
-	Parallel,// 并行执行，互不干扰
-	DiscardOld,// 新旧互斥，丢弃旧的
-	DiscardNew,// 新旧互斥，丢弃新的
-	Stack,// 叠加层数
+	GENERATED_BODY()
+
+public:
+	UFUNCTION(BlueprintNativeEvent, Category = TireflyCombatSystem)
+	void Merge(
+		TArray<UTireflyStateInstance*>& StatesToMerge,
+		TArray<UTireflyStateInstance*>& MergedStates);
 };
+
+class UTireflyStateMerger_NoMerge;
+class UTireflyStateMerger_StackByInstigator;
+class UTireflyStateMerger_UseNewest;
+class UTireflyStateMerger_UseOldest;
 ```
 
 ### d. 状态参数
@@ -310,11 +318,9 @@ enum class ETireflyStateStackPolicy : uint8
 ```cpp
 struct FTireflyStateParameter
 {
-	FName ParamName;
-	bool bSnapshot;
-
-	virtual bool GetParamValue(AActor* Instiagtor, AActor* Target, float& OutValue);
-}
+	TSubclassOf<UObject> ParamExtractorClass;      // 参数值提取类
+	FInstancedStruct ParamValueContainer;          // 参数值容器
+};
 ```
 
 ### e. 状态条件
@@ -334,33 +340,28 @@ class UTireflyStateCondition : public UObject
 ```cpp
 class UTireflyStateInstance : public UObject
 {
-// 状态数据
+// 状态元数据
 public:
-	FTireflyStateDefinition StateDef;// 状态定义
-	int InstanceId = -1;// 状态实例id
-	int Level = -1;// 状态等级
+	FName StateDefId;                              // 状态定义Id
+	FTireflyStateDefinition StateDef;              // 状态定义数据
+	int32 StateInstanceId = -1;                    // 状态实例Id
 
 // 生命周期
 public:
-	int64 ApplyTime = 0;// 状态应用时间
-	int64 UpdateTime = 0;// 状态更新时间
-	ETireflyStateStage Stage = ETireflyStateStage::Inactive;// 状态阶段
+	int64 ApplyTimestamp = -1;                     // 应用时间戳
+	ETireflyStateStage Stage = ETireflyStateStage::Inactive;  // 状态阶段
 
 // 运行时数据
 public:
-	TWeakObjectPtr<AActor> Owner;// 状态实例拥有者
-	TMap<FName, float> RuntimeParameters;// 运行时参数
-	float DurationRemaining = 0.0f;// 持续时间剩余
-	int StackCount = 1;// 叠层数
-
-// 依赖和互斥
-public:
-	TSet<FName> RequiredStates;// 需要战斗实体拥有这些状态才能添加状态
-	TSet<FName> ImmunityStates;// 战斗实体拥有这些状态时，无法添加状态
+	TWeakObjectPtr<AActor> Owner;                  // 状态实例拥有者
+	int32 Level = -1;                              // 状态等级
+	TMap<FName, float> Parameters;                 // 状态参数
+	float DurationRemaining = 0.0f;                // 状态持续时间
+	int32 StackCount = 1;                          // 状态叠层数
 
 // 状态树数据
-public:
-	FStateTreeInstanceData StateTreeInstanceData;// 状态树实例数据
+protected:
+	FStateTreeInstanceData StateTreeInstanceData;  // 状态树数据
 };
 ```
 
@@ -369,9 +370,10 @@ public:
 ```cpp
 enum class ETireflyStateStage : uint8
 {
-	Active,// 激活
-	Inactive,// 未激活
-	HangingUp,// 挂起中
+	Inactive = 0,    // 未激活
+	Active,          // 已激活
+	HangUp,          // 挂起
+	Expired,         // 已过期
 };
 ```
 
@@ -395,7 +397,7 @@ class UTireflyStateManagerWorldSubsystem : public UWorldSubsystem
 {
 // 状态增删管理
 public:
-	bool AddState(AActor* CombatEntity, const FName& StateId, FTireflyStateInstance& OutState);
+	bool AddState(AActor* CombatEntity, const FName& StateId, Actor* Instigator, FTireflyStateInstance& OutState);
 	bool RemoveState(AActor* CombatEntity, const FTireflyStateInstance& InState);
 	bool RemoveStates(AActor* CombatEntity, const FName& StateId);
 
