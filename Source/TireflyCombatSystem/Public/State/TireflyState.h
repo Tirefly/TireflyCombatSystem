@@ -6,6 +6,7 @@
 #include "GameplayTagContainer.h"
 #include "StateTreeReference.h"
 #include "StateTreeInstanceData.h"
+#include "TireflyStateCondition.h"
 #include "TireflyState.generated.h"
 
 
@@ -42,10 +43,10 @@ enum ETireflyStateDurationType : uint8
 UENUM(BlueprintType)
 enum class ETireflyStateStage : uint8
 {
-	Inactive = 0	UMETA(DisplayName = "Inactive", ToolTip = "未激活"),
-	Active			UMETA(DisplayName = "Active", ToolTip = "已激活"),
-	HangUp			UMETA(DisplayName = "Hanging", ToolTip = "挂起"),
-	Expired			UMETA(DisplayName = "Expired", ToolTip = "已过期"),
+	SS_Inactive = 0		UMETA(DisplayName = "Inactive", ToolTip = "未激活"),
+	SS_Active			UMETA(DisplayName = "Active", ToolTip = "已激活"),
+	SS_HangUp			UMETA(DisplayName = "Hanging", ToolTip = "挂起"),
+	SS_Expired			UMETA(DisplayName = "Expired", ToolTip = "已过期"),
 };
 
 
@@ -99,13 +100,13 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "State Tree")
 	FStateTreeReference StateTreeRef;
 
-	// 状态的激活条件
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "State Tree")
-	TArray<TSubclassOf<UTireflyStateCondition>> ActiveConditions;
-	
 	// 状态的参数集
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "State Tree")
 	TMap<FName, FTireflyStateParameter> Parameters;
+
+	// 状态的激活条件配置
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Condition")
+	TArray<FTireflyStateConditionConfig> ActiveConditions;
 
 	// 持续时间类型
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Duration")
@@ -203,7 +204,7 @@ protected:
 
 	// 状态阶段
 	UPROPERTY(BlueprintReadOnly, Category = "Lifecycle")
-	ETireflyStateStage Stage = ETireflyStateStage::Inactive;
+	ETireflyStateStage Stage = ETireflyStateStage::SS_Inactive;
 
 	// 是否待GC
 	UPROPERTY(BlueprintReadOnly, Category = "Lifecycle")
@@ -218,6 +219,9 @@ public:
 	// 获取状态实例的拥有者
 	AActor* GetOwner() const { return Owner.Get(); }
 
+	// 获取状态实例的发起者
+	AActor* GetInstigator() const { return Instigator.Get(); }
+
 	// 获取状态等级
 	int32 GetLevel() const { return Level; }
 
@@ -228,6 +232,10 @@ protected:
 	// 状态实例拥有者
 	UPROPERTY(BlueprintReadOnly, Category = "Runtime")
 	TWeakObjectPtr<AActor> Owner;
+
+	// 状态实例的发起者
+	UPROPERTY(BlueprintReadOnly, Category = "Runtime")
+	TWeakObjectPtr<AActor> Instigator;
 
 	// 状态等级
 	UPROPERTY(BlueprintReadOnly, Category = "Runtime")

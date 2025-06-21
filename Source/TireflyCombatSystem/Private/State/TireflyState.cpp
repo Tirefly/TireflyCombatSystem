@@ -36,26 +36,26 @@ void UTireflyStateInstance::Update(float DeltaTime)
 {
 	switch (Stage)
 	{
-	case ETireflyStateStage::Inactive:
+	case ETireflyStateStage::SS_Inactive:
 		{
 			// 未激活状态
 			break;
 		}
-	case ETireflyStateStage::Active:
+	case ETireflyStateStage::SS_Active:
 		{
 			DurationRemaining -= DeltaTime;
 			if (DurationRemaining <= 0.0f)
 			{
-				Stage = ETireflyStateStage::Expired;
+				Stage = ETireflyStateStage::SS_Expired;
 			}
 			break;
 		}
-	case ETireflyStateStage::HangUp:
+	case ETireflyStateStage::SS_HangUp:
 		{
 			// 挂起状态
 			break;
 		}
-	case ETireflyStateStage::Expired:
+	case ETireflyStateStage::SS_Expired:
 		{
 			// 过期状态
 			break;

@@ -1,5 +1,6 @@
 // Copyright Tirefly. All Rights Reserved.
 
+
 #include "State/StateMerger/TireflyStateMerger_Stack.h"
 
 #include "TireflyCombatSystemLogChannels.h"
@@ -27,7 +28,7 @@ void UTireflyStateMerger_Stack::Merge_Implementation(
 		// 验证StateDefId是否相同
 		if (State->GetStateDefId() != ReferenceStateDefId)
 		{
-			UE_LOG(LogTcs, Error, TEXT("[%s] StateDefId mismatch."), *FString(__FUNCTION__));
+			UE_LOG(LogTcsStateMerger, Error, TEXT("[%s] StateDefId mismatch."), *FString(__FUNCTION__));
 			return;
 		}
 
