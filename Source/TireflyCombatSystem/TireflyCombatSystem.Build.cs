@@ -38,7 +38,6 @@ public class TireflyCombatSystem : ModuleRules
 				"Engine",
 				"Slate",
 				"SlateCore",
-				"StructUtils",
 				"GameplayTags",
 				"StateTreeModule",
 				"GameplayStateTreeModule",
