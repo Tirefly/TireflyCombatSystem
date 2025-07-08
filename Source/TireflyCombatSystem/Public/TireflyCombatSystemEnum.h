@@ -19,17 +19,7 @@ enum class ETireflyNumericComparison : uint8
 	LessThanOrEqual		UMETA(DisplayName = "Less Than Or Equal", ToolTip = "小于等于"),
 };
 
-// 属性比较操作
-UENUM(BlueprintType)
-enum class ETireflyAttributeComparisonType : uint8
-{
-	Equal = 0			UMETA(DisplayName = "Equal", ToolTip = "等于"),
-	NotEqual			UMETA(DisplayName = "Not Equal", ToolTip = "不等于"),
-	GreaterThan			UMETA(DisplayName = "Greater Than", ToolTip = "大于"),
-	GreaterThanOrEqual	UMETA(DisplayName = "Greater Than Or Equal", ToolTip = "大于等于"),
-	LessThan			UMETA(DisplayName = "Less Than", ToolTip = "小于"),
-	LessThanOrEqual		UMETA(DisplayName = "Less Than Or Equal", ToolTip = "小于等于"),
-};
+
 
 // 属性检查目标
 UENUM(BlueprintType)

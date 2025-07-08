@@ -14,6 +14,7 @@
 class UTireflyStateMerger;
 class UTireflyStateCondition;
 class UTireflyStateParamExtractor;
+class UTireflyStateComponent;
 
 
 
@@ -53,14 +54,14 @@ enum class ETireflyStateStage : uint8
 
 // 状态参数数据
 USTRUCT(BlueprintType)
-struct FTireflyStateParameter
+struct TIREFLYCOMBATSYSTEM_API FTireflyStateParameter
 {
 	GENERATED_BODY()
 
 public:
 	// 参数值提取类
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
-	TSubclassOf<UObject> ParamExtractorClass;
+	TSubclassOf<class UTireflyStateParamParser> ParamResolverClass;
 
 	// 参数值容器
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
@@ -71,7 +72,7 @@ public:
 
 // 状态定义表
 USTRUCT(BlueprintType)
-struct FTireflyStateDefinition : public FTableRowBase
+struct TIREFLYCOMBATSYSTEM_API FTireflyStateDefinition : public FTableRowBase
 {
 	GENERATED_BODY()
 
@@ -96,18 +97,6 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Tag")
 	FGameplayTagContainer FunctionTags;
 
-	// 状态树资产引用，作为状态的运行时脚本
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "State Tree")
-	FStateTreeReference StateTreeRef;
-
-	// 状态的参数集
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "State Tree")
-	TMap<FName, FTireflyStateParameter> Parameters;
-
-	// 状态的激活条件配置
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Condition")
-	TArray<FTireflyStateConditionConfig> ActiveConditions;
-
 	// 持续时间类型
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Duration")
 	TEnumAsByte<ETireflyStateDurationType> DurationType = SDT_None;
@@ -128,28 +117,48 @@ public:
 	// 同状态合并策略（来自不同的发起者）
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stack")
 	TSubclassOf<UTireflyStateMerger> DiffInstigatorMergerType;
+
+	// 状态树资产引用，作为状态的运行时脚本
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "State Tree")
+	FStateTreeReference StateTreeRef;
+
+	// 状态的参数集
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Parameter")
+	TMap<FName, FTireflyStateParameter> Parameters;
+
+	// 状态的激活条件配置
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Condition")
+	TArray<FTireflyStateConditionConfig> ActiveConditions;
 };
 
 
 
 // 状态实例
-UCLASS(BlueprintType)
+UCLASS(BlueprintType, Blueprintable)
 class TIREFLYCOMBATSYSTEM_API UTireflyStateInstance : public UObject
 {
 	GENERATED_BODY()
 
-#pragma region StateInstMeta
+#pragma region GameplayObject
+
+public:
+	UTireflyStateInstance();
+
+	virtual UWorld* GetWorld() const override;
+
+#pragma endregion
+
+
+#pragma region Meta
 
 public:
 	// 初始化状态实例
 	void Initialize(
 		const FTireflyStateDefinition& InStateDef,
 		AActor* InOwner,
+		AActor* InInstigator,
 		int32 InInstanceId = -1,
 		int32 InLevel = -1);
-
-	// 更新状态实例
-	void Update(float DeltaTime);
 
 	// 获取状态的定义Id
 	FName GetStateDefId() const { return StateDefId; }
@@ -217,28 +226,32 @@ protected:
 
 public:
 	// 获取状态实例的拥有者
+	UFUNCTION(BlueprintCallable, Category = "State|Runtime")
 	AActor* GetOwner() const { return Owner.Get(); }
 
 	// 获取状态实例的发起者
+	UFUNCTION(BlueprintCallable, Category = "State|Runtime")
 	AActor* GetInstigator() const { return Instigator.Get(); }
 
 	// 获取状态等级
+	UFUNCTION(BlueprintCallable, Category = "State|Runtime")
 	int32 GetLevel() const { return Level; }
 
 	// 设置状态等级
+	UFUNCTION(BlueprintCallable, Category = "State|Runtime")
 	void SetLevel(int32 InLevel);
 
 protected:
 	// 状态实例拥有者
-	UPROPERTY(BlueprintReadOnly, Category = "Runtime")
+	UPROPERTY(BlueprintReadOnly, Category = "State|Runtime")
 	TWeakObjectPtr<AActor> Owner;
 
 	// 状态实例的发起者
-	UPROPERTY(BlueprintReadOnly, Category = "Runtime")
+	UPROPERTY(BlueprintReadOnly, Category = "State|Runtime")
 	TWeakObjectPtr<AActor> Instigator;
 
 	// 状态等级
-	UPROPERTY(BlueprintReadOnly, Category = "Runtime")
+	UPROPERTY(BlueprintReadOnly, Category = "State|Runtime")
 	int32 Level = -1;
 
 #pragma endregion
@@ -248,14 +261,16 @@ protected:
 
 public:
 	// 获取运行时参数
+	UFUNCTION(BlueprintCallable, Category = "State|Parameters")
 	float GetParamValue(FName ParameterName) const;
 
 	// 设置运行时参数
+	UFUNCTION(BlueprintCallable, Category = "State|Parameters")
 	void SetParamValue(FName ParameterName, float Value);
 
 protected:
 	// 状态参数
-	UPROPERTY(BlueprintReadOnly, Category = "Runtime")
+	UPROPERTY(BlueprintReadOnly, Category = "State|Parameters")
 	TMap<FName, float> Parameters;
 
 #pragma endregion
@@ -265,18 +280,20 @@ protected:
 
 public:
 	// 获取状态剩余时间
-	float GetRemainingTime() const;
+	UFUNCTION(BlueprintCallable, Category = "State|Duration")
+	float GetDurationRemaining() const;
+
+	// 刷新状态剩余时间
+	UFUNCTION(BlueprintCallable, Category = "State|Duration")
+	void RefreshDurationRemaining();
 
 	// 设置状态剩余时间
-	void SetRemainingTime(float InRemainingTime);
+	UFUNCTION(BlueprintCallable, Category = "State|Duration")
+	void SetDurationRemaining(float InDurationRemaining);
 
 	// 获取状态总持续时间
+	UFUNCTION(BlueprintCallable, Category = "State|Duration")
 	float GetTotalDuration() const;
-
-protected:
-	// 状态持续时间
-	UPROPERTY(BlueprintReadOnly, Category = "Runtime")
-	float DurationRemaining = 0.0f;
 
 #pragma endregion
 
@@ -285,23 +302,32 @@ protected:
 
 public:
 	// 检查状态是否可以叠加
+	UFUNCTION(BlueprintCallable, Category = "State|Stack")
 	bool CanStack() const;
 
 	// 获取状态叠层数
+	UFUNCTION(BlueprintCallable, Category = "State|Stack")
 	int32 GetStackCount() const { return StackCount; }
 
+	// 获取状态最大叠层数
+	UFUNCTION(BlueprintCallable, Category = "State|Stack")
+	int32 GetMaxStackCount() const;
+
 	// 设置状态叠层数
+	UFUNCTION(BlueprintCallable, Category = "State|Stack")
 	void SetStackCount(int32 InStackCount);
 
 	// 增加状态叠层数
+	UFUNCTION(BlueprintCallable, Category = "State|Stack")
 	void AddStack(int32 Count = 1);
 
 	// 减少状态叠层数
+	UFUNCTION(BlueprintCallable, Category = "State|Stack")
 	void RemoveStack(int32 Count = 1);
 
 protected:
 	// 状态叠层数
-	UPROPERTY(BlueprintReadOnly, Category = "Runtime")
+	UPROPERTY(BlueprintReadOnly, Category = "State|Stack")
 	int32 StackCount = 1;
 
 #pragma endregion

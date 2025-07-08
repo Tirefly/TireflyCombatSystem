@@ -36,4 +36,8 @@ public:
 	// 获取战斗实体的类型
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "TireflyCombatSystem")
 	FGameplayTag GetCombatEntityType() const;
+
+	// 获取战斗实体的等级
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "TireflyCombatSystem")
+	int32 GetCombatEntityLevel() const;
 };

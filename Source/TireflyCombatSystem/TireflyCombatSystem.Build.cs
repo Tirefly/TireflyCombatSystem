@@ -26,7 +26,13 @@ public class TireflyCombatSystem : ModuleRules
 			new string[]
 			{
 				"Core",
-				// ... add other public dependencies that you statically link with here ...
+				"CoreUObject",
+				"Engine",
+				"GameplayTags",
+				"StateTreeModule",
+				"GameplayStateTreeModule",
+				"DeveloperSettings",
+				"GameplayMessageRuntime"
 			}
 			);
 			
@@ -34,15 +40,8 @@ public class TireflyCombatSystem : ModuleRules
 		PrivateDependencyModuleNames.AddRange(
 			new string[]
 			{
-				"CoreUObject",
-				"Engine",
 				"Slate",
-				"SlateCore",
-				"GameplayTags",
-				"StateTreeModule",
-				"GameplayStateTreeModule",
-				"DeveloperSettings",
-				"GameplayMessageRuntime"
+				"SlateCore"
 				// ... add private dependencies that you statically link with here ...	
 			}
 			);

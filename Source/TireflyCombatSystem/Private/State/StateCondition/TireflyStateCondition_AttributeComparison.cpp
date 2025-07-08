@@ -4,7 +4,6 @@
 #include "State/StateCondition/TireflyStateCondition_AttributeComparison.h"
 #include "State/TireflyState.h"
 #include "Attribute/TireflyAttributeComponent.h"
-#include "Attribute/TireflyAttribute.h"
 #include "TireflyCombatEntityInterface.h"
 #include "TireflyCombatSystemLogChannels.h"
 
@@ -71,17 +70,17 @@ bool UTireflyStateCondition_AttributeComparison::CheckCondition_Implementation(
 	float CompareValue = Config->CompareValue;
 	switch (Config->ComparisonType)
 	{
-	case ETireflyAttributeComparisonType::GreaterThan:
+	case ETireflyNumericComparison::GreaterThan:
 		return AttributeValue > CompareValue;
-	case ETireflyAttributeComparisonType::GreaterThanOrEqual:
+	case ETireflyNumericComparison::GreaterThanOrEqual:
 		return AttributeValue >= CompareValue;
-	case ETireflyAttributeComparisonType::LessThan:
+	case ETireflyNumericComparison::LessThan:
 		return AttributeValue < CompareValue;
-	case ETireflyAttributeComparisonType::LessThanOrEqual:
+	case ETireflyNumericComparison::LessThanOrEqual:
 		return AttributeValue <= CompareValue;
-	case ETireflyAttributeComparisonType::Equal:
+	case ETireflyNumericComparison::Equal:
 		return FMath::IsNearlyEqual(AttributeValue, CompareValue);
-	case ETireflyAttributeComparisonType::NotEqual:
+	case ETireflyNumericComparison::NotEqual:
 		return !FMath::IsNearlyEqual(AttributeValue, CompareValue);
 	default:
 		return false;

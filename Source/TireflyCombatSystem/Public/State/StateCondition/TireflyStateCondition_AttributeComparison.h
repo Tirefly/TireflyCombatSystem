@@ -26,7 +26,7 @@ public:
 
 	// 比较操作
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Attribute Comparison")
-	ETireflyAttributeComparisonType ComparisonType = ETireflyAttributeComparisonType::Equal;
+	ETireflyNumericComparison ComparisonType = ETireflyNumericComparison::Equal;
 
 	// 比较值
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Attribute Comparison")

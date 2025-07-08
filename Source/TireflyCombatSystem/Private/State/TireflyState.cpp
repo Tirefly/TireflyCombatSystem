@@ -3,11 +3,27 @@
 
 #include "State/TireflyState.h"
 
+#include "State/TireflyStateComponent.h"
 
+
+UTireflyStateInstance::UTireflyStateInstance()
+{
+}
+
+UWorld* UTireflyStateInstance::GetWorld() const
+{
+	if (UWorldSubsystem* WorldSubsystem = Cast<UWorldSubsystem>(GetOuter()))
+	{
+		return WorldSubsystem->GetWorld();
+	}
+	
+	return nullptr;
+}
 
 void UTireflyStateInstance::Initialize(
 	const FTireflyStateDefinition& InStateDef,
 	AActor* InOwner,
+	AActor* InInstigator,
 	int32 InInstanceId,
 	int32 InLevel)
 {
@@ -16,51 +32,10 @@ void UTireflyStateInstance::Initialize(
 	Level = InLevel;
 	
 	Owner = InOwner;
+	Instigator = InInstigator;
 
-	// 初始化持续时间
-	if (StateDef.DurationType == ETireflyStateDurationType::SDT_Duration)
-	{
-		DurationRemaining = StateDef.Duration;
-	}
-	else if (StateDef.DurationType == ETireflyStateDurationType::SDT_Infinite)
-	{
-		DurationRemaining = -1.0f;
-	}
-	else
-	{
-		DurationRemaining = 0.0f;
-	}
-}
-
-void UTireflyStateInstance::Update(float DeltaTime)
-{
-	switch (Stage)
-	{
-	case ETireflyStateStage::SS_Inactive:
-		{
-			// 未激活状态
-			break;
-		}
-	case ETireflyStateStage::SS_Active:
-		{
-			DurationRemaining -= DeltaTime;
-			if (DurationRemaining <= 0.0f)
-			{
-				Stage = ETireflyStateStage::SS_Expired;
-			}
-			break;
-		}
-	case ETireflyStateStage::SS_HangUp:
-		{
-			// 挂起状态
-			break;
-		}
-	case ETireflyStateStage::SS_Expired:
-		{
-			// 过期状态
-			break;
-		}
-	}
+	Parameters.Add("MaxStackCount", StateDef.MaxStackCount);
+	Parameters.Add("TotalDuration", StateDef.Duration);
 }
 
 void UTireflyStateInstance::SetCurrentStage(ETireflyStateStage InStage)
@@ -70,27 +45,96 @@ void UTireflyStateInstance::SetCurrentStage(ETireflyStateStage InStage)
 
 bool UTireflyStateInstance::CanStack() const
 {
-	return StackCount < StateDef.MaxStackCount;
+	int32 MaxStackCount = GetMaxStackCount();
+	if (MaxStackCount <= 0)
+	{
+		return false;
+	}
+	
+	return StackCount < MaxStackCount;
 }
 
-float UTireflyStateInstance::GetRemainingTime() const
+float UTireflyStateInstance::GetDurationRemaining() const
 {
-	return DurationRemaining;
+	// 从TireflyStateComponent获取剩余时间
+	if (AActor* OwnerActor = Owner.Get())
+	{
+		if (UTireflyStateComponent* StateComponent = OwnerActor->FindComponentByClass<UTireflyStateComponent>())
+		{
+			return StateComponent->GetStateInstanceDurationRemaining(const_cast<UTireflyStateInstance*>(this));
+		}
+	}
+	
+	return 0.0f;
 }
 
-void UTireflyStateInstance::SetRemainingTime(float InRemainingTime)
+void UTireflyStateInstance::RefreshDurationRemaining()
 {
-	DurationRemaining = InRemainingTime;
+	// 通知TireflyStateComponent刷新剩余时间
+	if (AActor* OwnerActor = Owner.Get())
+	{
+		if (UTireflyStateComponent* StateComponent = OwnerActor->FindComponentByClass<UTireflyStateComponent>())
+		{
+			StateComponent->RefreshStateInstanceDurationRemaining(this);
+		}
+	}
+}
+
+void UTireflyStateInstance::SetDurationRemaining(float InDurationRemaining)
+{
+	// 通知TireflyStateComponent设置剩余时间
+	if (AActor* OwnerActor = Owner.Get())
+	{
+		if (UTireflyStateComponent* StateComponent = OwnerActor->FindComponentByClass<UTireflyStateComponent>())
+		{
+			StateComponent->SetStateInstanceDurationRemaining(this, InDurationRemaining);
+		}
+	}
 }
 
 float UTireflyStateInstance::GetTotalDuration() const
 {
-	return StateDef.Duration;
+	switch (StateDef.DurationType)
+	{
+	default:
+	case SDT_None:
+		return 0.0f;
+	case SDT_Infinite:
+		return -1.f;
+	case SDT_Duration:
+		break;
+	}
+	
+	float TotalDuration = StateDef.Duration;
+	if (const float* DurationParam = Parameters.Find("TotalDuration"))
+	{
+		TotalDuration = FMath::Max(TotalDuration, *DurationParam);
+	}
+	
+	return TotalDuration;
+}
+
+int32 UTireflyStateInstance::GetMaxStackCount() const
+{
+	int32 MaxStackCount = StateDef.MaxStackCount;
+	if (const float* MaxStackParam = Parameters.Find("MaxStackCount"))
+	{
+		MaxStackCount = static_cast<int32>(*MaxStackParam);
+	}
+
+	return MaxStackCount;
 }
 
 void UTireflyStateInstance::SetStackCount(int32 InStackCount)
 {
-	StackCount = FMath::Clamp(InStackCount, 1, StateDef.MaxStackCount);
+	int32 MaxStackCount = GetMaxStackCount();
+	if (MaxStackCount <= 0)
+	{
+		StackCount = 0;
+		return;
+	}
+	
+	StackCount = FMath::Clamp(InStackCount, 1, MaxStackCount);
 }
 
 void UTireflyStateInstance::AddStack(int32 Count)
@@ -119,5 +163,5 @@ float UTireflyStateInstance::GetParamValue(FName ParameterName) const
 
 void UTireflyStateInstance::SetParamValue(FName ParameterName, float Value)
 {
-	Parameters.Add(ParameterName, Value);
+	Parameters.FindOrAdd(ParameterName) = Value;
 }
