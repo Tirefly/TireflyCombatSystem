@@ -6,6 +6,8 @@
 #include "GameplayTagContainer.h"
 #include "StateTreeReference.h"
 #include "StateTreeInstanceData.h"
+#include "StateTreeExecutionContext.h"
+#include "StateTreeExecutionTypes.h"
 #include "TireflyStateCondition.h"
 #include "TireflyState.generated.h"
 
@@ -52,6 +54,15 @@ enum class ETireflyStateStage : uint8
 
 
 
+// 状态参数类型枚举
+UENUM(BlueprintType)
+enum class ETireflyStateParameterType : uint8
+{
+	Numeric = 0		UMETA(DisplayName = "Numeric", ToolTip = "数值类型参数(Float)，需要使用参数解析器计算"),
+	Bool			UMETA(DisplayName = "Bool", ToolTip = "布尔类型参数，直接存储使用"),
+	Vector			UMETA(DisplayName = "Vector", ToolTip = "向量类型参数，直接存储使用"),
+};
+
 // 状态参数数据
 USTRUCT(BlueprintType)
 struct TIREFLYCOMBATSYSTEM_API FTireflyStateParameter
@@ -59,13 +70,23 @@ struct TIREFLYCOMBATSYSTEM_API FTireflyStateParameter
 	GENERATED_BODY()
 
 public:
-	// 参数值提取类
-	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	// 参数类型
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Parameter Type")
+	ETireflyStateParameterType ParameterType = ETireflyStateParameterType::Numeric;
+
+	// 参数值提取类 (仅Numeric类型使用)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Numeric Parameter", 
+		meta = (EditCondition = "ParameterType == ETireflyStateParameterType::Numeric", EditConditionHides))
 	TSubclassOf<class UTireflyStateParamParser> ParamResolverClass;
 
 	// 参数值容器
-	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Parameter Value")
 	FInstancedStruct ParamValueContainer;
+
+	// 快照配置 (仅技能使用，其他状态类型忽略此设置)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Skill Parameter", 
+		meta = (ToolTip = "是否为快照参数：快照参数在技能激活时计算一次；非快照参数会实时同步变化"))
+	bool bIsSnapshot = true;
 };
 
 
@@ -260,18 +281,59 @@ protected:
 #pragma region Parameters
 
 public:
-	// 获取运行时参数
+	// 数值类型参数操作接口
 	UFUNCTION(BlueprintCallable, Category = "State|Parameters")
 	float GetParamValue(FName ParameterName) const;
 
-	// 设置运行时参数
 	UFUNCTION(BlueprintCallable, Category = "State|Parameters")
 	void SetParamValue(FName ParameterName, float Value);
 
+	// 布尔类型参数操作接口
+	UFUNCTION(BlueprintCallable, Category = "State|Parameters")
+	bool GetBoolParam(FName ParameterName, bool DefaultValue = false) const;
+
+	UFUNCTION(BlueprintCallable, Category = "State|Parameters")
+	void SetBoolParam(FName ParameterName, bool Value);
+
+	// 向量类型参数操作接口
+	UFUNCTION(BlueprintCallable, Category = "State|Parameters")
+	FVector GetVectorParam(FName ParameterName, const FVector& DefaultValue = FVector::ZeroVector) const;
+
+	UFUNCTION(BlueprintCallable, Category = "State|Parameters")
+	void SetVectorParam(FName ParameterName, const FVector& Value);
+
+	// 参数检查接口
+	UFUNCTION(BlueprintPure, Category = "State|Parameters")
+	bool HasNumericParam(FName ParameterName) const;
+
+	UFUNCTION(BlueprintPure, Category = "State|Parameters")
+	bool HasBoolParam(FName ParameterName) const;
+
+	UFUNCTION(BlueprintPure, Category = "State|Parameters")
+	bool HasVectorParam(FName ParameterName) const;
+
+	// 获取所有参数名称
+	UFUNCTION(BlueprintPure, Category = "State|Parameters")
+	TArray<FName> GetAllNumericParamNames() const;
+
+	UFUNCTION(BlueprintPure, Category = "State|Parameters")
+	TArray<FName> GetAllBoolParamNames() const;
+
+	UFUNCTION(BlueprintPure, Category = "State|Parameters")
+	TArray<FName> GetAllVectorParamNames() const;
+
 protected:
-	// 状态参数
+	// 数值类型参数 (原Parameters重命名)
 	UPROPERTY(BlueprintReadOnly, Category = "State|Parameters")
-	TMap<FName, float> Parameters;
+	TMap<FName, float> NumericParameters;
+
+	// 布尔类型参数
+	UPROPERTY(BlueprintReadOnly, Category = "State|Parameters")  
+	TMap<FName, bool> BoolParameters;
+
+	// 向量类型参数
+	UPROPERTY(BlueprintReadOnly, Category = "State|Parameters")
+	TMap<FName, FVector> VectorParameters;
 
 #pragma endregion
 
@@ -335,7 +397,44 @@ protected:
 
 #pragma region StateTree
 
+public:
+	// StateTree生命周期管理
+	UFUNCTION(BlueprintCallable, Category = "State|StateTree")
+	bool InitializeStateTree();
+	
+	UFUNCTION(BlueprintCallable, Category = "State|StateTree")
+	void StartStateTree();
+	
+	UFUNCTION(BlueprintCallable, Category = "State|StateTree")
+	void TickStateTree(float DeltaTime);
+	
+	UFUNCTION(BlueprintCallable, Category = "State|StateTree")
+	void StopStateTree();
+	
+	// StateTree状态查询
+	UFUNCTION(BlueprintPure, Category = "State|StateTree")
+	bool IsStateTreeRunning() const { return bStateTreeRunning; }
+	
+	UFUNCTION(BlueprintPure, Category = "State|StateTree")
+	EStateTreeRunStatus GetStateTreeRunStatus() const;
+	
+	// StateTree事件发送
+	UFUNCTION(BlueprintCallable, Category = "State|StateTree")
+	void SendStateTreeEvent(FGameplayTag EventTag, const FInstancedStruct& EventPayload);
+
 protected:
+	// StateTree上下文设置
+	virtual bool SetupStateTreeContext(FStateTreeExecutionContext& Context);
+	virtual bool CollectExternalData(
+		const FStateTreeExecutionContext& Context,
+		const UStateTree* StateTree,
+		TArrayView<const FStateTreeExternalDataDesc> ExternalDataDescs,
+		TArrayView<FStateTreeDataView> OutDataViews);
+	
+	// StateTree运行状态
+	bool bStateTreeRunning = false;
+	EStateTreeRunStatus CurrentStateTreeStatus = EStateTreeRunStatus::Unset;
+	
 	// 状态树数据
 	UPROPERTY()
 	FStateTreeInstanceData StateTreeInstanceData;
