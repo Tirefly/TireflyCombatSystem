@@ -4,6 +4,60 @@
 #include "State/TireflyStateManagerSubsystem.h"
 #include "State/TireflyState.h"
 
+FTireflyStateDefinition UTireflyStateManagerSubsystem::GetStateDefinition(FName StateDefId)
+{
+	// TODO: 实现从数据表或资产中获取状态定义的逻辑
+	// 目前返回一个默认的状态定义
+	FTireflyStateDefinition StateDef;
+	StateDef.StateType = ST_State;
+	return StateDef;
+}
+
+UTireflyStateInstance* UTireflyStateManagerSubsystem::CreateStateInstance(AActor* Owner, FName StateDefId, AActor* Instigator)
+{
+	if (!Owner)
+	{
+		return nullptr;
+	}
+
+	// 获取状态定义
+	FTireflyStateDefinition StateDef = GetStateDefinition(StateDefId);
+	
+	// 创建状态实例
+	UTireflyStateInstance* StateInstance = NewObject<UTireflyStateInstance>(Owner);
+	if (StateInstance)
+	{
+		// 初始化状态实例
+		StateInstance->Initialize(StateDef, Owner, Instigator);
+	}
+	
+	return StateInstance;
+}
+
+bool UTireflyStateManagerSubsystem::ApplyState(AActor* TargetActor, FName StateDefId, AActor* SourceActor, const FInstancedStruct& Parameters)
+{
+	if (!TargetActor)
+	{
+		return false;
+	}
+
+	// 创建状态实例
+	UTireflyStateInstance* StateInstance = CreateStateInstance(TargetActor, StateDefId, SourceActor);
+	if (!StateInstance)
+	{
+		return false;
+	}
+
+	// TODO: 应用参数到状态实例
+	// StateInstance->ApplyParameters(Parameters);
+
+	// 激活状态
+	StateInstance->InitializeStateTree();
+	StateInstance->StartStateTree();
+
+	return true;
+}
+
 void UTireflyStateManagerSubsystem::OnStateInstanceDurationExpired(UTireflyStateInstance* StateInstance)
 {
 	if (!IsValid(StateInstance))

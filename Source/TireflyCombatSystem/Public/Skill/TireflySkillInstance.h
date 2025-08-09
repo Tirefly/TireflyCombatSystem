@@ -194,11 +194,9 @@ public:
 
 protected:
 	// 参数修正器（加法修正）
-	UPROPERTY(BlueprintReadOnly, Category = "Skill Instance|Modifiers")
 	TMap<FName, TArray<float>> AdditiveModifiers;
 
 	// 参数修正器（乘法修正）
-	UPROPERTY(BlueprintReadOnly, Category = "Skill Instance|Modifiers")
 	TMap<FName, TArray<float>> MultiplicativeModifiers;
 
 #pragma endregion

@@ -108,7 +108,6 @@ protected:
 	TMap<FName, UTireflyStateInstance*> StateInstancesByDefId;
 
 	// 状态实例索引映射（通过类型）
-	UPROPERTY()
 	TMap<uint8, TArray<UTireflyStateInstance*>> StateInstancesByType;
 
 #pragma endregion
@@ -139,7 +138,6 @@ public:
 
 protected:
 	// StateTree状态槽映射
-	UPROPERTY()
 	TMap<FGameplayTag, TArray<UTireflyStateInstance*>> StateSlots;
 
 	// 状态槽变化事件处理

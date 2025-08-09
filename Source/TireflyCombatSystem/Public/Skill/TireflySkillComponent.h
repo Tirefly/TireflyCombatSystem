@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
 #include "GameplayTagContainer.h"
+#include "InstancedStruct.h"
 #include "TireflySkillComponent.generated.h"
 
 class UTireflyStateInstance;

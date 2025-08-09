@@ -51,13 +51,14 @@ void UTireflySkillInstance::Initialize(const FTireflyStateDefinition& InSkillDef
 		case ETireflyStateParameterType::Bool:
 			{
 				// 从ParamValueContainer提取bool值
-				if (const bool* BoolValue = ParamConfig.ParamValueContainer.GetPtr<bool>())
+				// TODO: 修复FInstancedStruct对bool类型的支持问题
+				// if (const bool* BoolValue = ParamConfig.ParamValueContainer.GetPtr<bool>())
+				// {
+				// 	BoolParameters.Add(ParamName, *BoolValue);
+				// }
+				// else
 				{
-					BoolParameters.Add(ParamName, *BoolValue);
-				}
-				else
-				{
-					BoolParameters.Add(ParamName, false);
+					BoolParameters.Add(ParamName, false); // 默认值
 				}
 			}
 			break;

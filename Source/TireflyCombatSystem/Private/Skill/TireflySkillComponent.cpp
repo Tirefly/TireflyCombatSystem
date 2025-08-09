@@ -230,26 +230,27 @@ bool UTireflySkillComponent::TryCastSkill(FName SkillDefId, AActor* TargetActor,
 	ActiveSkillStateInstances.Add(SkillDefId, SkillInstance);
 
 	// 获取技能实例并计算冷却时间
+	float CooldownDuration = 0.0f;
 	UTireflySkillInstance* LearnedSkillInstance = GetSkillInstance(SkillDefId);
 	if (LearnedSkillInstance)
 	{
 		// 使用SkillInstance计算冷却时间
-		float CooldownDuration = LearnedSkillInstance->CalculateNumericParameter(TEXT("Cooldown"), GetOwner(), TargetActor);
+		CooldownDuration = LearnedSkillInstance->CalculateNumericParameter(TEXT("Cooldown"), GetOwner(), TargetActor);
 		if (CooldownDuration <= 0.0f)
 		{
 			// 如果没有定义冷却参数，使用传统方法计算
 			const FTireflyStateDefinition& SkillDef = SkillInstance->GetStateDef();
 			CooldownDuration = CalculateSkillCooldown(SkillDef, LearnedSkillInstance->GetCurrentLevel());
 		}
-		SetSkillCooldown(SkillDefId, CooldownDuration);
 	}
 	else
 	{
 		// 回退到传统计算方法
 		const FTireflyStateDefinition& SkillDef = SkillInstance->GetStateDef();
-		float CooldownDuration = CalculateSkillCooldown(SkillDef, GetSkillLevel(SkillDefId));
-		SetSkillCooldown(SkillDefId, CooldownDuration);
+		CooldownDuration = CalculateSkillCooldown(SkillDef, GetSkillLevel(SkillDefId));
 	}
+	
+	SetSkillCooldown(SkillDefId, CooldownDuration);
 
 	// 启动技能状态的StateTree
 	SkillInstance->InitializeStateTree();
@@ -681,13 +682,14 @@ void UTireflySkillComponent::CalculateSkillParameters(const FTireflyStateDefinit
 		case ETireflyStateParameterType::Bool:
 			{
 				// 布尔参数：从ParamValueContainer直接提取
-				if (const bool* BoolValue = ParamConfig.ParamValueContainer.GetPtr<bool>())
+				// TODO: 修复FInstancedStruct对bool类型的支持问题
+				// if (const bool* BoolValue = ParamConfig.ParamValueContainer.GetPtr<bool>())
+				// {
+				// 	StateInstance->SetBoolParam(ParamName, *BoolValue);
+				// }
+				// else
 				{
-					StateInstance->SetBoolParam(ParamName, *BoolValue);
-				}
-				else
-				{
-					StateInstance->SetBoolParam(ParamName, false);
+					StateInstance->SetBoolParam(ParamName, false); // 默认值
 				}
 			}
 			break;

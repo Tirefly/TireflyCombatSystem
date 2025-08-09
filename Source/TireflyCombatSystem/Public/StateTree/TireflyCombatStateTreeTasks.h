@@ -6,6 +6,7 @@
 #include "StateTreeTaskBase.h"
 #include "StateTreeConditionBase.h"
 #include "GameplayTagContainer.h"
+#include "TireflyCombatSystemEnum.h"
 #include "TireflyCombatStateTreeTasks.generated.h"
 
 class UTireflyStateInstance;
@@ -258,7 +259,7 @@ struct TIREFLYCOMBATSYSTEM_API FTireflyCombatCondition_AttributeComparisonInstan
 
 	// 比较操作类型
 	UPROPERTY(EditAnywhere, Category = "Input")
-	TEnumAsByte<EArithmeticKeyOperation::Type> ComparisonOperation = EArithmeticKeyOperation::Greater;
+	ETireflyNumericComparison ComparisonOperation = ETireflyNumericComparison::GreaterThan;
 
 	// 比较目标Actor
 	UPROPERTY(EditAnywhere, Category = "Input")

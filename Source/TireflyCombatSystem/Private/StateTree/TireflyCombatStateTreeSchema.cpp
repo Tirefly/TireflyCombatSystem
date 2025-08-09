@@ -6,56 +6,52 @@
 #include "Attribute/TireflyAttributeComponent.h"
 #include "GameFramework/Actor.h"
 #include "GameFramework/Pawn.h"
-#include "GameFramework/PlayerController.h"
-#include "GameFramework/AIController.h"
+#include "GameFramework/Controller.h"
 
 UTireflyCombatStateTreeSchema::UTireflyCombatStateTreeSchema()
 {
-	// 设置Schema的基本信息
-	DisplayName = NSLOCTEXT("TireflyCombatSystem", "CombatStateTreeSchemaDisplayName", "Tirefly Combat StateTree");
-	
 	// 定义Schema保证的上下文数据
 	ContextDataDescs.Add(FStateTreeExternalDataDesc(
 		FName("Owner"),
 		AActor::StaticClass(),
-		EStateTreeExternalDataRequirement::Required
+		FGuid::NewGuid()
 	));
 	
 	ContextDataDescs.Add(FStateTreeExternalDataDesc(
 		FName("Instigator"), 
 		AActor::StaticClass(),
-		EStateTreeExternalDataRequirement::Optional
+		FGuid::NewGuid()
 	));
 	
 	ContextDataDescs.Add(FStateTreeExternalDataDesc(
 		FName("StateInstance"),
 		UTireflyStateInstance::StaticClass(),
-		EStateTreeExternalDataRequirement::Required
+		FGuid::NewGuid()
 	));
 	
 	ContextDataDescs.Add(FStateTreeExternalDataDesc(
 		FName("StateComponent"),
 		UTireflyStateComponent::StaticClass(),
-		EStateTreeExternalDataRequirement::Required
+		FGuid::NewGuid()
 	));
 	
 	ContextDataDescs.Add(FStateTreeExternalDataDesc(
 		FName("AttributeComponent"),
 		UTireflyAttributeComponent::StaticClass(), 
-		EStateTreeExternalDataRequirement::Optional
+		FGuid::NewGuid()
 	));
 	
 	// 可选的Pawn和Controller上下文
 	ContextDataDescs.Add(FStateTreeExternalDataDesc(
 		FName("Pawn"),
 		APawn::StaticClass(),
-		EStateTreeExternalDataRequirement::Optional
+		FGuid::NewGuid()
 	));
 	
 	ContextDataDescs.Add(FStateTreeExternalDataDesc(
 		FName("Controller"),
 		AController::StaticClass(),
-		EStateTreeExternalDataRequirement::Optional
+		FGuid::NewGuid()
 	));
 }
 

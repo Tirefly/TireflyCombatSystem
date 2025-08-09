@@ -26,3 +26,6 @@ DECLARE_LOG_CATEGORY_EXTERN(LogTcsStateMerger, Log, All);
 
 // 战斗系统状态条件执行日志频道
 DECLARE_LOG_CATEGORY_EXTERN(LogTcsStateCondition, Log, All);
+
+// 战斗系统技能模块日志频道
+DECLARE_LOG_CATEGORY_EXTERN(LogTcsSkill, Log, All);

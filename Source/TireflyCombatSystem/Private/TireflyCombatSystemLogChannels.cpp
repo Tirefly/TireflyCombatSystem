@@ -18,3 +18,5 @@ DEFINE_LOG_CATEGORY(LogTcsState);
 DEFINE_LOG_CATEGORY(LogTcsStateMerger);
 
 DEFINE_LOG_CATEGORY(LogTcsStateCondition);
+
+DEFINE_LOG_CATEGORY(LogTcsSkill);
