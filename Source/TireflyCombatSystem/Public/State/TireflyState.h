@@ -63,6 +63,8 @@ enum class ETireflyStateParameterType : uint8
 	Vector			UMETA(DisplayName = "Vector", ToolTip = "向量类型参数，直接存储使用"),
 };
 
+
+
 // 状态参数数据
 USTRUCT(BlueprintType)
 struct TIREFLYCOMBATSYSTEM_API FTireflyStateParameter
@@ -143,13 +145,13 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "State Tree")
 	FStateTreeReference StateTreeRef;
 
-	// 状态的参数集
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Parameter")
-	TMap<FName, FTireflyStateParameter> Parameters;
-
 	// 状态的激活条件配置
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Condition")
 	TArray<FTireflyStateConditionConfig> ActiveConditions;
+
+	// 状态的参数集
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Parameter")
+	TMap<FName, FTireflyStateParameter> Parameters;
 };
 
 

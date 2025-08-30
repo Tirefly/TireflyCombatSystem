@@ -200,13 +200,20 @@ TArray<UTireflyStateInstance*> UTireflyStateComponent::GetAllActiveStates() cons
 	return ActiveStateInstances;
 }
 
-TArray<UTireflyStateInstance*> UTireflyStateComponent::GetStatesByType(uint8 StateType) const
+TArray<UTireflyStateInstance*> UTireflyStateComponent::GetStatesByType(TEnumAsByte<ETireflyStateType> StateType) const
 {
-	if (const TArray<UTireflyStateInstance*>* FoundStates = StateInstancesByType.Find(StateType))
+	TArray<UTireflyStateInstance*> Result;
+	Result.Reserve(ActiveStateInstances.Num()); // 预分配内存以提高性能
+	
+	for (UTireflyStateInstance* StateInstance : ActiveStateInstances)
 	{
-		return *FoundStates;
+		if (IsValid(StateInstance) && StateInstance->GetStateDef().StateType == StateType)
+		{
+			Result.Add(StateInstance);
+		}
 	}
-	return TArray<UTireflyStateInstance*>();
+	
+	return Result;
 }
 
 TArray<UTireflyStateInstance*> UTireflyStateComponent::GetStatesByTags(const FGameplayTagContainer& Tags) const
@@ -449,15 +456,7 @@ void UTireflyStateComponent::UpdateStateInstanceIndices(UTireflyStateInstance* S
 		StateInstancesByDefId.FindOrAdd(StateDefId) = StateInstance;
 	}
 
-	// 更新类型索引
-	const FTireflyStateDefinition& StateDef = StateInstance->GetStateDef();
-	uint8 StateType = StateDef.StateType;
-	
-	TArray<UTireflyStateInstance*>& TypeArray = StateInstancesByType.FindOrAdd(StateType);
-	if (!TypeArray.Contains(StateInstance))
-	{
-		TypeArray.Add(StateInstance);
-	}
+	// 类型索引维护已移除 - 改为动态查询以避免UE引擎TMap嵌套限制和GC风险
 }
 
 void UTireflyStateComponent::CleanupStateInstanceIndices(UTireflyStateInstance* StateInstance)
@@ -484,20 +483,7 @@ void UTireflyStateComponent::CleanupStateInstanceIndices(UTireflyStateInstance* 
 		StateInstancesByDefId.Remove(StateDefId);
 	}
 
-	// 从类型索引移除
-	const FTireflyStateDefinition& StateDef = StateInstance->GetStateDef();
-	uint8 StateType = StateDef.StateType;
-	
-	if (TArray<UTireflyStateInstance*>* TypeArray = StateInstancesByType.Find(StateType))
-	{
-		TypeArray->Remove(StateInstance);
-		
-		// 如果类型数组为空，移除整个映射
-		if (TypeArray->Num() == 0)
-		{
-			StateInstancesByType.Remove(StateType);
-		}
-	}
+	// 类型索引维护已移除 - 改为动态查询以避免UE引擎TMap嵌套限制和GC风险
 }
 
 #pragma endregion

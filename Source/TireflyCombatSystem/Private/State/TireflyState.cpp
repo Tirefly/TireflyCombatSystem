@@ -405,9 +405,7 @@ void UTireflyStateInstance::SendStateTreeEvent(FGameplayTag EventTag, const FIns
 	if (SetupStateTreeContext(Context))
 	{
 		// 发送事件
-		// TODO: 修复FConstStructView对FInstancedStruct的支持问题
-		// Context.SendEvent(EventTag, FConstStructView::Make(EventPayload));
-		Context.SendEvent(EventTag, FConstStructView());
+		Context.SendEvent(EventTag, FConstStructView(EventPayload));
 	}
 }
 

@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
 #include "GameplayTagContainer.h"
+#include "TireflyState.h"
 #include "TireflyStateComponent.generated.h"
 
 
@@ -88,7 +89,7 @@ public:
 
 	// 按类型获取状态实例
 	UFUNCTION(BlueprintPure, Category = "State Management")
-	TArray<UTireflyStateInstance*> GetStatesByType(uint8 StateType) const;
+	TArray<UTireflyStateInstance*> GetStatesByType(TEnumAsByte<ETireflyStateType> StateType) const;
 
 	// 按标签获取状态实例
 	UFUNCTION(BlueprintPure, Category = "State Management")
@@ -107,8 +108,9 @@ protected:
 	UPROPERTY()
 	TMap<FName, UTireflyStateInstance*> StateInstancesByDefId;
 
-	// 状态实例索引映射（通过类型）
-	TMap<uint8, TArray<UTireflyStateInstance*>> StateInstancesByType;
+	// 状态管理器子系统
+	UPROPERTY()
+	TObjectPtr<UTireflyStateManagerSubsystem> StateManagerSubsystem;
 
 #pragma endregion
 
@@ -152,9 +154,6 @@ protected:
 	void CleanupStateInstanceIndices(UTireflyStateInstance* StateInstance);
 
 #pragma endregion
-	// 状态管理器子系统
-	UPROPERTY()
-	TObjectPtr<UTireflyStateManagerSubsystem> StateManagerSubsystem;
 
 	
 #pragma region StateDuration
