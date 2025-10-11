@@ -36,14 +36,17 @@ TCS 技能修改器深度设计（StateTree 驱动｜组件持有运行态）
 四、组件侧聚合（UTcsSkillComponent）
 - 成员
   - ActiveSkillModifiers: TArray<FTcsSkillModifierInstance>
-  - AggregatedCache: TMap<UTcsSkillInstance*, TMap<FName, FAggregatedParamEffect>>
-  - DirtySkills: TSet<UTcsSkillInstance*>
+  - NameAggCache: TMap<UTcsSkillInstance*, TMap<FName, FAggregatedParamEffect>>
+  - TagAggCache:  TMap<UTcsSkillInstance*, TMap<FGameplayTag, FAggregatedParamEffect>>
+  - DirtyNames:   TMap<UTcsSkillInstance*, TSet<FName>>
+  - DirtyTags:    TMap<UTcsSkillInstance*, TSet<FGameplayTag>>
   - FAggregatedParamEffect: { AddSum=0, MulProd=1, bHasOverride=false, OverrideValue=0, CooldownMul=1, CostMul=1 }
 - 对外接口（最终以头文件实现）
   - bool ApplySkillModifiers(const TArray<FTcsSkillModifierDefinition>& Defs, TArray<int32>& OutInstanceIds)
   - void RemoveSkillModifierById(int32 InstanceId)
   - void UpdateSkillModifiers(float DeltaTime)
   - bool GetAggregatedParamEffect(const UTcsSkillInstance* Skill, FName Param, FAggregatedParamEffect& Out) const
+  - bool GetAggregatedParamEffectByTag(const UTcsSkillInstance* Skill, FGameplayTag ParamTag, FAggregatedParamEffect& Out) const
   - 事件入口：OnStateInstanceAdded/Removed、OnStateStageChanged、OnOwnerTagsChanged、OnSkillLevelChanged（均用于打脏）
 - 聚合顺序与公式
   - 合并：按 MergeType 合并同类，按 Priority 升序排序（同 Priority 可按 ModifierName 稳定排序）。
@@ -55,7 +58,7 @@ TCS 技能修改器深度设计（StateTree 驱动｜组件持有运行态）
   - 修改器侧：Added/Removed → 重筛选与打脏；Updated → 结构变更重筛选/重排，数值变更仅重算。
   - 上下文侧：Learn/Forget、SkillLevelChanged、OwnerTagsChanged、StateTree Added/Removed/StageChanged、TryCast（快照在施放前结算）。
 - 推荐：事件驱动为主（立即标脏）+ Tick 中批量重算 Dirty；可选低频巡检兜底。
-- 详细设计与示例请见：Documents/技能修改器/TCS_技能修改器_触发模型与事件对接.md。
+- 详细设计与示例请见：Documents/技能修改器/TCS_技能修改器_触发模型与事件对接.md（已说明 Name/Tag 双空间各自独立打脏与聚合）。
 
 六、默认实现（最小可用集）
 - Execution：AdditiveParam、MultiplicativeParam、CooldownMultiplier、CostMultiplier。
@@ -68,6 +71,7 @@ TCS 技能修改器深度设计（StateTree 驱动｜组件持有运行态）
 - Override 冲突：设计上不出现；实现期 DevCheck 并默认取 Priority 最小者报警。
 - 旧接口：所有“技能参数修改器相关旧接口”直接删除（无兼容开关）。
 - 参数载荷：允许扩展型结构；Execution 声明其支持集合，不匹配时报错并忽略该条。
+  - 参数键并立：支持 FName 与 GameplayTag 两套命名空间并立；不做映射与折叠；设计师可任选其一或两者并用。
 
 八、迁移与清理
 - 删除 SkillInstance 的 Add/Remove/Clear/GetTotalParameterModifier 及内部 Additive/Multiplicative 容器；
@@ -92,3 +96,6 @@ TCS 技能修改器深度设计（StateTree 驱动｜组件持有运行态）
 - 技能修改器：Definition/Instance/Execution/Merger/Filter/Condition 的组合，数据驱动。
 - 参数修正器：旧的 SkillInstance 内加法/乘法数组；本方案已移除并纳入“技能修改器”表达。
 - StateInstance/StateTree：技能逻辑执行主体；SkillInstance：数据与参数上下文；SkillComponent：运行态与聚合中心。
+
+附录：参数键并立设计
+- 完整方案详见：Documents/技能修改器/TCS_参数键并立设计_FName与GameplayTag.md

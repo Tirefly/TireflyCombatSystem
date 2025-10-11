@@ -13,7 +13,7 @@ TCS 技能修改器：类型与接口声明（Header 级声明汇总）
 - 门面子系统（UTcsSkillManagerSubsystem 侧）
 - 设置（UTcsCombatSystemSettings 扩展）
 
-一、Skill/Modifiers 核心类型
+一、Skill/Modifiers 核心类型（补：Skill/State 参数 ByTag API 摘要）
 
 文件：Source/TireflyCombatSystem/Public/Skill/Modifiers/TcsSkillModifierDefinition.h
 
@@ -119,7 +119,7 @@ TCS 技能修改器：类型与接口声明（Header 级声明汇总）
                       const struct FTcsSkillModifierInstance& ModInst) const;
     };
 
-二、参数载荷结构
+二、参数载荷结构（Name/Tag 并立）
 
 文件：Source/TireflyCombatSystem/Public/Skill/Modifiers/TcsSkillModifierParams.h
 
@@ -130,14 +130,16 @@ TCS 技能修改器：类型与接口声明（Header 级声明汇总）
     struct TIREFLYCOMBATSYSTEM_API FTcsModParam_Additive
     {
         GENERATED_BODY()
-        UPROPERTY(EditAnywhere, BlueprintReadWrite) FName ParamName;
+        UPROPERTY(EditAnywhere, BlueprintReadWrite) FName ParamName; // 可选
+        UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(Categories="Param")) FGameplayTag ParamTag; // 可选
         UPROPERTY(EditAnywhere, BlueprintReadWrite) float Magnitude = 0.f;
     };
     USTRUCT(BlueprintType)
     struct TIREFLYCOMBATSYSTEM_API FTcsModParam_Multiplicative
     {
         GENERATED_BODY()
-        UPROPERTY(EditAnywhere, BlueprintReadWrite) FName ParamName;
+        UPROPERTY(EditAnywhere, BlueprintReadWrite) FName ParamName; // 可选
+        UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(Categories="Param")) FGameplayTag ParamTag; // 可选
         UPROPERTY(EditAnywhere, BlueprintReadWrite) float Multiplier = 1.f;
     };
     USTRUCT(BlueprintType)
@@ -320,7 +322,7 @@ TCS 技能修改器：类型与接口声明（Header 级声明汇总）
                               const FTcsSkillModifierInstance& ModInst) const override;
     };
 
-四、组件聚合接口（UTcsSkillComponent 扩展声明）
+四、组件聚合接口（UTcsSkillComponent 扩展声明｜Name/Tag 双空间）
 
 文件：Source/TireflyCombatSystem/Public/Skill/TcsSkillComponent.h（新增/扩展）
 
@@ -336,8 +338,10 @@ TCS 技能修改器：类型与接口声明（Header 级声明汇总）
         UPROPERTY() float CostMul = 1.f;
     };
     UPROPERTY() TArray<FTcsSkillModifierInstance> ActiveSkillModifiers;
-    UPROPERTY() TMap<UTcsSkillInstance*, TMap<FName, FTcsAggregatedParamEffect>> AggregatedCache;
-    UPROPERTY() TSet<UTcsSkillInstance*> DirtySkills;
+    UPROPERTY() TMap<UTcsSkillInstance*, TMap<FName, FTcsAggregatedParamEffect>>        NameAggCache;
+    UPROPERTY() TMap<UTcsSkillInstance*, TMap<FGameplayTag, FTcsAggregatedParamEffect>> TagAggCache;
+    UPROPERTY() TMap<UTcsSkillInstance*, TSet<FName>>                                   DirtyNames;
+    UPROPERTY() TMap<UTcsSkillInstance*, TSet<FGameplayTag>>                            DirtyTags;
     UFUNCTION(BlueprintCallable, Category="Skill|Modifiers")
     bool ApplySkillModifiers(const TArray<FTcsSkillModifierDefinition>& Defs, TArray<int32>& OutInstanceIds);
     UFUNCTION(BlueprintCallable, Category="Skill|Modifiers")
@@ -346,14 +350,19 @@ TCS 技能修改器：类型与接口声明（Header 级声明汇总）
     void UpdateSkillModifiers(float DeltaTime);
     UFUNCTION(BlueprintPure, Category="Skill|Modifiers")
     bool GetAggregatedParamEffect(const UTcsSkillInstance* Skill, FName ParamName, FTcsAggregatedParamEffect& OutEffect) const;
+
+    UFUNCTION(BlueprintPure, Category="Skill|Modifiers")
+    bool GetAggregatedParamEffectByTag(const UTcsSkillInstance* Skill, FGameplayTag ParamTag, FTcsAggregatedParamEffect& OutEffect) const;
     void OnStateInstanceAdded(class UTcsStateInstance* State);
     void OnStateInstanceRemoved(class UTcsStateInstance* State);
     void OnStateStageChanged(class UTcsStateInstance* State, TEnumAsByte<ETcsStateStage> OldStage, TEnumAsByte<ETcsStateStage> NewStage);
     void OnOwnerTagsChanged();
     void OnSkillLevelChanged(UTcsSkillInstance* Skill, int32 OldLevel, int32 NewLevel);
     void MarkSkillParamDirty(UTcsSkillInstance* Skill, FName ParamName);
-    void RebuildAggregatedForSkill(UTcsSkillInstance* Skill);
+    void MarkSkillParamDirtyByTag(UTcsSkillInstance* Skill, FGameplayTag ParamTag);
+    void RebuildAggregatedForSkill(UTcsSkillInstance* Skill); // 同时处理 Name/Tag 两套空间
     void RebuildAggregatedForSkillParam(UTcsSkillInstance* Skill, FName ParamName);
+    void RebuildAggregatedForSkillParamByTag(UTcsSkillInstance* Skill, FGameplayTag ParamTag);
     void RunFilter(const FTcsSkillModifierDefinition& Def, TArray<UTcsSkillInstance*>& OutSkills) const;
     bool EvaluateConditions(AActor* Owner, UTcsSkillInstance* Skill, class UTcsStateInstance* ActiveState, const FTcsSkillModifierInstance& Inst) const;
     void MergeAndSortModifiers(TArray<FTcsSkillModifierInstance>& InOutModifiers) const;
@@ -392,4 +401,18 @@ TCS 技能修改器：类型与接口声明（Header 级声明汇总）
         UFUNCTION(BlueprintCallable, Category="SkillModifier|Validate")
         static bool ValidateDefinitionRow(const FTcsSkillModifierDefinition& Def, FString& OutError);
     };
+文件：Source/TireflyCombatSystem/Public/Skill/TcsSkillInstance.h（ByTag API 摘要）
 
+    // Bool/Vector ByTag
+    UFUNCTION(BlueprintPure,   Category="Skill Instance|Parameters|ByTag") bool    GetBoolParameterByTag(FGameplayTag ParamTag, bool Default=false) const;
+    UFUNCTION(BlueprintCallable,Category="Skill Instance|Parameters|ByTag") void    SetBoolParameterByTag(FGameplayTag ParamTag, bool bValue);
+    UFUNCTION(BlueprintPure,   Category="Skill Instance|Parameters|ByTag") FVector  GetVectorParameterByTag(FGameplayTag ParamTag, const FVector& Default=FVector::ZeroVector) const;
+    UFUNCTION(BlueprintCallable,Category="Skill Instance|Parameters|ByTag") void    SetVectorParameterByTag(FGameplayTag ParamTag, const FVector& Value);
+    // Numeric ByTag
+    UFUNCTION(BlueprintCallable,Category="Skill Instance|Parameters|ByTag") float   CalculateNumericParameterByTag(FGameplayTag ParamTag, AActor* Instigator=nullptr, AActor* Target=nullptr) const;
+    UFUNCTION(BlueprintPure,   Category="Skill Instance|Parameters|ByTag") float   GetSnapshotParameterByTag(FGameplayTag ParamTag, float Default=0.f) const;
+
+文件：Source/TireflyCombatSystem/Public/State/TcsStateInstance.h（ByTag API 摘要）
+
+    UFUNCTION(BlueprintCallable,Category="State Instance|Parameters|ByTag") void   SetNumericParamByTag(FGameplayTag ParamTag, float Value);
+    UFUNCTION(BlueprintPure,   Category="State Instance|Parameters|ByTag") bool   GetNumericParamByTag(FGameplayTag ParamTag, float& OutValue) const;
