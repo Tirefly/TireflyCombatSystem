@@ -198,10 +198,10 @@ public:
 ```cpp
 // 属性修改器执行示例
 UCLASS(Meta = (DisplayName = "属性修改器执行器：加法"))
-class UTireflyAttrModExec_Addition : public UTireflyAttributeModifierExecution
+class UTcsAttrModExec_Addition : public UTcsAttributeModifierExecution
 {
     virtual void Execute_Implementation(
-        const FTireflyAttributeModifierInstance& ModInst,
+        const FTcsAttributeModifierInstance& ModInst,
         TMap<FName, float>& BaseValues,
         TMap<FName, float>& CurrentValues) override;
 };
