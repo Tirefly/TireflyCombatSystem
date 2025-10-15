@@ -14,6 +14,7 @@
 class UTcsStateInstance;
 class UTcsStateComponent;
 class UTcsSkillManagerSubsystem;
+class UTcsStateManagerSubsystem;
 class UTcsSkillFilter;
 class UTcsSkillModifierCondition;
 class UTcsSkillInstance;
@@ -261,6 +262,9 @@ protected:
 	// 子系统引用
 	UPROPERTY()
 	TObjectPtr<UTcsSkillManagerSubsystem> SkillManagerSubsystem;
+
+	UPROPERTY()
+	TObjectPtr<UTcsStateManagerSubsystem> StateManagerSubsystem;
 
 #pragma endregion
 

@@ -6,6 +6,7 @@
 #include "TcsCombatSystemSettings.h"
 #include "Engine/DataTable.h"
 #include "State/TcsStateComponent.h"
+#include "TcsCombatSystemLogChannels.h"
 
 FTcsStateDefinition UTcsStateManagerSubsystem::GetStateDefinition(FName StateDefId)
 {
@@ -57,47 +58,107 @@ UTcsStateInstance* UTcsStateManagerSubsystem::CreateStateInstance(AActor* Owner,
 
 bool UTcsStateManagerSubsystem::ApplyState(AActor* TargetActor, FName StateDefRowId, AActor* SourceActor, const FInstancedStruct& Parameters)
 {
-    if (!TargetActor)
-    {
-        return false;
-    }
+	if (!TargetActor)
+	{
+		return false;
+	}
 
-    // 创建状态实例
-    UTcsStateInstance* StateInstance = CreateStateInstance(TargetActor, StateDefRowId, SourceActor);
-    if (!StateInstance)
-    {
-        return false;
-    }
+	FTcsStateDefinition StateDef = GetStateDefinition(StateDefRowId);
 
-    // TODO: 应用 Parameters 到 StateInstance（如有需要，可解析并写入 Numeric/Bool/Vector）
+	// 创建状态实例
+	UTcsStateInstance* StateInstance = CreateStateInstance(TargetActor, StateDefRowId, SourceActor);
+	if (!StateInstance)
+	{
+		return false;
+	}
 
-    // 将状态添加到组件并分配到槽位
-    if (UTcsStateComponent* StateComponent = TargetActor->FindComponentByClass<UTcsStateComponent>())
-    {
-        StateComponent->AddStateInstance(StateInstance);
+	// TODO: 应用 Parameters 到 StateInstance（如有需要，可解析并写入 Numeric/Bool/Vector）
 
-        const FTcsStateDefinition& Def = StateInstance->GetStateDef();
-        if (Def.StateSlotType.IsValid())
-        {
-            // 智能分配到槽位（含排序、合并、激活）
-            StateComponent->AssignStateToStateSlot(StateInstance, Def.StateSlotType);
-        }
-        else
-        {
-            // 未指定槽位：直接启动其 StateTree（不纳入槽位激活管理）
-            StateInstance->InitializeStateTree();
-            StateInstance->StartStateTree();
-            StateInstance->SetCurrentStage(ETcsStateStage::SS_Active);
-        }
+	return ApplyStateInstanceToSlot(TargetActor, StateInstance, StateDef.StateSlotType, /*bAllowFallback=*/true);
+}
 
-        return true;
-    }
+bool UTcsStateManagerSubsystem::ApplyStateToSpecificSlot(AActor* TargetActor, FName StateDefRowId, AActor* SourceActor, FGameplayTag SlotTag, const FInstancedStruct& Parameters)
+{
+	if (!TargetActor)
+	{
+		return false;
+	}
 
-    // 没有状态组件，退化为直接启动（尽量不丢弃）
-    StateInstance->InitializeStateTree();
-    StateInstance->StartStateTree();
-    StateInstance->SetCurrentStage(ETcsStateStage::SS_Active);
-    return true;
+	UTcsStateInstance* StateInstance = CreateStateInstance(TargetActor, StateDefRowId, SourceActor);
+	if (!StateInstance)
+	{
+		return false;
+	}
+
+	// TODO: 应用 Parameters 到 StateInstance（如有需要，可解析并写入 Numeric/Bool/Vector）
+
+	return ApplyStateInstanceToSlot(TargetActor, StateInstance, SlotTag, /*bAllowFallback=*/true);
+}
+
+bool UTcsStateManagerSubsystem::ApplyStateInstanceToSlot(AActor* TargetActor, UTcsStateInstance* StateInstance, FGameplayTag SlotTag, bool bAllowFallback)
+{
+	if (!TargetActor || !IsValid(StateInstance))
+	{
+		return false;
+	}
+
+	UTcsStateComponent* StateComponent = TargetActor->FindComponentByClass<UTcsStateComponent>();
+
+	// 预初始化 StateTree，确保后续激活流程可正常运行
+	StateInstance->InitializeStateTree();
+	StateInstance->SetCurrentStage(ETcsStateStage::SS_Inactive);
+
+	if (StateComponent)
+	{
+		StateComponent->AddStateInstance(StateInstance);
+
+		const FTcsStateDefinition& Def = StateInstance->GetStateDef();
+		const FGameplayTag EffectiveSlot = SlotTag.IsValid() ? SlotTag : Def.StateSlotType;
+		bool bAssigned = false;
+
+		if (EffectiveSlot.IsValid())
+		{
+			bAssigned = StateComponent->AssignStateToStateSlot(StateInstance, EffectiveSlot);
+			if (!bAssigned && !bAllowFallback)
+			{
+				UE_LOG(LogTcsState, Warning, TEXT("ApplyStateInstanceToSlot: AssignStateToStateSlot failed for %s on %s (Slot %s)"),
+					*StateInstance->GetStateDefId().ToString(),
+					*GetNameSafe(TargetActor),
+					*EffectiveSlot.ToString());
+				return false;
+			}
+		}
+		else
+		{
+			UE_LOG(LogTcsState, Verbose, TEXT("ApplyStateInstanceToSlot: State %s has no slot, activating directly on %s"),
+				*StateInstance->GetStateDefId().ToString(),
+				*GetNameSafe(TargetActor));
+		}
+
+		if (!bAssigned)
+		{
+			// 直接激活（与阶段2之前的行为保持一致）
+			StateInstance->StartStateTree();
+			StateInstance->SetCurrentStage(ETcsStateStage::SS_Active);
+		}
+
+		return true;
+	}
+
+	// 没有状态组件，按原行为返回失败（技能组件会记录错误）
+	UE_LOG(LogTcsState, Warning, TEXT("ApplyStateInstanceToSlot: Actor %s has no TcsStateComponent, cannot apply state %s"),
+		*GetNameSafe(TargetActor),
+		*StateInstance->GetStateDefId().ToString());
+
+	if (!bAllowFallback)
+	{
+		return false;
+	}
+
+	// 最低限度地运行 StateTree，以避免静默失败
+	StateInstance->StartStateTree();
+	StateInstance->SetCurrentStage(ETcsStateStage::SS_Active);
+	return bAllowFallback;
 }
 
 void UTcsStateManagerSubsystem::OnStateInstanceDurationExpired(UTcsStateInstance* StateInstance)

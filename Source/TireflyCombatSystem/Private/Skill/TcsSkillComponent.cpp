@@ -33,6 +33,7 @@ void UTcsSkillComponent::BeginPlay()
 	if (UWorld* World = GetWorld())
 	{
 		SkillManagerSubsystem = World->GetSubsystem<UTcsSkillManagerSubsystem>();
+		StateManagerSubsystem = World->GetSubsystem<UTcsStateManagerSubsystem>();
 	}
 }
 
@@ -216,7 +217,7 @@ bool UTcsSkillComponent::TryCastSkill(FName SkillDefId, AActor* TargetActor, con
 		return false;
 	}
 
-	// 应用技能状态
+	// 获取状态组件（阶段3要求：技能状态统一走槽位管线）
 	UTcsStateComponent* StateComponent = GetStateComponent();
 	if (!StateComponent)
 	{
@@ -224,11 +225,64 @@ bool UTcsSkillComponent::TryCastSkill(FName SkillDefId, AActor* TargetActor, con
 		return false;
 	}
 
-	// 添加到状态管理
-	StateComponent->AddStateInstance(SkillInstance);
+	const FTcsStateDefinition& SkillDef = SkillInstance->GetStateDef();
+	const bool bHasSlotTag = SkillDef.StateSlotType.IsValid();
+
+	bool bApplied = false;
+
+	if (StateManagerSubsystem)
+	{
+		bApplied = StateManagerSubsystem->ApplyStateInstanceToSlot(GetOwner(), SkillInstance, SkillDef.StateSlotType, /*bAllowFallback=*/true);
+		if (!bApplied)
+		{
+			UE_LOG(LogTcsSkill, Warning, TEXT("[%s] StateManagerSubsystem failed to apply skill %s, falling back to local handler."),
+				*GetOwner()->GetName(), *SkillDefId.ToString());
+		}
+	}
+
+	if (!bApplied)
+	{
+		// 手工挂接到状态组件（Stage3：确保走槽位 or 回退直接激活）
+		StateComponent->AddStateInstance(SkillInstance);
+
+		SkillInstance->InitializeStateTree();
+		SkillInstance->SetCurrentStage(ETcsStateStage::SS_Inactive);
+
+		bool bAssigned = false;
+		if (bHasSlotTag)
+		{
+			bAssigned = StateComponent->AssignStateToStateSlot(SkillInstance, SkillDef.StateSlotType);
+			if (!bAssigned)
+			{
+				UE_LOG(LogTcsSkill, Warning, TEXT("[%s] Failed to assign skill %s to slot %s, activating directly."),
+					*GetOwner()->GetName(), *SkillDefId.ToString(), *SkillDef.StateSlotType.ToString());
+			}
+		}
+
+		if (!bAssigned)
+		{
+			SkillInstance->StartStateTree();
+			SkillInstance->SetCurrentStage(ETcsStateStage::SS_Active);
+		}
+
+		bApplied = true;
+	}
+
+	if (!bApplied)
+	{
+		UE_LOG(LogTcsSkill, Error, TEXT("[%s] Unable to apply skill state for %s"), *GetOwner()->GetName(), *SkillDefId.ToString());
+		return false;
+	}
 
 	// 跟踪活跃技能状态
 	ActiveSkillStateInstances.Add(SkillDefId, SkillInstance);
+
+	bool bAssignedViaSlot = false;
+	if (bHasSlotTag)
+	{
+		const TArray<UTcsStateInstance*> SlotStates = StateComponent->GetAllStatesInStateSlot(SkillDef.StateSlotType);
+		bAssignedViaSlot = SlotStates.Contains(SkillInstance);
+	}
 
 	// 获取技能实例并计算冷却时间
 	float CooldownDuration = 0.0f;
@@ -253,12 +307,11 @@ bool UTcsSkillComponent::TryCastSkill(FName SkillDefId, AActor* TargetActor, con
 	
 	SetSkillCooldown(SkillDefId, CooldownDuration);
 
-	// 启动技能状态的StateTree
-	SkillInstance->InitializeStateTree();
-	SkillInstance->StartStateTree();
-
-	UE_LOG(LogTcsSkill, Log, TEXT("[%s] Successfully cast skill: %s (Cooldown: %.1fs)"), 
-		*GetOwner()->GetName(), *SkillDefId.ToString(), CooldownDuration);
+	UE_LOG(LogTcsSkill, Log, TEXT("[%s] Successfully cast skill: %s (Cooldown: %.1fs)%s"), 
+		*GetOwner()->GetName(), 
+		*SkillDefId.ToString(), 
+		CooldownDuration,
+		bAssignedViaSlot ? TEXT(" via slot pipeline") : TEXT(""));
 
 	return true;
 }
@@ -279,6 +332,9 @@ void UTcsSkillComponent::CancelSkill(FName SkillDefId)
 
 		// 设置状态为到期
 		SkillInstance->SetCurrentStage(ETcsStateStage::SS_Expired);
+
+		// 从槽位中移除
+		StateComponent->RemoveStateInstanceFromStateSlot(SkillInstance);
 
 		// 从状态管理中移除
 		StateComponent->RemoveStateInstance(SkillInstance);
@@ -630,12 +686,17 @@ void UTcsSkillComponent::UpdateActiveSkillRealTimeParameters()
 		{
 			continue;
 		}
+
+		if (ActiveStateInstance->GetCurrentStage() != ETcsStateStage::SS_Active)
+		{
+			continue;
+		}
 		
 		// 先检查是否有需要更新的参数（性能优化）
 		if (SkillInstance->HasPendingParameterUpdates(GetOwner(), GetOwner()))
 		{
 			// 同步实时参数到活跃的StateInstance
-			SkillInstance->SyncParametersToStateInstance(ActiveStateInstance);
+			SkillInstance->SyncRealtimeParametersToStateInstance(ActiveStateInstance, GetOwner(), GetOwner());
 			TotalUpdatedSkills++;
 		}
 	}

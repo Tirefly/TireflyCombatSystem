@@ -27,6 +27,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "State Manager")
 	bool ApplyState(AActor* TargetActor, FName StateDefId, AActor* SourceActor, const FInstancedStruct& Parameters);
 
+	// 指定槽位应用状态（数据表行）
+	UFUNCTION(BlueprintCallable, Category = "State Manager")
+	bool ApplyStateToSpecificSlot(AActor* TargetActor, FName StateDefId, AActor* SourceActor, FGameplayTag SlotTag, const FInstancedStruct& Parameters);
+
+	// 将已有状态实例应用到指定槽位
+	UFUNCTION(BlueprintCallable, Category = "State Manager")
+	bool ApplyStateInstanceToSlot(AActor* TargetActor, UTcsStateInstance* StateInstance, FGameplayTag SlotTag, bool bAllowFallback = true);
+
 	// 当状态实例持续时间到期时调用
 	void OnStateInstanceDurationExpired(UTcsStateInstance* StateInstance);
 

@@ -50,6 +50,16 @@
 | 文档：后续改进细节 | StateTree Gate 事件驱动 | 仍通过 `CheckAndUpdateStateTreeSlots` Tick 轮询 | `Source/TireflyCombatSystem/Private/State/TcsStateComponent.cpp:724-810` |
 | 同条 | 状态到期/移除通知 | `HandleStateInstanceRemoval` / `OnStateInstanceDurationExpired` 仅留 TODO | `Source/TireflyCombatSystem/Private/State/TcsStateManagerSubsystem.cpp:111-162` |
 
+> **阶段3差异焦点（技能施放 ↔ 槽位联动）**
+>
+> | 关注项 | 当前状态 | 备注 | 受影响代码 |
+> | --- | --- | --- | --- |
+> | `UTcsSkillComponent::TryCastSkill` 未走 `AssignStateToStateSlot` | ❌ 待改造 | 仍手动 `AddStateInstance` 并启动 StateTree，未触发合并/抢占/挂起流程 | `Source/TireflyCombatSystem/Private/Skill/TcsSkillComponent.cpp:199-275` |
+> | `UTcsStateComponent` 合并/激活逻辑缺口 | ⚠️ 待补完 | AssignStateToStateSlot 仍以“跳过重复”占位；合并器、排队挂起策略尚未接入 | `Source/TireflyCombatSystem/Private/State/TcsStateComponent.cpp:291-947` |
+> | `UTcsStateManagerSubsystem` 无“指定槽位应用”接口 | 🚧 设计阶段 | 仅提供 `ApplyState`；需要评估新增 `ApplyStateToSpecificSlot` 以支持技能直达目标槽位 | `Source/TireflyCombatSystem/Private/State/TcsStateManagerSubsystem.cpp:60-162` |
+> | 槽位事件/Active 列表同步 | ⚠️ 待梳理 | 当前技能组件手动维护 `ActiveSkillStateInstances`，缺少与槽位事件的统一数据源 | `Source/TireflyCombatSystem/Private/Skill/TcsSkillComponent.cpp:230-272` |
+> | 数据配置校验 | 🚧 待定义 | 未对技能配置 `StateSlotType` 进行校验，可能导致阶段3流程缺槽位信息 | `Source/TireflyCombatSystem/Public/TcsCombatSystemSettings.h` |
+
 ---
 
 ## 4. 阶段验收与责任
@@ -69,6 +79,6 @@
 
 ## 5. 后续动作建议
 1. 阶段2收尾：同步策划/数据表 Owner，梳理 `TagParameters` 配置准则并安排一次聚合/同步功能回归测试。  
-2. 阶段3（技能施放走槽位）：Owner 拉起跨模块评审，明确 TryCastSkill 接口改动与 StateManager 适配节奏。  
+2. 阶段3（技能施放走槽位）：Owner 基于上表补充实施评审材料（接口改动清单、合并策略占位方案、回归案例），对齐 TryCastSkill / StateComponent / StateManager 职责边界。  
 3. 阶段4（状态事件化与槽位增强）：Owner 在阶段3完成后立项，拆分 Gate 事件化、合并器增强等六项子任务，并同步 QA 准备测试用例。  
 4. 阶段5（验证/回归）：QA Owner 提前准备自动化测试矩阵，并在阶段3~4交付时滚动补充测试脚本与文档。
