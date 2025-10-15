@@ -45,3 +45,23 @@ UDataTable* UTcsCombatSystemLibrary::GetAttributeModifierDefTable()
 	}
 	return nullptr;
 }
+
+UDataTable* UTcsCombatSystemLibrary::GetSkillModifierDefTable()
+{
+	if (const UTcsCombatSystemSettings* Settings = GetDefault<UTcsCombatSystemSettings>())
+	{
+		return Settings->SkillModifierDefTable.LoadSynchronous();
+	}
+	return nullptr;
+}
+
+TArray<FName> UTcsCombatSystemLibrary::GetSkillModifierIds()
+{
+	TArray<FName> ModifierIds;
+	if (UDataTable* SkillModifierDefTable = GetSkillModifierDefTable())
+	{
+		ModifierIds = SkillModifierDefTable->GetRowNames();
+	}
+
+	return ModifierIds;
+}

@@ -48,6 +48,12 @@ public:
 	UPROPERTY(Config, EditAnywhere, Category = "DataTable")
 	TSoftObjectPtr<UDataTable> AttributeModifierDefTable;
 
+	// 技能修改器定义数据表
+	UPROPERTY(Config, EditAnywhere, Category = "DataTable",
+		meta = (ToolTip = "技能修改器定义数据表：行结构应为 FTcsSkillModifierDefinition",
+			RequiredAssetDataTags = "RowStructure=/Script/TireflyCombatSystem.TcsSkillModifierDefinition"))
+	TSoftObjectPtr<UDataTable> SkillModifierDefTable;
+
 	// 状态槽配置数据表
 	UPROPERTY(Config, EditAnywhere, Category = "DataTable", 
 		meta = (ToolTip = "状态槽配置数据表，定义各个槽位的激活模式与映射", 

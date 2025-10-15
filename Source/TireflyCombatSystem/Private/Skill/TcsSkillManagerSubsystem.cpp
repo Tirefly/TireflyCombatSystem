@@ -2,6 +2,8 @@
 
 
 #include "Skill/TcsSkillManagerSubsystem.h"
+#include "Skill/TcsSkillComponent.h"
+#include "Skill/Modifiers/TcsSkillModifierDefinition.h"
 #include "State/TcsState.h"
 #include "State/TcsStateManagerSubsystem.h"
 
@@ -25,4 +27,47 @@ UTcsStateInstance* UTcsSkillManagerSubsystem::CreateSkillStateInstance(AActor* O
 	}
 	
 	return nullptr;
+}
+
+bool UTcsSkillManagerSubsystem::ApplySkillModifier(AActor* TargetActor, const TArray<FTcsSkillModifierDefinition>& Modifiers, TArray<int32>& OutInstanceIds)
+{
+	if (!IsValid(TargetActor))
+	{
+		return false;
+	}
+
+	if (UTcsSkillComponent* SkillComponent = TargetActor->FindComponentByClass<UTcsSkillComponent>())
+	{
+		return SkillComponent->ApplySkillModifiers(Modifiers, OutInstanceIds);
+	}
+
+	return false;
+}
+
+bool UTcsSkillManagerSubsystem::RemoveSkillModifierById(AActor* TargetActor, int32 InstanceId)
+{
+	if (!IsValid(TargetActor))
+	{
+		return false;
+	}
+
+	if (UTcsSkillComponent* SkillComponent = TargetActor->FindComponentByClass<UTcsSkillComponent>())
+	{
+		return SkillComponent->RemoveSkillModifierById(InstanceId);
+	}
+
+	return false;
+}
+
+void UTcsSkillManagerSubsystem::UpdateCombatEntity(AActor* TargetActor)
+{
+	if (!IsValid(TargetActor))
+	{
+		return;
+	}
+
+	if (UTcsSkillComponent* SkillComponent = TargetActor->FindComponentByClass<UTcsSkillComponent>())
+	{
+		SkillComponent->UpdateSkillModifiers();
+	}
 }

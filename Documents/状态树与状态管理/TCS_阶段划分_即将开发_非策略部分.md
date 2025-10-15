@@ -24,6 +24,7 @@
   4) 持续时间策略 ETcsDurationTickPolicy（ActiveOnly/Always/...）
   5) 暂停/恢复与抢占策略（GateCloseBehavior/PreemptionPolicy/HangUp）
   6) 顶层 Slot Debug Evaluator（调试可视化）
+  7) 技能施放统一走槽位管线：UTcsSkillComponent::TryCastSkill 需在创建状态实例后调用 AssignStateToStateSlot 并触发阶段/事件通知，避免 ActiveStateInstances 长期为空。
 
 ## 2. 总体架构
 三层职责清晰：

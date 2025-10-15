@@ -29,6 +29,7 @@ public class TireflyCombatSystem : ModuleRules
 				"CoreUObject",
 				"Engine",
 				"GameplayTags",
+				"AIModule",
 				"StateTreeModule",
 				"GameplayStateTreeModule",
 				"DeveloperSettings",

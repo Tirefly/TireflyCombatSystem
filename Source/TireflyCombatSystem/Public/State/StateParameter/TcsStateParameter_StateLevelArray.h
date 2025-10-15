@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "State/TcsStateParameter.h"
+#include "State/StateParameter/TcsStateParameter.h"
 #include "TcsStateParameter_StateLevelArray.generated.h"
 
 

@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Attribute/TcsAttributeModifierMerger.h"
+#include "Attribute/AttrModMerger/TcsAttributeModifierMerger.h"
 #include "TcsAttrModMerger_UseNewest.generated.h"
 
 

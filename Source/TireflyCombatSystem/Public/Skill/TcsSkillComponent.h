@@ -6,11 +6,16 @@
 #include "Components/ActorComponent.h"
 #include "GameplayTagContainer.h"
 #include "InstancedStruct.h"
+#include "Skill/Modifiers/TcsSkillModifierEffect.h"
+#include "Skill/Modifiers/TcsSkillModifierInstance.h"
+#include "Skill/Modifiers/TcsSkillModifierDefinition.h"
 #include "TcsSkillComponent.generated.h"
 
 class UTcsStateInstance;
 class UTcsStateComponent;
 class UTcsSkillManagerSubsystem;
+class UTcsSkillFilter;
+class UTcsSkillModifierCondition;
 class UTcsSkillInstance;
 struct FTcsStateDefinition;
 
@@ -94,15 +99,6 @@ public:
 	
 	UFUNCTION(BlueprintCallable, Category = "Skill|Learning")
 	bool UpgradeSkillInstance(FName SkillDefId, int32 LevelIncrease = 1);
-
-	UFUNCTION(BlueprintCallable, Category = "Skill|Learning")
-	void ModifySkillParameter(FName SkillDefId, FName ParamName, float Modifier, bool bIsMultiplier = false);
-
-	UFUNCTION(BlueprintCallable, Category = "Skill|Learning")
-	void SetSkillCooldownMultiplier(FName SkillDefId, float Multiplier);
-
-	UFUNCTION(BlueprintCallable, Category = "Skill|Learning")
-	void SetSkillCostMultiplier(FName SkillDefId, float Multiplier);
 
 protected:
 	// 已学会的技能实例 (SkillDefId -> SkillInstance)
@@ -208,6 +204,53 @@ protected:
 #pragma endregion
 
 	
+#pragma region SkillModifiers
+
+public:
+	UFUNCTION(BlueprintCallable, Category = "Skill|Modifiers")
+	bool ApplySkillModifiers(const TArray<FTcsSkillModifierDefinition>& Modifiers, TArray<int32>& OutInstanceIds);
+
+	UFUNCTION(BlueprintCallable, Category = "Skill|Modifiers")
+	bool RemoveSkillModifierById(int32 InstanceId);
+
+	UFUNCTION(BlueprintCallable, Category = "Skill|Modifiers")
+	void UpdateSkillModifiers();
+
+	UFUNCTION(BlueprintPure, Category = "Skill|Modifiers")
+	bool GetAggregatedParamEffect(const UTcsSkillInstance* Skill, FName ParamName, FTcsAggregatedParamEffect& OutEffect) const;
+
+	UFUNCTION(BlueprintPure, Category = "Skill|Modifiers")
+	bool GetAggregatedParamEffectByTag(const UTcsSkillInstance* Skill, FGameplayTag ParamTag, FTcsAggregatedParamEffect& OutEffect) const;
+
+protected:
+	void MarkSkillParamDirty(UTcsSkillInstance* Skill, FName ParamName);
+	void MarkSkillParamDirtyByTag(UTcsSkillInstance* Skill, FGameplayTag ParamTag);
+	void RebuildAggregatedForSkill(UTcsSkillInstance* Skill);
+	void RebuildAggregatedForSkillParam(UTcsSkillInstance* Skill, FName ParamName);
+	void RebuildAggregatedForSkillParamByTag(UTcsSkillInstance* Skill, FGameplayTag ParamTag);
+	void RunFilter(const FTcsSkillModifierDefinition& Definition, TArray<UTcsSkillInstance*>& OutSkills) const;
+	bool EvaluateConditions(AActor* Owner, UTcsSkillInstance* Skill, UTcsStateInstance* ActiveState, const FTcsSkillModifierInstance& Instance) const;
+	void MergeAndSortModifiers(TArray<FTcsSkillModifierInstance>& InOutModifiers) const;
+	FTcsAggregatedParamEffect BuildAggregatedEffect(const UTcsSkillInstance* Skill, const FName& ParamName) const;
+	FTcsAggregatedParamEffect BuildAggregatedEffectByTag(const UTcsSkillInstance* Skill, const FGameplayTag& ParamTag) const;
+
+protected:
+	UPROPERTY()
+	TArray<FTcsSkillModifierInstance> ActiveSkillModifiers;
+
+	// 基于FName的技能参数效果缓存 (SkillInstance -> ParamEffectByName)
+	UPROPERTY()
+	mutable TMap<const UTcsSkillInstance*, FTcsSkillParamEffectByName> SkillParamEffectsByName;
+
+	// 基于GameplayTag的技能参数效果缓存 (SkillInstance -> ParamEffectByTag)
+	UPROPERTY()
+	mutable TMap<const UTcsSkillInstance*, FTcsSkillParamEffectByTag> SkillParamEffectsByTag;
+
+	UPROPERTY()
+	int32 SkillModifierInstanceIdMgr = 0;
+
+#pragma endregion
+
 #pragma region Components
 
 protected:
@@ -233,6 +276,15 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "Skill|Query")
 	FVector GetSkillVectorParameter(FName SkillDefId, FName ParamName, const FVector& DefaultValue = FVector::ZeroVector) const;
+
+	UFUNCTION(BlueprintPure, Category = "Skill|Query")
+	float GetSkillNumericParameterByTag(FName SkillDefId, FGameplayTag ParamTag) const;
+
+	UFUNCTION(BlueprintPure, Category = "Skill|Query")
+	bool GetSkillBoolParameterByTag(FName SkillDefId, FGameplayTag ParamTag, bool DefaultValue = false) const;
+
+	UFUNCTION(BlueprintPure, Category = "Skill|Query")
+	FVector GetSkillVectorParameterByTag(FName SkillDefId, FGameplayTag ParamTag, const FVector& DefaultValue = FVector::ZeroVector) const;
 
 protected:
 	// 技能参数计算 (使用现有的StateParameter系统)

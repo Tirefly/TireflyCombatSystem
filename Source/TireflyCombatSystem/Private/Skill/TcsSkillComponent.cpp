@@ -7,9 +7,17 @@
 #include "State/TcsStateManagerSubsystem.h"
 #include "Skill/TcsSkillManagerSubsystem.h"
 #include "Skill/TcsSkillInstance.h"
+#include "Skill/Modifiers/TcsSkillModifierParams.h"
+#include "Skill/Modifiers/TcsSkillFilter.h"
+#include "Skill/Modifiers/TcsSkillModifierCondition.h"
+#include "Skill/Modifiers/Executions/TcsSkillModExec_CooldownMultiplier.h"
+#include "Skill/Modifiers/Executions/TcsSkillModExec_CostMultiplier.h"
+#include "Skill/Modifiers/TcsSkillModifierEffect.h"
 #include "TcsCombatSystemLogChannels.h"
+#include "TcsCombatSystemLibrary.h"
 #include "GameFramework/Actor.h"
 #include "Engine/World.h"
+#include "State/StateParameter/TcsStateParameter.h"
 
 UTcsSkillComponent::UTcsSkillComponent()
 {
@@ -34,6 +42,9 @@ void UTcsSkillComponent::TickComponent(float DeltaTime, ELevelTick TickType, FAc
 
 	// 更新技能冷却
 	UpdateSkillCooldowns(DeltaTime);
+
+	// 更新技能修改器聚合结果
+	UpdateSkillModifiers();
 	
 	// 更新活跃技能的实时参数
 	UpdateActiveSkillRealTimeParameters();
@@ -85,6 +96,20 @@ void UTcsSkillComponent::ForgetSkill(FName SkillDefId)
 {
 	if (UTcsSkillInstance* SkillInstance = LearnedSkillInstances.FindRef(SkillDefId))
 	{
+		// 移除相关技能修改器
+		const int32 RemovedCount = ActiveSkillModifiers.RemoveAll([SkillInstance](const FTcsSkillModifierInstance& Instance)
+		{
+			return Instance.SkillInstance == SkillInstance;
+		});
+
+		if (RemovedCount > 0)
+		{
+			RebuildAggregatedForSkill(SkillInstance);
+			SkillParamEffectsByName.Remove(SkillInstance);
+			SkillParamEffectsByTag.Remove(SkillInstance);
+			UpdateSkillModifiers();
+		}
+
 		// 清除相关冷却
 		ClearSkillCooldown(SkillDefId);
 
@@ -135,30 +160,6 @@ bool UTcsSkillComponent::UpgradeSkillInstance(FName SkillDefId, int32 LevelIncre
 	}
 
 	return false;
-}
-
-void UTcsSkillComponent::ModifySkillParameter(FName SkillDefId, FName ParamName, float Modifier, bool bIsMultiplier)
-{
-	if (UTcsSkillInstance* SkillInstance = LearnedSkillInstances.FindRef(SkillDefId))
-	{
-		SkillInstance->AddParameterModifier(ParamName, Modifier, bIsMultiplier);
-	}
-}
-
-void UTcsSkillComponent::SetSkillCooldownMultiplier(FName SkillDefId, float Multiplier)
-{
-	if (UTcsSkillInstance* SkillInstance = LearnedSkillInstances.FindRef(SkillDefId))
-	{
-		SkillInstance->SetCooldownMultiplier(Multiplier);
-	}
-}
-
-void UTcsSkillComponent::SetSkillCostMultiplier(FName SkillDefId, float Multiplier)
-{
-	if (UTcsSkillInstance* SkillInstance = LearnedSkillInstances.FindRef(SkillDefId))
-	{
-		SkillInstance->SetCostMultiplier(Multiplier);
-	}
 }
 
 UTcsSkillInstance* UTcsSkillComponent::CreateSkillInstance(FName SkillDefId, int32 InitialLevel)
@@ -479,6 +480,33 @@ FVector UTcsSkillComponent::GetSkillVectorParameter(FName SkillDefId, FName Para
 	return DefaultValue;
 }
 
+float UTcsSkillComponent::GetSkillNumericParameterByTag(FName SkillDefId, FGameplayTag ParamTag) const
+{
+	if (UTcsSkillInstance* SkillInstance = LearnedSkillInstances.FindRef(SkillDefId))
+	{
+		return SkillInstance->CalculateNumericParameterByTag(ParamTag, GetOwner(), GetOwner());
+	}
+	return 0.0f;
+}
+
+bool UTcsSkillComponent::GetSkillBoolParameterByTag(FName SkillDefId, FGameplayTag ParamTag, bool DefaultValue) const
+{
+	if (UTcsSkillInstance* SkillInstance = LearnedSkillInstances.FindRef(SkillDefId))
+	{
+		return SkillInstance->GetBoolParameterByTag(ParamTag, DefaultValue);
+	}
+	return DefaultValue;
+}
+
+FVector UTcsSkillComponent::GetSkillVectorParameterByTag(FName SkillDefId, FGameplayTag ParamTag, const FVector& DefaultValue) const
+{
+	if (UTcsSkillInstance* SkillInstance = LearnedSkillInstances.FindRef(SkillDefId))
+	{
+		return SkillInstance->GetVectorParameterByTag(ParamTag, DefaultValue);
+	}
+	return DefaultValue;
+}
+
 #pragma endregion
 
 #pragma region SkillCooldown Implementation
@@ -607,7 +635,7 @@ void UTcsSkillComponent::UpdateActiveSkillRealTimeParameters()
 		if (SkillInstance->HasPendingParameterUpdates(GetOwner(), GetOwner()))
 		{
 			// 同步实时参数到活跃的StateInstance
-			SkillInstance->SyncParametersToStateInstance(ActiveStateInstance, GetOwner(), GetOwner());
+			SkillInstance->SyncParametersToStateInstance(ActiveStateInstance);
 			TotalUpdatedSkills++;
 		}
 	}
@@ -665,7 +693,7 @@ void UTcsSkillComponent::CalculateSkillParameters(const FTcsStateDefinition& Ski
 					if (ParamParser)
 					{
 						float ParamValue = 0.0f;
-						ParamParser->ParseStateParameter(
+						ParamParser->Evaluate(
 							GetOwner(),     // Instigator
 							GetOwner(),     // Target
 							StateInstance,  // StateInstance
@@ -715,6 +743,43 @@ void UTcsSkillComponent::CalculateSkillParameters(const FTcsStateDefinition& Ski
 		}
 	}
 
+	// 处理 Tag 通道参数
+	for (const auto& ParamPair : SkillDef.TagParameters)
+	{
+		const FGameplayTag& ParamTag = ParamPair.Key;
+		if (!ParamTag.IsValid())
+		{
+			continue;
+		}
+
+		const FTcsStateParameter& ParamConfig = ParamPair.Value;
+
+		switch (ParamConfig.ParameterType)
+		{
+		case ETcsStateParameterType::SPT_Bool:
+			{
+				StateInstance->SetBoolParamByTag(ParamTag, false);
+			}
+			break;
+
+		case ETcsStateParameterType::SPT_Vector:
+			{
+				if (const FVector* VectorValue = ParamConfig.ParamValueContainer.GetPtr<FVector>())
+				{
+					StateInstance->SetVectorParamByTag(ParamTag, *VectorValue);
+				}
+				else
+				{
+					StateInstance->SetVectorParamByTag(ParamTag, FVector::ZeroVector);
+				}
+			}
+			break;
+
+		default:
+			break;
+		}
+	}
+
 	// 处理额外的释放参数
 	if (CastParameters.IsValid())
 	{
@@ -738,7 +803,7 @@ float UTcsSkillComponent::CalculateSkillCooldown(const FTcsStateDefinition& Skil
 			if (ParamParser)
 			{
 				// 这里简化处理，实际应该根据技能等级和属性计算
-				ParamParser->ParseStateParameter(
+				ParamParser->Evaluate(
 					GetOwner(),
 					GetOwner(), 
 					nullptr,    // 没有StateInstance可以传null
@@ -761,6 +826,502 @@ float UTcsSkillComponent::CalculateSkillCooldown(const FTcsStateDefinition& Skil
 	LevelModifier = FMath::Clamp(LevelModifier, 0.1f, 1.0f); // 最多减少90%
 
 	return BaseCooldown * LevelModifier;
+}
+
+#pragma endregion
+#pragma region SkillModifiers Implementation
+
+namespace
+{
+static bool AccumulateEffectFromDefinitionByName(const FTcsSkillModifierInstance& Instance, FName ParamName, FTcsAggregatedParamEffect& InOutEffect)
+{
+	if (ParamName.IsNone())
+	{
+		return false;
+	}
+
+	const FInstancedStruct& Payload = Instance.ModifierDef.ModifierParameter.ParamValueContainer;
+	if (!Payload.IsValid())
+	{
+		return false;
+	}
+
+	bool bModified = false;
+
+	if (Payload.GetScriptStruct() == FTcsModParam_Additive::StaticStruct())
+	{
+		if (const FTcsModParam_Additive* Params = Payload.GetPtr<FTcsModParam_Additive>())
+		{
+			if (Params->ParamName == ParamName)
+			{
+				InOutEffect.AddSum += Params->Magnitude;
+				bModified = true;
+			}
+		}
+	}
+	else if (Payload.GetScriptStruct() == FTcsModParam_Multiplicative::StaticStruct())
+	{
+		if (const FTcsModParam_Multiplicative* Params = Payload.GetPtr<FTcsModParam_Multiplicative>())
+		{
+			if (Params->ParamName == ParamName)
+			{
+				InOutEffect.MulProd *= Params->Multiplier;
+				bModified = true;
+			}
+		}
+	}
+
+	else if (Payload.GetScriptStruct() == FTcsModParam_Scalar::StaticStruct())
+	{
+		if (const FTcsModParam_Scalar* Params = Payload.GetPtr<FTcsModParam_Scalar>())
+		{
+			if (Instance.ModifierDef.ExecutionType && Instance.ModifierDef.ExecutionType->IsChildOf(UTcsSkillModExec_CooldownMultiplier::StaticClass()) && ParamName == TEXT("Cooldown"))
+			{
+				InOutEffect.CooldownMultiplier *= Params->Value;
+				bModified = true;
+			}
+			else if (Instance.ModifierDef.ExecutionType && Instance.ModifierDef.ExecutionType->IsChildOf(UTcsSkillModExec_CostMultiplier::StaticClass()) && ParamName.ToString().Contains(TEXT("Cost")))
+			{
+				InOutEffect.CostMultiplier *= Params->Value;
+				bModified = true;
+			}
+		}
+	}
+
+	return bModified;
+}
+
+static bool AccumulateEffectFromDefinitionByTag(const FTcsSkillModifierInstance& Instance, const FGameplayTag& ParamTag, FTcsAggregatedParamEffect& InOutEffect)
+{
+	if (!ParamTag.IsValid())
+	{
+		return false;
+	}
+
+	const FInstancedStruct& Payload = Instance.ModifierDef.ModifierParameter.ParamValueContainer;
+	if (!Payload.IsValid())
+	{
+		return false;
+	}
+
+	bool bModified = false;
+
+	if (Payload.GetScriptStruct() == FTcsModParam_Additive::StaticStruct())
+	{
+		if (const FTcsModParam_Additive* Params = Payload.GetPtr<FTcsModParam_Additive>())
+		{
+			if (Params->ParamTag == ParamTag)
+			{
+				InOutEffect.AddSum += Params->Magnitude;
+				bModified = true;
+			}
+		}
+	}
+	else if (Payload.GetScriptStruct() == FTcsModParam_Multiplicative::StaticStruct())
+	{
+		if (const FTcsModParam_Multiplicative* Params = Payload.GetPtr<FTcsModParam_Multiplicative>())
+		{
+			if (Params->ParamTag == ParamTag)
+			{
+				InOutEffect.MulProd *= Params->Multiplier;
+				bModified = true;
+			}
+		}
+	}
+	else if (Payload.GetScriptStruct() == FTcsModParam_Scalar::StaticStruct())
+	{
+		if (const FTcsModParam_Scalar* Params = Payload.GetPtr<FTcsModParam_Scalar>())
+		{
+			if (Instance.ModifierDef.ExecutionType && Instance.ModifierDef.ExecutionType->IsChildOf(UTcsSkillModExec_CooldownMultiplier::StaticClass()))
+			{
+				InOutEffect.CooldownMultiplier *= Params->Value;
+				bModified = true;
+			}
+			else if (Instance.ModifierDef.ExecutionType && Instance.ModifierDef.ExecutionType->IsChildOf(UTcsSkillModExec_CostMultiplier::StaticClass()))
+			{
+				InOutEffect.CostMultiplier *= Params->Value;
+				bModified = true;
+			}
+		}
+	}
+
+	return bModified;
+}
+
+} // namespace
+
+bool UTcsSkillComponent::ApplySkillModifiers(const TArray<FTcsSkillModifierDefinition>& Modifiers, TArray<int32>& OutInstanceIds)
+{
+	bool bApplied = false;
+	OutInstanceIds.Reset();
+
+	if (Modifiers.IsEmpty())
+	{
+		return false;
+	}
+
+	const int64 Timestamp = FDateTime::UtcNow().ToUnixTimestamp();
+
+	for (const FTcsSkillModifierDefinition& Definition : Modifiers)
+	{
+		TArray<UTcsSkillInstance*> TargetSkills;
+		RunFilter(Definition, TargetSkills);
+
+		if (TargetSkills.IsEmpty())
+		{
+			continue;
+		}
+
+		for (UTcsSkillInstance* SkillInstance : TargetSkills)
+		{
+			if (!IsValid(SkillInstance))
+			{
+				continue;
+			}
+
+			FTcsSkillModifierInstance PreviewInstance;
+			PreviewInstance.ModifierDef = Definition;
+			PreviewInstance.SkillInstance = SkillInstance;
+			PreviewInstance.SkillModInstanceId = SkillModifierInstanceIdMgr + 1;
+			PreviewInstance.ApplyTime = Timestamp;
+			PreviewInstance.UpdateTime = Timestamp;
+
+			UTcsStateInstance* ActiveState = ActiveSkillStateInstances.FindRef(SkillInstance->GetSkillDefId());
+			if (!EvaluateConditions(GetOwner(), SkillInstance, ActiveState, PreviewInstance))
+			{
+				continue;
+			}
+
+			FTcsSkillModifierInstance ModifierInstance;
+			ModifierInstance.ModifierDef = Definition;
+			ModifierInstance.SkillInstance = SkillInstance;
+			ModifierInstance.SkillModInstanceId = ++SkillModifierInstanceIdMgr;
+			ModifierInstance.ApplyTime = Timestamp;
+			ModifierInstance.UpdateTime = Timestamp;
+
+			ActiveSkillModifiers.Add(ModifierInstance);
+			OutInstanceIds.Add(ModifierInstance.SkillModInstanceId);
+			MarkSkillParamDirty(SkillInstance, NAME_None);
+			MarkSkillParamDirtyByTag(SkillInstance, FGameplayTag());
+			bApplied = true;
+		}
+	}
+
+	if (bApplied)
+	{
+		MergeAndSortModifiers(ActiveSkillModifiers);
+		UpdateSkillModifiers();
+	}
+
+	return bApplied;
+}
+
+bool UTcsSkillComponent::RemoveSkillModifierById(int32 InstanceId)
+{
+	for (int32 Index = 0; Index < ActiveSkillModifiers.Num(); ++Index)
+	{
+		if (ActiveSkillModifiers[Index].SkillModInstanceId == InstanceId)
+		{
+			UTcsSkillInstance* SkillInstance = ActiveSkillModifiers[Index].SkillInstance;
+			ActiveSkillModifiers.RemoveAt(Index);
+			MergeAndSortModifiers(ActiveSkillModifiers);
+			MarkSkillParamDirty(SkillInstance, NAME_None);
+			MarkSkillParamDirtyByTag(SkillInstance, FGameplayTag());
+			UpdateSkillModifiers();
+			return true;
+		}
+	}
+
+	return false;
+}
+
+void UTcsSkillComponent::UpdateSkillModifiers()
+{
+	for (auto It = SkillParamEffectsByName.CreateIterator(); It; ++It)
+	{
+		if (!IsValid(It.Key()))
+		{
+			It.RemoveCurrent();
+		}
+	}
+
+	for (auto It = SkillParamEffectsByTag.CreateIterator(); It; ++It)
+	{
+		if (!IsValid(It.Key()))
+		{
+			It.RemoveCurrent();
+		}
+	}
+
+	// 当前实现按需清理缓存；聚合结果在查询时实时重建
+	for (TPair<const UTcsSkillInstance*, FTcsSkillParamEffectByName>& Pair : SkillParamEffectsByName)
+	{
+		if (Pair.Value.DirtyParams.Contains(NAME_None))
+		{
+			Pair.Value.AggregatedEffects.Empty();
+		}
+		else
+		{
+			for (const FName& ParamName : Pair.Value.DirtyParams)
+			{
+				Pair.Value.AggregatedEffects.Remove(ParamName);
+			}
+		}
+		Pair.Value.DirtyParams.Empty();
+	}
+
+	for (TPair<const UTcsSkillInstance*, FTcsSkillParamEffectByTag>& Pair : SkillParamEffectsByTag)
+	{
+		if (Pair.Value.DirtyParams.Contains(FGameplayTag()))
+		{
+			Pair.Value.AggregatedEffects.Empty();
+		}
+		else
+		{
+			for (const FGameplayTag& ParamTag : Pair.Value.DirtyParams)
+			{
+				Pair.Value.AggregatedEffects.Remove(ParamTag);
+			}
+		}
+		Pair.Value.DirtyParams.Empty();
+	}
+}
+
+bool UTcsSkillComponent::GetAggregatedParamEffect(const UTcsSkillInstance* Skill, FName ParamName, FTcsAggregatedParamEffect& OutEffect) const
+{
+	OutEffect = FTcsAggregatedParamEffect();
+	if (!IsValid(Skill) || ParamName.IsNone())
+	{
+		return false;
+	}
+
+	FTcsSkillParamEffectByName& EffectContainer = SkillParamEffectsByName.FindOrAdd(Skill);
+	if (const FTcsAggregatedParamEffect* CachedEffect = EffectContainer.FindEffect(ParamName))
+	{
+		OutEffect = *CachedEffect;
+		return true;
+	}
+
+	FTcsAggregatedParamEffect Effect = BuildAggregatedEffect(Skill, ParamName);
+	EffectContainer.SetEffect(ParamName, Effect);
+	OutEffect = Effect;
+
+	return !FMath::IsNearlyZero(Effect.AddSum) ||
+		!FMath::IsNearlyEqual(Effect.MulProd, 1.f) ||
+		Effect.bHasOverride ||
+		!FMath::IsNearlyEqual(Effect.CooldownMultiplier, 1.f) ||
+		!FMath::IsNearlyEqual(Effect.CostMultiplier, 1.f);
+}
+
+bool UTcsSkillComponent::GetAggregatedParamEffectByTag(const UTcsSkillInstance* Skill, FGameplayTag ParamTag, FTcsAggregatedParamEffect& OutEffect) const
+{
+	OutEffect = FTcsAggregatedParamEffect();
+	if (!IsValid(Skill) || !ParamTag.IsValid())
+	{
+		return false;
+	}
+
+	FTcsSkillParamEffectByTag& EffectContainer = SkillParamEffectsByTag.FindOrAdd(Skill);
+	if (const FTcsAggregatedParamEffect* CachedEffect = EffectContainer.FindEffect(ParamTag))
+	{
+		OutEffect = *CachedEffect;
+		return true;
+	}
+
+	FTcsAggregatedParamEffect Effect = BuildAggregatedEffectByTag(Skill, ParamTag);
+	EffectContainer.SetEffect(ParamTag, Effect);
+	OutEffect = Effect;
+
+	return !FMath::IsNearlyZero(Effect.AddSum) ||
+		!FMath::IsNearlyEqual(Effect.MulProd, 1.f) ||
+		Effect.bHasOverride ||
+		!FMath::IsNearlyEqual(Effect.CooldownMultiplier, 1.f) ||
+		!FMath::IsNearlyEqual(Effect.CostMultiplier, 1.f);
+}
+
+void UTcsSkillComponent::MarkSkillParamDirty(UTcsSkillInstance* Skill, FName ParamName)
+{
+	if (!IsValid(Skill))
+	{
+		return;
+	}
+
+	FTcsSkillParamEffectByName& EffectContainer = SkillParamEffectsByName.FindOrAdd(Skill);
+
+	if (ParamName.IsNone())
+	{
+		EffectContainer.AggregatedEffects.Empty();
+		EffectContainer.MarkDirty(NAME_None);
+	}
+	else
+	{
+		EffectContainer.AggregatedEffects.Remove(ParamName);
+		EffectContainer.MarkDirty(ParamName);
+	}
+}
+
+void UTcsSkillComponent::MarkSkillParamDirtyByTag(UTcsSkillInstance* Skill, FGameplayTag ParamTag)
+{
+	if (!IsValid(Skill))
+	{
+		return;
+	}
+
+	FTcsSkillParamEffectByTag& EffectContainer = SkillParamEffectsByTag.FindOrAdd(Skill);
+
+	if (!ParamTag.IsValid())
+	{
+		EffectContainer.AggregatedEffects.Empty();
+		EffectContainer.MarkDirty(FGameplayTag());
+	}
+	else
+	{
+		EffectContainer.AggregatedEffects.Remove(ParamTag);
+		EffectContainer.MarkDirty(ParamTag);
+	}
+}
+
+void UTcsSkillComponent::RebuildAggregatedForSkill(UTcsSkillInstance* Skill)
+{
+	if (!IsValid(Skill))
+	{
+		return;
+	}
+
+	SkillParamEffectsByName.Remove(Skill);
+	SkillParamEffectsByTag.Remove(Skill);
+}
+
+void UTcsSkillComponent::RebuildAggregatedForSkillParam(UTcsSkillInstance* Skill, FName ParamName)
+{
+	if (!IsValid(Skill))
+	{
+		return;
+	}
+
+	if (FTcsSkillParamEffectByName* EffectContainer = SkillParamEffectsByName.Find(Skill))
+	{
+		EffectContainer->RemoveParam(ParamName);
+	}
+}
+
+void UTcsSkillComponent::RebuildAggregatedForSkillParamByTag(UTcsSkillInstance* Skill, FGameplayTag ParamTag)
+{
+	if (!IsValid(Skill))
+	{
+		return;
+	}
+
+	if (FTcsSkillParamEffectByTag* EffectContainer = SkillParamEffectsByTag.Find(Skill))
+	{
+		EffectContainer->RemoveParam(ParamTag);
+	}
+}
+
+void UTcsSkillComponent::RunFilter(const FTcsSkillModifierDefinition& Definition, TArray<UTcsSkillInstance*>& OutSkills) const
+{
+	OutSkills.Reset();
+
+	if (Definition.SkillFilter)
+	{
+		if (UTcsSkillFilter* Filter = Definition.SkillFilter->GetDefaultObject<UTcsSkillFilter>())
+		{
+			Filter->Filter(GetOwner(), OutSkills);
+		}
+	}
+
+	if (OutSkills.IsEmpty())
+	{
+		for (const TPair<FName, UTcsSkillInstance*>& Pair : LearnedSkillInstances)
+		{
+			if (IsValid(Pair.Value))
+			{
+				OutSkills.AddUnique(Pair.Value);
+			}
+		}
+	}
+}
+
+bool UTcsSkillComponent::EvaluateConditions(AActor* Owner, UTcsSkillInstance* Skill, UTcsStateInstance* ActiveState, const FTcsSkillModifierInstance& Instance) const
+{
+	for (TSubclassOf<UTcsSkillModifierCondition> ConditionClass : Instance.ModifierDef.ActiveConditions)
+	{
+		if (!ConditionClass)
+		{
+			continue;
+		}
+
+		const UTcsSkillModifierCondition* Condition = ConditionClass->GetDefaultObject<UTcsSkillModifierCondition>();
+		if (!Condition)
+		{
+			continue;
+		}
+
+		if (!Condition->Evaluate(Owner, Skill, ActiveState, Instance))
+		{
+			return false;
+		}
+	}
+
+	return true;
+}
+
+void UTcsSkillComponent::MergeAndSortModifiers(TArray<FTcsSkillModifierInstance>& InOutModifiers) const
+{
+	InOutModifiers.Sort([](const FTcsSkillModifierInstance& A, const FTcsSkillModifierInstance& B)
+	{
+		return A.ModifierDef.Priority < B.ModifierDef.Priority;
+	});
+}
+
+FTcsAggregatedParamEffect UTcsSkillComponent::BuildAggregatedEffect(const UTcsSkillInstance* Skill, const FName& ParamName) const
+{
+	FTcsAggregatedParamEffect Result;
+	Result.MulProd = 1.f;
+	Result.CooldownMultiplier = 1.f;
+	Result.CostMultiplier = 1.f;
+
+	if (!IsValid(Skill))
+	{
+		return Result;
+	}
+
+	for (const FTcsSkillModifierInstance& Instance : ActiveSkillModifiers)
+	{
+		if (Instance.SkillInstance != Skill)
+		{
+			continue;
+		}
+
+		AccumulateEffectFromDefinitionByName(Instance, ParamName, Result);
+	}
+
+	return Result;
+}
+
+FTcsAggregatedParamEffect UTcsSkillComponent::BuildAggregatedEffectByTag(const UTcsSkillInstance* Skill, const FGameplayTag& ParamTag) const
+{
+	FTcsAggregatedParamEffect Result;
+	Result.MulProd = 1.f;
+	Result.CooldownMultiplier = 1.f;
+	Result.CostMultiplier = 1.f;
+
+	if (!IsValid(Skill))
+	{
+		return Result;
+	}
+
+	for (const FTcsSkillModifierInstance& Instance : ActiveSkillModifiers)
+	{
+		if (Instance.SkillInstance != Skill)
+		{
+			continue;
+		}
+
+		AccumulateEffectFromDefinitionByTag(Instance, ParamTag, Result);
+	}
+
+	return Result;
 }
 
 #pragma endregion

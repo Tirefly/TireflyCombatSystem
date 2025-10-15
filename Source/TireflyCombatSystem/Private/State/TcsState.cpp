@@ -39,6 +39,14 @@ void UTcsStateInstance::Initialize(
 	Owner = InOwner;
 	Instigator = InInstigator;
 
+	// 清理参数缓存
+	NumericParameters.Reset();
+	NumericParametersByTag.Reset();
+	BoolParameters.Reset();
+	BoolParametersByTag.Reset();
+	VectorParameters.Reset();
+	VectorParametersByTag.Reset();
+
 	// 初始化基础数值参数
 	NumericParameters.Add("MaxStackCount", StateDef.MaxStackCount);
 	NumericParameters.Add("TotalDuration", StateDef.Duration);
@@ -173,6 +181,32 @@ void UTcsStateInstance::SetNumericParam(FName ParameterName, float Value)
 	NumericParameters.FindOrAdd(ParameterName) = Value;
 }
 
+bool UTcsStateInstance::GetNumericParamByTag(FGameplayTag ParameterTag, float& OutValue) const
+{
+	if (!ParameterTag.IsValid())
+	{
+		return false;
+	}
+
+	if (const float* Value = NumericParametersByTag.Find(ParameterTag))
+	{
+		OutValue = *Value;
+		return true;
+	}
+
+	return false;
+}
+
+void UTcsStateInstance::SetNumericParamByTag(FGameplayTag ParameterTag, float Value)
+{
+	if (!ParameterTag.IsValid())
+	{
+		return;
+	}
+
+	NumericParametersByTag.FindOrAdd(ParameterTag) = Value;
+}
+
 #pragma region Parameters Extended Implementation
 
 bool UTcsStateInstance::GetBoolParam(FName ParameterName, bool& OutValue) const
@@ -190,6 +224,32 @@ void UTcsStateInstance::SetBoolParam(FName ParameterName, bool Value)
 	BoolParameters.FindOrAdd(ParameterName) = Value;
 }
 
+bool UTcsStateInstance::GetBoolParamByTag(FGameplayTag ParameterTag, bool& OutValue) const
+{
+	if (!ParameterTag.IsValid())
+	{
+		return false;
+	}
+
+	if (const bool* Value = BoolParametersByTag.Find(ParameterTag))
+	{
+		OutValue = *Value;
+		return true;
+	}
+
+	return false;
+}
+
+void UTcsStateInstance::SetBoolParamByTag(FGameplayTag ParameterTag, bool Value)
+{
+	if (!ParameterTag.IsValid())
+	{
+		return;
+	}
+
+	BoolParametersByTag.FindOrAdd(ParameterTag) = Value;
+}
+
 bool UTcsStateInstance::GetVectorParam(FName ParameterName, FVector& OutValue) const
 {
 	if (const FVector* Value = VectorParameters.Find(ParameterName))
@@ -205,11 +265,44 @@ void UTcsStateInstance::SetVectorParam(FName ParameterName, const FVector& Value
 	VectorParameters.FindOrAdd(ParameterName) = Value;
 }
 
+bool UTcsStateInstance::GetVectorParamByTag(FGameplayTag ParameterTag, FVector& OutValue) const
+{
+	if (!ParameterTag.IsValid())
+	{
+		return false;
+	}
+
+	if (const FVector* Value = VectorParametersByTag.Find(ParameterTag))
+	{
+		OutValue = *Value;
+		return true;
+	}
+
+	return false;
+}
+
+void UTcsStateInstance::SetVectorParamByTag(FGameplayTag ParameterTag, const FVector& Value)
+{
+	if (!ParameterTag.IsValid())
+	{
+		return;
+	}
+
+	VectorParametersByTag.FindOrAdd(ParameterTag) = Value;
+}
+
 TArray<FName> UTcsStateInstance::GetAllNumericParamNames() const
 {
 	TArray<FName> ParamNames;
 	NumericParameters.GetKeys(ParamNames);
 	return ParamNames;
+}
+
+TArray<FGameplayTag> UTcsStateInstance::GetAllNumericParamTags() const
+{
+	TArray<FGameplayTag> ParamTags;
+	NumericParametersByTag.GetKeys(ParamTags);
+	return ParamTags;
 }
 
 TArray<FName> UTcsStateInstance::GetAllBoolParamNames() const
@@ -219,11 +312,25 @@ TArray<FName> UTcsStateInstance::GetAllBoolParamNames() const
 	return ParamNames;
 }
 
+TArray<FGameplayTag> UTcsStateInstance::GetAllBoolParamTags() const
+{
+	TArray<FGameplayTag> ParamTags;
+	BoolParametersByTag.GetKeys(ParamTags);
+	return ParamTags;
+}
+
 TArray<FName> UTcsStateInstance::GetAllVectorParamNames() const
 {
 	TArray<FName> ParamNames;
 	VectorParameters.GetKeys(ParamNames);
 	return ParamNames;
+}
+
+TArray<FGameplayTag> UTcsStateInstance::GetAllVectorParamTags() const
+{
+	TArray<FGameplayTag> ParamTags;
+	VectorParametersByTag.GetKeys(ParamTags);
+	return ParamTags;
 }
 
 #pragma endregion

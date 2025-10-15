@@ -32,4 +32,16 @@ public:
 	static UDataTable* GetAttributeModifierDefTable();
 
 #pragma endregion
+
+#pragma region SkillModifier
+
+	// 获取技能修改器定义总表
+	UFUNCTION(BlueprintCallable, Category = "TcsCombatSystem|Skill")
+	static UDataTable* GetSkillModifierDefTable();
+
+	// 获取所有技能修改器名称
+	UFUNCTION(BlueprintCallable, CallInEditor, Category = "TcsCombatSystem|Skill")
+	static TArray<FName> GetSkillModifierIds();
+
+#pragma endregion
 };

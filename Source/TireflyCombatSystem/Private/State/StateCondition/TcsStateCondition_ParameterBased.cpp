@@ -20,7 +20,8 @@ bool UTcsStateCondition_ParameterBased::CheckCondition_Implementation(
 	}
 
 	// 获取参数值
-	float ParameterValue = StateInstance->GetNumericParam(Config->ParameterName);
+	float ParameterValue;
+	StateInstance->GetNumericParam(Config->ParameterName, ParameterValue);
 
 	// 执行比较
 	float CompareValue = Config->CompareValue;

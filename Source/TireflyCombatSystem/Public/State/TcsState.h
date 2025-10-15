@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "TcsStateCondition.h"
+#include "StateCondition/TcsStateCondition.h"
 #include "GameplayTagContainer.h"
 #include "StateTreeReference.h"
 #include "StateTreeInstanceData.h"
@@ -149,9 +149,13 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Condition")
 	TArray<FTcsStateConditionConfig> ActiveConditions;
 
-	// 状态的参数集
+	// 状态的参数集（FName 键）
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Parameter")
 	TMap<FName, FTcsStateParameter> Parameters;
+
+	// 状态的参数集（GameplayTag 键）
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Parameter", meta = (Categories = "Param"))
+	TMap<FGameplayTag, FTcsStateParameter> TagParameters;
 };
 
 
@@ -292,10 +296,22 @@ public:
 	void SetNumericParam(FName ParameterName, float Value);
 
 	UFUNCTION(BlueprintCallable, Category = "State|Parameters")
+	bool GetNumericParamByTag(FGameplayTag ParameterTag, float& OutValue) const;
+
+	UFUNCTION(BlueprintCallable, Category = "State|Parameters")
+	void SetNumericParamByTag(FGameplayTag ParameterTag, float Value);
+
+	UFUNCTION(BlueprintCallable, Category = "State|Parameters")
 	bool GetBoolParam(FName ParameterName, bool& OutValue) const;
 
 	UFUNCTION(BlueprintCallable, Category = "State|Parameters")
 	void SetBoolParam(FName ParameterName, bool Value);
+
+	UFUNCTION(BlueprintCallable, Category = "State|Parameters")
+	bool GetBoolParamByTag(FGameplayTag ParameterTag, bool& OutValue) const;
+
+	UFUNCTION(BlueprintCallable, Category = "State|Parameters")
+	void SetBoolParamByTag(FGameplayTag ParameterTag, bool Value);
 
 	UFUNCTION(BlueprintCallable, Category = "State|Parameters")
 	bool GetVectorParam(FName ParameterName, FVector& OutValue) const;
@@ -303,30 +319,60 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "State|Parameters")
 	void SetVectorParam(FName ParameterName, const FVector& Value);
 
+	UFUNCTION(BlueprintCallable, Category = "State|Parameters")
+	bool GetVectorParamByTag(FGameplayTag ParameterTag, FVector& OutValue) const;
+
+	UFUNCTION(BlueprintCallable, Category = "State|Parameters")
+	void SetVectorParamByTag(FGameplayTag ParameterTag, const FVector& Value);
+
 	// 获取所有数值类型参数名称
 	UFUNCTION(BlueprintPure, Category = "State|Parameters")
 	TArray<FName> GetAllNumericParamNames() const;
+
+	// 获取所有数值类型参数标签
+	UFUNCTION(BlueprintPure, Category = "State|Parameters")
+	TArray<FGameplayTag> GetAllNumericParamTags() const;
 
 	// 获取所有布尔类型参数名称
 	UFUNCTION(BlueprintPure, Category = "State|Parameters")
 	TArray<FName> GetAllBoolParamNames() const;
 
+	// 获取所有布尔类型参数标签
+	UFUNCTION(BlueprintPure, Category = "State|Parameters")
+	TArray<FGameplayTag> GetAllBoolParamTags() const;
+
 	// 获取所有向量类型参数名称
 	UFUNCTION(BlueprintPure, Category = "State|Parameters")
 	TArray<FName> GetAllVectorParamNames() const;
+
+	// 获取所有向量类型参数标签
+	UFUNCTION(BlueprintPure, Category = "State|Parameters")
+	TArray<FGameplayTag> GetAllVectorParamTags() const;
 
 protected:
 	// 数值类型参数
 	UPROPERTY(BlueprintReadOnly, Category = "State|Parameters")
 	TMap<FName, float> NumericParameters;
 
+	// 数值类型参数（Tag）
+	UPROPERTY(BlueprintReadOnly, Category = "State|Parameters")
+	TMap<FGameplayTag, float> NumericParametersByTag;
+
 	// 布尔类型参数
 	UPROPERTY(BlueprintReadOnly, Category = "State|Parameters")  
 	TMap<FName, bool> BoolParameters;
 
+	// 布尔类型参数（Tag）
+	UPROPERTY(BlueprintReadOnly, Category = "State|Parameters")
+	TMap<FGameplayTag, bool> BoolParametersByTag;
+
 	// 向量类型参数
 	UPROPERTY(BlueprintReadOnly, Category = "State|Parameters")
 	TMap<FName, FVector> VectorParameters;
+
+	// 向量类型参数（Tag）
+	UPROPERTY(BlueprintReadOnly, Category = "State|Parameters")
+	TMap<FGameplayTag, FVector> VectorParametersByTag;
 
 #pragma endregion
 

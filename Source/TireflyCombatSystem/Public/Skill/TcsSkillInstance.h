@@ -3,8 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/NoExportTypes.h"
 #include "State/TcsState.h"
+#include "Modifiers/TcsSkillModifierEffect.h"
 #include "TcsSkillInstance.generated.h"
 
 
@@ -90,33 +90,6 @@ protected:
 #pragma endregion
 
 
-#pragma region CostCooldown
-
-public:
-	// 冷却时间修正
-	UFUNCTION(BlueprintPure, Category = "Skill Instance|Cooldown")
-	float GetCooldownMultiplier() const { return CooldownMultiplier; }
-
-	UFUNCTION(BlueprintCallable, Category = "Skill Instance|Cooldown")
-	void SetCooldownMultiplier(float InMultiplier) { CooldownMultiplier = FMath::Max(0.0f, InMultiplier); }
-
-	// 消耗修正
-	UFUNCTION(BlueprintPure, Category = "Skill Instance|Cost") 
-	float GetCostMultiplier() const { return CostMultiplier; }
-
-	UFUNCTION(BlueprintCallable, Category = "Skill Instance|Cost")
-	void SetCostMultiplier(float InMultiplier) { CostMultiplier = FMath::Max(0.0f, InMultiplier); }
-
-protected:
-	UPROPERTY(BlueprintReadOnly, SaveGame, Category = "Skill Instance")
-	float CooldownMultiplier = 1.0f;
-
-	UPROPERTY(BlueprintReadOnly, SaveGame, Category = "Skill Instance")
-	float CostMultiplier = 1.0f;
-
-#pragma endregion
-	
-
 #pragma region Parameters
 
 public:
@@ -127,6 +100,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Skill Instance|Parameters")
 	void SetBoolParameter(FName ParamName, bool Value);
 
+	UFUNCTION(BlueprintPure, Category = "Skill Instance|Parameters")
+	bool GetBoolParameterByTag(FGameplayTag ParamTag, bool DefaultValue = false) const;
+
+	UFUNCTION(BlueprintCallable, Category = "Skill Instance|Parameters")
+	void SetBoolParameterByTag(FGameplayTag ParamTag, bool Value);
+
 	// 向量参数操作
 	UFUNCTION(BlueprintPure, Category = "Skill Instance|Parameters")
 	FVector GetVectorParameter(FName ParamName, const FVector& DefaultValue = FVector::ZeroVector) const;
@@ -134,9 +113,18 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Skill Instance|Parameters")
 	void SetVectorParameter(FName ParamName, const FVector& Value);
 
+	UFUNCTION(BlueprintPure, Category = "Skill Instance|Parameters")
+	FVector GetVectorParameterByTag(FGameplayTag ParamTag, const FVector& DefaultValue = FVector::ZeroVector) const;
+
+	UFUNCTION(BlueprintCallable, Category = "Skill Instance|Parameters")
+	void SetVectorParameterByTag(FGameplayTag ParamTag, const FVector& Value);
+
 	// 数值参数计算（实时计算，不存储值）
 	UFUNCTION(BlueprintCallable, Category = "Skill Instance|Parameters")  
 	float CalculateNumericParameter(FName ParamName, AActor* Instigator = nullptr, AActor* Target = nullptr) const;
+
+	UFUNCTION(BlueprintCallable, Category = "Skill Instance|Parameters")
+	float CalculateNumericParameterByTag(FGameplayTag ParamTag, AActor* Instigator = nullptr, AActor* Target = nullptr) const;
 
 	// 参数快照管理
 	UFUNCTION(BlueprintCallable, Category = "Skill Instance|Parameters")
@@ -144,6 +132,12 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "Skill Instance|Parameters")
 	float GetSnapshotParameter(FName ParamName, float DefaultValue = 0.0f) const;
+
+	UFUNCTION(BlueprintCallable, Category = "Skill Instance|Parameters")
+	void TakeParameterSnapshotByTag(FGameplayTag ParamTag, AActor* Instigator = nullptr, AActor* Target = nullptr);
+
+	UFUNCTION(BlueprintPure, Category = "Skill Instance|Parameters")
+	float GetSnapshotParameterByTag(FGameplayTag ParamTag, float DefaultValue = 0.0f) const;
 
 	UFUNCTION(BlueprintCallable, Category = "Skill Instance|Parameters")
 	void ClearParameterSnapshot();
@@ -164,6 +158,9 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Skill Instance|Parameters")
 	bool ShouldUpdateParameter(FName ParamName, AActor* Instigator = nullptr, AActor* Target = nullptr) const;
 
+	UFUNCTION(BlueprintPure, Category = "Skill Instance|Parameters")
+	bool ShouldUpdateParameterByTag(FGameplayTag ParamTag, AActor* Instigator = nullptr, AActor* Target = nullptr) const;
+
 	// 批量检查是否有任何实时参数需要更新
 	UFUNCTION(BlueprintPure, Category = "Skill Instance|Parameters")
 	bool HasPendingParameterUpdates(AActor* Instigator = nullptr, AActor* Target = nullptr) const;
@@ -173,55 +170,51 @@ protected:
 	UPROPERTY(BlueprintReadOnly, SaveGame, Category = "Skill Instance|Parameters")
 	TMap<FName, bool> BoolParameters;
 
+	UPROPERTY(BlueprintReadOnly, SaveGame, Category = "Skill Instance|Parameters")
+	TMap<FGameplayTag, bool> BoolParametersByTag;
+
 	// 向量类型参数（直接存储）
 	UPROPERTY(BlueprintReadOnly, SaveGame, Category = "Skill Instance|Parameters")
 	TMap<FName, FVector> VectorParameters;
+
+	UPROPERTY(BlueprintReadOnly, SaveGame, Category = "Skill Instance|Parameters")
+	TMap<FGameplayTag, FVector> VectorParametersByTag;
 
 	// 数值参数配置（存储计算配置，不存储值）
 	UPROPERTY(BlueprintReadOnly, Category = "Skill Instance|Parameters")
 	TMap<FName, FTcsStateParameter> NumericParameterConfigs;
 
+	UPROPERTY(BlueprintReadOnly, Category = "Skill Instance|Parameters")
+	TMap<FGameplayTag, FTcsStateParameter> NumericParameterTagConfigs;
+
 	// 快照参数缓存
 	UPROPERTY(BlueprintReadOnly, Category = "Skill Instance|Parameters")
 	TMap<FName, float> CachedSnapshotParameters;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Skill Instance|Parameters")
+	TMap<FGameplayTag, float> CachedSnapshotParametersByTag;
 
 	// 实时参数最近值缓存（用于变化检测）
 	UPROPERTY(BlueprintReadOnly, Category = "Skill Instance|Parameters")
 	TMap<FName, float> LastRealTimeParameterValues;
 
+	UPROPERTY(BlueprintReadOnly, Category = "Skill Instance|Parameters")
+	TMap<FGameplayTag, float> LastRealTimeParameterValuesByTag;
+
 	// 参数更新时间戳（用于性能优化）
 	UPROPERTY(BlueprintReadOnly, Category = "Skill Instance|Parameters")
 	TMap<FName, float> ParameterUpdateTimestamps;
 
+	UPROPERTY(BlueprintReadOnly, Category = "Skill Instance|Parameters")
+	TMap<FGameplayTag, float> ParameterUpdateTimestampsByTag;
+
 protected:
 	// 内部参数计算辅助
 	float CalculateBaseNumericParameter(FName ParamName, AActor* Instigator, AActor* Target) const;
+	float CalculateBaseNumericParameterByTag(FGameplayTag ParamTag, AActor* Instigator, AActor* Target) const;
 	float ApplySkillModifiers(FName ParamName, float BaseValue) const;
-
-#pragma endregion
-
-	
-#pragma region ParameterModifiers
-
-public:
-	UFUNCTION(BlueprintCallable, Category = "Skill Instance|Modifiers")
-	void AddParameterModifier(FName ParamName, float ModifierValue, bool bIsMultiplier = false);
-
-	UFUNCTION(BlueprintCallable, Category = "Skill Instance|Modifiers")
-	void RemoveParameterModifier(FName ParamName, float ModifierValue, bool bIsMultiplier = false);
-
-	UFUNCTION(BlueprintCallable, Category = "Skill Instance|Modifiers")
-	void ClearParameterModifiers(FName ParamName);
-
-	UFUNCTION(BlueprintPure, Category = "Skill Instance|Modifiers")
-	float GetTotalParameterModifier(FName ParamName) const;
-
-protected:
-	// 参数修正器（加法修正）
-	TMap<FName, TArray<float>> AdditiveModifiers;
-
-	// 参数修正器（乘法修正）
-	TMap<FName, TArray<float>> MultiplicativeModifiers;
+	float ApplySkillModifiersByTag(FGameplayTag ParamTag, float BaseValue) const;
+	float ApplyAggregatedEffect(const FTcsAggregatedParamEffect& Effect, float BaseValue) const;
 
 #pragma endregion
 
