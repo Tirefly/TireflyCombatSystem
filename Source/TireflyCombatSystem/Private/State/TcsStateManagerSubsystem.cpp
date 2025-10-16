@@ -138,8 +138,10 @@ bool UTcsStateManagerSubsystem::ApplyStateInstanceToSlot(AActor* TargetActor, UT
 		if (!bAssigned)
 		{
 			// 直接激活（与阶段2之前的行为保持一致）
+			const ETcsStateStage PreviousStage = StateInstance->GetCurrentStage();
 			StateInstance->StartStateTree();
 			StateInstance->SetCurrentStage(ETcsStateStage::SS_Active);
+			StateComponent->NotifyStateStageChanged(StateInstance, PreviousStage, ETcsStateStage::SS_Active);
 		}
 
 		return true;

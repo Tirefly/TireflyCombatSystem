@@ -40,25 +40,25 @@
 
 | 文档引用 | 目标要点 | 当前实现差距 | 受影响代码 |
 | --- | --- | --- | --- |
-| 状态阶段文档 §1 “尚未实现”1) | 合并器接入 `AssignStateToStateSlot` | 当前直接跳过重复状态（返回 true） | `Source/TireflyCombatSystem/Private/State/TcsStateComponent.cpp:524-947` |
+| 状态阶段文档 §1 “尚未实现”1) | 合并器接入 `AssignStateToStateSlot` | ✅ 已实现（阶段4）：按同/异发起者选择 `UTcsStateMerger`，合并结果驱动槽位刷新 | `Source/TireflyCombatSystem/Private/State/TcsStateComponent.cpp:542-714` |
 | 同文档 2) | `ApplyStateToSpecificSlot` 管理器接口 | 子系统仅有 `ApplyState` | `Source/TireflyCombatSystem/Private/State/TcsStateManagerSubsystem.cpp:60-110` |
-| 同文档 3) | 槽位排队/延迟应用 | 未实现 | `TcsStateComponent.cpp` |
-| 同文档 4) | `ETcsDurationTickPolicy` | `UTcsStateComponent::TickComponent` 固定 ActiveOnly | `Source/TireflyCombatSystem/Private/State/TcsStateComponent.cpp:70-140` |
-| 同文档 5) | Gate 关闭/抢占策略、挂起复用 | 目前仅支持 PriorityOnly/AllActive，Gate 关闭时简单 Stop | `TcsStateComponent.cpp` |
-| 同文档 6) | 顶层 Slot Debug Evaluator | 尚无实现 | `Source/TireflyCombatSystem/Public/StateTree` |
+| 同文档 3) | 槽位排队/延迟应用 | ✅ 已实现（阶段4）：新增排队队列、TTL、Gate 打开重试 | `Source/TireflyCombatSystem/Public/State/TcsStateComponent.h:153`<br>`Source/TireflyCombatSystem/Private/State/TcsStateComponent.cpp:360-481` |
+| 同文档 4) | `ETcsDurationTickPolicy` | ✅ 已实现（阶段4）：数据表配置策略，Tick 中按策略递减持续时间 | `Source/TireflyCombatSystem/Public/State/TcsStateSlot.h:29`<br>`Source/TireflyCombatSystem/Private/State/TcsStateComponent.cpp:140-201` |
+| 同文档 5) | Gate 关闭/抢占策略、挂起复用 | ✅ 已实现（阶段4）：支持 Gate 关闭暂停/取消、优先级抢占挂起/清除、StateTree Pause/Resume | `Source/TireflyCombatSystem/Public/State/TcsStateSlot.h:43`<br>`Source/TireflyCombatSystem/Private/State/TcsStateComponent.cpp:256-359`<br>`Source/TireflyCombatSystem/Private/State/TcsState.cpp:300-360` |
+| 同文档 6) | 顶层 Slot Debug Evaluator | ✅ 已实现（阶段4）：新增 `FTcsStateSlotDebugEvaluator` 输出调试快照 | `Source/TireflyCombatSystem/Public/StateTree/TcsStateSlotDebugEvaluator.h`<br>`Source/TireflyCombatSystem/Private/StateTree/TcsStateSlotDebugEvaluator.cpp` |
 | 同文档 新增 7) | 技能施放统一走槽位管线 | `UTcsSkillComponent::TryCastSkill` 添加状态后未调用 `AssignStateToStateSlot`，只手动启动 StateTree | `Source/TireflyCombatSystem/Private/Skill/TcsSkillComponent.cpp:198-270` |
-| 文档：后续改进细节 | StateTree Gate 事件驱动 | 仍通过 `CheckAndUpdateStateTreeSlots` Tick 轮询 | `Source/TireflyCombatSystem/Private/State/TcsStateComponent.cpp:724-810` |
+| 文档：后续改进细节 | StateTree Gate 事件驱动 | ✅ 已落地（阶段4）：添加事件驱动刷新请求与低频兜底的 Gate 同步 | `Source/TireflyCombatSystem/Public/State/TcsStateComponent.h:156-165`<br>`Source/TireflyCombatSystem/Private/State/TcsStateComponent.cpp:108-199, 482-518` |
 | 同条 | 状态到期/移除通知 | `HandleStateInstanceRemoval` / `OnStateInstanceDurationExpired` 仅留 TODO | `Source/TireflyCombatSystem/Private/State/TcsStateManagerSubsystem.cpp:111-162` |
 
 > **阶段3差异焦点（技能施放 ↔ 槽位联动）**
 >
 > | 关注项 | 当前状态 | 备注 | 受影响代码 |
 > | --- | --- | --- | --- |
-> | `UTcsSkillComponent::TryCastSkill` 未走 `AssignStateToStateSlot` | ❌ 待改造 | 仍手动 `AddStateInstance` 并启动 StateTree，未触发合并/抢占/挂起流程 | `Source/TireflyCombatSystem/Private/Skill/TcsSkillComponent.cpp:199-275` |
-> | `UTcsStateComponent` 合并/激活逻辑缺口 | ⚠️ 待补完 | AssignStateToStateSlot 仍以“跳过重复”占位；合并器、排队挂起策略尚未接入 | `Source/TireflyCombatSystem/Private/State/TcsStateComponent.cpp:291-947` |
-> | `UTcsStateManagerSubsystem` 无“指定槽位应用”接口 | 🚧 设计阶段 | 仅提供 `ApplyState`；需要评估新增 `ApplyStateToSpecificSlot` 以支持技能直达目标槽位 | `Source/TireflyCombatSystem/Private/State/TcsStateManagerSubsystem.cpp:60-162` |
-> | 槽位事件/Active 列表同步 | ⚠️ 待梳理 | 当前技能组件手动维护 `ActiveSkillStateInstances`，缺少与槽位事件的统一数据源 | `Source/TireflyCombatSystem/Private/Skill/TcsSkillComponent.cpp:230-272` |
-> | 数据配置校验 | 🚧 待定义 | 未对技能配置 `StateSlotType` 进行校验，可能导致阶段3流程缺槽位信息 | `Source/TireflyCombatSystem/Public/TcsCombatSystemSettings.h` |
+> | `UTcsSkillComponent::TryCastSkill` 走槽位管线 | ✅ 已改造（阶段3）：通过 StateManagerSubsystem/StateComponent 分配槽位，失败时回退直接激活 | `Source/TireflyCombatSystem/Private/Skill/TcsSkillComponent.cpp:199-320` |
+> | `UTcsStateComponent` 合并/激活逻辑缺口 | ✅ 已闭环（阶段3）：槽位分配沿用合并/排队策略，并在阶段变更时统一广播事件 | `Source/TireflyCombatSystem/Private/State/TcsStateComponent.cpp:291-1384` |
+> | `UTcsStateManagerSubsystem` 指定槽位接口 | ✅ 已补充：新增 `ApplyStateToSpecificSlot / ApplyStateInstanceToSlot` | `Source/TireflyCombatSystem/Private/State/TcsStateManagerSubsystem.cpp:60-170` |
+> | 槽位事件/Active 列表同步 | ✅ 已完成（阶段3）：`OnStateStageChanged` 事件驱动 `ActiveSkillStateInstances`，移除手工维护 | `Source/TireflyCombatSystem/Public/State/TcsStateComponent.h:20`<br>`Source/TireflyCombatSystem/Private/Skill/TcsSkillComponent.cpp:38-120, 518-575` |
+> | 数据配置校验 | ✅ 已补充（阶段3）：Settings 数据校验 & 运行时告警同步约束技能 `StateSlotType` | `Source/TireflyCombatSystem/Public/TcsCombatSystemSettings.h:41-118`<br>`Source/TireflyCombatSystem/Private/Skill/TcsSkillComponent.cpp:262-276` |
 
 ---
 
@@ -69,8 +69,8 @@
 | 阶段0：基线梳理 | ✅ 完成 | 差异清单成稿，阶段目标与责任划分同步输出 | Combat Runtime 文档维护（Owner） | 产品 & 系统设计复核 | TCS 插件开发计划 |
 | 阶段1：技能修改器运行态重构 | ✅ 完成 | SkillComponent 持有运行态、默认执行/合并/筛选/条件落地、旧 SkillInstance 修正器逻辑删除 | Combat Runtime 运行态负责人（Owner） | 系统架构 & QA | 深度设计 §2~§8；类型声明 §1~§4 |
 | 阶段2：参数键并立 | ✅ 完成 | Name/Tag 双命名空间落地，快照/实时同步与聚合缓存均支持 Tag | 参数通道负责人（Owner） | 状态系统、数据表维护、小队 QA | 键并立设计 §1~§5 |
-| 阶段3：技能施放与槽位联动 | 🟡 待启动 | TryCastSkill -> AssignStateToStateSlot；ActiveStateInstances 正常维护 | 战斗槽位负责人（Owner） | StateTree 设计、Gameplay 程序 | 状态阶段文档 §1(7) |
-| 阶段4：状态管理事件化与槽位增强 | 🔲 规划中 | Gate 事件化、合并器/排队/Duration/抢占/Debug 六项逐步完成 | 状态系统负责人（Owner） | Combat Runtime、工具链、QA | 状态阶段文档 §1(1~6)，文档：后续改进细节 |
+| 阶段3：技能施放与槽位联动 | ✅ 完成 | TryCastSkill -> AssignStateToStateSlot；ActiveStateInstances 与槽位事件对齐 | 战斗槽位负责人（Owner） | StateTree 设计、Gameplay 程序 | 状态阶段文档 §1(7) |
+| 阶段4：状态管理事件化与槽位增强 | ✅ 完成 | 合并器接入、排队/持续时间策略、Gate 事件化与抢占、Slot 调试 Evaluator 全量落地 | 状态系统负责人（Owner） | Combat Runtime、工具链、QA | 状态阶段文档 §1(1~6)，文档：后续改进细节 |
 | 阶段5：验证与回归 | 🔲 规划中 | 自动化测试 & 构建通过，文档/README 更新 | QA / Tech Writer 联合（Owner） | 全模块提测支持 | TCS 插件开发计划 |
 
 > 责任说明：若后续在项目管理工具中指派到具体成员，请同步更新 Owner 字段以保持文档准确性。
@@ -79,6 +79,6 @@
 
 ## 5. 后续动作建议
 1. 阶段2收尾：同步策划/数据表 Owner，梳理 `TagParameters` 配置准则并安排一次聚合/同步功能回归测试。  
-2. 阶段3（技能施放走槽位）：Owner 基于上表补充实施评审材料（接口改动清单、合并策略占位方案、回归案例），对齐 TryCastSkill / StateComponent / StateManager 职责边界。  
-3. 阶段4（状态事件化与槽位增强）：Owner 在阶段3完成后立项，拆分 Gate 事件化、合并器增强等六项子任务，并同步 QA 准备测试用例。  
-4. 阶段5（验证/回归）：QA Owner 提前准备自动化测试矩阵，并在阶段3~4交付时滚动补充测试脚本与文档。
+2. 阶段3验收：组织技能施放→槽位→StateTree 回归，覆盖阶段事件广播与 Active 列表同步。  
+3. 阶段4验收：延续状态系统回归案例，验证排队、挂起/抢占、持续时间策略与 Gate 事件链路。  
+4. 阶段5（验证/回归）：QA Owner 准备自动化测试矩阵，在阶段3/4 验收完成后补充脚本与文档。

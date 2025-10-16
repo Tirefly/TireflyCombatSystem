@@ -475,6 +475,41 @@ void UTcsStateInstance::StopStateTree()
 	bStateTreeRunning = false;
 }
 
+void UTcsStateInstance::PauseStateTree()
+{
+	if (GetCurrentStage() == ETcsStateStage::SS_HangUp)
+	{
+		return;
+	}
+
+	if (bStateTreeRunning)
+	{
+		StopStateTree();
+	}
+
+	SetCurrentStage(ETcsStateStage::SS_HangUp);
+}
+
+void UTcsStateInstance::ResumeStateTree()
+{
+	if (GetCurrentStage() == ETcsStateStage::SS_Active && bStateTreeRunning)
+	{
+		return;
+	}
+
+	if (!StateDef.StateTreeRef.IsValid())
+	{
+		return;
+	}
+
+	if (!bStateTreeRunning)
+	{
+		StartStateTree();
+	}
+
+	SetCurrentStage(ETcsStateStage::SS_Active);
+}
+
 EStateTreeRunStatus UTcsStateInstance::GetStateTreeRunStatus() const
 {
 	return CurrentStateTreeStatus;

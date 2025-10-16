@@ -4,7 +4,14 @@
 
 #include "CoreMinimal.h"
 #include "Engine/DeveloperSettings.h"
+#include "State/TcsState.h"
+
+#if WITH_EDITOR
+#include "Misc/DataValidation.h"
+#endif
+
 #include "TcsCombatSystemSettings.generated.h"
+
 
 
 UCLASS(Config = TcsCombatSystemSettings, DefaultConfig)
@@ -32,6 +39,9 @@ protected:
 
 	/** Gets the description for the section, uses the classes ToolTip by default. */
 	virtual FText GetSectionDescription() const override { return FText::FromString("Developer settings of gameplay ability system"); };
+
+public:
+	virtual EDataValidationResult IsDataValid(FDataValidationContext& Context) const override;
 #endif
 
 #pragma endregion
@@ -68,3 +78,47 @@ public:
 
 #pragma endregion
 };
+
+#if WITH_EDITOR
+inline EDataValidationResult UTcsCombatSystemSettings::IsDataValid(FDataValidationContext& Context) const
+{
+	const EDataValidationResult SuperResult = Super::IsDataValid(Context);
+	EDataValidationResult Result = SuperResult;
+	bool bHasError = false;
+
+	if (StateDefTable.IsValid())
+	{
+		const UDataTable* StateTable = StateDefTable.LoadSynchronous();
+		if (!StateTable)
+		{
+			Context.AddError(NSLOCTEXT("TcsCombatSystemSettings", "StateDefTableLoadFailed", "Failed to load StateDefTable during validation."));
+			return EDataValidationResult::Invalid;
+		}
+
+		const FString ContextString(TEXT("UTcsCombatSystemSettings::IsDataValid"));
+		for (const FName& RowName : StateTable->GetRowNames())
+		{
+			const FTcsStateDefinition* Definition = StateTable->FindRow<FTcsStateDefinition>(RowName, ContextString);
+			if (!Definition)
+			{
+				continue;
+			}
+
+			if (Definition->StateType == ST_Skill && !Definition->StateSlotType.IsValid())
+			{
+				Context.AddError(FText::Format(
+					NSLOCTEXT("TcsCombatSystemSettings", "MissingSkillSlotTag", "Skill state '{0}' must define StateSlotType for the Stage3 skill-slot pipeline."),
+					FText::FromName(RowName)));
+				bHasError = true;
+			}
+		}
+	}
+
+	if (bHasError)
+	{
+		Result = EDataValidationResult::Invalid;
+	}
+
+	return Result;
+}
+#endif

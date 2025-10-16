@@ -449,10 +449,19 @@ public:
 	
 	UFUNCTION(BlueprintCallable, Category = "State|StateTree")
 	void StopStateTree();
+
+	UFUNCTION(BlueprintCallable, Category = "State|StateTree")
+	void PauseStateTree();
+
+	UFUNCTION(BlueprintCallable, Category = "State|StateTree")
+	void ResumeStateTree();
 	
 	// StateTree状态查询
 	UFUNCTION(BlueprintPure, Category = "State|StateTree")
 	bool IsStateTreeRunning() const { return bStateTreeRunning; }
+
+	UFUNCTION(BlueprintPure, Category = "State|StateTree")
+	bool IsStateTreePaused() const { return Stage == ETcsStateStage::SS_HangUp && !bStateTreeRunning; }
 	
 	UFUNCTION(BlueprintPure, Category = "State|StateTree")
 	EStateTreeRunStatus GetStateTreeRunStatus() const;

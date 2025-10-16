@@ -76,6 +76,8 @@ protected:
 		ELevelTick TickType,
 		FActorComponentTickFunction* ThisTickFunction) override;
 
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+
 #pragma endregion
 
 
@@ -109,6 +111,10 @@ protected:
 	// 活跃技能状态跟踪 (SkillDefId -> ActiveStateInstance)
 	UPROPERTY(BlueprintReadOnly, Category = "Active Skills")
 	TMap<FName, UTcsStateInstance*> ActiveSkillStateInstances;
+
+	// 已提示缺失槽位配置的技能集合（避免重复日志）
+	UPROPERTY(Transient)
+	TSet<FName> WarnedSkillsMissingSlot;
 
 	// 技能实例创建辅助
 	virtual UTcsSkillInstance* CreateSkillInstance(FName SkillDefId, int32 InitialLevel);
@@ -257,6 +263,14 @@ protected:
 protected:
 	// 获取组件引用
 	UTcsStateComponent* GetStateComponent() const;
+
+protected:
+	UFUNCTION()
+	void HandleStateStageChanged(UTcsStateComponent* StateComponent, UTcsStateInstance* StateInstance, ETcsStateStage PreviousStage, ETcsStateStage NewStage);
+
+	// 缓存用于事件绑定的状态组件
+	UPROPERTY(Transient)
+	TWeakObjectPtr<UTcsStateComponent> CachedStateComponent;
 
 protected:
 	// 子系统引用

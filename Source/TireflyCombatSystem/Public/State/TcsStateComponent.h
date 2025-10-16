@@ -17,6 +17,8 @@ class UTcsStateInstance;
 class UTcsStateManagerSubsystem;
 struct FStateTreeStateHandle;
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams(FTcsOnStateStageChangedSignature, UTcsStateComponent*, StateComponent, UTcsStateInstance*, StateInstance, ETcsStateStage, PreviousStage, ETcsStateStage, NewStage);
+
 
 
 // 状态实例持续时间数据
@@ -50,6 +52,35 @@ public:
 		, RemainingDuration(InRemainingDuration)
 		, DurationType(InDurationType)
 	{}
+};
+
+
+
+// 槽位排队数据
+USTRUCT()
+struct FTcsQueuedStateData
+{
+	GENERATED_BODY()
+
+public:
+	// 待应用的状态实例
+	UPROPERTY()
+	TWeakObjectPtr<UTcsStateInstance> StateInstance = nullptr;
+
+	// 目标槽位
+	UPROPERTY()
+	FGameplayTag TargetSlot;
+
+	// 入队时间
+	double EnqueueTime = 0.0;
+
+	// 存活时间（0 表示无限期）
+	double TimeToLive = 0.0;
+
+	bool IsExpired(double CurrentTime) const
+	{
+		return TimeToLive > 0.0 && (CurrentTime - EnqueueTime) >= TimeToLive;
+	}
 };
 
 
@@ -103,8 +134,16 @@ public:
 	UFUNCTION(BlueprintPure, Category = "State Management")
 	TArray<UTcsStateInstance*> GetStatesByTags(const FGameplayTagContainer& Tags) const;
 
+public:
+	// 状态阶段变更事件（槽位联动）
+	UPROPERTY(BlueprintAssignable, Category = "State|Events")
+	FTcsOnStateStageChangedSignature OnStateStageChanged;
+
+	// 通知阶段发生变化（内部与外部均可触发）
+	void NotifyStateStageChanged(UTcsStateInstance* StateInstance, ETcsStateStage PreviousStage, ETcsStateStage NewStage);
+
 protected:
-	// 活跃状态实例列表
+	// 当前处于激活阶段的状态实例列表
 	UPROPERTY()
 	TArray<UTcsStateInstance*> ActiveStateInstances;
 
@@ -159,6 +198,10 @@ public:
 	// 获取槽位中所有存储状态（包括非激活）
 	UFUNCTION(BlueprintPure, Category = "State Slot")
 	TArray<UTcsStateInstance*> GetAllStatesInStateSlot(FGameplayTag SlotTag) const;
+
+	// 调试输出
+	UFUNCTION(BlueprintPure, Category = "State Slot|Debug", meta = (AutoCreateRefTerm = "SlotFilter"))
+	FString GetSlotDebugSnapshot(FGameplayTag SlotFilter = FGameplayTag()) const;
 	
 	// 设置槽位配置
 	UFUNCTION(BlueprintCallable, Category = "State Slot")
@@ -183,6 +226,10 @@ public:
 
     UFUNCTION(BlueprintPure, Category = "StateTree Integration")
     bool IsSlotGateOpen(FGameplayTag SlotTag) const;
+
+	// 状态实例与槽位同步
+	void SyncStateInstanceToStateSlot(UTcsStateInstance* StateInstance);
+	void RemoveStateInstanceFromStateSlot(UTcsStateInstance* StateInstance);
 
 protected:
     // StateTree状态变化检测与槽位更新
@@ -209,12 +256,9 @@ protected:
     TMap<FGameplayTag, struct FStateTreeStateHandle> SlotToStateHandleMap;
     TMap<struct FStateTreeStateHandle, FGameplayTag> StateHandleToSlotMap;
 
+protected:
 	// 状态槽变化事件处理
 	virtual void OnStateSlotChanged(FGameplayTag SlotTag);
-
-	// 状态实例与槽位同步
-	void SyncStateInstanceToStateSlot(UTcsStateInstance* StateInstance);
-	void RemoveStateInstanceFromStateSlot(UTcsStateInstance* StateInstance);
 
 	// 索引管理
 	void UpdateStateInstanceIndices(UTcsStateInstance* StateInstance);
@@ -236,7 +280,32 @@ private:
 	// 辅助工具函数
 	void SortSlotStatesByPriority(TArray<UTcsStateInstance*>& SlotStates);
 	void CleanupExpiredStates(TArray<UTcsStateInstance*>& SlotStates);
-	bool ApplyStateMergeStrategy(UTcsStateInstance* ExistingState, UTcsStateInstance* NewState, bool bSameInstigator);
+	bool ApplyStateMergeStrategy(FGameplayTag SlotTag, UTcsStateInstance* NewState, bool bSameInstigator);
+
+	// 排队与延迟应用
+	void QueueStateForSlot(UTcsStateInstance* StateInstance, const FTcsStateSlotDefinition& SlotDefinition, FGameplayTag SlotTag);
+	void ProcessQueuedStates(float DeltaTime);
+	void ClearQueuedStatesForSlot(FGameplayTag SlotTag);
+
+	// Gate 更新调度
+	void RequestGateRefresh(FGameplayTag SlotTag);
+	void RequestGateRefreshForAll();
+
+	// 排队状态集合
+	TMap<FGameplayTag, TArray<FTcsQueuedStateData>> QueuedStatesBySlot;
+
+	// 待刷新 Gate 的槽位集合
+	TSet<FGameplayTag> SlotsPendingGateRefresh;
+
+	// 是否需要对所有槽位执行一次 Gate 同步
+	bool bPendingFullGateRefresh = false;
+
+	// Gate 自动刷新（事件兜底）
+	UPROPERTY(EditAnywhere, Category = "State Slot")
+	float GateAutoRefreshInterval = 0.25f;
+
+	double LastGateAutoRefreshTime = 0.0;
+	bool bInitialGateSyncCompleted = false;
 
 #pragma endregion
 

@@ -35,6 +35,28 @@ void UTcsSkillComponent::BeginPlay()
 		SkillManagerSubsystem = World->GetSubsystem<UTcsSkillManagerSubsystem>();
 		StateManagerSubsystem = World->GetSubsystem<UTcsStateManagerSubsystem>();
 	}
+
+	if (UTcsStateComponent* StateComponent = GetStateComponent())
+	{
+		CachedStateComponent = StateComponent;
+		StateComponent->OnStateStageChanged.AddDynamic(this, &UTcsSkillComponent::HandleStateStageChanged);
+
+		// Prime active skill mapping for already-active states
+		const TArray<UTcsStateInstance*> ExistingSkillStates = StateComponent->GetStatesByType(ST_Skill);
+		for (UTcsStateInstance* StateInstance : ExistingSkillStates)
+		{
+			if (!IsValid(StateInstance))
+			{
+				continue;
+			}
+
+			const ETcsStateStage Stage = StateInstance->GetCurrentStage();
+			if (Stage == ETcsStateStage::SS_Active || Stage == ETcsStateStage::SS_HangUp)
+			{
+				ActiveSkillStateInstances.FindOrAdd(StateInstance->GetStateDefId()) = StateInstance;
+			}
+		}
+	}
 }
 
 void UTcsSkillComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
@@ -49,6 +71,19 @@ void UTcsSkillComponent::TickComponent(float DeltaTime, ELevelTick TickType, FAc
 	
 	// 更新活跃技能的实时参数
 	UpdateActiveSkillRealTimeParameters();
+}
+
+void UTcsSkillComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	if (UTcsStateComponent* StateComponent = CachedStateComponent.Get())
+	{
+		StateComponent->OnStateStageChanged.RemoveDynamic(this, &UTcsSkillComponent::HandleStateStageChanged);
+		CachedStateComponent = nullptr;
+	}
+
+	ActiveSkillStateInstances.Empty();
+
+	Super::EndPlay(EndPlayReason);
 }
 
 #pragma region SkillLearning Implementation
@@ -228,6 +263,14 @@ bool UTcsSkillComponent::TryCastSkill(FName SkillDefId, AActor* TargetActor, con
 	const FTcsStateDefinition& SkillDef = SkillInstance->GetStateDef();
 	const bool bHasSlotTag = SkillDef.StateSlotType.IsValid();
 
+	if (!bHasSlotTag && !WarnedSkillsMissingSlot.Contains(SkillDefId))
+	{
+		WarnedSkillsMissingSlot.Add(SkillDefId);
+		UE_LOG(LogTcsSkill, Error, TEXT("[%s] Skill definition %s is missing StateSlotType; Stage3 slot pipeline requires a valid slot tag. Falling back to direct activation."),
+			*GetOwner()->GetName(),
+			*SkillDefId.ToString());
+	}
+
 	bool bApplied = false;
 
 	if (StateManagerSubsystem)
@@ -262,7 +305,9 @@ bool UTcsSkillComponent::TryCastSkill(FName SkillDefId, AActor* TargetActor, con
 		if (!bAssigned)
 		{
 			SkillInstance->StartStateTree();
+			const ETcsStateStage PreviousStage = SkillInstance->GetCurrentStage();
 			SkillInstance->SetCurrentStage(ETcsStateStage::SS_Active);
+			StateComponent->NotifyStateStageChanged(SkillInstance, PreviousStage, ETcsStateStage::SS_Active);
 		}
 
 		bApplied = true;
@@ -273,9 +318,6 @@ bool UTcsSkillComponent::TryCastSkill(FName SkillDefId, AActor* TargetActor, con
 		UE_LOG(LogTcsSkill, Error, TEXT("[%s] Unable to apply skill state for %s"), *GetOwner()->GetName(), *SkillDefId.ToString());
 		return false;
 	}
-
-	// 跟踪活跃技能状态
-	ActiveSkillStateInstances.Add(SkillDefId, SkillInstance);
 
 	bool bAssignedViaSlot = false;
 	if (bHasSlotTag)
@@ -294,14 +336,12 @@ bool UTcsSkillComponent::TryCastSkill(FName SkillDefId, AActor* TargetActor, con
 		if (CooldownDuration <= 0.0f)
 		{
 			// 如果没有定义冷却参数，使用传统方法计算
-			const FTcsStateDefinition& SkillDef = SkillInstance->GetStateDef();
 			CooldownDuration = CalculateSkillCooldown(SkillDef, LearnedSkillInstance->GetCurrentLevel());
 		}
 	}
 	else
 	{
 		// 回退到传统计算方法
-		const FTcsStateDefinition& SkillDef = SkillInstance->GetStateDef();
 		CooldownDuration = CalculateSkillCooldown(SkillDef, GetSkillLevel(SkillDefId));
 	}
 	
@@ -331,16 +371,15 @@ void UTcsSkillComponent::CancelSkill(FName SkillDefId)
 		SkillInstance->StopStateTree();
 
 		// 设置状态为到期
+		const ETcsStateStage PreviousStage = SkillInstance->GetCurrentStage();
 		SkillInstance->SetCurrentStage(ETcsStateStage::SS_Expired);
+		StateComponent->NotifyStateStageChanged(SkillInstance, PreviousStage, ETcsStateStage::SS_Expired);
 
 		// 从槽位中移除
 		StateComponent->RemoveStateInstanceFromStateSlot(SkillInstance);
 
 		// 从状态管理中移除
 		StateComponent->RemoveStateInstance(SkillInstance);
-
-		// 从活跃技能跟踪中移除
-		ActiveSkillStateInstances.Remove(SkillDefId);
 
 		UE_LOG(LogTcsSkill, Log, TEXT("[%s] Cancelled skill: %s"), 
 			*GetOwner()->GetName(), *SkillDefId.ToString());
@@ -489,6 +528,19 @@ TArray<UTcsStateInstance*> UTcsSkillComponent::GetActiveSkillStateInstances() co
 
 UTcsStateInstance* UTcsSkillComponent::GetActiveSkillStateInstance(FName SkillDefId) const
 {
+	if (UTcsStateInstance* const* FoundInstance = ActiveSkillStateInstances.Find(SkillDefId))
+	{
+		UTcsStateInstance* StateInstance = *FoundInstance;
+		if (IsValid(StateInstance))
+		{
+			const ETcsStateStage Stage = StateInstance->GetCurrentStage();
+			if (Stage == ETcsStateStage::SS_Active || Stage == ETcsStateStage::SS_HangUp)
+			{
+				return StateInstance;
+			}
+		}
+	}
+
 	UTcsStateComponent* StateComponent = GetStateComponent();
 	if (!StateComponent)
 	{
@@ -498,7 +550,11 @@ UTcsStateInstance* UTcsSkillComponent::GetActiveSkillStateInstance(FName SkillDe
 	UTcsStateInstance* StateInstance = StateComponent->GetStateInstance(SkillDefId);
 	if (StateInstance && StateInstance->GetStateDef().StateType == ST_Skill)
 	{
-		return StateInstance;
+		const ETcsStateStage Stage = StateInstance->GetCurrentStage();
+		if (Stage == ETcsStateStage::SS_Active || Stage == ETcsStateStage::SS_HangUp)
+		{
+			return StateInstance;
+		}
 	}
 
 	return nullptr;
@@ -719,6 +775,31 @@ void UTcsSkillComponent::UpdateActiveSkillRealTimeParameters()
 #pragma endregion
 
 #pragma region Components Implementation
+
+void UTcsSkillComponent::HandleStateStageChanged(UTcsStateComponent* StateComponent, UTcsStateInstance* StateInstance, ETcsStateStage PreviousStage, ETcsStateStage NewStage)
+{
+	if (StateComponent != CachedStateComponent.Get())
+	{
+		return;
+	}
+
+	if (!IsValid(StateInstance) || StateInstance->GetStateDef().StateType != ST_Skill)
+	{
+		return;
+	}
+
+	const FName SkillDefId = StateInstance->GetStateDefId();
+	const bool bShouldTrack = (NewStage == ETcsStateStage::SS_Active || NewStage == ETcsStateStage::SS_HangUp);
+
+	if (bShouldTrack)
+	{
+		ActiveSkillStateInstances.FindOrAdd(SkillDefId) = StateInstance;
+	}
+	else
+	{
+		ActiveSkillStateInstances.Remove(SkillDefId);
+	}
+}
 
 UTcsStateComponent* UTcsSkillComponent::GetStateComponent() const
 {

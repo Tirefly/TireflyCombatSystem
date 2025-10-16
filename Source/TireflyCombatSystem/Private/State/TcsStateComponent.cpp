@@ -12,6 +12,8 @@
 #include "StateTree.h"
 #include "StateTreeExecutionTypes.h"
 #include "StateTreeExecutionContext.h"
+#include "State/StateMerger/TcsStateMerger.h"
+#include "State/StateMerger/TcsStateMerger_NoMerge.h"
 
 
 UTcsStateComponent::UTcsStateComponent()
@@ -29,6 +31,10 @@ void UTcsStateComponent::BeginPlay()
 		StateManagerSubsystem = World->GetSubsystem<UTcsStateManagerSubsystem>();
 	}
 
+	bPendingFullGateRefresh = true;
+	LastGateAutoRefreshTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0;
+	bInitialGateSyncCompleted = false;
+
     // 初始化槽位配置与StateTree映射
     InitializeStateSlots();
     BuildStateSlotMappings();
@@ -36,14 +42,28 @@ void UTcsStateComponent::BeginPlay()
 
 void UTcsStateComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
-    Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
+	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
-    // 检查StateTree状态变化并更新槽位Gate
-    CheckAndUpdateStateTreeSlots();
+	const double CurrentTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0;
+	const bool bShouldAutoRefresh =
+		GateAutoRefreshInterval > 0.f &&
+		(!bInitialGateSyncCompleted || (CurrentTime - LastGateAutoRefreshTime) >= GateAutoRefreshInterval);
 
-    // 更新所有状态实例的持续时间
-    TArray<UTcsStateInstance*> ExpiredStates;
-	
+	if (bPendingFullGateRefresh || SlotsPendingGateRefresh.Num() > 0 || bShouldAutoRefresh)
+	{
+		CheckAndUpdateStateTreeSlots();
+		bPendingFullGateRefresh = false;
+		SlotsPendingGateRefresh.Reset();
+		bInitialGateSyncCompleted = true;
+		LastGateAutoRefreshTime = CurrentTime;
+	}
+
+	// 处理排队状态
+	ProcessQueuedStates(DeltaTime);
+
+	// 更新持续时间
+	TArray<UTcsStateInstance*> ExpiredStates;
+
 	for (auto& DurationPair : StateDurationMap)
 	{
 		UTcsStateInstance* StateInstance = DurationPair.Key;
@@ -51,50 +71,77 @@ void UTcsStateComponent::TickComponent(float DeltaTime, ELevelTick TickType, FAc
 
 		if (!IsValid(StateInstance))
 		{
-			// 状态实例已无效，标记为待移除
 			ExpiredStates.Add(StateInstance);
 			continue;
 		}
 
-		// 只更新激活状态且有时限的状态
-		if (StateInstance->GetCurrentStage() == ETcsStateStage::SS_Active && 
-			DurationData.DurationType == static_cast<uint8>(ETcsStateDurationType::SDT_Duration))
+		if (DurationData.DurationType != static_cast<uint8>(ETcsStateDurationType::SDT_Duration))
 		{
-			DurationData.RemainingDuration -= DeltaTime;
-			
-			// 检查是否到期
-			if (DurationData.RemainingDuration <= 0.0f)
-			{
-				ExpiredStates.Add(StateInstance);
-			}
+			continue;
+		}
+
+		const ETcsStateStage CurrentStage = StateInstance->GetCurrentStage();
+		const bool bStateIsActive = (CurrentStage == ETcsStateStage::SS_Active);
+		const FGameplayTag SlotTag = StateInstance->GetStateDef().StateSlotType;
+		const FTcsStateSlotDefinition SlotDefinition = SlotTag.IsValid() ? GetStateSlotDefinition(SlotTag) : FTcsStateSlotDefinition();
+		const FTcsStateSlot* SlotData = SlotTag.IsValid() ? StateSlots.Find(SlotTag) : nullptr;
+		const bool bGateOpen = !SlotTag.IsValid() || (SlotData && SlotData->bIsGateOpen);
+
+		bool bShouldTick = false;
+		switch (SlotDefinition.DurationTickPolicy)
+		{
+		case ETcsDurationTickPolicy::DT_Always:
+			bShouldTick = true;
+			break;
+		case ETcsDurationTickPolicy::DT_OnlyWhenGateOpen:
+			bShouldTick = bGateOpen;
+			break;
+		case ETcsDurationTickPolicy::DT_ActiveOrGateOpen:
+			bShouldTick = bStateIsActive || bGateOpen;
+			break;
+		case ETcsDurationTickPolicy::DT_ActiveAndGateOpen:
+			bShouldTick = bStateIsActive && bGateOpen;
+			break;
+		case ETcsDurationTickPolicy::DT_ActiveOnly:
+		default:
+			bShouldTick = bStateIsActive;
+			break;
+		}
+
+		if (!bShouldTick)
+		{
+			continue;
+		}
+
+		DurationData.RemainingDuration -= DeltaTime;
+
+		if (DurationData.RemainingDuration <= 0.0f)
+		{
+			ExpiredStates.Add(StateInstance);
 		}
 	}
 
-	// 处理到期的状态实例
 	for (UTcsStateInstance* ExpiredState : ExpiredStates)
 	{
 		if (IsValid(ExpiredState))
 		{
-			// 通知状态管理器子系统处理状态到期
 			if (StateManagerSubsystem)
 			{
 				StateManagerSubsystem->OnStateInstanceDurationExpired(ExpiredState);
 			}
 		}
-		
-        // 从管理映射中移除
-        StateDurationMap.Remove(ExpiredState);
-    }
 
-    // 驱动所有激活状态的 StateTree 执行
-    // 说明：UTcsStateInstance::TickStateTree 会依据其内部运行状态决定是否继续推进
-    for (UTcsStateInstance* ActiveState : ActiveStateInstances)
-    {
-        if (IsValid(ActiveState) && ActiveState->GetCurrentStage() == ETcsStateStage::SS_Active)
-        {
-            ActiveState->TickStateTree(DeltaTime);
-        }
-    }
+		StateDurationMap.Remove(ExpiredState);
+	}
+
+	// Tick 激活状态
+	for (UTcsStateInstance* ActiveState : ActiveStateInstances)
+	{
+		if (IsValid(ActiveState) && ActiveState->GetCurrentStage() == ETcsStateStage::SS_Active)
+		{
+			ActiveState->TickStateTree(DeltaTime);
+		}
+	}
 }
 
 void UTcsStateComponent::AddStateInstance(UTcsStateInstance* StateInstance)
@@ -261,6 +308,28 @@ TArray<UTcsStateInstance*> UTcsStateComponent::GetStatesByTags(const FGameplayTa
 	return MatchingStates;
 }
 
+void UTcsStateComponent::NotifyStateStageChanged(UTcsStateInstance* StateInstance, ETcsStateStage PreviousStage, ETcsStateStage NewStage)
+{
+	if (!IsValid(StateInstance) || PreviousStage == NewStage)
+	{
+		return;
+	}
+
+	if (NewStage == ETcsStateStage::SS_Active)
+	{
+		ActiveStateInstances.AddUnique(StateInstance);
+	}
+	else
+	{
+		ActiveStateInstances.Remove(StateInstance);
+	}
+
+	if (OnStateStageChanged.IsBound())
+	{
+		OnStateStageChanged.Broadcast(this, StateInstance, PreviousStage, NewStage);
+	}
+}
+
 #pragma endregion
 
 #pragma region StateTreeSlots Implementation
@@ -344,6 +413,7 @@ void UTcsStateComponent::ClearStateSlot(FGameplayTag SlotTag)
 
 	// 移除槽位记录
 	StateSlots.Remove(SlotTag);
+	ClearQueuedStatesForSlot(SlotTag);
 
 	// 触发槽位变化事件
 	OnStateSlotChanged(SlotTag);
@@ -411,9 +481,9 @@ void UTcsStateComponent::UpdateStateInstanceIndices(UTcsStateInstance* StateInst
 	}
 
 	// 更新活跃状态列表
-	if (!ActiveStateInstances.Contains(StateInstance))
+	if (StateInstance->GetCurrentStage() == ETcsStateStage::SS_Active)
 	{
-		ActiveStateInstances.Add(StateInstance);
+		ActiveStateInstances.AddUnique(StateInstance);
 	}
 
 	// 更新ID索引
@@ -507,34 +577,44 @@ bool UTcsStateComponent::AssignStateToStateSlot(UTcsStateInstance* StateInstance
 
 	// 获取或创建槽位
 	FTcsStateSlot& Slot = StateSlots.FindOrAdd(SlotTag);
-
-	// 清理过期状态
 	CleanupExpiredStates(Slot.States);
 
-	// 检查是否存在相同定义ID的状态（应用Merger策略）
+	// 获取槽位配置，若不存在则使用默认值
+	FTcsStateSlotDefinition& SlotDefinition = StateSlotDefinitions.FindOrAdd(SlotTag);
+	if (!SlotDefinition.SlotTag.IsValid())
+	{
+		SlotDefinition.SlotTag = SlotTag;
+	}
+
+	// 检查重复定义，使用合并器处理
 	const FName NewStateDefId = StateInstance->GetStateDefId();
 	const AActor* NewInstigator = StateInstance->GetInstigator();
-
 	for (UTcsStateInstance* ExistingState : Slot.States)
 	{
 		if (IsValid(ExistingState) && ExistingState->GetStateDefId() == NewStateDefId)
 		{
-			// 根据发起者是否相同，应用不同的合并策略
-			bool bSameInstigator = (ExistingState->GetInstigator() == NewInstigator);
-			return ApplyStateMergeStrategy(ExistingState, StateInstance, bSameInstigator);
+			const bool bSameInstigator = (ExistingState->GetInstigator() == NewInstigator);
+			if (ApplyStateMergeStrategy(SlotTag, StateInstance, bSameInstigator))
+			{
+				return true;
+			}
+			break;
 		}
 	}
 
-	// 添加新状态
+	// Gate关闭时，根据配置选择排队
+	if (!Slot.bIsGateOpen && SlotDefinition.bEnableQueue)
+	{
+		QueueStateForSlot(StateInstance, SlotDefinition, SlotTag);
+		return true;
+	}
+
+	// 直接加入槽位
 	Slot.States.Add(StateInstance);
 	UpdateStateInstanceIndices(StateInstance);
-
-	// 按优先级排序（优先级数值越小，优先级越高）
 	SortSlotStatesByPriority(Slot.States);
 
-	// 更新激活状态
 	UpdateStateSlotActivation(SlotTag);
-
 	OnStateSlotChanged(SlotTag);
 
 	UE_LOG(LogTcsState, Log, TEXT("State [%s] assigned to slot [%s] with priority %d"),
@@ -615,6 +695,87 @@ TArray<UTcsStateInstance*> UTcsStateComponent::GetAllStatesInStateSlot(FGameplay
 	});
 
 	return AllStates;
+}
+
+FString UTcsStateComponent::GetSlotDebugSnapshot(FGameplayTag SlotFilter) const
+{
+	auto BuildLine = [this](const FGameplayTag& SlotTag, const FTcsStateSlot& Slot) -> FString
+	{
+		FString Line = FString::Printf(TEXT("[%s] Gate=%s"),
+			*SlotTag.ToString(),
+			Slot.bIsGateOpen ? TEXT("Open") : TEXT("Closed"));
+
+		TArray<FString> ActiveStates;
+		TArray<FString> HangUpStates;
+		TArray<FString> StoredStates;
+
+		for (UTcsStateInstance* State : Slot.States)
+		{
+			if (!IsValid(State))
+			{
+				continue;
+			}
+
+			const FString StateName = State->GetStateDefId().ToString();
+			switch (State->GetCurrentStage())
+			{
+			case ETcsStateStage::SS_Active:
+				ActiveStates.Add(StateName);
+				break;
+			case ETcsStateStage::SS_HangUp:
+				HangUpStates.Add(StateName);
+				break;
+			case ETcsStateStage::SS_Inactive:
+				StoredStates.Add(StateName);
+				break;
+			default:
+				StoredStates.Add(FString::Printf(TEXT("%s(%s)"),
+					*StateName,
+					*StaticEnum<ETcsStateStage>()->GetNameStringByValue(static_cast<int64>(State->GetCurrentStage()))));
+				break;
+			}
+		}
+
+		auto AppendList = [&Line](const TCHAR* Label, const TArray<FString>& Names)
+		{
+			if (Names.Num() > 0)
+			{
+				Line += FString::Printf(TEXT(" %s={%s}"), Label, *FString::Join(Names, TEXT(", ")));
+			}
+		};
+
+		AppendList(TEXT("Active"), ActiveStates);
+		AppendList(TEXT("HangUp"), HangUpStates);
+		AppendList(TEXT("Stored"), StoredStates);
+
+		return Line;
+	};
+
+	if (SlotFilter.IsValid())
+	{
+		if (const FTcsStateSlot* Slot = StateSlots.Find(SlotFilter))
+		{
+			return BuildLine(SlotFilter, *Slot);
+		}
+		return FString::Printf(TEXT("[%s] <slot not initialized>"), *SlotFilter.ToString());
+	}
+
+	FString Accumulator;
+	for (const TPair<FGameplayTag, FTcsStateSlot>& Pair : StateSlots)
+	{
+		if (!Accumulator.IsEmpty())
+		{
+			Accumulator += TEXT("\n");
+		}
+		Accumulator += BuildLine(Pair.Key, Pair.Value);
+	}
+
+	if (Accumulator.IsEmpty())
+	{
+		Accumulator = TEXT("<no slots>");
+	}
+
+	return Accumulator;
 }
 
 void UTcsStateComponent::SetStateSlotDefinition(const FTcsStateSlotDefinition& SlotDef)
@@ -704,11 +865,12 @@ void UTcsStateComponent::SetSlotGateOpen(FGameplayTag SlotTag, bool bOpen)
         return;
     }
 
-    if (Slot->bIsGateOpen != bOpen)
-    {
-        Slot->bIsGateOpen = bOpen;
-        UE_LOG(LogTcsState, Verbose, TEXT("Slot gate %s -> %s"), *SlotTag.ToString(), bOpen ? TEXT("Open") : TEXT("Closed"));
-    }
+	if (Slot->bIsGateOpen != bOpen)
+	{
+		Slot->bIsGateOpen = bOpen;
+		UE_LOG(LogTcsState, Verbose, TEXT("Slot gate %s -> %s"), *SlotTag.ToString(), bOpen ? TEXT("Open") : TEXT("Closed"));
+		UpdateStateSlotActivation(SlotTag);
+	}
 }
 
 bool UTcsStateComponent::IsSlotGateOpen(FGameplayTag SlotTag) const
@@ -816,104 +978,211 @@ void UTcsStateComponent::CheckAndUpdateStateTreeSlots()
 
 void UTcsStateComponent::UpdateStateSlotActivation(FGameplayTag SlotTag)
 {
-    FTcsStateSlot* Slot = StateSlots.Find(SlotTag);
-    if (!Slot || Slot->States.IsEmpty())
-    {
-        return;
-    }
+	FTcsStateSlot* Slot = StateSlots.Find(SlotTag);
+	if (!Slot)
+	{
+		return;
+	}
 
-    // 获取槽位配置
-    FTcsStateSlotDefinition Def = GetStateSlotDefinition(SlotTag);
+	// 清理无效/过期状态
+	CleanupExpiredStates(Slot->States);
 
-    // 若 Gate 关闭，则停用该槽位所有状态
-    if (!Slot->bIsGateOpen)
-    {
-        for (UTcsStateInstance* State : Slot->States)
-        {
-            if (IsValid(State) && State->GetCurrentStage() == ETcsStateStage::SS_Active)
-            {
-                DeactivateState(State);
-            }
-        }
-        UE_LOG(LogTcsState, Verbose, TEXT("Slot [%s] gate closed: all states set Inactive"), *SlotTag.ToString());
-        return;
-    }
+	FTcsStateSlotDefinition SlotDefinition = GetStateSlotDefinition(SlotTag);
+	TArray<UTcsStateInstance*> StatesToRemove;
 
-	switch (Def.ActivationMode)
+	// Gate关闭时的处理
+	if (!Slot->bIsGateOpen)
+	{
+		const bool bPauseOnGateClose = SlotDefinition.GateCloseBehavior == ETcsSlotGateCloseBehavior::GCB_Pause;
+
+		for (UTcsStateInstance* State : Slot->States)
+		{
+			if (!IsValid(State))
+			{
+				StatesToRemove.Add(State);
+				continue;
+			}
+
+			if (bPauseOnGateClose)
+			{
+				if (State->GetCurrentStage() == ETcsStateStage::SS_Active)
+				{
+					const ETcsStateStage PreviousStage = State->GetCurrentStage();
+					State->PauseStateTree();
+					NotifyStateStageChanged(State, PreviousStage, State->GetCurrentStage());
+				}
+			}
+			else
+			{
+				DeactivateState(State);
+				const ETcsStateStage PreExpireStage = State->GetCurrentStage();
+				State->SetCurrentStage(ETcsStateStage::SS_Expired);
+				NotifyStateStageChanged(State, PreExpireStage, ETcsStateStage::SS_Expired);
+				StatesToRemove.Add(State);
+			}
+		}
+
+		for (UTcsStateInstance* Removed : StatesToRemove)
+		{
+			Slot->States.Remove(Removed);
+			CleanupStateInstanceIndices(Removed);
+		}
+
+		if (!bPauseOnGateClose && StatesToRemove.Num() > 0)
+		{
+			OnStateSlotChanged(SlotTag);
+		}
+
+		UE_LOG(LogTcsState, Verbose, TEXT("Slot [%s] gate closed (%s)."),
+			*SlotTag.ToString(),
+			bPauseOnGateClose ? TEXT("pause states") : TEXT("cancel states"));
+		return;
+	}
+
+	bool bSlotChanged = false;
+
+	switch (SlotDefinition.ActivationMode)
 	{
 	case ETcsStateSlotActivationMode::SSAM_PriorityOnly:
 		{
-			// 优先级激活模式：只激活最高优先级状态
-			UTcsStateInstance* HighestPriorityState = nullptr;
-			int32 HighestPriority = INT32_MAX;
+			SortSlotStatesByPriority(Slot->States);
 
-			// 先将所有状态设为非激活
+			UTcsStateInstance* HighestPriorityState = nullptr;
+			int32 HighestPriority = TNumericLimits<int32>::Max();
+
 			for (UTcsStateInstance* State : Slot->States)
 			{
-				if (IsValid(State))
+				if (!IsValid(State))
 				{
-					if (State->GetCurrentStage() == ETcsStateStage::SS_Active)
-					{
-						DeactivateState(State);
-					}
+					StatesToRemove.Add(State);
+					continue;
+				}
 
-					// 查找最高优先级状态
-					const int32 StatePriority = State->GetStateDef().Priority;
-					if (StatePriority < HighestPriority)
-					{
-						HighestPriority = StatePriority;
-						HighestPriorityState = State;
-        }
-    }
-}
+				const int32 Priority = State->GetStateDef().Priority;
+				if (!HighestPriorityState || Priority < HighestPriority)
+				{
+					HighestPriorityState = State;
+					HighestPriority = Priority;
+				}
+			}
 
-			// 激活最高优先级状态
-			if (HighestPriorityState)
+			for (UTcsStateInstance* State : Slot->States)
 			{
-				ActivateState(HighestPriorityState);
-				UE_LOG(LogTcsState, Verbose, TEXT("Activated highest priority state [%s] in slot [%s]"),
-					*HighestPriorityState->GetStateDefId().ToString(), *SlotTag.ToString());
+				if (!IsValid(State))
+				{
+					continue;
+				}
+
+				if (State == HighestPriorityState)
+				{
+					if (State->GetCurrentStage() == ETcsStateStage::SS_HangUp)
+					{
+						const ETcsStateStage PreviousStage = State->GetCurrentStage();
+						State->ResumeStateTree();
+						NotifyStateStageChanged(State, PreviousStage, State->GetCurrentStage());
+						bSlotChanged = true;
+					}
+					else if (State->GetCurrentStage() != ETcsStateStage::SS_Active)
+					{
+						ActivateState(State);
+						bSlotChanged = true;
+					}
+					continue;
+				}
+
+				if (SlotDefinition.PreemptionPolicy == ETcsStatePreemptionPolicy::SPP_PauseLowerPriority)
+				{
+					if (State->GetCurrentStage() != ETcsStateStage::SS_HangUp)
+					{
+						const ETcsStateStage PreviousStage = State->GetCurrentStage();
+						State->PauseStateTree();
+						NotifyStateStageChanged(State, PreviousStage, State->GetCurrentStage());
+						bSlotChanged = true;
+					}
+				}
+				else
+				{
+					DeactivateState(State);
+					const ETcsStateStage PreExpireStage = State->GetCurrentStage();
+					State->SetCurrentStage(ETcsStateStage::SS_Expired);
+					NotifyStateStageChanged(State, PreExpireStage, ETcsStateStage::SS_Expired);
+					StatesToRemove.Add(State);
+					bSlotChanged = true;
+				}
 			}
 		}
 		break;
 
 	case ETcsStateSlotActivationMode::SSAM_AllActive:
 		{
-			// 全部激活模式：激活所有有效状态
 			for (UTcsStateInstance* State : Slot->States)
 			{
-				if (IsValid(State) && State->GetCurrentStage() == ETcsStateStage::SS_Inactive)
+				if (!IsValid(State))
+				{
+					StatesToRemove.Add(State);
+					continue;
+				}
+
+				if (State->GetCurrentStage() == ETcsStateStage::SS_HangUp)
+				{
+					const ETcsStateStage PreviousStage = State->GetCurrentStage();
+					State->ResumeStateTree();
+					NotifyStateStageChanged(State, PreviousStage, State->GetCurrentStage());
+					bSlotChanged = true;
+				}
+				else if (State->GetCurrentStage() == ETcsStateStage::SS_Inactive)
 				{
 					ActivateState(State);
+					bSlotChanged = true;
 				}
 			}
-
-			UE_LOG(LogTcsState, Verbose, TEXT("All states activated in slot [%s]"), *SlotTag.ToString());
 		}
 		break;
+	}
+
+	if (StatesToRemove.Num() > 0)
+	{
+		for (UTcsStateInstance* Removed : StatesToRemove)
+		{
+			Slot->States.Remove(Removed);
+			CleanupStateInstanceIndices(Removed);
+			RemoveStateInstance(Removed);
+		}
+		bSlotChanged = true;
+	}
+
+	if (bSlotChanged)
+	{
+		OnStateSlotChanged(SlotTag);
 	}
 }
 
 void UTcsStateComponent::ActivateState(UTcsStateInstance* State)
 {
 	if (!IsValid(State)) return;
-	
+
+	const ETcsStateStage PreviousStage = State->GetCurrentStage();
 	State->SetCurrentStage(ETcsStateStage::SS_Active);
 	if (!State->IsStateTreeRunning())
 	{
 		State->StartStateTree();
 	}
+
+	NotifyStateStageChanged(State, PreviousStage, ETcsStateStage::SS_Active);
 }
 
 void UTcsStateComponent::DeactivateState(UTcsStateInstance* State)
 {
 	if (!IsValid(State)) return;
-	
+
+	const ETcsStateStage PreviousStage = State->GetCurrentStage();
 	State->SetCurrentStage(ETcsStateStage::SS_Inactive);
 	if (State->IsStateTreeRunning())
 	{
 		State->StopStateTree();
 	}
+
+	NotifyStateStageChanged(State, PreviousStage, ETcsStateStage::SS_Inactive);
 }
 
 void UTcsStateComponent::SortSlotStatesByPriority(TArray<UTcsStateInstance*>& SlotStates)
@@ -939,19 +1208,243 @@ void UTcsStateComponent::CleanupExpiredStates(TArray<UTcsStateInstance*>& SlotSt
 	});
 }
 
-bool UTcsStateComponent::ApplyStateMergeStrategy(UTcsStateInstance* ExistingState, UTcsStateInstance* NewState, bool bSameInstigator)
+bool UTcsStateComponent::ApplyStateMergeStrategy(FGameplayTag SlotTag, UTcsStateInstance* NewState, bool bSameInstigator)
 {
-	if (!IsValid(ExistingState) || !IsValid(NewState))
+	if (!IsValid(NewState))
 	{
 		return false;
 	}
-	
-	// 暂时简化：如果状态相同，则拒绝添加新状态，让现有状态继续运行
-	// TODO: 将来可以集成完整的UTcsStateMerger系统
-	UE_LOG(LogTcsState, Log, TEXT("State [%s] already exists in slot, skipping duplicate"), 
-		*ExistingState->GetStateDefId().ToString());
-	
-	return true; // 返回true表示已处理，不需要添加新状态
+
+	FTcsStateSlot* Slot = StateSlots.Find(SlotTag);
+	if (!Slot)
+	{
+		return false;
+	}
+
+	const FName StateDefId = NewState->GetStateDefId();
+	const FTcsStateDefinition& StateDef = NewState->GetStateDef();
+
+	TSubclassOf<UTcsStateMerger> MergerClass = bSameInstigator ? StateDef.SameInstigatorMergerType : StateDef.DiffInstigatorMergerType;
+	if (!MergerClass)
+	{
+		// 未配置合并器，交由上层继续添加
+		return false;
+	}
+
+	UTcsStateMerger* Merger = MergerClass->GetDefaultObject<UTcsStateMerger>();
+	if (!Merger)
+	{
+		UE_LOG(LogTcsState, Warning, TEXT("Merger class %s is invalid for state %s"),
+			*MergerClass->GetName(), *StateDefId.ToString());
+		return false;
+	}
+
+	// 构建候选列表（包含槽内同定义状态以及新状态）
+	TArray<UTcsStateInstance*> Candidates;
+	for (UTcsStateInstance* ExistingState : Slot->States)
+	{
+		if (IsValid(ExistingState) && ExistingState->GetStateDefId() == StateDefId)
+		{
+			Candidates.Add(ExistingState);
+		}
+	}
+	Candidates.Add(NewState);
+
+	TArray<UTcsStateInstance*> MergedStates;
+	Merger->Merge(Candidates, MergedStates);
+
+	TSet<UTcsStateInstance*> MergedSet;
+	for (UTcsStateInstance* Merged : MergedStates)
+	{
+		if (IsValid(Merged))
+		{
+			MergedSet.Add(Merged);
+		}
+	}
+
+	bool bSlotChanged = false;
+
+	// 移除未被保留的旧状态
+	for (int32 Index = Slot->States.Num() - 1; Index >= 0; --Index)
+	{
+		UTcsStateInstance* Existing = Slot->States[Index];
+		if (!IsValid(Existing) || Existing->GetStateDefId() != StateDefId)
+		{
+			continue;
+		}
+
+		if (!MergedSet.Contains(Existing))
+		{
+			Slot->States.RemoveAt(Index);
+			CleanupStateInstanceIndices(Existing);
+			DeactivateState(Existing);
+			const ETcsStateStage PreExpireStage = Existing->GetCurrentStage();
+			Existing->SetCurrentStage(ETcsStateStage::SS_Expired);
+			NotifyStateStageChanged(Existing, PreExpireStage, ETcsStateStage::SS_Expired);
+			RemoveStateInstance(Existing);
+			bSlotChanged = true;
+		}
+	}
+
+	// 新状态若被保留，则加入槽位
+	for (UTcsStateInstance* Merged : MergedStates)
+	{
+		if (!IsValid(Merged))
+		{
+			continue;
+		}
+
+		if (!Slot->States.Contains(Merged))
+		{
+			Slot->States.Add(Merged);
+			UpdateStateInstanceIndices(Merged);
+			bSlotChanged = true;
+		}
+	}
+
+	// 如果新状态未被保留，直接标记过期
+	if (!MergedSet.Contains(NewState))
+	{
+		DeactivateState(NewState);
+		const ETcsStateStage PreExpireStage = NewState->GetCurrentStage();
+		NewState->SetCurrentStage(ETcsStateStage::SS_Expired);
+		NotifyStateStageChanged(NewState, PreExpireStage, ETcsStateStage::SS_Expired);
+		RemoveStateInstance(NewState);
+	}
+
+	if (bSlotChanged)
+	{
+		SortSlotStatesByPriority(Slot->States);
+		UpdateStateSlotActivation(SlotTag);
+		OnStateSlotChanged(SlotTag);
+	}
+
+	UE_LOG(LogTcsState, Verbose, TEXT("Merged state [%s] in slot [%s] using %s (SameInstigator=%s)"),
+		*StateDefId.ToString(),
+		*SlotTag.ToString(),
+		*MergerClass->GetName(),
+		bSameInstigator ? TEXT("true") : TEXT("false"));
+
+	return true;
+}
+
+void UTcsStateComponent::QueueStateForSlot(UTcsStateInstance* StateInstance, const FTcsStateSlotDefinition& SlotDefinition, FGameplayTag SlotTag)
+{
+	if (!IsValid(StateInstance))
+	{
+		return;
+	}
+
+	FTcsQueuedStateData QueuedEntry;
+	QueuedEntry.StateInstance = StateInstance;
+	QueuedEntry.TargetSlot = SlotTag;
+	QueuedEntry.EnqueueTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0;
+	QueuedEntry.TimeToLive = SlotDefinition.QueueTimeToLive;
+
+	TArray<FTcsQueuedStateData>& Queue = QueuedStatesBySlot.FindOrAdd(SlotTag);
+	Queue.Add(QueuedEntry);
+
+	UE_LOG(LogTcsState, Verbose, TEXT("State [%s] queued for slot [%s] (TTL=%.2fs)"),
+		*StateInstance->GetStateDefId().ToString(),
+		*SlotTag.ToString(),
+		SlotDefinition.QueueTimeToLive);
+}
+
+void UTcsStateComponent::ProcessQueuedStates(float DeltaTime)
+{
+	if (QueuedStatesBySlot.Num() == 0)
+	{
+		return;
+	}
+
+	const double CurrentTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0;
+	TArray<FGameplayTag> SlotsToRetry;
+	auto HandleExpiration = [this](const FTcsQueuedStateData& Entry)
+	{
+		if (UTcsStateInstance* ExpiredState = Entry.StateInstance.Get())
+		{
+			DeactivateState(ExpiredState);
+			const ETcsStateStage PreExpireStage = ExpiredState->GetCurrentStage();
+			ExpiredState->SetCurrentStage(ETcsStateStage::SS_Expired);
+			NotifyStateStageChanged(ExpiredState, PreExpireStage, ETcsStateStage::SS_Expired);
+			RemoveStateInstance(ExpiredState);
+		}
+	};
+
+	for (TPair<FGameplayTag, TArray<FTcsQueuedStateData>>& Pair : QueuedStatesBySlot)
+	{
+		FGameplayTag SlotTag = Pair.Key;
+		TArray<FTcsQueuedStateData>& Queue = Pair.Value;
+
+		if (Queue.Num() == 0)
+		{
+			continue;
+		}
+
+		FTcsStateSlot* Slot = StateSlots.Find(SlotTag);
+		if (!Slot || !Slot->bIsGateOpen)
+		{
+			for (int32 Index = Queue.Num() - 1; Index >= 0; --Index)
+			{
+				if (!Queue[Index].StateInstance.IsValid())
+				{
+					Queue.RemoveAt(Index);
+					continue;
+				}
+
+				if (Queue[Index].IsExpired(CurrentTime))
+				{
+					HandleExpiration(Queue[Index]);
+					Queue.RemoveAt(Index);
+				}
+			}
+			continue;
+		}
+
+		SlotsToRetry.Add(SlotTag);
+	}
+
+	for (const FGameplayTag& SlotTag : SlotsToRetry)
+	{
+		TArray<FTcsQueuedStateData>& Queue = QueuedStatesBySlot.FindChecked(SlotTag);
+		for (int32 Index = Queue.Num() - 1; Index >= 0; --Index)
+		{
+			if (!Queue[Index].StateInstance.IsValid())
+			{
+				Queue.RemoveAt(Index);
+				continue;
+			}
+
+			UTcsStateInstance* QueuedState = Queue[Index].StateInstance.Get();
+			if (AssignStateToStateSlot(QueuedState, SlotTag))
+			{
+				Queue.RemoveAt(Index);
+			}
+			else if (Queue[Index].IsExpired(CurrentTime))
+			{
+				HandleExpiration(Queue[Index]);
+				Queue.RemoveAt(Index);
+			}
+		}
+	}
+}
+
+void UTcsStateComponent::ClearQueuedStatesForSlot(FGameplayTag SlotTag)
+{
+	QueuedStatesBySlot.Remove(SlotTag);
+}
+
+void UTcsStateComponent::RequestGateRefresh(FGameplayTag SlotTag)
+{
+	if (SlotTag.IsValid())
+	{
+		SlotsPendingGateRefresh.Add(SlotTag);
+	}
+}
+
+void UTcsStateComponent::RequestGateRefreshForAll()
+{
+	bPendingFullGateRefresh = true;
 }
 
 #pragma endregion
