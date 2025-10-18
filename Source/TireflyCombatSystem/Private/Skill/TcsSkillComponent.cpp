@@ -794,10 +794,32 @@ void UTcsSkillComponent::HandleStateStageChanged(UTcsStateComponent* StateCompon
 	if (bShouldTrack)
 	{
 		ActiveSkillStateInstances.FindOrAdd(SkillDefId) = StateInstance;
+
+		// 【新增】状态进入激活态时，重评估修改器条件
+		UTcsSkillInstance* SkillInstance = GetSkillInstance(SkillDefId);
+		if (SkillInstance)
+		{
+			RefreshSkillModifiersForStateChange(SkillInstance, StateInstance);
+		}
+
+		UE_LOG(LogTcsSkill, Log,
+			TEXT("[HandleStateStageChanged] Skill '%s' entered stage %d, re-evaluated modifiers"),
+			*SkillDefId.ToString(), (int32)NewStage);
 	}
 	else
 	{
 		ActiveSkillStateInstances.Remove(SkillDefId);
+
+		// 【新增】状态离开激活态时，移除不满足条件的修改器
+		UTcsSkillInstance* SkillInstance = GetSkillInstance(SkillDefId);
+		if (SkillInstance)
+		{
+			RemoveInvalidModifiersForSkill(SkillInstance);
+		}
+
+		UE_LOG(LogTcsSkill, Log,
+			TEXT("[HandleStateStageChanged] Skill '%s' left stage %d, removed invalid modifiers"),
+			*SkillDefId.ToString(), (int32)PreviousStage);
 	}
 }
 
@@ -1419,24 +1441,67 @@ void UTcsSkillComponent::MergeAndSortModifiers(TArray<FTcsSkillModifierInstance>
 FTcsAggregatedParamEffect UTcsSkillComponent::BuildAggregatedEffect(const UTcsSkillInstance* Skill, const FName& ParamName) const
 {
 	FTcsAggregatedParamEffect Result;
+	Result.AddSum = 0.f;
 	Result.MulProd = 1.f;
 	Result.CooldownMultiplier = 1.f;
 	Result.CostMultiplier = 1.f;
 
 	if (!IsValid(Skill))
 	{
+		UE_LOG(LogTcsSkill, Warning, TEXT("[BuildAggregatedEffect] Invalid skill instance"));
 		return Result;
 	}
 
+	// 遍历所有激活的修改器
+	TArray<FName> AffectedNames;
+	TArray<FGameplayTag> AffectedTags;
 	for (const FTcsSkillModifierInstance& Instance : ActiveSkillModifiers)
 	{
+		// 【过滤】仅处理针对该技能的修改器
 		if (Instance.SkillInstance != Skill)
 		{
 			continue;
 		}
 
-		AccumulateEffectFromDefinitionByName(Instance, ParamName, Result);
+		// 【验证】检查执行器是否有效
+		if (!Instance.ModifierDef.ExecutionType)
+		{
+			UE_LOG(LogTcsSkill, Warning,
+				TEXT("[BuildAggregatedEffect] Modifier has no ExecutionType, skipping"));
+			continue;
+		}
+
+		// 【获取】从类型获取执行器默认对象
+		UTcsSkillModifierExecution* Execution =
+			Instance.ModifierDef.ExecutionType->GetDefaultObject<UTcsSkillModifierExecution>();
+
+		if (!Execution)
+		{
+			UE_LOG(LogTcsSkill, Error,
+				TEXT("[BuildAggregatedEffect] Failed to get Execution object for type %s"),
+				*Instance.ModifierDef.ExecutionType->GetName());
+			continue;
+		}
+
+		ExtractAffectedParams(Instance, AffectedNames, AffectedTags);
+
+		if (!AffectedNames.Contains(ParamName))
+		{
+			continue;
+		}
+
+		// 【执行】调用执行器的ExecuteToEffect方法
+		// 注意:执行器内部应该检查ParamName是否匹配，不匹配则不修改Result
+		Execution->ExecuteToEffect(
+			const_cast<UTcsSkillInstance*>(Skill),
+			Instance,
+			Result);  // 按引用传递，执行器会直接修改Result
 	}
+
+	UE_LOG(LogTcsSkill, VeryVerbose,
+		TEXT("[BuildAggregatedEffect] Skill='%s' ParamName='%s' Result: AddSum=%.2f MulProd=%.2f"),
+		*Skill->GetSkillDefId().ToString(), *ParamName.ToString(),
+		Result.AddSum, Result.MulProd);
 
 	return Result;
 }
@@ -1444,26 +1509,198 @@ FTcsAggregatedParamEffect UTcsSkillComponent::BuildAggregatedEffect(const UTcsSk
 FTcsAggregatedParamEffect UTcsSkillComponent::BuildAggregatedEffectByTag(const UTcsSkillInstance* Skill, const FGameplayTag& ParamTag) const
 {
 	FTcsAggregatedParamEffect Result;
+	Result.AddSum = 0.f;
 	Result.MulProd = 1.f;
 	Result.CooldownMultiplier = 1.f;
 	Result.CostMultiplier = 1.f;
 
 	if (!IsValid(Skill))
 	{
+		UE_LOG(LogTcsSkill, Warning, TEXT("[BuildAggregatedEffectByTag] Invalid skill instance"));
 		return Result;
 	}
 
+	// 遍历所有激活的修改器
+	TArray<FName> AffectedNames;
+	TArray<FGameplayTag> AffectedTags;
 	for (const FTcsSkillModifierInstance& Instance : ActiveSkillModifiers)
 	{
+		// 【过滤】仅处理针对该技能的修改器
 		if (Instance.SkillInstance != Skill)
 		{
 			continue;
 		}
 
-		AccumulateEffectFromDefinitionByTag(Instance, ParamTag, Result);
+		// 【验证】检查执行器是否有效
+		if (!Instance.ModifierDef.ExecutionType)
+		{
+			UE_LOG(LogTcsSkill, Warning,
+				TEXT("[BuildAggregatedEffectByTag] Modifier has no ExecutionType, skipping"));
+			continue;
+		}
+
+		// 【获取】从类型获取执行器默认对象
+		UTcsSkillModifierExecution* Execution =
+			Instance.ModifierDef.ExecutionType->GetDefaultObject<UTcsSkillModifierExecution>();
+
+		if (!Execution)
+		{
+			UE_LOG(LogTcsSkill, Error,
+				TEXT("[BuildAggregatedEffectByTag] Failed to get Execution object for type %s"),
+				*Instance.ModifierDef.ExecutionType->GetName());
+			continue;
+		}
+
+		ExtractAffectedParams(Instance, AffectedNames, AffectedTags);
+		if (!AffectedTags.Contains(ParamTag))
+		{
+			continue;
+		}
+
+		// 【执行】调用执行器的ExecuteToEffect方法
+		// 注意:执行器内部应该检查ParamTag是否匹配，不匹配则不修改Result
+		Execution->ExecuteToEffect(
+			const_cast<UTcsSkillInstance*>(Skill),
+			Instance,
+			Result);  // 按引用传递，执行器会直接修改Result
 	}
 
+	UE_LOG(LogTcsSkill, VeryVerbose,
+		TEXT("[BuildAggregatedEffectByTag] Skill='%s' ParamTag='%s' Result: AddSum=%.2f MulProd=%.2f"),
+		*Skill->GetSkillDefId().ToString(), *ParamTag.ToString(),
+		Result.AddSum, Result.MulProd);
+
 	return Result;
+}
+
+void UTcsSkillComponent::RefreshSkillModifiersForStateChange(UTcsSkillInstance* SkillInstance, UTcsStateInstance* ActiveState)
+{
+	if (!IsValid(SkillInstance))
+	{
+		return;
+	}
+
+	for (int32 Index = ActiveSkillModifiers.Num() - 1; Index >= 0; --Index)
+	{
+		FTcsSkillModifierInstance& Instance = ActiveSkillModifiers[Index];
+
+		if (Instance.SkillInstance != SkillInstance)
+		{
+			continue;
+		}
+
+		// 重新评估条件
+		if (!EvaluateConditions(GetOwner(), SkillInstance, ActiveState, Instance))
+		{
+			// 条件不满足，移除修改器
+			ActiveSkillModifiers.RemoveAtSwap(Index);
+			continue;
+		}
+
+		// 提取受影响的参数并标脏
+		TArray<FName> Names;
+		TArray<FGameplayTag> Tags;
+		ExtractAffectedParams(Instance, Names, Tags);
+
+		for (FName Name : Names)
+		{
+			MarkSkillParamDirty(SkillInstance, Name);
+		}
+		for (FGameplayTag Tag : Tags)
+		{
+			MarkSkillParamDirtyByTag(SkillInstance, Tag);
+		}
+	}
+
+	UpdateSkillModifiers();
+
+	UE_LOG(LogTcsSkill, Log,
+		TEXT("[RefreshSkillModifiersForStateChange] Re-evaluated modifiers for skill: %s"),
+		*SkillInstance->GetSkillDefId().ToString());
+}
+
+void UTcsSkillComponent::RemoveInvalidModifiersForSkill(UTcsSkillInstance* SkillInstance)
+{
+	if (!IsValid(SkillInstance))
+	{
+		return;
+	}
+
+	int32 RemovedCount = 0;
+	for (int32 Index = ActiveSkillModifiers.Num() - 1; Index >= 0; --Index)
+	{
+		FTcsSkillModifierInstance& Instance = ActiveSkillModifiers[Index];
+
+		if (Instance.SkillInstance != SkillInstance)
+		{
+			continue;
+		}
+
+		// 重新评估条件
+		if (!EvaluateConditions(GetOwner(), SkillInstance, nullptr, Instance))
+		{
+			// 条件不满足，移除修改器
+			ActiveSkillModifiers.RemoveAtSwap(Index);
+			RemovedCount++;
+		}
+	}
+
+	if (RemovedCount > 0)
+	{
+		// 标记所有参数为脏，重新计算
+		MarkSkillParamDirty(SkillInstance, NAME_None);
+		MarkSkillParamDirtyByTag(SkillInstance, FGameplayTag());
+		UpdateSkillModifiers();
+
+		UE_LOG(LogTcsSkill, Log,
+			TEXT("[RemoveInvalidModifiersForSkill] Removed %d invalid modifiers for skill: %s"),
+			RemovedCount, *SkillInstance->GetSkillDefId().ToString());
+	}
+}
+
+void UTcsSkillComponent::ExtractAffectedParams(
+	const FTcsSkillModifierInstance& Instance,
+	TArray<FName>& OutNames,
+	TArray<FGameplayTag>& OutTags) const
+{
+	OutNames.Reset();
+	OutTags.Reset();
+
+	const FInstancedStruct& Payload = Instance.ModifierDef.ModifierParameter.ParamValueContainer;
+	if (!Payload.IsValid())
+	{
+		return;
+	}
+
+	// 根据不同的参数类型提取Name/Tag
+	if (const FTcsModParam_Additive* AdditiveParams = Payload.GetPtr<FTcsModParam_Additive>())
+	{
+		if (!AdditiveParams->ParamName.IsNone())
+		{
+			OutNames.AddUnique(AdditiveParams->ParamName);
+		}
+		if (AdditiveParams->ParamTag.IsValid())
+		{
+			OutTags.AddUnique(AdditiveParams->ParamTag);
+		}
+	}
+	else if (const FTcsModParam_Multiplicative* MultiplicativeParams = Payload.GetPtr<FTcsModParam_Multiplicative>())
+	{
+		if (!MultiplicativeParams->ParamName.IsNone())
+		{
+			OutNames.AddUnique(MultiplicativeParams->ParamName);
+		}
+		if (MultiplicativeParams->ParamTag.IsValid())
+		{
+			OutTags.AddUnique(MultiplicativeParams->ParamTag);
+		}
+	}
+	else if (const FTcsModParam_Scalar* ScalarParams = Payload.GetPtr<FTcsModParam_Scalar>())
+	{
+		// Scalar类型用于全局倍率（Cooldown/Cost），标记这些参数为脏
+		OutNames.AddUnique(TEXT("Cooldown"));
+		OutNames.AddUnique(TEXT("Cost"));
+	}
 }
 
 #pragma endregion

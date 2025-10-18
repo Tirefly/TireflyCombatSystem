@@ -65,6 +65,99 @@ enum class ETcsStateParameterType : uint8
 
 
 
+// 状态应用失败原因
+UENUM(BlueprintType, Category = "State Management")
+enum class ETcsStateApplyFailureReason : uint8
+{
+	InvalidOwner UMETA(DisplayName = "Invalid Owner", ToolTip = "目标Actor无效"),
+	InvalidState UMETA(DisplayName = "State Definition Not Found", ToolTip = "状态定义未找到"),
+	SlotOccupied UMETA(DisplayName = "Slot Gate Closed", ToolTip = "槽位已占用或Gate关闭"),
+	ComponentMissing UMETA(DisplayName = "TcsStateComponent Missing", ToolTip = "Actor缺少TcsStateComponent"),
+	ParameterInvalid UMETA(DisplayName = "Invalid Parameters", ToolTip = "无效的参数"),
+	MergerRejected UMETA(DisplayName = "Merger Rejected", ToolTip = "合并器拒绝应用"),
+	Unknown UMETA(DisplayName = "Unknown Error", ToolTip = "未知错误"),
+};
+
+
+
+// 状态应用结果结构体
+USTRUCT(BlueprintType)
+struct TIREFLYCOMBATSYSTEM_API FTcsStateApplyResult
+{
+	GENERATED_BODY()
+
+public:
+	/**
+	 * 应用是否成功
+	 */
+	UPROPERTY(BlueprintReadOnly, Category = "State Apply Result")
+	bool bSuccess = false;
+
+	/**
+	 * 失败原因（仅在bSuccess=false时有效）
+	 */
+	UPROPERTY(BlueprintReadOnly, Category = "State Apply Result")
+	ETcsStateApplyFailureReason FailureReason = ETcsStateApplyFailureReason::Unknown;
+
+	/**
+	 * 失败的详细描述
+	 */
+	UPROPERTY(BlueprintReadOnly, Category = "State Apply Result")
+	FString FailureMessage = TEXT("");
+
+	/**
+	 * 创建的状态实例（仅在bSuccess=true时有效）
+	 */
+	UPROPERTY(BlueprintReadOnly, Category = "State Apply Result")
+	TObjectPtr<class UTcsStateInstance> CreatedStateInstance = nullptr;
+
+	/**
+	 * 目标槽位（仅在bSuccess=true时有效）
+	 */
+	UPROPERTY(BlueprintReadOnly, Category = "State Apply Result")
+	FGameplayTag TargetSlot;
+
+	/**
+	 * 应用后的状态阶段（仅在bSuccess=true时有效，可能是Active/HangUp等）
+	 */
+	UPROPERTY(BlueprintReadOnly, Category = "State Apply Result")
+	ETcsStateStage AppliedStage = ETcsStateStage::SS_Inactive;
+
+	/**
+	 * 便捷方法：获取失败原因
+	 */
+	ETcsStateApplyFailureReason GetFailureReason() const
+	{
+		return FailureReason;
+	}
+
+	/**
+	 * 便捷方法：获取失败消息
+	 */
+	FString GetFailureMessage() const
+	{
+		return FailureMessage;
+	}
+
+	/**
+	 * 便捷方法：获取创建的状态实例
+	 */
+	UTcsStateInstance* GetCreatedStateInstance() const
+	{
+		return CreatedStateInstance;
+	}
+
+	/**
+	 * 便捷方法：获取应用后的阶段
+	 */
+	ETcsStateStage GetAppliedStage() const
+	{
+		return AppliedStage;
+	}
+};
+
+
+
 // 状态参数数据
 USTRUCT(BlueprintType)
 struct TIREFLYCOMBATSYSTEM_API FTcsStateParameter

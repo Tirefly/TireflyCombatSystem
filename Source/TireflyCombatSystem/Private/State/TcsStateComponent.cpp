@@ -12,6 +12,7 @@
 #include "StateTree.h"
 #include "StateTreeExecutionTypes.h"
 #include "StateTreeExecutionContext.h"
+#include "StateTreeInstanceData.h"
 #include "State/StateMerger/TcsStateMerger.h"
 #include "State/StateMerger/TcsStateMerger_NoMerge.h"
 
@@ -885,95 +886,190 @@ bool UTcsStateComponent::IsSlotGateOpen(FGameplayTag SlotTag) const
 
 TArray<FName> UTcsStateComponent::GetCurrentActiveStateTreeStates() const
 {
-    TArray<FName> ActiveStateNames;
+	TArray<FName> ActiveStateNames;
 
-    // TODO: 实现UE 5.6 StateTree API调用
-    // 由于当前项目编译错误,无法确定准确的API
-    // 以下是几种可能的实现方式,需要根据实际UE 5.6 API选择:
+	if (!StateTreeRef.IsValid())
+	{
+		return ActiveStateNames;
+	}
 
-    // 方式1: 通过StateTreeExecutionContext (如果可用)
-    // if (const FStateTreeExecutionContext* Context = GetStateTreeExecutionContext())
-    // {
-    //     ActiveStateNames = Context->GetActiveStateNames();
-    // }
+	const UStateTree* StateTree = StateTreeRef.GetStateTree();
+	if (!StateTree)
+	{
+		return ActiveStateNames;
+	}
 
-    // 方式2: 通过StateTree实例数据
-    // if (const FStateTreeInstanceData* InstanceData = GetStateTreeInstanceData())
-    // {
-    //     ActiveStateNames = InstanceData->GetActiveStates();
-    // }
+	// StateTree API 目前只提供 const 访问接口，这里通过 const_cast 获取可写指针以创建 ExecutionContext。
+	UTcsStateComponent* MutableThis = const_cast<UTcsStateComponent*>(this);
+	FStateTreeInstanceData* MutableInstanceData = &MutableThis->InstanceData;
+	FStateTreeExecutionContext Context(*MutableThis, *StateTree, *MutableInstanceData);
+	ActiveStateNames = Context.GetActiveStateNames();
 
-    // 方式3: 通过UStateTreeComponent的公开接口
-    // ActiveStateNames = GetActiveStates();
+	// 如果StateTree没有激活状态，则返回缓存，避免外部逻辑误判为发生变化。
+	if (ActiveStateNames.IsEmpty() && !CachedActiveStateNames.IsEmpty())
+	{
+		ActiveStateNames = CachedActiveStateNames;
+	}
 
-    return ActiveStateNames;
+	return ActiveStateNames;
+}
+
+void UTcsStateComponent::OnStateTreeStateChanged(const FStateTreeExecutionContext& Context)
+{
+	// 标记已收到Task通知
+	bHasTaskNotification = true;
+	LastTaskNotificationTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0;
+
+	// 【关键API】从ExecutionContext获取当前激活状态
+	TArray<FName> CurrentActiveStates = Context.GetActiveStateNames();
+
+	// 检测变化
+	if (!AreStateNamesEqual(CurrentActiveStates, CachedActiveStateNames))
+	{
+		RefreshSlotsForStateChange(CurrentActiveStates, CachedActiveStateNames);
+		CachedActiveStateNames = CurrentActiveStates;
+
+		UE_LOG(LogTcsState, Log,
+			   TEXT("[StateTree Event] State changed: %d active states"),
+			   CurrentActiveStates.Num());
+	}
+}
+
+void UTcsStateComponent::RefreshSlotsForStateChange(
+	const TArray<FName>& NewStates,
+	const TArray<FName>& OldStates)
+{
+	// 计算新增的状态
+	TSet<FName> AddedStates(NewStates);
+	for (const FName& OldState : OldStates)
+	{
+		AddedStates.Remove(OldState);
+	}
+
+	// 计算移除的状态
+	TSet<FName> RemovedStates(OldStates);
+	for (const FName& NewState : NewStates)
+	{
+		RemovedStates.Remove(NewState);
+	}
+
+	// 遍历槽位映射，更新Gate状态
+	for (const auto& Pair : SlotToStateHandleMap)
+	{
+		const FGameplayTag SlotTag = Pair.Key;
+		const FTcsStateSlotDefinition* SlotDef = StateSlotDefinitions.Find(SlotTag);
+
+		if (!SlotDef || SlotDef->StateTreeStateName.IsNone())
+		{
+			continue;
+		}
+
+		const FName& MappedStateName = SlotDef->StateTreeStateName;
+		bool bShouldOpen = false;
+
+		if (AddedStates.Contains(MappedStateName))
+		{
+			bShouldOpen = true;
+		}
+		else if (RemovedStates.Contains(MappedStateName))
+		{
+			bShouldOpen = false;
+		}
+		else
+		{
+			bShouldOpen = NewStates.Contains(MappedStateName);
+		}
+
+		const bool bWasOpen = IsSlotGateOpen(SlotTag);
+		if (bShouldOpen != bWasOpen)
+		{
+			SetSlotGateOpen(SlotTag, bShouldOpen);
+			UpdateStateSlotActivation(SlotTag);
+
+			UE_LOG(LogTcsState, Log,
+				   TEXT("[StateTree Event] Slot [%s] gate %s due to StateTree state '%s'"),
+				   *SlotTag.ToString(),
+				   bShouldOpen ? TEXT("opened") : TEXT("closed"),
+				   *MappedStateName.ToString());
+		}
+	}
+}
+
+bool UTcsStateComponent::AreStateNamesEqual(const TArray<FName>& A, const TArray<FName>& B) const
+{
+	if (A.Num() != B.Num())
+	{
+		return false;
+	}
+
+	for (int32 i = 0; i < A.Num(); ++i)
+	{
+		if (A[i] != B[i])
+		{
+			return false;
+		}
+	}
+
+	return true;
 }
 
 void UTcsStateComponent::CheckAndUpdateStateTreeSlots()
 {
-    // 获取StateTree执行上下文
-    if (!StateTreeRef.IsValid())
-    {
-        return;
-    }
+	// 【性能优化】智能轮询决策树:
+	// 1. 如果Task正常通知 → 完全跳过轮询
+	// 2. 如果没有Task通知过 → 启用低频轮询（兜底）
+	// 3. 如果Task曾通知但很久没通知 → 启用低频轮询（检测异常）
 
-    // 获取当前激活的StateTree状态名
-    TArray<FName> CurrentActiveStateNames = GetCurrentActiveStateTreeStates();
+	if (!StateTreeRef.IsValid())
+	{
+		return; // StateTree未设置，无需轮询
+	}
 
-    // 检测状态变化
-    bool bStateChanged = (CurrentActiveStateNames.Num() != CachedActiveStateNames.Num());
-    if (!bStateChanged)
-    {
-        for (int32 i = 0; i < CurrentActiveStateNames.Num(); ++i)
-        {
-            if (CurrentActiveStateNames[i] != CachedActiveStateNames[i])
-            {
-                bStateChanged = true;
-                break;
-            }
-        }
-    }
+	const double CurrentTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0;
 
-    // 如果状态发生变化,更新槽位Gate
-    if (bStateChanged)
-    {
-        TSet<FGameplayTag> SlotsToUpdate;
+	// 【第一层判断】如果Task最近有通知，完全禁用轮询
+	if (bHasTaskNotification && (CurrentTime - LastTaskNotificationTime) < 1.0)
+	{
+		// Task在过去1秒内有通知，说明Task工作正常
+		// 可以完全信任Task的回调，跳过轮询
+		return;
+	}
 
-        for (const auto& Pair : SlotToStateHandleMap)
-        {
-            const FGameplayTag SlotTag = Pair.Key;
-            const FTcsStateSlotDefinition* Def = StateSlotDefinitions.Find(SlotTag);
-            if (!Def || Def->StateTreeStateName.IsNone())
-            {
-                continue;
-            }
+	// 【第二层判断】检查轮询频率，避免每帧都执行
+	if (CurrentTime - LastPollingTime < PollingFallbackInterval)
+	{
+		return; // 轮询间隔未到，继续等待
+	}
 
-            // 检查该槽位对应的StateTree状态是否激活
-            const bool bShouldOpen = CurrentActiveStateNames.Contains(Def->StateTreeStateName);
-            const bool bWasOpen = IsSlotGateOpen(SlotTag);
+	LastPollingTime = CurrentTime;
 
-            if (bShouldOpen != bWasOpen)
-            {
-                SetSlotGateOpen(SlotTag, bShouldOpen);
-                SlotsToUpdate.Add(SlotTag);
+	// 【第三层:执行轮询】低频查询当前激活状态
+	TArray<FName> CurrentActiveStates = GetCurrentActiveStateTreeStates();
 
-                UE_LOG(LogTcsState, Verbose, TEXT("[StateTree Integration] Slot [%s] gate %s due to StateTree state '%s' %s"),
-                    *SlotTag.ToString(),
-                    bShouldOpen ? TEXT("opened") : TEXT("closed"),
-                    *Def->StateTreeStateName.ToString(),
-                    bShouldOpen ? TEXT("activated") : TEXT("deactivated"));
-            }
-        }
+	if (!AreStateNamesEqual(CurrentActiveStates, CachedActiveStateNames))
+	{
+		// 状态发生变化，需要更新Gate
+		const FString OldStatesStr = FString::JoinBy(CachedActiveStateNames, TEXT(","), [](const FName& N) { return N.ToString(); });
+		const FString NewStatesStr = FString::JoinBy(CurrentActiveStates, TEXT(","), [](const FName& N) { return N.ToString(); });
 
-        // 更新所有变化的槽位激活状态
-        for (const FGameplayTag& SlotTag : SlotsToUpdate)
-        {
-            UpdateStateSlotActivation(SlotTag);
-        }
+		if (bHasTaskNotification)
+		{
+			// Task之前有通知过，但现在轮询检测到变化→可能是边界情况或Task配置有问题
+			UE_LOG(LogTcsState, Warning,
+				   TEXT("[Fallback Polling] Detected state change after Task notification lost. Old: [%s] New: [%s]"),
+				   *OldStatesStr, *NewStatesStr);
+		}
+		else
+		{
+			// Task从未通知过，完全依赖轮询（正常的兜底行为）
+			UE_LOG(LogTcsState, Log,
+				   TEXT("[Fallback Polling] No Task notification detected, using polling. Old: [%s] New: [%s]"),
+				   *OldStatesStr, *NewStatesStr);
+		}
 
-        // 缓存当前状态
-        CachedActiveStateNames = CurrentActiveStateNames;
-    }
+		RefreshSlotsForStateChange(CurrentActiveStates, CachedActiveStateNames);
+		CachedActiveStateNames = CurrentActiveStates;
+	}
 }
 
 void UTcsStateComponent::UpdateStateSlotActivation(FGameplayTag SlotTag)

@@ -12,5 +12,10 @@ class TIREFLYCOMBATSYSTEM_API UTcsSkillModExec_CooldownMultiplier : public UTcsS
 	GENERATED_BODY()
 
 public:
+	virtual void ExecuteToEffect_Implementation(
+		UTcsSkillInstance* SkillInstance,
+		const FTcsSkillModifierInstance& ModInst,
+		FTcsAggregatedParamEffect& InOutEffect) override;
+
 	virtual void Execute_Implementation(UTcsSkillInstance* SkillInstance, FTcsSkillModifierInstance& SkillModInstance) override;
 };

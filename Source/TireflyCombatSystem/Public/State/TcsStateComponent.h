@@ -19,6 +19,27 @@ struct FStateTreeStateHandle;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams(FTcsOnStateStageChangedSignature, UTcsStateComponent*, StateComponent, UTcsStateInstance*, StateInstance, ETcsStateStage, PreviousStage, ETcsStateStage, NewStage);
 
+// 状态应用成功事件签名
+// (应用到的Actor, 状态定义ID, 创建的状态实例, 目标槽位, 应用后的状态阶段)
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_FiveParams(
+	FTcsOnStateApplySuccessSignature,
+	AActor*, TargetActor,
+	FName, StateDefId,
+	UTcsStateInstance*, CreatedStateInstance,
+	FGameplayTag, TargetSlot,
+	ETcsStateStage, AppliedStage
+);
+
+// 状态应用失败事件签名
+// (应用到的Actor, 状态定义ID, 失败原因枚举, 失败详情消息)
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams(
+	FTcsOnStateApplyFailedSignature,
+	AActor*, TargetActor,
+	FName, StateDefId,
+	ETcsStateApplyFailureReason, FailureReason,
+	FString, FailureMessage
+);
+
 
 
 // 状态实例持续时间数据
@@ -142,6 +163,21 @@ public:
 	// 通知阶段发生变化（内部与外部均可触发）
 	void NotifyStateStageChanged(UTcsStateInstance* StateInstance, ETcsStateStage PreviousStage, ETcsStateStage NewStage);
 
+	/**
+	 * 状态应用成功事件
+	 * 当状态成功应用到槽位时广播
+	 * AppliedStage 表示状态应用后的实际阶段（可能是Active或HangUp等）
+	 */
+	UPROPERTY(BlueprintAssignable, Category = "State|Events")
+	FTcsOnStateApplySuccessSignature OnStateApplySuccess;
+
+	/**
+	 * 状态应用失败事件
+	 * 当状态应用失败时广播，包含失败原因枚举
+	 */
+	UPROPERTY(BlueprintAssignable, Category = "State|Events")
+	FTcsOnStateApplyFailedSignature OnStateApplyFailed;
+
 protected:
 	// 当前处于激活阶段的状态实例列表
 	UPROPERTY()
@@ -242,6 +278,35 @@ protected:
 
     // 缓存上一帧的StateTree激活状态名,用于检测变化
     TArray<FName> CachedActiveStateNames;
+
+public:
+	// ===== StateTree Event-Driven Integration (Task 1) =====
+
+	/**
+	 * 由TcsStateChangeNotifyTask调用，通知StateTree状态变更
+	 * @param Context 执行上下文，包含当前激活状态信息
+	 */
+	void OnStateTreeStateChanged(const FStateTreeExecutionContext& Context);
+
+protected:
+	// 上次收到Task通知的时间
+	double LastTaskNotificationTime = 0.0;
+
+	// 是否检测到Task通知
+	bool bHasTaskNotification = false;
+
+	// 轮询间隔（兜底用，默认0.5秒）
+	UPROPERTY(EditAnywhere, Category = "StateTree Integration", meta = (ClampMin = "0.1", ClampMax = "5.0"))
+	float PollingFallbackInterval = 0.5f;
+
+	// 上次轮询时间
+	double LastPollingTime = 0.0;
+
+	// 刷新槽位Gate（基于状态差集）
+	void RefreshSlotsForStateChange(const TArray<FName>& NewStates, const TArray<FName>& OldStates);
+
+	// 比较两个状态列表是否相等
+	bool AreStateNamesEqual(const TArray<FName>& A, const TArray<FName>& B) const;
 
 protected:
     // StateTree状态槽映射 (运行时状态数据)

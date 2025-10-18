@@ -15,7 +15,18 @@ class TIREFLYCOMBATSYSTEM_API UTcsSkillModifierMerger : public UObject
 	GENERATED_BODY()
 
 public:
+	/**
+	 * 合并修改器(显式输出版本)
+	 * @param SourceModifiers 待合并的源修改器列表
+	 * @param OutModifiers 合并后的输出列表
+	 */
 	UFUNCTION(BlueprintNativeEvent, Category = "TcsCombatSystem|SkillModifier")
-	void Merge(UPARAM(ref) TArray<FTcsSkillModifierInstance>& SourceModifiers, TArray<FTcsSkillModifierInstance>& OutModifiers);
-	virtual void Merge_Implementation(UPARAM(ref) TArray<FTcsSkillModifierInstance>& SourceModifiers, TArray<FTcsSkillModifierInstance>& OutModifiers);
+	void Merge(
+		UPARAM(ref) TArray<FTcsSkillModifierInstance>& SourceModifiers,
+		TArray<FTcsSkillModifierInstance>& OutModifiers
+	);
+	virtual void Merge_Implementation(
+		TArray<FTcsSkillModifierInstance>& SourceModifiers,
+		TArray<FTcsSkillModifierInstance>& OutModifiers
+	);
 };

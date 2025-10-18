@@ -241,6 +241,32 @@ protected:
 	FTcsAggregatedParamEffect BuildAggregatedEffect(const UTcsSkillInstance* Skill, const FName& ParamName) const;
 	FTcsAggregatedParamEffect BuildAggregatedEffectByTag(const UTcsSkillInstance* Skill, const FGameplayTag& ParamTag) const;
 
+	/**
+	 * 重评估技能修改器（阶段触发版本）
+	 * 当技能进入激活态时调用，重新评估所有修改器条件
+	 * @param SkillInstance 目标技能实例
+	 * @param ActiveState 进入活跃态的状态实例
+	 */
+	void RefreshSkillModifiersForStateChange(UTcsSkillInstance* SkillInstance, UTcsStateInstance* ActiveState);
+
+	/**
+	 * 移除无效的修改器（阶段触发版本）
+	 * 当技能离开激活态时调用，移除不再满足条件的修改器
+	 * @param SkillInstance 目标技能实例
+	 */
+	void RemoveInvalidModifiersForSkill(UTcsSkillInstance* SkillInstance);
+
+	/**
+	 * 提取修改器影响的参数（供脏标记使用）
+	 * @param Instance 修改器实例
+	 * @param OutNames 受影响的FName参数列表
+	 * @param OutTags 受影响的GameplayTag参数列表
+	 */
+	void ExtractAffectedParams(
+		const FTcsSkillModifierInstance& Instance,
+		TArray<FName>& OutNames,
+		TArray<FGameplayTag>& OutTags) const;
+
 protected:
 	UPROPERTY()
 	TArray<FTcsSkillModifierInstance> ActiveSkillModifiers;

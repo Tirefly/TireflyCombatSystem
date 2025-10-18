@@ -4,8 +4,13 @@
 #include "Skill/TcsSkillManagerSubsystem.h"
 #include "Skill/TcsSkillComponent.h"
 #include "Skill/Modifiers/TcsSkillModifierDefinition.h"
+#include "Skill/Modifiers/TcsSkillModifierCondition.h"
+#include "Skill/Modifiers/TcsSkillModifierExecution.h"
+#include "TcsCombatSystemLogChannels.h"
 #include "State/TcsState.h"
 #include "State/TcsStateManagerSubsystem.h"
+#include "TcsCombatSystemSettings.h"
+#include "Engine/DataTable.h"
 
 FTcsStateDefinition UTcsSkillManagerSubsystem::GetSkillDefinition(FName SkillDefId)
 {
@@ -70,4 +75,95 @@ void UTcsSkillManagerSubsystem::UpdateCombatEntity(AActor* TargetActor)
 	{
 		SkillComponent->UpdateSkillModifiers();
 	}
+}
+
+bool UTcsSkillManagerSubsystem::LoadModifierDefinition(FName ModifierId, FTcsSkillModifierDefinition& OutDef)
+{
+	const UTcsCombatSystemSettings* Settings = GetDefault<UTcsCombatSystemSettings>();
+	if (!Settings || !Settings->SkillModifierDefTable.IsValid())
+	{
+		UE_LOG(LogTcsSkill, Error, TEXT("[%s] SkillModifierDefTable is not configured"), *FString(__FUNCTION__));
+		return false;
+	}
+
+	UDataTable* Table = Settings->SkillModifierDefTable.LoadSynchronous();
+	if (!Table)
+	{
+		UE_LOG(LogTcsSkill, Error, TEXT("[%s] Failed to load SkillModifierDefTable"), *FString(__FUNCTION__));
+		return false;
+	}
+
+	const FString ContextString = FString::Printf(TEXT("LoadModifierDefinition(%s)"), *ModifierId.ToString());
+	const FTcsSkillModifierDefinition* Row = Table->FindRow<FTcsSkillModifierDefinition>(ModifierId, ContextString);
+
+	if (!Row)
+	{
+		UE_LOG(LogTcsSkill, Warning, TEXT("[%s] Modifier not found: %s"), *FString(__FUNCTION__), *ModifierId.ToString());
+		return false;
+	}
+
+	// 校验定义有效性
+	if (!ValidateModifierDefinition(*Row, ModifierId))
+	{
+		UE_LOG(LogTcsSkill, Error, TEXT("[%s] Validation failed: %s"), *FString(__FUNCTION__), *ModifierId.ToString());
+		return false;
+	}
+
+	OutDef = *Row;
+	return true;
+}
+
+bool UTcsSkillManagerSubsystem::ValidateModifierDefinition(const FTcsSkillModifierDefinition& Definition, FName ModifierId) const
+{
+	bool bValid = true;
+
+	// 校验执行器类型
+	if (!Definition.ExecutionType)
+	{
+		UE_LOG(LogTcsSkill, Error, TEXT("[%s] Modifier '%s' has no ExecutionType"), *FString(__FUNCTION__), *ModifierId.ToString());
+		bValid = false;
+	}
+
+	// 校验激活条件
+	for (TSubclassOf<UTcsSkillModifierCondition> ConditionClass : Definition.ActiveConditions)
+	{
+		if (!ConditionClass)
+		{
+			UE_LOG(LogTcsSkill, Error, TEXT("[%s] Modifier '%s' has null Condition entry"), *FString(__FUNCTION__), *ModifierId.ToString());
+			bValid = false;
+		}
+	}
+
+	return bValid;
+}
+
+bool UTcsSkillManagerSubsystem::ApplySkillModifierByIds(AActor* TargetActor, const TArray<FName>& ModifierIds, TArray<int32>& OutInstanceIds)
+{
+	if (!IsValid(TargetActor))
+	{
+		UE_LOG(LogTcsSkill, Warning, TEXT("[%s] Target actor is invalid"), *FString(__FUNCTION__));
+		return false;
+	}
+
+	// 加载所有修改器定义
+	TArray<FTcsSkillModifierDefinition> Modifiers;
+	for (const FName& ModId : ModifierIds)
+	{
+		FTcsSkillModifierDefinition ModDef;
+		if (!LoadModifierDefinition(ModId, ModDef))
+		{
+			UE_LOG(LogTcsSkill, Warning, TEXT("[%s] Failed to load modifier: %s"), *FString(__FUNCTION__), *ModId.ToString());
+			continue;
+		}
+		Modifiers.Add(ModDef);
+	}
+
+	if (Modifiers.IsEmpty())
+	{
+		UE_LOG(LogTcsSkill, Warning, TEXT("[%s] No valid modifiers loaded from IDs"), *FString(__FUNCTION__));
+		return false;
+	}
+
+	// 应用加载的修改器定义
+	return ApplySkillModifier(TargetActor, Modifiers, OutInstanceIds);
 }
