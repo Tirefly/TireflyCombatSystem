@@ -10,12 +10,12 @@
 #include "Misc/DataValidation.h"
 #endif
 
-#include "TcsCombatSystemSettings.generated.h"
+#include "TcsDeveloperSettings.generated.h"
 
 
 
-UCLASS(Config = TcsCombatSystemSettings, DefaultConfig)
-class TIREFLYCOMBATSYSTEM_API UTcsCombatSystemSettings : public UDeveloperSettings
+UCLASS(Config = TireflyCombatSystemSettings, DefaultConfig)
+class TIREFLYCOMBATSYSTEM_API UTcsDeveloperSettings : public UDeveloperSettings
 {
 	GENERATED_BODY()
 
@@ -29,13 +29,13 @@ public:
 	virtual FName GetCategoryName() const override { return FName("Game"); }
 
 	/** The unique name for your section of settings, uses the class's FName. */
-	virtual FName GetSectionName() const override { return FName("Tcs Combat System"); }
+	virtual FName GetSectionName() const override { return FName("Tirefly Combat System"); }
 
 #if WITH_EDITOR
 
 protected:
 	/** Gets the section text, uses the classes DisplayName by default. */
-	virtual FText GetSectionText() const override { return FText::FromString("Tcs Combat System"); }
+	virtual FText GetSectionText() const override { return FText::FromString("Tirefly Combat System"); }
 
 	/** Gets the description for the section, uses the classes ToolTip by default. */
 	virtual FText GetSectionDescription() const override { return FText::FromString("Developer settings of gameplay ability system"); };
@@ -51,11 +51,15 @@ public:
 
 public:
 	// 属性定义数据表
-	UPROPERTY(Config, EditAnywhere, Category = "DataTable")
+	UPROPERTY(Config, EditAnywhere, Category = "DataTable",
+		meta = (ToolTip = "属性定义数据表：行结构应为 FTcsAttributeDefinition",
+			RequiredAssetDataTags = "RowStructure=/Script/TireflyCombatSystem.TcsAttributeDefinition"))
 	TSoftObjectPtr<UDataTable> AttributeDefTable;
 
 	// 属性修改器定义数据表
-	UPROPERTY(Config, EditAnywhere, Category = "DataTable")
+	UPROPERTY(Config, EditAnywhere, Category = "DataTable",
+		meta = (ToolTip = "属性修改器定义数据表：行结构应为 FTcsAttributeModifierDefinition",
+			RequiredAssetDataTags = "RowStructure=/Script/TireflyCombatSystem.TcsAttributeModifierDefinition"))
 	TSoftObjectPtr<UDataTable> AttributeModifierDefTable;
 
 	// 技能修改器定义数据表
@@ -64,23 +68,22 @@ public:
 			RequiredAssetDataTags = "RowStructure=/Script/TireflyCombatSystem.TcsSkillModifierDefinition"))
 	TSoftObjectPtr<UDataTable> SkillModifierDefTable;
 
-	// 状态槽配置数据表
-	UPROPERTY(Config, EditAnywhere, Category = "DataTable", 
-		meta = (ToolTip = "状态槽配置数据表，定义各个槽位的激活模式与映射", 
-			// 使用当前模块中定义的行结构，而非历史名（已由 CoreRedirect 兼容）
-			RequiredAssetDataTags = "RowStructure=/Script/TireflyCombatSystem.TcsStateSlotDefinition"))
-	TSoftObjectPtr<UDataTable> SlotConfigurationTable;
-
 	// 状态定义数据表（用于从数据表读取 FTcsStateDefinition）
 	UPROPERTY(Config, EditAnywhere, Category = "DataTable",
 		meta = (ToolTip = "状态定义数据表：行结构应为 FTcsStateDefinition"))
 	TSoftObjectPtr<UDataTable> StateDefTable;
 
+	// 状态槽定义数据表
+	UPROPERTY(Config, EditAnywhere, Category = "DataTable", 
+		meta = (ToolTip = "状态槽定义数据表，定义各个槽位的激活模式与映射", 
+			RequiredAssetDataTags = "RowStructure=/Script/TireflyCombatSystem.TcsStateSlotDefinition"))
+	TSoftObjectPtr<UDataTable> StateSlotDefTable;	
+
 #pragma endregion
 };
 
 #if WITH_EDITOR
-inline EDataValidationResult UTcsCombatSystemSettings::IsDataValid(FDataValidationContext& Context) const
+inline EDataValidationResult UTcsDeveloperSettings::IsDataValid(FDataValidationContext& Context) const
 {
 	const EDataValidationResult SuperResult = Super::IsDataValid(Context);
 	EDataValidationResult Result = SuperResult;
@@ -95,7 +98,7 @@ inline EDataValidationResult UTcsCombatSystemSettings::IsDataValid(FDataValidati
 			return EDataValidationResult::Invalid;
 		}
 
-		const FString ContextString(TEXT("UTcsCombatSystemSettings::IsDataValid"));
+		const FString ContextString(TEXT("UTcsDeveloperSettings::IsDataValid"));
 		for (const FName& RowName : StateTable->GetRowNames())
 		{
 			const FTcsStateDefinition* Definition = StateTable->FindRow<FTcsStateDefinition>(RowName, ContextString);

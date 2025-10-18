@@ -6,10 +6,10 @@
 #include "Skill/Modifiers/TcsSkillModifierDefinition.h"
 #include "Skill/Modifiers/TcsSkillModifierCondition.h"
 #include "Skill/Modifiers/TcsSkillModifierExecution.h"
-#include "TcsCombatSystemLogChannels.h"
+#include "TcsLogChannels.h"
 #include "State/TcsState.h"
 #include "State/TcsStateManagerSubsystem.h"
-#include "TcsCombatSystemSettings.h"
+#include "TcsDeveloperSettings.h"
 #include "Engine/DataTable.h"
 
 FTcsStateDefinition UTcsSkillManagerSubsystem::GetSkillDefinition(FName SkillDefId)
@@ -79,7 +79,7 @@ void UTcsSkillManagerSubsystem::UpdateCombatEntity(AActor* TargetActor)
 
 bool UTcsSkillManagerSubsystem::LoadModifierDefinition(FName ModifierId, FTcsSkillModifierDefinition& OutDef)
 {
-	const UTcsCombatSystemSettings* Settings = GetDefault<UTcsCombatSystemSettings>();
+	const UTcsDeveloperSettings* Settings = GetDefault<UTcsDeveloperSettings>();
 	if (!Settings || !Settings->SkillModifierDefTable.IsValid())
 	{
 		UE_LOG(LogTcsSkill, Error, TEXT("[%s] SkillModifierDefTable is not configured"), *FString(__FUNCTION__));

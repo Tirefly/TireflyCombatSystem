@@ -4,11 +4,13 @@
 
 #include "CoreMinimal.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
-#include "TcsCombatSystemLibrary.generated.h"
+#include "TcsGenericLibrary.generated.h"
 
 
+
+// 战斗系统通用库
 UCLASS()
-class TIREFLYCOMBATSYSTEM_API UTcsCombatSystemLibrary : public UBlueprintFunctionLibrary
+class TIREFLYCOMBATSYSTEM_API UTcsGenericLibrary : public UBlueprintFunctionLibrary
 {
 	GENERATED_BODY()
 
@@ -33,6 +35,7 @@ public:
 
 #pragma endregion
 
+	
 #pragma region SkillModifier
 
 	// 获取技能修改器定义总表

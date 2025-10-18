@@ -3,7 +3,7 @@
 
 #include "Attribute/AttrModExecution/TcsAttrModExec_MultiplyContinued.h"
 
-#include "TcsCombatSystemLogChannels.h"
+#include "TcsLogChannels.h"
 
 
 

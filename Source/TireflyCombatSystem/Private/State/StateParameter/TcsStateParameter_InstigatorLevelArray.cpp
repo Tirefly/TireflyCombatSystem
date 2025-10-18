@@ -1,7 +1,7 @@
 // Copyright Tirefly. All Rights Reserved.
 
 #include "State/StateParameter/TcsStateParameter_InstigatorLevelArray.h"
-#include "TcsCombatEntityInterface.h"
+#include "TcsEntityInterface.h"
 
 
 
@@ -22,9 +22,9 @@ void UTcsStateParamParser_InstigatorLevelArray::Evaluate_Implementation(
 
 		// 获取施法者等级
 		int32 InstigatorLevel = -1;
-		if (Instigator->GetClass()->ImplementsInterface(UTcsCombatEntityInterface::StaticClass()))
+		if (Instigator->GetClass()->ImplementsInterface(UTcsEntityInterface::StaticClass()))
 		{
-			InstigatorLevel = ITcsCombatEntityInterface::Execute_GetCombatEntityLevel(Instigator);
+			InstigatorLevel = ITcsEntityInterface::Execute_GetCombatEntityLevel(Instigator);
 		}
 
 		const TArray<float>& LevelValues = InstigatorLevelArrayParam->LevelValues;

@@ -1,8 +1,12 @@
+// Copyright Tirefly. All Rights Reserved.
+
 #include "StateTree/TcsStateSlotDebugEvaluator.h"
 
 #include "State/TcsStateComponent.h"
 #include "StateTreeExecutionContext.h"
 #include "StateTreeLinker.h"
+
+
 
 FTcsStateSlotDebugEvaluator::FTcsStateSlotDebugEvaluator()
 	: UpdateInterval(0.25f)

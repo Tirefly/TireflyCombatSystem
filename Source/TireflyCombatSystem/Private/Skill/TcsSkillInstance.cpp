@@ -3,7 +3,7 @@
 #include "Skill/TcsSkillInstance.h"
 #include "Skill/TcsSkillComponent.h"
 #include "State/StateParameter/TcsStateParameter.h"
-#include "TcsCombatSystemLogChannels.h"
+#include "TcsLogChannels.h"
 #include "GameFramework/Actor.h"
 #include "Engine/World.h"
 #include "State/TcsStateComponent.h"

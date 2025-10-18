@@ -19,7 +19,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(
 
 
 // 属性组件，保存战斗实体的属性相关数据
-UCLASS(ClassGroup = (TcsCombatSystem), Meta = (BlueprintSpawnableComponent, DisplayName = "Tirefly Attribute Comp"))
+UCLASS(ClassGroup = (TcsCombatSystem), Meta = (BlueprintSpawnableComponent, DisplayName = "Tirefly Attribute Cmp"))
 class TIREFLYCOMBATSYSTEM_API UTcsAttributeComponent : public UActorComponent
 {
 	GENERATED_BODY()

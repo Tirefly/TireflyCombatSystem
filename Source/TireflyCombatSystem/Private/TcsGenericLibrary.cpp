@@ -1,12 +1,12 @@
 // Copyright Tirefly. All Rights Reserved.
 
 
-#include "TcsCombatSystemLibrary.h"
+#include "TcsGenericLibrary.h"
 
-#include "TcsCombatSystemSettings.h"
+#include "TcsDeveloperSettings.h"
 
 
-TArray<FName> UTcsCombatSystemLibrary::GetAttributeNames()
+TArray<FName> UTcsGenericLibrary::GetAttributeNames()
 {
 	TArray<FName> AttributeNames;
 	if (UDataTable* AttributeDefTable = GetAttributeDefTable())
@@ -17,16 +17,16 @@ TArray<FName> UTcsCombatSystemLibrary::GetAttributeNames()
 	return AttributeNames;
 }
 
-UDataTable* UTcsCombatSystemLibrary::GetAttributeDefTable()
+UDataTable* UTcsGenericLibrary::GetAttributeDefTable()
 {
-	if (const UTcsCombatSystemSettings* Settings = GetDefault<UTcsCombatSystemSettings>())
+	if (const UTcsDeveloperSettings* Settings = GetDefault<UTcsDeveloperSettings>())
 	{
 		return Settings->AttributeDefTable.LoadSynchronous();
 	}
 	return nullptr;
 }
 
-TArray<FName> UTcsCombatSystemLibrary::GetAttributeModifierIds()
+TArray<FName> UTcsGenericLibrary::GetAttributeModifierIds()
 {
 	TArray<FName> ModifierIds;
 	if (UDataTable* AttributeModifierDefTable = GetAttributeModifierDefTable())
@@ -37,25 +37,25 @@ TArray<FName> UTcsCombatSystemLibrary::GetAttributeModifierIds()
 	return ModifierIds;
 }
 
-UDataTable* UTcsCombatSystemLibrary::GetAttributeModifierDefTable()
+UDataTable* UTcsGenericLibrary::GetAttributeModifierDefTable()
 {
-	if (const UTcsCombatSystemSettings* Settings = GetDefault<UTcsCombatSystemSettings>())
+	if (const UTcsDeveloperSettings* Settings = GetDefault<UTcsDeveloperSettings>())
 	{
 		return Settings->AttributeModifierDefTable.LoadSynchronous();
 	}
 	return nullptr;
 }
 
-UDataTable* UTcsCombatSystemLibrary::GetSkillModifierDefTable()
+UDataTable* UTcsGenericLibrary::GetSkillModifierDefTable()
 {
-	if (const UTcsCombatSystemSettings* Settings = GetDefault<UTcsCombatSystemSettings>())
+	if (const UTcsDeveloperSettings* Settings = GetDefault<UTcsDeveloperSettings>())
 	{
 		return Settings->SkillModifierDefTable.LoadSynchronous();
 	}
 	return nullptr;
 }
 
-TArray<FName> UTcsCombatSystemLibrary::GetSkillModifierIds()
+TArray<FName> UTcsGenericLibrary::GetSkillModifierIds()
 {
 	TArray<FName> ModifierIds;
 	if (UDataTable* SkillModifierDefTable = GetSkillModifierDefTable())

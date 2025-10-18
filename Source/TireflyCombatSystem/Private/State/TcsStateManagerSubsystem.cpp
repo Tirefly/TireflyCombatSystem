@@ -3,10 +3,10 @@
 
 #include "State/TcsStateManagerSubsystem.h"
 #include "State/TcsState.h"
-#include "TcsCombatSystemSettings.h"
+#include "TcsDeveloperSettings.h"
 #include "Engine/DataTable.h"
 #include "State/TcsStateComponent.h"
-#include "TcsCombatSystemLogChannels.h"
+#include "TcsLogChannels.h"
 #include "Templates/Function.h"
 
 // 匿名命名空间：参数应用辅助函数
@@ -268,7 +268,7 @@ FTcsStateDefinition UTcsStateManagerSubsystem::GetStateDefinition(FName StateDef
         return FTcsStateDefinition();
     }
 
-    const UTcsCombatSystemSettings* Settings = GetDefault<UTcsCombatSystemSettings>();
+    const UTcsDeveloperSettings* Settings = GetDefault<UTcsDeveloperSettings>();
     if (!Settings || !Settings->StateDefTable.IsValid())
     {
         return FTcsStateDefinition();
@@ -534,7 +534,7 @@ FTcsStateApplyResult UTcsStateManagerSubsystem::ApplyStateWithDetails(AActor* Ta
 	// 检查Owner有效性
 	if (!IsValid(TargetActor))
 	{
-		Result.FailureReason = ETcsStateApplyFailureReason::InvalidOwner;
+		Result.FailureReason = ETcsStateApplyFailureReason::SAFR_InvalidOwner;
 		Result.FailureMessage = TEXT("Target actor is invalid");
 
 		UE_LOG(LogTcsState, Warning, TEXT("[ApplyStateWithDetails] Target actor is invalid"));
@@ -545,7 +545,7 @@ FTcsStateApplyResult UTcsStateManagerSubsystem::ApplyStateWithDetails(AActor* Ta
 	UTcsStateComponent* StateComponent = TargetActor->FindComponentByClass<UTcsStateComponent>();
 	if (!StateComponent)
 	{
-		Result.FailureReason = ETcsStateApplyFailureReason::ComponentMissing;
+		Result.FailureReason = ETcsStateApplyFailureReason::SAFR_ComponentMissing;
 		Result.FailureMessage = TEXT("TcsStateComponent not found on target actor");
 
 		UE_LOG(LogTcsState, Warning, TEXT("[ApplyStateWithDetails] Actor [%s] missing TcsStateComponent"), *TargetActor->GetName());
@@ -559,10 +559,10 @@ FTcsStateApplyResult UTcsStateManagerSubsystem::ApplyStateWithDetails(AActor* Ta
 	if (!StateDef.StateSlotType.IsValid() && StateDef.StateType == 0 && StateDef.Priority == -1)
 	{
 		// 检查是否实际存在于数据表中（简单启发式检查）
-		const UTcsCombatSystemSettings* Settings = GetDefault<UTcsCombatSystemSettings>();
+		const UTcsDeveloperSettings* Settings = GetDefault<UTcsDeveloperSettings>();
 		if (!Settings || !Settings->StateDefTable.IsValid())
 		{
-			Result.FailureReason = ETcsStateApplyFailureReason::InvalidState;
+			Result.FailureReason = ETcsStateApplyFailureReason::SAFR_InvalidState;
 			Result.FailureMessage = TEXT("State definition not found");
 
 			UE_LOG(LogTcsState, Warning, TEXT("[ApplyStateWithDetails] State definition not found: %s"), *StateDefId.ToString());
@@ -576,7 +576,7 @@ FTcsStateApplyResult UTcsStateManagerSubsystem::ApplyStateWithDetails(AActor* Ta
 		{
 			if (!Table->FindRow<FTcsStateDefinition>(StateDefId, TEXT(""), false))
 			{
-				Result.FailureReason = ETcsStateApplyFailureReason::InvalidState;
+				Result.FailureReason = ETcsStateApplyFailureReason::SAFR_InvalidState;
 				Result.FailureMessage = TEXT("State definition not found in data table");
 
 				UE_LOG(LogTcsState, Warning, TEXT("[ApplyStateWithDetails] State definition not found: %s"), *StateDefId.ToString());
@@ -592,7 +592,7 @@ FTcsStateApplyResult UTcsStateManagerSubsystem::ApplyStateWithDetails(AActor* Ta
 	UTcsStateInstance* StateInstance = CreateStateInstance(TargetActor, StateDefId, SourceActor);
 	if (!StateInstance)
 	{
-		Result.FailureReason = ETcsStateApplyFailureReason::Unknown;
+		Result.FailureReason = ETcsStateApplyFailureReason::SAFR_Unknown;
 		Result.FailureMessage = TEXT("Failed to create state instance");
 
 		UE_LOG(LogTcsState, Error, TEXT("[ApplyStateWithDetails] Failed to create state instance for %s"), *StateDefId.ToString());
@@ -628,7 +628,7 @@ FTcsStateApplyResult UTcsStateManagerSubsystem::ApplyStateWithDetails(AActor* Ta
 	}
 
 	// 应用失败 - 槽位被占用或其他原因
-	Result.FailureReason = ETcsStateApplyFailureReason::SlotOccupied;
+	Result.FailureReason = ETcsStateApplyFailureReason::SAFR_SlotOccupied;
 	Result.FailureMessage = TEXT("Failed to assign state to slot (slot occupied or assignment failed)");
 
 	UE_LOG(LogTcsState, Warning, TEXT("[ApplyStateWithDetails] Failed to apply state %s to actor %s at slot %s"),
@@ -647,7 +647,7 @@ FTcsStateApplyResult UTcsStateManagerSubsystem::ApplyStateToSpecificSlotWithDeta
 	// 检查Owner有效性
 	if (!IsValid(TargetActor))
 	{
-		Result.FailureReason = ETcsStateApplyFailureReason::InvalidOwner;
+		Result.FailureReason = ETcsStateApplyFailureReason::SAFR_InvalidOwner;
 		Result.FailureMessage = TEXT("Target actor is invalid");
 
 		UE_LOG(LogTcsState, Warning, TEXT("[ApplyStateToSpecificSlotWithDetails] Target actor is invalid"));
@@ -658,7 +658,7 @@ FTcsStateApplyResult UTcsStateManagerSubsystem::ApplyStateToSpecificSlotWithDeta
 	UTcsStateComponent* StateComponent = TargetActor->FindComponentByClass<UTcsStateComponent>();
 	if (!StateComponent)
 	{
-		Result.FailureReason = ETcsStateApplyFailureReason::ComponentMissing;
+		Result.FailureReason = ETcsStateApplyFailureReason::SAFR_ComponentMissing;
 		Result.FailureMessage = TEXT("TcsStateComponent not found on target actor");
 
 		UE_LOG(LogTcsState, Warning, TEXT("[ApplyStateToSpecificSlotWithDetails] Actor [%s] missing TcsStateComponent"), *TargetActor->GetName());
@@ -669,7 +669,7 @@ FTcsStateApplyResult UTcsStateManagerSubsystem::ApplyStateToSpecificSlotWithDeta
 	FTcsStateDefinition StateDef = GetStateDefinition(StateDefId);
 	if (!StateDef.StateSlotType.IsValid() && StateDef.StateType == 0 && StateDef.Priority == -1)
 	{
-		Result.FailureReason = ETcsStateApplyFailureReason::InvalidState;
+		Result.FailureReason = ETcsStateApplyFailureReason::SAFR_InvalidState;
 		Result.FailureMessage = TEXT("State definition not found");
 
 		UE_LOG(LogTcsState, Warning, TEXT("[ApplyStateToSpecificSlotWithDetails] State definition not found: %s"), *StateDefId.ToString());
@@ -683,7 +683,7 @@ FTcsStateApplyResult UTcsStateManagerSubsystem::ApplyStateToSpecificSlotWithDeta
 	UTcsStateInstance* StateInstance = CreateStateInstance(TargetActor, StateDefId, SourceActor);
 	if (!StateInstance)
 	{
-		Result.FailureReason = ETcsStateApplyFailureReason::Unknown;
+		Result.FailureReason = ETcsStateApplyFailureReason::SAFR_Unknown;
 		Result.FailureMessage = TEXT("Failed to create state instance");
 
 		UE_LOG(LogTcsState, Error, TEXT("[ApplyStateToSpecificSlotWithDetails] Failed to create state instance for %s"), *StateDefId.ToString());
@@ -717,7 +717,7 @@ FTcsStateApplyResult UTcsStateManagerSubsystem::ApplyStateToSpecificSlotWithDeta
 	}
 
 	// 应用失败 - 槽位被占用或其他原因
-	Result.FailureReason = ETcsStateApplyFailureReason::SlotOccupied;
+	Result.FailureReason = ETcsStateApplyFailureReason::SAFR_SlotOccupied;
 	Result.FailureMessage = TEXT("Failed to assign state to slot (slot occupied or assignment failed)");
 
 	UE_LOG(LogTcsState, Warning, TEXT("[ApplyStateToSpecificSlotWithDetails] Failed to apply state %s to actor %s at slot %s"),

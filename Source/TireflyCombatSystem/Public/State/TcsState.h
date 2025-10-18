@@ -7,16 +7,16 @@
 #include "GameplayTagContainer.h"
 #include "StateTreeReference.h"
 #include "StateTreeInstanceData.h"
-#include "StateTreeExecutionContext.h"
 #include "StateTreeExecutionTypes.h"
 #include "TcsState.generated.h"
 
 
-
+class UTcsAttributeComponent;
+class UTcsSkillComponent;
+class UTcsStateComponent;
 class UTcsStateMerger;
 class UTcsStateCondition;
 class UTcsStateParamExtractor;
-class UTcsStateComponent;
 
 
 
@@ -66,16 +66,17 @@ enum class ETcsStateParameterType : uint8
 
 
 // 状态应用失败原因
-UENUM(BlueprintType, Category = "State Management")
+UENUM(BlueprintType)
 enum class ETcsStateApplyFailureReason : uint8
 {
-	InvalidOwner UMETA(DisplayName = "Invalid Owner", ToolTip = "目标Actor无效"),
-	InvalidState UMETA(DisplayName = "State Definition Not Found", ToolTip = "状态定义未找到"),
-	SlotOccupied UMETA(DisplayName = "Slot Gate Closed", ToolTip = "槽位已占用或Gate关闭"),
-	ComponentMissing UMETA(DisplayName = "TcsStateComponent Missing", ToolTip = "Actor缺少TcsStateComponent"),
-	ParameterInvalid UMETA(DisplayName = "Invalid Parameters", ToolTip = "无效的参数"),
-	MergerRejected UMETA(DisplayName = "Merger Rejected", ToolTip = "合并器拒绝应用"),
-	Unknown UMETA(DisplayName = "Unknown Error", ToolTip = "未知错误"),
+	SAFR_None = 0			UMETA(DisplayName = "None", ToolTip = "无"),
+	SAFR_InvalidOwner		UMETA(DisplayName = "Invalid Owner", ToolTip = "目标Actor无效"),
+	SAFR_InvalidState		UMETA(DisplayName = "State Definition Not Found", ToolTip = "状态定义未找到"),
+	SAFR_SlotOccupied		UMETA(DisplayName = "Slot Gate Closed", ToolTip = "槽位已占用或Gate关闭"),
+	SAFR_ComponentMissing	UMETA(DisplayName = "TcsStateComponent Missing", ToolTip = "Actor缺少TcsStateComponent"),
+	SAFR_ParameterInvalid	UMETA(DisplayName = "Invalid Parameters", ToolTip = "无效的参数"),
+	SAFR_MergerRejected		UMETA(DisplayName = "Merger Rejected", ToolTip = "合并器拒绝应用"),
+	SAFR_Unknown			UMETA(DisplayName = "Unknown Error", ToolTip = "未知错误"),
 };
 
 
@@ -97,7 +98,7 @@ public:
 	 * 失败原因（仅在bSuccess=false时有效）
 	 */
 	UPROPERTY(BlueprintReadOnly, Category = "State Apply Result")
-	ETcsStateApplyFailureReason FailureReason = ETcsStateApplyFailureReason::Unknown;
+	ETcsStateApplyFailureReason FailureReason = ETcsStateApplyFailureReason::SAFR_None;
 
 	/**
 	 * 失败的详细描述
@@ -201,7 +202,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Meta", Meta = (Categories = "StateSlot"))
 	FGameplayTag StateSlotType;
 
-	// 状态优先级（值越小，优先级越高，最高优先级为0）
+	// 状态优先级（值越小，优先级越高，越优先执行，最高优先级为0）
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Meta")
 	int32 Priority = -1;
 
@@ -282,6 +283,7 @@ public:
 
     // 获取状态的定义Id
     FName GetStateDefId() const { return StateDefId; }
+	
     // 设置状态的定义Id（由管理器填充）
     void SetStateDefId(FName InStateDefId) { StateDefId = InStateDefId; }
 
@@ -368,9 +370,33 @@ protected:
 	UPROPERTY(BlueprintReadOnly, Category = "State|Runtime")
 	TWeakObjectPtr<AActor> Owner;
 
+	// 状态实例拥有者的状态组件
+	UPROPERTY(BlueprintReadOnly, Category = "State|Runtime")
+	TWeakObjectPtr<UTcsStateComponent> OwnerStateCmp;
+
+	// 状态实例拥有者的属性组件
+	UPROPERTY(BlueprintReadOnly, Category = "State|Runtime")
+	TWeakObjectPtr<UTcsAttributeComponent> OwnerAttributeCmp;
+
+	// 状态实例拥有者的技能组件
+	UPROPERTY(BlueprintReadOnly, Category = "State|Runtime")
+	TWeakObjectPtr<UTcsSkillComponent> OwnerSkillCmp;
+
 	// 状态实例的发起者
 	UPROPERTY(BlueprintReadOnly, Category = "State|Runtime")
 	TWeakObjectPtr<AActor> Instigator;
+
+	// 状态实例发起者的状态组件
+	UPROPERTY(BlueprintReadOnly, Category = "State|Runtime")
+	TWeakObjectPtr<UTcsStateComponent> InstigatorStateCmp;
+
+	// 状态实例发起者的属性组件
+	UPROPERTY(BlueprintReadOnly, Category = "State|Runtime")
+	TWeakObjectPtr<UTcsAttributeComponent> InstigatorAttributeCmp;
+
+	// 状态实例发起者的技能组件
+	UPROPERTY(BlueprintReadOnly, Category = "State|Runtime")
+	TWeakObjectPtr<UTcsSkillComponent> InstigatorSkillCmp;
 
 	// 状态等级
 	UPROPERTY(BlueprintReadOnly, Category = "State|Runtime")
@@ -379,7 +405,7 @@ protected:
 #pragma endregion
 
 
-#pragma region Parameters
+#pragma region Parameter_Numeric
 
 public:
 	UFUNCTION(BlueprintCallable, Category = "State|Parameters")
@@ -394,6 +420,29 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "State|Parameters")
 	void SetNumericParamByTag(FGameplayTag ParameterTag, float Value);
 
+	// 获取所有数值类型参数名称
+	UFUNCTION(BlueprintPure, Category = "State|Parameters")
+	TArray<FName> GetAllNumericParamNames() const;
+
+	// 获取所有数值类型参数标签
+	UFUNCTION(BlueprintPure, Category = "State|Parameters")
+	TArray<FGameplayTag> GetAllNumericParamTags() const;
+
+protected:
+	// 数值类型参数
+	UPROPERTY(BlueprintReadOnly, Category = "State|Parameters")
+	TMap<FName, float> NumericParameters;
+
+	// 数值类型参数（Tag）
+	UPROPERTY(BlueprintReadOnly, Category = "State|Parameters")
+	TMap<FGameplayTag, float> NumericParametersTag;
+
+#pragma endregion
+
+
+#pragma region Parameter_Bool
+
+public:
 	UFUNCTION(BlueprintCallable, Category = "State|Parameters")
 	bool GetBoolParam(FName ParameterName, bool& OutValue) const;
 
@@ -406,6 +455,29 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "State|Parameters")
 	void SetBoolParamByTag(FGameplayTag ParameterTag, bool Value);
 
+	// 获取所有布尔类型参数名称
+	UFUNCTION(BlueprintPure, Category = "State|Parameters")
+	TArray<FName> GetAllBoolParamNames() const;
+
+	// 获取所有布尔类型参数标签
+	UFUNCTION(BlueprintPure, Category = "State|Parameters")
+	TArray<FGameplayTag> GetAllBoolParamTags() const;
+
+protected:
+	// 布尔类型参数
+	UPROPERTY(BlueprintReadOnly, Category = "State|Parameters")  
+	TMap<FName, bool> BoolParameters;
+
+	// 布尔类型参数（Tag）
+	UPROPERTY(BlueprintReadOnly, Category = "State|Parameters")
+	TMap<FGameplayTag, bool> BoolParametersTag;
+
+#pragma endregion
+
+
+#pragma region Parameter_Vector
+
+public:
 	UFUNCTION(BlueprintCallable, Category = "State|Parameters")
 	bool GetVectorParam(FName ParameterName, FVector& OutValue) const;
 
@@ -418,22 +490,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "State|Parameters")
 	void SetVectorParamByTag(FGameplayTag ParameterTag, const FVector& Value);
 
-	// 获取所有数值类型参数名称
-	UFUNCTION(BlueprintPure, Category = "State|Parameters")
-	TArray<FName> GetAllNumericParamNames() const;
-
-	// 获取所有数值类型参数标签
-	UFUNCTION(BlueprintPure, Category = "State|Parameters")
-	TArray<FGameplayTag> GetAllNumericParamTags() const;
-
-	// 获取所有布尔类型参数名称
-	UFUNCTION(BlueprintPure, Category = "State|Parameters")
-	TArray<FName> GetAllBoolParamNames() const;
-
-	// 获取所有布尔类型参数标签
-	UFUNCTION(BlueprintPure, Category = "State|Parameters")
-	TArray<FGameplayTag> GetAllBoolParamTags() const;
-
 	// 获取所有向量类型参数名称
 	UFUNCTION(BlueprintPure, Category = "State|Parameters")
 	TArray<FName> GetAllVectorParamNames() const;
@@ -443,29 +499,13 @@ public:
 	TArray<FGameplayTag> GetAllVectorParamTags() const;
 
 protected:
-	// 数值类型参数
-	UPROPERTY(BlueprintReadOnly, Category = "State|Parameters")
-	TMap<FName, float> NumericParameters;
-
-	// 数值类型参数（Tag）
-	UPROPERTY(BlueprintReadOnly, Category = "State|Parameters")
-	TMap<FGameplayTag, float> NumericParametersByTag;
-
-	// 布尔类型参数
-	UPROPERTY(BlueprintReadOnly, Category = "State|Parameters")  
-	TMap<FName, bool> BoolParameters;
-
-	// 布尔类型参数（Tag）
-	UPROPERTY(BlueprintReadOnly, Category = "State|Parameters")
-	TMap<FGameplayTag, bool> BoolParametersByTag;
-
 	// 向量类型参数
 	UPROPERTY(BlueprintReadOnly, Category = "State|Parameters")
 	TMap<FName, FVector> VectorParameters;
 
 	// 向量类型参数（Tag）
 	UPROPERTY(BlueprintReadOnly, Category = "State|Parameters")
-	TMap<FGameplayTag, FVector> VectorParametersByTag;
+	TMap<FGameplayTag, FVector> VectorParametersTag;
 
 #pragma endregion
 
@@ -501,7 +541,7 @@ public:
 
 	// 获取状态叠层数
 	UFUNCTION(BlueprintCallable, Category = "State|Stack")
-	int32 GetStackCount() const { return StackCount; }
+	int32 GetStackCount() const;
 
 	// 获取状态最大叠层数
 	UFUNCTION(BlueprintCallable, Category = "State|Stack")
@@ -519,33 +559,33 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "State|Stack")
 	void RemoveStack(int32 Count = 1);
 
-protected:
-	// 状态叠层数
-	UPROPERTY(BlueprintReadOnly, Category = "State|Stack")
-	int32 StackCount = 1;
-
 #pragma endregion
 
 
 #pragma region StateTree
 
 public:
-	// StateTree生命周期管理
+	// 初始化StateTree
 	UFUNCTION(BlueprintCallable, Category = "State|StateTree")
 	bool InitializeStateTree();
-	
+
+	// 开始执行StateTree
 	UFUNCTION(BlueprintCallable, Category = "State|StateTree")
 	void StartStateTree();
-	
+
+	// StateTree更新
 	UFUNCTION(BlueprintCallable, Category = "State|StateTree")
 	void TickStateTree(float DeltaTime);
-	
+
+	// 停止StateTree
 	UFUNCTION(BlueprintCallable, Category = "State|StateTree")
 	void StopStateTree();
 
+	// 暂停StateTree
 	UFUNCTION(BlueprintCallable, Category = "State|StateTree")
 	void PauseStateTree();
 
+	// 恢复StateTree
 	UFUNCTION(BlueprintCallable, Category = "State|StateTree")
 	void ResumeStateTree();
 	
@@ -553,30 +593,36 @@ public:
 	UFUNCTION(BlueprintPure, Category = "State|StateTree")
 	bool IsStateTreeRunning() const { return bStateTreeRunning; }
 
+	// StateTree暂停状态查询
 	UFUNCTION(BlueprintPure, Category = "State|StateTree")
 	bool IsStateTreePaused() const { return Stage == ETcsStateStage::SS_HangUp && !bStateTreeRunning; }
-	
+
+	// StateTree运行状态查询
 	UFUNCTION(BlueprintPure, Category = "State|StateTree")
 	EStateTreeRunStatus GetStateTreeRunStatus() const;
 	
-	// StateTree事件发送
+	// 向StateTree发送事件
 	UFUNCTION(BlueprintCallable, Category = "State|StateTree")
 	void SendStateTreeEvent(FGameplayTag EventTag, const FInstancedStruct& EventPayload);
 
 protected:
-	// StateTree上下文设置
+	// 设置StateTree上下文
 	virtual bool SetupStateTreeContext(FStateTreeExecutionContext& Context);
+
+	// 获取StateTree外部数据
 	virtual bool CollectExternalData(
 		const FStateTreeExecutionContext& Context,
 		const UStateTree* StateTree,
 		TArrayView<const FStateTreeExternalDataDesc> ExternalDataDescs,
 		TArrayView<FStateTreeDataView> OutDataViews);
 	
-	// StateTree运行状态
+	// StateTree是否在运行
 	bool bStateTreeRunning = false;
+
+	// StateTree运行状态
 	EStateTreeRunStatus CurrentStateTreeStatus = EStateTreeRunStatus::Unset;
 	
-	// 状态树数据
+	// 状态树实例数据
 	UPROPERTY()
 	FStateTreeInstanceData StateTreeInstanceData;
 

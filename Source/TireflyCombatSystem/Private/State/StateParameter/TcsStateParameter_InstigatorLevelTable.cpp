@@ -2,7 +2,7 @@
 
 #include "State/StateParameter/TcsStateParameter_InstigatorLevelTable.h"
 
-#include "TcsCombatEntityInterface.h"
+#include "TcsEntityInterface.h"
 
 
 
@@ -23,9 +23,9 @@ void UTcsStateParamParser_InstigatorLevelTable::Evaluate_Implementation(
 
 		// 获取施法者等级
 		int32 InstigatorLevel = -1;
-		if (Instigator->GetClass()->ImplementsInterface(UTcsCombatEntityInterface::StaticClass()))
+		if (Instigator->GetClass()->ImplementsInterface(UTcsEntityInterface::StaticClass()))
 		{
-			InstigatorLevel = ITcsCombatEntityInterface::Execute_GetCombatEntityLevel(Instigator);
+			InstigatorLevel = ITcsEntityInterface::Execute_GetCombatEntityLevel(Instigator);
 		}
 		
 		// 从曲线表中获取对应等级的值

@@ -3,9 +3,9 @@
 
 #include "Attribute/TcsAttributeManagerSubsystem.h"
 
-#include "TcsCombatEntityInterface.h"
-#include "TcsCombatSystemLibrary.h"
-#include "TcsCombatSystemLogChannels.h"
+#include "TcsEntityInterface.h"
+#include "TcsGenericLibrary.h"
+#include "TcsLogChannels.h"
 #include "Attribute/TcsAttribute.h"
 #include "Attribute/TcsAttributeComponent.h"
 #include "Attribute/AttrModExecution/TcsAttributeModifierExecution.h"
@@ -24,7 +24,7 @@ void UTcsAttributeManagerSubsystem::AddAttribute(
 		return;
 	}
 	
-	const UDataTable* AttributeDefTable = UTcsCombatSystemLibrary::GetAttributeDefTable();
+	const UDataTable* AttributeDefTable = UTcsGenericLibrary::GetAttributeDefTable();
 	if (!IsValid(AttributeDefTable))
 	{
 		UE_LOG(LogTcsAttribute, Error, TEXT("[%s] AttributeDefTable in TcsDevSettings is not valid"), *FString(__FUNCTION__));
@@ -53,7 +53,7 @@ void UTcsAttributeManagerSubsystem::AddAttributes(AActor* CombatEntity, const TA
 		return;
 	}
 	
-	const UDataTable* AttributeDefTable = UTcsCombatSystemLibrary::GetAttributeDefTable();
+	const UDataTable* AttributeDefTable = UTcsGenericLibrary::GetAttributeDefTable();
 	if (!IsValid(AttributeDefTable))
 	{
 		UE_LOG(LogTcsAttribute, Error, TEXT("[%s] AttributeDefTable in TcsDevSettings is not valid"), *FString(__FUNCTION__));
@@ -83,9 +83,9 @@ UTcsAttributeComponent* UTcsAttributeManagerSubsystem::GetAttributeComponent(con
 		return nullptr;
 	}
 
-	if (CombatEntity->Implements<UTcsCombatEntityInterface>())
+	if (CombatEntity->Implements<UTcsEntityInterface>())
 	{
-		return ITcsCombatEntityInterface::Execute_GetAttributeComponent(CombatEntity);
+		return ITcsEntityInterface::Execute_GetAttributeComponent(CombatEntity);
 	}
 
 	return CombatEntity->FindComponentByClass<UTcsAttributeComponent>();
@@ -96,7 +96,6 @@ bool UTcsAttributeManagerSubsystem::CreateAttributeModifier(
 	FName SourceName,
 	AActor* Instigator,
 	AActor* Target,
-	const TMap<FName, float>& Operands,
 	FTcsAttributeModifierInstance& OutModifierInst)
 {
 	if (!IsValid(Instigator) || !IsValid(Target))
@@ -105,7 +104,7 @@ bool UTcsAttributeManagerSubsystem::CreateAttributeModifier(
 		return false;
 	}
 	
-	UDataTable* AttributeModifierDefTable = UTcsCombatSystemLibrary::GetAttributeModifierDefTable();
+	UDataTable* AttributeModifierDefTable = UTcsGenericLibrary::GetAttributeModifierDefTable();
 	if (!IsValid(AttributeModifierDefTable))
 	{
 		UE_LOG(LogTcsAttribute, Error, TEXT("[%s] AttributeModifierDefTable in TcsDevSettings is not valid"), *FString(__FUNCTION__));
@@ -122,7 +121,66 @@ bool UTcsAttributeManagerSubsystem::CreateAttributeModifier(
 	}
 
 	// TODO: 验证Source是否有效
-	// TODO: 验证Operands是否正确
+
+	OutModifierInst = FTcsAttributeModifierInstance();
+	OutModifierInst.ModifierDef = *ModifierDef;
+	OutModifierInst.ModifierInstId = ++GlobalAttributeModifierInstanceIdMgr;
+	OutModifierInst.Instigator = Instigator;
+	OutModifierInst.Target = Target;
+	OutModifierInst.Operands = ModifierDef->Operands;
+	OutModifierInst.SourceName = SourceName;
+
+	return true;
+}
+
+bool UTcsAttributeManagerSubsystem::CreateAttributeModifierWithOperands(
+	FName ModifierId,
+	FName SourceName,
+	AActor* Instigator,
+	AActor* Target,
+	const TMap<FName, float>& Operands,
+	FTcsAttributeModifierInstance& OutModifierInst)
+{
+	if (!IsValid(Instigator) || !IsValid(Target))
+	{
+		UE_LOG(LogTcsAttribute, Error, TEXT("[%s] Instigator or Target is not valid"), *FString(__FUNCTION__));
+		return false;
+	}
+	
+	UDataTable* AttributeModifierDefTable = UTcsGenericLibrary::GetAttributeModifierDefTable();
+	if (!IsValid(AttributeModifierDefTable))
+	{
+		UE_LOG(LogTcsAttribute, Error, TEXT("[%s] AttributeModifierDefTable in TcsDevSettings is not valid"), *FString(__FUNCTION__));
+		return false;
+	}
+
+	FTcsAttributeModifierDefinition* ModifierDef = AttributeModifierDefTable->FindRow<FTcsAttributeModifierDefinition>(ModifierId, FString(__FUNCTION__));
+	if (!ModifierDef)
+	{
+		UE_LOG(LogTcsAttribute, Error, TEXT("[%s] AttributeModifierDefTable does not contain ModifierId %s"),
+			*FString(__FUNCTION__),
+			*ModifierId.ToString());
+		return false;
+	}
+
+	// TODO: 验证Source是否有效
+	
+	// 验证Operands是否正确
+	if (ModifierDef->Operands.IsEmpty())
+	{
+		UE_LOG(LogTcsAttribute, Error, TEXT("[%s] ModifierDef does not contain Operands"), *FString(__FUNCTION__));
+		return false;
+	}
+	for (const TPair<FName, float>& Operand : ModifierDef->Operands)
+	{
+		if (!Operands.Contains(Operand.Key))
+		{
+			UE_LOG(LogTcsAttribute, Error, TEXT("[%s] Operand %s is not found in Operands"),
+				*FString(__FUNCTION__),
+				*Operand.Key.ToString());
+			return false;
+		}
+	}
 
 	OutModifierInst = FTcsAttributeModifierInstance();
 	OutModifierInst.ModifierDef = *ModifierDef;
@@ -180,7 +238,7 @@ void UTcsAttributeManagerSubsystem::ApplyModifier(
 	// 再执行针对属性Base值的修改器
 	if (!ModifiersToApply.IsEmpty())
 	{
-		// 把以经营用过但有改变的属性修改器更新一下，并从待应用列表中移除
+		// 把已经用过但有改变的属性修改器更新一下，并从待应用列表中移除
 		for (FTcsAttributeModifierInstance& Modifier : AttributeComponent->AttributeModifiers)
 		{
 			if (ModifiersToApply.Contains(Modifier))

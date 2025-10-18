@@ -3,10 +3,10 @@
 
 #include "State/TcsStateComponent.h"
 
-#include "TcsCombatSystemLogChannels.h"
+#include "TcsLogChannels.h"
 #include "State/TcsState.h"
 #include "State/TcsStateManagerSubsystem.h"
-#include "TcsCombatSystemSettings.h"
+#include "TcsDeveloperSettings.h"
 #include "Engine/World.h"
 #include "Engine/DataTable.h"
 #include "StateTree.h"
@@ -91,19 +91,19 @@ void UTcsStateComponent::TickComponent(float DeltaTime, ELevelTick TickType, FAc
 		bool bShouldTick = false;
 		switch (SlotDefinition.DurationTickPolicy)
 		{
-		case ETcsDurationTickPolicy::DT_Always:
+		case ETcsDurationTickPolicy::DTP_Always:
 			bShouldTick = true;
 			break;
-		case ETcsDurationTickPolicy::DT_OnlyWhenGateOpen:
+		case ETcsDurationTickPolicy::DTP_OnlyWhenGateOpen:
 			bShouldTick = bGateOpen;
 			break;
-		case ETcsDurationTickPolicy::DT_ActiveOrGateOpen:
+		case ETcsDurationTickPolicy::DTP_ActiveOrGateOpen:
 			bShouldTick = bStateIsActive || bGateOpen;
 			break;
-		case ETcsDurationTickPolicy::DT_ActiveAndGateOpen:
+		case ETcsDurationTickPolicy::DTP_ActiveAndGateOpen:
 			bShouldTick = bStateIsActive && bGateOpen;
 			break;
-		case ETcsDurationTickPolicy::DT_ActiveOnly:
+		case ETcsDurationTickPolicy::DTP_ActiveOnly:
 		default:
 			bShouldTick = bStateIsActive;
 			break;
@@ -357,13 +357,6 @@ UTcsStateInstance* UTcsStateComponent::GetStateSlotCurrentState(FGameplayTag Slo
 	return GetHighestPriorityActiveState(SlotTag);
 }
 
-
-bool UTcsStateComponent::TryAssignStateToStateSlot(UTcsStateInstance* StateInstance, FGameplayTag SlotTag)
-{
-	// 向后兼容：调用新的智能分配方法
-	return AssignStateToStateSlot(StateInstance, SlotTag);
-}
-
 void UTcsStateComponent::RemoveStateFromStateSlot(UTcsStateInstance* StateInstance, FGameplayTag SlotTag)
 {
 	if (!IsValid(StateInstance))
@@ -538,15 +531,15 @@ void UTcsStateComponent::CleanupStateInstanceIndices(UTcsStateInstance* StateIns
 
 void UTcsStateComponent::InitializeStateSlots()
 {
-	const UTcsCombatSystemSettings* Settings = GetDefault<UTcsCombatSystemSettings>();
-	if (!Settings || !Settings->SlotConfigurationTable.IsValid())
+	const UTcsDeveloperSettings* Settings = GetDefault<UTcsDeveloperSettings>();
+	if (!Settings || !Settings->StateSlotDefTable.IsValid())
 	{
 		UE_LOG(LogTcsState, Log, TEXT("[%s] No slot configuration table specified, using default configurations"), 
 			*FString(__FUNCTION__));
 		return;
 	}
 	
-	UDataTable* ConfigTable = Settings->SlotConfigurationTable.LoadSynchronous();
+	UDataTable* ConfigTable = Settings->StateSlotDefTable.LoadSynchronous();
 	if (!ConfigTable)
 	{
 		UE_LOG(LogTcsState, Warning, TEXT("[%s] Failed to load slot configuration table"), *FString(__FUNCTION__));
@@ -1089,7 +1082,7 @@ void UTcsStateComponent::UpdateStateSlotActivation(FGameplayTag SlotTag)
 	// Gate关闭时的处理
 	if (!Slot->bIsGateOpen)
 	{
-		const bool bPauseOnGateClose = SlotDefinition.GateCloseBehavior == ETcsSlotGateCloseBehavior::GCB_Pause;
+		const bool bPauseOnGateClose = SlotDefinition.GateCloseBehavior == ETcsStateSlotGateClosePolicy::SSGCP_Pause;
 
 		for (UTcsStateInstance* State : Slot->States)
 		{

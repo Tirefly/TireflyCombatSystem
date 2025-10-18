@@ -3,7 +3,7 @@
 
 #include "State/StateMerger/TcsStateMerger_Stack.h"
 
-#include "TcsCombatSystemLogChannels.h"
+#include "TcsLogChannels.h"
 #include "State/TcsState.h"
 
 

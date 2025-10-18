@@ -5,18 +5,18 @@
 #include "CoreMinimal.h"
 #include "UObject/Interface.h"
 #include "GameplayTagContainer.h"
-#include "TcsCombatEntityInterface.generated.h"
+#include "TcsEntityInterface.generated.h"
 
 
 // This class does not need to be modified.
 UINTERFACE(Blueprintable)
-class UTcsCombatEntityInterface : public UInterface
+class UTcsEntityInterface : public UInterface
 {
 	GENERATED_BODY()
 };
 
 
-class TIREFLYCOMBATSYSTEM_API ITcsCombatEntityInterface
+class TIREFLYCOMBATSYSTEM_API ITcsEntityInterface
 {
 	GENERATED_BODY()
 

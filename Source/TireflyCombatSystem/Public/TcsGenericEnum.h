@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "TcsCombatSystemEnum.generated.h"
+#include "TcsGenericEnum.generated.h"
 
 
 

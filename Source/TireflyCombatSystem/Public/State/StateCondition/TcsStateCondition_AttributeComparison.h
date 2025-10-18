@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "State/StateCondition/TcsStateCondition.h"
-#include "TcsCombatSystemEnum.h"
+#include "TcsGenericEnum.h"
 #include "TcsStateCondition_AttributeComparison.generated.h"
 
 

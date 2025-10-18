@@ -46,9 +46,37 @@ protected:
 #pragma region AttributeModifier
 
 public:
-	// 创建属性修改器实例
+	/**
+	 * 创建属性修改器实例
+	 * 
+	 * @param ModifierId 属性修改器Id，通过TcsCombatSystemLibrary.GetAttributeModifierIds获取
+	 * @param SourceName 属性修改器来源，可以是技能Id、效果Id等
+	 * @param Instigator 属性修改器发起者，应该是一个战斗实体
+	 * @param Target 属性修改器目标，应该也是一个战斗实体
+	 * @param OutModifierInst 最终创建的属性修改器实例
+	 * @return 是否创建成功
+	 */
 	UFUNCTION(BlueprintCallable, Category = "TcsCombatSystem|Attribute")
 	bool CreateAttributeModifier(
+		UPARAM(Meta = (GetParamOptions = "TcsCombatSystemLibrary.GetAttributeModifierIds"))FName ModifierId,
+		FName SourceName,
+		AActor* Instigator,
+		AActor* Target,
+		FTcsAttributeModifierInstance& OutModifierInst);
+	
+	/**
+	 * 创建属性修改器实例，并且设置属性修改器的操作数
+	 * 
+	 * @param ModifierId 属性修改器Id，通过TcsCombatSystemLibrary.GetAttributeModifierIds获取
+	 * @param SourceName 属性修改器来源，可以是技能Id、效果Id等
+	 * @param Instigator 属性修改器发起者，应该是一个战斗实体
+	 * @param Target 属性修改器目标，应该也是一个战斗实体
+	 * @param Operands 属性修改器操作数
+	 * @param OutModifierInst 最终创建的属性修改器实例
+	 * @return 是否创建成功
+	 */
+	UFUNCTION(BlueprintCallable, Category = "TcsCombatSystem|Attribute")
+	bool CreateAttributeModifierWithOperands(
 		UPARAM(Meta = (GetParamOptions = "TcsCombatSystemLibrary.GetAttributeModifierIds"))FName ModifierId,
 		FName SourceName,
 		AActor* Instigator,

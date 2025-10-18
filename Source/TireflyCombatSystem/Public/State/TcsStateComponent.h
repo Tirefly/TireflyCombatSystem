@@ -17,7 +17,15 @@ class UTcsStateInstance;
 class UTcsStateManagerSubsystem;
 struct FStateTreeStateHandle;
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams(FTcsOnStateStageChangedSignature, UTcsStateComponent*, StateComponent, UTcsStateInstance*, StateInstance, ETcsStateStage, PreviousStage, ETcsStateStage, NewStage);
+
+
+// 状态阶段变更事件签名
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams(
+	FTcsOnStateStageChangedSignature,
+	UTcsStateComponent*, StateComponent,
+	UTcsStateInstance*, StateInstance,
+	ETcsStateStage, PreviousStage,
+	ETcsStateStage, NewStage);
 
 // 状态应用成功事件签名
 // (应用到的Actor, 状态定义ID, 创建的状态实例, 目标槽位, 应用后的状态阶段)
@@ -27,8 +35,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_FiveParams(
 	FName, StateDefId,
 	UTcsStateInstance*, CreatedStateInstance,
 	FGameplayTag, TargetSlot,
-	ETcsStateStage, AppliedStage
-);
+	ETcsStateStage, AppliedStage);
 
 // 状态应用失败事件签名
 // (应用到的Actor, 状态定义ID, 失败原因枚举, 失败详情消息)
@@ -106,7 +113,7 @@ public:
 
 
 
-UCLASS(ClassGroup = (TcsCombatSystem), Meta = (BlueprintSpawnableComponent, DisplayName = "Tirefly State Comp"))
+UCLASS(ClassGroup = (TcsCombatSystem), Meta = (BlueprintSpawnableComponent, DisplayName = "Tirefly State Cmp"))
 class TIREFLYCOMBATSYSTEM_API UTcsStateComponent : public UStateTreeComponent
 {
     GENERATED_BODY()
@@ -155,13 +162,15 @@ public:
 	UFUNCTION(BlueprintPure, Category = "State Management")
 	TArray<UTcsStateInstance*> GetStatesByTags(const FGameplayTagContainer& Tags) const;
 
-public:
+	// 通知阶段发生变化（内部与外部均可触发）
+	void NotifyStateStageChanged(
+		UTcsStateInstance* StateInstance,
+		ETcsStateStage PreviousStage,
+		ETcsStateStage NewStage);
+	
 	// 状态阶段变更事件（槽位联动）
 	UPROPERTY(BlueprintAssignable, Category = "State|Events")
 	FTcsOnStateStageChangedSignature OnStateStageChanged;
-
-	// 通知阶段发生变化（内部与外部均可触发）
-	void NotifyStateStageChanged(UTcsStateInstance* StateInstance, ETcsStateStage PreviousStage, ETcsStateStage NewStage);
 
 	/**
 	 * 状态应用成功事件
@@ -201,31 +210,29 @@ protected:
 #pragma region StateSlot
 
 public:
-	// StateTree状态槽管理接口
+	// 状态槽是否被占用
 	UFUNCTION(BlueprintPure, Category = "State Slot")
 	bool IsStateSlotOccupied(FGameplayTag SlotTag) const;
 
+	// 获取状态槽当前状态
 	UFUNCTION(BlueprintPure, Category = "State Slot")
 	UTcsStateInstance* GetStateSlotCurrentState(FGameplayTag SlotTag) const;
 
+	// 获取状态槽当前所有激活状态
 	UFUNCTION(BlueprintPure, Category = "State Slot")
 	TArray<UTcsStateInstance*> GetActiveStatesInStateSlot(FGameplayTag SlotTag) const;
 
-	// 状态槽管理
+	// 尝试分配状态到状态槽位
 	UFUNCTION(BlueprintCallable, Category = "State Slot")
-	bool TryAssignStateToStateSlot(UTcsStateInstance* StateInstance, FGameplayTag SlotTag);
+	bool AssignStateToStateSlot(UTcsStateInstance* StateInstance, FGameplayTag SlotTag);
 
+	// 从状态槽位中移除状态
 	UFUNCTION(BlueprintCallable, Category = "State Slot") 
 	void RemoveStateFromStateSlot(UTcsStateInstance* StateInstance, FGameplayTag SlotTag);
 
+	// 清空状态槽位
 	UFUNCTION(BlueprintCallable, Category = "State Slot")
 	void ClearStateSlot(FGameplayTag SlotTag);
-
-	// === 槽位配置管理接口 ===
-	
-	// 智能状态分配（新版本主接口）
-	UFUNCTION(BlueprintCallable, Category = "State Slot")
-	bool AssignStateToStateSlot(UTcsStateInstance* StateInstance, FGameplayTag SlotTag);
 	
 	// 获取槽位中最高优先级的激活状态
 	UFUNCTION(BlueprintPure, Category = "State Slot")
@@ -247,7 +254,12 @@ public:
     UFUNCTION(BlueprintPure, Category = "State Slot")
     FTcsStateSlotDefinition GetStateSlotDefinition(FGameplayTag SlotTag) const;
 
-    // ===== StateTree Integration =====
+#pragma endregion
+
+
+#pragma region StateTreeIntegration
+
+public:
     // 构建 槽位 <-> StateTree 状态 的映射（基于配置表 StateTreeStateName）
     UFUNCTION(BlueprintCallable, Category = "StateTree Integration")
     void BuildStateSlotMappings();
@@ -256,15 +268,17 @@ public:
     UFUNCTION(BlueprintPure, Category = "StateTree Integration")
     bool IsStateTreeSlotActive(FGameplayTag SlotTag) const;
 
-    // 槽位 Gate 开关（用于顶层StateTree联动）
+	// 槽位Gate开关
     UFUNCTION(BlueprintCallable, Category = "StateTree Integration")
     void SetSlotGateOpen(FGameplayTag SlotTag, bool bOpen);
 
+	// 槽位Gate开关状态
     UFUNCTION(BlueprintPure, Category = "StateTree Integration")
     bool IsSlotGateOpen(FGameplayTag SlotTag) const;
 
-	// 状态实例与槽位同步
+	// 同步状态实例到槽位
 	void SyncStateInstanceToStateSlot(UTcsStateInstance* StateInstance);
+	// 从槽位中移除状态实例
 	void RemoveStateInstanceFromStateSlot(UTcsStateInstance* StateInstance);
 
 protected:
@@ -273,15 +287,17 @@ protected:
     void CheckAndUpdateStateTreeSlots();
 
     // 获取当前激活的StateTree状态名列表
-    // 注意: 需要根据UE 5.6 StateTree API实现
     TArray<FName> GetCurrentActiveStateTreeStates() const;
 
     // 缓存上一帧的StateTree激活状态名,用于检测变化
     TArray<FName> CachedActiveStateNames;
 
-public:
-	// ===== StateTree Event-Driven Integration (Task 1) =====
+#pragma endregion
 
+
+#pragma region StateTreeState
+
+public:
 	/**
 	 * 由TcsStateChangeNotifyTask调用，通知StateTree状态变更
 	 * @param Context 执行上下文，包含当前激活状态信息
@@ -317,8 +333,9 @@ protected:
     UPROPERTY()
     TMap<FGameplayTag, FTcsStateSlotDefinition> StateSlotDefinitions;
 
-    // 槽位到 StateTree 状态句柄的映射，以及反向映射
+    // 槽位到 StateTree 状态句柄的映射
     TMap<FGameplayTag, struct FStateTreeStateHandle> SlotToStateHandleMap;
+	// StateTree状态句柄 到 槽位 的映射
     TMap<struct FStateTreeStateHandle, FGameplayTag> StateHandleToSlotMap;
 
 protected:

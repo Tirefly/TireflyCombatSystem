@@ -3,7 +3,7 @@
 
 #include "State/StateCondition/TcsStateCondition_ParameterBased.h"
 
-#include "TcsCombatSystemLogChannels.h"
+#include "TcsLogChannels.h"
 #include "State/TcsState.h"
 
 

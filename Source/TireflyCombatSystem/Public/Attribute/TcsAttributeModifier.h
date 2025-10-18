@@ -33,7 +33,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Definition")
 	FGameplayTagContainer Tags;
 
-	// 修改器优先级（值越小，优先级越高，最高优先级为0）
+	// 修改器优先级（值越小，优先级越高，越优先执行，最高优先级为0）
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Modifier")
 	int32 Priority = 0;
 
@@ -48,7 +48,7 @@ public:
 
 	// 修改器操作数
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Operation")
-	TArray<FName> OperandNames = { TEXT("Magnitude") };
+	TMap<FName, float> Operands;
 
 	// 修改器执行器
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Operation")
@@ -57,6 +57,11 @@ public:
 	// 修改器合并器
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Operation")
 	TSubclassOf<class UTcsAttributeModifierMerger> MergerType;
+
+	FTcsAttributeModifierDefinition()
+	{
+		Operands.Add(FName("Magnitude"), 0.f);
+	}
 };
 
 

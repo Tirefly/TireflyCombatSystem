@@ -4,8 +4,8 @@
 #include "State/StateCondition/TcsStateCondition_AttributeComparison.h"
 #include "State/TcsState.h"
 #include "Attribute/TcsAttributeComponent.h"
-#include "TcsCombatEntityInterface.h"
-#include "TcsCombatSystemLogChannels.h"
+#include "TcsEntityInterface.h"
+#include "TcsLogChannels.h"
 
 
 bool UTcsStateCondition_AttributeComparison::CheckCondition_Implementation(
@@ -21,7 +21,7 @@ bool UTcsStateCondition_AttributeComparison::CheckCondition_Implementation(
 	}
 
 	// 根据检查目标获取对应的战斗实体
-	const ITcsCombatEntityInterface* CombatEntity = nullptr;
+	const ITcsEntityInterface* CombatEntity = nullptr;
 	
 	switch (Config->CheckTarget)
 	{
@@ -29,7 +29,7 @@ bool UTcsStateCondition_AttributeComparison::CheckCondition_Implementation(
 		{
 			if (AActor* Owner = StateInstance->GetOwner())
 			{
-				CombatEntity = Cast<ITcsCombatEntityInterface>(Owner);
+				CombatEntity = Cast<ITcsEntityInterface>(Owner);
 			}
 			break;
 		}
@@ -37,7 +37,7 @@ bool UTcsStateCondition_AttributeComparison::CheckCondition_Implementation(
 		{
 			if (AActor* Instigator = StateInstance->GetInstigator())
 			{
-				CombatEntity = Cast<ITcsCombatEntityInterface>(Instigator);
+				CombatEntity = Cast<ITcsEntityInterface>(Instigator);
 			}
 			break;
 		}

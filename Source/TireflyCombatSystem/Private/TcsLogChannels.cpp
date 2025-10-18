@@ -1,7 +1,7 @@
 // Copyright Tirefly. All Rights Reserved.
 
 
-#include "TcsCombatSystemLogChannels.h"
+#include "TcsLogChannels.h"
 
 
 

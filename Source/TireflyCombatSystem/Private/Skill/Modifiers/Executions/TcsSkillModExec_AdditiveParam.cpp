@@ -3,7 +3,7 @@
 #include "Skill/Modifiers/TcsSkillModifierInstance.h"
 #include "Skill/Modifiers/TcsSkillModifierParams.h"
 #include "Skill/Modifiers/TcsSkillModifierEffect.h"
-#include "TcsCombatSystemLogChannels.h"
+#include "TcsLogChannels.h"
 
 void UTcsSkillModExec_AdditiveParam::ExecuteToEffect_Implementation(
 	UTcsSkillInstance* SkillInstance,
