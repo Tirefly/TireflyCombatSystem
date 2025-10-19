@@ -4,8 +4,7 @@
 #include "State/TcsState.h"
 
 #include "State/TcsStateComponent.h"
-#include "Attribute/TcsAttributeComponent.h"
-#include "Skill/TcsSkillComponent.h"
+#include "StateTree/TcsStateTreeSchema_StateInstance.h"
 #include "StateTree.h"
 #include "StateTreeExecutionContext.h"
 #include "TcsEntityInterface.h"
@@ -13,7 +12,6 @@
 #include "TcsLogChannels.h"
 #include "GameFramework/Actor.h"
 #include "Engine/World.h"
-
 
 
 UTcsStateInstance::UTcsStateInstance()
@@ -48,9 +46,11 @@ void UTcsStateInstance::Initialize(
 		UE_LOG(LogTcsState, Error, TEXT("[%s] Owner is invalid"), *FString(__FUNCTION__));
 		return;
 	}
+	OwnerController = Owner->GetInstigatorController();
 	OwnerStateCmp = ITcsEntityInterface::Execute_GetStateComponent(InOwner);
 	OwnerAttributeCmp = ITcsEntityInterface::Execute_GetAttributeComponent(InOwner);
 	OwnerSkillCmp = ITcsEntityInterface::Execute_GetSkillComponent(InOwner);
+	
 	// 初始化状态Instigator和其状态组件、属性组件、技能组件
 	Instigator = InInstigator;
 	if (!IsValid(InInstigator) || !InInstigator->Implements<UTcsEntityInterface>())
@@ -58,6 +58,7 @@ void UTcsStateInstance::Initialize(
 		UE_LOG(LogTcsState, Error, TEXT("[%s] Instigator is invalid"), *FString(__FUNCTION__));
 		return;
 	}
+	InstigatorController = Instigator->GetInstigatorController();
 	InstigatorStateCmp = ITcsEntityInterface::Execute_GetStateComponent(InInstigator);
 	InstigatorAttributeCmp = ITcsEntityInterface::Execute_GetAttributeComponent(InInstigator);
 	InstigatorSkillCmp = ITcsEntityInterface::Execute_GetSkillComponent(InInstigator);
@@ -396,7 +397,7 @@ void UTcsStateInstance::StartStateTree()
 	FStateTreeExecutionContext Context(*this, *StateTree, StateTreeInstanceData);
 
 	// 设置上下文需求
-	if (!SetupStateTreeContext(Context))
+	if (!SetContextRequirements(Context))
 	{
 		UE_LOG(LogTemp, Error, TEXT("[%s] Failed to set StateTree context for StateInstance: %s"),
 			*FString(__FUNCTION__),
@@ -444,7 +445,7 @@ void UTcsStateInstance::TickStateTree(float DeltaTime)
 	FStateTreeExecutionContext Context(*this, *StateTree, StateTreeInstanceData);
 
 	// 设置上下文需求
-	if (!SetupStateTreeContext(Context))
+	if (!SetContextRequirements(Context))
 	{
 		UE_LOG(LogTemp, Error, TEXT("Failed to set StateTree context during tick for StateInstance: %s"), *GetStateDefId().ToString());
 		StopStateTree();
@@ -503,7 +504,7 @@ void UTcsStateInstance::StopStateTree()
 	FStateTreeExecutionContext Context(*this, *StateTree, StateTreeInstanceData);
 
 	// 设置上下文需求（即使是停止也需要有效的上下文）
-	if (SetupStateTreeContext(Context))
+	if (SetContextRequirements(Context))
 	{
 		// 停止StateTree
 		CurrentStateTreeStatus = Context.Stop(EStateTreeRunStatus::Stopped);
@@ -585,14 +586,14 @@ void UTcsStateInstance::SendStateTreeEvent(FGameplayTag EventTag, const FInstanc
 	FStateTreeExecutionContext Context(*this, *StateTree, StateTreeInstanceData);
 
 	// 设置上下文需求
-	if (SetupStateTreeContext(Context))
+	if (SetContextRequirements(Context))
 	{
 		// 发送事件
 		Context.SendEvent(EventTag, FConstStructView(EventPayload));
 	}
 }
 
-bool UTcsStateInstance::SetupStateTreeContext(FStateTreeExecutionContext& Context)
+bool UTcsStateInstance::SetContextRequirements(FStateTreeExecutionContext& Context)
 {
 	if (!Context.IsValid())
 	{
@@ -607,28 +608,8 @@ bool UTcsStateInstance::SetupStateTreeContext(FStateTreeExecutionContext& Contex
 			&UTcsStateInstance::CollectExternalData
 		)
 	);
-
-	// 设置上下文数据
-	if (AActor* OwnerActor = Owner.Get())
-	{
-		Context.SetContextDataByName(TEXT("Owner"), FStateTreeDataView(OwnerActor));
-	}
-
-	if (AActor* InstigatorActor = Instigator.Get())
-	{
-		Context.SetContextDataByName(TEXT("Instigator"), FStateTreeDataView(InstigatorActor));
-	}
-
-	Context.SetContextDataByName(TEXT("StateInstance"), FStateTreeDataView(this));
-
-	// 验证所有上下文数据是否有效
-	bool bValid = Context.AreContextDataViewsValid();
-	if (!bValid)
-	{
-		UE_LOG(LogTemp, Error, TEXT("StateTree context data views are not valid"));
-	}
-
-	return bValid;
+	
+	return UTcsStateTreeSchema_StateInstance::SetContextRequirements(*this, Context);
 }
 
 bool UTcsStateInstance::CollectExternalData(
@@ -637,139 +618,12 @@ bool UTcsStateInstance::CollectExternalData(
 	TArrayView<const FStateTreeExternalDataDesc> ExternalDataDescs, 
 	TArrayView<FStateTreeDataView> OutDataViews)
 {
-	check(ExternalDataDescs.Num() == OutDataViews.Num());
-
-	// 获取World引用
-	UWorld* World = GetWorld();
-	if (!World)
-	{
-		UE_LOG(LogTcsState, Error, TEXT("[%s] Failed to get World for StateInstance's StateTree external data: %s"),
-			*FString(__FUNCTION__),
-			*GetStateDefId().ToString());
-		return false;
-	}
-
-	// 获取Owner引用
-	AActor* OwnerActor = Owner.Get();
-	AActor* InstigatorActor = Instigator.Get();
-	if (!OwnerActor || !InstigatorActor)
-	{
-		UE_LOG(LogTcsState, Error, TEXT("[%s] Failed to get Owner or Instigator for StateInstance's StateTree external data: %s"),
-			*FString(__FUNCTION__),
-			*GetStateDefId().ToString());
-		return false;
-	}
-	if (!OwnerActor->Implements<UTcsEntityInterface>() || !InstigatorActor->Implements<UTcsEntityInterface>())
-	{
-		UE_LOG(LogTcsState, Error, TEXT("[%s] Owner or Instigator does not implement TcsEntityInterface for StateInstance's StateTree external data: %s"),
-			*FString(__FUNCTION__),
-			*GetStateDefId().ToString());
-		return false;
-	}
-
-	// 遍历所有外部数据需求
-	int32 IssuesFoundCounter = 0;
-	for (int32 Index = 0; Index < ExternalDataDescs.Num(); Index++)
-	{
-		const FStateTreeExternalDataDesc& DataDesc = ExternalDataDescs[Index];
-		if (DataDesc.Struct != nullptr)
-		{
-			if (DataDesc.Struct->IsChildOf(UWorldSubsystem::StaticClass()))
-			{
-				UWorldSubsystem* Subsystem = World->GetSubsystemBase(Cast<UClass>(const_cast<UStruct*>(DataDesc.Struct.Get())));
-				OutDataViews[Index] = FStateTreeDataView(Subsystem);
-				UE_CVLOG(Subsystem == nullptr, this, LogTcsState, Error, TEXT("[%s] StateTree %s: Could not find required subsystem %s"),
-					*FString(__FUNCTION__),
-					*GetNameSafe(Context.GetStateTree()),
-					*GetNameSafe(DataDesc.Struct));
-				IssuesFoundCounter += Subsystem != nullptr ? 0 : 1;
-			}
-			else if (DataDesc.Struct->IsChildOf(UGameInstanceSubsystem::StaticClass()))
-			{
-				UGameInstance* GameInstance = World->GetGameInstance();
-				OutDataViews[Index] = FStateTreeDataView(GameInstance);
-				UE_CVLOG(GameInstance == nullptr, this, LogTcsState, Error, TEXT("[%s] StateTree %s: Could not find required game instance"),
-					*FString(__FUNCTION__),
-					*GetNameSafe(Context.GetStateTree()));
-				IssuesFoundCounter += GameInstance != nullptr ? 0 : 1;
-			}
-			else if (DataDesc.Struct->IsChildOf(AActor::StaticClass()))
-			{
-				// 根据名称提供Actor数据
-				if (DataDesc.Name == TEXT("Owner") && OwnerActor)
-				{
-					OutDataViews[Index] = FStateTreeDataView(OwnerActor);
-				}
-				else if (DataDesc.Name == TEXT("Instigator") && InstigatorActor)
-				{
-					OutDataViews[Index] = FStateTreeDataView(InstigatorActor);
-				}
-			}
-			else if (DataDesc.Struct->IsChildOf(UTcsStateComponent::StaticClass()))
-			{
-				if (DataDesc.Name == TEXT("OwnerStateCmp"))
-				{
-					OutDataViews[Index] = OwnerStateCmp.Get();
-					UE_CVLOG(OwnerStateCmp == nullptr, this, LogTcsState, Error, TEXT("[%s] StateTree %s: Could not find required owner state component"),
-						*FString(__FUNCTION__),
-						*GetNameSafe(Context.GetStateTree()));
-					IssuesFoundCounter += OwnerStateCmp != nullptr ? 0 : 1;
-				}
-				else if (DataDesc.Name == TEXT("InstigatorStateCmp"))
-				{
-					OutDataViews[Index] = InstigatorStateCmp.Get();
-					UE_CVLOG(InstigatorStateCmp == nullptr, this, LogTcsState, Error, TEXT("[%s] StateTree %s: Could not find required instigator state component"),
-						*FString(__FUNCTION__),
-						*GetNameSafe(Context.GetStateTree()));
-					IssuesFoundCounter += InstigatorStateCmp != nullptr ? 0 : 1;
-				}
-			}
-			else if (DataDesc.Struct->IsChildOf(UTcsAttributeComponent::StaticClass()))
-			{
-				if (DataDesc.Name == TEXT("OwnerAttributeCmp"))
-				{
-					OutDataViews[Index] = OwnerAttributeCmp.Get();
-					UE_CVLOG(OwnerAttributeCmp == nullptr, this, LogTcsState, Error, TEXT("[%s] StateTree %s: Could not find required owner attribute component"),
-						*FString(__FUNCTION__),
-						*GetNameSafe(Context.GetStateTree()));
-					IssuesFoundCounter += OwnerAttributeCmp != nullptr ? 0 : 1;
-				}
-				else if (DataDesc.Name == TEXT("InstigatorAttributeCmp"))
-				{
-					OutDataViews[Index] = InstigatorAttributeCmp.Get();
-					UE_CVLOG(InstigatorAttributeCmp == nullptr, this, LogTcsState, Error, TEXT("[%s] StateTree %s: Could not find required instigator attribute component"),
-						*FString(__FUNCTION__),
-						*GetNameSafe(Context.GetStateTree()));
-					IssuesFoundCounter += InstigatorAttributeCmp != nullptr ? 0 : 1;
-				}
-			}
-			else if (DataDesc.Struct->IsChildOf(UTcsSkillComponent::StaticClass()))
-			{
-				if (DataDesc.Name == TEXT("OwnerSkillCmp"))
-				{
-					OutDataViews[Index] = OwnerSkillCmp.Get();
-					UE_CVLOG(OwnerSkillCmp == nullptr, this, LogTcsState, Error, TEXT("[%s] StateTree %s: Could not find required owner Skill component"),
-						*FString(__FUNCTION__),
-						*GetNameSafe(Context.GetStateTree()));
-					IssuesFoundCounter += OwnerSkillCmp != nullptr ? 0 : 1;
-				}
-				else if (DataDesc.Name == TEXT("InstigatorSkillCmp"))
-				{
-					OutDataViews[Index] = InstigatorSkillCmp.Get();
-					UE_CVLOG(InstigatorSkillCmp == nullptr, this, LogTcsState, Error, TEXT("[%s] StateTree %s: Could not find required instigator skill component"),
-						*FString(__FUNCTION__),
-						*GetNameSafe(Context.GetStateTree()));
-					IssuesFoundCounter += InstigatorSkillCmp != nullptr ? 0 : 1;
-				}
-			}
-			else if (DataDesc.Struct->IsChildOf(UTcsStateInstance::StaticClass()))
-			{
-				OutDataViews[Index] = this;
-			}
-		}
-	}
-
-	return IssuesFoundCounter == 0;
+	return UTcsStateTreeSchema_StateInstance::CollectExternalData(
+		Context,
+		StateTree,
+		this,
+		ExternalDataDescs,
+		OutDataViews);
 }
 
 

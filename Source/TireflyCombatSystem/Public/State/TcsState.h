@@ -346,17 +346,9 @@ protected:
 #pragma endregion
 
 
-#pragma region Runtime
+#pragma region Level
 
 public:
-	// 获取状态实例的拥有者
-	UFUNCTION(BlueprintCallable, Category = "State|Runtime")
-	AActor* GetOwner() const { return Owner.Get(); }
-
-	// 获取状态实例的发起者
-	UFUNCTION(BlueprintCallable, Category = "State|Runtime")
-	AActor* GetInstigator() const { return Instigator.Get(); }
-
 	// 获取状态等级
 	UFUNCTION(BlueprintCallable, Category = "State|Runtime")
 	int32 GetLevel() const { return Level; }
@@ -366,9 +358,54 @@ public:
 	void SetLevel(int32 InLevel);
 
 protected:
+	// 状态等级
+	UPROPERTY(BlueprintReadOnly, Category = "State|Runtime")
+	int32 Level = -1;
+
+#pragma endregion
+
+
+#pragma region ObjectRef
+
+public:
+	UFUNCTION(BlueprintCallable, Category = "State|Runtime")
+	AActor* GetOwner() const { return Owner.Get(); }
+
+	UFUNCTION(BlueprintCallable, Category = "State|Runtime")
+	AController* GetOwnerController() const { return OwnerController.Get(); }
+
+	UFUNCTION(BlueprintCallable, Category = "State|Runtime")
+	UTcsStateComponent* GetOwnerStateComponent() const { return OwnerStateCmp.Get(); }
+
+	UFUNCTION(BlueprintCallable, Category = "State|Runtime")
+	UTcsAttributeComponent* GetOwnerAttributeComponent() const { return OwnerAttributeCmp.Get(); }
+
+	UFUNCTION(BlueprintCallable, Category = "State|Runtime")
+	UTcsSkillComponent* GetOwnerSkillComponent() const { return OwnerSkillCmp.Get(); }
+
+	UFUNCTION(BlueprintCallable, Category = "State|Runtime")
+	AActor* GetInstigator() const { return Instigator.Get(); }
+
+	UFUNCTION(BlueprintCallable, Category = "State|Runtime")
+	AController* GetInstigatorController() const { return InstigatorController.Get(); }
+
+	UFUNCTION(BlueprintCallable, Category = "State|Runtime")
+	UTcsStateComponent* GetInstigatorStateComponent() const { return InstigatorStateCmp.Get(); }
+
+	UFUNCTION(BlueprintCallable, Category = "State|Runtime")
+	UTcsAttributeComponent* GetInstigatorAttributeComponent() const { return InstigatorAttributeCmp.Get(); }
+
+	UFUNCTION(BlueprintCallable, Category = "State|Runtime")
+	UTcsSkillComponent* GetInstigatorSkillComponent() const { return InstigatorSkillCmp.Get(); }
+
+protected:
 	// 状态实例拥有者
 	UPROPERTY(BlueprintReadOnly, Category = "State|Runtime")
 	TWeakObjectPtr<AActor> Owner;
+
+	// 状态实例拥有者
+	UPROPERTY(BlueprintReadOnly, Category = "State|Runtime")
+	TWeakObjectPtr<AController> OwnerController;
 
 	// 状态实例拥有者的状态组件
 	UPROPERTY(BlueprintReadOnly, Category = "State|Runtime")
@@ -386,6 +423,10 @@ protected:
 	UPROPERTY(BlueprintReadOnly, Category = "State|Runtime")
 	TWeakObjectPtr<AActor> Instigator;
 
+	// 状态实例的发起者
+	UPROPERTY(BlueprintReadOnly, Category = "State|Runtime")
+	TWeakObjectPtr<AController> InstigatorController;
+
 	// 状态实例发起者的状态组件
 	UPROPERTY(BlueprintReadOnly, Category = "State|Runtime")
 	TWeakObjectPtr<UTcsStateComponent> InstigatorStateCmp;
@@ -397,10 +438,6 @@ protected:
 	// 状态实例发起者的技能组件
 	UPROPERTY(BlueprintReadOnly, Category = "State|Runtime")
 	TWeakObjectPtr<UTcsSkillComponent> InstigatorSkillCmp;
-
-	// 状态等级
-	UPROPERTY(BlueprintReadOnly, Category = "State|Runtime")
-	int32 Level = -1;
 
 #pragma endregion
 
@@ -607,7 +644,7 @@ public:
 
 protected:
 	// 设置StateTree上下文
-	virtual bool SetupStateTreeContext(FStateTreeExecutionContext& Context);
+	virtual bool SetContextRequirements(FStateTreeExecutionContext& Context);
 
 	// 获取StateTree外部数据
 	virtual bool CollectExternalData(
