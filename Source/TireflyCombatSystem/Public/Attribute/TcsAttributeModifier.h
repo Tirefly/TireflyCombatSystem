@@ -38,7 +38,7 @@ public:
 	int32 Priority = 0;
 
 	// 修改器要修改的属性
-	UPROPERTY(Meta = (GetOptions = "TcsCombatSystemLibrary.GetAttributeNames"),
+	UPROPERTY(Meta = (GetOptions = "TcsGenericLibrary.GetAttributeNames"),
 		EditAnywhere, BlueprintReadOnly, Category = "Modifier")
 	FName AttributeName = NAME_None;
 

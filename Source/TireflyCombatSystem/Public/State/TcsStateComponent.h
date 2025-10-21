@@ -113,7 +113,7 @@ public:
 
 
 
-UCLASS(ClassGroup = (TcsCombatSystem), Meta = (BlueprintSpawnableComponent, DisplayName = "Tirefly State Cmp"))
+UCLASS(ClassGroup = (TireflyCombatSystem), Meta = (BlueprintSpawnableComponent, DisplayName = "Tirefly State Cmp"))
 class TIREFLYCOMBATSYSTEM_API UTcsStateComponent : public UStateTreeComponent
 {
     GENERATED_BODY()

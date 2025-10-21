@@ -3,15 +3,15 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "State/StateParameter/TcsStateParameter.h"
+#include "State/StateParameter/TcsStateNumericParameter.h"
 #include "Engine/CurveTable.h"
-#include "TcsStateParameter_InstigatorLevelTable.generated.h"
+#include "TcsStateNumericParameter_StateLevelTable.generated.h"
 
 
 
-// 状态参数值结构体：基于施法者等级的数值表
-USTRUCT(BlueprintType)
-struct TIREFLYCOMBATSYSTEM_API FTcsStateParam_InstigatorLevelTable
+// 状态参数值结构体：基于状态等级的数值表
+USTRUCT(BlueprintType, DisplayName = "Numeric: State Level Table")
+struct TIREFLYCOMBATSYSTEM_API FTcsStateNumericParam_StateLevelTable
 {
 	GENERATED_BODY()
 
@@ -27,9 +27,9 @@ public:
 
 
 
-// 状态参数值解析器 - 基于施法者等级的数值表
-UCLASS()
-class TIREFLYCOMBATSYSTEM_API UTcsStateParamParser_InstigatorLevelTable : public UTcsStateParamEvaluator
+// 状态参数值解析器 - 基于状态等级的数值表
+UCLASS(DisplayName = "Numeric Evaluator: State Level Table")
+class TIREFLYCOMBATSYSTEM_API UTcsStateNumericParamEvaluator_StateLevelTable : public UTcsStateNumericParamEvaluator
 {
 	GENERATED_BODY()
 

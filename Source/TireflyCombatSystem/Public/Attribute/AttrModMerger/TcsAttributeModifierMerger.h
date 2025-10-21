@@ -10,7 +10,7 @@
 
 
 // 属性修改器合并器
-UCLASS(BlueprintType, Blueprintable, Abstract, ClassGroup = (TcsCombatSystem))
+UCLASS(BlueprintType, Blueprintable, Abstract, ClassGroup = (TireflyCombatSystem))
 class TIREFLYCOMBATSYSTEM_API UTcsAttributeModifierMerger : public UObject
 {
 	GENERATED_BODY()
@@ -22,7 +22,7 @@ public:
 	 * @param ModifiersToMerge 要合并的属性修改器
 	 * @param MergedModifiers 合并后的属性修改器
 	 */
-	UFUNCTION(BlueprintNativeEvent, Category = TcsCombatSystem)
+	UFUNCTION(BlueprintNativeEvent, Category = TireflyCombatSystem)
 	void Merge(
 		UPARAM(ref) TArray<FTcsAttributeModifierInstance>& ModifiersToMerge,
 		TArray<FTcsAttributeModifierInstance>& MergedModifiers);

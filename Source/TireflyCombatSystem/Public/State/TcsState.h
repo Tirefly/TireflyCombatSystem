@@ -173,7 +173,17 @@ public:
 	// 参数值提取类 (仅Numeric类型使用)
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Numeric Parameter", 
 		meta = (EditCondition = "ParameterType == ETcsStateParameterType::SPT_Numeric", EditConditionHides))
-	TSubclassOf<class UTcsStateParamEvaluator> ParamEvaluatorType;
+	TSubclassOf<class UTcsStateNumericParamEvaluator> NumericParamEvaluator;
+
+	// 参数值提取类 (仅Bool类型使用)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Bool Parameter", 
+		meta = (EditCondition = "ParameterType == ETcsStateParameterType::SPT_Bool", EditConditionHides))
+	TSubclassOf<class UTcsStateBoolParamEvaluator> BoolParamEvaluator;
+
+	// 参数值提取类 (仅Vector类型使用)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Vector Parameter", 
+		meta = (EditCondition = "ParameterType == ETcsStateParameterType::SPT_Vector", EditConditionHides))
+	TSubclassOf<class UTcsStateVectorParamEvaluator> VectorParamEvaluator;
 
 	// 参数值容器
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Parameter Value")

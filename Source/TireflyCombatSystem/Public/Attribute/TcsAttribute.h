@@ -39,7 +39,7 @@ public:
 
 	// 最小值（动态：属性）
 	UPROPERTY(Meta = (EditCondition = "MinValueType == ETcsAttributeRangeType::ART_Dynamic",  EditConditionHides,
-		GetOptions = "TcsCombatSystemLibrary.GetAttributeNames"),
+		GetOptions = "TcsGenericLibrary.GetAttributeNames"),
 		EditAnywhere, BlueprintReadOnly, Category = "Min Value")
 	FName MinValueAttribute = NAME_None;
 
@@ -60,7 +60,7 @@ public:
 
 	// 最大值（动态：属性）
 	UPROPERTY(Meta = (EditCondition = "MaxValueType == ETcsAttributeRangeType::ART_Dynamic",  EditConditionHides,
-		GetOptions = "TcsCombatSystemLibrary.GetAttributeNames"),
+		GetOptions = "TcsGenericLibrary.GetAttributeNames"),
 		EditAnywhere, BlueprintReadOnly, Category = "Max Value")
 	FName MaxValueAttribute = NAME_None;
 

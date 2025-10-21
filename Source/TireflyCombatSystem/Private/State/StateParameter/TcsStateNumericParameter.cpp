@@ -1,18 +1,18 @@
 // Copyright Tirefly. All Rights Reserved.
 
 
-#include "State/StateParameter/TcsStateParameter_ConstNumeric.h"
+#include "State/StateParameter/TcsStateNumericParameter.h"
 
 
 
-void UTcsStateParamParser_ConstNumeric::Evaluate_Implementation(
+void UTcsStateNumericParamEvaluator::Evaluate_Implementation(
 	AActor* Instigator,
 	AActor* Target,
 	UTcsStateInstance* StateInstance,
 	const FInstancedStruct& InstancedStruct,
 	float& OutValue) const
 {
-	if (auto ConstNumericParam = InstancedStruct.GetPtr<FTcsStateParam_ConstNumeric>())
+	if (auto ConstNumericParam = InstancedStruct.GetPtr<FTcsStateNumericParam_Constant>())
 	{
 		OutValue = ConstNumericParam->NumericValue;
 	}

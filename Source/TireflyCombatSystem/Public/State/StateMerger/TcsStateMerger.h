@@ -13,7 +13,7 @@ class UTcsStateInstance;
 
 
 // 状态合并器
-UCLASS(BlueprintType, Blueprintable, Abstract, ClassGroup = (TcsCombatSystem))
+UCLASS(BlueprintType, Blueprintable, Abstract, ClassGroup = (TireflyCombatSystem))
 class TIREFLYCOMBATSYSTEM_API UTcsStateMerger : public UObject
 {
 	GENERATED_BODY()
@@ -25,7 +25,7 @@ public:
 	 * @param StatesToMerge 要合并的状态列表
 	 * @param MergedStates 合并后的状态列表
 	 */
-	UFUNCTION(BlueprintNativeEvent, Category = TcsCombatSystem)
+	UFUNCTION(BlueprintNativeEvent, Category = TireflyCombatSystem)
 	void Merge(
 		UPARAM(ref) TArray<UTcsStateInstance*>& StatesToMerge,
 		TArray<UTcsStateInstance*>& MergedStates);

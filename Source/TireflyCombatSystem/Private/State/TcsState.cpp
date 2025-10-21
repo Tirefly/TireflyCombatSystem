@@ -366,6 +366,9 @@ bool UTcsStateInstance::InitializeStateTree()
 {
 	if (!StateDef.StateTreeRef.IsValid())
 	{
+		UE_LOG(LogTcsStateTree, Error, TEXT("[%s] StateTreeRef is invalid of State %s"),
+			*FString(__FUNCTION__),
+			*StateDefId.ToString());
 		return false;
 	}
 
@@ -387,7 +390,7 @@ void UTcsStateInstance::StartStateTree()
 	const UStateTree* StateTree = StateDef.StateTreeRef.GetStateTree();
 	if (!StateTree)
 	{
-		UE_LOG(LogTcsState, Error, TEXT("[%s] Failed to get StateTree for StateInstance: %s"),
+		UE_LOG(LogTcsStateTree, Error, TEXT("[%s] Failed to get StateTree for StateInstance: %s"),
 			*FString(__FUNCTION__),
 			*GetStateDefId().ToString());
 		return;
@@ -399,7 +402,7 @@ void UTcsStateInstance::StartStateTree()
 	// 设置上下文需求
 	if (!SetContextRequirements(Context))
 	{
-		UE_LOG(LogTemp, Error, TEXT("[%s] Failed to set StateTree context for StateInstance: %s"),
+		UE_LOG(LogTcsStateTree, Error, TEXT("[%s] Failed to set StateTree context for StateInstance: %s"),
 			*FString(__FUNCTION__),
 			*GetStateDefId().ToString());
 		return;
@@ -412,13 +415,13 @@ void UTcsStateInstance::StartStateTree()
 	if (CurrentStateTreeStatus == EStateTreeRunStatus::Running)
 	{
 		bStateTreeRunning = true;
-		UE_LOG(LogTemp, Log, TEXT("[%s] StateTree started successfully for StateInstance: %s"),
+		UE_LOG(LogTcsStateTree, Log, TEXT("[%s] StateTree started successfully for StateInstance: %s"),
 			*FString(__FUNCTION__),
 			*GetStateDefId().ToString());
 	}
 	else
 	{
-		UE_LOG(LogTemp, Error, TEXT("[%s] Failed to start StateTree for StateInstance: %s, Status: %d"), 
+		UE_LOG(LogTcsStateTree, Error, TEXT("[%s] Failed to start StateTree for StateInstance: %s, Status: %d"), 
 			*FString(__FUNCTION__),
 			*GetStateDefId().ToString(),
 			(int32)CurrentStateTreeStatus);
@@ -435,7 +438,7 @@ void UTcsStateInstance::TickStateTree(float DeltaTime)
 	const UStateTree* StateTree = StateDef.StateTreeRef.GetStateTree();
 	if (!StateTree)
 	{
-		UE_LOG(LogTcsState, Error, TEXT("[%s] Failed to get StateTree for StateInstance: %s"),
+		UE_LOG(LogTcsStateTree, Error, TEXT("[%s] Failed to get StateTree for StateInstance: %s"),
 			*FString(__FUNCTION__),
 			*GetStateDefId().ToString());
 		return;
@@ -447,7 +450,7 @@ void UTcsStateInstance::TickStateTree(float DeltaTime)
 	// 设置上下文需求
 	if (!SetContextRequirements(Context))
 	{
-		UE_LOG(LogTemp, Error, TEXT("Failed to set StateTree context during tick for StateInstance: %s"), *GetStateDefId().ToString());
+		UE_LOG(LogTcsStateTree, Error, TEXT("Failed to set StateTree context during tick for StateInstance: %s"), *GetStateDefId().ToString());
 		StopStateTree();
 		return;
 	}
@@ -463,22 +466,22 @@ void UTcsStateInstance::TickStateTree(float DeltaTime)
 		break;
 
 	case EStateTreeRunStatus::Succeeded:
-		UE_LOG(LogTemp, Log, TEXT("StateTree completed successfully for StateInstance: %s"), *GetStateDefId().ToString());
+		UE_LOG(LogTcsStateTree, Log, TEXT("StateTree completed successfully for StateInstance: %s"), *GetStateDefId().ToString());
 		bStateTreeRunning = false;
 		break;
 
 	case EStateTreeRunStatus::Failed:
-		UE_LOG(LogTemp, Warning, TEXT("StateTree failed for StateInstance: %s"), *GetStateDefId().ToString());
+		UE_LOG(LogTcsStateTree, Warning, TEXT("StateTree failed for StateInstance: %s"), *GetStateDefId().ToString());
 		bStateTreeRunning = false;
 		break;
 
 	case EStateTreeRunStatus::Stopped:
-		UE_LOG(LogTemp, Log, TEXT("StateTree was stopped for StateInstance: %s"), *GetStateDefId().ToString());
+		UE_LOG(LogTcsStateTree, Log, TEXT("StateTree was stopped for StateInstance: %s"), *GetStateDefId().ToString());
 		bStateTreeRunning = false;
 		break;
 
 	default:
-		UE_LOG(LogTemp, Warning, TEXT("Unexpected StateTree status for StateInstance: %s, Status: %d"), 
+		UE_LOG(LogTcsStateTree, Warning, TEXT("Unexpected StateTree status for StateInstance: %s, Status: %d"), 
 			*GetStateDefId().ToString(), (int32)CurrentStateTreeStatus);
 		break;
 	}
@@ -494,7 +497,7 @@ void UTcsStateInstance::StopStateTree()
 	const UStateTree* StateTree = StateDef.StateTreeRef.GetStateTree();
 	if (!StateTree)
 	{
-		UE_LOG(LogTcsState, Error, TEXT("[%s] Failed to get StateTree for StateInstance: %s"),
+		UE_LOG(LogTcsStateTree, Error, TEXT("[%s] Failed to get StateTree for StateInstance: %s"),
 			*FString(__FUNCTION__),
 			*GetStateDefId().ToString());
 		return;
@@ -508,7 +511,7 @@ void UTcsStateInstance::StopStateTree()
 	{
 		// 停止StateTree
 		CurrentStateTreeStatus = Context.Stop(EStateTreeRunStatus::Stopped);
-		UE_LOG(LogTemp, Log, TEXT("StateTree stopped for StateInstance: %s with status: %d"), 
+		UE_LOG(LogTcsStateTree, Log, TEXT("StateTree stopped for StateInstance: %s with status: %d"), 
 			*GetStateDefId().ToString(), (int32)CurrentStateTreeStatus);
 	}
 
@@ -519,7 +522,7 @@ void UTcsStateInstance::PauseStateTree()
 {
 	if (!StateDef.StateTreeRef.IsValid())
 	{
-		UE_LOG(LogTcsState, Error, TEXT("[%s] Failed to get StateTree for StateInstance: %s"),
+		UE_LOG(LogTcsStateTree, Error, TEXT("[%s] Failed to get StateTree for StateInstance: %s"),
 			*FString(__FUNCTION__),
 			*GetStateDefId().ToString());
 		return;
@@ -547,7 +550,7 @@ void UTcsStateInstance::ResumeStateTree()
 
 	if (!StateDef.StateTreeRef.IsValid())
 	{
-		UE_LOG(LogTcsState, Error, TEXT("[%s] Failed to get StateTree for StateInstance: %s"),
+		UE_LOG(LogTcsStateTree, Error, TEXT("[%s] Failed to get StateTree for StateInstance: %s"),
 			*FString(__FUNCTION__),
 			*GetStateDefId().ToString());
 		return;
@@ -576,7 +579,7 @@ void UTcsStateInstance::SendStateTreeEvent(FGameplayTag EventTag, const FInstanc
 	const UStateTree* StateTree = StateDef.StateTreeRef.GetStateTree();
 	if (!StateTree)
 	{
-		UE_LOG(LogTcsState, Error, TEXT("[%s] Failed to get StateTree for StateInstance: %s"),
+		UE_LOG(LogTcsStateTree, Error, TEXT("[%s] Failed to get StateTree for StateInstance: %s"),
 			*FString(__FUNCTION__),
 			*GetStateDefId().ToString());
 		return;
@@ -597,7 +600,7 @@ bool UTcsStateInstance::SetContextRequirements(FStateTreeExecutionContext& Conte
 {
 	if (!Context.IsValid())
 	{
-		UE_LOG(LogTemp, Error, TEXT("Invalid StateTree execution context"));
+		UE_LOG(LogTcsStateTree, Error, TEXT("Invalid StateTree execution context"));
 		return false;
 	}
 

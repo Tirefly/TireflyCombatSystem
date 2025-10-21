@@ -1,19 +1,20 @@
 // Copyright Tirefly. All Rights Reserved.
 
-#include "State/StateParameter/TcsStateParameter_StateLevelArray.h"
+
+#include "State/StateParameter/TcsStateNumericParameter_StateLevelArray.h"
 
 #include "State/TcsState.h"
 
 
 
-void UTcsStateParamParser_StateLevelArray::Evaluate_Implementation(
+void UTcsStateNumericParamEvaluator_StateLevelArray::Evaluate_Implementation(
 	AActor* Instigator,
 	AActor* Target,
 	UTcsStateInstance* StateInstance,
 	const FInstancedStruct& InstancedStruct,
 	float& OutValue) const
 {
-	if (auto LevelArrayParam = InstancedStruct.GetPtr<FTcsStateParam_StateLevelArray>())
+	if (auto LevelArrayParam = InstancedStruct.GetPtr<FTcsStateNumericParam_StateLevelArray>())
 	{
 		if (!StateInstance)
 		{

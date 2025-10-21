@@ -62,12 +62,6 @@ public:
 			RequiredAssetDataTags = "RowStructure=/Script/TireflyCombatSystem.TcsAttributeModifierDefinition"))
 	TSoftObjectPtr<UDataTable> AttributeModifierDefTable;
 
-	// 技能修改器定义数据表
-	UPROPERTY(Config, EditAnywhere, Category = "DataTable",
-		meta = (ToolTip = "技能修改器定义数据表：行结构应为 FTcsSkillModifierDefinition",
-			RequiredAssetDataTags = "RowStructure=/Script/TireflyCombatSystem.TcsSkillModifierDefinition"))
-	TSoftObjectPtr<UDataTable> SkillModifierDefTable;
-
 	// 状态定义数据表（用于从数据表读取 FTcsStateDefinition）
 	UPROPERTY(Config, EditAnywhere, Category = "DataTable",
 		meta = (ToolTip = "状态定义数据表：行结构应为 FTcsStateDefinition"))
@@ -77,7 +71,13 @@ public:
 	UPROPERTY(Config, EditAnywhere, Category = "DataTable", 
 		meta = (ToolTip = "状态槽定义数据表，定义各个槽位的激活模式与映射", 
 			RequiredAssetDataTags = "RowStructure=/Script/TireflyCombatSystem.TcsStateSlotDefinition"))
-	TSoftObjectPtr<UDataTable> StateSlotDefTable;	
+	TSoftObjectPtr<UDataTable> StateSlotDefTable;
+
+	// 技能修改器定义数据表
+	UPROPERTY(Config, EditAnywhere, Category = "DataTable",
+		meta = (ToolTip = "技能修改器定义数据表：行结构应为 FTcsSkillModifierDefinition",
+			RequiredAssetDataTags = "RowStructure=/Script/TireflyCombatSystem.TcsSkillModifierDefinition"))
+	TSoftObjectPtr<UDataTable> SkillModifierDefTable;
 
 #pragma endregion
 };
@@ -94,7 +94,7 @@ inline EDataValidationResult UTcsDeveloperSettings::IsDataValid(FDataValidationC
 		const UDataTable* StateTable = StateDefTable.LoadSynchronous();
 		if (!StateTable)
 		{
-			Context.AddError(NSLOCTEXT("TcsCombatSystemSettings", "StateDefTableLoadFailed", "Failed to load StateDefTable during validation."));
+			Context.AddError(NSLOCTEXT("TireflyCombatSystemSettings", "StateDefTableLoadFailed", "Failed to load StateDefTable during validation."));
 			return EDataValidationResult::Invalid;
 		}
 
@@ -110,7 +110,7 @@ inline EDataValidationResult UTcsDeveloperSettings::IsDataValid(FDataValidationC
 			if (Definition->StateType == ST_Skill && !Definition->StateSlotType.IsValid())
 			{
 				Context.AddError(FText::Format(
-					NSLOCTEXT("TcsCombatSystemSettings", "MissingSkillSlotTag", "Skill state '{0}' must define StateSlotType for the Stage3 skill-slot pipeline."),
+					NSLOCTEXT("TireflyCombatSystemSettings", "MissingSkillSlotTag", "Skill state '{0}' must define StateSlotType for the Stage3 skill-slot pipeline."),
 					FText::FromName(RowName)));
 				bHasError = true;
 			}

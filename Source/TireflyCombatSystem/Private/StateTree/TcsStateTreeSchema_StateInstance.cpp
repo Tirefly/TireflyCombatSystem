@@ -19,6 +19,7 @@
 #include "Skill/TcsSkillComponent.h"
 
 
+
 UTcsStateTreeSchema_StateInstance::UTcsStateTreeSchema_StateInstance()
 {
 	// 定义Schema保证的上下文数据
@@ -127,7 +128,7 @@ bool UTcsStateTreeSchema_StateInstance::SetContextRequirements(
 	bool bResult = Context.AreContextDataViewsValid();
 	if (!bResult && bLogErrors)
 	{
-		UE_LOG(LogTcsState, Error, TEXT("%s Missing external data requirements. StateTree will not update."), *FString(__FUNCTION__));
+		UE_LOG(LogTcsStateTree, Error, TEXT("%s Missing external data requirements. StateTree will not update."), *FString(__FUNCTION__));
 	}
 
 	return bResult;
@@ -145,7 +146,7 @@ bool UTcsStateTreeSchema_StateInstance::CollectExternalData(
 	// 验证状态实例和状态树
 	if (!StateInstance || !StateTree)
 	{
-		UE_LOG(LogTcsState, Error, TEXT("[%s] Failed to get StateInstance or StateTree for StateTree external data"),
+		UE_LOG(LogTcsStateTree, Error, TEXT("[%s] Failed to get StateInstance or StateTree for StateTree external data"),
 			*FString(__FUNCTION__));
 		return false;
 	}
@@ -154,7 +155,7 @@ bool UTcsStateTreeSchema_StateInstance::CollectExternalData(
 	UWorld* World = Context.GetWorld();
 	if (!World)
 	{
-		UE_LOG(LogTcsState, Error, TEXT("[%s] Failed to get World for StateInstance's StateTree external data: %s"),
+		UE_LOG(LogTcsStateTree, Error, TEXT("[%s] Failed to get World for StateInstance's StateTree external data: %s"),
 			*FString(__FUNCTION__),
 			*StateInstance->GetStateDefId().ToString());
 		return false;
@@ -166,7 +167,7 @@ bool UTcsStateTreeSchema_StateInstance::CollectExternalData(
 	AActor* InstigatorActor = StateInstance->GetInstigator();
 	if (!OwnerActor || !InstigatorActor)
 	{
-		UE_LOG(LogTcsState, Error, TEXT("[%s] Failed to get Owner or Instigator for StateInstance's StateTree external data: %s"),
+		UE_LOG(LogTcsStateTree, Error, TEXT("[%s] Failed to get Owner or Instigator for StateInstance's StateTree external data: %s"),
 			*FString(__FUNCTION__),
 			*StateDefId);
 		return false;
@@ -175,7 +176,7 @@ bool UTcsStateTreeSchema_StateInstance::CollectExternalData(
 	// 验证Owner和Instigator实现TcsEntityInterface
 	if (!OwnerActor->Implements<UTcsEntityInterface>() || !InstigatorActor->Implements<UTcsEntityInterface>())
 	{
-		UE_LOG(LogTcsState, Error,
+		UE_LOG(LogTcsStateTree, Error,
 			TEXT("[%s] Owner or Instigator does not implement TcsEntityInterface for StateInstance's StateTree external data: %s"),
 			*FString(__FUNCTION__),
 			*StateDefId);
@@ -194,7 +195,7 @@ bool UTcsStateTreeSchema_StateInstance::CollectExternalData(
 			{
 				UWorldSubsystem* Subsystem = World->GetSubsystemBase(Cast<UClass>(const_cast<UStruct*>(DataDesc.Struct.Get())));
 				OutDataViews[Index] = FStateTreeDataView(Subsystem);
-				UE_CVLOG(Subsystem == nullptr, StateInstance, LogTcsState, Error,
+				UE_CVLOG(Subsystem == nullptr, StateInstance, LogTcsStateTree, Error,
 					TEXT("[%s] StateTree %s: Could not find required subsystem %s"),
 					*FString(__FUNCTION__),
 					*GetNameSafe(Context.GetStateTree()),
@@ -206,7 +207,7 @@ bool UTcsStateTreeSchema_StateInstance::CollectExternalData(
 			{
 				UGameInstance* GameInstance = World->GetGameInstance();
 				OutDataViews[Index] = FStateTreeDataView(GameInstance);
-				UE_CVLOG(GameInstance == nullptr, StateInstance, LogTcsState, Error,
+				UE_CVLOG(GameInstance == nullptr, StateInstance, LogTcsStateTree, Error,
 					TEXT("[%s] StateTree %s: Could not find required game instance"),
 					*FString(__FUNCTION__),
 					*GetNameSafe(Context.GetStateTree()));
@@ -249,7 +250,7 @@ bool UTcsStateTreeSchema_StateInstance::CollectExternalData(
 				{
 					UTcsStateComponent* OwnerStateCmp = StateInstance->GetOwnerStateComponent();
 					OutDataViews[Index] = OwnerStateCmp;
-					UE_CVLOG(OwnerStateCmp == nullptr, StateInstance, LogTcsState, Error,
+					UE_CVLOG(OwnerStateCmp == nullptr, StateInstance, LogTcsStateTree, Error,
 						TEXT("[%s] StateTree %s: Could not find required owner state component"),
 						*FString(__FUNCTION__),
 						*GetNameSafe(Context.GetStateTree()));
@@ -259,7 +260,7 @@ bool UTcsStateTreeSchema_StateInstance::CollectExternalData(
 				{
 					UTcsStateComponent* InstigatorStateCmp = StateInstance->GetInstigatorStateComponent();
 					OutDataViews[Index] = InstigatorStateCmp;
-					UE_CVLOG(InstigatorStateCmp == nullptr, StateInstance, LogTcsState, Error,
+					UE_CVLOG(InstigatorStateCmp == nullptr, StateInstance, LogTcsStateTree, Error,
 						TEXT("[%s] StateTree %s: Could not find required instigator state component"),
 						*FString(__FUNCTION__),
 						*GetNameSafe(Context.GetStateTree()));
@@ -273,7 +274,8 @@ bool UTcsStateTreeSchema_StateInstance::CollectExternalData(
 				{
 					UTcsAttributeComponent* OwnerAttributeCmp = StateInstance->GetOwnerAttributeComponent();
 					OutDataViews[Index] = OwnerAttributeCmp;
-					UE_CVLOG(OwnerAttributeCmp == nullptr, StateInstance, LogTcsState, Error, TEXT("[%s] StateTree %s: Could not find required owner attribute component"),
+					UE_CVLOG(OwnerAttributeCmp == nullptr, StateInstance, LogTcsStateTree, Error,
+						TEXT("[%s] StateTree %s: Could not find required owner attribute component"),
 						*FString(__FUNCTION__),
 						*GetNameSafe(Context.GetStateTree()));
 					IssuesFoundCounter += OwnerAttributeCmp != nullptr ? 0 : 1;
@@ -282,7 +284,8 @@ bool UTcsStateTreeSchema_StateInstance::CollectExternalData(
 				{
 					UTcsAttributeComponent* InstigatorAttributeCmp = StateInstance->GetInstigatorAttributeComponent();
 					OutDataViews[Index] = InstigatorAttributeCmp;
-					UE_CVLOG(InstigatorAttributeCmp == nullptr, StateInstance, LogTcsState, Error, TEXT("[%s] StateTree %s: Could not find required instigator attribute component"),
+					UE_CVLOG(InstigatorAttributeCmp == nullptr, StateInstance, LogTcsStateTree, Error,
+						TEXT("[%s] StateTree %s: Could not find required instigator attribute component"),
 						*FString(__FUNCTION__),
 						*GetNameSafe(Context.GetStateTree()));
 					IssuesFoundCounter += InstigatorAttributeCmp != nullptr ? 0 : 1;
@@ -295,7 +298,8 @@ bool UTcsStateTreeSchema_StateInstance::CollectExternalData(
 				{
 					UTcsSkillComponent* OwnerSkillCmp = StateInstance->GetOwnerSkillComponent();
 					OutDataViews[Index] = OwnerSkillCmp;
-					UE_CVLOG(OwnerSkillCmp == nullptr, StateInstance, LogTcsState, Error, TEXT("[%s] StateTree %s: Could not find required owner Skill component"),
+					UE_CVLOG(OwnerSkillCmp == nullptr, StateInstance, LogTcsStateTree, Error,
+						TEXT("[%s] StateTree %s: Could not find required owner Skill component"),
 						*FString(__FUNCTION__),
 						*GetNameSafe(Context.GetStateTree()));
 					IssuesFoundCounter += OwnerSkillCmp != nullptr ? 0 : 1;
@@ -304,7 +308,8 @@ bool UTcsStateTreeSchema_StateInstance::CollectExternalData(
 				{
 					UTcsSkillComponent* InstigatorSkillCmp = StateInstance->GetInstigatorSkillComponent();
 					OutDataViews[Index] = InstigatorSkillCmp;
-					UE_CVLOG(InstigatorSkillCmp == nullptr, StateInstance, LogTcsState, Error, TEXT("[%s] StateTree %s: Could not find required instigator skill component"),
+					UE_CVLOG(InstigatorSkillCmp == nullptr, StateInstance, LogTcsStateTree, Error,
+						TEXT("[%s] StateTree %s: Could not find required instigator skill component"),
 						*FString(__FUNCTION__),
 						*GetNameSafe(Context.GetStateTree()));
 					IssuesFoundCounter += InstigatorSkillCmp != nullptr ? 0 : 1;
@@ -358,7 +363,7 @@ void UTcsStateTreeSchema_StateInstance::SetContextData(
 	{
 		if (bLogErrors)
 		{
-			UE_LOG(LogTcsState, Error,
+			UE_LOG(LogTcsStateTree, Error,
 				TEXT("%s Expected StateTree asset to contain StateTreeSchema and StateInstance. StateTree will not update."),
 				*FString(__FUNCTION__));
 		}
@@ -375,7 +380,7 @@ void UTcsStateTreeSchema_StateInstance::SetContextData(
 	{
 		if (bLogErrors)
 		{
-			UE_LOG(LogTcsState, Error,
+			UE_LOG(LogTcsStateTree, Error,
 				TEXT("%s Expected StateInstance to have valid owner and instigator. StateTree will not update."),
 				*FString(__FUNCTION__));
 		}

@@ -36,7 +36,7 @@ public:
 
 
 // 基于属性比较的状态条件
-UCLASS(BlueprintType, Blueprintable, ClassGroup = (TcsCombatSystem))
+UCLASS(BlueprintType, Blueprintable, ClassGroup = (TireflyCombatSystem))
 class TIREFLYCOMBATSYSTEM_API UTcsStateCondition_AttributeComparison : public UTcsStateCondition
 {
 	GENERATED_BODY()

@@ -19,14 +19,14 @@ class TIREFLYCOMBATSYSTEM_API UTcsAttributeManagerSubsystem : public UWorldSubsy
 
 public:
 	// 给战斗实体添加属性
-	UFUNCTION(BlueprintCallable, Category = "TcsCombatSystem|Attribute", Meta = (DefaultToSelf = "CombatEntity"))
+	UFUNCTION(BlueprintCallable, Category = "TireflyCombatSystem|Attribute", Meta = (DefaultToSelf = "CombatEntity"))
 	void AddAttribute(
 		AActor* CombatEntity,
-		UPARAM(Meta = (GetParamOptions = "TcsCombatSystemLibrary.GetAttributeNames"))FName AttributeName,
+		UPARAM(Meta = (GetParamOptions = "TcsGenericLibrary.GetAttributeNames"))FName AttributeName,
 		float InitValue = 0.f);
 
 	// 批量给战斗实体添加属性
-	UFUNCTION(BlueprintCallable, Category = "TcsCombatSystem|Attribute", Meta = (DefaultToSelf = "CombatEntity"))
+	UFUNCTION(BlueprintCallable, Category = "TireflyCombatSystem|Attribute", Meta = (DefaultToSelf = "CombatEntity"))
 	void AddAttributes(
 		AActor* CombatEntity,
 		const TArray<FName>& AttributeNames);
@@ -49,16 +49,16 @@ public:
 	/**
 	 * 创建属性修改器实例
 	 * 
-	 * @param ModifierId 属性修改器Id，通过TcsCombatSystemLibrary.GetAttributeModifierIds获取
+	 * @param ModifierId 属性修改器Id，通过TcsGenericLibrary.GetAttributeModifierIds获取
 	 * @param SourceName 属性修改器来源，可以是技能Id、效果Id等
 	 * @param Instigator 属性修改器发起者，应该是一个战斗实体
 	 * @param Target 属性修改器目标，应该也是一个战斗实体
 	 * @param OutModifierInst 最终创建的属性修改器实例
 	 * @return 是否创建成功
 	 */
-	UFUNCTION(BlueprintCallable, Category = "TcsCombatSystem|Attribute")
+	UFUNCTION(BlueprintCallable, Category = "TireflyCombatSystem|Attribute")
 	bool CreateAttributeModifier(
-		UPARAM(Meta = (GetParamOptions = "TcsCombatSystemLibrary.GetAttributeModifierIds"))FName ModifierId,
+		UPARAM(Meta = (GetParamOptions = "TcsGenericLibrary.GetAttributeModifierIds"))FName ModifierId,
 		FName SourceName,
 		AActor* Instigator,
 		AActor* Target,
@@ -67,7 +67,7 @@ public:
 	/**
 	 * 创建属性修改器实例，并且设置属性修改器的操作数
 	 * 
-	 * @param ModifierId 属性修改器Id，通过TcsCombatSystemLibrary.GetAttributeModifierIds获取
+	 * @param ModifierId 属性修改器Id，通过TcsGenericLibrary.GetAttributeModifierIds获取
 	 * @param SourceName 属性修改器来源，可以是技能Id、效果Id等
 	 * @param Instigator 属性修改器发起者，应该是一个战斗实体
 	 * @param Target 属性修改器目标，应该也是一个战斗实体
@@ -75,9 +75,9 @@ public:
 	 * @param OutModifierInst 最终创建的属性修改器实例
 	 * @return 是否创建成功
 	 */
-	UFUNCTION(BlueprintCallable, Category = "TcsCombatSystem|Attribute")
+	UFUNCTION(BlueprintCallable, Category = "TireflyCombatSystem|Attribute")
 	bool CreateAttributeModifierWithOperands(
-		UPARAM(Meta = (GetParamOptions = "TcsCombatSystemLibrary.GetAttributeModifierIds"))FName ModifierId,
+		UPARAM(Meta = (GetParamOptions = "TcsGenericLibrary.GetAttributeModifierIds"))FName ModifierId,
 		FName SourceName,
 		AActor* Instigator,
 		AActor* Target,
@@ -85,15 +85,15 @@ public:
 		FTcsAttributeModifierInstance& OutModifierInst);
 	
 	// 给战斗实体应用多个属性修改器
-	UFUNCTION(BlueprintCallable, Category = "TcsCombatSystem|Attribute", Meta = (DefaultToSelf = "CombatEntity"))
+	UFUNCTION(BlueprintCallable, Category = "TireflyCombatSystem|Attribute", Meta = (DefaultToSelf = "CombatEntity"))
 	void ApplyModifier(AActor* CombatEntity, UPARAM(ref)TArray<FTcsAttributeModifierInstance>& Modifiers);
 
 	// 从战斗实体身上移除多个属性修改器
-	UFUNCTION(BlueprintCallable, Category = "TcsCombatSystem|Attribute", Meta = (DefaultToSelf = "CombatEntity"))
+	UFUNCTION(BlueprintCallable, Category = "TireflyCombatSystem|Attribute", Meta = (DefaultToSelf = "CombatEntity"))
 	void RemoveModifier(AActor* CombatEntity, UPARAM(ref)TArray<FTcsAttributeModifierInstance>& Modifiers);
 
 	// 处理战斗实体的属性修改器更新时的逻辑
-	UFUNCTION(BlueprintCallable, Category = "TcsCombatSystem|Attribute", Meta = (DefaultToSelf = "CombatEntity"))
+	UFUNCTION(BlueprintCallable, Category = "TireflyCombatSystem|Attribute", Meta = (DefaultToSelf = "CombatEntity"))
 	void HandleModifierUpdated(AActor* CombatEntity, UPARAM(ref)TArray<FTcsAttributeModifierInstance>& Modifiers);
 
 protected:

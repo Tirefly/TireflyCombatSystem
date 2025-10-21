@@ -19,7 +19,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(
 
 
 // 属性组件，保存战斗实体的属性相关数据
-UCLASS(ClassGroup = (TcsCombatSystem), Meta = (BlueprintSpawnableComponent, DisplayName = "Tirefly Attribute Cmp"))
+UCLASS(ClassGroup = (TireflyCombatSystem), Meta = (BlueprintSpawnableComponent, DisplayName = "Tirefly Attribute Cmp"))
 class TIREFLYCOMBATSYSTEM_API UTcsAttributeComponent : public UActorComponent
 {
 	GENERATED_BODY()
@@ -41,13 +41,13 @@ public:
 	// 获取特定属性的当前值
 	UFUNCTION(BlueprintCallable, Category = "Attribute")
 	bool GetAttributeValue(
-		UPARAM(Meta = (GetParamOptions = "TcsCombatSystemLibrary.GetAttributeNames"))FName AttributeName,
+		UPARAM(Meta = (GetParamOptions = "TcsGenericLibrary.GetAttributeNames"))FName AttributeName,
 		float& OutValue) const;
 
 	// 获取特定属性的当前值
 	UFUNCTION(BlueprintCallable, Category = "Attribute")
 	bool GetAttributeBaseValue(
-		UPARAM(Meta = (GetParamOptions = "TcsCombatSystemLibrary.GetAttributeNames"))FName AttributeName,
+		UPARAM(Meta = (GetParamOptions = "TcsGenericLibrary.GetAttributeNames"))FName AttributeName,
 		float& OutValue) const;
 
 	// 获取所有属性的当前值

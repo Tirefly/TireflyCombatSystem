@@ -3,14 +3,14 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "State/StateParameter/TcsStateParameter.h"
-#include "TcsStateParameter_InstigatorLevelArray.generated.h"
+#include "State/StateParameter/TcsStateNumericParameter.h"
+#include "TcsStateNumericParameter_InstigatorLevelArray.generated.h"
 
 
 
 // 状态参数值结构体：基于施法者等级的数组
-USTRUCT(BlueprintType)
-struct TIREFLYCOMBATSYSTEM_API FTcsStateParam_InstigatorLevelArray
+USTRUCT(BlueprintType, DisplayName = "Numeric: Instigator Level Array")
+struct TIREFLYCOMBATSYSTEM_API FTcsStateNumericParam_InstigatorLevelArray
 {
 	GENERATED_BODY()
 
@@ -27,8 +27,8 @@ public:
 
 
 // 状态参数值解析器 - 基于施法者等级的数组
-UCLASS()
-class TIREFLYCOMBATSYSTEM_API UTcsStateParamParser_InstigatorLevelArray : public UTcsStateParamEvaluator
+UCLASS(DisplayName = "Numeric Evaluator: Instigator Level Array")
+class TIREFLYCOMBATSYSTEM_API UTcsStateNumericParamEvaluator_InstigatorLevelArray : public UTcsStateNumericParamEvaluator
 {
 	GENERATED_BODY()
 

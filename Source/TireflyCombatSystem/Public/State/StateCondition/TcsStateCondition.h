@@ -39,7 +39,7 @@ public:
 
 
 // 状态条件
-UCLASS(BlueprintType, Blueprintable, Abstract, ClassGroup = (TcsCombatSystem))
+UCLASS(BlueprintType, Blueprintable, Abstract, ClassGroup = (TireflyCombatSystem))
 class TIREFLYCOMBATSYSTEM_API UTcsStateCondition : public UObject
 {
 	GENERATED_BODY()
@@ -53,7 +53,7 @@ public:
 	 * @param CurrentGameTime 当前游戏时间（可选，用于时间相关条件）
 	 * @return 条件是否满足
 	 */
-	UFUNCTION(BlueprintNativeEvent, Category = TcsCombatSystem)
+	UFUNCTION(BlueprintNativeEvent, Category = TireflyCombatSystem)
 	bool CheckCondition(
 		UTcsStateInstance* StateInstance,
 		const FInstancedStruct& Payload,

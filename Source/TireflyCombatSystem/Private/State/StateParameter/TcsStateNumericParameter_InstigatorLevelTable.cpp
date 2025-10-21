@@ -1,19 +1,20 @@
 // Copyright Tirefly. All Rights Reserved.
 
-#include "State/StateParameter/TcsStateParameter_InstigatorLevelTable.h"
+
+#include "State/StateParameter/TcsStateNumericParameter_InstigatorLevelTable.h"
 
 #include "TcsEntityInterface.h"
 
 
 
-void UTcsStateParamParser_InstigatorLevelTable::Evaluate_Implementation(
+void UTcsStateNumericParamEvaluator_InstigatorLevelTable::Evaluate_Implementation(
 	AActor* Instigator,
 	AActor* Target,
 	UTcsStateInstance* StateInstance,
 	const FInstancedStruct& InstancedStruct,
 	float& OutValue) const
 {
-	if (auto InstigatorLevelTableParam = InstancedStruct.GetPtr<FTcsStateParam_InstigatorLevelTable>())
+	if (auto InstigatorLevelTableParam = InstancedStruct.GetPtr<FTcsStateNumericParam_InstigatorLevelTable>())
 	{
 		if (!Instigator || !InstigatorLevelTableParam->CurveTableRowHandle.IsValid(__FUNCTION__))
 		{

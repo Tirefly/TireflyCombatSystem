@@ -46,11 +46,21 @@ UDataTable* UTcsGenericLibrary::GetAttributeModifierDefTable()
 	return nullptr;
 }
 
-UDataTable* UTcsGenericLibrary::GetSkillModifierDefTable()
+TArray<FName> UTcsGenericLibrary::GetStateDefNames()
+{
+	TArray<FName> StateDefNames;
+	if (UDataTable* StateDefTable = GetStateDefTable())
+	{
+		StateDefNames = StateDefTable->GetRowNames();
+	}
+	return StateDefNames;
+}
+
+UDataTable* UTcsGenericLibrary::GetStateDefTable()
 {
 	if (const UTcsDeveloperSettings* Settings = GetDefault<UTcsDeveloperSettings>())
 	{
-		return Settings->SkillModifierDefTable.LoadSynchronous();
+		return Settings->StateDefTable.LoadSynchronous();
 	}
 	return nullptr;
 }
@@ -64,4 +74,13 @@ TArray<FName> UTcsGenericLibrary::GetSkillModifierIds()
 	}
 
 	return ModifierIds;
+}
+
+UDataTable* UTcsGenericLibrary::GetSkillModifierDefTable()
+{
+	if (const UTcsDeveloperSettings* Settings = GetDefault<UTcsDeveloperSettings>())
+	{
+		return Settings->SkillModifierDefTable.LoadSynchronous();
+	}
+	return nullptr;
 }
