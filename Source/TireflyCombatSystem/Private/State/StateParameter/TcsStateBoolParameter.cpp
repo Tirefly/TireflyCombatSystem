@@ -5,7 +5,7 @@
 
 
 
-void UTcsStateBoolParamEvaluator::Evaluate_Implementation(
+bool UTcsStateBoolParamEvaluator::Evaluate_Implementation(
 	AActor* Instigator,
 	AActor* Target,
 	UTcsStateInstance* StateInstance,
@@ -15,5 +15,8 @@ void UTcsStateBoolParamEvaluator::Evaluate_Implementation(
 	if (auto ConstBoolParam = InstancedStruct.GetPtr<FTcsStateBoolParam_Constant>())
 	{
 		OutValue = ConstBoolParam->bBoolValue;
+		return true;
 	}
+
+	return false;
 }

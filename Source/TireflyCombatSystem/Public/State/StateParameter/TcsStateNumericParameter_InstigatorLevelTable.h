@@ -34,7 +34,7 @@ class TIREFLYCOMBATSYSTEM_API UTcsStateNumericParamEvaluator_InstigatorLevelTabl
 	GENERATED_BODY()
 
 public:
-	virtual void Evaluate_Implementation(
+	virtual bool Evaluate_Implementation(
 		AActor* Instigator,
 		AActor* Target,
 		UTcsStateInstance* StateInstance,

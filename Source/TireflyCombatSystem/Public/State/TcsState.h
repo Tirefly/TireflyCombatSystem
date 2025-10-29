@@ -452,6 +452,16 @@ protected:
 #pragma endregion
 
 
+#pragma region Parameters
+
+protected:
+	void InitParameterValues();
+
+	void InitParameterTagValues();
+
+#pragma endregion
+
+
 #pragma region Parameter_Numeric
 
 public:

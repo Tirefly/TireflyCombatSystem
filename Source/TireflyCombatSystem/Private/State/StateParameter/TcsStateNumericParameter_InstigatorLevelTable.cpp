@@ -7,7 +7,7 @@
 
 
 
-void UTcsStateNumericParamEvaluator_InstigatorLevelTable::Evaluate_Implementation(
+bool UTcsStateNumericParamEvaluator_InstigatorLevelTable::Evaluate_Implementation(
 	AActor* Instigator,
 	AActor* Target,
 	UTcsStateInstance* StateInstance,
@@ -19,7 +19,7 @@ void UTcsStateNumericParamEvaluator_InstigatorLevelTable::Evaluate_Implementatio
 		if (!Instigator || !InstigatorLevelTableParam->CurveTableRowHandle.IsValid(__FUNCTION__))
 		{
 			OutValue = InstigatorLevelTableParam->DefaultValue;
-			return;
+			return true;
 		}
 
 		// 获取施法者等级
@@ -39,5 +39,9 @@ void UTcsStateNumericParamEvaluator_InstigatorLevelTable::Evaluate_Implementatio
 			// 无法找到曲线，使用默认值
 			OutValue = InstigatorLevelTableParam->DefaultValue;
 		}
+
+		return true;
 	}
+
+	return false;
 } 

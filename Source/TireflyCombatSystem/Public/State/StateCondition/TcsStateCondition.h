@@ -24,6 +24,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	TSubclassOf<class UTcsStateCondition> ConditionClass;
 
+	// 是否在状态应用时检查条件
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	bool bCheckWhenApplying = false;
+
 	// 条件执行时的Payload数据
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	FInstancedStruct Payload;

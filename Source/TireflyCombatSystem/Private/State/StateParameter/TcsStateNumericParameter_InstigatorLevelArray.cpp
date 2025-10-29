@@ -6,7 +6,7 @@
 
 
 
-void UTcsStateNumericParamEvaluator_InstigatorLevelArray::Evaluate_Implementation(
+bool UTcsStateNumericParamEvaluator_InstigatorLevelArray::Evaluate_Implementation(
 	AActor* Instigator,
 	AActor* Target,
 	UTcsStateInstance* StateInstance,
@@ -18,7 +18,7 @@ void UTcsStateNumericParamEvaluator_InstigatorLevelArray::Evaluate_Implementatio
 		if (!Instigator)
 		{
 			OutValue = InstigatorLevelArrayParam->DefaultValue;
-			return;
+			return true;
 		}
 
 		// 获取施法者等级
@@ -40,5 +40,9 @@ void UTcsStateNumericParamEvaluator_InstigatorLevelArray::Evaluate_Implementatio
 			// 等级超出范围，使用默认值
 			OutValue = InstigatorLevelArrayParam->DefaultValue;
 		}
+
+		return true;
 	}
+
+	return false;
 } 

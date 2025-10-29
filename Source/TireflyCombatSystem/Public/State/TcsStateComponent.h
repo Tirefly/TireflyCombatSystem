@@ -122,7 +122,7 @@ class TIREFLYCOMBATSYSTEM_API UTcsStateComponent : public UStateTreeComponent
 
 public:
 	// Sets default values for this component's properties
-	UTcsStateComponent();
+	UTcsStateComponent(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 protected:
 	// Called when the game starts
@@ -379,15 +379,16 @@ private:
 	// 待刷新 Gate 的槽位集合
 	TSet<FGameplayTag> SlotsPendingGateRefresh;
 
-	// 是否需要对所有槽位执行一次 Gate 同步
-	bool bPendingFullGateRefresh = false;
-
 	// Gate 自动刷新（事件兜底）
 	UPROPERTY(EditAnywhere, Category = "State Slot")
 	float GateAutoRefreshInterval = 0.25f;
 
+	// 上一次 Gate 自动刷新的时间
 	double LastGateAutoRefreshTime = 0.0;
+	// 初始化时是否完成 Gate 同步
 	bool bInitialGateSyncCompleted = false;
+	// 是否需要对所有槽位执行一次 Gate 同步
+	bool bPendingFullGateRefresh = false;
 
 #pragma endregion
 

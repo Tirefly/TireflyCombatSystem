@@ -16,9 +16,10 @@
 
 
 
-UTcsStateComponent::UTcsStateComponent()
+UTcsStateComponent::UTcsStateComponent(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
 {
-	PrimaryComponentTick.bCanEverTick = true;
+	bStartLogicAutomatically = true;
 }
 
 void UTcsStateComponent::BeginPlay()
@@ -31,8 +32,8 @@ void UTcsStateComponent::BeginPlay()
 		StateManagerSubsystem = World->GetSubsystem<UTcsStateManagerSubsystem>();
 	}
 
-	bPendingFullGateRefresh = true;
 	LastGateAutoRefreshTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0;
+	bPendingFullGateRefresh = true;
 	bInitialGateSyncCompleted = false;
 
     // 初始化槽位配置与StateTree映射

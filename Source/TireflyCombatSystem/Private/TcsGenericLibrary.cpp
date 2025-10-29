@@ -4,6 +4,8 @@
 #include "TcsGenericLibrary.h"
 
 #include "TcsDeveloperSettings.h"
+#include "TcsEntityInterface.h"
+
 
 
 TArray<FName> UTcsGenericLibrary::GetAttributeNames()
@@ -46,6 +48,15 @@ UDataTable* UTcsGenericLibrary::GetAttributeModifierDefTable()
 	return nullptr;
 }
 
+UTcsAttributeComponent *UTcsGenericLibrary::GetAttributeComponent(AActor *Actor)
+{
+	if (Actor->Implements<UTcsEntityInterface>())
+	{
+		return ITcsEntityInterface::Execute_GetAttributeComponent(Actor);
+	}
+    return nullptr;
+}
+
 TArray<FName> UTcsGenericLibrary::GetStateDefNames()
 {
 	TArray<FName> StateDefNames;
@@ -61,6 +72,15 @@ UDataTable* UTcsGenericLibrary::GetStateDefTable()
 	if (const UTcsDeveloperSettings* Settings = GetDefault<UTcsDeveloperSettings>())
 	{
 		return Settings->StateDefTable.LoadSynchronous();
+	}
+	return nullptr;
+}
+
+UTcsStateComponent *UTcsGenericLibrary::GetStateComponent(AActor *Actor)
+{
+    if (Actor->Implements<UTcsEntityInterface>())
+	{
+		return ITcsEntityInterface::Execute_GetStateComponent(Actor);
 	}
 	return nullptr;
 }
@@ -83,4 +103,13 @@ UDataTable* UTcsGenericLibrary::GetSkillModifierDefTable()
 		return Settings->SkillModifierDefTable.LoadSynchronous();
 	}
 	return nullptr;
+}
+
+UTcsSkillComponent *UTcsGenericLibrary::GetSkillComponent(AActor *Actor)
+{
+	if (Actor->Implements<UTcsEntityInterface>())
+	{
+		return ITcsEntityInterface::Execute_GetSkillComponent(Actor);
+	}
+    return nullptr;
 }

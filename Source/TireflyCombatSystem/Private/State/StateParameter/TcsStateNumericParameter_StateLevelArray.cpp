@@ -7,7 +7,7 @@
 
 
 
-void UTcsStateNumericParamEvaluator_StateLevelArray::Evaluate_Implementation(
+bool UTcsStateNumericParamEvaluator_StateLevelArray::Evaluate_Implementation(
 	AActor* Instigator,
 	AActor* Target,
 	UTcsStateInstance* StateInstance,
@@ -19,7 +19,7 @@ void UTcsStateNumericParamEvaluator_StateLevelArray::Evaluate_Implementation(
 		if (!StateInstance)
 		{
 			OutValue = LevelArrayParam->DefaultValue;
-			return;
+			return true;
 		}
 
 		const int32 StateLevel = StateInstance->GetLevel();
@@ -35,5 +35,9 @@ void UTcsStateNumericParamEvaluator_StateLevelArray::Evaluate_Implementation(
 			// 等级超出范围，使用默认值
 			OutValue = LevelArrayParam->DefaultValue;
 		}
+
+		return true;
 	}
+
+	return false;
 } 

@@ -12,6 +12,9 @@
 #include "TcsLogChannels.h"
 #include "GameFramework/Actor.h"
 #include "Engine/World.h"
+#include "State/StateParameter/TcsStateBoolParameter.h"
+#include "State/StateParameter/TcsStateNumericParameter.h"
+#include "State/StateParameter/TcsStateVectorParameter.h"
 
 
 UTcsStateInstance::UTcsStateInstance()
@@ -81,6 +84,10 @@ void UTcsStateInstance::Initialize(
 	{
 		NumericParameters.Add(Tcs_Generic_Name_StackCount, 1);
 	}
+
+	// 初始化参数缓存
+	InitParameterValues();
+	InitParameterTagValues();
 }
 
 void UTcsStateInstance::SetCurrentStage(ETcsStateStage InStage)
@@ -195,6 +202,210 @@ void UTcsStateInstance::RemoveStack(int32 Count)
 void UTcsStateInstance::SetLevel(int32 InLevel)
 {
 	Level = InLevel;
+}
+
+void UTcsStateInstance::InitParameterValues()
+{
+	if (StateDef.Parameters.IsEmpty())
+	{
+		return;
+	}
+
+	for (const TPair<FName, FTcsStateParameter>& ParamPair : StateDef.Parameters)
+	{
+		switch (ParamPair.Value.ParameterType)
+		{
+		case ETcsStateParameterType::SPT_Numeric:
+			{
+				if (!ParamPair.Value.NumericParamEvaluator)
+				{
+					UE_LOG(LogTcsState, Error, TEXT("[%s] NumericParamEvaluator of state %s is invalid"),
+						*FString(__FUNCTION__),
+						*GetStateDefId().ToString());
+					break;
+				}
+
+				float ParamValue;
+				auto ParamEvaluator = ParamPair.Value.NumericParamEvaluator->GetDefaultObject<UTcsStateNumericParamEvaluator>();
+				if (!ParamEvaluator->Evaluate(
+					Instigator.Get(),
+					Owner.Get(),
+					this,
+					ParamPair.Value.ParamValueContainer,
+					ParamValue))
+				{
+					UE_LOG(LogTcsState, Error, TEXT("[%s] Failed to evaluate state %s 's numeric parameter: %s"),
+						*FString(__FUNCTION__),
+						*GetStateDefId().ToString(),
+						*ParamPair.Key.ToString());
+					break;
+				}
+				
+				SetNumericParam(ParamPair.Key, ParamValue);
+				break;
+			}
+		case ETcsStateParameterType::SPT_Bool:
+			{
+				if (!ParamPair.Value.BoolParamEvaluator)
+				{
+					UE_LOG(LogTcsState, Error, TEXT("[%s] BoolParamEvaluator of state %s is invalid"),
+						*FString(__FUNCTION__),
+						*GetStateDefId().ToString());
+					break;
+				}
+
+				bool ParamValue;
+				auto ParamEvaluator = ParamPair.Value.BoolParamEvaluator->GetDefaultObject<UTcsStateBoolParamEvaluator>();
+				if (!ParamEvaluator->Evaluate(
+					Instigator.Get(),
+					Owner.Get(),
+					this,
+					ParamPair.Value.ParamValueContainer,
+					ParamValue))
+				{
+					UE_LOG(LogTcsState, Error, TEXT("[%s] Failed to evaluate state %s 's  bool parameter: %s"),
+						*FString(__FUNCTION__),
+						*GetStateDefId().ToString(),
+						*ParamPair.Key.ToString());
+					break;
+				}
+
+				SetBoolParam(ParamPair.Key, ParamValue);
+				break;
+			}
+		case ETcsStateParameterType::SPT_Vector:
+			{
+				if (!ParamPair.Value.VectorParamEvaluator)
+				{
+					UE_LOG(LogTcsState, Error, TEXT("[%s] VectorParamEvaluator of state %s is invalid"),
+						*FString(__FUNCTION__),
+						*GetStateDefId().ToString());
+					break;
+				}
+
+				FVector ParamValue;
+				auto ParamEvaluator = ParamPair.Value.VectorParamEvaluator->GetDefaultObject<UTcsStateVectorParamEvaluator>();
+				if (!ParamEvaluator->Evaluate(
+					Instigator.Get(),
+					Owner.Get(),
+					this,
+					ParamPair.Value.ParamValueContainer,
+					ParamValue))
+				{
+					UE_LOG(LogTcsState, Error, TEXT("[%s] Failed to evaluate state %s 's vector parameter: %s"),
+						*FString(__FUNCTION__),
+						*GetStateDefId().ToString(),
+						*ParamPair.Key.ToString());
+					break;
+				}
+
+				SetVectorParam(ParamPair.Key, ParamValue);
+				break;
+			}
+		}
+	}
+}
+
+void UTcsStateInstance::InitParameterTagValues()
+{
+	if (StateDef.TagParameters.IsEmpty())
+	{
+		return;
+	}
+
+	for (const TPair<FGameplayTag, FTcsStateParameter>& ParamPair : StateDef.TagParameters)
+	{
+		switch (ParamPair.Value.ParameterType)
+		{
+		case ETcsStateParameterType::SPT_Numeric:
+			{
+				if (!ParamPair.Value.NumericParamEvaluator)
+				{
+					UE_LOG(LogTcsState, Error, TEXT("[%s] NumericParamEvaluator of state %s is invalid"),
+						*FString(__FUNCTION__),
+						*GetStateDefId().ToString());
+					break;
+				}
+
+				float ParamValue;
+				auto ParamEvaluator = ParamPair.Value.NumericParamEvaluator->GetDefaultObject<UTcsStateNumericParamEvaluator>();
+				if (!ParamEvaluator->Evaluate(
+					Instigator.Get(),
+					Owner.Get(),
+					this,
+					ParamPair.Value.ParamValueContainer,
+					ParamValue))
+				{
+					UE_LOG(LogTcsState, Error, TEXT("[%s] Failed to evaluate state %s 's numeric parameter: %s"),
+						*FString(__FUNCTION__),
+						*GetStateDefId().ToString(),
+						*ParamPair.Key.ToString());
+					break;
+				}
+				
+				SetNumericParamByTag(ParamPair.Key, ParamValue);
+				break;
+			}
+		case ETcsStateParameterType::SPT_Bool:
+			{
+				if (!ParamPair.Value.BoolParamEvaluator)
+				{
+					UE_LOG(LogTcsState, Error, TEXT("[%s] BoolParamEvaluator of state %s is invalid"),
+						*FString(__FUNCTION__),
+						*GetStateDefId().ToString());
+					break;
+				}
+
+				bool ParamValue;
+				auto ParamEvaluator = ParamPair.Value.BoolParamEvaluator->GetDefaultObject<UTcsStateBoolParamEvaluator>();
+				if (!ParamEvaluator->Evaluate(
+					Instigator.Get(),
+					Owner.Get(),
+					this,
+					ParamPair.Value.ParamValueContainer,
+					ParamValue))
+				{
+					UE_LOG(LogTcsState, Error, TEXT("[%s] Failed to evaluate state %s 's  bool parameter: %s"),
+						*FString(__FUNCTION__),
+						*GetStateDefId().ToString(),
+						*ParamPair.Key.ToString());
+					break;
+				}
+
+				SetBoolParamByTag(ParamPair.Key, ParamValue);
+				break;
+			}
+		case ETcsStateParameterType::SPT_Vector:
+			{
+				if (!ParamPair.Value.VectorParamEvaluator)
+				{
+					UE_LOG(LogTcsState, Error, TEXT("[%s] VectorParamEvaluator of state %s is invalid"),
+						*FString(__FUNCTION__),
+						*GetStateDefId().ToString());
+					break;
+				}
+
+				FVector ParamValue;
+				auto ParamEvaluator = ParamPair.Value.VectorParamEvaluator->GetDefaultObject<UTcsStateVectorParamEvaluator>();
+				if (!ParamEvaluator->Evaluate(
+					Instigator.Get(),
+					Owner.Get(),
+					this,
+					ParamPair.Value.ParamValueContainer,
+					ParamValue))
+				{
+					UE_LOG(LogTcsState, Error, TEXT("[%s] Failed to evaluate state %s 's vector parameter: %s"),
+						*FString(__FUNCTION__),
+						*GetStateDefId().ToString(),
+						*ParamPair.Key.ToString());
+					break;
+				}
+
+				SetVectorParamByTag(ParamPair.Key, ParamValue);
+				break;
+			}
+		}
+	}
 }
 
 bool UTcsStateInstance::GetNumericParam(FName ParameterName, float& OutValue) const

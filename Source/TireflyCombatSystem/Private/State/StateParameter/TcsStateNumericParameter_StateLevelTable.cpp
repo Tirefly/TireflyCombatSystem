@@ -6,7 +6,7 @@
 
 
 
-void UTcsStateNumericParamEvaluator_StateLevelTable::Evaluate_Implementation(
+bool UTcsStateNumericParamEvaluator_StateLevelTable::Evaluate_Implementation(
 	AActor* Instigator,
 	AActor* Target,
 	UTcsStateInstance* StateInstance,
@@ -18,7 +18,7 @@ void UTcsStateNumericParamEvaluator_StateLevelTable::Evaluate_Implementation(
 		if (!Instigator || !StateLevelTableParam->CurveTableRowHandle.IsValid(__FUNCTION__))
 		{
 			OutValue = StateLevelTableParam->DefaultValue;
-			return;
+			return true;
 		}
 
 		const int32 StateLevel = StateInstance->GetLevel();
@@ -33,5 +33,9 @@ void UTcsStateNumericParamEvaluator_StateLevelTable::Evaluate_Implementation(
 			// 无法找到曲线，使用默认值
 			OutValue = StateLevelTableParam->DefaultValue;
 		}
+
+		return true;
 	}
+
+	return false;
 } 

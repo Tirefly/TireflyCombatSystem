@@ -46,13 +46,13 @@ public:
 	 * @param OutValue 解析的参数值结果
 	 */
 	UFUNCTION(BlueprintNativeEvent, Category = "TireflyCombatSystem|State")
-	void Evaluate(
+	bool Evaluate(
 		AActor* Instigator,
 		AActor* Target,
 		UTcsStateInstance* StateInstance,
 		const FInstancedStruct& InstancedStruct,
 		FVector& OutValue) const;
-	virtual void Evaluate_Implementation(
+	virtual bool Evaluate_Implementation(
 		AActor* Instigator,
 		AActor* Target,
 		UTcsStateInstance* StateInstance,

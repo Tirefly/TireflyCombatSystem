@@ -5,7 +5,7 @@
 
 
 
-void UTcsStateVectorParamEvaluator::Evaluate_Implementation(
+bool UTcsStateVectorParamEvaluator::Evaluate_Implementation(
 	AActor* Instigator,
 	AActor* Target,
 	UTcsStateInstance* StateInstance,
@@ -15,5 +15,8 @@ void UTcsStateVectorParamEvaluator::Evaluate_Implementation(
 	if (auto ConstVectorParam = InstancedStruct.GetPtr<FTcsStateVectorParam_Constant>())
 	{
 		OutValue = ConstVectorParam->VectorValue;
+		return true;
 	}
+
+	return false;
 }
