@@ -4,13 +4,13 @@
 
 #include "CoreMinimal.h"
 #include "State/StateMerger/TcsStateMerger.h"
-#include "TcsStateMerger_UseNewest.generated.h"
+#include "TcsStateMerger_StackByInstigator.generated.h"
 
 
 
-// 状态合并器：保留最新
-UCLASS(Meta = (DisplayName = "状态合并器：保留最新"))
-class TIREFLYCOMBATSYSTEM_API UTcsStateMerger_UseNewest : public UTcsStateMerger
+// 状态合并器：按发起者叠层
+UCLASS(Meta = (DisplayName = "状态合并器：按发起者叠层"))
+class TIREFLYCOMBATSYSTEM_API UTcsStateMerger_StackByInstigator : public UTcsStateMerger
 {
 	GENERATED_BODY()
 

@@ -104,7 +104,7 @@ float UTcsStateInstance::GetDurationRemaining() const
 	}
 	
 	// 从StateComponent获取剩余时间
-	return OwnerStateCmp->GetStateInstanceDurationRemaining(this);
+	return OwnerStateCmp->GetStateRemainingDuration(this);
 }
 
 void UTcsStateInstance::RefreshDurationRemaining()
@@ -115,7 +115,7 @@ void UTcsStateInstance::RefreshDurationRemaining()
 	}
 	
 	// 通知StateComponent刷新剩余时间
-	OwnerStateCmp->RefreshStateInstanceDurationRemaining(this);
+	OwnerStateCmp->RefreshStateRemainingDuration(this);
 }
 
 void UTcsStateInstance::SetDurationRemaining(float InDurationRemaining)
@@ -126,7 +126,7 @@ void UTcsStateInstance::SetDurationRemaining(float InDurationRemaining)
 	}
 	
 	// 通知StateComponent设置剩余时间
-	OwnerStateCmp->SetStateInstanceDurationRemaining(this, InDurationRemaining);
+	OwnerStateCmp->SetStateRemainingDuration(this, InDurationRemaining);
 }
 
 float UTcsStateInstance::GetTotalDuration() const
@@ -599,7 +599,7 @@ void UTcsStateInstance::StartStateTree()
 	}
 
 	const UStateTree* StateTree = StateDef.StateTreeRef.GetStateTree();
-	if (!StateTree)
+	if (!IsValid(StateTree))
 	{
 		UE_LOG(LogTcsStateTree, Error, TEXT("[%s] Failed to get StateTree for StateInstance: %s"),
 			*FString(__FUNCTION__),
@@ -647,7 +647,7 @@ void UTcsStateInstance::TickStateTree(float DeltaTime)
 	}
 
 	const UStateTree* StateTree = StateDef.StateTreeRef.GetStateTree();
-	if (!StateTree)
+	if (!IsValid(StateTree))
 	{
 		UE_LOG(LogTcsStateTree, Error, TEXT("[%s] Failed to get StateTree for StateInstance: %s"),
 			*FString(__FUNCTION__),
@@ -675,22 +675,18 @@ void UTcsStateInstance::TickStateTree(float DeltaTime)
 	case EStateTreeRunStatus::Running:
 		// 继续运行
 		break;
-
 	case EStateTreeRunStatus::Succeeded:
 		UE_LOG(LogTcsStateTree, Log, TEXT("StateTree completed successfully for StateInstance: %s"), *GetStateDefId().ToString());
 		bStateTreeRunning = false;
 		break;
-
 	case EStateTreeRunStatus::Failed:
 		UE_LOG(LogTcsStateTree, Warning, TEXT("StateTree failed for StateInstance: %s"), *GetStateDefId().ToString());
 		bStateTreeRunning = false;
 		break;
-
 	case EStateTreeRunStatus::Stopped:
 		UE_LOG(LogTcsStateTree, Log, TEXT("StateTree was stopped for StateInstance: %s"), *GetStateDefId().ToString());
 		bStateTreeRunning = false;
 		break;
-
 	default:
 		UE_LOG(LogTcsStateTree, Warning, TEXT("Unexpected StateTree status for StateInstance: %s, Status: %d"), 
 			*GetStateDefId().ToString(), (int32)CurrentStateTreeStatus);
@@ -706,7 +702,7 @@ void UTcsStateInstance::StopStateTree()
 	}
 
 	const UStateTree* StateTree = StateDef.StateTreeRef.GetStateTree();
-	if (!StateTree)
+	if (!IsValid(StateTree))
 	{
 		UE_LOG(LogTcsStateTree, Error, TEXT("[%s] Failed to get StateTree for StateInstance: %s"),
 			*FString(__FUNCTION__),
@@ -788,7 +784,7 @@ void UTcsStateInstance::SendStateTreeEvent(FGameplayTag EventTag, const FInstanc
 	}
 
 	const UStateTree* StateTree = StateDef.StateTreeRef.GetStateTree();
-	if (!StateTree)
+	if (!IsValid(StateTree))
 	{
 		UE_LOG(LogTcsStateTree, Error, TEXT("[%s] Failed to get StateTree for StateInstance: %s"),
 			*FString(__FUNCTION__),

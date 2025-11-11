@@ -1,14 +1,14 @@
 // Copyright Tirefly. All Rights Reserved.
 
 
-#include "State/StateMerger/TcsStateMerger_Stack.h"
+#include "State/StateMerger/TcsStateMerger_StackByInstigator.h"
 
 #include "TcsLogChannels.h"
 #include "State/TcsState.h"
 
 
 
-void UTcsStateMerger_Stack::Merge_Implementation(
+void UTcsStateMerger_StackByInstigator::Merge_Implementation(
 	TArray<UTcsStateInstance*>& StatesToMerge,
 	TArray<UTcsStateInstance*>& MergedStates)
 {
@@ -28,7 +28,8 @@ void UTcsStateMerger_Stack::Merge_Implementation(
 		// 验证StateDefId是否相同
 		if (State->GetStateDefId() != ReferenceStateDefId)
 		{
-			UE_LOG(LogTcsStateMerger, Error, TEXT("[%s] StateDefId mismatch."), *FString(__FUNCTION__));
+			UE_LOG(LogTcsStateMerger, Error, TEXT("[%s] StateDefId mismatch."),
+				*FString(__FUNCTION__));
 			return;
 		}
 
@@ -45,7 +46,12 @@ void UTcsStateMerger_Stack::Merge_Implementation(
 	{
 		TArray<UTcsStateInstance*>& States = InstigatorStates.Value;
 		
-		// 按时间戳排序，最新的状态在最前面
+		/**
+		 * 按时间戳排序，最旧的状态在数组最后，也就是栈顶，
+		 * 之所以选择最旧的状态实例作为栈顶基础状态，因为
+		 * 该状态更早被应用，状态树已经开始执行，剩余持续
+		 * 时间也已经开始计时
+		 */
 		States.Sort([](
 			const UTcsStateInstance& A,
 			const UTcsStateInstance& B) {
@@ -59,24 +65,15 @@ void UTcsStateMerger_Stack::Merge_Implementation(
 			TotalStackCount += State->GetStackCount();
 		}
 
-		// 验证总叠层数是否超过最大限制
-		const int32 MaxStackCount = ReferenceState->GetStateDef().MaxStackCount;
-		if (TotalStackCount > MaxStackCount)
-		{
-			TotalStackCount = MaxStackCount;
-		}
-
-		// 使用最新的状态作为基础状态
-		UTcsStateInstance* BaseState = States[0];
+		// 从排序后的状态中弹出最新的状态作为基础状态
+		UTcsStateInstance* BaseState = States.Pop();
 		
 		// 设置基础状态的叠层数
 		BaseState->SetStackCount(TotalStackCount);
 		MergedStates.Add(BaseState);
 
-		// 把叠层合并后剩余的状态实例标记为待回到对象池中
+		// TODO: 把叠层合并后剩余的状态实例标记为待回到对象池中
 		for (int32 i = 1; i < States.Num(); ++i)
-		{
-			// TODO: 把合并后剩余的状态实例标记为待回到对象池中
-		}
+		{}
 	}
 } 

@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Subsystems/WorldSubsystem.h"
+#include "Subsystems/GameInstanceSubsystem.h"
 #include "TcsAttributeModifier.h"
 #include "TcsAttributeManagerSubsystem.generated.h"
 
@@ -11,11 +11,31 @@
 
 // 属性管理器子系统，所有战斗实体执行属性相关逻辑的入口
 UCLASS()
-class TIREFLYCOMBATSYSTEM_API UTcsAttributeManagerSubsystem : public UWorldSubsystem
+class TIREFLYCOMBATSYSTEM_API UTcsAttributeManagerSubsystem : public UGameInstanceSubsystem
 {
 	GENERATED_BODY()
 
-#pragma region Attribute
+#pragma region GameInstanceSubsystem
+
+public:
+	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
+
+#pragma endregion
+
+
+#pragma region AttributeTables
+
+protected:
+	UPROPERTY()
+	UDataTable* AttributeDefTable;
+
+	UPROPERTY()
+	UDataTable* AttributeModifierDefTable;
+
+#pragma endregion
+	
+
+#pragma region AttributeInstance
 
 public:
 	// 给战斗实体添加属性

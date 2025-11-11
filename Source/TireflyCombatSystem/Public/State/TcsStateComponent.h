@@ -8,6 +8,7 @@
 #include "Engine/DataTable.h"
 #include "Containers/ArrayView.h"
 #include "TcsState.h"
+#include "TcsStateContainer.h"
 #include "TcsStateSlot.h"
 #include "TcsStateComponent.generated.h"
 
@@ -39,11 +40,10 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_FiveParams(
 
 // 状态应用失败事件签名
 // (应用到的Actor, 状态定义ID, 失败原因枚举, 失败详情消息)
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams(
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(
 	FTcsOnStateApplyFailedSignature,
 	AActor*, TargetActor,
 	FName, StateDefId,
-	ETcsStateApplyFailureReason, FailureReason,
 	FString, FailureMessage
 );
 
@@ -63,22 +63,16 @@ public:
 	// 剩余持续时间
 	float RemainingDuration;
 
-	// 持续时间类型
-	uint8 DurationType;
-
 	FTcsStateDurationData()
 		: StateInstance(nullptr)
 		, RemainingDuration(0.0f)
-		, DurationType(0)
 	{}
 
 	FTcsStateDurationData(
 		UTcsStateInstance* InStateInstance,
-		float InRemainingDuration,
-		uint8 InDurationType)
+		float InRemainingDuration)
 		: StateInstance(InStateInstance)
 		, RemainingDuration(InRemainingDuration)
-		, DurationType(InDurationType)
 	{}
 };
 
@@ -133,6 +127,20 @@ protected:
 		float DeltaTime,
 		ELevelTick TickType,
 		FActorComponentTickFunction* ThisTickFunction) override;
+
+public:
+	// 友元类声明，允许状态子系统访问私有成员
+	friend class UTcsStateManagerSubsystem;
+
+#pragma endregion
+
+
+#pragma region StateInstanceX
+
+protected:
+	// 持久化状态实例容器
+	UPROPERTY()
+	FTcsPersistentStateInstanceContainer PersistentStateInstances;
 
 #pragma endregion
 
@@ -202,7 +210,43 @@ protected:
 
 	// 状态管理器子系统
 	UPROPERTY()
-	TObjectPtr<UTcsStateManagerSubsystem> StateManagerSubsystem;
+	TObjectPtr<UTcsStateManagerSubsystem> StateMgr;
+
+#pragma endregion
+
+
+#pragma region StateSlot_Mappings
+
+protected:
+	// 映射集合：StateSlot 到 StateTreeState
+	UPROPERTY()
+	TMap<FGameplayTag, FStateTreeStateHandle> Mapping_StateSlotToStateHandle;
+	
+	// 映射集合：StateTreeState 到 StateSlot
+	UPROPERTY()
+	TMap<FStateTreeStateHandle, FGameplayTag> Mapping_StateHandleToStateSlot;
+
+#pragma endregion
+
+
+#pragma region StateSlot_StateInstance
+
+protected:
+	// StateTree状态槽映射 (运行时状态数据)
+	UPROPERTY()
+	TMap<FGameplayTag, FTcsStateSlot> StateSlotsX;
+
+#pragma endregion
+
+
+#pragma region StateTree_Reference
+
+public:
+	UFUNCTION(BLueprintCallable, Category = "StateTree")
+	FStateTreeReference GetStateTreeReference() const;
+
+	UFUNCTION(BLueprintCallable, Category = "StateTree")
+	const UStateTree* GetStateTree() const;
 
 #pragma endregion
 
@@ -229,10 +273,6 @@ public:
 	// 从状态槽位中移除状态
 	UFUNCTION(BlueprintCallable, Category = "State Slot") 
 	void RemoveStateFromStateSlot(UTcsStateInstance* StateInstance, FGameplayTag SlotTag);
-
-	// 清空状态槽位
-	UFUNCTION(BlueprintCallable, Category = "State Slot")
-	void ClearStateSlot(FGameplayTag SlotTag);
 	
 	// 获取槽位中最高优先级的激活状态
 	UFUNCTION(BlueprintPure, Category = "State Slot")
@@ -254,16 +294,29 @@ public:
     UFUNCTION(BlueprintPure, Category = "State Slot")
     FTcsStateSlotDefinition GetStateSlotDefinition(FGameplayTag SlotTag) const;
 
+protected:
+	// StateTree状态槽映射 (运行时状态数据)
+	UPROPERTY()
+	TMap<FGameplayTag, FTcsStateSlot> StateSlots;
+
+	// 槽位配置映射（运行时配置存储,与StateSlots分离以保持配置与状态的职责分离）
+	UPROPERTY()
+	TMap<FGameplayTag, FTcsStateSlotDefinition> StateSlotDefinitions;
+
+	// 槽位到 StateTree 状态句柄的映射
+	UPROPERTY()
+	TMap<FGameplayTag, struct FStateTreeStateHandle> SlotToStateHandleMap;
+	
+	// StateTree状态句柄 到 槽位 的映射
+	UPROPERTY()
+	TMap<struct FStateTreeStateHandle, FGameplayTag> StateHandleToSlotMap;	
+
 #pragma endregion
 
 
 #pragma region StateTreeIntegration
 
 public:
-    // 构建 槽位 <-> StateTree 状态 的映射（基于配置表 StateTreeStateName）
-    UFUNCTION(BlueprintCallable, Category = "StateTree Integration")
-    void BuildStateSlotMappings();
-
     // 槽位对应的 StateTree 状态是否被激活（当前实现回退到槽位是否有激活状态）
     UFUNCTION(BlueprintPure, Category = "StateTree Integration")
     bool IsStateTreeSlotActive(FGameplayTag SlotTag) const;
@@ -325,20 +378,6 @@ protected:
 	bool AreStateNamesEqual(const TArray<FName>& A, const TArray<FName>& B) const;
 
 protected:
-    // StateTree状态槽映射 (运行时状态数据)
-    UPROPERTY()
-    TMap<FGameplayTag, FTcsStateSlot> StateSlots;
-
-    // 槽位配置映射（运行时配置存储,与StateSlots分离以保持配置与状态的职责分离）
-    UPROPERTY()
-    TMap<FGameplayTag, FTcsStateSlotDefinition> StateSlotDefinitions;
-
-    // 槽位到 StateTree 状态句柄的映射
-    TMap<FGameplayTag, struct FStateTreeStateHandle> SlotToStateHandleMap;
-	// StateTree状态句柄 到 槽位 的映射
-    TMap<struct FStateTreeStateHandle, FGameplayTag> StateHandleToSlotMap;
-
-protected:
 	// 状态槽变化事件处理
 	virtual void OnStateSlotChanged(FGameplayTag SlotTag);
 
@@ -397,13 +436,20 @@ private:
 
 public:
 	// 获取状态实例的剩余时间
-	float GetStateInstanceDurationRemaining(const UTcsStateInstance* StateInstance) const;
+	UFUNCTION(BlueprintCallable, Category = "State|Duration")
+	float GetStateRemainingDuration(const UTcsStateInstance* StateInstance) const;
 
 	// 刷新状态实例的剩余时间
-	void RefreshStateInstanceDurationRemaining(UTcsStateInstance* StateInstance);
+	UFUNCTION(BlueprintCallable, Category = "State|Duration")
+	void RefreshStateRemainingDuration(UTcsStateInstance* StateInstance);
 
 	// 设置状态实例的剩余时间
-	void SetStateInstanceDurationRemaining(UTcsStateInstance* StateInstance, float InDurationRemaining);
+	UFUNCTION(BlueprintCallable, Category = "State|Duration")
+	void SetStateRemainingDuration(UTcsStateInstance* StateInstance, float InDurationRemaining);
+
+protected:
+	// 更新所有持续存在的状态实例的持续时间
+	void UpdateActiveStateDurations(float DeltaTime);
 
 protected:
 	// 状态实例持续时间映射表

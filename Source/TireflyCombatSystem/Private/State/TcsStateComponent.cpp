@@ -24,21 +24,31 @@ UTcsStateComponent::UTcsStateComponent(const FObjectInitializer& ObjectInitializ
 
 void UTcsStateComponent::BeginPlay()
 {
-	Super::BeginPlay();
-
 	// 获取状态管理器子系统
-	if (UWorld* World = GetWorld())
+	UWorld* World = GetWorld();
+	if (!World)
 	{
-		StateManagerSubsystem = World->GetSubsystem<UTcsStateManagerSubsystem>();
+		UE_LOG(LogTcsState, Error, TEXT("[%s] World is invalid."), *FString(__FUNCTION__));
+		return;
+	}
+
+	StateMgr = World->GetSubsystem<UTcsStateManagerSubsystem>();
+	if (!StateMgr)
+	{
+		UE_LOG(LogTcsState, Error, TEXT("[%s] Failed to get TcsStateManagerSubsystem."),
+			*FString(__FUNCTION__));
+		return;
 	}
 
 	LastGateAutoRefreshTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0;
 	bPendingFullGateRefresh = true;
 	bInitialGateSyncCompleted = false;
 
-    // 初始化槽位配置与StateTree映射
-    InitializeStateSlots();
-    BuildStateSlotMappings();
+    // 初始化StateSlot和StateTreeState的映射
+	StateMgr->InitStateSlotMappings(GetOwner());
+
+	// 各项初始化之后，再执行状态管理StateTree
+	Super::BeginPlay();
 }
 
 void UTcsStateComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
@@ -61,79 +71,6 @@ void UTcsStateComponent::TickComponent(float DeltaTime, ELevelTick TickType, FAc
 
 	// 处理排队状态
 	ProcessQueuedStates(DeltaTime);
-
-	// 更新持续时间
-	TArray<UTcsStateInstance*> ExpiredStates;
-
-	for (auto& DurationPair : StateDurationMap)
-	{
-		UTcsStateInstance* StateInstance = DurationPair.Key;
-		FTcsStateDurationData& DurationData = DurationPair.Value;
-
-		if (!IsValid(StateInstance))
-		{
-			ExpiredStates.Add(StateInstance);
-			continue;
-		}
-
-		if (DurationData.DurationType != static_cast<uint8>(ETcsStateDurationType::SDT_Duration))
-		{
-			continue;
-		}
-
-		const ETcsStateStage CurrentStage = StateInstance->GetCurrentStage();
-		const bool bStateIsActive = (CurrentStage == ETcsStateStage::SS_Active);
-		const FGameplayTag SlotTag = StateInstance->GetStateDef().StateSlotType;
-		const FTcsStateSlotDefinition SlotDefinition = SlotTag.IsValid() ? GetStateSlotDefinition(SlotTag) : FTcsStateSlotDefinition();
-		const FTcsStateSlot* SlotData = SlotTag.IsValid() ? StateSlots.Find(SlotTag) : nullptr;
-		const bool bGateOpen = !SlotTag.IsValid() || (SlotData && SlotData->bIsGateOpen);
-
-		bool bShouldTick = false;
-		switch (SlotDefinition.DurationTickPolicy)
-		{
-		case ETcsDurationTickPolicy::DTP_Always:
-			bShouldTick = true;
-			break;
-		case ETcsDurationTickPolicy::DTP_OnlyWhenGateOpen:
-			bShouldTick = bGateOpen;
-			break;
-		case ETcsDurationTickPolicy::DTP_ActiveOrGateOpen:
-			bShouldTick = bStateIsActive || bGateOpen;
-			break;
-		case ETcsDurationTickPolicy::DTP_ActiveAndGateOpen:
-			bShouldTick = bStateIsActive && bGateOpen;
-			break;
-		case ETcsDurationTickPolicy::DTP_ActiveOnly:
-		default:
-			bShouldTick = bStateIsActive;
-			break;
-		}
-
-		if (!bShouldTick)
-		{
-			continue;
-		}
-
-		DurationData.RemainingDuration -= DeltaTime;
-
-		if (DurationData.RemainingDuration <= 0.0f)
-		{
-			ExpiredStates.Add(StateInstance);
-		}
-	}
-
-	for (UTcsStateInstance* ExpiredState : ExpiredStates)
-	{
-		if (IsValid(ExpiredState))
-		{
-			if (StateManagerSubsystem)
-			{
-				StateManagerSubsystem->OnStateInstanceDurationExpired(ExpiredState);
-			}
-		}
-
-		StateDurationMap.Remove(ExpiredState);
-	}
 
 	// Tick 激活状态
 	for (UTcsStateInstance* ActiveState : ActiveStateInstances)
@@ -188,7 +125,7 @@ void UTcsStateComponent::RemoveStateInstance(const UTcsStateInstance* StateInsta
 	StateDurationMap.Remove(StateInstance);
 }
 
-float UTcsStateComponent::GetStateInstanceDurationRemaining(const UTcsStateInstance* StateInstance) const
+float UTcsStateComponent::GetStateRemainingDuration(const UTcsStateInstance* StateInstance) const
 {
 	if (const FTcsStateDurationData* DurationData = StateDurationMap.Find(StateInstance))
 	{
@@ -198,7 +135,7 @@ float UTcsStateComponent::GetStateInstanceDurationRemaining(const UTcsStateInsta
 	return 0.0f;
 }
 
-void UTcsStateComponent::RefreshStateInstanceDurationRemaining(UTcsStateInstance* StateInstance)
+void UTcsStateComponent::RefreshStateRemainingDuration(UTcsStateInstance* StateInstance)
 {
 	if (!IsValid(StateInstance))
 	{
@@ -206,9 +143,9 @@ void UTcsStateComponent::RefreshStateInstanceDurationRemaining(UTcsStateInstance
 		return;
 	}
 
-	if (!StateManagerSubsystem)
+	if (!StateMgr)
 	{
-		UE_LOG(LogTcsState, Warning, TEXT("[%s] StateManagerSubsystem is not initialized."), *FString(__FUNCTION__));
+		UE_LOG(LogTcsState, Warning, TEXT("[%s] StateMgr is not initialized."), *FString(__FUNCTION__));
 		return;
 	}
 
@@ -223,10 +160,10 @@ void UTcsStateComponent::RefreshStateInstanceDurationRemaining(UTcsStateInstance
 
 	// 刷新为总持续时间
 	DurationData->RemainingDuration = StateInstance->GetTotalDuration();
-	StateManagerSubsystem->OnStateInstanceDurationUpdated(StateInstance);
+	StateMgr->OnStateInstanceDurationUpdated(StateInstance);
 }
 
-void UTcsStateComponent::SetStateInstanceDurationRemaining(UTcsStateInstance* StateInstance, float InDurationRemaining)
+void UTcsStateComponent::SetStateRemainingDuration(UTcsStateInstance* StateInstance, float InDurationRemaining)
 {
 	if (!IsValid(StateInstance))
 	{
@@ -234,9 +171,9 @@ void UTcsStateComponent::SetStateInstanceDurationRemaining(UTcsStateInstance* St
 		return;
 	}
 
-	if (!StateManagerSubsystem)
+	if (!StateMgr)
 	{
-		UE_LOG(LogTcsState, Warning, TEXT("[%s] StateManagerSubsystem is not initialized."), *FString(__FUNCTION__));
+		UE_LOG(LogTcsState, Warning, TEXT("[%s] StateMgr is not initialized."), *FString(__FUNCTION__));
 		return;
 	}
 
@@ -251,10 +188,82 @@ void UTcsStateComponent::SetStateInstanceDurationRemaining(UTcsStateInstance* St
 
 	// 设置新的剩余时间
 	DurationData->RemainingDuration = InDurationRemaining;
-	StateManagerSubsystem->OnStateInstanceDurationUpdated(StateInstance);
+	StateMgr->OnStateInstanceDurationUpdated(StateInstance);
 }
 
-#pragma region StateInstance Extended Implementation
+void UTcsStateComponent::UpdateActiveStateDurations(float DeltaTime)
+{
+	TArray<UTcsStateInstance*> ExpiredStates;
+
+	for (auto& DurationPair : StateDurationMap)
+	{
+		UTcsStateInstance* StateInstance = DurationPair.Key;
+		FTcsStateDurationData& DurationData = DurationPair.Value;
+
+		if (!IsValid(StateInstance))
+		{
+			ExpiredStates.Add(StateInstance);
+			continue;
+		}
+
+		// 确认状态当前的状态阶段
+		const ETcsStateStage CurrentStage = StateInstance->GetCurrentStage();
+		const bool bStateIsActive = (CurrentStage == ETcsStateStage::SS_Active);
+		// 检查状态所属的状态槽的状态
+		const FGameplayTag SlotTag = StateInstance->GetStateDef().StateSlotType;
+		const FTcsStateSlotDefinition SlotDefinition = SlotTag.IsValid() ? GetStateSlotDefinition(SlotTag) : FTcsStateSlotDefinition();
+		FTcsStateSlot* SlotData = SlotTag.IsValid() ? StateSlots.Find(SlotTag) : nullptr;
+		const bool bGateOpen = !SlotTag.IsValid() || (SlotData && SlotData->bIsGateOpen);
+
+		bool bShouldTick = false;
+		// 根据状态槽的持续时间流失策略决定是否递减剩余持续时间
+		switch (SlotDefinition.DurationTickPolicy)
+		{
+		case ETcsDurationTickPolicy::DTP_Always:
+			bShouldTick = true;
+			break;
+		case ETcsDurationTickPolicy::DTP_OnlyWhenGateOpen:
+			bShouldTick = bGateOpen;
+			break;
+		case ETcsDurationTickPolicy::DTP_ActiveOrGateOpen:
+			bShouldTick = bStateIsActive || bGateOpen;
+			break;
+		case ETcsDurationTickPolicy::DTP_ActiveAndGateOpen:
+			bShouldTick = bStateIsActive && bGateOpen;
+			break;
+		case ETcsDurationTickPolicy::DTP_ActiveOnly:
+			bShouldTick = bStateIsActive;
+			break;
+		}
+
+		if (!bShouldTick)
+		{
+			continue;
+		}
+
+		// 递减剩余持续时间，并检查是否到期
+		DurationData.RemainingDuration -= DeltaTime;
+		if (DurationData.RemainingDuration <= 0.0f)
+		{
+			ExpiredStates.Add(StateInstance);
+			SlotData->States.Remove(StateInstance);
+		}
+	}
+
+	// 处理到期状态
+	for (UTcsStateInstance* ExpiredState : ExpiredStates)
+	{
+		if (IsValid(ExpiredState))
+		{
+			// TODO: 触发状态持续时间到期事件
+			ExpiredState->StopStateTree();
+		}
+
+		StateDurationMap.Remove(ExpiredState);
+		PersistentStateInstances.RemoveInstance(ExpiredState);
+	}
+	PersistentStateInstances.RefreshInstances();
+}
 
 UTcsStateInstance* UTcsStateComponent::GetStateInstance(FName StateDefId) const
 {
@@ -331,9 +340,15 @@ void UTcsStateComponent::NotifyStateStageChanged(UTcsStateInstance* StateInstanc
 	}
 }
 
-#pragma endregion
+FStateTreeReference UTcsStateComponent::GetStateTreeReference() const
+{
+	return StateTreeRef;
+}
 
-#pragma region StateTreeSlots Implementation
+const UStateTree* UTcsStateComponent::GetStateTree() const
+{
+	return StateTreeRef.GetStateTree();
+}
 
 bool UTcsStateComponent::IsStateSlotOccupied(FGameplayTag SlotTag) const
 {
@@ -392,27 +407,6 @@ void UTcsStateComponent::RemoveStateFromStateSlot(UTcsStateInstance* StateInstan
 		UE_LOG(LogTcsState, Log, TEXT("State [%s] removed from slot [%s]"),
 			*StateInstance->GetStateDefId().ToString(), *SlotTag.ToString());
 	}
-}
-
-void UTcsStateComponent::ClearStateSlot(FGameplayTag SlotTag)
-{
-	FTcsStateSlot* Slot = StateSlots.Find(SlotTag);
-	if (!Slot)
-	{
-		return;
-	}
-
-	// 清空槽位中的所有状态实例
-	Slot->States.Empty();
-
-	// 移除槽位记录
-	StateSlots.Remove(SlotTag);
-	ClearQueuedStatesForSlot(SlotTag);
-
-	// 触发槽位变化事件
-	OnStateSlotChanged(SlotTag);
-
-	UE_LOG(LogTcsState, Log, TEXT("Slot [%s] cleared"), *SlotTag.ToString());
 }
 
 void UTcsStateComponent::OnStateSlotChanged(FGameplayTag SlotTag)
@@ -523,11 +517,6 @@ void UTcsStateComponent::CleanupStateInstanceIndices(UTcsStateInstance* StateIns
 
 	// 类型索引维护已移除 - 改为动态查询以避免UE引擎TMap嵌套限制和GC风险
 }
-
-#pragma endregion
-
-
-#pragma region SlotConfiguration
 
 void UTcsStateComponent::InitializeStateSlots()
 {
@@ -795,50 +784,6 @@ FTcsStateSlotDefinition UTcsStateComponent::GetStateSlotDefinition(FGameplayTag 
 	
 	// 返回默认配置（AllActive模式）
 	return FTcsStateSlotDefinition();
-}
-
-void UTcsStateComponent::BuildStateSlotMappings()
-{
-    SlotToStateHandleMap.Empty();
-    StateHandleToSlotMap.Empty();
-
-    const UStateTree* StateTree = StateTreeRef.GetStateTree();
-    if (!StateTree)
-    {
-        UE_LOG(LogTcsState, Verbose, TEXT("[%s] No StateTree assigned on StateComponent of %s"), *FString(__FUNCTION__), *GetOwner()->GetName());
-        return;
-    }
-
-    // 遍历配置中包含 StateTreeStateName 的槽位定义，尝试匹配到 StateTree 状态
-    for (const auto& Pair : StateSlotDefinitions)
-    {
-        const FGameplayTag SlotTag = Pair.Key;
-        const FTcsStateSlotDefinition& Def = Pair.Value;
-        if (Def.StateTreeStateName.IsNone())
-        {
-            continue; // 未指定映射，跳过
-        }
-
-        // 迭代StateTree的运行时状态，匹配名字
-        bool bMapped = false;
-        // 注意：GetStates() 在5.6可用；若未来API变化，可改为其它查找方案
-        const TArrayView<const FCompactStateTreeState> States = StateTree->GetStates();
-        for (int32 Index = 0; Index < States.Num(); ++Index)
-        {
-            const FCompactStateTreeState& S = States[Index];
-            if (S.Name == Def.StateTreeStateName)
-            {
-                FStateTreeStateHandle Handle(Index);
-                SlotToStateHandleMap.Add(SlotTag, Handle);
-                StateHandleToSlotMap.Add(Handle, SlotTag);
-                bMapped = true;
-                break;
-            }
-        }
-
-        UE_LOG(LogTcsState, Log, TEXT("[%s] Slot [%s] -> StateTree State [%s] %s"),
-            *FString(__FUNCTION__), *SlotTag.ToString(), *Def.StateTreeStateName.ToString(), bMapped ? TEXT("mapped") : TEXT("not found"));
-    }
 }
 
 bool UTcsStateComponent::IsStateTreeSlotActive(FGameplayTag SlotTag) const
@@ -1313,7 +1258,7 @@ bool UTcsStateComponent::ApplyStateMergeStrategy(FGameplayTag SlotTag, UTcsState
 	const FName StateDefId = NewState->GetStateDefId();
 	const FTcsStateDefinition& StateDef = NewState->GetStateDef();
 
-	TSubclassOf<UTcsStateMerger> MergerClass = bSameInstigator ? StateDef.SameInstigatorMergerType : StateDef.DiffInstigatorMergerType;
+	TSubclassOf<UTcsStateMerger> MergerClass = bSameInstigator ? StateDef.MergerType : StateDef.DiffInstigatorMergerType;
 	if (!MergerClass)
 	{
 		// 未配置合并器，交由上层继续添加
@@ -1441,63 +1386,127 @@ void UTcsStateComponent::QueueStateForSlot(UTcsStateInstance* StateInstance, con
 
 void UTcsStateComponent::ProcessQueuedStates(float DeltaTime)
 {
+	// ============================================================================
+	// 第一步：快速退出检查
+	// ============================================================================
+	// 如果没有任何排队的状态，直接返回，避免不必要的处理
 	if (QueuedStatesBySlot.Num() == 0)
 	{
 		return;
 	}
 
+	// 获取当前的世界时间，用于判断排队状态是否已过期
+	// 如果世界不存在，则使用0.0作为当前时间（通常不会发生）
 	const double CurrentTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0;
+
+	// 用于收集在第一阶段需要重试的状态槽位（即Gate已开启的槽位）
 	TArray<FGameplayTag> SlotsToRetry;
+
+	// ============================================================================
+	// Lambda 函数：处理过期状态
+	// ============================================================================
+	// 这个Lambda函数被用来处理已经过期的排队状态
+	// 流程：停用状态 -> 标记为已过期 -> 通知状态阶段变更 -> 从组件中移除
 	auto HandleExpiration = [this](const FTcsQueuedStateData& Entry)
 	{
 		if (UTcsStateInstance* ExpiredState = Entry.StateInstance.Get())
 		{
+			// 1. 停用该状态（触发所有的停用逻辑）
 			DeactivateState(ExpiredState);
+
+			// 2. 记录状态变更前的阶段，用于通知
 			const ETcsStateStage PreExpireStage = ExpiredState->GetCurrentStage();
+
+			// 3. 将状态标记为已过期
 			ExpiredState->SetCurrentStage(ETcsStateStage::SS_Expired);
+
+			// 4. 通知所有监听者该状态已过期
 			NotifyStateStageChanged(ExpiredState, PreExpireStage, ETcsStateStage::SS_Expired);
+
+			// 5. 从组件中移除该状态实例
 			RemoveStateInstance(ExpiredState);
 		}
 	};
 
+	// ============================================================================
+	// 第二步：第一轮扫描 - 检查所有排队的状态
+	//
+	// 目的：区分两类排队的状态
+	// 1. 槽位Gate未开启的状态 -> 检查是否过期并清理
+	// 2. 槽位Gate已开启的状态 -> 标记为需要重试
+	// ============================================================================
 	for (TPair<FGameplayTag, TArray<FTcsQueuedStateData>>& Pair : QueuedStatesBySlot)
 	{
 		FGameplayTag SlotTag = Pair.Key;
 		TArray<FTcsQueuedStateData>& Queue = Pair.Value;
 
+		// 跳过空队列（应该不常见，但防御性编程）
 		if (Queue.Num() == 0)
 		{
 			continue;
 		}
 
+		// 查找此槽位的配置信息
 		FTcsStateSlot* Slot = StateSlots.Find(SlotTag);
+
+		// ========================================================================
+		// 情况A：槽位不存在或Gate未开启
+		// ========================================================================
+		// 当槽位Gate关闭时，排队的状态无法直接分配到槽位中
+		// 此时只需要：
+		// 1. 清理无效的状态实例（被垃圾回收的）
+		// 2. 检查并处理已过期的状态
+		// 3. 保留未过期的状态，等待下一次处理机会
 		if (!Slot || !Slot->bIsGateOpen)
 		{
+			// 倒序遍历，这样移除元素不会影响后续的索引
 			for (int32 Index = Queue.Num() - 1; Index >= 0; --Index)
 			{
+				// 如果状态实例已被垃圾回收，移除此条目
 				if (!Queue[Index].StateInstance.IsValid())
 				{
 					Queue.RemoveAt(Index);
 					continue;
 				}
 
+				// 检查该排队的状态是否已超时
+				// 超时时间由 FTcsQueuedStateData 中的过期时间决定
 				if (Queue[Index].IsExpired(CurrentTime))
 				{
+					// 触发过期处理流程
 					HandleExpiration(Queue[Index]);
+					// 从队列中移除已处理的过期状态
 					Queue.RemoveAt(Index);
 				}
+				// 注意：如果状态未过期且Gate关闭，它会继续保留在队列中
+				// 等待Gate重新开启时再次尝试分配
 			}
 			continue;
 		}
 
+		// ========================================================================
+		// 情况B：槽位存在且Gate已开启
+		// ========================================================================
+		// 该槽位的Gate是开启的，排队的状态有可能被分配到槽位中
+		// 将此槽位标记为需要在第三步中重试
 		SlotsToRetry.Add(SlotTag);
 	}
 
+	// ============================================================================
+	// 第三步：第二轮处理 - 尝试为Gate开启的槽位分配排队的状态
+	//
+	// 此时我们只处理那些Gate已开启的槽位
+	// 逐个尝试将排队的状态分配给对应的槽位
+	// ============================================================================
 	for (const FGameplayTag& SlotTag : SlotsToRetry)
 	{
 		TArray<FTcsQueuedStateData>& Queue = QueuedStatesBySlot.FindChecked(SlotTag);
+
+		// 倒序遍历以安全地在迭代中移除元素
 		for (int32 Index = Queue.Num() - 1; Index >= 0; --Index)
 		{
+			// 再次检查状态实例的有效性
+			// （虽然第一轮已经检查过，但状态可能在两轮之间被回收）
 			if (!Queue[Index].StateInstance.IsValid())
 			{
 				Queue.RemoveAt(Index);
@@ -1505,15 +1514,33 @@ void UTcsStateComponent::ProcessQueuedStates(float DeltaTime)
 			}
 
 			UTcsStateInstance* QueuedState = Queue[Index].StateInstance.Get();
+
+			// ====================================================================
+			// 尝试将排队的状态分配到槽位中
+			// ====================================================================
+			// AssignStateToStateSlot 会尝试将状态分配到槽位
+			// 它可能会因为以下原因失败：
+			// - 槽位已经被其他状态占据（取决于槽位的最大容量）
+			// - 状态之间存在冲突
+			// - 其他游戏逻辑限制
 			if (AssignStateToStateSlot(QueuedState, SlotTag))
 			{
+				// 分配成功！将此状态从队列中移除
 				Queue.RemoveAt(Index);
 			}
+			// ====================================================================
+			// 如果分配失败，检查是否已过期
+			// ====================================================================
 			else if (Queue[Index].IsExpired(CurrentTime))
 			{
+				// 状态分配失败，且已超时
+				// 触发过期处理流程：停用、标记、通知、移除
 				HandleExpiration(Queue[Index]);
+				// 从队列中移除已处理的过期状态
 				Queue.RemoveAt(Index);
 			}
+			// 如果分配失败但未过期，状态会继续留在队列中
+			// 在下一帧再次尝试分配
 		}
 	}
 }
@@ -1535,5 +1562,3 @@ void UTcsStateComponent::RequestGateRefreshForAll()
 {
 	bPendingFullGateRefresh = true;
 }
-
-#pragma endregion

@@ -12,26 +12,49 @@
 #include "Attribute/AttrModMerger/TcsAttributeModifierMerger.h"
 
 
+void UTcsAttributeManagerSubsystem::Initialize(FSubsystemCollectionBase& Collection)
+{
+	Super::Initialize(Collection);
+
+	AttributeDefTable = UTcsGenericLibrary::GetAttributeDefTable();
+	if (!IsValid(AttributeDefTable))
+	{
+		UE_LOG(LogTcsAttribute, Error, TEXT("[%s] AttributeDefTable in TcsDevSettings is not valid"),
+			*FString(__FUNCTION__));
+		return;
+	}
+
+	AttributeModifierDefTable = UTcsGenericLibrary::GetAttributeModifierDefTable();
+	if (!IsValid(AttributeModifierDefTable))
+	{
+		UE_LOG(LogTcsAttribute, Error, TEXT("[%s] AttributeModifierDefTable in TcsDevSettings is not valid"),
+			*FString(__FUNCTION__));
+	}
+}
+
 void UTcsAttributeManagerSubsystem::AddAttribute(
 	AActor* CombatEntity,
 	FName AttributeName,
 	float InitValue)
 {
-	UTcsAttributeComponent* AttributeComponent = GetAttributeComponent(CombatEntity);
-	if (!IsValid(AttributeComponent))
+	if (!IsValid(AttributeDefTable))
 	{
-		UE_LOG(LogTcsAttribute, Warning, TEXT("[%s] CombatEntity does not have an AttributeComponent"), *FString(__FUNCTION__));
+		UE_LOG(LogTcsAttribute, Error, TEXT("[%s] AttributeDefTable in TcsDevSettings is not valid"),
+			*FString(__FUNCTION__));
 		return;
 	}
 	
-	const UDataTable* AttributeDefTable = UTcsGenericLibrary::GetAttributeDefTable();
-	if (!IsValid(AttributeDefTable))
+	UTcsAttributeComponent* AttributeComponent = GetAttributeComponent(CombatEntity);
+	if (!IsValid(AttributeComponent))
 	{
-		UE_LOG(LogTcsAttribute, Error, TEXT("[%s] AttributeDefTable in TcsDevSettings is not valid"), *FString(__FUNCTION__));
+		UE_LOG(LogTcsAttribute, Warning, TEXT("[%s] CombatEntity does not have an AttributeComponent"),
+			*FString(__FUNCTION__));
 		return;
 	}
 
-	const auto AttrDef = AttributeDefTable->FindRow<FTcsAttributeDefinition>(AttributeName, FString(__FUNCTION__));
+	const auto AttrDef = AttributeDefTable->FindRow<FTcsAttributeDefinition>(
+		AttributeName,
+		*FString(__FUNCTION__));
 	if (!AttrDef)
 	{
 		UE_LOG(LogTcsAttribute, Error, TEXT("[%s] AttributeDefTable does not contain AttributeName %s"),
@@ -46,17 +69,18 @@ void UTcsAttributeManagerSubsystem::AddAttribute(
 
 void UTcsAttributeManagerSubsystem::AddAttributes(AActor* CombatEntity, const TArray<FName>& AttributeNames)
 {
-	UTcsAttributeComponent* AttributeComponent = GetAttributeComponent(CombatEntity);
-	if (!IsValid(AttributeComponent))
+	if (!IsValid(AttributeDefTable))
 	{
-		UE_LOG(LogTcsAttribute, Warning, TEXT("[%s] CombatEntity does not have an AttributeComponent"), *FString(__FUNCTION__));
+		UE_LOG(LogTcsAttribute, Error, TEXT("[%s] AttributeDefTable in TcsDevSettings is not valid"),
+			*FString(__FUNCTION__));
 		return;
 	}
 	
-	const UDataTable* AttributeDefTable = UTcsGenericLibrary::GetAttributeDefTable();
-	if (!IsValid(AttributeDefTable))
+	UTcsAttributeComponent* AttributeComponent = GetAttributeComponent(CombatEntity);
+	if (!IsValid(AttributeComponent))
 	{
-		UE_LOG(LogTcsAttribute, Error, TEXT("[%s] AttributeDefTable in TcsDevSettings is not valid"), *FString(__FUNCTION__));
+		UE_LOG(LogTcsAttribute, Warning, TEXT("[%s] CombatEntity does not have an AttributeComponent"),
+			*FString(__FUNCTION__));
 		return;
 	}
 
@@ -98,16 +122,16 @@ bool UTcsAttributeManagerSubsystem::CreateAttributeModifier(
 	AActor* Target,
 	FTcsAttributeModifierInstance& OutModifierInst)
 {
-	if (!IsValid(Instigator) || !IsValid(Target))
+	if (!IsValid(AttributeModifierDefTable))
 	{
-		UE_LOG(LogTcsAttribute, Error, TEXT("[%s] Instigator or Target is not valid"), *FString(__FUNCTION__));
+		UE_LOG(LogTcsAttribute, Error, TEXT("[%s] AttributeModifierDefTable in TcsDevSettings is not valid"),
+			*FString(__FUNCTION__));
 		return false;
 	}
 	
-	UDataTable* AttributeModifierDefTable = UTcsGenericLibrary::GetAttributeModifierDefTable();
-	if (!IsValid(AttributeModifierDefTable))
+	if (!IsValid(Instigator) || !IsValid(Target))
 	{
-		UE_LOG(LogTcsAttribute, Error, TEXT("[%s] AttributeModifierDefTable in TcsDevSettings is not valid"), *FString(__FUNCTION__));
+		UE_LOG(LogTcsAttribute, Error, TEXT("[%s] Instigator or Target is not valid"), *FString(__FUNCTION__));
 		return false;
 	}
 
@@ -143,14 +167,15 @@ bool UTcsAttributeManagerSubsystem::CreateAttributeModifierWithOperands(
 {
 	if (!IsValid(Instigator) || !IsValid(Target))
 	{
-		UE_LOG(LogTcsAttribute, Error, TEXT("[%s] Instigator or Target is not valid"), *FString(__FUNCTION__));
+		UE_LOG(LogTcsAttribute, Error, TEXT("[%s] Instigator or Target is not valid"),
+			*FString(__FUNCTION__));
 		return false;
 	}
 	
-	UDataTable* AttributeModifierDefTable = UTcsGenericLibrary::GetAttributeModifierDefTable();
 	if (!IsValid(AttributeModifierDefTable))
 	{
-		UE_LOG(LogTcsAttribute, Error, TEXT("[%s] AttributeModifierDefTable in TcsDevSettings is not valid"), *FString(__FUNCTION__));
+		UE_LOG(LogTcsAttribute, Error, TEXT("[%s] AttributeModifierDefTable in TcsDevSettings is not valid"),
+			*FString(__FUNCTION__));
 		return false;
 	}
 
@@ -168,7 +193,8 @@ bool UTcsAttributeManagerSubsystem::CreateAttributeModifierWithOperands(
 	// 验证Operands是否正确
 	if (ModifierDef->Operands.IsEmpty())
 	{
-		UE_LOG(LogTcsAttribute, Error, TEXT("[%s] ModifierDef does not contain Operands"), *FString(__FUNCTION__));
+		UE_LOG(LogTcsAttribute, Error, TEXT("[%s] ModifierDef does not contain Operands"),
+			*FString(__FUNCTION__));
 		return false;
 	}
 	for (const TPair<FName, float>& Operand : ModifierDef->Operands)

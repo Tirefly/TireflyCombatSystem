@@ -35,7 +35,7 @@ public:
 
 	// 获取属性组件
 	UFUNCTION(BlueprintCallable, Category = "TireflyCombatSystem|Attribute")
-	static UTcsAttributeComponent* GetAttributeComponent(AActor* Actor);
+	static class UTcsAttributeComponent* GetAttributeComponent(AActor* Actor);
 
 #pragma endregion
 
@@ -51,14 +51,18 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "TireflyCombatSystem|State")
 	static UDataTable* GetStateDefTable();
 
+	// 获取状态槽定义总表
+	UFUNCTION(BlueprintCallable, Category = "TireflyCombatSystem|State")
+	static UDataTable* GetStateSlotDefTable();
+
 	// 获取状态组件
 	UFUNCTION(BlueprintCallable, Category = "TireflyCombatSystem|State")
-	static UTcsStateComponent* GetStateComponent(AActor* Actor);
+	static class UTcsStateComponent* GetStateComponent(AActor* Actor);
 
 #pragma endregion
 
 	
-#pragma region SkillModifier
+#pragma region SkillHelper
 
 public:
 	// 获取所有技能修改器名称
@@ -71,7 +75,7 @@ public:
 
 	// 获取技能组件
 	UFUNCTION(BlueprintCallable, Category = "TireflyCombatSystem|Skill")
-	static UTcsSkillComponent* GetSkillComponent(AActor* Actor);
+	static class UTcsSkillComponent* GetSkillComponent(AActor* Actor);
 
 #pragma endregion
 };

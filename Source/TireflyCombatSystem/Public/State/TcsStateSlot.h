@@ -8,6 +8,10 @@
 
 
 
+class UTcsStateInstance;
+
+
+
 // 状态槽激活模式枚举
 UENUM(BlueprintType)
 enum class ETcsStateSlotActivationMode : uint8
@@ -37,8 +41,9 @@ enum class ETcsDurationTickPolicy : uint8
 UENUM(BlueprintType)
 enum class ETcsStateSlotGateClosePolicy : uint8
 {
-	SSGCP_Pause   UMETA(DisplayName = "Pause States", ToolTip = "Gate关闭时暂停槽位中的状态（进入挂起阶段）"),
-	SSGCP_Cancel  UMETA(DisplayName = "Cancel States", ToolTip = "Gate关闭时直接取消槽位中的状态")
+	SSGCP_HangUp	UMETA(DisplayName = "Hang Up States", ToolTip = "Gate关闭时挂起槽位中的状态（仍然计算剩余持续时间和叠层，但不执行逻辑）"),
+	SSGCP_Pause		UMETA(DisplayName = "Pause States", ToolTip = "Gate关闭时暂停槽位中的状态（剩余持续时间计算，叠层计算和逻辑执行都暂停）"),
+	SSGCP_Cancel	UMETA(DisplayName = "Cancel States", ToolTip = "Gate关闭时直接取消槽位中的状态")
 };
 
 
@@ -47,8 +52,9 @@ enum class ETcsStateSlotGateClosePolicy : uint8
 UENUM(BlueprintType)
 enum class ETcsStatePreemptionPolicy : uint8
 {
-	SPP_PauseLowerPriority   UMETA(DisplayName = "Pause Lower Priority", ToolTip = "高优先级状态抢占时，低优先级状态进入挂起"),
-	SPP_CancelLowerPriority  UMETA(DisplayName = "Cancel Lower Priority", ToolTip = "高优先级状态抢占时，低优先级状态被取消")
+	SPP_HangUpLowerPriority		UMETA(DisplayName = "Hang Up Lower Priority", ToolTip = "高优先级状态抢占时，低优先级状态进入挂起（仍然计算剩余持续时间和叠层，但不执行逻辑）"),
+	SPP_PauseLowerPriority		UMETA(DisplayName = "Pause Lower Priority", ToolTip = "高优先级状态抢占时，低优先级状态进入暂停（剩余持续时间计算，叠层计算和逻辑执行都暂停）"),
+	SPP_CancelLowerPriority		UMETA(DisplayName = "Cancel Lower Priority", ToolTip = "高优先级状态抢占时，低优先级状态被取消")
 };
 
 
@@ -122,7 +128,7 @@ struct FTcsStateSlot
 public:
 	// 槽位中的状态实例数组
 	UPROPERTY()
-	TArray<class UTcsStateInstance*> States;
+	TArray<UTcsStateInstance*> States;
 
 	// Gate状态 (用于StateTree联动,控制槽位是否允许激活状态)
 	UPROPERTY()

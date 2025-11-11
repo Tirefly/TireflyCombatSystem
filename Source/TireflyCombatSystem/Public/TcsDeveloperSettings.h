@@ -47,7 +47,7 @@ public:
 #pragma endregion
 
 
-#pragma region DataTable
+#pragma region AttributeDataTable
 
 public:
 	// 属性定义数据表
@@ -62,6 +62,11 @@ public:
 			RequiredAssetDataTags = "RowStructure=/Script/TireflyCombatSystem.TcsAttributeModifierDefinition"))
 	TSoftObjectPtr<UDataTable> AttributeModifierDefTable;
 
+#pragma endregion
+
+
+#pragma region StateDataTable
+
 	// 状态定义数据表（用于从数据表读取 FTcsStateDefinition）
 	UPROPERTY(Config, EditAnywhere, Category = "DataTable",
 		meta = (ToolTip = "状态定义数据表：行结构应为 FTcsStateDefinition"))
@@ -72,6 +77,11 @@ public:
 		meta = (ToolTip = "状态槽定义数据表，定义各个槽位的激活模式与映射", 
 			RequiredAssetDataTags = "RowStructure=/Script/TireflyCombatSystem.TcsStateSlotDefinition"))
 	TSoftObjectPtr<UDataTable> StateSlotDefTable;
+
+#pragma endregion
+
+
+#pragma region SkillDataTable
 
 	// 技能修改器定义数据表
 	UPROPERTY(Config, EditAnywhere, Category = "DataTable",

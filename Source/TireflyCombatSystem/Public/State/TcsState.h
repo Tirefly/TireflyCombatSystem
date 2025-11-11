@@ -65,100 +65,6 @@ enum class ETcsStateParameterType : uint8
 
 
 
-// 状态应用失败原因
-UENUM(BlueprintType)
-enum class ETcsStateApplyFailureReason : uint8
-{
-	SAFR_None = 0			UMETA(DisplayName = "None", ToolTip = "无"),
-	SAFR_InvalidOwner		UMETA(DisplayName = "Invalid Owner", ToolTip = "目标Actor无效"),
-	SAFR_InvalidState		UMETA(DisplayName = "State Definition Not Found", ToolTip = "状态定义未找到"),
-	SAFR_SlotOccupied		UMETA(DisplayName = "Slot Gate Closed", ToolTip = "槽位已占用或Gate关闭"),
-	SAFR_ComponentMissing	UMETA(DisplayName = "TcsStateComponent Missing", ToolTip = "Actor缺少TcsStateComponent"),
-	SAFR_ParameterInvalid	UMETA(DisplayName = "Invalid Parameters", ToolTip = "无效的参数"),
-	SAFR_MergerRejected		UMETA(DisplayName = "Merger Rejected", ToolTip = "合并器拒绝应用"),
-	SAFR_Unknown			UMETA(DisplayName = "Unknown Error", ToolTip = "未知错误"),
-};
-
-
-
-// 状态应用结果结构体
-USTRUCT(BlueprintType)
-struct TIREFLYCOMBATSYSTEM_API FTcsStateApplyResult
-{
-	GENERATED_BODY()
-
-public:
-	/**
-	 * 应用是否成功
-	 */
-	UPROPERTY(BlueprintReadOnly, Category = "State Apply Result")
-	bool bSuccess = false;
-
-	/**
-	 * 失败原因（仅在bSuccess=false时有效）
-	 */
-	UPROPERTY(BlueprintReadOnly, Category = "State Apply Result")
-	ETcsStateApplyFailureReason FailureReason = ETcsStateApplyFailureReason::SAFR_None;
-
-	/**
-	 * 失败的详细描述
-	 */
-	UPROPERTY(BlueprintReadOnly, Category = "State Apply Result")
-	FString FailureMessage = TEXT("");
-
-	/**
-	 * 创建的状态实例（仅在bSuccess=true时有效）
-	 */
-	UPROPERTY(BlueprintReadOnly, Category = "State Apply Result")
-	TObjectPtr<class UTcsStateInstance> CreatedStateInstance = nullptr;
-
-	/**
-	 * 目标槽位（仅在bSuccess=true时有效）
-	 */
-	UPROPERTY(BlueprintReadOnly, Category = "State Apply Result")
-	FGameplayTag TargetSlot;
-
-	/**
-	 * 应用后的状态阶段（仅在bSuccess=true时有效，可能是Active/HangUp等）
-	 */
-	UPROPERTY(BlueprintReadOnly, Category = "State Apply Result")
-	ETcsStateStage AppliedStage = ETcsStateStage::SS_Inactive;
-
-	/**
-	 * 便捷方法：获取失败原因
-	 */
-	ETcsStateApplyFailureReason GetFailureReason() const
-	{
-		return FailureReason;
-	}
-
-	/**
-	 * 便捷方法：获取失败消息
-	 */
-	FString GetFailureMessage() const
-	{
-		return FailureMessage;
-	}
-
-	/**
-	 * 便捷方法：获取创建的状态实例
-	 */
-	UTcsStateInstance* GetCreatedStateInstance() const
-	{
-		return CreatedStateInstance;
-	}
-
-	/**
-	 * 便捷方法：获取应用后的阶段
-	 */
-	ETcsStateStage GetAppliedStage() const
-	{
-		return AppliedStage;
-	}
-};
-
-
-
 // 状态参数数据
 USTRUCT(BlueprintType)
 struct TIREFLYCOMBATSYSTEM_API FTcsStateParameter
@@ -239,11 +145,7 @@ public:
 
 	// 同状态合并策略（来自同一个发起者）
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stack")
-	TSubclassOf<UTcsStateMerger> SameInstigatorMergerType;
-
-	// 同状态合并策略（来自不同的发起者）
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stack")
-	TSubclassOf<UTcsStateMerger> DiffInstigatorMergerType;
+	TSubclassOf<UTcsStateMerger> MergerType;
 
 	// 状态树资产引用，作为状态的运行时脚本
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "State Tree")
@@ -258,7 +160,7 @@ public:
 	TMap<FName, FTcsStateParameter> Parameters;
 
 	// 状态的参数集（GameplayTag 键）
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Parameter", meta = (Categories = "Param"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Parameter")
 	TMap<FGameplayTag, FTcsStateParameter> TagParameters;
 };
 
