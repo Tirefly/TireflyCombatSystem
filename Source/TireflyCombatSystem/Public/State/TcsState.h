@@ -49,6 +49,7 @@ enum class ETcsStateStage : uint8
 	SS_Inactive = 0		UMETA(DisplayName = "Inactive", ToolTip = "未激活"),
 	SS_Active			UMETA(DisplayName = "Active", ToolTip = "已激活"),
 	SS_HangUp			UMETA(DisplayName = "Hanging", ToolTip = "挂起"),
+	SS_Pause			UMETA(DisplayName = "Paused", ToolTip = "暂停"),
 	SS_Expired			UMETA(DisplayName = "Expired", ToolTip = "已过期"),
 };
 
@@ -143,7 +144,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stack")
 	int32 MaxStackCount = 1;
 
-	// 同状态合并策略（来自同一个发起者）
+	// 状态合并策略
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stack")
 	TSubclassOf<UTcsStateMerger> MergerType;
 
@@ -554,7 +555,10 @@ public:
 
 	// StateTree暂停状态查询
 	UFUNCTION(BlueprintPure, Category = "State|StateTree")
-	bool IsStateTreePaused() const { return Stage == ETcsStateStage::SS_HangUp && !bStateTreeRunning; }
+	bool IsStateTreePaused() const
+	{
+		return (Stage == ETcsStateStage::SS_HangUp || Stage == ETcsStateStage::SS_Pause) && !bStateTreeRunning;
+	}
 
 	// StateTree运行状态查询
 	UFUNCTION(BlueprintPure, Category = "State|StateTree")

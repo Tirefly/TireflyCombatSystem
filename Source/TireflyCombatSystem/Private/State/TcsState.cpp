@@ -734,8 +734,9 @@ void UTcsStateInstance::PauseStateTree()
 			*GetStateDefId().ToString());
 		return;
 	}
-	
-	if (GetCurrentStage() == ETcsStateStage::SS_HangUp)
+
+	// 如果已经是暂停状态,不重复暂停
+	if (GetCurrentStage() == ETcsStateStage::SS_Pause)
 	{
 		return;
 	}
@@ -745,13 +746,26 @@ void UTcsStateInstance::PauseStateTree()
 		StopStateTree();
 	}
 
-	SetCurrentStage(ETcsStateStage::SS_HangUp);
+	// 设置为完全暂停阶段
+	SetCurrentStage(ETcsStateStage::SS_Pause);
 }
 
 void UTcsStateInstance::ResumeStateTree()
 {
+	// 如果已经是激活状态且运行中,不需要恢复
 	if (GetCurrentStage() == ETcsStateStage::SS_Active && bStateTreeRunning)
 	{
+		return;
+	}
+
+	// 只有从暂停或挂起状态才能恢复
+	ETcsStateStage CurrentStage = GetCurrentStage();
+	if (CurrentStage != ETcsStateStage::SS_Pause && CurrentStage != ETcsStateStage::SS_HangUp)
+	{
+		UE_LOG(LogTcsStateTree, Warning, TEXT("[%s] Cannot resume StateTree for StateInstance: %s, current stage is %d"),
+			*FString(__FUNCTION__),
+			*GetStateDefId().ToString(),
+			static_cast<int32>(CurrentStage));
 		return;
 	}
 

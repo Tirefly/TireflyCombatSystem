@@ -157,12 +157,7 @@ bool UTcsStateManagerSubsystem::TryApplyStateInstance(UTcsStateInstance* StateIn
     }
 
     // 尝试附加到状态槽中
-    if (!TryAssignStateToStateSlot(StateInstance))
-    {
-        return false;
-    }
-
-    return true;
+    return TryAssignStateToStateSlot(StateInstance);
 }
 
 bool UTcsStateManagerSubsystem::CheckStateApplyConditions(UTcsStateInstance* StateInstance)
@@ -201,6 +196,19 @@ bool UTcsStateManagerSubsystem::CheckStateApplyConditions(UTcsStateInstance* Sta
     }
 
     return true;
+}
+
+bool UTcsStateManagerSubsystem::TryGetStateSlotDefinition(
+    FGameplayTag StateSlotTag,
+    FTcsStateSlotDefinition& OutStateSlotDef) const
+{
+    if (StateSlotDefs.Contains(StateSlotTag))
+    {
+        OutStateSlotDef = StateSlotDefs[StateSlotTag];
+        return true;
+    }
+
+    return false;
 }
 
 void UTcsStateManagerSubsystem::InitStateSlotDefs()
@@ -457,4 +465,564 @@ void UTcsStateManagerSubsystem::UpdateStateSlotActivation(
     UTcsStateComponent* StateComponent,
     FGameplayTag StateSlotTag)
 {
+    // 1. 参数验证和数据准备
+    if (!IsValid(StateComponent) || !StateSlotTag.IsValid())
+    {
+        UE_LOG(LogTcsState, Warning, TEXT("[%s] Invalid StateComponent or StateSlotTag"),
+            *FString(__FUNCTION__));
+        return;
+    }
+
+    FTcsStateSlot* StateSlot = StateComponent->StateSlotsX.Find(StateSlotTag);
+    if (!StateSlot)
+    {
+        UE_LOG(LogTcsState, Warning, TEXT("[%s] StateSlot %s not found"),
+            *FString(__FUNCTION__),
+            *StateSlotTag.ToString());
+        return;
+    }
+
+    // 2. 清理过期状态
+    ClearStateSlotExpiredStates(StateComponent, StateSlot);
+
+    // 3. 优先级排序
+    SortStatesByPriority(StateSlot->States);
+
+    // 4. 执行合并
+    ProcessStateSlotMerging(StateSlot);
+
+    // 5. 处理Gate关闭情况
+    ProcessStateSlotOnGateClosed(StateComponent, StateSlot, StateSlotTag);
+
+    // 6. 处理激活模式
+    ProcessStateSlotByActivationMode(StateComponent, StateSlot, StateSlotTag);
+
+    // 7. 最终清理
+    CleanupInvalidStates(StateSlot);
+}
+
+void UTcsStateManagerSubsystem::SortStatesByPriority(TArray<UTcsStateInstance*>& States)
+{
+    States.Sort([](const UTcsStateInstance& A, const UTcsStateInstance& B)
+    {
+        return A.GetStateDef().Priority < B.GetStateDef().Priority;
+    });
+}
+
+void UTcsStateManagerSubsystem::ProcessStateSlotMerging(FTcsStateSlot* StateSlot)
+{
+    if (!StateSlot)
+    {
+        return;
+    }
+
+    // 按DefId分组
+    TMap<FName, TArray<UTcsStateInstance*>> StatesByDefId;
+    for (UTcsStateInstance* State : StateSlot->States)
+    {
+        if (IsValid(State))
+        {
+            StatesByDefId.FindOrAdd(State->GetStateDefId()).Add(State);
+        }
+    }
+
+    // 对每组执行合并
+    TArray<UTcsStateInstance*> AllMergedStates;
+    for (auto& Pair : StatesByDefId)
+    {
+        TArray<UTcsStateInstance*> MergedGroup;
+        MergeStateGroup(Pair.Value, MergedGroup);
+        AllMergedStates.Append(MergedGroup);
+    }
+
+    // 移除未被保留的状态
+    RemoveUnmergedStates(StateSlot, AllMergedStates);
+}
+
+void UTcsStateManagerSubsystem::MergeStateGroup(
+    TArray<UTcsStateInstance*>& StatesToMerge,
+    TArray<UTcsStateInstance*>& OutMergedStates)
+{
+    if (StatesToMerge.Num() == 0)
+    {
+        return;
+    }
+
+    FTcsStateDefinition StateDef;
+    if (!GetStateDefinition(StatesToMerge[0]->GetStateDefId(), StateDef))
+    {
+        UE_LOG(LogTcsState, Warning, TEXT("[%s] Failed to get state definition for %s"),
+            *FString(__FUNCTION__),
+            *StatesToMerge[0]->GetStateDefId().ToString());
+        OutMergedStates = StatesToMerge;
+        return;
+    }
+
+    TSubclassOf<UTcsStateMerger> MergerClass = StateDef.MergerType;
+    if (!MergerClass)
+    {
+        // 没有合并器，保留所有状态
+        OutMergedStates = StatesToMerge;
+        return;
+    }
+
+    UTcsStateMerger* Merger = MergerClass->GetDefaultObject<UTcsStateMerger>();
+    if (!IsValid(Merger))
+    {
+        UE_LOG(LogTcsState, Warning, TEXT("[%s] Failed to get merger instance for %s"),
+            *FString(__FUNCTION__),
+            *MergerClass->GetName());
+        OutMergedStates = StatesToMerge;
+        return;
+    }
+
+    Merger->Merge(StatesToMerge, OutMergedStates);
+}
+
+void UTcsStateManagerSubsystem::RemoveUnmergedStates(
+    FTcsStateSlot* StateSlot,
+    const TArray<UTcsStateInstance*>& MergedStates)
+{
+    if (!StateSlot)
+    {
+        return;
+    }
+
+    TArray<UTcsStateInstance*> StatesToRemove;
+    for (UTcsStateInstance* State : StateSlot->States)
+    {
+        if (!MergedStates.Contains(State))
+        {
+            StatesToRemove.Add(State);
+        }
+    }
+
+    for (UTcsStateInstance* State : StatesToRemove)
+    {
+        RemoveStateFromSlot(StateSlot, State);
+    }
+}
+
+void UTcsStateManagerSubsystem::ProcessStateSlotOnGateClosed(
+    const UTcsStateComponent* StateComponent,
+    FTcsStateSlot* StateSlot,
+    FGameplayTag SlotTag)
+{
+    if (!IsValid(StateComponent) || !StateSlot)
+    {
+        return;
+    }
+
+    // 如果Gate开启，不需要处理关闭策略
+    if (StateSlot->bIsGateOpen)
+    {
+        return;
+    }
+
+    const FTcsStateSlotDefinition* SlotDef = StateSlotDefs.Find(SlotTag);
+    if (!SlotDef)
+    {
+        UE_LOG(LogTcsState, Warning, TEXT("[%s] StateSlotDef %s not found"),
+            *FString(__FUNCTION__),
+            *SlotTag.ToString());
+        return;
+    }
+
+    // 根据Gate关闭策略处理激活状态
+    for (UTcsStateInstance* State : StateSlot->States)
+    {
+        if (!IsValid(State) || State->GetCurrentStage() != ETcsStateStage::SS_Active)
+        {
+            continue;
+        }
+
+        switch (SlotDef->GateCloseBehavior)
+        {
+        case ETcsStateSlotGateClosePolicy::SSGCP_HangUp:
+            HangUpState(State);
+            break;
+        case ETcsStateSlotGateClosePolicy::SSGCP_Pause:
+            PauseState(State);
+            break;
+        case ETcsStateSlotGateClosePolicy::SSGCP_Cancel:
+            CancelState(State);
+            break;
+        }
+    }
+}
+
+void UTcsStateManagerSubsystem::ProcessStateSlotByActivationMode(
+    const UTcsStateComponent* StateComponent,
+    FTcsStateSlot* StateSlot,
+    FGameplayTag SlotTag)
+{
+    if (!IsValid(StateComponent) || !StateSlot)
+    {
+        return;
+    }
+
+    const FTcsStateSlotDefinition* SlotDef = StateSlotDefs.Find(SlotTag);
+    if (!SlotDef)
+    {
+        UE_LOG(LogTcsState, Warning, TEXT("[%s] StateSlotDef %s not found"),
+            *FString(__FUNCTION__),
+            *SlotTag.ToString());
+        return;
+    }
+
+    switch (SlotDef->ActivationMode)
+    {
+    case ETcsStateSlotActivationMode::SSAM_PriorityOnly:
+        {
+            ProcessPriorityOnlyMode(StateSlot, SlotDef->PreemptionPolicy);
+            break;
+        }
+    case ETcsStateSlotActivationMode::SSAM_AllActive:
+        {
+            ProcessAllActiveMode(StateSlot);
+            break;
+        }
+    }
+}
+
+void UTcsStateManagerSubsystem::ProcessPriorityOnlyMode(
+    FTcsStateSlot* StateSlot,
+    ETcsStatePreemptionPolicy PreemptionPolicy)
+{
+    if (!StateSlot || StateSlot->States.Num() == 0)
+    {
+        return;
+    }
+
+    // 最高优先级状态（已排序，所以是第一个）
+    UTcsStateInstance* HighestPriorityState = StateSlot->States[0];
+    if (!IsValid(HighestPriorityState))
+    {
+        return;
+    }
+
+    // 激活最高优先级状态
+    if (HighestPriorityState->GetCurrentStage() != ETcsStateStage::SS_Active)
+    {
+        ActivateState(HighestPriorityState);
+    }
+
+    // 按照低优先级抢占策略，处理其他低优先级状态
+    for (int32 i = 1; i < StateSlot->States.Num(); ++i)
+    {
+        UTcsStateInstance* State = StateSlot->States[i];
+        if (!IsValid(State))
+        {
+            continue;
+        }
+
+        ApplyPreemptionPolicyToState(State, PreemptionPolicy);
+    }
+}
+
+void UTcsStateManagerSubsystem::ProcessAllActiveMode(FTcsStateSlot* StateSlot)
+{
+    if (!StateSlot)
+    {
+        return;
+    }
+
+    // 激活所有状态
+    for (UTcsStateInstance* State : StateSlot->States)
+    {
+        if (IsValid(State) && State->GetCurrentStage() != ETcsStateStage::SS_Active)
+        {
+            ActivateState(State);
+        }
+    }
+}
+
+void UTcsStateManagerSubsystem::ApplyPreemptionPolicyToState(
+    UTcsStateInstance* State,
+    ETcsStatePreemptionPolicy Policy)
+{
+    if (!IsValid(State))
+    {
+        return;
+    }
+
+    switch (Policy)
+    {
+    case ETcsStatePreemptionPolicy::SPP_HangUpLowerPriority:
+        if (State->GetCurrentStage() == ETcsStateStage::SS_Active)
+        {
+            HangUpState(State);
+        }
+        break;
+
+    case ETcsStatePreemptionPolicy::SPP_PauseLowerPriority:
+        if (State->GetCurrentStage() == ETcsStateStage::SS_Active)
+        {
+            PauseState(State);
+        }
+        break;
+
+    case ETcsStatePreemptionPolicy::SPP_CancelLowerPriority:
+        CancelState(State);
+        break;
+    }
+}
+
+void UTcsStateManagerSubsystem::CleanupInvalidStates(FTcsStateSlot* StateSlot)
+{
+    if (!StateSlot)
+    {
+        return;
+    }
+
+    StateSlot->States.RemoveAll([](const UTcsStateInstance* State)
+    {
+        return !IsValid(State);
+    });
+}
+
+void UTcsStateManagerSubsystem::RemoveStateFromSlot(
+    FTcsStateSlot* StateSlot,
+    UTcsStateInstance* State)
+{
+    if (!StateSlot || !IsValid(State))
+    {
+        return;
+    }
+
+    // 从槽位中移除
+    StateSlot->States.Remove(State);
+
+    // 如果状态不是Inactive阶段，先停用它
+    if (State->GetCurrentStage() != ETcsStateStage::SS_Inactive)
+    {
+        DeactivateState(State);
+    }
+}
+
+void UTcsStateManagerSubsystem::ActivateState(UTcsStateInstance* StateInstance)
+{
+    if (!IsValid(StateInstance))
+    {
+        UE_LOG(LogTcsState, Warning, TEXT("[%s] StateInstance is invalid"),
+            *FString(__FUNCTION__));
+        return;
+    }
+
+    // 如果已经是激活状态,不重复激活
+    const ETcsStateStage PreviousStage = StateInstance->GetCurrentStage();
+    if (PreviousStage == ETcsStateStage::SS_Active)
+    {
+        return;
+    }
+
+    UE_LOG(LogTcsState, Verbose, TEXT("[%s] Activating state: %s"),
+        *FString(__FUNCTION__),
+        *StateInstance->GetStateDefId().ToString());
+
+    // 设置为激活阶段
+    StateInstance->SetCurrentStage(ETcsStateStage::SS_Active);
+    // 启动StateTree
+    StateInstance->StartStateTree();
+
+    // 广播状态阶段变更事件
+    if (UTcsStateComponent* StateComponent = StateInstance->GetOwnerStateComponent())
+    {
+        StateComponent->NotifyStateStageChanged(StateInstance, PreviousStage, ETcsStateStage::SS_Active);
+    }
+}
+
+void UTcsStateManagerSubsystem::DeactivateState(UTcsStateInstance* StateInstance)
+{
+    if (!IsValid(StateInstance))
+    {
+        UE_LOG(LogTcsState, Warning, TEXT("[%s] StateInstance is invalid"),
+            *FString(__FUNCTION__));
+        return;
+    }
+
+    // 如果已经是未激活状态,不重复停用
+    const ETcsStateStage PreviousStage = StateInstance->GetCurrentStage();
+    if (PreviousStage == ETcsStateStage::SS_Inactive)
+    {
+        return;
+    }
+
+    UE_LOG(LogTcsState, Verbose, TEXT("[%s] Deactivating state: %s"),
+        *FString(__FUNCTION__),
+        *StateInstance->GetStateDefId().ToString());
+
+    // 设置为未激活阶段
+    StateInstance->SetCurrentStage(ETcsStateStage::SS_Inactive);
+    // 停止StateTree (如果有的话)
+    StateInstance->StopStateTree();
+
+    // 广播状态阶段变更事件
+    if (UTcsStateComponent* StateComponent = StateInstance->GetOwnerStateComponent())
+    {
+        StateComponent->NotifyStateStageChanged(StateInstance, PreviousStage, ETcsStateStage::SS_Inactive);
+    }
+}
+
+void UTcsStateManagerSubsystem::HangUpState(UTcsStateInstance* StateInstance)
+{
+    if (!IsValid(StateInstance))
+    {
+        UE_LOG(LogTcsState, Warning, TEXT("[%s] StateInstance is invalid"),
+            *FString(__FUNCTION__));
+        return;
+    }
+
+    // 只有激活状态才能被挂起
+    const ETcsStateStage PreviousStage = StateInstance->GetCurrentStage();
+    if (PreviousStage != ETcsStateStage::SS_Active)
+    {
+        UE_LOG(LogTcsState, Warning, TEXT("[%s] Cannot hang up state %s - current stage is not Active"),
+            *FString(__FUNCTION__),
+            *StateInstance->GetStateDefId().ToString());
+        return;
+    }
+
+    UE_LOG(LogTcsState, Verbose, TEXT("[%s] Hanging up state: %s"),
+        *FString(__FUNCTION__),
+        *StateInstance->GetStateDefId().ToString());
+
+    // 设置为挂起阶段
+    StateInstance->SetCurrentStage(ETcsStateStage::SS_HangUp);
+    // 暂停StateTree执行 (但保持实例存活)
+    StateInstance->PauseStateTree();
+
+    // 广播状态阶段变更事件
+    if (UTcsStateComponent* StateComponent = StateInstance->GetOwnerStateComponent())
+    {
+        StateComponent->NotifyStateStageChanged(StateInstance, PreviousStage, ETcsStateStage::SS_HangUp);
+    }
+}
+
+void UTcsStateManagerSubsystem::ResumeState(UTcsStateInstance* StateInstance)
+{
+    if (!IsValid(StateInstance))
+    {
+        UE_LOG(LogTcsState, Warning, TEXT("[%s] StateInstance is invalid"),
+            *FString(__FUNCTION__));
+        return;
+    }
+
+    // 只有挂起或暂停状态才能被恢复
+    const ETcsStateStage PreviousStage = StateInstance->GetCurrentStage();
+    if (PreviousStage != ETcsStateStage::SS_HangUp && PreviousStage != ETcsStateStage::SS_Pause)
+    {
+        UE_LOG(LogTcsState, Warning, TEXT("[%s] Cannot resume state %s - current stage is %d, expected HangUp or Pause"),
+            *FString(__FUNCTION__),
+            *StateInstance->GetStateDefId().ToString(),
+            static_cast<int32>(PreviousStage));
+        return;
+    }
+
+    UE_LOG(LogTcsState, Verbose, TEXT("[%s] Resuming state: %s"),
+        *FString(__FUNCTION__),
+        *StateInstance->GetStateDefId().ToString());
+
+    // 恢复到激活阶段
+    StateInstance->SetCurrentStage(ETcsStateStage::SS_Active);
+    // 恢复StateTree执行
+    StateInstance->ResumeStateTree();
+
+    // 广播状态阶段变更事件
+    if (UTcsStateComponent* StateComponent = StateInstance->GetOwnerStateComponent())
+    {
+        StateComponent->NotifyStateStageChanged(StateInstance, PreviousStage, ETcsStateStage::SS_Active);
+    }
+}
+
+void UTcsStateManagerSubsystem::PauseState(UTcsStateInstance* StateInstance)
+{
+    if (!IsValid(StateInstance))
+    {
+        UE_LOG(LogTcsState, Warning, TEXT("[%s] StateInstance is invalid"),
+            *FString(__FUNCTION__));
+        return;
+    }
+
+    // 只有激活状态才能被暂停
+    const ETcsStateStage PreviousStage = StateInstance->GetCurrentStage();
+    if (PreviousStage != ETcsStateStage::SS_Active)
+    {
+        UE_LOG(LogTcsState, Warning, TEXT("[%s] Cannot pause state %s - current stage is not Active"),
+            *FString(__FUNCTION__),
+            *StateInstance->GetStateDefId().ToString());
+        return;
+    }
+
+    UE_LOG(LogTcsState, Verbose, TEXT("[%s] Pausing state: %s"),
+        *FString(__FUNCTION__),
+        *StateInstance->GetStateDefId().ToString());
+
+    // 设置为完全暂停阶段
+    // 注意: Pause与HangUp的区别是,Pause会完全冻结状态(包括持续时间计算),
+    // 而HangUp只是暂停逻辑执行但仍计算持续时间
+    StateInstance->SetCurrentStage(ETcsStateStage::SS_Pause);
+    // 完全暂停StateTree
+    StateInstance->PauseStateTree();
+
+    // 广播状态阶段变更事件
+    if (UTcsStateComponent* StateComponent = StateInstance->GetOwnerStateComponent())
+    {
+        StateComponent->NotifyStateStageChanged(StateInstance, PreviousStage, ETcsStateStage::SS_Pause);
+    }
+}
+
+void UTcsStateManagerSubsystem::CancelState(UTcsStateInstance* StateInstance)
+{
+    if (!IsValid(StateInstance))
+    {
+        UE_LOG(LogTcsState, Warning, TEXT("[%s] StateInstance is invalid"),
+            *FString(__FUNCTION__));
+        return;
+    }
+
+    UE_LOG(LogTcsState, Verbose, TEXT("[%s] Canceling state: %s"),
+        *FString(__FUNCTION__),
+        *StateInstance->GetStateDefId().ToString());
+
+    // 先停用状态
+    if (StateInstance->GetCurrentStage() != ETcsStateStage::SS_Inactive)
+    {
+        DeactivateState(StateInstance);
+    }
+
+    // 标记为过期,准备GC
+    ExpireState(StateInstance);
+}
+
+void UTcsStateManagerSubsystem::ExpireState(UTcsStateInstance* StateInstance)
+{
+    if (!IsValid(StateInstance))
+    {
+        UE_LOG(LogTcsState, Warning, TEXT("[%s] StateInstance is invalid"),
+            *FString(__FUNCTION__));
+        return;
+    }
+
+    UE_LOG(LogTcsState, Verbose, TEXT("[%s] Expiring state: %s"),
+        *FString(__FUNCTION__),
+        *StateInstance->GetStateDefId().ToString());
+
+    const ETcsStateStage PreviousStage = StateInstance->GetCurrentStage();
+
+    // 设置为过期阶段
+    StateInstance->SetCurrentStage(ETcsStateStage::SS_Expired);
+
+    // 从持久化容器中移除
+    UTcsStateComponent* StateComponent = StateInstance->GetOwnerStateComponent();
+    if (IsValid(StateComponent))
+    {
+        StateComponent->PersistentStateInstances.RemoveInstance(StateInstance);
+
+        // 从持续时间映射中移除
+        StateComponent->StateDurationMap.Remove(StateInstance);
+
+        // 广播状态阶段变更事件
+        StateComponent->NotifyStateStageChanged(StateInstance, PreviousStage, ETcsStateStage::SS_Expired);
+    }
 }

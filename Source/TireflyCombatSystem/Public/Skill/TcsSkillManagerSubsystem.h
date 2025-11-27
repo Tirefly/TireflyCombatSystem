@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Subsystems/WorldSubsystem.h"
-#include "TcsSkillManagerSubsystem.generated.h"s
+#include "TcsSkillManagerSubsystem.generated.h"
 
 
 

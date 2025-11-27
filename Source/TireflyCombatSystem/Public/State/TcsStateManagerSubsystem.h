@@ -95,6 +95,10 @@ protected:
 
 #pragma region StateSlotDef
 
+public:
+	UFUNCTION(BlueprintCallable, Category = "State Manager")
+	bool TryGetStateSlotDefinition(FGameplayTag StateSlotTag, FTcsStateSlotDefinition& OutStateSlotDef) const;
+
 protected:
 	// 初始化状态槽定义
 	void InitStateSlotDefs();
@@ -117,9 +121,37 @@ public:
 
 protected:
 	// 清除状态槽位中过期的状态
-	void ClearStateSlotExpiredStates(UTcsStateComponent* StateComponent, FTcsStateSlot* StateSlot);
+	static void ClearStateSlotExpiredStates(UTcsStateComponent* StateComponent, FTcsStateSlot* StateSlot);
 
+	// 更新状态槽激活状态（主函数）
 	void UpdateStateSlotActivation(UTcsStateComponent* StateComponent, FGameplayTag StateSlotTag);
+
+	// 优先级排序
+	static void SortStatesByPriority(TArray<UTcsStateInstance*>& States);
+
+	// 处理状态槽内状态的合并
+	void ProcessStateSlotMerging(FTcsStateSlot* StateSlot);
+	// 对特定组内的状态进行合并
+	void MergeStateGroup(TArray<UTcsStateInstance*>& StatesToMerge, TArray<UTcsStateInstance*>& OutMergedStates);
+	// 将状态槽中未被合并的状态实例移除
+	void RemoveUnmergedStates(FTcsStateSlot* StateSlot, const TArray<UTcsStateInstance*>& MergedStates);
+
+	// 状态槽位阀门关闭的处理
+	void ProcessStateSlotOnGateClosed(const UTcsStateComponent* StateComponent, FTcsStateSlot* StateSlot, FGameplayTag SlotTag);
+
+	// 按激活模式处理状态槽内的状态
+	void ProcessStateSlotByActivationMode(const UTcsStateComponent* StateComponent, FTcsStateSlot* StateSlot, FGameplayTag SlotTag);
+	// 按激活模式处理状态槽内的状态：优先级模式
+	void ProcessPriorityOnlyMode(FTcsStateSlot* StateSlot, ETcsStatePreemptionPolicy PreemptionPolicy);
+	// 按激活模式处理状态槽内的状态：全激活模式
+	void ProcessAllActiveMode(FTcsStateSlot* StateSlot);
+	// 按照低优先级抢占策略，处理状态实例
+	void ApplyPreemptionPolicyToState(UTcsStateInstance* State, ETcsStatePreemptionPolicy Policy);
+
+	// 辅助函数：清理状态槽位中无效的状态
+	static void CleanupInvalidStates(FTcsStateSlot* StateSlot);
+	// 辅助函数：将状态从状态槽中移除
+	void RemoveStateFromSlot(FTcsStateSlot* StateSlot, UTcsStateInstance* State);
 
 #pragma endregion
 
@@ -127,13 +159,26 @@ protected:
 #pragma region StateInstance
 
 public:
+	// 激活状态实例
 	void ActivateState(UTcsStateInstance* StateInstance);
 
+	// 停用状态实例
 	void DeactivateState(UTcsStateInstance* StateInstance);
 
+	// 挂起状态实例
 	void HangUpState(UTcsStateInstance* StateInstance);
 
+	// 恢复状态实例
 	void ResumeState(UTcsStateInstance* StateInstance);
+
+	// 暂停状态实例
+	void PauseState(UTcsStateInstance* StateInstance);
+
+	// 取消状态实例
+	void CancelState(UTcsStateInstance* StateInstance);
+
+	// 标记状态为过期
+	void ExpireState(UTcsStateInstance* StateInstance);
 
 #pragma endregion
 };
