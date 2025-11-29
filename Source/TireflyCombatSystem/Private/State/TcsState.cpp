@@ -23,11 +23,18 @@ UTcsStateInstance::UTcsStateInstance()
 
 UWorld* UTcsStateInstance::GetWorld() const
 {
-	if (UWorldSubsystem* WorldSubsystem = Cast<UWorldSubsystem>(GetOuter()))
+	// 优先从 Owner Actor 获取 World
+	if (Owner.IsValid())
 	{
-		return WorldSubsystem->GetWorld();
+		return Owner->GetWorld();
 	}
-	
+
+	// 回退：尝试从 Outer 获取
+	if (const AActor* OuterActor = Cast<AActor>(GetOuter()))
+	{
+		return OuterActor->GetWorld();
+	}
+
 	return nullptr;
 }
 
@@ -184,9 +191,22 @@ void UTcsStateInstance::SetStackCount(int32 InStackCount)
 	{
 		return;
 	}
-	
+
+	int32 OldStackCount = GetStackCount();
 	int32 NewStackCount = FMath::Clamp(InStackCount, 1, MaxStackCount);
+
+	if (OldStackCount == NewStackCount)
+	{
+		return;
+	}
+
 	*NumericParameters.Find(Tcs_Generic_Name_StackCount) = NewStackCount;
+
+	// 通知状态组件叠层变化
+	if (OwnerStateCmp.IsValid())
+	{
+		OwnerStateCmp->NotifyStateStackChanged(this, OldStackCount, NewStackCount);
+	}
 }
 
 void UTcsStateInstance::AddStack(int32 Count)
@@ -201,7 +221,19 @@ void UTcsStateInstance::RemoveStack(int32 Count)
 
 void UTcsStateInstance::SetLevel(int32 InLevel)
 {
+	if (Level == InLevel)
+	{
+		return;
+	}
+
+	int32 OldLevel = Level;
 	Level = InLevel;
+
+	// 通知状态组件等级变化
+	if (OwnerStateCmp.IsValid())
+	{
+		OwnerStateCmp->NotifyStateLevelChanged(this, OldLevel, InLevel);
+	}
 }
 
 void UTcsStateInstance::InitParameterValues()
@@ -420,7 +452,17 @@ bool UTcsStateInstance::GetNumericParam(FName ParameterName, float& OutValue) co
 
 void UTcsStateInstance::SetNumericParam(FName ParameterName, float Value)
 {
+	float* ExistingValue = NumericParameters.Find(ParameterName);
+	bool bIsNewValue = (ExistingValue == nullptr);
+	bool bValueChanged = bIsNewValue || (*ExistingValue != Value);
+
 	NumericParameters.FindOrAdd(ParameterName) = Value;
+
+	// 仅在值发生变化时通知（排除初始化阶段的大量调用）
+	if (bValueChanged && OwnerStateCmp.IsValid() && Stage != ETcsStateStage::SS_Inactive)
+	{
+		OwnerStateCmp->NotifyStateParameterChanged(this, ParameterName, ETcsStateParameterType::SPT_Numeric);
+	}
 }
 
 bool UTcsStateInstance::GetNumericParamByTag(FGameplayTag ParameterTag, float& OutValue) const
@@ -461,7 +503,17 @@ bool UTcsStateInstance::GetBoolParam(FName ParameterName, bool& OutValue) const
 
 void UTcsStateInstance::SetBoolParam(FName ParameterName, bool Value)
 {
+	bool* ExistingValue = BoolParameters.Find(ParameterName);
+	bool bIsNewValue = (ExistingValue == nullptr);
+	bool bValueChanged = bIsNewValue || (*ExistingValue != Value);
+
 	BoolParameters.FindOrAdd(ParameterName) = Value;
+
+	// 仅在值发生变化时通知
+	if (bValueChanged && OwnerStateCmp.IsValid() && Stage != ETcsStateStage::SS_Inactive)
+	{
+		OwnerStateCmp->NotifyStateParameterChanged(this, ParameterName, ETcsStateParameterType::SPT_Bool);
+	}
 }
 
 bool UTcsStateInstance::GetBoolParamByTag(FGameplayTag ParameterTag, bool& OutValue) const
@@ -502,7 +554,17 @@ bool UTcsStateInstance::GetVectorParam(FName ParameterName, FVector& OutValue) c
 
 void UTcsStateInstance::SetVectorParam(FName ParameterName, const FVector& Value)
 {
+	FVector* ExistingValue = VectorParameters.Find(ParameterName);
+	bool bIsNewValue = (ExistingValue == nullptr);
+	bool bValueChanged = bIsNewValue || (*ExistingValue != Value);
+
 	VectorParameters.FindOrAdd(ParameterName) = Value;
+
+	// 仅在值发生变化时通知
+	if (bValueChanged && OwnerStateCmp.IsValid() && Stage != ETcsStateStage::SS_Inactive)
+	{
+		OwnerStateCmp->NotifyStateParameterChanged(this, ParameterName, ETcsStateParameterType::SPT_Vector);
+	}
 }
 
 bool UTcsStateInstance::GetVectorParamByTag(FGameplayTag ParameterTag, FVector& OutValue) const

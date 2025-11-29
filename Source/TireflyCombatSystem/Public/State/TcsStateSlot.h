@@ -95,17 +95,6 @@ public:
 		meta = (ToolTip = "控制槽位内状态剩余时间递减的策略"))
 	ETcsDurationTickPolicy DurationTickPolicy = ETcsDurationTickPolicy::DTP_ActiveOnly;
 
-	// 是否启用排队
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Slot Configuration",
-		meta = (ToolTip = "当Gate关闭或策略不允许立即激活时，是否将状态加入排队等待"))
-	bool bEnableQueue = false;
-
-	// 排队元素最大存活时间（秒），0表示无限期等待
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Slot Configuration",
-		meta = (EditCondition = "bEnableQueue", ClampMin = "0.0",
-			ToolTip = "排队状态的最大存活时间（秒），0表示无限期等待"))
-	float QueueTimeToLive = 0.f;
-
 	// 构造函数
 	FTcsStateSlotDefinition()
 		: ActivationMode(ETcsStateSlotActivationMode::SSAM_AllActive)

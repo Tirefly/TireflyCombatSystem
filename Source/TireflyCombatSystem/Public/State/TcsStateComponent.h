@@ -49,6 +49,65 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(
 	FString, FailureMessage
 );
 
+// 状态移除事件签名
+// (状态组件, 状态实例, 移除原因: Expired=自然过期, Removed=主动移除, Cancelled=被取消)
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(
+	FTcsOnStateRemovedSignature,
+	UTcsStateComponent*, StateComponent,
+	UTcsStateInstance*, StateInstance,
+	FName, RemovalReason);
+
+// 状态叠层变化事件签名
+// (状态组件, 状态实例, 旧叠层数, 新叠层数)
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams(
+	FTcsOnStateStackChangedSignature,
+	UTcsStateComponent*, StateComponent,
+	UTcsStateInstance*, StateInstance,
+	int32, OldStackCount,
+	int32, NewStackCount);
+
+// 状态等级变化事件签名
+// (状态组件, 状态实例, 旧等级, 新等级)
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams(
+	FTcsOnStateLevelChangedSignature,
+	UTcsStateComponent*, StateComponent,
+	UTcsStateInstance*, StateInstance,
+	int32, OldLevel,
+	int32, NewLevel);
+
+// 状态持续时间刷新事件签名
+// (状态组件, 状态实例, 新的持续时间)
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(
+	FTcsOnStateDurationRefreshedSignature,
+	UTcsStateComponent*, StateComponent,
+	UTcsStateInstance*, StateInstance,
+	float, NewDuration);
+
+// 槽位Gate状态变化事件签名
+// (状态组件, 槽位标签, 是否开启)
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(
+	FTcsOnSlotGateStateChangedSignature,
+	UTcsStateComponent*, StateComponent,
+	FGameplayTag, SlotTag,
+	bool, bIsOpen);
+
+// 状态参数变化事件签名
+// (状态实例, 参数名称, 参数类型)
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(
+	FTcsOnStateParameterChangedSignature,
+	UTcsStateInstance*, StateInstance,
+	FName, ParameterName,
+	ETcsStateParameterType, ParameterType);
+
+// 状态合并事件签名
+// (状态组件, 目标状态实例, 源状态实例, 合并后的叠层数)
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams(
+	FTcsOnStateMergedSignature,
+	UTcsStateComponent*, StateComponent,
+	UTcsStateInstance*, TargetStateInstance,
+	UTcsStateInstance*, SourceStateInstance,
+	int32, ResultStackCount);
+
 
 
 // 状态实例持续时间数据
@@ -118,6 +177,28 @@ public:
 		ETcsStateStage PreviousStage,
 		ETcsStateStage NewStage);
 
+	// 通知状态被移除
+	// RemovalReason: "Expired"=自然过期, "Removed"=主动移除, "Cancelled"=被取消
+	void NotifyStateRemoved(UTcsStateInstance* StateInstance, FName RemovalReason);
+
+	// 通知状态叠层变化
+	void NotifyStateStackChanged(UTcsStateInstance* StateInstance, int32 OldStackCount, int32 NewStackCount);
+
+	// 通知状态等级变化
+	void NotifyStateLevelChanged(UTcsStateInstance* StateInstance, int32 OldLevel, int32 NewLevel);
+
+	// 通知状态持续时间刷新
+	void NotifyStateDurationRefreshed(UTcsStateInstance* StateInstance, float NewDuration);
+
+	// 通知槽位Gate状态变化
+	void NotifySlotGateStateChanged(FGameplayTag SlotTag, bool bIsOpen);
+
+	// 通知状态参数变化
+	void NotifyStateParameterChanged(UTcsStateInstance* StateInstance, FName ParameterName, ETcsStateParameterType ParameterType);
+
+	// 通知状态合并
+	void NotifyStateMerged(UTcsStateInstance* TargetStateInstance, UTcsStateInstance* SourceStateInstance, int32 ResultStackCount);
+
 public:
 	// 状态阶段变更事件（槽位联动）
 	UPROPERTY(BlueprintAssignable, Category = "State|Events")
@@ -137,6 +218,55 @@ public:
 	 */
 	UPROPERTY(BlueprintAssignable, Category = "State|Events")
 	FTcsOnStateApplyFailedSignature OnStateApplyFailed;
+
+	/**
+	 * 状态移除事件
+	 * 当状态被移除时广播（包括自然过期、主动移除、被取消等情况）
+	 */
+	UPROPERTY(BlueprintAssignable, Category = "State|Events")
+	FTcsOnStateRemovedSignature OnStateRemoved;
+
+	/**
+	 * 状态叠层变化事件
+	 * 当状态的叠层数发生变化时广播
+	 */
+	UPROPERTY(BlueprintAssignable, Category = "State|Events")
+	FTcsOnStateStackChangedSignature OnStateStackChanged;
+
+	/**
+	 * 状态等级变化事件
+	 * 当状态的等级发生变化时广播
+	 */
+	UPROPERTY(BlueprintAssignable, Category = "State|Events")
+	FTcsOnStateLevelChangedSignature OnStateLevelChanged;
+
+	/**
+	 * 状态持续时间刷新事件
+	 * 当状态的持续时间被刷新时广播
+	 */
+	UPROPERTY(BlueprintAssignable, Category = "State|Events")
+	FTcsOnStateDurationRefreshedSignature OnStateDurationRefreshed;
+
+	/**
+	 * 槽位Gate状态变化事件
+	 * 当槽位的Gate开关状态变化时广播
+	 */
+	UPROPERTY(BlueprintAssignable, Category = "State|Events")
+	FTcsOnSlotGateStateChangedSignature OnSlotGateStateChanged;
+
+	/**
+	 * 状态参数变化事件
+	 * 当状态的参数被修改时广播
+	 */
+	UPROPERTY(BlueprintAssignable, Category = "State|Events")
+	FTcsOnStateParameterChangedSignature OnStateParameterChanged;
+
+	/**
+	 * 状态合并事件
+	 * 当两个同类型状态合并时广播
+	 */
+	UPROPERTY(BlueprintAssignable, Category = "State|Events")
+	FTcsOnStateMergedSignature OnStateMerged;
 
 protected:
 	// 状态管理器子系统
@@ -168,18 +298,6 @@ protected:
 #pragma endregion
 
 
-#pragma region StateTree_Reference
-
-public:
-	UFUNCTION(BLueprintCallable, Category = "StateTree")
-	FStateTreeReference GetStateTreeReference() const;
-
-	UFUNCTION(BLueprintCallable, Category = "StateTree")
-	const UStateTree* GetStateTree() const;
-
-#pragma endregion
-
-
 #pragma region StateSlot_Gate
 
 public:
@@ -205,7 +323,19 @@ protected:
 #pragma endregion
 
 
-#pragma region StateTreeState
+#pragma region StateTree_Reference
+
+public:
+	UFUNCTION(BLueprintCallable, Category = "StateTree")
+	FStateTreeReference GetStateTreeReference() const;
+
+	UFUNCTION(BLueprintCallable, Category = "StateTree")
+	const UStateTree* GetStateTree() const;
+
+#pragma endregion
+
+
+#pragma region StateTree_State
 
 public:
 	/**
@@ -215,18 +345,11 @@ public:
 	void OnStateTreeStateChanged(const FStateTreeExecutionContext& Context);
 
 protected:
-	// 刷新槽位Gate（基于状态差集）
-	void RefreshSlotsForStateChange(const TArray<FName>& NewStates, const TArray<FName>& OldStates);
-
 	// 比较两个状态列表是否相等
 	bool AreStateNamesEqual(const TArray<FName>& A, const TArray<FName>& B) const;
 
-protected:
 	// 状态槽变化事件处理
 	virtual void OnStateSlotChanged(FGameplayTag SlotTag);
-
-	// 更新槽位中的状态激活
-	void UpdateStateSlotActivation(FGameplayTag SlotTag);
 
 #pragma endregion
 

@@ -62,7 +62,18 @@ void UTcsStateMerger_StackByInstigator::Merge_Implementation(
 		int32 TotalStackCount = 0;
 		for (UTcsStateInstance* State : States)
 		{
-			TotalStackCount += State->GetStackCount();
+			const int32 StateStackCount = State->GetStackCount();
+			if (StateStackCount < 0)
+			{
+				UE_LOG(LogTcsStateMerger, Error,
+					TEXT("[%s] State '%s' has invalid StackCount (%d). "
+						 "Check DataTable config: MaxStackCount should be > 0 when using StackByInstigator Merger."),
+					*FString(__FUNCTION__),
+					*State->GetStateDefId().ToString(),
+					StateStackCount);
+				return;
+			}
+			TotalStackCount += StateStackCount;
 		}
 
 		// 从排序后的状态中弹出最新的状态作为基础状态

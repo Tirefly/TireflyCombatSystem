@@ -76,3 +76,30 @@ void UTcsAttributeComponent::BroadcastAttributeBaseValueChangeEvent(
 		OnAttributeBaseValueChanged.Broadcast(Payloads);
 	}
 }
+
+void UTcsAttributeComponent::BroadcastAttributeModifierAddedEvent(
+	const FTcsAttributeModifierInstance& ModifierInstance) const
+{
+	if (OnAttributeModifierAdded.IsBound())
+	{
+		OnAttributeModifierAdded.Broadcast(ModifierInstance);
+	}
+}
+
+void UTcsAttributeComponent::BroadcastAttributeModifierRemovedEvent(
+	const FTcsAttributeModifierInstance& ModifierInstance) const
+{
+	if (OnAttributeModifierRemoved.IsBound())
+	{
+		OnAttributeModifierRemoved.Broadcast(ModifierInstance);
+	}
+}
+
+void UTcsAttributeComponent::BroadcastAttributeReachedBoundaryEvent(
+	FName AttributeName, bool bIsMaxBoundary, float CurrentValue) const
+{
+	if (OnAttributeReachedBoundary.IsBound())
+	{
+		OnAttributeReachedBoundary.Broadcast(AttributeName, bIsMaxBoundary, CurrentValue);
+	}
+}

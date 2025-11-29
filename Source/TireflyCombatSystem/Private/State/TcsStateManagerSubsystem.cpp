@@ -461,6 +461,73 @@ void UTcsStateManagerSubsystem::ClearStateSlotExpiredStates(
     StateComponent->PersistentStateInstances.RefreshInstances();
 }
 
+void UTcsStateManagerSubsystem::RefreshSlotsForStateChange(
+	UTcsStateComponent* StateComponent,
+	const TArray<FName>& NewStates,
+	const TArray<FName>& OldStates)
+{
+	if (!IsValid(StateComponent))
+	{
+		UE_LOG(LogTcsState, Warning, TEXT("[%s] Invalid StateComponent"),
+			*FString(__FUNCTION__));
+		return;
+	}
+
+	// 计算新增的状态
+	TSet<FName> AddedStates(NewStates);
+	for (const FName& OldState : OldStates)
+	{
+		AddedStates.Remove(OldState);
+	}
+
+	// 计算移除的状态
+	TSet<FName> RemovedStates(OldStates);
+	for (const FName& NewState : NewStates)
+	{
+		RemovedStates.Remove(NewState);
+	}
+
+	// 遍历槽位映射，更新Gate状态
+	for (const auto& Pair : StateComponent->Mapping_StateSlotToStateHandle)
+	{
+		const FGameplayTag SlotTag = Pair.Key;
+		FTcsStateSlotDefinition SlotDef;
+
+		if (!TryGetStateSlotDefinition(SlotTag, SlotDef))
+		{
+			continue;
+		}
+
+		const FName& MappedStateName = SlotDef.StateTreeStateName;
+		bool bShouldOpen = false;
+
+		if (AddedStates.Contains(MappedStateName))
+		{
+			bShouldOpen = true;
+		}
+		else if (RemovedStates.Contains(MappedStateName))
+		{
+			bShouldOpen = false;
+		}
+		else
+		{
+			bShouldOpen = NewStates.Contains(MappedStateName);
+		}
+
+		const bool bWasOpen = StateComponent->IsSlotGateOpen(SlotTag);
+		if (bShouldOpen != bWasOpen)
+		{
+			StateComponent->SetSlotGateOpen(SlotTag, bShouldOpen);
+
+			UE_LOG(LogTcsState, Log,
+				   TEXT("[StateTree Event] Slot [%s] gate %s due to StateTree state '%s'"),
+				   *SlotTag.ToString(),
+				   bShouldOpen ? TEXT("opened") : TEXT("closed"),
+				   *MappedStateName.ToString());
+		}
+	}
+}
+
 void UTcsStateManagerSubsystem::UpdateStateSlotActivation(
     UTcsStateComponent* StateComponent,
     FGameplayTag StateSlotTag)
@@ -1025,4 +1092,293 @@ void UTcsStateManagerSubsystem::ExpireState(UTcsStateInstance* StateInstance)
         // 广播状态阶段变更事件
         StateComponent->NotifyStateStageChanged(StateInstance, PreviousStage, ETcsStateStage::SS_Expired);
     }
+}
+
+bool UTcsStateManagerSubsystem::GetStatesInSlot(
+    UTcsStateComponent* StateComponent,
+    FGameplayTag SlotTag,
+    TArray<UTcsStateInstance*>& OutStates) const
+{
+    OutStates.Empty();
+
+    if (!IsValid(StateComponent) || !SlotTag.IsValid())
+    {
+        return false;
+    }
+
+    const FTcsStateSlot* StateSlot = StateComponent->StateSlotsX.Find(SlotTag);
+    if (!StateSlot)
+    {
+        return false;
+    }
+
+    for (UTcsStateInstance* State : StateSlot->States)
+    {
+        if (IsValid(State))
+        {
+            OutStates.Add(State);
+        }
+    }
+
+    return true;
+}
+
+bool UTcsStateManagerSubsystem::GetStatesByDefId(
+    UTcsStateComponent* StateComponent,
+    FName StateDefId,
+    TArray<UTcsStateInstance*>& OutStates) const
+{
+    OutStates.Empty();
+
+    if (!IsValid(StateComponent) || StateDefId.IsNone())
+    {
+        return false;
+    }
+
+    // 遍历所有槽位查找匹配的状态
+    for (auto& Pair : StateComponent->StateSlotsX)
+    {
+        const FTcsStateSlot& StateSlot = Pair.Value;
+        for (UTcsStateInstance* State : StateSlot.States)
+        {
+            if (IsValid(State) && State->GetStateDefId() == StateDefId)
+            {
+                OutStates.Add(State);
+            }
+        }
+    }
+
+    return OutStates.Num() > 0;
+}
+
+bool UTcsStateManagerSubsystem::GetAllActiveStates(
+    UTcsStateComponent* StateComponent,
+    TArray<UTcsStateInstance*>& OutStates) const
+{
+    OutStates.Empty();
+
+    if (!IsValid(StateComponent))
+    {
+        return false;
+    }
+
+    // 遍历所有槽位查找活跃状态
+    for (auto& Pair : StateComponent->StateSlotsX)
+    {
+        const FTcsStateSlot& StateSlot = Pair.Value;
+        for (UTcsStateInstance* State : StateSlot.States)
+        {
+            if (IsValid(State) && State->GetCurrentStage() == ETcsStateStage::SS_Active)
+            {
+                OutStates.Add(State);
+            }
+        }
+    }
+
+    return OutStates.Num() > 0;
+}
+
+bool UTcsStateManagerSubsystem::HasStateWithDefId(
+    UTcsStateComponent* StateComponent,
+    FName StateDefId) const
+{
+    if (!IsValid(StateComponent) || StateDefId.IsNone())
+    {
+        return false;
+    }
+
+    // 遍历所有槽位检查是否存在匹配的状态
+    for (const auto& Pair : StateComponent->StateSlotsX)
+    {
+        const FTcsStateSlot& StateSlot = Pair.Value;
+        for (const UTcsStateInstance* State : StateSlot.States)
+        {
+            if (IsValid(State) && State->GetStateDefId() == StateDefId)
+            {
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
+bool UTcsStateManagerSubsystem::HasActiveStateInSlot(
+    UTcsStateComponent* StateComponent,
+    FGameplayTag SlotTag) const
+{
+    if (!IsValid(StateComponent) || !SlotTag.IsValid())
+    {
+        return false;
+    }
+
+    const FTcsStateSlot* StateSlot = StateComponent->StateSlotsX.Find(SlotTag);
+    if (!StateSlot)
+    {
+        return false;
+    }
+
+    for (const UTcsStateInstance* State : StateSlot->States)
+    {
+        if (IsValid(State) && State->GetCurrentStage() == ETcsStateStage::SS_Active)
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+bool UTcsStateManagerSubsystem::RemoveState(UTcsStateInstance* StateInstance)
+{
+    if (!IsValid(StateInstance))
+    {
+        UE_LOG(LogTcsState, Warning, TEXT("[%s] StateInstance is invalid"),
+            *FString(__FUNCTION__));
+        return false;
+    }
+
+    UTcsStateComponent* StateComponent = StateInstance->GetOwnerStateComponent();
+    if (!IsValid(StateComponent))
+    {
+        UE_LOG(LogTcsState, Warning, TEXT("[%s] StateComponent is invalid"),
+            *FString(__FUNCTION__));
+        return false;
+    }
+
+    // 查找状态所在的槽位
+    const FGameplayTag SlotTag = StateInstance->GetStateDef().StateSlotType;
+    FTcsStateSlot* StateSlot = StateComponent->StateSlotsX.Find(SlotTag);
+    if (!StateSlot)
+    {
+        UE_LOG(LogTcsState, Warning, TEXT("[%s] StateSlot %s not found"),
+            *FString(__FUNCTION__),
+            *SlotTag.ToString());
+        return false;
+    }
+
+    // 取消状态并从槽位中移除
+    CancelState(StateInstance);
+    StateSlot->States.Remove(StateInstance);
+
+    // 更新槽位激活状态
+    UpdateStateSlotActivation(StateComponent, SlotTag);
+
+    return true;
+}
+
+int32 UTcsStateManagerSubsystem::RemoveStatesByDefId(
+    UTcsStateComponent* StateComponent,
+    FName StateDefId,
+    bool bRemoveAll)
+{
+    if (!IsValid(StateComponent) || StateDefId.IsNone())
+    {
+        return 0;
+    }
+
+    int32 RemovedCount = 0;
+    TSet<FGameplayTag> AffectedSlots;
+
+    // 遍历所有槽位查找匹配的状态
+    for (auto& Pair : StateComponent->StateSlotsX)
+    {
+        FGameplayTag SlotTag = Pair.Key;
+        FTcsStateSlot& StateSlot = Pair.Value;
+
+        TArray<UTcsStateInstance*> StatesToRemove;
+        for (UTcsStateInstance* State : StateSlot.States)
+        {
+            if (IsValid(State) && State->GetStateDefId() == StateDefId)
+            {
+                StatesToRemove.Add(State);
+                if (!bRemoveAll)
+                {
+                    break;
+                }
+            }
+        }
+
+        for (UTcsStateInstance* State : StatesToRemove)
+        {
+            CancelState(State);
+            StateSlot.States.Remove(State);
+            RemovedCount++;
+            AffectedSlots.Add(SlotTag);
+        }
+
+        if (!bRemoveAll && RemovedCount > 0)
+        {
+            break;
+        }
+    }
+
+    // 更新受影响槽位的激活状态
+    for (const FGameplayTag& SlotTag : AffectedSlots)
+    {
+        UpdateStateSlotActivation(StateComponent, SlotTag);
+    }
+
+    return RemovedCount;
+}
+
+int32 UTcsStateManagerSubsystem::RemoveAllStatesInSlot(
+    UTcsStateComponent* StateComponent,
+    FGameplayTag SlotTag)
+{
+    if (!IsValid(StateComponent) || !SlotTag.IsValid())
+    {
+        return 0;
+    }
+
+    FTcsStateSlot* StateSlot = StateComponent->StateSlotsX.Find(SlotTag);
+    if (!StateSlot)
+    {
+        return 0;
+    }
+
+    int32 RemovedCount = 0;
+    TArray<UTcsStateInstance*> StatesToRemove = StateSlot->States;
+
+    for (UTcsStateInstance* State : StatesToRemove)
+    {
+        if (IsValid(State))
+        {
+            CancelState(State);
+            RemovedCount++;
+        }
+    }
+
+    StateSlot->States.Empty();
+
+    return RemovedCount;
+}
+
+int32 UTcsStateManagerSubsystem::RemoveAllStates(UTcsStateComponent* StateComponent)
+{
+    if (!IsValid(StateComponent))
+    {
+        return 0;
+    }
+
+    int32 TotalRemoved = 0;
+
+    // 遍历所有槽位
+    for (auto& Pair : StateComponent->StateSlotsX)
+    {
+        FTcsStateSlot& StateSlot = Pair.Value;
+
+        for (UTcsStateInstance* State : StateSlot.States)
+        {
+            if (IsValid(State))
+            {
+                CancelState(State);
+                TotalRemoved++;
+            }
+        }
+
+        StateSlot.States.Empty();
+    }
+
+    return TotalRemoved;
 }

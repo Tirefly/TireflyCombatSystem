@@ -6,7 +6,6 @@
 #include "TcsLogChannels.h"
 #include "State/TcsState.h"
 #include "State/TcsStateManagerSubsystem.h"
-#include "TcsDeveloperSettings.h"
 #include "Engine/World.h"
 #include "Engine/DataTable.h"
 #include "StateTree.h"
@@ -50,7 +49,10 @@ void UTcsStateComponent::TickComponent(float DeltaTime, ELevelTick TickType, FAc
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
-	// Tick 激活状态
+	// 更新持续时间状态的剩余时间
+	UpdateActiveStateDurations(DeltaTime);
+
+	// Tick 激活状态的 StateTree
 	for (UTcsStateInstance* ActiveState : PersistentStateInstances.Instances)
 	{
 		if (IsValid(ActiveState) && ActiveState->GetCurrentStage() == ETcsStateStage::SS_Active)
@@ -95,8 +97,9 @@ void UTcsStateComponent::RefreshStateRemainingDuration(UTcsStateInstance* StateI
 
 	// 刷新为总持续时间
 	DurationData->RemainingDuration = StateInstance->GetTotalDuration();
-	// TODO: 实现事件通知
-	// StateMgr->OnStateInstanceDurationUpdated(StateInstance);
+
+	// 广播状态持续时间刷新事件
+	NotifyStateDurationRefreshed(StateInstance, DurationData->RemainingDuration);
 }
 
 void UTcsStateComponent::SetStateRemainingDuration(UTcsStateInstance* StateInstance, float InDurationRemaining)
@@ -124,12 +127,19 @@ void UTcsStateComponent::SetStateRemainingDuration(UTcsStateInstance* StateInsta
 
 	// 设置新的剩余时间
 	DurationData->RemainingDuration = InDurationRemaining;
-	// TODO: 实现事件通知
-	// StateMgr->OnStateInstanceDurationUpdated(StateInstance);
+
+	// 广播状态持续时间刷新事件
+	NotifyStateDurationRefreshed(StateInstance, InDurationRemaining);
 }
 
 void UTcsStateComponent::UpdateActiveStateDurations(float DeltaTime)
 {
+	if (!StateMgr)
+	{
+		return;
+	}
+
+	// 收集过期状态，避免在遍历过程中修改容器
 	TArray<UTcsStateInstance*> ExpiredStates;
 
 	for (auto& DurationPair : StateDurationMap)
@@ -146,15 +156,23 @@ void UTcsStateComponent::UpdateActiveStateDurations(float DeltaTime)
 		// 确认状态当前的状态阶段
 		const ETcsStateStage CurrentStage = StateInstance->GetCurrentStage();
 
-		// SS_Pause 状态完全冻结,跳过持续时间计算
+		// SS_Pause 状态完全冻结，跳过持续时间计算
 		if (CurrentStage == ETcsStateStage::SS_Pause)
 		{
 			continue;
 		}
 
-		// 注意: SS_HangUp 状态虽然挂起,但仍会继续计算持续时间,可以视为"激活"(根据策略)
+		// SS_Expired 状态已经过期，跳过
+		if (CurrentStage == ETcsStateStage::SS_Expired)
+		{
+			ExpiredStates.Add(StateInstance);
+			continue;
+		}
+
+		// 判断状态是否处于"激活"状态（Active 或 HangUp 都视为激活，因为 HangUp 仍计算持续时间）
 		const bool bStateIsActive = (CurrentStage == ETcsStateStage::SS_Active);
-		
+		const bool bStateIsHangUp = (CurrentStage == ETcsStateStage::SS_HangUp);
+
 		// 检查状态所属的状态槽的状态
 		const FGameplayTag StateSlotTag = StateInstance->GetStateDef().StateSlotType;
 		FTcsStateSlotDefinition SlotDefinition;
@@ -165,7 +183,8 @@ void UTcsStateComponent::UpdateActiveStateDurations(float DeltaTime)
 				*StateSlotTag.ToString());
 			continue;
 		}
-		FTcsStateSlot* SlotData = StateSlotTag.IsValid() ? StateSlotsX.Find(StateSlotTag) : nullptr;
+
+		const FTcsStateSlot* SlotData = StateSlotTag.IsValid() ? StateSlotsX.Find(StateSlotTag) : nullptr;
 		const bool bGateOpen = !StateSlotTag.IsValid() || (SlotData && SlotData->bIsGateOpen);
 
 		bool bShouldTick = false;
@@ -173,18 +192,24 @@ void UTcsStateComponent::UpdateActiveStateDurations(float DeltaTime)
 		switch (SlotDefinition.DurationTickPolicy)
 		{
 		case ETcsDurationTickPolicy::DTP_Always:
+			// 始终计时（包括 HangUp）
 			bShouldTick = true;
 			break;
 		case ETcsDurationTickPolicy::DTP_OnlyWhenGateOpen:
+			// 仅 Gate 开启时计时
 			bShouldTick = bGateOpen;
 			break;
 		case ETcsDurationTickPolicy::DTP_ActiveOrGateOpen:
-			bShouldTick = bStateIsActive || bGateOpen;
+			// Active/HangUp 或 Gate 开启时计时
+			bShouldTick = bStateIsActive || bStateIsHangUp || bGateOpen;
 			break;
 		case ETcsDurationTickPolicy::DTP_ActiveAndGateOpen:
+			// 仅 Active 且 Gate 开启时计时（HangUp 不计时）
 			bShouldTick = bStateIsActive && bGateOpen;
 			break;
 		case ETcsDurationTickPolicy::DTP_ActiveOnly:
+		default:
+			// 仅 Active 时计时（HangUp 不计时）
 			bShouldTick = bStateIsActive;
 			break;
 		}
@@ -199,23 +224,24 @@ void UTcsStateComponent::UpdateActiveStateDurations(float DeltaTime)
 		if (DurationData.RemainingDuration <= 0.0f)
 		{
 			ExpiredStates.Add(StateInstance);
-			SlotData->States.Remove(StateInstance);
 		}
 	}
 
-	// 处理到期状态
+	// 遍历结束后，统一处理过期状态
 	for (UTcsStateInstance* ExpiredState : ExpiredStates)
 	{
 		if (IsValid(ExpiredState))
 		{
-			// TODO: 触发状态持续时间到期事件
-			ExpiredState->StopStateTree();
+			// 通过 StateManagerSubsystem 正确处理过期流程
+			// ExpireState 内部会处理：设置 Stage、从容器移除、广播事件
+			StateMgr->ExpireState(ExpiredState);
 		}
-
-		StateDurationMap.Remove(ExpiredState);
-		PersistentStateInstances.RemoveInstance(ExpiredState);
+		else
+		{
+			// 无效指针：直接从 Map 移除
+			StateDurationMap.Remove(ExpiredState);
+		}
 	}
-	PersistentStateInstances.RefreshInstances();
 }
 
 void UTcsStateComponent::NotifyStateStageChanged(UTcsStateInstance* StateInstance, ETcsStateStage PreviousStage, ETcsStateStage NewStage)
@@ -228,6 +254,97 @@ void UTcsStateComponent::NotifyStateStageChanged(UTcsStateInstance* StateInstanc
 	if (OnStateStageChanged.IsBound())
 	{
 		OnStateStageChanged.Broadcast(this, StateInstance, PreviousStage, NewStage);
+	}
+}
+
+void UTcsStateComponent::NotifyStateRemoved(UTcsStateInstance* StateInstance, FName RemovalReason)
+{
+	if (!IsValid(StateInstance))
+	{
+		return;
+	}
+
+	if (OnStateRemoved.IsBound())
+	{
+		OnStateRemoved.Broadcast(this, StateInstance, RemovalReason);
+	}
+}
+
+void UTcsStateComponent::NotifyStateStackChanged(UTcsStateInstance* StateInstance, int32 OldStackCount, int32 NewStackCount)
+{
+	if (!IsValid(StateInstance) || OldStackCount == NewStackCount)
+	{
+		return;
+	}
+
+	if (OnStateStackChanged.IsBound())
+	{
+		OnStateStackChanged.Broadcast(this, StateInstance, OldStackCount, NewStackCount);
+	}
+}
+
+void UTcsStateComponent::NotifyStateLevelChanged(UTcsStateInstance* StateInstance, int32 OldLevel, int32 NewLevel)
+{
+	if (!IsValid(StateInstance) || OldLevel == NewLevel)
+	{
+		return;
+	}
+
+	if (OnStateLevelChanged.IsBound())
+	{
+		OnStateLevelChanged.Broadcast(this, StateInstance, OldLevel, NewLevel);
+	}
+}
+
+void UTcsStateComponent::NotifyStateDurationRefreshed(UTcsStateInstance* StateInstance, float NewDuration)
+{
+	if (!IsValid(StateInstance))
+	{
+		return;
+	}
+
+	if (OnStateDurationRefreshed.IsBound())
+	{
+		OnStateDurationRefreshed.Broadcast(this, StateInstance, NewDuration);
+	}
+}
+
+void UTcsStateComponent::NotifySlotGateStateChanged(FGameplayTag SlotTag, bool bIsOpen)
+{
+	if (!SlotTag.IsValid())
+	{
+		return;
+	}
+
+	if (OnSlotGateStateChanged.IsBound())
+	{
+		OnSlotGateStateChanged.Broadcast(this, SlotTag, bIsOpen);
+	}
+}
+
+void UTcsStateComponent::NotifyStateParameterChanged(UTcsStateInstance* StateInstance, FName ParameterName, ETcsStateParameterType ParameterType)
+{
+	if (!IsValid(StateInstance))
+	{
+		return;
+	}
+
+	if (OnStateParameterChanged.IsBound())
+	{
+		OnStateParameterChanged.Broadcast(StateInstance, ParameterName, ParameterType);
+	}
+}
+
+void UTcsStateComponent::NotifyStateMerged(UTcsStateInstance* TargetStateInstance, UTcsStateInstance* SourceStateInstance, int32 ResultStackCount)
+{
+	if (!IsValid(TargetStateInstance) || !IsValid(SourceStateInstance))
+	{
+		return;
+	}
+
+	if (OnStateMerged.IsBound())
+	{
+		OnStateMerged.Broadcast(this, TargetStateInstance, SourceStateInstance, ResultStackCount);
 	}
 }
 
@@ -306,7 +423,7 @@ FString UTcsStateComponent::GetSlotDebugSnapshot(FGameplayTag SlotFilter) const
 
 	if (SlotFilter.IsValid())
 	{
-		if (const FTcsStateSlot* Slot = StateSlots.Find(SlotFilter))
+		if (const FTcsStateSlot* Slot = StateSlotsX.Find(SlotFilter))
 		{
 			return BuildLine(SlotFilter, *Slot);
 		}
@@ -314,7 +431,7 @@ FString UTcsStateComponent::GetSlotDebugSnapshot(FGameplayTag SlotFilter) const
 	}
 
 	FString Accumulator;
-	for (const TPair<FGameplayTag, FTcsStateSlot>& Pair : StateSlots)
+	for (const TPair<FGameplayTag, FTcsStateSlot>& Pair : StateSlotsX)
 	{
 		if (!Accumulator.IsEmpty())
 		{
@@ -333,13 +450,12 @@ FString UTcsStateComponent::GetSlotDebugSnapshot(FGameplayTag SlotFilter) const
 
 void UTcsStateComponent::SetSlotGateOpen(FGameplayTag SlotTag, bool bOpen)
 {
-    FTcsStateSlot* Slot = StateSlots.Find(SlotTag);
+    FTcsStateSlot* Slot = StateSlotsX.Find(SlotTag);
     if (!Slot)
     {
-        // 如果槽位不存在,创建一个新的槽位
-        FTcsStateSlot& NewSlot = StateSlots.Add(SlotTag);
-        NewSlot.bIsGateOpen = bOpen;
-        UE_LOG(LogTcsState, Verbose, TEXT("Slot gate %s -> %s (new slot created)"), *SlotTag.ToString(), bOpen ? TEXT("Open") : TEXT("Closed"));
+        UE_LOG(LogTcsState, Warning, TEXT("[%s] Invalid StateSlot %s"),
+        	*FString(__FUNCTION__),
+        	*SlotTag.ToString());
         return;
     }
 
@@ -347,18 +463,25 @@ void UTcsStateComponent::SetSlotGateOpen(FGameplayTag SlotTag, bool bOpen)
 	{
 		Slot->bIsGateOpen = bOpen;
 		UE_LOG(LogTcsState, Verbose, TEXT("Slot gate %s -> %s"), *SlotTag.ToString(), bOpen ? TEXT("Open") : TEXT("Closed"));
-		UpdateStateSlotActivation(SlotTag);
+
+		// 广播槽位Gate状态变化事件
+		NotifySlotGateStateChanged(SlotTag, bOpen);
+
+		// 直接调用 Subsystem 更新槽位激活状态
+		if (IsValid(StateMgr))
+		{
+			StateMgr->UpdateStateSlotActivation(this, SlotTag);
+		}
 	}
 }
 
 bool UTcsStateComponent::IsSlotGateOpen(FGameplayTag SlotTag) const
 {
-    if (const FTcsStateSlot* Slot = StateSlots.Find(SlotTag))
+    if (const FTcsStateSlot* Slot = StateSlotsX.Find(SlotTag))
     {
         return Slot->bIsGateOpen;
     }
-    // 默认开启，保持向后兼容
-    return true;
+    return false;
 }
 
 TArray<FName> UTcsStateComponent::GetCurrentActiveStateTreeStates() const
@@ -399,72 +522,16 @@ void UTcsStateComponent::OnStateTreeStateChanged(const FStateTreeExecutionContex
 	// 检测变化
 	if (!AreStateNamesEqual(CurrentActiveStates, CachedActiveStateNames))
 	{
-		RefreshSlotsForStateChange(CurrentActiveStates, CachedActiveStateNames);
+		// 委托给 Subsystem 处理槽位 Gate 刷新
+		if (IsValid(StateMgr))
+		{
+			StateMgr->RefreshSlotsForStateChange(this, CurrentActiveStates, CachedActiveStateNames);
+		}
 		CachedActiveStateNames = CurrentActiveStates;
 
 		UE_LOG(LogTcsState, Log,
 			   TEXT("[StateTree Event] State changed: %d active states"),
 			   CurrentActiveStates.Num());
-	}
-}
-
-void UTcsStateComponent::RefreshSlotsForStateChange(
-	const TArray<FName>& NewStates,
-	const TArray<FName>& OldStates)
-{
-	// 计算新增的状态
-	TSet<FName> AddedStates(NewStates);
-	for (const FName& OldState : OldStates)
-	{
-		AddedStates.Remove(OldState);
-	}
-
-	// 计算移除的状态
-	TSet<FName> RemovedStates(OldStates);
-	for (const FName& NewState : NewStates)
-	{
-		RemovedStates.Remove(NewState);
-	}
-
-	// 遍历槽位映射，更新Gate状态
-	for (const auto& Pair : SlotToStateHandleMap)
-	{
-		const FGameplayTag SlotTag = Pair.Key;
-		const FTcsStateSlotDefinition* SlotDef = StateSlotDefinitions.Find(SlotTag);
-
-		if (!SlotDef || SlotDef->StateTreeStateName.IsNone())
-		{
-			continue;
-		}
-
-		const FName& MappedStateName = SlotDef->StateTreeStateName;
-		bool bShouldOpen = false;
-
-		if (AddedStates.Contains(MappedStateName))
-		{
-			bShouldOpen = true;
-		}
-		else if (RemovedStates.Contains(MappedStateName))
-		{
-			bShouldOpen = false;
-		}
-		else
-		{
-			bShouldOpen = NewStates.Contains(MappedStateName);
-		}
-
-		const bool bWasOpen = IsSlotGateOpen(SlotTag);
-		if (bShouldOpen != bWasOpen)
-		{
-			SetSlotGateOpen(SlotTag, bShouldOpen);
-			UpdateStateSlotActivation(SlotTag);
-
-			UE_LOG(LogTcsState, Log,
-				   TEXT("[StateTree Event] Slot [%s] gate %s due to StateTree state '%s'"),
-				   *SlotTag.ToString(),
-				   bShouldOpen ? TEXT("opened") : TEXT("closed"),
-				   *MappedStateName.ToString());
-		}
 	}
 }
 
@@ -484,13 +551,4 @@ bool UTcsStateComponent::AreStateNamesEqual(const TArray<FName>& A, const TArray
 	}
 
 	return true;
-}
-
-void UTcsStateComponent::UpdateStateSlotActivation(FGameplayTag SlotTag)
-{
-	// 委托给 Subsystem 处理
-	if (IsValid(StateMgr))
-	{
-		StateMgr->UpdateStateSlotActivation(this, SlotTag);
-	}
 }
