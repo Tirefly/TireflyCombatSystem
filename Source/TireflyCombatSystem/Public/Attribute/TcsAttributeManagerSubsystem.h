@@ -25,7 +25,7 @@ public:
 
 #pragma region AttributeTables
 
-protected:
+public:
 	UPROPERTY()
 	UDataTable* AttributeDefTable;
 
@@ -140,7 +140,12 @@ protected:
 		TArray<FTcsAttributeModifierInstance>& MergedModifiers);
 
 	// 将属性的给定值限制在指定范围内
-	static void ClampAttributeValueInRange(UTcsAttributeComponent* AttributeComponent, const FName& AttributeName, float& NewValue);
+	static void ClampAttributeValueInRange(
+		UTcsAttributeComponent* AttributeComponent,
+		const FName& AttributeName,
+		float& NewValue,
+		float* OutMinValue = nullptr,
+		float* OutMaxValue = nullptr);
 
 #pragma endregion
 };

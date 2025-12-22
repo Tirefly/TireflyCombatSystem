@@ -20,8 +20,15 @@ bool UTcsStateCondition_ParameterBased::CheckCondition_Implementation(
 	}
 
 	// 获取参数值
-	float ParameterValue;
-	StateInstance->GetNumericParam(Config->ParameterName, ParameterValue);
+	float ParameterValue = 0.0f;
+	if (!StateInstance->GetNumericParam(Config->ParameterName, ParameterValue))
+	{
+		UE_LOG(LogTcsStateCondition, Warning, TEXT("[%s] Parameter '%s' not found in state '%s'."),
+			*FString(__FUNCTION__),
+			*Config->ParameterName.ToString(),
+			*StateInstance->GetStateDefId().ToString());
+		return false;
+	}
 
 	// 执行比较
 	float CompareValue = Config->CompareValue;

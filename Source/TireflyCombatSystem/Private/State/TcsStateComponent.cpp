@@ -348,6 +348,40 @@ void UTcsStateComponent::NotifyStateMerged(UTcsStateInstance* TargetStateInstanc
 	}
 }
 
+void UTcsStateComponent::NotifyStateApplySuccess(
+	AActor* TargetActor,
+	FName StateDefId,
+	UTcsStateInstance* CreatedStateInstance,
+	FGameplayTag TargetSlot,
+	ETcsStateStage AppliedStage)
+{
+	if (!IsValid(TargetActor) || StateDefId.IsNone() || !IsValid(CreatedStateInstance) || !TargetSlot.IsValid())
+	{
+		return;
+	}
+
+	if (OnStateApplySuccess.IsBound())
+	{
+		OnStateApplySuccess.Broadcast(TargetActor, StateDefId, CreatedStateInstance, TargetSlot, AppliedStage);
+	}
+}
+
+void UTcsStateComponent::NotifyStateApplyFailed(
+	AActor* TargetActor,
+	FName StateDefId,
+	const FString& FailureMessage)
+{
+	if (!IsValid(TargetActor) || StateDefId.IsNone())
+	{
+		return;
+	}
+
+	if (OnStateApplyFailed.IsBound())
+	{
+		OnStateApplyFailed.Broadcast(TargetActor, StateDefId, FailureMessage);
+	}
+}
+
 FStateTreeReference UTcsStateComponent::GetStateTreeReference() const
 {
 	return StateTreeRef;

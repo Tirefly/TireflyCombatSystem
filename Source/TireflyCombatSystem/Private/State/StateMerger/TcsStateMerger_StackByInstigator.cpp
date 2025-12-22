@@ -33,7 +33,7 @@ void UTcsStateMerger_StackByInstigator::Merge_Implementation(
 			return;
 		}
 
-		AActor* Instigator = State->GetOwner();
+		AActor* Instigator = State->GetInstigator();
 		if (!StatesByInstigator.Contains(Instigator))
 		{
 			StatesByInstigator.Add(Instigator, TArray<UTcsStateInstance*>());
@@ -82,9 +82,5 @@ void UTcsStateMerger_StackByInstigator::Merge_Implementation(
 		// 设置基础状态的叠层数
 		BaseState->SetStackCount(TotalStackCount);
 		MergedStates.Add(BaseState);
-
-		// TODO: 把叠层合并后剩余的状态实例标记为待回到对象池中
-		for (int32 i = 1; i < States.Num(); ++i)
-		{}
 	}
 } 

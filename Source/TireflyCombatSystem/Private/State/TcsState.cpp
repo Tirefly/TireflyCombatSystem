@@ -789,62 +789,22 @@ void UTcsStateInstance::StopStateTree()
 
 void UTcsStateInstance::PauseStateTree()
 {
-	if (!StateDef.StateTreeRef.IsValid())
-	{
-		UE_LOG(LogTcsStateTree, Error, TEXT("[%s] Failed to get StateTree for StateInstance: %s"),
-			*FString(__FUNCTION__),
-			*GetStateDefId().ToString());
-		return;
-	}
-
-	// 如果已经是暂停状态,不重复暂停
-	if (GetCurrentStage() == ETcsStateStage::SS_Pause)
-	{
-		return;
-	}
-
+	// Note: State stage must be managed by UTcsStateManagerSubsystem.
+	// This function only pauses StateTree execution.
 	if (bStateTreeRunning)
 	{
 		StopStateTree();
 	}
-
-	// 设置为完全暂停阶段
-	SetCurrentStage(ETcsStateStage::SS_Pause);
 }
 
 void UTcsStateInstance::ResumeStateTree()
 {
-	// 如果已经是激活状态且运行中,不需要恢复
-	if (GetCurrentStage() == ETcsStateStage::SS_Active && bStateTreeRunning)
-	{
-		return;
-	}
-
-	// 只有从暂停或挂起状态才能恢复
-	ETcsStateStage CurrentStage = GetCurrentStage();
-	if (CurrentStage != ETcsStateStage::SS_Pause && CurrentStage != ETcsStateStage::SS_HangUp)
-	{
-		UE_LOG(LogTcsStateTree, Warning, TEXT("[%s] Cannot resume StateTree for StateInstance: %s, current stage is %d"),
-			*FString(__FUNCTION__),
-			*GetStateDefId().ToString(),
-			static_cast<int32>(CurrentStage));
-		return;
-	}
-
-	if (!StateDef.StateTreeRef.IsValid())
-	{
-		UE_LOG(LogTcsStateTree, Error, TEXT("[%s] Failed to get StateTree for StateInstance: %s"),
-			*FString(__FUNCTION__),
-			*GetStateDefId().ToString());
-		return;
-	}
-
+	// Note: State stage must be managed by UTcsStateManagerSubsystem.
+	// This function only resumes (starts) StateTree execution.
 	if (!bStateTreeRunning)
 	{
 		StartStateTree();
 	}
-
-	SetCurrentStage(ETcsStateStage::SS_Active);
 }
 
 EStateTreeRunStatus UTcsStateInstance::GetStateTreeRunStatus() const

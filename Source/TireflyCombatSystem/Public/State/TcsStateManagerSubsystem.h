@@ -30,7 +30,7 @@ public:
 
 #pragma region StateTables
 
-protected:
+public:
 	UPROPERTY()
 	UDataTable* StateDefTable;
 
@@ -54,9 +54,15 @@ protected:
 	 * @param StateDefId 状态定义名，通过TcsGenericLibrary.GetStateDefIds获取
 	 * @param Owner 状态的拥有者，也是状态的应用目标
 	 * @param Instigator 状态的发起者
+	 * @param InLevel 状态等级（默认1）
 	 * @return 如果创建状态实例成功，则返回状态实例指针，否则返回nullptr
 	 */
-	UTcsStateInstance* CreateStateInstance(FName StateDefId, AActor* Owner, AActor* Instigator);
+	UTcsStateInstance* CreateStateInstance(FName StateDefId, AActor* Owner, AActor* Instigator, int32 InLevel = 1);
+
+protected:
+	// 全局状态实例ID管理器
+	UPROPERTY()
+	int32 GlobalStateInstanceIdMgr = 0;
 
 #pragma endregion
 
@@ -99,7 +105,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "State Manager")
 	bool TryGetStateSlotDefinition(FGameplayTag StateSlotTag, FTcsStateSlotDefinition& OutStateSlotDef) const;
 
-protected:
 	// 初始化状态槽定义
 	void InitStateSlotDefs();
 
@@ -147,7 +152,11 @@ protected:
 	// 对特定组内的状态进行合并
 	void MergeStateGroup(TArray<UTcsStateInstance*>& StatesToMerge, TArray<UTcsStateInstance*>& OutMergedStates);
 	// 将状态槽中未被合并的状态实例移除
-	void RemoveUnmergedStates(FTcsStateSlot* StateSlot, const TArray<UTcsStateInstance*>& MergedStates);
+	void RemoveUnmergedStates(
+		UTcsStateComponent* StateComponent,
+		FTcsStateSlot* StateSlot,
+		const TArray<UTcsStateInstance*>& MergedStates,
+		const TMap<FName, UTcsStateInstance*>& MergePrimaryByDefId);
 
 	// 状态槽位阀门关闭的处理
 	void ProcessStateSlotOnGateClosed(const UTcsStateComponent* StateComponent, FTcsStateSlot* StateSlot, FGameplayTag SlotTag);
@@ -164,7 +173,7 @@ protected:
 	// 辅助函数：清理状态槽位中无效的状态
 	static void CleanupInvalidStates(FTcsStateSlot* StateSlot);
 	// 辅助函数：将状态从状态槽中移除
-	void RemoveStateFromSlot(FTcsStateSlot* StateSlot, UTcsStateInstance* State);
+	void RemoveStateFromSlot(FTcsStateSlot* StateSlot, UTcsStateInstance* State, bool bDeactivateIfNeeded = true);
 
 #pragma endregion
 
@@ -303,6 +312,15 @@ public:
 
 	// 标记状态为过期
 	void ExpireState(UTcsStateInstance* StateInstance);
+
+#pragma endregion
+
+
+#pragma region StateRemoval_Internal
+
+protected:
+	// 最终化移除流程：停止逻辑、标记过期、清理容器并广播事件
+	void FinalizeStateRemoval(UTcsStateInstance* StateInstance, FName RemovalReason);
 
 #pragma endregion
 };

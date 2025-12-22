@@ -68,13 +68,4 @@ void UTcsStateMerger_StackDirectly::Merge_Implementation(
 	// 设置基础状态的叠层数
 	BaseState->SetStackCount(TotalStackCount);
 	MergedStates.Add(BaseState);
-
-	// 将剩余的状态添加到合并结果中
-	for (UTcsStateInstance* State : StatesToMerge)
-	{
-		if (State->GetStackCount() > 0)
-		{
-			MergedStates.Add(State);
-		}
-	}
 }

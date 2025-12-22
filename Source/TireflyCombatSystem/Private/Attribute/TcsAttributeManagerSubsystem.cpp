@@ -264,6 +264,8 @@ void UTcsAttributeManagerSubsystem::ApplyModifier(
 	// 再执行针对属性Base值的修改器
 	if (!ModifiersToApply.IsEmpty())
 	{
+		TArray<FTcsAttributeModifierInstance> NewlyAddedModifiers;
+
 		// 把已经用过但有改变的属性修改器更新一下，并从待应用列表中移除
 		for (FTcsAttributeModifierInstance& Modifier : AttributeComponent->AttributeModifiers)
 		{
@@ -273,7 +275,16 @@ void UTcsAttributeManagerSubsystem::ApplyModifier(
 				ModifiersToApply.Remove(Modifier);
 			}
 		}
+
+		// 剩余的 ModifiersToApply 即为新增的修改器
+		NewlyAddedModifiers = ModifiersToApply;
 		AttributeComponent->AttributeModifiers.Append(ModifiersToApply);
+
+		// 广播新增事件
+		for (const FTcsAttributeModifierInstance& Added : NewlyAddedModifiers)
+		{
+			AttributeComponent->BroadcastAttributeModifierAddedEvent(Added);
+		}
 	}
 	
 	// 无论如何，都要重新计算属性Current值
@@ -295,6 +306,7 @@ void UTcsAttributeManagerSubsystem::RemoveModifier(
 	{
 		if (AttributeComponent->AttributeModifiers.Remove(Modifier) > 0)
 		{
+			AttributeComponent->BroadcastAttributeModifierRemovedEvent(Modifier);
 			bModified = true;
 		}
 	}
@@ -394,11 +406,16 @@ void UTcsAttributeManagerSubsystem::RecalculateAttributeBaseValues(
 	{
 		if (FTcsAttributeInstance* Attribute = AttributeComponent->Attributes.Find(Pair.Key))
 		{
-			ClampAttributeValueInRange(AttributeComponent, Pair.Key, Pair.Value);
+			float RangeMin = Pair.Value;
+			float RangeMax = Pair.Value;
+			ClampAttributeValueInRange(AttributeComponent, Pair.Key, Pair.Value, &RangeMin, &RangeMax);
 			if (FMath::IsNearlyEqual(Attribute->BaseValue, Pair.Value))
 			{
 				continue;
 			}
+
+			const bool bReachedMin = FMath::IsNearlyEqual(Pair.Value, RangeMin);
+			const bool bReachedMax = FMath::IsNearlyEqual(Pair.Value, RangeMax);
 
 			// 记录属性修改事件的最终结果
 			if (FTcsAttributeChangeEventPayload* Payload = ChangeEventPayloads.Find(Pair.Key))
@@ -409,6 +426,12 @@ void UTcsAttributeManagerSubsystem::RecalculateAttributeBaseValues(
 
 			// 把属性基础值的最终修改赋值
 			Attribute->BaseValue = Pair.Value;
+
+			// 广播达到边界值事件
+			if (bReachedMin || bReachedMax)
+			{
+				AttributeComponent->BroadcastAttributeReachedBoundaryEvent(Pair.Key, bReachedMax, Pair.Value);
+			}
 		}
 	}
 
@@ -484,11 +507,16 @@ void UTcsAttributeManagerSubsystem::RecalculateAttributeCurrentValues(const AAct
 	{
 		if (FTcsAttributeInstance* Attribute = AttributeComponent->Attributes.Find(Pair.Key))
 		{
-			ClampAttributeValueInRange(AttributeComponent, Pair.Key, Pair.Value);
+			float RangeMin = Pair.Value;
+			float RangeMax = Pair.Value;
+			ClampAttributeValueInRange(AttributeComponent, Pair.Key, Pair.Value, &RangeMin, &RangeMax);
 			if (FMath::IsNearlyEqual(Attribute->CurrentValue, Pair.Value))
 			{
 				continue;
 			}
+
+			const bool bReachedMin = FMath::IsNearlyEqual(Pair.Value, RangeMin);
+			const bool bReachedMax = FMath::IsNearlyEqual(Pair.Value, RangeMax);
 
 			// 记录属性修改事件的最终结果，因为修改器移除导致的属性当前值变更，不会有修改记录，所以需要在此处查漏补缺
 			FTcsAttributeChangeEventPayload & Payload = ChangeEventPayloads.FindOrAdd(Pair.Key);
@@ -498,6 +526,12 @@ void UTcsAttributeManagerSubsystem::RecalculateAttributeCurrentValues(const AAct
 
 			// 把属性当前值的最终修改赋值
 			Attribute->CurrentValue = Pair.Value;
+
+			// 广播达到边界值事件
+			if (bReachedMin || bReachedMax)
+			{
+				AttributeComponent->BroadcastAttributeReachedBoundaryEvent(Pair.Key, bReachedMax, Pair.Value);
+			}
 		}
 	}
 	
@@ -542,7 +576,9 @@ void UTcsAttributeManagerSubsystem::MergeAttributeModifiers(
 void UTcsAttributeManagerSubsystem::ClampAttributeValueInRange(
 	UTcsAttributeComponent* AttributeComponent,
 	const FName& AttributeName,
-	float& NewValue)
+	float& NewValue,
+	float* OutMinValue,
+	float* OutMaxValue)
 {
 	if (!IsValid(AttributeComponent))
 	{
@@ -557,7 +593,7 @@ void UTcsAttributeManagerSubsystem::ClampAttributeValueInRange(
 	const FTcsAttributeRange& Range = Attribute->AttributeDef.AttributeRange;
 
 	// 计算属性范围的最小值
-	float MinValue = NewValue;
+	float MinValue = TNumericLimits<float>::Lowest();
 	switch (Range.MinValueType)
 	{
 	case ETcsAttributeRangeType::ART_None:
@@ -585,7 +621,7 @@ void UTcsAttributeManagerSubsystem::ClampAttributeValueInRange(
 	}
 
 	// 计算属性范围的最大值
-	float MaxValue = NewValue;
+	float MaxValue = TNumericLimits<float>::Max();
 	switch (Range.MaxValueType)
 	{
 	case ETcsAttributeRangeType::ART_None:
@@ -614,4 +650,13 @@ void UTcsAttributeManagerSubsystem::ClampAttributeValueInRange(
 
 	// 属性值范围修正
 	NewValue = FMath::Clamp(NewValue, MinValue, MaxValue);
+
+	if (OutMinValue)
+	{
+		*OutMinValue = MinValue;
+	}
+	if (OutMaxValue)
+	{
+		*OutMaxValue = MaxValue;
+	}
 }

@@ -199,6 +199,20 @@ public:
 	// 通知状态合并
 	void NotifyStateMerged(UTcsStateInstance* TargetStateInstance, UTcsStateInstance* SourceStateInstance, int32 ResultStackCount);
 
+	// 通知状态应用成功
+	void NotifyStateApplySuccess(
+		AActor* TargetActor,
+		FName StateDefId,
+		UTcsStateInstance* CreatedStateInstance,
+		FGameplayTag TargetSlot,
+		ETcsStateStage AppliedStage);
+
+	// 通知状态应用失败
+	void NotifyStateApplyFailed(
+		AActor* TargetActor,
+		FName StateDefId,
+		const FString& FailureMessage);
+
 public:
 	// 状态阶段变更事件（槽位联动）
 	UPROPERTY(BlueprintAssignable, Category = "State|Events")

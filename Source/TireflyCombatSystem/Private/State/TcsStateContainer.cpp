@@ -131,6 +131,7 @@ bool FTcsPersistentStateInstanceContainer::GetInstancesByName(
 		OutInstances = InstancesByName[StateDefId].StateInstances;
 		return true;
 	}
-	
-	return true;
+
+	OutInstances.Empty();
+	return false;
 }
