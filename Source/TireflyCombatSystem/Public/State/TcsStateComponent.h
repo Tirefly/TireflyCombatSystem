@@ -29,6 +29,15 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams(
 	ETcsStateStage, PreviousStage,
 	ETcsStateStage, NewStage);
 
+// 状态停用事件签名（状态停止执行逻辑，但未必被移除）
+// (状态组件, 状态实例, 新阶段, 停用原因)
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams(
+	FTcsOnStateDeactivatedSignature,
+	UTcsStateComponent*, StateComponent,
+	UTcsStateInstance*, StateInstance,
+	ETcsStateStage, NewStage,
+	FName, DeactivateReason);
+
 // 状态应用成功事件签名
 // (应用到的Actor, 状态定义ID, 创建的状态实例, 目标槽位, 应用后的状态阶段)
 // 应用后的状态阶段通常是 SS_Active, 也可能是 SS_HangUp 或 SS_Pause (根据槽位Gate状态)
@@ -42,10 +51,11 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_FiveParams(
 
 // 状态应用失败事件签名
 // (应用到的Actor, 状态定义ID, 失败原因枚举, 失败详情消息)
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams(
 	FTcsOnStateApplyFailedSignature,
 	AActor*, TargetActor,
 	FName, StateDefId,
+	ETcsStateApplyFailReason, FailureReason,
 	FString, FailureMessage
 );
 
@@ -92,11 +102,13 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(
 	bool, bIsOpen);
 
 // 状态参数变化事件签名
-// (状态实例, 参数名称, 参数类型)
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(
+// (状态实例, 参数键类型, 参数名称, 参数Tag, 参数类型)
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_FiveParams(
 	FTcsOnStateParameterChangedSignature,
 	UTcsStateInstance*, StateInstance,
+	ETcsStateParameterKeyType, KeyType,
 	FName, ParameterName,
+	FGameplayTag, ParameterTag,
 	ETcsStateParameterType, ParameterType);
 
 // 状态合并事件签名
@@ -107,35 +119,6 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams(
 	UTcsStateInstance*, TargetStateInstance,
 	UTcsStateInstance*, SourceStateInstance,
 	int32, ResultStackCount);
-
-
-
-// 状态实例持续时间数据
-USTRUCT()
-struct FTcsStateDurationData
-{
-	GENERATED_BODY()
-
-public:
-	// 状态实例
-	UPROPERTY()
-	TObjectPtr<UTcsStateInstance> StateInstance;
-
-	// 剩余持续时间
-	float RemainingDuration;
-
-	FTcsStateDurationData()
-		: StateInstance(nullptr)
-		, RemainingDuration(0.0f)
-	{}
-
-	FTcsStateDurationData(
-		UTcsStateInstance* InStateInstance,
-		float InRemainingDuration)
-		: StateInstance(InStateInstance)
-		, RemainingDuration(InRemainingDuration)
-	{}
-};
 
 
 
@@ -177,6 +160,12 @@ public:
 		ETcsStateStage PreviousStage,
 		ETcsStateStage NewStage);
 
+	// 通知状态停用（停止执行逻辑）
+	void NotifyStateDeactivated(
+		UTcsStateInstance* StateInstance,
+		ETcsStateStage NewStage,
+		FName DeactivateReason);
+
 	// 通知状态被移除
 	// RemovalReason: "Expired"=自然过期, "Removed"=主动移除, "Cancelled"=被取消
 	void NotifyStateRemoved(UTcsStateInstance* StateInstance, FName RemovalReason);
@@ -194,7 +183,12 @@ public:
 	void NotifySlotGateStateChanged(FGameplayTag SlotTag, bool bIsOpen);
 
 	// 通知状态参数变化
-	void NotifyStateParameterChanged(UTcsStateInstance* StateInstance, FName ParameterName, ETcsStateParameterType ParameterType);
+	void NotifyStateParameterChanged(
+		UTcsStateInstance* StateInstance,
+		ETcsStateParameterKeyType KeyType,
+		FName ParameterName,
+		FGameplayTag ParameterTag,
+		ETcsStateParameterType ParameterType);
 
 	// 通知状态合并
 	void NotifyStateMerged(UTcsStateInstance* TargetStateInstance, UTcsStateInstance* SourceStateInstance, int32 ResultStackCount);
@@ -211,12 +205,17 @@ public:
 	void NotifyStateApplyFailed(
 		AActor* TargetActor,
 		FName StateDefId,
+		ETcsStateApplyFailReason FailureReason,
 		const FString& FailureMessage);
 
 public:
 	// 状态阶段变更事件（槽位联动）
 	UPROPERTY(BlueprintAssignable, Category = "State|Events")
 	FTcsOnStateStageChangedSignature OnStateStageChanged;
+
+	// 状态停用事件（停止执行逻辑，但未必被移除）
+	UPROPERTY(BlueprintAssignable, Category = "State|Events")
+	FTcsOnStateDeactivatedSignature OnStateDeactivated;
 
 	/**
 	 * 状态应用成功事件
@@ -287,9 +286,13 @@ protected:
 	UPROPERTY()
 	TObjectPtr<UTcsStateManagerSubsystem> StateMgr;
 
-	// 持久化状态实例容器
+	// 状态实例索引：按Id/DefId/Slot查询
 	UPROPERTY()
-	FTcsPersistentStateInstanceContainer PersistentStateInstances;
+	FTcsStateInstanceIndex StateInstanceIndex;
+
+	// StateTree Tick调度器：只保存正在Running的实例
+	UPROPERTY()
+	FTcsStateTreeTickScheduler StateTreeTickScheduler;
 
 #pragma endregion
 
@@ -388,9 +391,9 @@ protected:
 	void UpdateActiveStateDurations(float DeltaTime);
 
 protected:
-	// 状态实例持续时间映射表
+	// 状态实例持续时间追踪器（仅SDT_Duration）
 	UPROPERTY()
-	TMap<UTcsStateInstance*, FTcsStateDurationData> StateDurationMap;
+	FTcsStateDurationTracker DurationTracker;
 
 #pragma endregion
 };

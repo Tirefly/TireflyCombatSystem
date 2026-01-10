@@ -55,6 +55,46 @@ enum class ETcsStateStage : uint8
 
 
 
+// 状态应用失败原因
+UENUM(BlueprintType)
+enum class ETcsStateApplyFailReason : uint8
+{
+	None = 0						UMETA(DisplayName = "None"),
+	InvalidInput					UMETA(DisplayName = "Invalid Input"),
+	NoStateComponent				UMETA(DisplayName = "No State Component"),
+	InvalidStateDefinition			UMETA(DisplayName = "Invalid State Definition"),
+	NoStateSlot						UMETA(DisplayName = "No State Slot"),
+	NoStateSlotDefinition			UMETA(DisplayName = "No State Slot Definition"),
+	SlotGateClosed_CancelPolicy		UMETA(DisplayName = "Slot Gate Closed (Cancel Policy)"),
+	LowerPriorityRejected			UMETA(DisplayName = "Lower Priority Rejected"),
+	ApplyConditionsFailed			UMETA(DisplayName = "Apply Conditions Failed"),
+	CreateInstanceFailed			UMETA(DisplayName = "Create Instance Failed"),
+	AlreadyInSlot					UMETA(DisplayName = "Already In Slot"),
+};
+
+
+
+// 状态参数键类型
+UENUM(BlueprintType)
+enum class ETcsStateParameterKeyType : uint8
+{
+	Name = 0	UMETA(DisplayName = "Name"),
+	Tag			UMETA(DisplayName = "Tag"),
+};
+
+
+
+// StateTree Tick 策略
+UENUM(BlueprintType)
+enum class ETcsStateTreeTickPolicy : uint8
+{
+	RunOnce = 0		UMETA(DisplayName = "Run Once", ToolTip = "激活时启动并Tick一次(DeltaTime=0)，不加入调度器；若仍在运行则强制Stop并警告"),
+	WhileActive		UMETA(DisplayName = "While Active", ToolTip = "处于Active阶段时加入TickScheduler，按帧推进StateTree"),
+	ManualOnly		UMETA(DisplayName = "Manual Only", ToolTip = "只启动，不自动Tick；由外部事件手动Tick推进"),
+};
+
+
+
 // 状态参数类型枚举
 UENUM(BlueprintType)
 enum class ETcsStateParameterType : uint8
@@ -119,9 +159,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Meta", Meta = (Categories = "StateSlot"))
 	FGameplayTag StateSlotType;
 
-	// 状态优先级（值越小，优先级越高，越优先执行，最高优先级为0）
+	// 状态优先级（值越大，优先级越高，越优先执行，默认优先级为0）
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Meta")
-	int32 Priority = -1;
+	int32 Priority = 0;
 
 	// 状态类别标签
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Tag")
@@ -151,6 +191,10 @@ public:
 	// 状态树资产引用，作为状态的运行时脚本
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "State Tree")
 	FStateTreeReference StateTreeRef;
+
+	// StateTree Tick 策略
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "State Tree")
+	ETcsStateTreeTickPolicy TickPolicy = ETcsStateTreeTickPolicy::WhileActive;
 
 	// 状态的激活条件配置
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Condition")

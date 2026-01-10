@@ -148,6 +148,14 @@ bool UTcsAttributeManagerSubsystem::CreateAttributeModifier(
 
 	OutModifierInst = FTcsAttributeModifierInstance();
 	OutModifierInst.ModifierDef = *ModifierDef;
+	if (OutModifierInst.ModifierDef.Priority < 0)
+	{
+		UE_LOG(LogTcsAttribute, Warning, TEXT("[%s] AttrModDef %s has invalid Priority %d, clamped to 0."),
+			*FString(__FUNCTION__),
+			*OutModifierInst.ModifierDef.ModifierName.ToString(),
+			OutModifierInst.ModifierDef.Priority);
+		OutModifierInst.ModifierDef.Priority = 0;
+	}
 	OutModifierInst.ModifierInstId = ++GlobalAttributeModifierInstanceIdMgr;
 	OutModifierInst.Instigator = Instigator;
 	OutModifierInst.Target = Target;
@@ -210,6 +218,14 @@ bool UTcsAttributeManagerSubsystem::CreateAttributeModifierWithOperands(
 
 	OutModifierInst = FTcsAttributeModifierInstance();
 	OutModifierInst.ModifierDef = *ModifierDef;
+	if (OutModifierInst.ModifierDef.Priority < 0)
+	{
+		UE_LOG(LogTcsAttribute, Warning, TEXT("[%s] AttrModDef %s has invalid Priority %d, clamped to 0."),
+			*FString(__FUNCTION__),
+			*OutModifierInst.ModifierDef.ModifierName.ToString(),
+			OutModifierInst.ModifierDef.Priority);
+		OutModifierInst.ModifierDef.Priority = 0;
+	}
 	OutModifierInst.ModifierInstId = ++GlobalAttributeModifierInstanceIdMgr;
 	OutModifierInst.Instigator = Instigator;
 	OutModifierInst.Target = Target;
@@ -337,6 +353,8 @@ void UTcsAttributeManagerSubsystem::HandleModifierUpdated(
 			const int32 ModifierInstId = AttributeComponent->AttributeModifiers.Find(Modifier);
 			Modifier.UpdateTimestamp = UtcNow;
 			AttributeComponent->AttributeModifiers[ModifierInstId] = Modifier;
+
+			AttributeComponent->BroadcastAttributeModifierUpdatedEvent(Modifier);
 			
 			bModified = true;
 		}
@@ -425,12 +443,15 @@ void UTcsAttributeManagerSubsystem::RecalculateAttributeBaseValues(
 			}
 
 			// 把属性基础值的最终修改赋值
+			const float OldValue = Attribute->BaseValue;
 			Attribute->BaseValue = Pair.Value;
 
 			// 广播达到边界值事件
 			if (bReachedMin || bReachedMax)
 			{
-				AttributeComponent->BroadcastAttributeReachedBoundaryEvent(Pair.Key, bReachedMax, Pair.Value);
+				const bool bIsMaxBoundary = bReachedMax;
+				const float BoundaryValue = bReachedMax ? RangeMax : RangeMin;
+				AttributeComponent->BroadcastAttributeReachedBoundaryEvent(Pair.Key, bIsMaxBoundary, OldValue, Pair.Value, BoundaryValue);
 			}
 		}
 	}
@@ -525,12 +546,15 @@ void UTcsAttributeManagerSubsystem::RecalculateAttributeCurrentValues(const AAct
 			Payload.OldValue = Attribute->CurrentValue;
 
 			// 把属性当前值的最终修改赋值
+			const float OldValue = Attribute->CurrentValue;
 			Attribute->CurrentValue = Pair.Value;
 
 			// 广播达到边界值事件
 			if (bReachedMin || bReachedMax)
 			{
-				AttributeComponent->BroadcastAttributeReachedBoundaryEvent(Pair.Key, bReachedMax, Pair.Value);
+				const bool bIsMaxBoundary = bReachedMax;
+				const float BoundaryValue = bReachedMax ? RangeMax : RangeMin;
+				AttributeComponent->BroadcastAttributeReachedBoundaryEvent(Pair.Key, bIsMaxBoundary, OldValue, Pair.Value, BoundaryValue);
 			}
 		}
 	}

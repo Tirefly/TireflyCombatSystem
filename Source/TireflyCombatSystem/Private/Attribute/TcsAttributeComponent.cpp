@@ -95,11 +95,24 @@ void UTcsAttributeComponent::BroadcastAttributeModifierRemovedEvent(
 	}
 }
 
+void UTcsAttributeComponent::BroadcastAttributeModifierUpdatedEvent(
+	const FTcsAttributeModifierInstance& ModifierInstance) const
+{
+	if (OnAttributeModifierUpdated.IsBound())
+	{
+		OnAttributeModifierUpdated.Broadcast(ModifierInstance);
+	}
+}
+
 void UTcsAttributeComponent::BroadcastAttributeReachedBoundaryEvent(
-	FName AttributeName, bool bIsMaxBoundary, float CurrentValue) const
+	FName AttributeName,
+	bool bIsMaxBoundary,
+	float OldValue,
+	float NewValue,
+	float BoundaryValue) const
 {
 	if (OnAttributeReachedBoundary.IsBound())
 	{
-		OnAttributeReachedBoundary.Broadcast(AttributeName, bIsMaxBoundary, CurrentValue);
+		OnAttributeReachedBoundary.Broadcast(AttributeName, bIsMaxBoundary, OldValue, NewValue, BoundaryValue);
 	}
 }

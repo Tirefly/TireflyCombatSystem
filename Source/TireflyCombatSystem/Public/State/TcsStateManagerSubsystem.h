@@ -128,6 +128,9 @@ public:
 	// 更新状态槽激活状态（主函数）
 	void UpdateStateSlotActivation(UTcsStateComponent* StateComponent, FGameplayTag StateSlotTag);
 
+	// Gate一致性：当槽位Gate关闭时，强制确保槽内无Active状态，并按策略收敛阶段
+	void EnforceSlotGateConsistency(UTcsStateComponent* StateComponent, FGameplayTag StateSlotTag);
+
 	/**
 	 * 响应 StateTree 状态变化，刷新相关槽位的 Gate 状态
 	 *

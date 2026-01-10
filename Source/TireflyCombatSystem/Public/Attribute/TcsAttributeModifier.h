@@ -33,7 +33,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Definition")
 	FGameplayTagContainer Tags;
 
-	// 修改器优先级（值越小，优先级越高，越优先执行，最高优先级为0）
+	// 修改器优先级（值越大，优先级越高，越优先执行，默认优先级为0）
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Modifier")
 	int32 Priority = 0;
 
@@ -140,7 +140,8 @@ public:
 
 	bool operator<(const FTcsAttributeModifierInstance& Other) const
 	{
-		return ModifierDef.Priority < Other.ModifierDef.Priority;
+		// Higher priority first.
+		return ModifierDef.Priority > Other.ModifierDef.Priority;
 	}
 
 #pragma endregion

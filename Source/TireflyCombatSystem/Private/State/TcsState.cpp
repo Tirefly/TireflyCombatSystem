@@ -461,7 +461,12 @@ void UTcsStateInstance::SetNumericParam(FName ParameterName, float Value)
 	// 仅在值发生变化时通知（排除初始化阶段的大量调用）
 	if (bValueChanged && OwnerStateCmp.IsValid() && Stage != ETcsStateStage::SS_Inactive)
 	{
-		OwnerStateCmp->NotifyStateParameterChanged(this, ParameterName, ETcsStateParameterType::SPT_Numeric);
+		OwnerStateCmp->NotifyStateParameterChanged(
+			this,
+			ETcsStateParameterKeyType::Name,
+			ParameterName,
+			FGameplayTag(),
+			ETcsStateParameterType::SPT_Numeric);
 	}
 }
 
@@ -488,7 +493,21 @@ void UTcsStateInstance::SetNumericParamByTag(FGameplayTag ParameterTag, float Va
 		return;
 	}
 
+	float* ExistingValue = NumericParametersTag.Find(ParameterTag);
+	bool bIsNewValue = (ExistingValue == nullptr);
+	bool bValueChanged = bIsNewValue || (*ExistingValue != Value);
+
 	NumericParametersTag.FindOrAdd(ParameterTag) = Value;
+
+	if (bValueChanged && OwnerStateCmp.IsValid() && Stage != ETcsStateStage::SS_Inactive)
+	{
+		OwnerStateCmp->NotifyStateParameterChanged(
+			this,
+			ETcsStateParameterKeyType::Tag,
+			NAME_None,
+			ParameterTag,
+			ETcsStateParameterType::SPT_Numeric);
+	}
 }
 
 bool UTcsStateInstance::GetBoolParam(FName ParameterName, bool& OutValue) const
@@ -512,7 +531,12 @@ void UTcsStateInstance::SetBoolParam(FName ParameterName, bool Value)
 	// 仅在值发生变化时通知
 	if (bValueChanged && OwnerStateCmp.IsValid() && Stage != ETcsStateStage::SS_Inactive)
 	{
-		OwnerStateCmp->NotifyStateParameterChanged(this, ParameterName, ETcsStateParameterType::SPT_Bool);
+		OwnerStateCmp->NotifyStateParameterChanged(
+			this,
+			ETcsStateParameterKeyType::Name,
+			ParameterName,
+			FGameplayTag(),
+			ETcsStateParameterType::SPT_Bool);
 	}
 }
 
@@ -539,7 +563,21 @@ void UTcsStateInstance::SetBoolParamByTag(FGameplayTag ParameterTag, bool Value)
 		return;
 	}
 
+	bool* ExistingValue = BoolParametersTag.Find(ParameterTag);
+	bool bIsNewValue = (ExistingValue == nullptr);
+	bool bValueChanged = bIsNewValue || (*ExistingValue != Value);
+
 	BoolParametersTag.FindOrAdd(ParameterTag) = Value;
+
+	if (bValueChanged && OwnerStateCmp.IsValid() && Stage != ETcsStateStage::SS_Inactive)
+	{
+		OwnerStateCmp->NotifyStateParameterChanged(
+			this,
+			ETcsStateParameterKeyType::Tag,
+			NAME_None,
+			ParameterTag,
+			ETcsStateParameterType::SPT_Bool);
+	}
 }
 
 bool UTcsStateInstance::GetVectorParam(FName ParameterName, FVector& OutValue) const
@@ -563,7 +601,12 @@ void UTcsStateInstance::SetVectorParam(FName ParameterName, const FVector& Value
 	// 仅在值发生变化时通知
 	if (bValueChanged && OwnerStateCmp.IsValid() && Stage != ETcsStateStage::SS_Inactive)
 	{
-		OwnerStateCmp->NotifyStateParameterChanged(this, ParameterName, ETcsStateParameterType::SPT_Vector);
+		OwnerStateCmp->NotifyStateParameterChanged(
+			this,
+			ETcsStateParameterKeyType::Name,
+			ParameterName,
+			FGameplayTag(),
+			ETcsStateParameterType::SPT_Vector);
 	}
 }
 
@@ -590,7 +633,21 @@ void UTcsStateInstance::SetVectorParamByTag(FGameplayTag ParameterTag, const FVe
 		return;
 	}
 
+	FVector* ExistingValue = VectorParametersTag.Find(ParameterTag);
+	bool bIsNewValue = (ExistingValue == nullptr);
+	bool bValueChanged = bIsNewValue || (*ExistingValue != Value);
+
 	VectorParametersTag.FindOrAdd(ParameterTag) = Value;
+
+	if (bValueChanged && OwnerStateCmp.IsValid() && Stage != ETcsStateStage::SS_Inactive)
+	{
+		OwnerStateCmp->NotifyStateParameterChanged(
+			this,
+			ETcsStateParameterKeyType::Tag,
+			NAME_None,
+			ParameterTag,
+			ETcsStateParameterType::SPT_Vector);
+	}
 }
 
 TArray<FName> UTcsStateInstance::GetAllNumericParamNames() const

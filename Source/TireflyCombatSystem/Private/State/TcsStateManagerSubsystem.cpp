@@ -65,6 +65,16 @@ bool UTcsStateManagerSubsystem::GetStateDefinition(FName StateDefId, FTcsStateDe
     }
 
     OutStateDef = *StateDefRow;
+
+	// Priority: larger is higher; clamp invalid negative values.
+	if (OutStateDef.Priority < 0)
+	{
+		UE_LOG(LogTcsState, Warning, TEXT("[%s] StateDef %s has invalid Priority %d, clamped to 0."),
+			*FString(__FUNCTION__),
+			*StateDefId.ToString(),
+			OutStateDef.Priority);
+		OutStateDef.Priority = 0;
+	}
     return true;
 }
 
@@ -128,14 +138,18 @@ bool UTcsStateManagerSubsystem::TryApplyStateToTarget(
         return false;
     }
 
-    UTcsStateComponent* TargetStateCmp = UTcsGenericLibrary::GetStateComponent(Target);
-    if (!IsValid(TargetStateCmp))
-    {
-        UE_LOG(LogTcsState, Error, TEXT("[%s] Target does not have state component: %s"),
-            *FString(__FUNCTION__),
-            *Target->GetName());
-        return false;
-    }
+	UTcsStateComponent* TargetStateCmp = UTcsGenericLibrary::GetStateComponent(Target);
+	if (!IsValid(TargetStateCmp))
+	{
+		UE_LOG(LogTcsState, Error, TEXT("[%s] Target does not have state component: %s"),
+			*FString(__FUNCTION__),
+			*Target->GetName());
+		if (Target)
+		{
+			// 无法获取StateComponent时，只能依赖日志提示
+		}
+		return false;
+	}
 
 	UTcsStateInstance* NewStateInstance = CreateStateInstance(StateDefId, Target, Instigator, 1);
 	if (!IsValid(NewStateInstance))
@@ -143,6 +157,7 @@ bool UTcsStateManagerSubsystem::TryApplyStateToTarget(
 		TargetStateCmp->NotifyStateApplyFailed(
 			Target,
 			StateDefId,
+			ETcsStateApplyFailReason::CreateInstanceFailed,
 			TEXT("Failed to create StateInstance."));
 		return false;
 	}
@@ -169,6 +184,7 @@ bool UTcsStateManagerSubsystem::TryApplyStateInstance(UTcsStateInstance* StateIn
 			OwnerStateCmp->NotifyStateApplyFailed(
 				StateInstance->GetOwner(),
 				StateInstance->GetStateDefId(),
+				ETcsStateApplyFailReason::ApplyConditionsFailed,
 				TEXT("State apply conditions check failed."));
 		}
         return false;
@@ -338,6 +354,7 @@ bool UTcsStateManagerSubsystem::TryAssignStateToStateSlot(UTcsStateInstance* Sta
 			OwnerStateCmp->NotifyStateApplyFailed(
 				StateInstance->GetOwner(),
 				StateInstance->GetStateDefId(),
+				ETcsStateApplyFailReason::InvalidStateDefinition,
 				TEXT("StateDef does not specify a valid StateSlotType."));
 		}
         return false;
@@ -360,6 +377,7 @@ bool UTcsStateManagerSubsystem::TryAssignStateToStateSlot(UTcsStateInstance* Sta
 		OwnerStateCmp->NotifyStateApplyFailed(
 			StateInstance->GetOwner(),
 			StateInstance->GetStateDefId(),
+			ETcsStateApplyFailReason::NoStateSlot,
 			FString::Printf(TEXT("StateSlot %s not found."), *StateDef.StateSlotType.ToString()));
         return false;
     }
@@ -373,6 +391,7 @@ bool UTcsStateManagerSubsystem::TryAssignStateToStateSlot(UTcsStateInstance* Sta
 		OwnerStateCmp->NotifyStateApplyFailed(
 			StateInstance->GetOwner(),
 			StateInstance->GetStateDefId(),
+			ETcsStateApplyFailReason::NoStateSlotDefinition,
 			FString::Printf(TEXT("StateSlotDef %s not found."), *StateDef.StateSlotType.ToString()));
         return false;
     }
@@ -386,6 +405,7 @@ bool UTcsStateManagerSubsystem::TryAssignStateToStateSlot(UTcsStateInstance* Sta
 		OwnerStateCmp->NotifyStateApplyFailed(
 			StateInstance->GetOwner(),
 			StateInstance->GetStateDefId(),
+			ETcsStateApplyFailReason::AlreadyInSlot,
 			TEXT("StateInstance already exists in target slot."));
 		return false;
 	}
@@ -396,6 +416,7 @@ bool UTcsStateManagerSubsystem::TryAssignStateToStateSlot(UTcsStateInstance* Sta
 		OwnerStateCmp->NotifyStateApplyFailed(
 			StateInstance->GetOwner(),
 			StateInstance->GetStateDefId(),
+			ETcsStateApplyFailReason::SlotGateClosed_CancelPolicy,
 			FString::Printf(TEXT("StateSlot %s gate is closed (Cancel policy)."), *StateDef.StateSlotType.ToString()));
 		return false;
 	}
@@ -406,7 +427,7 @@ bool UTcsStateManagerSubsystem::TryAssignStateToStateSlot(UTcsStateInstance* Sta
 		&& StateSlotDef->PreemptionPolicy == ETcsStatePreemptionPolicy::SPP_CancelLowerPriority)
 	{
 		bool bHasExisting = false;
-		int32 BestPriority = TNumericLimits<int32>::Max();
+		int32 BestPriority = TNumericLimits<int32>::Lowest();
 		for (const UTcsStateInstance* Existing : StateSlot->States)
 		{
 			if (!IsValid(Existing) || Existing->GetCurrentStage() == ETcsStateStage::SS_Expired)
@@ -414,15 +435,16 @@ bool UTcsStateManagerSubsystem::TryAssignStateToStateSlot(UTcsStateInstance* Sta
 				continue;
 			}
 			bHasExisting = true;
-			BestPriority = FMath::Min(BestPriority, Existing->GetStateDef().Priority);
+			BestPriority = FMath::Max(BestPriority, Existing->GetStateDef().Priority);
 		}
 
-		// Priority值越小越高；如果新状态Priority更大，则更低优先级，拒绝入槽。
-		if (bHasExisting && StateInstance->GetStateDef().Priority > BestPriority)
+		// Priority值越大越高；如果新状态Priority更小，则更低优先级，拒绝入槽。
+		if (bHasExisting && StateInstance->GetStateDef().Priority < BestPriority)
 		{
 			OwnerStateCmp->NotifyStateApplyFailed(
 				StateInstance->GetOwner(),
 				StateInstance->GetStateDefId(),
+				ETcsStateApplyFailReason::LowerPriorityRejected,
 				TEXT("State application rejected: lower priority than existing state in PriorityOnly slot."));
 			return false;
 		}
@@ -434,12 +456,10 @@ bool UTcsStateManagerSubsystem::TryAssignStateToStateSlot(UTcsStateInstance* Sta
 	// 如果是持续性状态，加入持久化列表
 	if (StateInstance->GetStateDef().DurationType != ETcsStateDurationType::SDT_None)
 	{
-		OwnerStateCmp->PersistentStateInstances.AddInstance(StateInstance);
 		// 如果是有持续时间的状态，加入持续时间映射
 		if (StateInstance->GetStateDef().DurationType == ETcsStateDurationType::SDT_Duration)
 		{
-			const FTcsStateDurationData DurationData(StateInstance, StateInstance->GetTotalDuration());
-			OwnerStateCmp->StateDurationMap.Add(StateInstance, DurationData);
+			OwnerStateCmp->DurationTracker.Add(StateInstance, StateInstance->GetTotalDuration());
 		}
 	}
 
@@ -464,6 +484,11 @@ bool UTcsStateManagerSubsystem::TryAssignStateToStateSlot(UTcsStateInstance* Sta
     UpdateStateSlotActivation(OwnerStateCmp, StateDef.StateSlotType);
 
 	// 发送应用成功事件（AppliedStage 以更新后的阶段为准）
+	if (StateSlot->States.Contains(StateInstance) && StateInstance->GetCurrentStage() != ETcsStateStage::SS_Expired)
+	{
+		OwnerStateCmp->StateInstanceIndex.AddInstance(StateInstance);
+	}
+
 	OwnerStateCmp->NotifyStateApplySuccess(
 		StateInstance->GetOwner(),
 		StateInstance->GetStateDefId(),
@@ -498,12 +523,16 @@ void UTcsStateManagerSubsystem::ClearStateSlotExpiredStates(
         }
         if (State->GetCurrentStage() == ETcsStateStage::SS_Expired)
         {
-            StateComponent->PersistentStateInstances.RemoveInstance(State);
+			StateComponent->StateTreeTickScheduler.Remove(State);
+			StateComponent->DurationTracker.Remove(State);
+			StateComponent->StateInstanceIndex.RemoveInstance(State);
             return true;
         }
         return false;
     });
-    StateComponent->PersistentStateInstances.RefreshInstances();
+	StateComponent->StateTreeTickScheduler.RefreshInstances();
+	StateComponent->DurationTracker.RefreshInstances();
+	StateComponent->StateInstanceIndex.RefreshInstances();
 }
 
 void UTcsStateManagerSubsystem::RefreshSlotsForStateChange(
@@ -606,6 +635,9 @@ void UTcsStateManagerSubsystem::UpdateStateSlotActivation(
     // 5. 处理Gate关闭情况
     ProcessStateSlotOnGateClosed(StateComponent, StateSlot, StateSlotTag);
 
+	// 5.1 强制Gate一致性（确保Gate关闭时槽内无Active状态）
+	EnforceSlotGateConsistency(StateComponent, StateSlotTag);
+
 	// Gate关闭时，不允许激活任何状态（避免后续ActivationMode将状态误激活）
 	if (!StateSlot->bIsGateOpen)
 	{
@@ -624,7 +656,7 @@ void UTcsStateManagerSubsystem::SortStatesByPriority(TArray<UTcsStateInstance*>&
 {
     States.Sort([](const UTcsStateInstance& A, const UTcsStateInstance& B)
     {
-        return A.GetStateDef().Priority < B.GetStateDef().Priority;
+        return A.GetStateDef().Priority > B.GetStateDef().Priority;
     });
 }
 
@@ -673,6 +705,88 @@ void UTcsStateManagerSubsystem::ProcessStateSlotMerging(FTcsStateSlot* StateSlot
 		}
 	}
 	RemoveUnmergedStates(StateComponent, StateSlot, AllMergedStates, MergePrimaryByDefId);
+}
+
+void UTcsStateManagerSubsystem::EnforceSlotGateConsistency(UTcsStateComponent* StateComponent, FGameplayTag StateSlotTag)
+{
+	if (!IsValid(StateComponent) || !StateSlotTag.IsValid())
+	{
+		return;
+	}
+
+	FTcsStateSlot* StateSlot = StateComponent->StateSlotsX.Find(StateSlotTag);
+	if (!StateSlot)
+	{
+		return;
+	}
+
+	// Gate开启时无需处理
+	if (StateSlot->bIsGateOpen)
+	{
+		return;
+	}
+
+	const FTcsStateSlotDefinition* SlotDef = StateSlotDefs.Find(StateSlotTag);
+	if (!SlotDef)
+	{
+		return;
+	}
+
+	TArray<UTcsStateInstance*> StatesToCancel;
+	for (UTcsStateInstance* State : StateSlot->States)
+	{
+		if (!IsValid(State))
+		{
+			continue;
+		}
+
+		const ETcsStateStage Stage = State->GetCurrentStage();
+		if (Stage == ETcsStateStage::SS_Expired)
+		{
+			continue;
+		}
+
+		switch (SlotDef->GateCloseBehavior)
+		{
+		case ETcsStateSlotGateClosePolicy::SSGCP_HangUp:
+			// Gate关闭：不允许Active；HangUp策略只收敛Active -> HangUp。
+			if (Stage == ETcsStateStage::SS_Active)
+			{
+				HangUpState(State);
+			}
+			break;
+		case ETcsStateSlotGateClosePolicy::SSGCP_Pause:
+			// Pause策略：收敛 Active/HangUp -> Pause，确保完全冻结。
+			if (Stage == ETcsStateStage::SS_Active || Stage == ETcsStateStage::SS_HangUp)
+			{
+				PauseState(State);
+			}
+			break;
+		case ETcsStateSlotGateClosePolicy::SSGCP_Cancel:
+			// Cancel策略：所有未过期状态均应被取消并移除。
+			StatesToCancel.Add(State);
+			break;
+		}
+	}
+
+	for (UTcsStateInstance* State : StatesToCancel)
+	{
+		if (!IsValid(State))
+		{
+			continue;
+		}
+		CancelState(State);
+		RemoveStateFromSlot(StateSlot, State, /*bDeactivateIfNeeded*/ false);
+	}
+
+	// 最终保障：Gate关闭时不允许Active残留（若出现，强制HangUp）
+	for (UTcsStateInstance* State : StateSlot->States)
+	{
+		if (IsValid(State) && State->GetCurrentStage() == ETcsStateStage::SS_Active)
+		{
+			HangUpState(State);
+		}
+	}
 }
 
 void UTcsStateManagerSubsystem::MergeStateGroup(
@@ -776,8 +890,9 @@ void UTcsStateManagerSubsystem::RemoveUnmergedStates(
 		}
 
 		FinalizeStateRemoval(State, FName("MergedOut"));
+		// TODO(TCS): Merge-removed instances should be returned to pool when TireflyObjectPool refactor is complete.
 		RemoveStateFromSlot(StateSlot, State, /*bDeactivateIfNeeded*/ false);
-	}
+    }
 }
 
 void UTcsStateManagerSubsystem::ProcessStateSlotOnGateClosed(
@@ -1033,10 +1148,44 @@ void UTcsStateManagerSubsystem::ActivateState(UTcsStateInstance* StateInstance)
     // 设置为激活阶段
     StateInstance->SetCurrentStage(ETcsStateStage::SS_Active);
     // 启动StateTree
-    StateInstance->StartStateTree();
+	UTcsStateComponent* StateComponent = StateInstance->GetOwnerStateComponent();
+	const ETcsStateTreeTickPolicy TickPolicy = StateInstance->GetStateDef().TickPolicy;
+	switch (TickPolicy)
+	{
+	case ETcsStateTreeTickPolicy::RunOnce:
+		StateInstance->StartStateTree();
+		StateInstance->TickStateTree(0.f);
+		if (StateInstance->IsStateTreeRunning())
+		{
+			UE_LOG(LogTcsState, Warning, TEXT("[%s] StateTree TickPolicy=RunOnce but it is still running: %s, force stopping."),
+				*FString(__FUNCTION__),
+				*StateInstance->GetStateDefId().ToString());
+			StateInstance->StopStateTree();
+		}
+		if (IsValid(StateComponent))
+		{
+			StateComponent->StateTreeTickScheduler.Remove(StateInstance);
+		}
+		break;
+	case ETcsStateTreeTickPolicy::ManualOnly:
+		StateInstance->StartStateTree();
+		if (IsValid(StateComponent))
+		{
+			StateComponent->StateTreeTickScheduler.Remove(StateInstance);
+		}
+		break;
+	case ETcsStateTreeTickPolicy::WhileActive:
+	default:
+		StateInstance->StartStateTree();
+		if (IsValid(StateComponent) && StateInstance->IsStateTreeRunning())
+		{
+			StateComponent->StateTreeTickScheduler.Add(StateInstance);
+		}
+		break;
+	}
 
     // 广播状态阶段变更事件
-    if (UTcsStateComponent* StateComponent = StateInstance->GetOwnerStateComponent())
+    if (IsValid(StateComponent))
     {
         StateComponent->NotifyStateStageChanged(StateInstance, PreviousStage, ETcsStateStage::SS_Active);
     }
@@ -1070,7 +1219,12 @@ void UTcsStateManagerSubsystem::DeactivateState(UTcsStateInstance* StateInstance
     // 广播状态阶段变更事件
     if (UTcsStateComponent* StateComponent = StateInstance->GetOwnerStateComponent())
     {
+		StateComponent->StateTreeTickScheduler.Remove(StateInstance);
         StateComponent->NotifyStateStageChanged(StateInstance, PreviousStage, ETcsStateStage::SS_Inactive);
+		if (PreviousStage == ETcsStateStage::SS_Active)
+		{
+			StateComponent->NotifyStateDeactivated(StateInstance, ETcsStateStage::SS_Inactive, FName("Deactivated"));
+		}
     }
 }
 
@@ -1097,7 +1251,12 @@ void UTcsStateManagerSubsystem::HangUpState(UTcsStateInstance* StateInstance)
     // 广播状态阶段变更事件
     if (UTcsStateComponent* StateComponent = StateInstance->GetOwnerStateComponent())
     {
+		StateComponent->StateTreeTickScheduler.Remove(StateInstance);
         StateComponent->NotifyStateStageChanged(StateInstance, PreviousStage, ETcsStateStage::SS_HangUp);
+		if (PreviousStage == ETcsStateStage::SS_Active)
+		{
+			StateComponent->NotifyStateDeactivated(StateInstance, ETcsStateStage::SS_HangUp, FName("HangUp"));
+		}
     }
 }
 
@@ -1119,10 +1278,44 @@ void UTcsStateManagerSubsystem::ResumeState(UTcsStateInstance* StateInstance)
     // 恢复到激活阶段
     StateInstance->SetCurrentStage(ETcsStateStage::SS_Active);
     // 恢复StateTree执行
-    StateInstance->ResumeStateTree();
+	UTcsStateComponent* StateComponent = StateInstance->GetOwnerStateComponent();
+	const ETcsStateTreeTickPolicy TickPolicy = StateInstance->GetStateDef().TickPolicy;
+	switch (TickPolicy)
+	{
+	case ETcsStateTreeTickPolicy::RunOnce:
+		StateInstance->ResumeStateTree();
+		StateInstance->TickStateTree(0.f);
+		if (StateInstance->IsStateTreeRunning())
+		{
+			UE_LOG(LogTcsState, Warning, TEXT("[%s] StateTree TickPolicy=RunOnce but it is still running: %s, force stopping."),
+				*FString(__FUNCTION__),
+				*StateInstance->GetStateDefId().ToString());
+			StateInstance->StopStateTree();
+		}
+		if (IsValid(StateComponent))
+		{
+			StateComponent->StateTreeTickScheduler.Remove(StateInstance);
+		}
+		break;
+	case ETcsStateTreeTickPolicy::ManualOnly:
+		StateInstance->ResumeStateTree();
+		if (IsValid(StateComponent))
+		{
+			StateComponent->StateTreeTickScheduler.Remove(StateInstance);
+		}
+		break;
+	case ETcsStateTreeTickPolicy::WhileActive:
+	default:
+		StateInstance->ResumeStateTree();
+		if (IsValid(StateComponent) && StateInstance->IsStateTreeRunning())
+		{
+			StateComponent->StateTreeTickScheduler.Add(StateInstance);
+		}
+		break;
+	}
 
     // 广播状态阶段变更事件
-    if (UTcsStateComponent* StateComponent = StateInstance->GetOwnerStateComponent())
+    if (IsValid(StateComponent))
     {
         StateComponent->NotifyStateStageChanged(StateInstance, PreviousStage, ETcsStateStage::SS_Active);
     }
@@ -1153,7 +1346,12 @@ void UTcsStateManagerSubsystem::PauseState(UTcsStateInstance* StateInstance)
     // 广播状态阶段变更事件
     if (UTcsStateComponent* StateComponent = StateInstance->GetOwnerStateComponent())
     {
+		StateComponent->StateTreeTickScheduler.Remove(StateInstance);
         StateComponent->NotifyStateStageChanged(StateInstance, PreviousStage, ETcsStateStage::SS_Pause);
+		if (PreviousStage == ETcsStateStage::SS_Active)
+		{
+			StateComponent->NotifyStateDeactivated(StateInstance, ETcsStateStage::SS_Pause, FName("Pause"));
+		}
     }
 }
 
@@ -1510,9 +1708,10 @@ void UTcsStateManagerSubsystem::FinalizeStateRemoval(UTcsStateInstance* StateIns
 	UTcsStateComponent* StateComponent = StateInstance->GetOwnerStateComponent();
 	if (IsValid(StateComponent))
 	{
-		// Remove from persistent containers.
-		StateComponent->PersistentStateInstances.RemoveInstance(StateInstance);
-		StateComponent->StateDurationMap.Remove(StateInstance);
+		// Remove from containers.
+		StateComponent->StateTreeTickScheduler.Remove(StateInstance);
+		StateComponent->DurationTracker.Remove(StateInstance);
+		StateComponent->StateInstanceIndex.RemoveInstance(StateInstance);
 
 		// Broadcast stage changed and removal.
 		StateComponent->NotifyStateStageChanged(StateInstance, PreviousStage, ETcsStateStage::SS_Expired);
@@ -1520,4 +1719,6 @@ void UTcsStateManagerSubsystem::FinalizeStateRemoval(UTcsStateInstance* StateIns
 	}
 
 	StateInstance->MarkPendingGC();
+
+	// TODO(TCS): Return StateInstance to TireflyObjectPool when pool API is finalized (planned refactor).
 }

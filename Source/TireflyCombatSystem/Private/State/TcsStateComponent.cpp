@@ -53,20 +53,52 @@ void UTcsStateComponent::TickComponent(float DeltaTime, ELevelTick TickType, FAc
 	UpdateActiveStateDurations(DeltaTime);
 
 	// Tick 激活状态的 StateTree
-	for (UTcsStateInstance* ActiveState : PersistentStateInstances.Instances)
+	StateTreeTickScheduler.RefreshInstances();
+
+	TArray<UTcsStateInstance*> InstancesToRemove;
+	for (UTcsStateInstance* RunningState : StateTreeTickScheduler.RunningInstances)
 	{
-		if (IsValid(ActiveState) && ActiveState->GetCurrentStage() == ETcsStateStage::SS_Active)
+		if (!IsValid(RunningState))
 		{
-			ActiveState->TickStateTree(DeltaTime);
+			InstancesToRemove.Add(RunningState);
+			continue;
 		}
+
+		if (RunningState->GetCurrentStage() != ETcsStateStage::SS_Active || !RunningState->IsStateTreeRunning())
+		{
+			InstancesToRemove.Add(RunningState);
+			continue;
+		}
+
+		RunningState->TickStateTree(DeltaTime);
+		if (!RunningState->IsStateTreeRunning())
+		{
+			InstancesToRemove.Add(RunningState);
+		}
+	}
+
+	for (UTcsStateInstance* StateInstance : InstancesToRemove)
+	{
+		StateTreeTickScheduler.Remove(StateInstance);
 	}
 }
 
 float UTcsStateComponent::GetStateRemainingDuration(const UTcsStateInstance* StateInstance) const
 {
-	if (const FTcsStateDurationData* DurationData = StateDurationMap.Find(StateInstance))
+	if (IsValid(StateInstance) && StateInstance->GetStateDef().DurationType == ETcsStateDurationType::SDT_Infinite)
 	{
-		return DurationData->RemainingDuration;
+		return -1.0f;
+	}
+
+	float Remaining = 0.f;
+	if (DurationTracker.GetRemaining(StateInstance, Remaining))
+	{
+		return Remaining;
+	}
+
+	if (IsValid(StateInstance) && StateInstance->GetStateDef().DurationType == ETcsStateDurationType::SDT_Duration)
+	{
+		return StateInstance->GetTotalDuration();
 	}
 	
 	return 0.0f;
@@ -80,26 +112,26 @@ void UTcsStateComponent::RefreshStateRemainingDuration(UTcsStateInstance* StateI
 		return;
 	}
 
-	if (!StateMgr)
+	if (StateInstance->GetStateDef().DurationType == ETcsStateDurationType::SDT_Infinite)
 	{
-		UE_LOG(LogTcsState, Warning, TEXT("[%s] StateMgr is not initialized."), *FString(__FUNCTION__));
+		// Infinite duration state has no remaining duration to refresh.
 		return;
 	}
 
-	FTcsStateDurationData* DurationData = StateDurationMap.Find(StateInstance);
-	if (!DurationData)
+	if (StateInstance->GetStateDef().DurationType != ETcsStateDurationType::SDT_Duration)
 	{
-		UE_LOG(LogTcsState, Warning, TEXT("[%s] StateInstance is not found in %s."),
-			*FString(__FUNCTION__),
-			*GetOwner()->GetName());
 		return;
 	}
 
 	// 刷新为总持续时间
-	DurationData->RemainingDuration = StateInstance->GetTotalDuration();
+	const float NewRemaining = StateInstance->GetTotalDuration();
+	if (!DurationTracker.SetRemaining(StateInstance, NewRemaining))
+	{
+		DurationTracker.Add(StateInstance, NewRemaining);
+	}
 
 	// 广播状态持续时间刷新事件
-	NotifyStateDurationRefreshed(StateInstance, DurationData->RemainingDuration);
+	NotifyStateDurationRefreshed(StateInstance, NewRemaining);
 }
 
 void UTcsStateComponent::SetStateRemainingDuration(UTcsStateInstance* StateInstance, float InDurationRemaining)
@@ -110,23 +142,22 @@ void UTcsStateComponent::SetStateRemainingDuration(UTcsStateInstance* StateInsta
 		return;
 	}
 
-	if (!StateMgr)
+	if (StateInstance->GetStateDef().DurationType == ETcsStateDurationType::SDT_Infinite)
 	{
-		UE_LOG(LogTcsState, Warning, TEXT("[%s] StateMgr is not initialized."), *FString(__FUNCTION__));
+		// Infinite duration state ignores manual duration changes.
 		return;
 	}
 
-	FTcsStateDurationData* DurationData = StateDurationMap.Find(StateInstance);
-	if (!DurationData)
+	if (StateInstance->GetStateDef().DurationType != ETcsStateDurationType::SDT_Duration)
 	{
-		UE_LOG(LogTcsState, Warning, TEXT("[%s] StateInstance is not found in %s."),
-			*FString(__FUNCTION__),
-			*GetOwner()->GetName());
 		return;
 	}
 
 	// 设置新的剩余时间
-	DurationData->RemainingDuration = InDurationRemaining;
+	if (!DurationTracker.SetRemaining(StateInstance, InDurationRemaining))
+	{
+		DurationTracker.Add(StateInstance, InDurationRemaining);
+	}
 
 	// 广播状态持续时间刷新事件
 	NotifyStateDurationRefreshed(StateInstance, InDurationRemaining);
@@ -141,15 +172,16 @@ void UTcsStateComponent::UpdateActiveStateDurations(float DeltaTime)
 
 	// 收集过期状态，避免在遍历过程中修改容器
 	TArray<UTcsStateInstance*> ExpiredStates;
+	TArray<UTcsStateInstance*> InvalidStates;
 
-	for (auto& DurationPair : StateDurationMap)
+	for (auto& DurationPair : DurationTracker.RemainingByInstance)
 	{
 		UTcsStateInstance* StateInstance = DurationPair.Key;
-		FTcsStateDurationData& DurationData = DurationPair.Value;
+		float& RemainingDuration = DurationPair.Value;
 
 		if (!IsValid(StateInstance))
 		{
-			ExpiredStates.Add(StateInstance);
+			InvalidStates.Add(StateInstance);
 			continue;
 		}
 
@@ -220,8 +252,8 @@ void UTcsStateComponent::UpdateActiveStateDurations(float DeltaTime)
 		}
 
 		// 递减剩余持续时间，并检查是否到期
-		DurationData.RemainingDuration -= DeltaTime;
-		if (DurationData.RemainingDuration <= 0.0f)
+		RemainingDuration -= DeltaTime;
+		if (RemainingDuration <= 0.0f)
 		{
 			ExpiredStates.Add(StateInstance);
 		}
@@ -239,8 +271,13 @@ void UTcsStateComponent::UpdateActiveStateDurations(float DeltaTime)
 		else
 		{
 			// 无效指针：直接从 Map 移除
-			StateDurationMap.Remove(ExpiredState);
+			InvalidStates.Add(ExpiredState);
 		}
+	}
+
+	for (UTcsStateInstance* InvalidState : InvalidStates)
+	{
+		DurationTracker.Remove(InvalidState);
 	}
 }
 
@@ -254,6 +291,22 @@ void UTcsStateComponent::NotifyStateStageChanged(UTcsStateInstance* StateInstanc
 	if (OnStateStageChanged.IsBound())
 	{
 		OnStateStageChanged.Broadcast(this, StateInstance, PreviousStage, NewStage);
+	}
+}
+
+void UTcsStateComponent::NotifyStateDeactivated(
+	UTcsStateInstance* StateInstance,
+	ETcsStateStage NewStage,
+	FName DeactivateReason)
+{
+	if (!IsValid(StateInstance))
+	{
+		return;
+	}
+
+	if (OnStateDeactivated.IsBound())
+	{
+		OnStateDeactivated.Broadcast(this, StateInstance, NewStage, DeactivateReason);
 	}
 }
 
@@ -322,7 +375,12 @@ void UTcsStateComponent::NotifySlotGateStateChanged(FGameplayTag SlotTag, bool b
 	}
 }
 
-void UTcsStateComponent::NotifyStateParameterChanged(UTcsStateInstance* StateInstance, FName ParameterName, ETcsStateParameterType ParameterType)
+void UTcsStateComponent::NotifyStateParameterChanged(
+	UTcsStateInstance* StateInstance,
+	ETcsStateParameterKeyType KeyType,
+	FName ParameterName,
+	FGameplayTag ParameterTag,
+	ETcsStateParameterType ParameterType)
 {
 	if (!IsValid(StateInstance))
 	{
@@ -331,7 +389,7 @@ void UTcsStateComponent::NotifyStateParameterChanged(UTcsStateInstance* StateIns
 
 	if (OnStateParameterChanged.IsBound())
 	{
-		OnStateParameterChanged.Broadcast(StateInstance, ParameterName, ParameterType);
+		OnStateParameterChanged.Broadcast(StateInstance, KeyType, ParameterName, ParameterTag, ParameterType);
 	}
 }
 
@@ -360,6 +418,13 @@ void UTcsStateComponent::NotifyStateApplySuccess(
 		return;
 	}
 
+	UE_LOG(LogTcsState, Verbose, TEXT("[%s] ApplySuccess: Target=%s State=%s Slot=%s Stage=%s"),
+		*FString(__FUNCTION__),
+		*TargetActor->GetName(),
+		*StateDefId.ToString(),
+		*TargetSlot.ToString(),
+		*StaticEnum<ETcsStateStage>()->GetNameStringByValue(static_cast<int64>(AppliedStage)));
+
 	if (OnStateApplySuccess.IsBound())
 	{
 		OnStateApplySuccess.Broadcast(TargetActor, StateDefId, CreatedStateInstance, TargetSlot, AppliedStage);
@@ -369,6 +434,7 @@ void UTcsStateComponent::NotifyStateApplySuccess(
 void UTcsStateComponent::NotifyStateApplyFailed(
 	AActor* TargetActor,
 	FName StateDefId,
+	ETcsStateApplyFailReason FailureReason,
 	const FString& FailureMessage)
 {
 	if (!IsValid(TargetActor) || StateDefId.IsNone())
@@ -376,9 +442,16 @@ void UTcsStateComponent::NotifyStateApplyFailed(
 		return;
 	}
 
+	UE_LOG(LogTcsState, Verbose, TEXT("[%s] ApplyFailed: Target=%s State=%s Reason=%s Message=%s"),
+		*FString(__FUNCTION__),
+		*TargetActor->GetName(),
+		*StateDefId.ToString(),
+		*StaticEnum<ETcsStateApplyFailReason>()->GetNameStringByValue(static_cast<int64>(FailureReason)),
+		*FailureMessage);
+
 	if (OnStateApplyFailed.IsBound())
 	{
-		OnStateApplyFailed.Broadcast(TargetActor, StateDefId, FailureMessage);
+		OnStateApplyFailed.Broadcast(TargetActor, StateDefId, FailureReason, FailureMessage);
 	}
 }
 
@@ -409,8 +482,33 @@ FString UTcsStateComponent::GetSlotDebugSnapshot(FGameplayTag SlotFilter) const
 			*SlotTag.ToString(),
 			Slot.bIsGateOpen ? TEXT("Open") : TEXT("Closed"));
 
+		auto FormatState = [](UTcsStateInstance* State) -> FString
+		{
+			if (!IsValid(State))
+			{
+				return TEXT("<invalid>");
+			}
+
+			const FString StateId = State->GetStateDefId().ToString();
+			const int32 Priority = State->GetStateDef().Priority;
+			const int32 StackCount = State->GetStackCount();
+			const int32 Level = State->GetLevel();
+			const float DurRemaining = State->GetDurationRemaining();
+			const AActor* Instigator = State->GetInstigator();
+			const FString InstigatorName = Instigator ? Instigator->GetName() : TEXT("None");
+
+			return FString::Printf(TEXT("%s(P=%d,Stack=%d,Lv=%d,Dur=%.2f,Inst=%s)"),
+				*StateId,
+				Priority,
+				StackCount,
+				Level,
+				DurRemaining,
+				*InstigatorName);
+		};
+
 		TArray<FString> ActiveStates;
 		TArray<FString> HangUpStates;
+		TArray<FString> PauseStates;
 		TArray<FString> StoredStates;
 
 		for (UTcsStateInstance* State : Slot.States)
@@ -420,21 +518,24 @@ FString UTcsStateComponent::GetSlotDebugSnapshot(FGameplayTag SlotFilter) const
 				continue;
 			}
 
-			const FString StateName = State->GetStateDefId().ToString();
+			const FString StateDesc = FormatState(State);
 			switch (State->GetCurrentStage())
 			{
 			case ETcsStateStage::SS_Active:
-				ActiveStates.Add(StateName);
+				ActiveStates.Add(StateDesc);
 				break;
 			case ETcsStateStage::SS_HangUp:
-				HangUpStates.Add(StateName);
+				HangUpStates.Add(StateDesc);
+				break;
+			case ETcsStateStage::SS_Pause:
+				PauseStates.Add(StateDesc);
 				break;
 			case ETcsStateStage::SS_Inactive:
-				StoredStates.Add(StateName);
+				StoredStates.Add(StateDesc);
 				break;
 			default:
 				StoredStates.Add(FString::Printf(TEXT("%s(%s)"),
-					*StateName,
+					*StateDesc,
 					*StaticEnum<ETcsStateStage>()->GetNameStringByValue(static_cast<int64>(State->GetCurrentStage()))));
 				break;
 			}
@@ -450,6 +551,7 @@ FString UTcsStateComponent::GetSlotDebugSnapshot(FGameplayTag SlotFilter) const
 
 		AppendList(TEXT("Active"), ActiveStates);
 		AppendList(TEXT("HangUp"), HangUpStates);
+		AppendList(TEXT("Pause"), PauseStates);
 		AppendList(TEXT("Stored"), StoredStates);
 
 		return Line;

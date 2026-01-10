@@ -28,13 +28,21 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(
 	FTcsOnAttributeModifierRemovedSignature,
 	const FTcsAttributeModifierInstance&, ModifierInstance);
 
+// 属性修改器更新事件委托声明
+// (修改器实例)
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(
+	FTcsOnAttributeModifierUpdatedSignature,
+	const FTcsAttributeModifierInstance&, ModifierInstance);
+
 // 属性达到边界值事件委托声明
-// (属性名称, 边界类型: true=最大值, false=最小值, 当前值)
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(
+// (属性名称, 边界类型: true=最大值, false=最小值, 旧值, 新值, 边界值)
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_FiveParams(
 	FTcsOnAttributeReachedBoundarySignature,
 	FName, AttributeName,
 	bool, bIsMaxBoundary,
-	float, CurrentValue);
+	float, OldValue,
+	float, NewValue,
+	float, BoundaryValue);
 
 
 
@@ -83,8 +91,15 @@ public:
 	void BroadcastAttributeModifierAddedEvent(const FTcsAttributeModifierInstance& ModifierInstance) const;
 	// 广播属性修改器移除事件
 	void BroadcastAttributeModifierRemovedEvent(const FTcsAttributeModifierInstance& ModifierInstance) const;
+	// 广播属性修改器更新事件
+	void BroadcastAttributeModifierUpdatedEvent(const FTcsAttributeModifierInstance& ModifierInstance) const;
 	// 广播属性达到边界值事件
-	void BroadcastAttributeReachedBoundaryEvent(FName AttributeName, bool bIsMaxBoundary, float CurrentValue) const;
+	void BroadcastAttributeReachedBoundaryEvent(
+		FName AttributeName,
+		bool bIsMaxBoundary,
+		float OldValue,
+		float NewValue,
+		float BoundaryValue) const;
 
 public:
 	// 战斗实体的所有属性实例
@@ -110,6 +125,10 @@ public:
 	// 属性修改器移除事件
 	UPROPERTY(BlueprintAssignable, Category = "Attribute|Events")
 	FTcsOnAttributeModifierRemovedSignature OnAttributeModifierRemoved;
+
+	// 属性修改器更新事件
+	UPROPERTY(BlueprintAssignable, Category = "Attribute|Events")
+	FTcsOnAttributeModifierUpdatedSignature OnAttributeModifierUpdated;
 
 	/**
 	 * 属性达到边界值事件
