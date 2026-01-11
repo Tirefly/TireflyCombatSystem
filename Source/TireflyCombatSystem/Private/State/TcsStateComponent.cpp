@@ -64,7 +64,22 @@ void UTcsStateComponent::TickComponent(float DeltaTime, ELevelTick TickType, FAc
 			continue;
 		}
 
-		if (RunningState->GetCurrentStage() != ETcsStateStage::SS_Active || !RunningState->IsStateTreeRunning())
+		if (!RunningState->IsStateTreeRunning())
+		{
+			InstancesToRemove.Add(RunningState);
+			continue;
+		}
+
+		const bool bPendingRemoval = RunningState->HasPendingRemovalRequest();
+		bool bShouldTick = bPendingRemoval;
+		if (!bShouldTick)
+		{
+			bShouldTick =
+				(RunningState->GetCurrentStage() == ETcsStateStage::SS_Active) &&
+				(RunningState->GetStateDef().TickPolicy == ETcsStateTreeTickPolicy::WhileActive);
+		}
+
+		if (!bShouldTick)
 		{
 			InstancesToRemove.Add(RunningState);
 			continue;
@@ -80,6 +95,28 @@ void UTcsStateComponent::TickComponent(float DeltaTime, ELevelTick TickType, FAc
 	for (UTcsStateInstance* StateInstance : InstancesToRemove)
 	{
 		StateTreeTickScheduler.Remove(StateInstance);
+	}
+
+	if (IsValid(StateMgr))
+	{
+		TArray<UTcsStateInstance*> PendingFinalize;
+		for (UTcsStateInstance* StateInstance : StateInstanceIndex.Instances)
+		{
+			if (!IsValid(StateInstance))
+			{
+				continue;
+			}
+
+			if (StateInstance->HasPendingRemovalRequest() && !StateInstance->IsStateTreeRunning())
+			{
+				PendingFinalize.Add(StateInstance);
+			}
+		}
+
+		for (UTcsStateInstance* StateInstance : PendingFinalize)
+		{
+			StateMgr->FinalizePendingRemovalRequest(StateInstance);
+		}
 	}
 }
 
@@ -201,6 +238,11 @@ void UTcsStateComponent::UpdateActiveStateDurations(float DeltaTime)
 			continue;
 		}
 
+		if (CurrentStage != ETcsStateStage::SS_Active && CurrentStage != ETcsStateStage::SS_HangUp)
+		{
+			continue;
+		}
+
 		// 判断状态是否处于"激活"状态（Active 或 HangUp 都视为激活，因为 HangUp 仍计算持续时间）
 		const bool bStateIsActive = (CurrentStage == ETcsStateStage::SS_Active);
 		const bool bStateIsHangUp = (CurrentStage == ETcsStateStage::SS_HangUp);
@@ -267,6 +309,7 @@ void UTcsStateComponent::UpdateActiveStateDurations(float DeltaTime)
 			// 通过 StateManagerSubsystem 正确处理过期流程
 			// ExpireState 内部会处理：设置 Stage、从容器移除、广播事件
 			StateMgr->ExpireState(ExpiredState);
+			DurationTracker.Remove(ExpiredState);
 		}
 		else
 		{

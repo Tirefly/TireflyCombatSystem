@@ -5,12 +5,14 @@
 
 #include "Engine/DataTable.h"
 #include "StateTree.h"
+#include "StructUtils/InstancedStruct.h"
 #include "TcsEntityInterface.h"
 #include "TcsGenericLibrary.h"
 #include "TcsLogChannels.h"
 #include "State/TcsState.h"
 #include "State/TcsStateComponent.h"
 #include "State/StateMerger/TcsStateMerger.h"
+#include "TcsGameplayTags.h"
 
 
 void UTcsStateManagerSubsystem::Initialize(FSubsystemCollectionBase& Collection)
@@ -1364,7 +1366,9 @@ void UTcsStateManagerSubsystem::CancelState(UTcsStateInstance* StateInstance)
         return;
     }
 
-	FinalizeStateRemoval(StateInstance, FName("Cancelled"));
+	FTcsStateRemovalRequest Request;
+	Request.Reason = ETcsStateRemovalRequestReason::Cancelled;
+	RequestStateRemoval(StateInstance, Request);
 }
 
 void UTcsStateManagerSubsystem::ExpireState(UTcsStateInstance* StateInstance)
@@ -1376,21 +1380,83 @@ void UTcsStateManagerSubsystem::ExpireState(UTcsStateInstance* StateInstance)
         return;
     }
 
-	FinalizeStateRemoval(StateInstance, FName("Expired"));
+	FTcsStateRemovalRequest Request;
+	Request.Reason = ETcsStateRemovalRequestReason::Expired;
+	RequestStateRemoval(StateInstance, Request);
 
 	// 从槽位中移除并刷新槽位（自然过期应立刻反映到槽位激活结果）
-	if (UTcsStateComponent* StateComponent = StateInstance->GetOwnerStateComponent())
+}
+
+bool UTcsStateManagerSubsystem::RequestStateRemoval(UTcsStateInstance* StateInstance, FTcsStateRemovalRequest Request)
+{
+	if (!IsValid(StateInstance))
 	{
-		const FGameplayTag SlotTag = StateInstance->GetStateDef().StateSlotType;
-		if (FTcsStateSlot* Slot = SlotTag.IsValid() ? StateComponent->StateSlotsX.Find(SlotTag) : nullptr)
-		{
-			RemoveStateFromSlot(Slot, StateInstance, /*bDeactivateIfNeeded*/ false);
-			if (SlotTag.IsValid())
-			{
-				UpdateStateSlotActivation(StateComponent, SlotTag);
-			}
-		}
+		return false;
 	}
+
+	UTcsStateComponent* StateComponent = StateInstance->GetOwnerStateComponent();
+	if (!IsValid(StateComponent))
+	{
+		return false;
+	}
+
+	if (StateInstance->GetCurrentStage() == ETcsStateStage::SS_Expired)
+	{
+		return true;
+	}
+
+	StateComponent->StateInstanceIndex.AddInstance(StateInstance);
+	StateInstance->SetPendingRemovalRequest(Request);
+
+	if (!StateInstance->IsStateTreeRunning())
+	{
+		StateInstance->StartStateTree();
+	}
+
+	if (!StateInstance->IsStateTreeRunning())
+	{
+		const FName ReasonName = Request.ToRemovalReasonName();
+		StateInstance->ClearPendingRemovalRequest();
+		FinalizeStateRemoval(StateInstance, ReasonName);
+		return true;
+	}
+
+	FInstancedStruct Payload;
+	Payload.InitializeAs(FTcsStateRemovalRequest::StaticStruct());
+	*Payload.GetMutablePtr<FTcsStateRemovalRequest>() = Request;
+
+	StateInstance->SendStateTreeEvent(TcsGameplayTags::Event_RemovalRequested, Payload);
+	StateComponent->StateTreeTickScheduler.Add(StateInstance);
+
+	StateInstance->TickStateTree(0.f);
+	if (!StateInstance->IsStateTreeRunning() && StateInstance->HasPendingRemovalRequest())
+	{
+		FinalizePendingRemovalRequest(StateInstance);
+	}
+
+	return true;
+}
+
+void UTcsStateManagerSubsystem::FinalizePendingRemovalRequest(UTcsStateInstance* StateInstance)
+{
+	if (!IsValid(StateInstance))
+	{
+		return;
+	}
+
+	if (!StateInstance->HasPendingRemovalRequest())
+	{
+		return;
+	}
+
+	if (StateInstance->IsStateTreeRunning())
+	{
+		return;
+	}
+
+	const FName ReasonName = StateInstance->GetPendingRemovalRequest().ToRemovalReasonName();
+	StateInstance->ClearPendingRemovalRequest();
+	FinalizeStateRemoval(StateInstance, ReasonName);
 }
 
 bool UTcsStateManagerSubsystem::GetStatesInSlot(
@@ -1557,7 +1623,9 @@ bool UTcsStateManagerSubsystem::RemoveState(UTcsStateInstance* StateInstance)
     }
 
     // 移除状态并从槽位中移除
-	FinalizeStateRemoval(StateInstance, FName("Removed"));
+	FTcsStateRemovalRequest Request;
+	Request.Reason = ETcsStateRemovalRequestReason::Removed;
+	RequestStateRemoval(StateInstance, Request);
     RemoveStateFromSlot(StateSlot, StateInstance, /*bDeactivateIfNeeded*/ false);
 
     // 更新槽位激活状态
@@ -1600,7 +1668,9 @@ int32 UTcsStateManagerSubsystem::RemoveStatesByDefId(
 
         for (UTcsStateInstance* State : StatesToRemove)
         {
-			FinalizeStateRemoval(State, FName("Removed"));
+			FTcsStateRemovalRequest Request;
+			Request.Reason = ETcsStateRemovalRequestReason::Removed;
+			RequestStateRemoval(State, Request);
 			RemoveStateFromSlot(&StateSlot, State, /*bDeactivateIfNeeded*/ false);
             RemovedCount++;
             AffectedSlots.Add(SlotTag);
@@ -1643,7 +1713,9 @@ int32 UTcsStateManagerSubsystem::RemoveAllStatesInSlot(
     {
         if (IsValid(State))
         {
-			FinalizeStateRemoval(State, FName("Removed"));
+			FTcsStateRemovalRequest Request;
+			Request.Reason = ETcsStateRemovalRequestReason::Removed;
+			RequestStateRemoval(State, Request);
             RemovedCount++;
         }
     }
@@ -1671,7 +1743,9 @@ int32 UTcsStateManagerSubsystem::RemoveAllStates(UTcsStateComponent* StateCompon
         {
             if (IsValid(State))
             {
-				FinalizeStateRemoval(State, FName("Removed"));
+				FTcsStateRemovalRequest Request;
+				Request.Reason = ETcsStateRemovalRequestReason::Removed;
+				RequestStateRemoval(State, Request);
                 TotalRemoved++;
             }
         }
@@ -1716,6 +1790,16 @@ void UTcsStateManagerSubsystem::FinalizeStateRemoval(UTcsStateInstance* StateIns
 		// Broadcast stage changed and removal.
 		StateComponent->NotifyStateStageChanged(StateInstance, PreviousStage, ETcsStateStage::SS_Expired);
 		StateComponent->NotifyStateRemoved(StateInstance, RemovalReason);
+
+		const FGameplayTag SlotTag = StateInstance->GetStateDef().StateSlotType;
+		if (SlotTag.IsValid())
+		{
+			if (FTcsStateSlot* Slot = StateComponent->StateSlotsX.Find(SlotTag))
+			{
+				RemoveStateFromSlot(Slot, StateInstance, /*bDeactivateIfNeeded*/ false);
+				UpdateStateSlotActivation(StateComponent, SlotTag);
+			}
+		}
 	}
 
 	StateInstance->MarkPendingGC();

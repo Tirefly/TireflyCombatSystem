@@ -85,6 +85,35 @@ enum class ETcsStateParameterKeyType : uint8
 
 
 // StateTree Tick 策略
+// State removal request reason (used for StateTree-driven removal handling)
+UENUM(BlueprintType)
+enum class ETcsStateRemovalRequestReason : uint8
+{
+	Removed = 0		UMETA(DisplayName = "Removed"),
+	Cancelled		UMETA(DisplayName = "Cancelled"),
+	Expired			UMETA(DisplayName = "Expired"),
+	Custom			UMETA(DisplayName = "Custom"),
+};
+
+USTRUCT(BlueprintType)
+struct TIREFLYCOMBATSYSTEM_API FTcsStateRemovalRequest
+{
+	GENERATED_BODY()
+
+public:
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Removal")
+	ETcsStateRemovalRequestReason Reason = ETcsStateRemovalRequestReason::Removed;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Removal")
+	int32 StackDelta = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Removal")
+	FName CustomReason = NAME_None;
+
+public:
+	FName ToRemovalReasonName() const;
+};
+
 UENUM(BlueprintType)
 enum class ETcsStateTreeTickPolicy : uint8
 {
@@ -249,6 +278,18 @@ public:
 
 	// 获取状态实例Id
 	int32 GetInstanceId() const { return StateInstanceId; }
+
+public:
+	UFUNCTION(BlueprintPure, Category = "State|Removal")
+	bool HasPendingRemovalRequest() const { return bPendingRemovalRequest; }
+
+	UFUNCTION(BlueprintPure, Category = "State|Removal")
+	FTcsStateRemovalRequest GetPendingRemovalRequest() const { return PendingRemovalRequest; }
+
+	UFUNCTION(BlueprintCallable, Category = "State|Removal")
+	void ClearPendingRemovalRequest();
+
+	void SetPendingRemovalRequest(const FTcsStateRemovalRequest& Request);
 
 protected:
 	// 状态定义Id
@@ -627,6 +668,12 @@ protected:
 	bool bStateTreeRunning = false;
 
 	// StateTree运行状态
+	UPROPERTY()
+	bool bPendingRemovalRequest = false;
+
+	UPROPERTY()
+	FTcsStateRemovalRequest PendingRemovalRequest;
+
 	EStateTreeRunStatus CurrentStateTreeStatus = EStateTreeRunStatus::Unset;
 	
 	// 状态树实例数据

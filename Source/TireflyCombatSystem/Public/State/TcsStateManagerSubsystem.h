@@ -316,6 +316,11 @@ public:
 	// 标记状态为过期
 	void ExpireState(UTcsStateInstance* StateInstance);
 
+	UFUNCTION(BlueprintCallable, Category = "State Manager|Removal")
+	bool RequestStateRemoval(UTcsStateInstance* StateInstance, FTcsStateRemovalRequest Request);
+
+	void FinalizePendingRemovalRequest(UTcsStateInstance* StateInstance);
+
 #pragma endregion
 
 

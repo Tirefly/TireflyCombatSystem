@@ -21,6 +21,22 @@ UTcsStateInstance::UTcsStateInstance()
 {
 }
 
+FName FTcsStateRemovalRequest::ToRemovalReasonName() const
+{
+	switch (Reason)
+	{
+	case ETcsStateRemovalRequestReason::Removed:
+		return FName("Removed");
+	case ETcsStateRemovalRequestReason::Cancelled:
+		return FName("Cancelled");
+	case ETcsStateRemovalRequestReason::Expired:
+		return FName("Expired");
+	case ETcsStateRemovalRequestReason::Custom:
+	default:
+		return CustomReason.IsNone() ? FName("Removed") : CustomReason;
+	}
+}
+
 UWorld* UTcsStateInstance::GetWorld() const
 {
 	// 优先从 Owner Actor 获取 World
@@ -95,11 +111,26 @@ void UTcsStateInstance::Initialize(
 	// 初始化参数缓存
 	InitParameterValues();
 	InitParameterTagValues();
+
+	bPendingRemovalRequest = false;
+	PendingRemovalRequest = FTcsStateRemovalRequest();
 }
 
 void UTcsStateInstance::SetCurrentStage(ETcsStateStage InStage)
 {
 	Stage = InStage;
+}
+
+void UTcsStateInstance::ClearPendingRemovalRequest()
+{
+	bPendingRemovalRequest = false;
+	PendingRemovalRequest = FTcsStateRemovalRequest();
+}
+
+void UTcsStateInstance::SetPendingRemovalRequest(const FTcsStateRemovalRequest& Request)
+{
+	bPendingRemovalRequest = true;
+	PendingRemovalRequest = Request;
 }
 
 float UTcsStateInstance::GetDurationRemaining() const
