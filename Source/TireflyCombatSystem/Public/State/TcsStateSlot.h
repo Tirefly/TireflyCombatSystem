@@ -95,10 +95,13 @@ public:
 		meta = (ToolTip = "控制槽位内状态剩余时间递减的策略"))
 	ETcsDurationTickPolicy DurationTickPolicy = ETcsDurationTickPolicy::DTP_ActiveOnly;
 
+	// Pause 阶段是否冻结持续时间（默认冻结；若关闭，则 Pause 状态也会遵循 DurationTickPolicy 的判定逻辑）
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Slot Configuration",
+		meta = (ToolTip = "是否在状态进入 Pause 阶段时强制冻结持续时间。关闭后，Pause 阶段会遵循 DurationTickPolicy。"))
+	bool bFreezeDurationWhenPaused = true;
+
 	// 构造函数
-	FTcsStateSlotDefinition()
-		: ActivationMode(ETcsStateSlotActivationMode::SSAM_AllActive)
-	{}
+	FTcsStateSlotDefinition() {}
 
 	FTcsStateSlotDefinition(const FGameplayTag& InSlotTag, ETcsStateSlotActivationMode InActivationMode)
 		: SlotTag(InSlotTag)

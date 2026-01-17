@@ -7,6 +7,7 @@
 #include "TcsStateChangeNotifyTask.generated.h"
 
 class UTcsStateComponent;
+struct FStateTreeLinker;
 
 /**
  * 通知TcsStateComponent状态变更的Task实例数据
@@ -40,6 +41,8 @@ struct TIREFLYCOMBATSYSTEM_API FTcsStateChangeNotifyTask : public FStateTreeTask
 
 	FTcsStateChangeNotifyTask();
 
+	virtual bool Link(FStateTreeLinker& Linker) override;
+
 	virtual const UStruct* GetInstanceDataType() const override
 	{
 		return FInstanceDataType::StaticStruct();
@@ -63,4 +66,7 @@ struct TIREFLYCOMBATSYSTEM_API FTcsStateChangeNotifyTask : public FStateTreeTask
 								const IStateTreeBindingLookup& BindingLookup,
 								EStateTreeNodeFormatting Formatting = EStateTreeNodeFormatting::Text) const override;
 #endif
+
+protected:
+	TStateTreeExternalDataHandle<UTcsStateComponent> StateComponentHandle;
 };

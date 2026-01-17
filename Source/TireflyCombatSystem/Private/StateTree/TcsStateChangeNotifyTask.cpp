@@ -2,7 +2,9 @@
 
 #include "StateTree/TcsStateChangeNotifyTask.h"
 #include "State/TcsStateComponent.h"
+#include "State/TcsState.h"
 #include "StateTreeExecutionContext.h"
+#include "StateTreeLinker.h"
 
 FTcsStateChangeNotifyTask::FTcsStateChangeNotifyTask()
 {
@@ -11,6 +13,13 @@ FTcsStateChangeNotifyTask::FTcsStateChangeNotifyTask()
 
 	// 即使State被重新选择也调用EnterState/ExitState
 	bShouldStateChangeOnReselect = true;
+}
+
+bool FTcsStateChangeNotifyTask::Link(FStateTreeLinker& Linker)
+{
+	const bool bResult = Super::Link(Linker);
+	Linker.LinkExternalData(StateComponentHandle);
+	return bResult;
 }
 
 EStateTreeRunStatus FTcsStateChangeNotifyTask::EnterState(
@@ -23,10 +32,14 @@ EStateTreeRunStatus FTcsStateChangeNotifyTask::EnterState(
 	UTcsStateComponent* StateComponent = InstanceData.StateComponent;
 	if (!StateComponent)
 	{
-		// 尝试从Owner自动获取
-		if (AActor* Owner = Cast<AActor>(Context.GetOwner()))
+		StateComponent = &Context.GetExternalData(StateComponentHandle);
+	}
+
+	if (!StateComponent)
+	{
+		if (const UTcsStateInstance* StateInstance = Cast<UTcsStateInstance>(Context.GetOwner()))
 		{
-			StateComponent = Owner->FindComponentByClass<UTcsStateComponent>();
+			StateComponent = StateInstance->GetOwnerStateComponent();
 		}
 	}
 
@@ -48,9 +61,14 @@ void FTcsStateChangeNotifyTask::ExitState(
 	UTcsStateComponent* StateComponent = InstanceData.StateComponent;
 	if (!StateComponent)
 	{
-		if (AActor* Owner = Cast<AActor>(Context.GetOwner()))
+		StateComponent = &Context.GetExternalData(StateComponentHandle);
+	}
+
+	if (!StateComponent)
+	{
+		if (const UTcsStateInstance* StateInstance = Cast<UTcsStateInstance>(Context.GetOwner()))
 		{
-			StateComponent = Owner->FindComponentByClass<UTcsStateComponent>();
+			StateComponent = StateInstance->GetOwnerStateComponent();
 		}
 	}
 

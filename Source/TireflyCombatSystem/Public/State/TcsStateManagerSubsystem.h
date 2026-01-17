@@ -67,7 +67,7 @@ protected:
 #pragma endregion
 
 
-#pragma region Applying
+#pragma region StateApplying
 
 public:
 	/**

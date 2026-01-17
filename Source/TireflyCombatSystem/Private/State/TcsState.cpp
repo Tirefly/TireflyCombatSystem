@@ -125,10 +125,18 @@ void UTcsStateInstance::ClearPendingRemovalRequest()
 {
 	bPendingRemovalRequest = false;
 	PendingRemovalRequest = FTcsStateRemovalRequest();
+	PendingRemovalRequestStartTimeTicks = 0;
+	bPendingRemovalRequestWarningIssued = false;
 }
 
 void UTcsStateInstance::SetPendingRemovalRequest(const FTcsStateRemovalRequest& Request)
 {
+	if (!bPendingRemovalRequest)
+	{
+		PendingRemovalRequestStartTimeTicks = FDateTime::UtcNow().GetTicks();
+		bPendingRemovalRequestWarningIssued = false;
+	}
+
 	bPendingRemovalRequest = true;
 	PendingRemovalRequest = Request;
 }
@@ -878,20 +886,44 @@ void UTcsStateInstance::StopStateTree()
 void UTcsStateInstance::PauseStateTree()
 {
 	// Note: State stage must be managed by UTcsStateManagerSubsystem.
-	// This function only pauses StateTree execution.
-	if (bStateTreeRunning)
+	// This function only stops ticking StateTree (it does not stop/lose internal data).
+	if (OwnerStateCmp.IsValid())
 	{
-		StopStateTree();
+		OwnerStateCmp->RemoveFromStateTreeTickScheduler(this);
 	}
 }
 
 void UTcsStateInstance::ResumeStateTree()
 {
 	// Note: State stage must be managed by UTcsStateManagerSubsystem.
-	// This function only resumes (starts) StateTree execution.
+	// This function ensures StateTree is running and restores tick scheduling when applicable.
 	if (!bStateTreeRunning)
 	{
 		StartStateTree();
+	}
+
+	if (!bStateTreeRunning || !OwnerStateCmp.IsValid())
+	{
+		return;
+	}
+
+	switch (StateDef.TickPolicy)
+	{
+	case ETcsStateTreeTickPolicy::WhileActive:
+		if (Stage == ETcsStateStage::SS_Active)
+		{
+			OwnerStateCmp->AddToStateTreeTickScheduler(this);
+		}
+		else
+		{
+			OwnerStateCmp->RemoveFromStateTreeTickScheduler(this);
+		}
+		break;
+	case ETcsStateTreeTickPolicy::RunOnce:
+	case ETcsStateTreeTickPolicy::ManualOnly:
+	default:
+		OwnerStateCmp->RemoveFromStateTreeTickScheduler(this);
+		break;
 	}
 }
 

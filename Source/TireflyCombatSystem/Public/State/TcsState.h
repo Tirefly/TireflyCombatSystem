@@ -279,18 +279,6 @@ public:
 	// 获取状态实例Id
 	int32 GetInstanceId() const { return StateInstanceId; }
 
-public:
-	UFUNCTION(BlueprintPure, Category = "State|Removal")
-	bool HasPendingRemovalRequest() const { return bPendingRemovalRequest; }
-
-	UFUNCTION(BlueprintPure, Category = "State|Removal")
-	FTcsStateRemovalRequest GetPendingRemovalRequest() const { return PendingRemovalRequest; }
-
-	UFUNCTION(BlueprintCallable, Category = "State|Removal")
-	void ClearPendingRemovalRequest();
-
-	void SetPendingRemovalRequest(const FTcsStateRemovalRequest& Request);
-
 protected:
 	// 状态定义Id
 	UPROPERTY(BlueprintReadOnly, Category = "Meta")
@@ -668,17 +656,46 @@ protected:
 	bool bStateTreeRunning = false;
 
 	// StateTree运行状态
+	EStateTreeRunStatus CurrentStateTreeStatus = EStateTreeRunStatus::Unset;
+	
+	// 状态树实例数据
+	UPROPERTY()
+	FStateTreeInstanceData StateTreeInstanceData;
+
+#pragma endregion
+
+
+#pragma region RemovalRequest
+
+public:
+	UFUNCTION(BlueprintPure, Category = "State|Removal")
+	bool HasPendingRemovalRequest() const { return bPendingRemovalRequest; }
+
+	UFUNCTION(BlueprintPure, Category = "State|Removal")
+	FTcsStateRemovalRequest GetPendingRemovalRequest() const { return PendingRemovalRequest; }
+
+	int64 GetPendingRemovalRequestStartTimeTicks() const { return PendingRemovalRequestStartTimeTicks; }
+	bool HasPendingRemovalRequestWarningIssued() const { return bPendingRemovalRequestWarningIssued; }
+	void MarkPendingRemovalRequestWarningIssued() { bPendingRemovalRequestWarningIssued = true; }
+
+	UFUNCTION(BlueprintCallable, Category = "State|Removal")
+	void ClearPendingRemovalRequest();
+
+	void SetPendingRemovalRequest(const FTcsStateRemovalRequest& Request);
+
+protected:
 	UPROPERTY()
 	bool bPendingRemovalRequest = false;
 
 	UPROPERTY()
 	FTcsStateRemovalRequest PendingRemovalRequest;
 
-	EStateTreeRunStatus CurrentStateTreeStatus = EStateTreeRunStatus::Unset;
-	
-	// 状态树实例数据
 	UPROPERTY()
-	FStateTreeInstanceData StateTreeInstanceData;
+	int64 PendingRemovalRequestStartTimeTicks = 0;
+
+	UPROPERTY()
+	bool bPendingRemovalRequestWarningIssued = false;
+
 
 #pragma endregion
 };

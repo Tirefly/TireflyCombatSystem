@@ -146,6 +146,11 @@ protected:
 public:
 	// 友元类声明，允许状态子系统访问私有成员
 	friend class UTcsStateManagerSubsystem;
+	friend class UTcsStateInstance;
+
+public:
+	void AddToStateTreeTickScheduler(UTcsStateInstance* StateInstance) { StateTreeTickScheduler.Add(StateInstance); }
+	void RemoveFromStateTreeTickScheduler(UTcsStateInstance* StateInstance) { StateTreeTickScheduler.Remove(StateInstance); }
 
 #pragma endregion
 
@@ -321,6 +326,10 @@ public:
 	// 调试输出
 	UFUNCTION(BlueprintPure, Category = "State Slot|Debug", meta = (AutoCreateRefTerm = "SlotFilter"))
 	FString GetSlotDebugSnapshot(FGameplayTag SlotFilter = FGameplayTag()) const;
+
+	// 状态实例调试输出（按实例枚举，便于定位 PendingRemoval/Duration/Tick 等字段）
+	UFUNCTION(BlueprintPure, Category = "State|Debug")
+	FString GetStateDebugSnapshot(FName StateDefIdFilter = NAME_None) const;
 
 	// 槽位Gate开关
     UFUNCTION(BlueprintCallable, Category = "StateTree Integration")

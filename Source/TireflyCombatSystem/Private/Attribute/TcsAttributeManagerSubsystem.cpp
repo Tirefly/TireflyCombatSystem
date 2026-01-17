@@ -271,13 +271,13 @@ void UTcsAttributeManagerSubsystem::ApplyModifier(
 		}
 	}
 
-	// 先执行针对属性Current值的修改器
+	// 先执行针对属性Base值的修改器
 	if (!ModifiersToExecute.IsEmpty())
 	{
 		RecalculateAttributeBaseValues(CombatEntity, ModifiersToExecute);
 	}
 	
-	// 再执行针对属性Base值的修改器
+	// 再执行针对属性Current值的修改器
 	if (!ModifiersToApply.IsEmpty())
 	{
 		TArray<FTcsAttributeModifierInstance> NewlyAddedModifiers;
@@ -583,12 +583,15 @@ void UTcsAttributeManagerSubsystem::MergeAttributeModifiers(
 	// 执行修改器合并
 	for (TPair<FName, TArray<FTcsAttributeModifierInstance>>& Pair : ModifiersToMerge)
 	{
-		if (Pair.Value.IsEmpty() || !Pair.Value[0].ModifierDef.MergerType)
+		if (Pair.Value.IsEmpty())
 		{
-			UE_LOG(LogTcsAttrModMerger, Warning, TEXT("[%s] AttrModDef %s has no valid AttributeModifierMerger type. Entity: %s"),
-				*FString(__FUNCTION__), 
-				*Pair.Key.ToString(),
-				CombatEntity ? *CombatEntity->GetName() : TEXT("Unknown"));
+			continue;
+		}
+		
+		// No merger: do not merge, keep all instances.
+		if (!Pair.Value[0].ModifierDef.MergerType)
+		{
+			MergedModifiers.Append(Pair.Value);
 			continue;
 		}
 
