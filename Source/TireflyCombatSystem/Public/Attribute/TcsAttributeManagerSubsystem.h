@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "TcsAttributeModifier.h"
+#include "TcsSourceHandle.h"
 #include "TcsAttributeManagerSubsystem.generated.h"
 
 
@@ -108,9 +109,51 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "TireflyCombatSystem|Attribute", Meta = (DefaultToSelf = "CombatEntity"))
 	void ApplyModifier(AActor* CombatEntity, UPARAM(ref)TArray<FTcsAttributeModifierInstance>& Modifiers);
 
+	/**
+	 * 使用 SourceHandle 应用属性修改器
+	 *
+	 * @param CombatEntity 战斗实体
+	 * @param SourceHandle 来源句柄
+	 * @param ModifierIds 要应用的修改器ID列表
+	 * @param OutModifiers 输出创建的修改器实例列表
+	 * @return 是否成功应用
+	 */
+	UFUNCTION(BlueprintCallable, Category = "TireflyCombatSystem|Attribute", Meta = (DefaultToSelf = "CombatEntity"))
+	bool ApplyModifierWithSourceHandle(
+		AActor* CombatEntity,
+		const FTcsSourceHandle& SourceHandle,
+		const TArray<FName>& ModifierIds,
+		TArray<FTcsAttributeModifierInstance>& OutModifiers);
+
 	// 从战斗实体身上移除多个属性修改器
 	UFUNCTION(BlueprintCallable, Category = "TireflyCombatSystem|Attribute", Meta = (DefaultToSelf = "CombatEntity"))
 	void RemoveModifier(AActor* CombatEntity, UPARAM(ref)TArray<FTcsAttributeModifierInstance>& Modifiers);
+
+	/**
+	 * 按 SourceHandle 移除属性修改器
+	 *
+	 * @param CombatEntity 战斗实体
+	 * @param SourceHandle 来源句柄
+	 * @return 是否成功移除
+	 */
+	UFUNCTION(BlueprintCallable, Category = "TireflyCombatSystem|Attribute", Meta = (DefaultToSelf = "CombatEntity"))
+	bool RemoveModifiersBySourceHandle(
+		AActor* CombatEntity,
+		const FTcsSourceHandle& SourceHandle);
+
+	/**
+	 * 按 SourceHandle 查询属性修改器
+	 *
+	 * @param CombatEntity 战斗实体
+	 * @param SourceHandle 来源句柄
+	 * @param OutModifiers 输出查询到的修改器实例列表
+	 * @return 是否查询到修改器
+	 */
+	UFUNCTION(BlueprintCallable, Category = "TireflyCombatSystem|Attribute", Meta = (DefaultToSelf = "CombatEntity"))
+	bool GetModifiersBySourceHandle(
+		AActor* CombatEntity,
+		const FTcsSourceHandle& SourceHandle,
+		TArray<FTcsAttributeModifierInstance>& OutModifiers) const;
 
 	// 处理战斗实体的属性修改器更新时的逻辑
 	UFUNCTION(BlueprintCallable, Category = "TireflyCombatSystem|Attribute", Meta = (DefaultToSelf = "CombatEntity"))
@@ -120,6 +163,45 @@ protected:
 	// 全局属性修改器实例ID管理器
 	UPROPERTY()
 	int32 GlobalAttributeModifierInstanceIdMgr = -1;
+
+#pragma endregion
+
+
+#pragma region SourceHandle
+
+public:
+	/**
+	 * 创建 SourceHandle (完整版本)
+	 *
+	 * @param SourceDefinition Source定义的DataTable引用
+	 * @param SourceName Source名称
+	 * @param SourceTags Source类型标签
+	 * @param Instigator 施加者Actor
+	 * @return 创建的SourceHandle
+	 */
+	UFUNCTION(BlueprintCallable, Category = "TireflyCombatSystem|SourceHandle")
+	FTcsSourceHandle CreateSourceHandle(
+		const FDataTableRowHandle& SourceDefinition,
+		FName SourceName,
+		const FGameplayTagContainer& SourceTags,
+		AActor* Instigator);
+
+	/**
+	 * 创建 SourceHandle (简化版本, 用于用户自定义效果)
+	 *
+	 * @param SourceName Source名称
+	 * @param Instigator 施加者Actor
+	 * @return 创建的SourceHandle
+	 */
+	UFUNCTION(BlueprintCallable, Category = "TireflyCombatSystem|SourceHandle")
+	FTcsSourceHandle CreateSourceHandleSimple(
+		FName SourceName,
+		AActor* Instigator);
+
+protected:
+	// 全局 SourceHandle ID 管理器
+	UPROPERTY()
+	int32 GlobalSourceHandleIdMgr = -1;
 
 #pragma endregion
 

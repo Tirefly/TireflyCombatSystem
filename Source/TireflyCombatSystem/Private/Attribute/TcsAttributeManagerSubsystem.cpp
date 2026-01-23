@@ -294,7 +294,19 @@ void UTcsAttributeManagerSubsystem::ApplyModifier(
 
 		// 剩余的 ModifiersToApply 即为新增的修改器
 		NewlyAddedModifiers = ModifiersToApply;
-		AttributeComponent->AttributeModifiers.Append(ModifiersToApply);
+
+		// 添加新修改器并更新索引
+		for (const FTcsAttributeModifierInstance& Modifier : ModifiersToApply)
+		{
+			int32 NewIndex = AttributeComponent->AttributeModifiers.Add(Modifier);
+
+			// 更新 SourceHandle 索引
+			if (Modifier.SourceHandle.IsValid())
+			{
+				TArray<int32>& Indices = AttributeComponent->SourceHandleIdToModifierIndices.FindOrAdd(Modifier.SourceHandle.Id);
+				Indices.Add(NewIndex);
+			}
+		}
 
 		// 广播新增事件
 		for (const FTcsAttributeModifierInstance& Added : NewlyAddedModifiers)
@@ -320,8 +332,39 @@ void UTcsAttributeManagerSubsystem::RemoveModifier(
 	bool bModified = false;
 	for (const FTcsAttributeModifierInstance& Modifier : Modifiers)
 	{
-		if (AttributeComponent->AttributeModifiers.Remove(Modifier) > 0)
+		// 查找并移除修改器
+		int32 RemovedIndex = AttributeComponent->AttributeModifiers.IndexOfByKey(Modifier);
+		if (RemovedIndex != INDEX_NONE)
 		{
+			// 从索引中移除
+			if (Modifier.SourceHandle.IsValid())
+			{
+				TArray<int32>* IndicesPtr = AttributeComponent->SourceHandleIdToModifierIndices.Find(Modifier.SourceHandle.Id);
+				if (IndicesPtr)
+				{
+					IndicesPtr->Remove(RemovedIndex);
+					if (IndicesPtr->Num() == 0)
+					{
+						AttributeComponent->SourceHandleIdToModifierIndices.Remove(Modifier.SourceHandle.Id);
+					}
+				}
+			}
+
+			// 移除修改器
+			AttributeComponent->AttributeModifiers.RemoveAt(RemovedIndex);
+
+			// 更新后续索引 (因为数组元素前移)
+			for (auto& Pair : AttributeComponent->SourceHandleIdToModifierIndices)
+			{
+				for (int32& Index : Pair.Value)
+				{
+					if (Index > RemovedIndex)
+					{
+						Index--;
+					}
+				}
+			}
+
 			AttributeComponent->BroadcastAttributeModifierRemovedEvent(Modifier);
 			bModified = true;
 		}
@@ -413,7 +456,7 @@ void UTcsAttributeManagerSubsystem::RecalculateAttributeBaseValues(
 			{
 				FTcsAttributeChangeEventPayload& Payload = ChangeEventPayloads.FindOrAdd(LastPair.Key);
 				Payload.AttributeName = LastPair.Key;
-				float& PayloadValue = Payload.ChangeSourceRecord.FindOrAdd(Modifier.SourceName);
+				float& PayloadValue = Payload.ChangeSourceRecord.FindOrAdd(Modifier.SourceHandle);
 				PayloadValue += NewValue - LastPair.Value;
 			}
 		}
@@ -517,7 +560,7 @@ void UTcsAttributeManagerSubsystem::RecalculateAttributeCurrentValues(const AAct
 			{
 				FTcsAttributeChangeEventPayload& Payload = ChangeEventPayloads.FindOrAdd(LastPair.Key);
 				Payload.AttributeName = LastPair.Key;
-				float& PayloadValue = Payload.ChangeSourceRecord.FindOrAdd(Modifier.SourceName);
+				float& PayloadValue = Payload.ChangeSourceRecord.FindOrAdd(Modifier.SourceHandle);
 				PayloadValue += NewValue - LastPair.Value;
 			}
 		}
@@ -686,4 +729,161 @@ void UTcsAttributeManagerSubsystem::ClampAttributeValueInRange(
 	{
 		*OutMaxValue = MaxValue;
 	}
+}
+
+FTcsSourceHandle UTcsAttributeManagerSubsystem::CreateSourceHandle(
+	const FDataTableRowHandle& SourceDefinition,
+	FName SourceName,
+	const FGameplayTagContainer& SourceTags,
+	AActor* Instigator)
+{
+	// 生成全局唯一ID
+	++GlobalSourceHandleIdMgr;
+
+	// 创建并返回SourceHandle
+	return FTcsSourceHandle(GlobalSourceHandleIdMgr, SourceDefinition, SourceName, SourceTags, Instigator);
+}
+
+FTcsSourceHandle UTcsAttributeManagerSubsystem::CreateSourceHandleSimple(
+	FName SourceName,
+	AActor* Instigator)
+{
+	// 生成全局唯一ID
+	++GlobalSourceHandleIdMgr;
+
+	// 创建并返回简化的SourceHandle
+	return FTcsSourceHandle(GlobalSourceHandleIdMgr, SourceName, Instigator);
+}
+
+bool UTcsAttributeManagerSubsystem::ApplyModifierWithSourceHandle(
+	AActor* CombatEntity,
+	const FTcsSourceHandle& SourceHandle,
+	const TArray<FName>& ModifierIds,
+	TArray<FTcsAttributeModifierInstance>& OutModifiers)
+{
+	if (!SourceHandle.IsValid())
+	{
+		UE_LOG(LogTcsAttribute, Warning, TEXT("[%s] SourceHandle is invalid"),
+			*FString(__FUNCTION__));
+		return false;
+	}
+
+	UTcsAttributeComponent* AttributeComponent = GetAttributeComponent(CombatEntity);
+	if (!IsValid(AttributeComponent))
+	{
+		UE_LOG(LogTcsAttribute, Warning, TEXT("[%s] CombatEntity does not have an AttributeComponent"),
+			*FString(__FUNCTION__));
+		return false;
+	}
+
+	OutModifiers.Empty();
+
+	// 为每个ModifierId创建修改器实例
+	for (const FName& ModifierId : ModifierIds)
+	{
+		FTcsAttributeModifierInstance ModifierInst;
+		if (CreateAttributeModifier(ModifierId, SourceHandle.SourceName, SourceHandle.Instigator.Get(), CombatEntity, ModifierInst))
+		{
+			// 设置SourceHandle
+			ModifierInst.SourceHandle = SourceHandle;
+			// 保持SourceName同步
+			ModifierInst.SourceName = SourceHandle.SourceName;
+
+			OutModifiers.Add(ModifierInst);
+		}
+	}
+
+	if (OutModifiers.Num() > 0)
+	{
+		ApplyModifier(CombatEntity, OutModifiers);
+		return true;
+	}
+
+	return false;
+}
+
+bool UTcsAttributeManagerSubsystem::RemoveModifiersBySourceHandle(
+	AActor* CombatEntity,
+	const FTcsSourceHandle& SourceHandle)
+{
+	if (!SourceHandle.IsValid())
+	{
+		UE_LOG(LogTcsAttribute, Warning, TEXT("[%s] SourceHandle is invalid"),
+			*FString(__FUNCTION__));
+		return false;
+	}
+
+	UTcsAttributeComponent* AttributeComponent = GetAttributeComponent(CombatEntity);
+	if (!IsValid(AttributeComponent))
+	{
+		UE_LOG(LogTcsAttribute, Warning, TEXT("[%s] CombatEntity does not have an AttributeComponent"),
+			*FString(__FUNCTION__));
+		return false;
+	}
+
+	// 使用索引快速查找匹配的修改器
+	TArray<int32>* IndicesPtr = AttributeComponent->SourceHandleIdToModifierIndices.Find(SourceHandle.Id);
+	if (!IndicesPtr || IndicesPtr->Num() == 0)
+	{
+		return false;
+	}
+
+	// 收集要移除的修改器
+	TArray<FTcsAttributeModifierInstance> ModifiersToRemove;
+	for (int32 Index : *IndicesPtr)
+	{
+		if (AttributeComponent->AttributeModifiers.IsValidIndex(Index))
+		{
+			ModifiersToRemove.Add(AttributeComponent->AttributeModifiers[Index]);
+		}
+	}
+
+	if (ModifiersToRemove.Num() > 0)
+	{
+		RemoveModifier(CombatEntity, ModifiersToRemove);
+		return true;
+	}
+
+	return false;
+}
+
+bool UTcsAttributeManagerSubsystem::GetModifiersBySourceHandle(
+	AActor* CombatEntity,
+	const FTcsSourceHandle& SourceHandle,
+	TArray<FTcsAttributeModifierInstance>& OutModifiers) const
+{
+	if (!SourceHandle.IsValid())
+	{
+		UE_LOG(LogTcsAttribute, Warning, TEXT("[%s] SourceHandle is invalid"),
+			*FString(__FUNCTION__));
+		return false;
+	}
+
+	UTcsAttributeComponent* AttributeComponent = GetAttributeComponent(CombatEntity);
+	if (!IsValid(AttributeComponent))
+	{
+		UE_LOG(LogTcsAttribute, Warning, TEXT("[%s] CombatEntity does not have an AttributeComponent"),
+			*FString(__FUNCTION__));
+		return false;
+	}
+
+	OutModifiers.Empty();
+
+	// 使用索引快速查找匹配的修改器
+	const TArray<int32>* IndicesPtr = AttributeComponent->SourceHandleIdToModifierIndices.Find(SourceHandle.Id);
+	if (!IndicesPtr || IndicesPtr->Num() == 0)
+	{
+		return false;
+	}
+
+	// 收集匹配的修改器
+	for (int32 Index : *IndicesPtr)
+	{
+		if (AttributeComponent->AttributeModifiers.IsValidIndex(Index))
+		{
+			OutModifiers.Add(AttributeComponent->AttributeModifiers[Index]);
+		}
+	}
+
+	return OutModifiers.Num() > 0;
 }

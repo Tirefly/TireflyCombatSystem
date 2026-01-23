@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "UObject/Object.h"
+#include "TcsSourceHandle.h"
 #include "TcsAttributeChangeEventPayload.generated.h"
 
 
@@ -27,9 +28,9 @@ public:
 	UPROPERTY(BlueprintReadOnly)
 	float OldValue = 0.f;
 
-	// 变化来源记录
+	// 变化来源记录 (SourceHandle -> 变化值)
 	UPROPERTY(BlueprintReadOnly)
-	TMap<FName, float> ChangeSourceRecord;
+	TMap<FTcsSourceHandle, float> ChangeSourceRecord;
 
 public:
 	FTcsAttributeChangeEventPayload() {}
@@ -38,7 +39,7 @@ public:
 		FName InAttrName,
 		float InNewVal,
 		float InOldVal,
-		const TMap<FName, float>& InChangeSourceRecord)
+		const TMap<FTcsSourceHandle, float>& InChangeSourceRecord)
 	{
 		AttributeName = InAttrName;
 		NewValue = InNewVal;

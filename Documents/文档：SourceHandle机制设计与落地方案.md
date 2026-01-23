@@ -75,15 +75,8 @@
 
 建议升级（两种方案，二选一）：
 
-**方案 A（保守兼容）**
-- 保留 `ChangeSourceRecord`（按 `SourceName` 汇总）
-- 新增：
-  - `TMap<FGuid, float> ChangeSourceGuidRecord;` 或 `TMap<FTcsSourceHandle, float> ChangeSourceHandleRecord;`
-
-**方案 B（彻底升级，开发期可接受）**
+**方案（彻底升级，开发期可接受）**
 - 直接把 `ChangeSourceRecord` key 改为 `FTcsSourceHandle`（会影响蓝图/序列化）
-
-推荐：先做 A，后续需要时再评估 B。
 
 ### 3.2 新增/改造的 API（建议）
 
@@ -100,7 +93,7 @@
 
 为了让调用方能“撤销”，Apply 类 API 必须能返回句柄。建议：
 
-- `ApplyModifier...` 返回 `FTcsSourceHandle`（或返回 `bool` + out param）
+- `ApplyModifier...` 返回 `bool` + out param
 - 若一次 Apply 要同时创建多个来源（少见），则返回 `TArray<FTcsSourceHandle>`
 
 ---
@@ -122,8 +115,7 @@
 
 - **由调用方决定**：TCS 提供按句柄删除能力，但不强制什么时候删。
 - 对于“Buff 类 StateTree 停止时移除 Buff 效果”，建议在 StateTree 中显式调用：
-  - ConfirmRemoval Task（1.2）
-  - 然后由外部或 Task 触发“按 SourceHandle 撤销 AttributeModifiers”
+  - 提供可复用的 StateTreeTask 触发“按 SourceHandle 撤销 AttributeModifiers”
 
 ---
 

@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameplayTagContainer.h"
+#include "TcsSourceHandle.h"
 #include "TcsAttributeModifier.generated.h"
 
 
@@ -83,7 +84,11 @@ public:
 	UPROPERTY(BlueprintReadOnly)
 	int32 ModifierInstId = -1;
 
-	// 修改器来源
+	// 修改器来源句柄 (统一的来源追踪)
+	UPROPERTY(BlueprintReadOnly)
+	FTcsSourceHandle SourceHandle;
+
+	// 修改器来源 (冗余字段, 与 SourceHandle.SourceName 保持同步, 用于向后兼容)
 	UPROPERTY(BlueprintReadOnly)
 	FName SourceName = NAME_None;
 

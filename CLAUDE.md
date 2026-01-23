@@ -1,3 +1,22 @@
+<!-- OPENSPEC:START -->
+# OpenSpec Instructions
+
+These instructions are for AI assistants working in this project.
+
+Always open `@/openspec/AGENTS.md` when the request:
+- Mentions planning or proposals (words like proposal, spec, change, plan)
+- Introduces new capabilities, breaking changes, architecture shifts, or big performance/security work
+- Sounds ambiguous and you need the authoritative spec before coding
+
+Use `@/openspec/AGENTS.md` to learn:
+- How to create and apply change proposals
+- Spec format and conventions
+- Project structure and guidelines
+
+Keep this managed block so 'openspec update' can refresh the instructions.
+
+<!-- OPENSPEC:END -->
+
 # TireflyCombatSystem (TCS) 插件架构文档
 
 > **TireflyCombatSystem** 是为 UE5 设计的高度模块化战斗系统框架。
@@ -9,10 +28,11 @@
 
 | 模块 | 完成度 | 说明 |
 |------|--------|------|
-| 属性系统 (Attribute) | 90% | 核心功能完备，缺少高级优化 |
+| 属性系统 (Attribute) | 95% | 核心功能完备，SourceHandle 机制已集成 |
 | 状态系统 (State) | 85% | 核心架构完成，StateTree集成进行中 |
 | 技能系统 (Skill) | 95% | 基本功能完整，缺少少量高级特性 |
 | StateTree集成 | 80% | 基础集成完成，专用节点开发中 |
+| **SourceHandle 机制** | **100%** | **统一来源追踪，支持网络同步和性能优化** |
 
 ---
 
@@ -23,6 +43,59 @@
 - **策略模式**: 通过CDO实现零代码扩展，所有算法都可继承和定制
 - **数据驱动**: 数据表驱动的配置，减少硬编码
 - **高性能设计**: 对象池、批量更新、智能缓存机制
+- **SourceHandle 机制**: 统一的效果来源追踪，支持精确的生命周期管理和事件归因
+
+---
+
+## SourceHandle 机制 🆕
+
+**SourceHandle** 是 TCS 1.0 引入的核心机制，用于统一追踪效果来源，解决传统 `SourceName` 字符串无法提供完整来源信息的问题。
+
+### 核心特性
+
+- ✅ **全局唯一 ID**: int32 单调递增，保证唯一性
+- ✅ **Source vs Instigator**: 明确区分效果定义和实际施加者
+- ✅ **DataTable 引用**: 通过 `FDataTableRowHandle` 引用持久化的 Source Definition
+- ✅ **网络同步**: 自定义 NetSerialize 支持多人游戏
+- ✅ **性能优化**: O(1) 查询复杂度（索引加速）
+- ✅ **事件归因**: 属性变化事件包含完整的 SourceHandle 信息
+- ✅ **蓝图支持**: 所有 API 完整支持蓝图调用
+
+### 核心概念
+
+| 概念 | 含义 | 类型 | 示例 |
+|------|------|------|------|
+| **Source** | 效果的定义/配置 | `FDataTableRowHandle` | 技能 Definition、装备效果 Definition |
+| **Instigator** | 实际造成效果的实体 | `AActor*` (TWeakObjectPtr) | 角色、陷阱、投射物 |
+
+**典型场景**：
+- 技能直接造成伤害: Source = 技能 Definition，Instigator = 角色
+- 陷阱造成伤害: Source = 技能 Definition（继承），Instigator = 陷阱
+
+### 快速开始
+
+```cpp
+// 1. 创建 SourceHandle
+UTcsAttributeManagerSubsystem* AttrMgr = GetWorld()->GetGameInstance()
+    ->GetSubsystem<UTcsAttributeManagerSubsystem>();
+
+FTcsSourceHandle SourceHandle = AttrMgr->CreateSourceHandle(
+    SkillDefinition,    // Source Definition
+    FName("Fireball"),  // Source Name
+    SkillTags,          // Source Tags
+    CasterActor         // Instigator
+);
+
+// 2. 应用修改器
+TArray<FName> ModifierIds = { FName("Mod_AttackBoost") };
+TArray<FTcsAttributeModifierInstance> OutModifiers;
+AttrMgr->ApplyModifierWithSourceHandle(TargetActor, SourceHandle, ModifierIds, OutModifiers);
+
+// 3. 移除修改器
+AttrMgr->RemoveModifiersBySourceHandle(TargetActor, SourceHandle);
+```
+
+**详细文档**: [SourceHandle 使用指南](./Documents/SourceHandle使用指南.md)
 
 ---
 
