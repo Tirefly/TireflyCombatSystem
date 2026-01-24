@@ -15,15 +15,20 @@ void UTcsAttrModMerger_UseAdditiveSum::Merge_Implementation(
 		return;
 	}
 
-	const FName MagnitudeKey = FName("Magnitude");
-	FTcsAttributeModifierInstance& MergedModifier = ModifiersToMerge[0];
-	float* MagnitudeToMerge = MergedModifier.Operands.Find(MagnitudeKey);
-	
+	const FName MagnitudeKey(TEXT("Magnitude"));
+
+	// NOTE:
+	// - Do NOT reference ModifiersToMerge[0] directly: we should not mutate caller-owned input arrays.
+	// - Initialize magnitude to 0 then sum all instances (avoids double-counting the first element).
+	FTcsAttributeModifierInstance MergedModifier = ModifiersToMerge[0];
+	float& MagnitudeToMerge = MergedModifier.Operands.FindOrAdd(MagnitudeKey);
+	MagnitudeToMerge = 0.0f;
+
 	for (const FTcsAttributeModifierInstance& Modifier : ModifiersToMerge)
 	{
 		if (const float* Magnitude = Modifier.Operands.Find(MagnitudeKey))
 		{
-			*MagnitudeToMerge += *Magnitude;
+			MagnitudeToMerge += *Magnitude;
 		}
 	}
 

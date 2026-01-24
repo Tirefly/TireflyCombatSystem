@@ -352,10 +352,10 @@ protected:
 #pragma region StateTree_Reference
 
 public:
-	UFUNCTION(BLueprintCallable, Category = "StateTree")
+	UFUNCTION(BlueprintCallable, Category = "StateTree")
 	FStateTreeReference GetStateTreeReference() const;
 
-	UFUNCTION(BLueprintCallable, Category = "StateTree")
+	UFUNCTION(BlueprintCallable, Category = "StateTree")
 	const UStateTree* GetStateTree() const;
 
 #pragma endregion

@@ -23,7 +23,7 @@ void UTcsStateManagerSubsystem::Initialize(FSubsystemCollectionBase& Collection)
     StateDefTable = UTcsGenericLibrary::GetStateDefTable();
     if (!IsValid(StateDefTable))
     {
-        UE_LOG(LogTcsAttribute, Error, TEXT("[%s] StateDefTable in TcsDevSettings is not valid"),
+        UE_LOG(LogTcsState, Error, TEXT("[%s] StateDefTable in TcsDevSettings is not valid"),
             *FString(__FUNCTION__));
         return;
     }
@@ -32,7 +32,7 @@ void UTcsStateManagerSubsystem::Initialize(FSubsystemCollectionBase& Collection)
     StateSlotDefTable = UTcsGenericLibrary::GetStateSlotDefTable();
     if (!IsValid(StateSlotDefTable))
     {
-        UE_LOG(LogTcsAttribute, Error, TEXT("[%s] StateSlotDefTable in TcsDevSettings is not valid"),
+        UE_LOG(LogTcsState, Error, TEXT("[%s] StateSlotDefTable in TcsDevSettings is not valid"),
             *FString(__FUNCTION__));
     }
     InitStateSlotDefs();
@@ -288,6 +288,17 @@ void UTcsStateManagerSubsystem::InitStateSlotMappings(AActor* CombatEntity)
     StateComponent->Mapping_StateSlotToStateHandle.Empty();
     StateComponent->Mapping_StateHandleToStateSlot.Empty();
 
+	// Ensure all StateSlots exist based on StateSlotDefs, regardless of optional StateTree visual mapping.
+	// (StateTreeStateName mapping should only affect Gate automation, not whether a Slot can accept states.)
+	for (const auto& Pair : StateSlotDefs)
+	{
+		const FGameplayTag StateSlotTag = Pair.Key;
+		if (StateSlotTag.IsValid())
+		{
+			StateComponent->StateSlotsX.FindOrAdd(StateSlotTag);
+		}
+	}
+
     // 获取 StateTree
     const UStateTree* StateTree = StateComponent->GetStateTree();
     if (!IsValid(StateTree))
@@ -321,7 +332,7 @@ void UTcsStateManagerSubsystem::InitStateSlotMappings(AActor* CombatEntity)
                 FStateTreeStateHandle Handle(Index);
                 StateComponent->Mapping_StateSlotToStateHandle.Add(StateSlotTag, Handle);
                 StateComponent->Mapping_StateHandleToStateSlot.Add(Handle, StateSlotTag);
-                StateComponent->StateSlotsX.Add(StateSlotTag);
+				StateComponent->StateSlotsX.FindOrAdd(StateSlotTag);
                 bMapped = true;
                 break;
             }

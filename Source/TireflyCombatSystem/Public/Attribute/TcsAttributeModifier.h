@@ -105,12 +105,19 @@ public:
 	TMap<FName, float> Operands;
 
 	// 修改器应用时间戳
+	// NOTE: 当前单位为 UTC Ticks (FDateTime::GetTicks, 100ns)。这不是网络同步时间，仅用于排序/调试/本地归因。
 	UPROPERTY(BlueprintReadOnly)
 	int64 ApplyTimestamp = -1;
 
 	// 修改器最新更新时间戳
+	// NOTE: 当前单位为 UTC Ticks (FDateTime::GetTicks, 100ns)。这不是网络同步时间，仅用于排序/调试/本地归因。
 	UPROPERTY(BlueprintReadOnly)
 	int64 UpdateTimestamp = -1;
+
+	// 本地变更批次号：用于把一次 Apply/Update 操作导致的变化归因到对应 SourceHandle。
+	// NOTE: 这是“顺序/归因”序号，不是时间戳；未来网络同步不应直接依赖它。
+	UPROPERTY(BlueprintReadOnly)
+	int64 LastTouchedBatchId = -1;
 
 #pragma endregion
 

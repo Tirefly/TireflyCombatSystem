@@ -247,7 +247,8 @@ void UTcsAttributeManagerSubsystem::ApplyModifier(
 
 	TArray<FTcsAttributeModifierInstance> ModifiersToExecute;// 对属性Base值执行操作的属性修改器
 	TArray<FTcsAttributeModifierInstance> ModifiersToApply;// 对属性Current值应用的属性修改器
-	const int64 UtcNow = FDateTime::UtcNow().ToUnixTimestamp();
+	const int64 BatchId = ++GlobalAttributeModifierChangeBatchIdMgr;
+	const int64 UtcNowTicks = FDateTime::UtcNow().GetTicks();
 
 	// 区分好修改属性Base值和Current值的两种修改器
 	for (FTcsAttributeModifierInstance& Modifier : Modifiers)
@@ -256,6 +257,12 @@ void UTcsAttributeManagerSubsystem::ApplyModifier(
 		{
 		case ETcsAttributeModifierMode::AMM_BaseValue:
 			{
+				// BaseValue modifiers are executed immediately (not persisted), but we still stamp them for
+				// deterministic merging policies (e.g., UseNewest/UseOldest) and debugging.
+				Modifier.ApplyTimestamp = UtcNowTicks;
+				Modifier.UpdateTimestamp = UtcNowTicks;
+				Modifier.LastTouchedBatchId = BatchId;
+
 				// 添加到执行列表
 				ModifiersToExecute.Add(Modifier);
 				break;
@@ -263,8 +270,9 @@ void UTcsAttributeManagerSubsystem::ApplyModifier(
 		case ETcsAttributeModifierMode::AMM_CurrentValue:
 			{
 				// 添加到应用列表并设置应用时间戳
-				Modifier.ApplyTimestamp = UtcNow;
-				Modifier.UpdateTimestamp = UtcNow;
+				Modifier.ApplyTimestamp = UtcNowTicks;
+				Modifier.UpdateTimestamp = UtcNowTicks;
+				Modifier.LastTouchedBatchId = BatchId;
 				ModifiersToApply.Add(Modifier);
 				break;
 			}
@@ -287,7 +295,8 @@ void UTcsAttributeManagerSubsystem::ApplyModifier(
 		{
 			if (ModifiersToApply.Contains(Modifier))
 			{
-				Modifier.UpdateTimestamp = UtcNow;
+				Modifier.UpdateTimestamp = UtcNowTicks;
+				Modifier.LastTouchedBatchId = BatchId;
 				ModifiersToApply.Remove(Modifier);
 			}
 		}
@@ -298,12 +307,14 @@ void UTcsAttributeManagerSubsystem::ApplyModifier(
 		// 添加新修改器并更新索引
 		for (const FTcsAttributeModifierInstance& Modifier : ModifiersToApply)
 		{
-			int32 NewIndex = AttributeComponent->AttributeModifiers.Add(Modifier);
+			FTcsAttributeModifierInstance ModifierToStore = Modifier;
+			ModifierToStore.LastTouchedBatchId = BatchId;
+			int32 NewIndex = AttributeComponent->AttributeModifiers.Add(ModifierToStore);
 
 			// 更新 SourceHandle 索引
-			if (Modifier.SourceHandle.IsValid())
+			if (ModifierToStore.SourceHandle.IsValid())
 			{
-				TArray<int32>& Indices = AttributeComponent->SourceHandleIdToModifierIndices.FindOrAdd(Modifier.SourceHandle.Id);
+				TArray<int32>& Indices = AttributeComponent->SourceHandleIdToModifierIndices.FindOrAdd(ModifierToStore.SourceHandle.Id);
 				Indices.Add(NewIndex);
 			}
 		}
@@ -316,7 +327,7 @@ void UTcsAttributeManagerSubsystem::ApplyModifier(
 	}
 	
 	// 无论如何，都要重新计算属性Current值
-	RecalculateAttributeCurrentValues(CombatEntity);
+	RecalculateAttributeCurrentValues(CombatEntity, BatchId);
 }
 
 void UTcsAttributeManagerSubsystem::RemoveModifier(
@@ -329,6 +340,7 @@ void UTcsAttributeManagerSubsystem::RemoveModifier(
 		return;
 	}
 
+	const int64 BatchId = ++GlobalAttributeModifierChangeBatchIdMgr;
 	bool bModified = false;
 	for (const FTcsAttributeModifierInstance& Modifier : Modifiers)
 	{
@@ -373,7 +385,7 @@ void UTcsAttributeManagerSubsystem::RemoveModifier(
 	// 如果确实有属性修改器被移除，则更新属性的当前值
 	if (bModified)
 	{
-		RecalculateAttributeCurrentValues(CombatEntity);
+		RecalculateAttributeCurrentValues(CombatEntity, BatchId);
 	}
 }
 
@@ -388,13 +400,15 @@ void UTcsAttributeManagerSubsystem::HandleModifierUpdated(
 	}
 
 	bool bModified = false;
-	const int64 UtcNow = FDateTime::UtcNow().ToUnixTimestamp();
+	const int64 BatchId = ++GlobalAttributeModifierChangeBatchIdMgr;
+	const int64 UtcNowTicks = FDateTime::UtcNow().GetTicks();
 	for (FTcsAttributeModifierInstance& Modifier : Modifiers)
 	{
 		if (AttributeComponent->AttributeModifiers.Contains(Modifier))
 		{
 			const int32 ModifierInstId = AttributeComponent->AttributeModifiers.Find(Modifier);
-			Modifier.UpdateTimestamp = UtcNow;
+			Modifier.UpdateTimestamp = UtcNowTicks;
+			Modifier.LastTouchedBatchId = BatchId;
 			AttributeComponent->AttributeModifiers[ModifierInstId] = Modifier;
 
 			AttributeComponent->BroadcastAttributeModifierUpdatedEvent(Modifier);
@@ -405,7 +419,7 @@ void UTcsAttributeManagerSubsystem::HandleModifierUpdated(
 
 	if (bModified)
 	{
-		RecalculateAttributeCurrentValues(CombatEntity);
+		RecalculateAttributeCurrentValues(CombatEntity, BatchId);
 	}
 }
 
@@ -508,7 +522,7 @@ void UTcsAttributeManagerSubsystem::RecalculateAttributeBaseValues(
 	}
 }
 
-void UTcsAttributeManagerSubsystem::RecalculateAttributeCurrentValues(const AActor* CombatEntity)
+void UTcsAttributeManagerSubsystem::RecalculateAttributeCurrentValues(const AActor* CombatEntity, int64 ChangeBatchId)
 {
 	UTcsAttributeComponent* AttributeComponent = GetAttributeComponent(CombatEntity);
 	if (!IsValid(AttributeComponent))
@@ -524,7 +538,6 @@ void UTcsAttributeManagerSubsystem::RecalculateAttributeCurrentValues(const AAct
 
 	// 属性修改事件记录
 	TMap<FName, FTcsAttributeChangeEventPayload> ChangeEventPayloads;
-	int64 UtcNow = FDateTime::UtcNow().ToUnixTimestamp();
 
 	// 获取属性基础值，用于计算
 	TMap<FName, float> BaseValues = AttributeComponent->GetAttributeBaseValues();
@@ -556,7 +569,7 @@ void UTcsAttributeManagerSubsystem::RecalculateAttributeCurrentValues(const AAct
 		for (const TPair<FName, float>& LastPair : LastModifiedResults)
 		{
 			const float& NewValue = CurrentValuesToCalc.FindRef(LastPair.Key);
-			if (NewValue != LastPair.Value && Modifier.UpdateTimestamp == UtcNow)
+			if (NewValue != LastPair.Value && (ChangeBatchId < 0 || Modifier.LastTouchedBatchId == ChangeBatchId))
 			{
 				FTcsAttributeChangeEventPayload& Payload = ChangeEventPayloads.FindOrAdd(LastPair.Key);
 				Payload.AttributeName = LastPair.Key;
@@ -677,6 +690,9 @@ void UTcsAttributeManagerSubsystem::ClampAttributeValueInRange(
 		}
 	case ETcsAttributeRangeType::ART_Dynamic:
 		{
+			// DESIGN NOTE:
+			// Dynamic range is resolved against the component's current committed attribute values (previous results),
+			// not against any in-flight recalculation map in this function call.
 			if (!AttributeComponent->GetAttributeValue(Range.MinValueAttribute, MinValue))
 			{
 				UE_LOG(LogTcsAttribute, Warning, TEXT("[%s] Owner %s has no attribute named of %s as Attribute %s MinValueAttribute"),
@@ -705,6 +721,9 @@ void UTcsAttributeManagerSubsystem::ClampAttributeValueInRange(
 		}
 	case ETcsAttributeRangeType::ART_Dynamic:
 		{
+			// DESIGN NOTE:
+			// Dynamic range is resolved against the component's current committed attribute values (previous results),
+			// not against any in-flight recalculation map in this function call.
 			if (!AttributeComponent->GetAttributeValue(Range.MaxValueAttribute, MaxValue))
 			{
 				UE_LOG(LogTcsAttribute, Warning, TEXT("[%s] Owner %s has no attribute named of %s as Attribute %s MaxValueAttribute"),

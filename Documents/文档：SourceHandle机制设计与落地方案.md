@@ -1,158 +1,137 @@
-# TCS Attribute/State SourceHandle 机制设计与落地方案
+# TCS SourceHandle 机制设计与落地方案（现行实现说明）
 
-目标：把 AttributeModifier 的 “SourceName” 从“仅归因字段”升级为“可用于生命周期管理”的统一来源句柄（SourceHandle），并与 State 的后续“来源句柄”机制对齐。
+本文件用于说明 TireflyCombatSystem（TCS）当前已经落地的 SourceHandle 机制实现细节，避免旧版设计文档与现状不一致造成误导。
 
----
-
-## 1. 设计目标与约束
-
-### 1.1 目标
-
-- **唯一性**：同一 SourceName 的多次应用可以被区分（例如技能同名多次触发、同一 Buff 多次叠加）。
-- **可撤销**：支持按来源撤销（Remove by SourceHandle），避免“只能按 ModifierName/Tag 粗删”。
-- **可追踪**：事件里能提供“来源归因”，同时不牺牲调试友好度（仍可按 SourceName 汇总）。
-- **可统一**：同一来源可以同时产生 State + AttributeModifier，二者共享同一 SourceHandle（便于技能结束时统一清理）。
-- **不强制**：不要求所有项目都必须维护复杂对象引用；句柄可以只包含 Id + DebugName。
-
-### 1.2 约束/原则
-
-- **不依赖资产迁移**：TCS 仍处开发期，可接受 C++/蓝图签名调整，但尽量保持旧接口可用（包装/重载）。
-- **不要求强制 GC 管理**：句柄内部引用尽量使用 `TWeakObjectPtr`，避免延长生命周期。
-- **网络/复制**：本方案优先满足单机/本地逻辑一致性；如后续需要网络同步，可在句柄中增加可复制字段（如 `FGuid`）。
+结论：SourceHandle 已在 Attribute 模块完整落地（含网络序列化能力），State 模块的“来源对齐”属于后续可选增强，不在本文件范围内展开。
 
 ---
 
-## 2. SourceHandle 数据结构
+## 1. 设计目标（已达成）
 
-### 2.1 推荐结构（最小可用 + 可扩展）
-
-新增一个公共结构（建议放在 TCS 公共头文件目录，后续 State/Attribute 共用）：
-
-- `FTcsSourceHandle`（`USTRUCT(BlueprintType)`）
-  - `FGuid Id`：全局唯一来源 id（强烈推荐）
-  - `FName SourceName`：用于人类可读/汇总（非唯一）
-  - `TWeakObjectPtr<UObject> SourceObject`：可选（技能对象、效果对象、Buff 资产实例等）
-  - `TWeakObjectPtr<AActor> Instigator`：可选（便于“按施加者撤销”或 debug）
-  - `FGameplayTagContainer SourceTags`：可选（用于分类/筛选）
-
-配套：
-- `bool IsValid() const`：至少 `Id.IsValid()`
-- `FString ToDebugString() const`：输出 `SourceName + Id`（必要时追加 Instigator）
-- 作为 `TMap` key 时（若需要）：提供 `==` 与 `GetTypeHash`（以 `Id` 为主）
-
-### 2.2 Id 的生成策略
-
-推荐使用 `FGuid::NewGuid()` 生成，优势：
-- 低耦合、无需全局计数器；
-- 日志/追踪稳定；
-- 未来做网络同步也更容易。
-
-如果你更偏好连续 id，也可用 `int64` 单调递增（WorldSubsystem 内部维护），但要确保：
-- PIE 多世界隔离；
-- 线程安全（或只在 GameThread 生成）。
+- **唯一性**：同一 `SourceName` 的多次应用可区分（`Id` 单调递增）。
+- **可撤销**：支持按来源撤销（Remove by SourceHandle）。
+- **可追踪**：事件归因可使用 SourceHandle（不仅仅是 SourceName 文本）。
+- **可调试**：保留 `SourceName` 与 `ToDebugString()` 便于日志/快照。
+- **低耦合**：`Instigator` 使用 `TWeakObjectPtr<AActor>`，不延长对象生命周期。
+- **可复制（能力就绪）**：实现 `NetSerialize`，可作为 replicated 数据的一部分同步。
 
 ---
 
-## 3. Attribute 模块改造点（代码级）
+## 2. 数据结构：`FTcsSourceHandle`
 
-### 3.1 修改的数据结构
+实现位置：
+- `Plugins/TireflyCombatSystem/Source/TireflyCombatSystem/Public/TcsSourceHandle.h`
+- `Plugins/TireflyCombatSystem/Source/TireflyCombatSystem/Private/TcsSourceHandle.cpp`
 
-#### 3.1.1 `FTcsAttributeModifierInstance`
+字段（现行实现）：
+- `int32 Id`：全局唯一来源 ID（单调递增，`-1` 表示无效）。
+- `FDataTableRowHandle SourceDefinition`：Source 定义（可选，用户自定义效果可为空）。
+- `FName SourceName`：冗余字段，用于快速访问与调试汇总（非唯一）。
+- `FGameplayTagContainer SourceTags`：来源分类/过滤标签。
+- `TWeakObjectPtr<AActor> Instigator`：施加者（可选/弱引用）。
 
-新增字段（推荐）：
+辅助能力（现行实现）：
+- `bool IsValid() const`：`Id >= 0`。
+- `FString ToDebugString() const`：`[SourceName|Id]`，并在 Instigator 有效时追加名称。
+- `operator== / GetTypeHash`：基于 `Id`（支持作为 `TMap` key）。
+- `NetSerialize`：序列化 `Id / SourceDefinition(DataTable+RowName) / SourceName / SourceTags`，并对 Instigator 做条件序列化。
+
+---
+
+## 3. Id 生成与作用域（现行实现）
+
+Id 由 `UTcsAttributeManagerSubsystem` 内部的计数器生成：
+- `int32 GlobalSourceHandleIdMgr`
+- 每次 `CreateSourceHandle*` 调用时自增并写入 `FTcsSourceHandle::Id`
+
+语义与注意事项：
+- **唯一性范围**：同一个 Subsystem 生命周期内单调递增（通常对应同一 GameInstance/World 生命周期）。
+- **不保证跨存档稳定**：重启/重新进入 PIE 会重新开始计数。
+- **不要求网络全局一致**：网络同步由 `NetSerialize` + replicated 容器属性决定（见第 6 节）。
+
+---
+
+## 4. Attribute 模块改造点（现行实现）
+
+### 4.1 `FTcsAttributeModifierInstance`
+
+实现位置：
+- `Plugins/TireflyCombatSystem/Source/TireflyCombatSystem/Public/Attribute/TcsAttributeModifier.h`
+
+新增字段：
 - `FTcsSourceHandle SourceHandle;`
 
-保留字段（短期兼容）：
-- `FName SourceName`（旧字段继续存在，但作为“Debug/汇总字段”）
+兼容字段：
+- `FName SourceName` 仍保留（用于旧调用路径与 debug/汇总）。
 
-建议规则：
-- 如果提供了 `SourceHandle`，则 `SourceName` = `SourceHandle.SourceName`（保持一致）。
+同步规则（现行实现）：
+- 通过 `ApplyModifierWithSourceHandle` 创建的 Modifier：会写入 `SourceHandle`，并同步 `SourceName = SourceHandle.SourceName`。
+- 旧 API（只传 `SourceName`）创建的 Modifier：`SourceHandle` 保持无效（`Id == -1`）。
 
-#### 3.1.2 `FTcsAttributeChangeEventPayload`
+### 4.2 `FTcsAttributeChangeEventPayload::ChangeSourceRecord`
 
-现状：
-- `TMap<FName, float> ChangeSourceRecord;`
+实现位置：
+- `Plugins/TireflyCombatSystem/Source/TireflyCombatSystem/Public/Attribute/TcsAttributeChangeEventPayload.h`
 
-建议升级（两种方案，二选一）：
+现行实现：
+- `TMap<FTcsSourceHandle, float> ChangeSourceRecord;`
 
-**方案（彻底升级，开发期可接受）**
-- 直接把 `ChangeSourceRecord` key 改为 `FTcsSourceHandle`（会影响蓝图/序列化）
+说明：
+- key 基于 `Id` 判等/哈希，因此同名来源的多次应用不会互相覆盖。
+- 事件侧可以同时用 `SourceName`（可读）与 `Id`（可精确定位）来做 debug/统计。
 
-### 3.2 新增/改造的 API（建议）
+### 4.3 新增 API（现行实现）
 
-在 `UTcsAttributeManagerSubsystem` 增加重载：
+实现位置：
+- `Plugins/TireflyCombatSystem/Source/TireflyCombatSystem/Public/Attribute/TcsAttributeManagerSubsystem.h`
+- `Plugins/TireflyCombatSystem/Source/TireflyCombatSystem/Private/Attribute/TcsAttributeManagerSubsystem.cpp`
 
-- `ApplyModifier(CombatEntity, Modifiers, SourceHandle, Instigator, Target)`
-- `RemoveModifiersBySourceHandle(CombatEntity, SourceHandle, OptionalFilter...)`
+SourceHandle 创建：
+- `CreateSourceHandle(SourceDefinition, SourceName, SourceTags, Instigator)`
+- `CreateSourceHandleSimple(SourceName, Instigator)`
+
+按来源应用/查询/撤销：
+- `ApplyModifierWithSourceHandle(CombatEntity, SourceHandle, ModifierIds, OutModifiers)`
+- `RemoveModifiersBySourceHandle(CombatEntity, SourceHandle)`
 - `GetModifiersBySourceHandle(CombatEntity, SourceHandle, OutModifiers)`
 
-同时保留旧接口：
-- `SourceName` 版本内部构造一个 `FTcsSourceHandle`（只填 `SourceName` + 新 `Id`），这样旧用法也能享受“可撤销”的能力（前提是调用方保留返回句柄）。
+兼容性说明（非常重要）：
+- 旧的 `CreateAttributeModifier/ApplyModifier` 仍可用，但不会自动生成有效的 `SourceHandle.Id`；
+- 若你需要 “按来源撤销/查询”，请使用 `CreateSourceHandle* + ApplyModifierWithSourceHandle` 这一套新流程。
 
-### 3.3 句柄返回机制（关键）
+### 4.4 索引（现行实现）
 
-为了让调用方能“撤销”，Apply 类 API 必须能返回句柄。建议：
+为了让 Remove/Get by SourceHandle 为 O(1)，AttributeComponent 维护索引：
+- `TMap<int32, TArray<int32>> SourceHandleIdToModifierIndices;`
 
-- `ApplyModifier...` 返回 `bool` + out param
-- 若一次 Apply 要同时创建多个来源（少见），则返回 `TArray<FTcsSourceHandle>`
-
----
-
-## 4. 与 State 的统一（设计对齐）
-
-### 4.1 同一来源产生 State + AttributeModifier
-
-目标：技能系统创建一个 `FTcsSourceHandle`，随后：
-- Apply Skill State：把 `SourceHandle` 写入 StateInstance（后续会实现）
-- Apply AttributeModifiers：把同一个 `SourceHandle` 写入 ModifierInstance
-
-好处：
-- “技能结束/被取消”时，可以用同一个 `SourceHandle` 做统一清理：
-  - Remove Skill State（或 RequestRemoval）
-  - Remove AttributeModifiersBySourceHandle
-
-### 4.2 移除策略建议
-
-- **由调用方决定**：TCS 提供按句柄删除能力，但不强制什么时候删。
-- 对于“Buff 类 StateTree 停止时移除 Buff 效果”，建议在 StateTree 中显式调用：
-  - 提供可复用的 StateTreeTask 触发“按 SourceHandle 撤销 AttributeModifiers”
+注意：
+- 只有 `Modifier.SourceHandle.IsValid()` 的修改器才会进入索引；
+- 因此旧 API 创建的修改器（无有效 SourceHandle）不会被 “Remove/Get by SourceHandle” 命中。
 
 ---
 
-## 5. 迁移/兼容策略
+## 5. 与 State 的对齐（后续）
 
-### 5.1 旧项目/旧代码
-
-- 旧调用只提供 `SourceName`：仍可工作（归因/统计维持不变）
-- 若希望撤销：需要调用方保留 `FTcsSourceHandle`（建议新 API 返回）
-
-### 5.2 文档与示例
-
-建议在示例中形成固定流程：
-1) 创建 `SourceHandle`（技能激活/效果触发时）
-2) Apply State（写入同一句柄）
-3) Apply AttributeModifiers（写入同一句柄）
-4) 结束/取消时：按句柄撤销（State + Attribute）
+当前 State 模块尚未把 SourceHandle 写入 StateInstance；若后续需要统一 “技能结束/取消 -> 清理 State + Attribute”：
+- 复用 `FTcsSourceHandle`（不要再造一套句柄结构）
+- 让 StateInstance/StateApply 流程可选携带 SourceHandle（并进入 DebugSnapshot）
 
 ---
 
-## 6. 分步落地计划（建议顺序）
+## 6. 网络同步要点（现行实现）
 
-1) 新增 `FTcsSourceHandle` 公共结构与基础工具函数（IsValid/ToDebugString）。
-2) Attribute：
-   - `FTcsAttributeModifierInstance` 增加 `SourceHandle`
-   - 新增 Apply/Remove by SourceHandle 的 API（同时保留旧 API）
-   - 事件 payload 增加“可选的按句柄归因记录”（方案 A）
-3) 示例/文档：
-   - 添加最小示例（技能开关 -> 句柄 -> Apply/Remove）
-4) State（后续）：
-   - StateInstance 增加 `SourceHandle`
-   - 统一移除流程与 ConfirmRemoval Task 对接
+SourceHandle 本身支持网络序列化（`NetSerialize`），但是否会同步取决于你是否把包含它的字段做了 replication：
+- 需要把包含 `FTcsSourceHandle` 的属性标记为 `Replicated/ReplicatedUsing`
+- 并在 `GetLifetimeReplicatedProps` 中注册
+
+额外注意：
+- `SourceDefinition.DataTable` 会随句柄序列化（复制指针引用），要求客户端可加载对应 DataTable（或允许 SourceDefinition 为空，仅依赖 `Id/SourceName/Tags`）。
+- `Instigator` 是条件序列化：保存时有效才会序列化；否则客户端可能为空。
 
 ---
 
-## 7. 风险与注意事项
+## 7. 参考文档
 
-- `TWeakObjectPtr` 在对象销毁后会失效：句柄仍然有效（靠 `Id`），但 debug 信息会少一部分。
-- 如果未来要做网络同步：建议把 `FGuid` 作为复制字段；不要依赖指针字段。
-- 如果要作为 `TMap` key：建议 key 只用 `FGuid`，避免 USTRUCT hash/蓝图兼容问题。
+- 使用指南：`Plugins/TireflyCombatSystem/Documents/SourceHandle使用指南.md`
+- OpenSpec：`Plugins/TireflyCombatSystem/openspec/changes/implement-source-handle/`
+

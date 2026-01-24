@@ -164,6 +164,10 @@ protected:
 	UPROPERTY()
 	int32 GlobalAttributeModifierInstanceIdMgr = -1;
 
+	// 全局属性修改器“变更批次”管理器（用于本地归因/排序，不用于网络同步）
+	UPROPERTY()
+	int64 GlobalAttributeModifierChangeBatchIdMgr = -1;
+
 #pragma endregion
 
 
@@ -213,7 +217,7 @@ protected:
 	static void RecalculateAttributeBaseValues(const AActor* CombatEntity, const TArray<FTcsAttributeModifierInstance>& Modifiers);
 
 	// 重新计算战斗实体的属性当前值
-	static void RecalculateAttributeCurrentValues(const AActor* CombatEntity);
+	static void RecalculateAttributeCurrentValues(const AActor* CombatEntity, int64 ChangeBatchId = -1);
 
 	// 属性修改器合并
 	static void MergeAttributeModifiers(

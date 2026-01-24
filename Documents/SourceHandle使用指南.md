@@ -97,10 +97,8 @@ FTcsSourceHandle SourceHandle = AttrMgr->CreateSourceHandleSimple(
 
 #### 蓝图版本
 
-![CreateSourceHandle蓝图节点](./images/bp_create_source_handle.png)
-
-1. 使用 **CreateSourceHandle** 节点（完整版本）
-2. 使用 **CreateSourceHandleSimple** 节点（简化版本）
+- `CreateSourceHandle`（完整版本）
+- `CreateSourceHandleSimple`（简化版本）
 
 ---
 
@@ -123,7 +121,7 @@ bool bSuccess = AttrMgr->ApplyModifierWithSourceHandle(
 
 #### 蓝图版本
 
-![ApplyModifierWithSourceHandle蓝图节点](./images/bp_apply_modifier.png)
+- `ApplyModifierWithSourceHandle`
 
 ---
 
@@ -145,7 +143,7 @@ bool bSuccess = AttrMgr->RemoveModifiersBySourceHandle(
 
 #### 蓝图版本
 
-![RemoveModifiersBySourceHandle蓝图节点](./images/bp_remove_modifier.png)
+- `RemoveModifiersBySourceHandle`
 
 ---
 
@@ -432,12 +430,16 @@ AttrMgr->ApplyModifierWithSourceHandle(
 
 ### 向后兼容性
 
-旧 API 仍然可用，系统会自动为旧 API 创建的 Modifier 生成 SourceHandle：
+旧 API（仅 `SourceName`）仍然可用，但只会填充 `SourceName`（`SourceHandle.Id` 会保持无效值 `-1`），因此无法使用 “Remove/Get by SourceHandle” 的能力。
 
 ```cpp
-// 旧 API 仍然工作
-AttrMgr->CreateAttributeModifier(...);  // ✅ 自动生成 SourceHandle
+// 旧 API 仍然工作（但无法按 SourceHandle 撤销/查询）
+AttrMgr->CreateAttributeModifier(...);  // ✅ 只填 SourceName
 AttrMgr->ApplyModifier(...);            // ✅ 兼容
+
+// 若希望可撤销/可追踪：请使用 SourceHandle 版本 API
+FTcsSourceHandle Handle = AttrMgr->CreateSourceHandleSimple(FName("MySkill"), Instigator);
+AttrMgr->ApplyModifierWithSourceHandle(Target, Handle, { ModifierId }, OutModifiers);
 ```
 
 ---
@@ -512,10 +514,10 @@ bool GetModifiersBySourceHandle(
 **A**: 有效。SourceHandle 使用 `TWeakObjectPtr` 存储 Instigator，即使 Instigator 被销毁，SourceHandle 仍然有效，只是 `Instigator.IsValid()` 返回 false。你仍然可以通过 `SourceName` 和 `SourceTags` 追踪来源。
 
 ### Q: 如何在网络游戏中使用 SourceHandle？
-**A**: SourceHandle 自动支持网络同步。确保：
-1. 服务器和客户端拥有相同的 DataTable
-2. Instigator 是可复制的 Actor
-3. 在服务器上创建 SourceHandle，客户端会自动接收
+**A**: SourceHandle 已实现 `NetSerialize`，因此当它作为 **已复制（Replicated）属性** 的一部分时，可以进行网络同步。注意：
+1. 是否会同步，取决于你把包含 SourceHandle 的字段标记为 `Replicated/ReplicatedUsing`，并在 `GetLifetimeReplicatedProps` 中注册
+2. `SourceDefinition.DataTable` 需要客户端可加载（或允许 SourceDefinition 为空，仅依赖 `Id/SourceName/Tags`）
+3. `Instigator` 只有在可复制且在序列化时有效的情况下才会同步；否则客户端可能为空（`Instigator.IsValid()==false`）
 
 ### Q: 性能开销如何？
 **A**:
@@ -531,9 +533,10 @@ bool GetModifiersBySourceHandle(
 ## 相关文档
 
 - [TCS 插件架构文档](../CLAUDE.md)
-- [属性系统文档](./属性系统.md)
-- [状态系统文档](./状态系统.md)
-- [网络同步指南](./网络同步.md)
+- [SourceHandle 机制说明（现行实现）](./文档：SourceHandle机制设计与落地方案.md)
+- [TCS 后续改进细节（Backlog）](./文档：后续改进细节.md)
+- [OpenSpec: SourceHandle 变更提案](../openspec/changes/implement-source-handle/proposal.md)
+- [OpenSpec: SourceHandle 网络同步 Spec](../openspec/changes/implement-source-handle/specs/source-handle-network-sync/spec.md)
 
 ---
 
