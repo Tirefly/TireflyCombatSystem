@@ -267,6 +267,9 @@ public:
 		int32 InInstanceId = -1,
 		int32 InLevel = -1);
 
+	// Initialize() succeeds only when Owner/Instigator are valid combat entities and required component refs are resolved.
+	bool IsInitialized() const { return bInitialized; }
+
     // 获取状态的定义Id
     FName GetStateDefId() const { return StateDefId; }
 	
@@ -291,6 +294,9 @@ protected:
 	// 状态实例Id
 	UPROPERTY(BlueprintReadOnly, Category = "Meta")
 	int32 StateInstanceId = -1;
+
+	// Internal init guard (not exposed to BP/serialization).
+	bool bInitialized = false;
 
 #pragma endregion
 
@@ -599,8 +605,7 @@ public:
 
 public:
 	// 初始化StateTree
-	UFUNCTION(BlueprintCallable, Category = "State|StateTree")
-	bool InitializeStateTree();
+
 
 	// 开始执行StateTree
 	UFUNCTION(BlueprintCallable, Category = "State|StateTree")

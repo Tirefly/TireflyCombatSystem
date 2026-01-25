@@ -94,11 +94,11 @@ public:
 
 	// 修改器发起者
 	UPROPERTY(BlueprintReadOnly)
-	TObjectPtr<AActor> Instigator;
+	TWeakObjectPtr<AActor> Instigator;
 
 	// 修改器目标
 	UPROPERTY(BlueprintReadOnly)
-	TObjectPtr<AActor> Target;
+	TWeakObjectPtr<AActor> Target;
 
 	// 修改器操作数
 	UPROPERTY(BlueprintReadOnly)

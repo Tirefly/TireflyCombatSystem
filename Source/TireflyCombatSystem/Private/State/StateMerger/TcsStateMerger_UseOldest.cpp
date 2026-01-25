@@ -40,6 +40,7 @@ void UTcsStateMerger_UseOldest::Merge_Implementation(
 	}
 
 	// 按时间戳排序，找出最旧的状态（时间戳最小）
+	// NOTE: Instigator-agnostic; always keep the oldest instance by timestamp.
 	UTcsStateInstance* OldestState = StatesToMerge[0];
 	for (UTcsStateInstance* State : StatesToMerge)
 	{
@@ -52,12 +53,6 @@ void UTcsStateMerger_UseOldest::Merge_Implementation(
 	// 只保留最旧的状态
 	MergedStates.Add(OldestState);
 
-	// 将其他状态标记为待GC
-	for (UTcsStateInstance* State : StatesToMerge)
-	{
-		if (State != OldestState)
-		{
-			State->MarkPendingGC();
-		}
-	}
+	// 其它状态的移除/回收由 StateManagerSubsystem 负责
+	// NOTE: Merger should not decide lifetime/GC; subsystem will remove unmerged instances.
 }

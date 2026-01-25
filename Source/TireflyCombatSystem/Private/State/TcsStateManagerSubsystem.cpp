@@ -96,6 +96,17 @@ UTcsStateInstance* UTcsStateManagerSubsystem::CreateStateInstance(
 
     // 获取状态定义
     FTcsStateDefinition StateDef;
+	if (!Owner->Implements<UTcsEntityInterface>() || !Instigator->Implements<UTcsEntityInterface>())
+	{
+		UE_LOG(LogTcsState, Error,
+			TEXT("[%s] Owner or Instigator does not implement TcsEntityInterface. StateDef=%s Owner=%s Instigator=%s"),
+			*FString(__FUNCTION__),
+			*StateDefRowId.ToString(),
+			*Owner->GetName(),
+			*Instigator->GetName());
+		return nullptr;
+	}
+
 	if (!GetStateDefinition(StateDefRowId, StateDef))
 	{
 		UE_LOG(LogTcsState, Error, TEXT("[%s] Invalid state definition: %s"),
@@ -111,6 +122,18 @@ UTcsStateInstance* UTcsStateManagerSubsystem::CreateStateInstance(
         // 初始化状态实例
         StateInstance->SetStateDefId(StateDefRowId);
         StateInstance->Initialize(StateDef, Owner, Instigator, ++GlobalStateInstanceIdMgr, InLevel);
+
+		if (!StateInstance->IsInitialized())
+		{
+			UE_LOG(LogTcsState, Error,
+				TEXT("[%s] Failed to initialize StateInstance. StateDef=%s Owner=%s Instigator=%s"),
+				*FString(__FUNCTION__),
+				*StateDefRowId.ToString(),
+				*Owner->GetName(),
+				*Instigator->GetName());
+			StateInstance->MarkPendingGC();
+			return nullptr;
+		}
         // 标记应用时间戳（用于合并器等逻辑）
         StateInstance->SetApplyTimestamp(FDateTime::UtcNow().GetTicks());
     }
@@ -175,6 +198,23 @@ bool UTcsStateManagerSubsystem::TryApplyStateInstance(UTcsStateInstance* StateIn
             *FString(__FUNCTION__));;
         return false;
     }
+
+	if (!StateInstance->IsInitialized())
+	{
+		UE_LOG(LogTcsState, Error, TEXT("[%s] StateInstance is not initialized. StateDef=%s"),
+			*FString(__FUNCTION__),
+			*StateInstance->GetStateDefId().ToString());
+
+		if (UTcsStateComponent* OwnerStateCmp = StateInstance->GetOwnerStateComponent())
+		{
+			OwnerStateCmp->NotifyStateApplyFailed(
+				StateInstance->GetOwner(),
+				StateInstance->GetStateDefId(),
+				ETcsStateApplyFailReason::InvalidInput,
+				TEXT("StateInstance is not initialized."));
+		}
+		return false;
+	}
     
     // TODO: 未来实现CheckImmunity
 

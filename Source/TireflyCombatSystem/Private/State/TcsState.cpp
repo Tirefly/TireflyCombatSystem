@@ -61,6 +61,20 @@ void UTcsStateInstance::Initialize(
 	int32 InInstanceId,
 	int32 InLevel)
 {
+	bInitialized = false;
+
+	Owner = nullptr;
+	OwnerController = nullptr;
+	OwnerStateCmp.Reset();
+	OwnerAttributeCmp.Reset();
+	OwnerSkillCmp.Reset();
+
+	Instigator = nullptr;
+	InstigatorController = nullptr;
+	InstigatorStateCmp.Reset();
+	InstigatorAttributeCmp.Reset();
+	InstigatorSkillCmp.Reset();
+
 	StateDef = InStateDef;
 	StateInstanceId = InInstanceId;
 	Level = InLevel;
@@ -76,6 +90,14 @@ void UTcsStateInstance::Initialize(
 	OwnerStateCmp = ITcsEntityInterface::Execute_GetStateComponent(InOwner);
 	OwnerAttributeCmp = ITcsEntityInterface::Execute_GetAttributeComponent(InOwner);
 	OwnerSkillCmp = ITcsEntityInterface::Execute_GetSkillComponent(InOwner);
+
+	if (!OwnerStateCmp.IsValid())
+	{
+		UE_LOG(LogTcsState, Error, TEXT("[%s] Owner %s has no valid StateComponent via TcsEntityInterface"),
+			*FString(__FUNCTION__),
+			*InOwner->GetName());
+		return;
+	}
 	
 	// 初始化状态Instigator和其状态组件、属性组件、技能组件
 	Instigator = InInstigator;
@@ -114,6 +136,8 @@ void UTcsStateInstance::Initialize(
 
 	bPendingRemovalRequest = false;
 	PendingRemovalRequest = FTcsStateRemovalRequest();
+
+	bInitialized = true;
 }
 
 void UTcsStateInstance::SetCurrentStage(ETcsStateStage InStage)
@@ -731,6 +755,7 @@ TArray<FGameplayTag> UTcsStateInstance::GetAllVectorParamTags() const
 	return ParamTags;
 }
 
+#if 0 // Removed: InitializeStateTree() was unused; keep code disabled for history.
 bool UTcsStateInstance::InitializeStateTree()
 {
 	if (!StateDef.StateTreeRef.IsValid())
@@ -748,6 +773,7 @@ bool UTcsStateInstance::InitializeStateTree()
 
 	return true;
 }
+#endif
 
 void UTcsStateInstance::StartStateTree()
 {

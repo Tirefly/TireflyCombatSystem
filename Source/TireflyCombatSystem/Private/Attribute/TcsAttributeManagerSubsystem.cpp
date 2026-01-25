@@ -117,6 +117,15 @@ void UTcsAttributeManagerSubsystem::AddAttribute(
 
 	FTcsAttributeInstance AttrInst = FTcsAttributeInstance(*AttrDef, ++GlobalAttributeInstanceIdMgr, CombatEntity, InitValue);
 	AttributeComponent->Attributes.Add(AttributeName, AttrInst);
+
+	// Clamp initialization values to the configured range (static or dynamic).
+	if (FTcsAttributeInstance* Added = AttributeComponent->Attributes.Find(AttributeName))
+	{
+		float Clamped = Added->BaseValue;
+		ClampAttributeValueInRange(AttributeComponent, AttributeName, Clamped);
+		Added->BaseValue = Clamped;
+		Added->CurrentValue = Clamped;
+	}
 }
 
 void UTcsAttributeManagerSubsystem::AddAttributes(AActor* CombatEntity, const TArray<FName>& AttributeNames)
@@ -149,6 +158,15 @@ void UTcsAttributeManagerSubsystem::AddAttributes(AActor* CombatEntity, const TA
 
 		FTcsAttributeInstance AttrInst = FTcsAttributeInstance(*AttrDef, ++GlobalAttributeInstanceIdMgr, CombatEntity);
 		AttributeComponent->Attributes.Add(AttributeName, AttrInst);
+
+		// Clamp initialization values to the configured range (static or dynamic).
+		if (FTcsAttributeInstance* Added = AttributeComponent->Attributes.Find(AttributeName))
+		{
+			float Clamped = Added->BaseValue;
+			ClampAttributeValueInRange(AttributeComponent, AttributeName, Clamped);
+			Added->BaseValue = Clamped;
+			Added->CurrentValue = Clamped;
+		}
 	}
 }
 bool UTcsAttributeManagerSubsystem::AddAttributeByTag(
@@ -408,16 +426,94 @@ void UTcsAttributeManagerSubsystem::ApplyModifier(
 	if (!ModifiersToApply.IsEmpty())
 	{
 		TArray<FTcsAttributeModifierInstance> NewlyAddedModifiers;
+		TArray<FTcsAttributeModifierInstance> UpdatedExistingModifiers;
+		NewlyAddedModifiers.Reserve(ModifiersToApply.Num());
 
 		// 把已经用过但有改变的属性修改器更新一下，并从待应用列表中移除
-		for (FTcsAttributeModifierInstance& Modifier : AttributeComponent->AttributeModifiers)
 		{
-			if (ModifiersToApply.Contains(Modifier))
+			TArray<FTcsAttributeModifierInstance> IncomingToAdd;
+			IncomingToAdd.Reserve(ModifiersToApply.Num());
+
+			for (const FTcsAttributeModifierInstance& Incoming : ModifiersToApply)
 			{
-				Modifier.UpdateTimestamp = UtcNowTicks;
-				Modifier.LastTouchedBatchId = BatchId;
-				ModifiersToApply.Remove(Modifier);
+				bool bUpdated = false;
+
+				if (Incoming.SourceHandle.IsValid())
+				{
+					const int32 SourceId = Incoming.SourceHandle.Id;
+
+					auto TryUpdateAtIndex = [&](int32 Index) -> bool
+					{
+						if (!AttributeComponent->AttributeModifiers.IsValidIndex(Index))
+						{
+							return false;
+						}
+
+						FTcsAttributeModifierInstance& Stored = AttributeComponent->AttributeModifiers[Index];
+						if (Stored.ModifierDef.ModifierName != Incoming.ModifierDef.ModifierName)
+						{
+							return false;
+						}
+
+						// Keep ModifierInstId and ApplyTimestamp stable; treat this as a refresh/update.
+						Stored.Operands = Incoming.Operands;
+						Stored.Instigator = Incoming.Instigator;
+						Stored.Target = Incoming.Target;
+						Stored.SourceHandle = Incoming.SourceHandle;
+						Stored.SourceName = Incoming.SourceName;
+						Stored.UpdateTimestamp = UtcNowTicks;
+						Stored.LastTouchedBatchId = BatchId;
+
+						// Ensure cache contains this index (defensive against drift).
+						TArray<int32>& Indices = AttributeComponent->SourceHandleIdToModifierIndices.FindOrAdd(SourceId);
+						if (!Indices.Contains(Index))
+						{
+							Indices.Add(Index);
+						}
+
+						UpdatedExistingModifiers.Add(Stored);
+						return true;
+					};
+
+					if (const TArray<int32>* IndicesPtr = AttributeComponent->SourceHandleIdToModifierIndices.Find(SourceId))
+					{
+						for (int32 Index : *IndicesPtr)
+						{
+							if (TryUpdateAtIndex(Index))
+							{
+								bUpdated = true;
+								break;
+							}
+						}
+					}
+
+					// Fallback: cache miss (or drift) - scan all modifiers.
+					if (!bUpdated)
+					{
+						for (int32 Index = 0; Index < AttributeComponent->AttributeModifiers.Num(); ++Index)
+						{
+							const FTcsAttributeModifierInstance& Candidate = AttributeComponent->AttributeModifiers[Index];
+							if (!Candidate.SourceHandle.IsValid() || Candidate.SourceHandle.Id != SourceId)
+							{
+								continue;
+							}
+
+							if (TryUpdateAtIndex(Index))
+							{
+								bUpdated = true;
+								break;
+							}
+						}
+					}
+				}
+
+				if (!bUpdated)
+				{
+					IncomingToAdd.Add(Incoming);
+				}
 			}
+
+			ModifiersToApply = IncomingToAdd;
 		}
 
 		// 剩余的 ModifiersToApply 即为新增的修改器
@@ -439,6 +535,11 @@ void UTcsAttributeManagerSubsystem::ApplyModifier(
 		}
 
 		// 广播新增事件
+		for (const FTcsAttributeModifierInstance& Updated : UpdatedExistingModifiers)
+		{
+			AttributeComponent->BroadcastAttributeModifierUpdatedEvent(Updated);
+		}
+
 		for (const FTcsAttributeModifierInstance& Added : NewlyAddedModifiers)
 		{
 			AttributeComponent->BroadcastAttributeModifierAddedEvent(Added);
@@ -525,10 +626,51 @@ void UTcsAttributeManagerSubsystem::HandleModifierUpdated(
 	{
 		if (AttributeComponent->AttributeModifiers.Contains(Modifier))
 		{
-			const int32 ModifierInstId = AttributeComponent->AttributeModifiers.Find(Modifier);
+			const int32 ModifierIndex = AttributeComponent->AttributeModifiers.Find(Modifier);
+			const FTcsAttributeModifierInstance OldStored = AttributeComponent->AttributeModifiers[ModifierIndex];
+
 			Modifier.UpdateTimestamp = UtcNowTicks;
 			Modifier.LastTouchedBatchId = BatchId;
-			AttributeComponent->AttributeModifiers[ModifierInstId] = Modifier;
+
+			AttributeComponent->AttributeModifiers[ModifierIndex] = Modifier;
+
+			// Keep SourceHandle->indices cache consistent (even if caller updated SourceHandle).
+			const int32 OldSourceId = OldStored.SourceHandle.IsValid() ? OldStored.SourceHandle.Id : -1;
+			const int32 NewSourceId = Modifier.SourceHandle.IsValid() ? Modifier.SourceHandle.Id : -1;
+			if (OldSourceId != NewSourceId)
+			{
+				// Remove from old bucket.
+				if (OldSourceId >= 0)
+				{
+					if (TArray<int32>* IndicesPtr = AttributeComponent->SourceHandleIdToModifierIndices.Find(OldSourceId))
+					{
+						IndicesPtr->Remove(ModifierIndex);
+						if (IndicesPtr->IsEmpty())
+						{
+							AttributeComponent->SourceHandleIdToModifierIndices.Remove(OldSourceId);
+						}
+					}
+				}
+
+				// Add to new bucket.
+				if (NewSourceId >= 0)
+				{
+					TArray<int32>& Indices = AttributeComponent->SourceHandleIdToModifierIndices.FindOrAdd(NewSourceId);
+					if (!Indices.Contains(ModifierIndex))
+					{
+						Indices.Add(ModifierIndex);
+					}
+				}
+			}
+			else if (NewSourceId >= 0)
+			{
+				// SourceHandle unchanged: ensure index exists (defensive against cache drift).
+				TArray<int32>& Indices = AttributeComponent->SourceHandleIdToModifierIndices.FindOrAdd(NewSourceId);
+				if (!Indices.Contains(ModifierIndex))
+				{
+					Indices.Add(ModifierIndex);
+				}
+			}
 
 			AttributeComponent->BroadcastAttributeModifierUpdatedEvent(Modifier);
 			
@@ -819,7 +961,8 @@ void UTcsAttributeManagerSubsystem::ClampAttributeValueInRange(
 					*AttributeComponent->GetOwner()->GetName(),
 					*Range.MinValueAttribute.ToString(),
 					*AttributeName.ToString());
-				return;
+				// Keep default "no constraint" min value and continue clamping.
+				break;
 			}
 			break;
 		}
@@ -850,7 +993,8 @@ void UTcsAttributeManagerSubsystem::ClampAttributeValueInRange(
 					*AttributeComponent->GetOwner()->GetName(),
 					*Range.MaxValueAttribute.ToString(),
 					*AttributeName.ToString());
-				return;
+				// Keep default "no constraint" max value and continue clamping.
+				break;
 			}
 			break;
 		}

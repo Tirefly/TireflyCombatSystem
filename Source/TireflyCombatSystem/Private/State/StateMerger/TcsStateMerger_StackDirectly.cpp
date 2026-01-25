@@ -63,6 +63,7 @@ void UTcsStateMerger_StackDirectly::Merge_Implementation(
 	}
 
 	// 从排序后的状态中弹出最新的状态作为基础状态
+	// NOTE: Pop() returns the oldest instance here because we sort by ApplyTimestamp descending.
 	UTcsStateInstance* BaseState = StatesToMerge.Pop();
 		
 	// 设置基础状态的叠层数

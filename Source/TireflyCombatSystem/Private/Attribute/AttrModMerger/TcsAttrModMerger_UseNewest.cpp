@@ -12,10 +12,15 @@ void UTcsAttrModMerger_UseNewest::Merge_Implementation(
 		return;
 	}
 
+	auto GetEffectiveTimestamp = [](const FTcsAttributeModifierInstance& Modifier) -> int64
+	{
+		return (Modifier.UpdateTimestamp >= 0) ? Modifier.UpdateTimestamp : Modifier.ApplyTimestamp;
+	};
+
 	int32 NewestModIndex = 0;
 	for (int32 i = 1; i < ModifiersToMerge.Num(); i++)
 	{
-		if (ModifiersToMerge[i].ApplyTimestamp > ModifiersToMerge[NewestModIndex].ApplyTimestamp)
+		if (GetEffectiveTimestamp(ModifiersToMerge[i]) > GetEffectiveTimestamp(ModifiersToMerge[NewestModIndex]))
 		{
 			NewestModIndex = i;
 		}

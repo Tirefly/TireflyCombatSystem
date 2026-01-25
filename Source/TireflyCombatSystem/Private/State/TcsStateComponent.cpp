@@ -992,9 +992,15 @@ bool UTcsStateComponent::AreStateNamesEqual(const TArray<FName>& A, const TArray
 		return false;
 	}
 
-	for (int32 i = 0; i < A.Num(); ++i)
+	// Treat arrays as sets to avoid false positives due to unstable ordering from StateTree.
+	TArray<FName> SortedA = A;
+	TArray<FName> SortedB = B;
+	SortedA.Sort([](const FName& L, const FName& R) { return L.LexicalLess(R); });
+	SortedB.Sort([](const FName& L, const FName& R) { return L.LexicalLess(R); });
+
+	for (int32 i = 0; i < SortedA.Num(); ++i)
 	{
-		if (A[i] != B[i])
+		if (SortedA[i] != SortedB[i])
 		{
 			return false;
 		}
