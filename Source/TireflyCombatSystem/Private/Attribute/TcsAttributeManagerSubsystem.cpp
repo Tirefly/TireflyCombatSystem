@@ -30,6 +30,58 @@ void UTcsAttributeManagerSubsystem::Initialize(FSubsystemCollectionBase& Collect
 		UE_LOG(LogTcsAttribute, Error, TEXT("[%s] AttributeModifierDefTable in TcsDevSettings is not valid"),
 			*FString(__FUNCTION__));
 	}
+
+	// 构建 AttributeTag -> AttributeName 映射
+	AttributeTagToName.Empty();
+	AttributeNameToTag.Empty();
+
+	TArray<FName> RowNames = AttributeDefTable->GetRowNames();
+	for (const FName& RowName : RowNames)
+	{
+		const FTcsAttributeDefinition* AttrDef = AttributeDefTable->FindRow<FTcsAttributeDefinition>(
+			RowName,
+			*FString(__FUNCTION__));
+		if (!AttrDef)
+		{
+			continue;
+		}
+
+		// 检查 AttributeTag 是否有效
+		if (!AttrDef->AttributeTag.IsValid())
+		{
+			// 空或无效 Tag，记录 Warning 但不影响运行
+			if (AttrDef->AttributeTag != FGameplayTag::EmptyTag)
+			{
+				UE_LOG(LogTcsAttribute, Warning,
+					TEXT("[%s] Attribute '%s' has invalid AttributeTag, skipping Tag mapping"),
+					*FString(__FUNCTION__),
+					*RowName.ToString());
+			}
+			continue;
+		}
+
+		// 检查是否重复
+		if (AttributeTagToName.Contains(AttrDef->AttributeTag))
+		{
+			const FName ExistingName = AttributeTagToName[AttrDef->AttributeTag];
+			UE_LOG(LogTcsAttribute, Error,
+				TEXT("[%s] Duplicate AttributeTag '%s' found: already mapped to '%s', ignoring mapping for '%s'"),
+				*FString(__FUNCTION__),
+				*AttrDef->AttributeTag.ToString(),
+				*ExistingName.ToString(),
+				*RowName.ToString());
+			continue;
+		}
+
+		// 添加到映射
+		AttributeTagToName.Add(AttrDef->AttributeTag, RowName);
+		AttributeNameToTag.Add(RowName, AttrDef->AttributeTag);
+	}
+
+	UE_LOG(LogTcsAttribute, Log,
+		TEXT("[%s] Built AttributeTag mappings: %d valid tags registered"),
+		*FString(__FUNCTION__),
+		AttributeTagToName.Num());
 }
 
 void UTcsAttributeManagerSubsystem::AddAttribute(
@@ -99,7 +151,74 @@ void UTcsAttributeManagerSubsystem::AddAttributes(AActor* CombatEntity, const TA
 		AttributeComponent->Attributes.Add(AttributeName, AttrInst);
 	}
 }
+bool UTcsAttributeManagerSubsystem::AddAttributeByTag(
+	AActor* CombatEntity,
+	const FGameplayTag& AttributeTag,
+	float InitValue)
+{
+	FName AttributeName;
+	if (!TryResolveAttributeNameByTag(AttributeTag, AttributeName))
+	{
+		UE_LOG(LogTcsAttribute, Warning,
+			TEXT("[%s] Failed to resolve AttributeTag '%s' to AttributeName"),
+			*FString(__FUNCTION__),
+			*AttributeTag.ToString());
+		return false;
+	}
 
+	AddAttribute(CombatEntity, AttributeName, InitValue);
+	return true;
+}
+bool UTcsAttributeManagerSubsystem::TryResolveAttributeNameByTag(
+	const FGameplayTag& AttributeTag,
+	FName& OutAttributeName) const
+{
+	if (!AttributeTag.IsValid())
+	{
+		UE_LOG(LogTcsAttribute, Warning,
+			TEXT("[%s] Invalid AttributeTag provided"),
+			*FString(__FUNCTION__));
+		return false;
+	}
+
+	const FName* FoundName = AttributeTagToName.Find(AttributeTag);
+	if (FoundName)
+	{
+		OutAttributeName = *FoundName;
+		return true;
+	}
+
+	UE_LOG(LogTcsAttribute, Warning,
+		TEXT("[%s] AttributeTag '%s' not found in mapping. Make sure the tag is registered in AttributeDefTable."),
+		*FString(__FUNCTION__),
+		*AttributeTag.ToString());
+	return false;
+}
+bool UTcsAttributeManagerSubsystem::TryGetAttributeTagByName(
+	FName AttributeName,
+	FGameplayTag& OutAttributeTag) const
+{
+	if (AttributeName.IsNone())
+	{
+		UE_LOG(LogTcsAttribute, Warning,
+			TEXT("[%s] Invalid AttributeName provided"),
+			*FString(__FUNCTION__));
+		return false;
+	}
+
+	const FGameplayTag* FoundTag = AttributeNameToTag.Find(AttributeName);
+	if (FoundTag)
+	{
+		OutAttributeTag = *FoundTag;
+		return true;
+	}
+
+	UE_LOG(LogTcsAttribute, Warning,
+		TEXT("[%s] AttributeName '%s' not found in mapping or has no AttributeTag configured."),
+		*FString(__FUNCTION__),
+		*AttributeName.ToString());
+	return false;
+}
 UTcsAttributeComponent* UTcsAttributeManagerSubsystem::GetAttributeComponent(const AActor* CombatEntity)
 {
 	if (!IsValid(CombatEntity))

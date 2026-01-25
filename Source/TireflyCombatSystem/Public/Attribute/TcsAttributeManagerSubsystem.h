@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "GameplayTagContainer.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "TcsAttributeModifier.h"
 #include "TcsSourceHandle.h"
@@ -33,6 +34,13 @@ public:
 	UPROPERTY()
 	UDataTable* AttributeModifierDefTable;
 
+protected:
+	// AttributeTag -> AttributeName 映射（运行时构建，用于 Tag 入口 API）
+	TMap<FGameplayTag, FName> AttributeTagToName;
+
+	// AttributeName -> AttributeTag 映射（可选，用于反查和调试）
+	TMap<FName, FGameplayTag> AttributeNameToTag;
+
 #pragma endregion
 	
 
@@ -51,6 +59,44 @@ public:
 	void AddAttributes(
 		AActor* CombatEntity,
 		const TArray<FName>& AttributeNames);
+
+	/**
+	 * 通过 GameplayTag 给战斗实体添加属性
+	 *
+	 * @param CombatEntity 战斗实体
+	 * @param AttributeTag 属性的 GameplayTag 标识
+	 * @param InitValue 初始值
+	 * @return 是否成功添加（Tag 是否有效且在映射中注册）
+	 */
+	UFUNCTION(BlueprintCallable, Category = "TireflyCombatSystem|Attribute", Meta = (DefaultToSelf = "CombatEntity", Categories = "TCS.Attribute"))
+	bool AddAttributeByTag(
+		AActor* CombatEntity,
+		const FGameplayTag& AttributeTag,
+		float InitValue = 0.f);
+
+	/**
+	 * 通过 GameplayTag 解析属性名称
+	 *
+	 * @param AttributeTag 属性的 GameplayTag 标识
+	 * @param OutAttributeName 输出解析得到的属性名称（FName）
+	 * @return 是否成功解析（Tag 是否在映射中注册）
+	 */
+	UFUNCTION(BlueprintCallable, Category = "TireflyCombatSystem|Attribute")
+	bool TryResolveAttributeNameByTag(
+		const FGameplayTag& AttributeTag,
+		FName& OutAttributeName) const;
+
+	/**
+	 * 通过属性名称获取对应的 GameplayTag（反查，用于调试）
+	 *
+	 * @param AttributeName 属性名称（FName）
+	 * @param OutAttributeTag 输出对应的 GameplayTag
+	 * @return 是否成功获取（Name 是否在映射中注册）
+	 */
+	UFUNCTION(BlueprintCallable, Category = "TireflyCombatSystem|Attribute")
+	bool TryGetAttributeTagByName(
+		FName AttributeName,
+		FGameplayTag& OutAttributeTag) const;
 
 protected:
 	// 获取战斗实体的属性组件

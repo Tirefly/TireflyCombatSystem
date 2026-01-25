@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "GameplayTagContainer.h"
 #include "UObject/Object.h"
 #include "TcsAttribute.generated.h"
 
@@ -87,6 +88,13 @@ public:
 	// 属性缩写（用于公式）
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Meta")
 	FString AttributeAbbreviation = FString("");
+
+	// 属性的语义标识（可选，但推荐）
+	// 用于父子 Tag 匹配、分类筛选、跨系统对齐
+	// 仍然以 Attribute DataTable RowName(FName) 作为权威唯一 ID
+	// 推荐命名约定：TCS.Attribute.<RowName>
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Meta", Meta = (Categories = "TCS.Attribute"))
+	FGameplayTag AttributeTag;
 
 	// 属性名（最好使用 StringTable）
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Display")
