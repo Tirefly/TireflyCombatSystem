@@ -13,8 +13,8 @@
 **目标**：创建核心的 SourceHandle 数据结构
 
 **步骤**：
-- [ ] 在 `Public/` 目录创建 `TcsSourceHandle.h` 和 `TcsSourceHandle.cpp`
-- [ ] 定义 `FTcsSourceHandle` 结构体，包含以下字段：
+- [x] 在 `Public/` 目录创建 `TcsSourceHandle.h` 和 `TcsSourceHandle.cpp`
+- [x] 定义 `FTcsSourceHandle` 结构体，包含以下字段：
   ```cpp
   UPROPERTY() int32 Id = -1;
   UPROPERTY() FDataTableRowHandle SourceDefinition;
@@ -22,12 +22,12 @@
   UPROPERTY() FGameplayTagContainer SourceTags;
   UPROPERTY() TWeakObjectPtr<AActor> Instigator;
   ```
-- [ ] 实现 `IsValid()` 方法（检查 `Id >= 0`）
-- [ ] 实现 `ToDebugString()` 方法
-- [ ] 实现相等性运算符 (`operator==`, `operator!=`)
-- [ ] 实现 `GetTypeHash()` 友元函数（基于 `Id`）
-- [ ] 实现 `GetSourceDefinition<T>()` 模板方法
-- [ ] 添加详细的注释说明（Source vs Instigator 的区别）
+- [x] 实现 `IsValid()` 方法（检查 `Id >= 0`）
+- [x] 实现 `ToDebugString()` 方法
+- [x] 实现相等性运算符 (`operator==`, `operator!=`)
+- [x] 实现 `GetTypeHash()` 友元函数（基于 `Id`）
+- [x] 实现 `GetSourceDefinition<T>()` 模板方法
+- [x] 添加详细的注释说明（Source vs Instigator 的区别）
 
 **验证**：
 - ✅ 编译通过，无警告
@@ -44,16 +44,16 @@
 **目标**：实现 SourceHandle 的网络序列化
 
 **步骤**：
-- [ ] 在 `TcsSourceHandle.cpp` 中实现 `NetSerialize()` 方法
-- [ ] 序列化核心字段：
+- [x] 在 `TcsSourceHandle.cpp` 中实现 `NetSerialize()` 方法
+- [x] 序列化核心字段：
   - `Id`（int32，直接序列化）
   - `SourceDefinition.DataTable`（TObjectPtr，UE 自动处理）
   - `SourceDefinition.RowName`（FName，直接序列化）
   - `SourceName`（FName，直接序列化）
   - `SourceTags`（调用 `SourceTags.NetSerialize()`）
-- [ ] 条件序列化 `Instigator`（使用 RepBits 优化）
-- [ ] 添加 `TStructOpsTypeTraits` 特化，启用 `WithNetSerializer`
-- [ ] 添加注释说明网络同步机制
+- [x] 条件序列化 `Instigator`（使用 RepBits 优化）
+- [x] 添加 `TStructOpsTypeTraits` 特化，启用 `WithNetSerializer`
+- [x] 添加注释说明网络同步机制
 
 **验证**：
 - ✅ 编译通过
@@ -69,21 +69,21 @@
 **目标**：实现全局唯一 ID 生成机制
 
 **步骤**：
-- [ ] 在 `TcsAttributeManagerSubsystem.h` 中添加字段：
+- [x] 在 `TcsAttributeManagerSubsystem.h` 中添加字段：
   ```cpp
   UPROPERTY()
   int32 GlobalSourceHandleIdCounter = 0;
   ```
-- [ ] 实现 `CreateSourceHandle()` 方法（完整版本）：
+- [x] 实现 `CreateSourceHandle()` 方法（完整版本）：
   - 参数：`SourceDefinition`, `SourceName`, `Instigator`, `SourceTags`
   - 递增计数器生成唯一 ID
   - 填充 SourceHandle 各字段
   - 返回新创建的 SourceHandle
-- [ ] 实现 `CreateSourceHandleSimple()` 方法（简化版本）：
+- [x] 实现 `CreateSourceHandleSimple()` 方法（简化版本）：
   - 参数：`SourceName`, `Instigator`, `SourceTags`
   - 用于用户自定义效果（无 DataTable 引用）
-- [ ] 添加详细的注释说明
-- [ ] 考虑线程安全（GameThread 调用）
+- [x] 添加详细的注释说明
+- [x] 考虑线程安全（GameThread 调用）
 
 **验证**：
 - ✅ 编译通过
@@ -101,17 +101,17 @@
 **目标**：在 ModifierInstance 中添加 SourceHandle 字段
 
 **步骤**：
-- [ ] 在 `TcsAttributeModifier.h` 中的 `FTcsAttributeModifierInstance` 添加字段：
+- [x] 在 `TcsAttributeModifier.h` 中的 `FTcsAttributeModifierInstance` 添加字段：
   ```cpp
   // 来源句柄
   UPROPERTY(BlueprintReadOnly)
   FTcsSourceHandle SourceHandle;
   ```
-- [ ] 保留现有的 `SourceName` 字段（向后兼容）
-- [ ] 添加注释说明新旧字段的关系：
+- [x] 保留现有的 `SourceName` 字段（向后兼容）
+- [x] 添加注释说明新旧字段的关系：
   - `SourceHandle`：完整的来源信息
   - `SourceName`：冗余字段，用于快速访问和向后兼容
-- [ ] 更新构造函数（如需要）
+- [x] 更新构造函数（如需要）
 
 **验证**：
 - ✅ 编译通过
@@ -127,7 +127,7 @@
 **目标**：提供带 SourceHandle 的新 API
 
 **步骤**：
-- [ ] 在 `TcsAttributeManagerSubsystem.h` 中声明方法：
+- [x] 在 `TcsAttributeManagerSubsystem.h` 中声明方法：
   ```cpp
   UFUNCTION(BlueprintCallable, Category = "TireflyCombatSystem|Attribute")
   bool ApplyModifierWithSourceHandle(
@@ -138,13 +138,13 @@
       AActor* Target,
       TArray<FTcsAttributeModifierInstance>& OutModifiers);
   ```
-- [ ] 在 `TcsAttributeManagerSubsystem.cpp` 中实现方法：
+- [x] 在 `TcsAttributeManagerSubsystem.cpp` 中实现方法：
   - 为每个 ModifierDef 创建 ModifierInstance
   - 设置 `SourceHandle` 字段
   - 同步设置 `SourceName = SourceHandle.SourceName`
   - 调用现有的应用逻辑
-- [ ] 添加详细的注释说明
-- [ ] 添加参数验证（CombatEntity 有效性等）
+- [x] 添加详细的注释说明
+- [x] 添加参数验证（CombatEntity 有效性等）
 
 **验证**：
 - ✅ 编译通过
@@ -161,20 +161,20 @@
 **目标**：提供按 SourceHandle 移除修改器的 API
 
 **步骤**：
-- [ ] 在 `TcsAttributeManagerSubsystem.h` 中声明方法：
+- [x] 在 `TcsAttributeManagerSubsystem.h` 中声明方法：
   ```cpp
   UFUNCTION(BlueprintCallable, Category = "TireflyCombatSystem|Attribute")
   bool RemoveModifiersBySourceHandle(
       AActor* CombatEntity,
       const FTcsSourceHandle& SourceHandle);
   ```
-- [ ] 在 `TcsAttributeManagerSubsystem.cpp` 中实现方法：
+- [x] 在 `TcsAttributeManagerSubsystem.cpp` 中实现方法：
   - 从 AttributeComponent 获取所有 Modifier
   - 筛选出匹配 `SourceHandle.Id` 的 Modifier
   - 调用现有的移除逻辑
   - 返回是否成功移除
-- [ ] 添加详细的注释说明
-- [ ] 添加参数验证
+- [x] 添加详细的注释说明
+- [x] 添加参数验证
 
 **验证**：
 - ✅ 编译通过
@@ -191,7 +191,7 @@
 **目标**：提供按 SourceHandle 查询修改器的 API
 
 **步骤**：
-- [ ] 在 `TcsAttributeManagerSubsystem.h` 中声明方法：
+- [x] 在 `TcsAttributeManagerSubsystem.h` 中声明方法：
   ```cpp
   UFUNCTION(BlueprintCallable, Category = "TireflyCombatSystem|Attribute")
   bool GetModifiersBySourceHandle(
@@ -199,12 +199,12 @@
       const FTcsSourceHandle& SourceHandle,
       TArray<FTcsAttributeModifierInstance>& OutModifiers);
   ```
-- [ ] 在 `TcsAttributeManagerSubsystem.cpp` 中实现方法：
+- [x] 在 `TcsAttributeManagerSubsystem.cpp` 中实现方法：
   - 从 AttributeComponent 获取所有 Modifier
   - 筛选出匹配 `SourceHandle.Id` 的 Modifier
   - 输出到 OutModifiers
   - 返回是否找到
-- [ ] 添加详细的注释说明
+- [x] 添加详细的注释说明
 
 **验证**：
 - ✅ 编译通过
@@ -221,13 +221,13 @@
 **目标**：保持向后兼容，旧 API 自动创建 SourceHandle
 
 **步骤**：
-- [ ] 修改现有的 `ApplyModifier()` 方法实现
-- [ ] 为每个 Modifier 自动创建 SourceHandle（如果没有）：
+- [x] 修改现有的 `ApplyModifier()` 方法实现
+- [x] 为每个 Modifier 自动创建 SourceHandle（如果没有）：
   - 调用 `CreateSourceHandleSimple()` 生成新句柄
   - 使用 Modifier 的 `SourceName`
   - Instigator 从参数获取
-- [ ] 更新注释说明向后兼容逻辑
-- [ ] 确保旧代码继续工作
+- [x] 更新注释说明向后兼容逻辑
+- [x] 确保旧代码继续工作
 
 **验证**：
 - ✅ 编译通过
@@ -246,15 +246,15 @@
 **目标**：将事件归因从 FName 升级为 SourceHandle
 
 **步骤**：
-- [ ] 修改 `TcsAttributeChangeEventPayload.h` 中的结构：
+- [x] 修改 `TcsAttributeChangeEventPayload.h` 中的结构：
   ```cpp
   // 变化来源记录（升级为 SourceHandle）
   UPROPERTY(BlueprintReadOnly)
   TMap<FTcsSourceHandle, float> ChangeSourceRecord;
   ```
-- [ ] 更新构造函数参数类型
-- [ ] 更新所有创建 EventPayload 的代码位置
-- [ ] 添加注释说明升级原因
+- [x] 更新构造函数参数类型
+- [x] 更新所有创建 EventPayload 的代码位置
+- [x] 添加注释说明升级原因
 
 **验证**：
 - ✅ 编译通过
@@ -270,10 +270,10 @@
 **目标**：在属性变化时正确记录 SourceHandle
 
 **步骤**：
-- [ ] 在 `UTcsAttributeComponent` 中查找所有发送属性变化事件的位置
-- [ ] 更新为使用 SourceHandle 而非 FName 记录变化来源
-- [ ] 确保事件 payload 正确填充 SourceHandle 信息
-- [ ] 更新相关注释
+- [x] 在 `UTcsAttributeComponent` 中查找所有发送属性变化事件的位置
+- [x] 更新为使用 SourceHandle 而非 FName 记录变化来源
+- [x] 确保事件 payload 正确填充 SourceHandle 信息
+- [x] 更新相关注释
 
 **验证**：
 - ✅ 编译通过
@@ -291,15 +291,15 @@
 **目标**：优化按 SourceHandle 查询的性能
 
 **步骤**：
-- [ ] 在 `UTcsAttributeComponent` 中添加索引字段：
+- [x] 在 `UTcsAttributeComponent` 中添加索引字段：
   ```cpp
   UPROPERTY()
   TMap<int32, TArray<int32>> SourceHandleIdToModifierIndices;
   ```
-- [ ] 在应用 Modifier 时更新索引
-- [ ] 在移除 Modifier 时更新索引
-- [ ] 在查询时使用索引加速
-- [ ] 添加注释说明索引维护逻辑
+- [x] 在应用 Modifier 时更新索引
+- [x] 在移除 Modifier 时更新索引
+- [x] 在查询时使用索引加速
+- [x] 添加注释说明索引维护逻辑
 
 **验证**：
 - ✅ 编译通过
@@ -310,47 +310,23 @@
 
 ---
 
-## 阶段 5：测试和文档
+## 阶段 5：验证和文档更新
 
-### Task 5.1: 编写单元测试
-
-**目标**：验证核心功能正确性
-
-**步骤**：
-- [ ] 创建测试文件 `TcsSourceHandleTest.cpp`
-- [ ] 测试 SourceHandle 创建和验证：
-  - ID 唯一性
-  - `IsValid()` 正确性
-  - `ToDebugString()` 输出
-- [ ] 测试按 SourceHandle 应用修改器
-- [ ] 测试按 SourceHandle 撤销修改器
-- [ ] 测试同一 SourceName 多次应用的独立性
-- [ ] 测试事件归因正确性
-- [ ] 测试网络同步（如果有网络测试环境）
-
-**验证**：
-- ✅ 所有测试通过
-- ✅ 代码覆盖率达标
-
-**依赖**：所有实现任务
-
----
-
-### Task 5.2: 编译验证
+### Task 5.1: 编译验证
 
 **目标**：确保所有配置编译通过
 
 **步骤**：
-- [ ] 使用 UnrealBuildTool 编译 Development 配置：
+- [x] 使用 UnrealBuildTool 编译 Development 配置：
   ```bash
   "E:\UnrealEngine\UE_5.6\Engine\Binaries\DotNET\UnrealBuildTool\UnrealBuildTool.exe"
   TireflyGameplayUtilsEditor Win64 Development
   -Project="E:\Projects_Unreal\TireflyGameplayUtils\TireflyGameplayUtils.uproject"
   -rocket -progress
   ```
-- [ ] 使用 UnrealBuildTool 编译 DebugGame 配置
-- [ ] 确保无编译警告
-- [ ] 确保无编译错误
+- [x] 使用 UnrealBuildTool 编译 DebugGame 配置
+- [x] 确保无编译警告
+- [x] 确保无编译错误
 
 **验证**：
 - ✅ Development 配置编译成功
@@ -361,21 +337,21 @@
 
 ---
 
-### Task 5.3: 更新文档
+### Task 5.2: 更新文档
 
 **目标**：提供清晰的使用文档
 
 **步骤**：
-- [ ] 在 `Documents/` 目录添加 `SourceHandle使用指南.md`
-- [ ] 包含以下内容：
+- [x] 在 `Documents/` 目录添加 `SourceHandle使用指南.md`
+- [x] 包含以下内容：
   - SourceHandle 概念说明（Source vs Instigator）
   - 基本使用示例（技能、陷阱、装备）
   - 死亡统计示例
   - 网络同步说明
   - 最佳实践
-- [ ] 更新 `CLAUDE.md` 添加 SourceHandle 说明
-- [ ] 编写迁移指南（从旧 API 到新 API）
-- [ ] 添加 API 参考文档
+- [x] 更新 `CLAUDE.md` 添加 SourceHandle 说明
+- [x] 编写迁移指南（从旧 API 到新 API）
+- [x] 添加 API 参考文档
 
 **验证**：
 - ✅ 文档清晰，易于理解
@@ -425,14 +401,11 @@
 └─ Task 4.1 (添加索引) ────────────────┤
     └─ 依赖: Task 2.2, Task 2.3        │
                                        │
-阶段 5（测试和文档）                    │
-├─ Task 5.1 (单元测试) ────────────────┤
+阶段 5（验证和文档更新）                 │
+├─ Task 5.1 (编译验证) ────────────────┤
 │   └─ 依赖: 所有实现任务               │
 │                                      │
-├─ Task 5.2 (编译验证) ────────────────┤
-│   └─ 依赖: 所有实现任务               │
-│                                      │
-└─ Task 5.3 (更新文档) ────────────────┘
+└─ Task 5.2 (更新文档) ────────────────┘
     └─ 依赖: 所有实现任务
 ```
 
@@ -471,7 +444,7 @@
 3. **里程碑 3**：事件系统升级完成（阶段 3）
    - ✅ 事件提供完整的 SourceHandle 归因
 
-4. **里程碑 4**：测试和文档完成（阶段 5）
+4. **里程碑 4**：验证和文档更新完成（阶段 5）
    - ✅ 所有测试通过
    - ✅ 文档完善
 
@@ -509,6 +482,6 @@
 - **阶段 2**：属性系统集成 - 中等
 - **阶段 3**：事件系统升级 - 较小
 - **阶段 4**：性能优化 - 较小（可选）
-- **阶段 5**：测试和文档 - 中等
+- **阶段 5**：验证和文档更新 - 中等
 
 **总计**：中等规模的功能实现

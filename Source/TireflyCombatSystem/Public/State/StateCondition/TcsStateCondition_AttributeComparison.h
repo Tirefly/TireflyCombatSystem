@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "GameplayTagContainer.h"
 #include "State/StateCondition/TcsStateCondition.h"
 #include "TcsGenericEnum.h"
 #include "TcsStateCondition_AttributeComparison.generated.h"
@@ -16,9 +17,18 @@ struct FTcsStateConditionPayload_AttributeComparison
 	GENERATED_BODY()
 
 public:
-	// 要比较的属性名称
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Attribute Comparison")
+	// 要比较的属性名称（FName 版本，权威 ID）
+	// 如果 AttributeTag 有效，则优先使用 Tag 解析为 Name
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Attribute Comparison",
+		Meta = (GetOptions = "TcsGenericLibrary.GetAttributeNames"))
 	FName AttributeName = NAME_None;
+
+	// 要比较的属性标签（GameplayTag 版本，可选）
+	// 如果有效，则优先使用此字段解析为 AttributeName
+	// 推荐使用 Tag 以获得更好的层级语义和重构支持
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Attribute Comparison",
+		Meta = (Categories = "TCS.Attribute"))
+	FGameplayTag AttributeTag;
 
 	// 检查目标（Owner或Instigator）
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Attribute Comparison")
