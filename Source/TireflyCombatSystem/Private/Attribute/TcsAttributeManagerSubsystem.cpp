@@ -1226,6 +1226,19 @@ void UTcsAttributeManagerSubsystem::EnforceAttributeRangeConstraints(UTcsAttribu
 			Payload.NewValue = NewBase;
 			// SourceHandle: 空(因为是 enforcement 导致的变化,不是 modifier)
 			BaseChangePayloads.Add(Payload);
+
+			// 检测是否达到边界
+			float RangeMin = NewBase;
+			float RangeMax = NewBase;
+			ClampAttributeValueInRange(AttributeComponent, AttributeName, NewBase, &RangeMin, &RangeMax);
+			const bool bReachedMin = FMath::IsNearlyEqual(NewBase, RangeMin);
+			const bool bReachedMax = FMath::IsNearlyEqual(NewBase, RangeMax);
+			if (bReachedMin || bReachedMax)
+			{
+				const bool bIsMaxBoundary = bReachedMax;
+				const float BoundaryValue = bReachedMax ? RangeMax : RangeMin;
+				AttributeComponent->BroadcastAttributeReachedBoundaryEvent(AttributeName, bIsMaxBoundary, OldBase, NewBase, BoundaryValue);
+			}
 		}
 
 		// 提交 CurrentValue
@@ -1241,6 +1254,19 @@ void UTcsAttributeManagerSubsystem::EnforceAttributeRangeConstraints(UTcsAttribu
 			Payload.OldValue = OldCurrent;
 			Payload.NewValue = NewCurrent;
 			CurrentChangePayloads.Add(Payload);
+
+			// 检测是否达到边界
+			float RangeMin = NewCurrent;
+			float RangeMax = NewCurrent;
+			ClampAttributeValueInRange(AttributeComponent, AttributeName, NewCurrent, &RangeMin, &RangeMax);
+			const bool bReachedMin = FMath::IsNearlyEqual(NewCurrent, RangeMin);
+			const bool bReachedMax = FMath::IsNearlyEqual(NewCurrent, RangeMax);
+			if (bReachedMin || bReachedMax)
+			{
+				const bool bIsMaxBoundary = bReachedMax;
+				const float BoundaryValue = bReachedMax ? RangeMax : RangeMin;
+				AttributeComponent->BroadcastAttributeReachedBoundaryEvent(AttributeName, bIsMaxBoundary, OldCurrent, NewCurrent, BoundaryValue);
+			}
 		}
 	}
 

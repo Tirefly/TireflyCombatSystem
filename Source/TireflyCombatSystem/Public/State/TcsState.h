@@ -635,7 +635,7 @@ public:
 	UFUNCTION(BlueprintPure, Category = "State|StateTree")
 	bool IsStateTreePaused() const
 	{
-		return (Stage == ETcsStateStage::SS_HangUp || Stage == ETcsStateStage::SS_Pause) && !bStateTreeRunning;
+		return (Stage == ETcsStateStage::SS_HangUp || Stage == ETcsStateStage::SS_Pause);
 	}
 
 	// StateTree运行状态查询
