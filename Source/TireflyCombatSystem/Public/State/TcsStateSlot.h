@@ -100,8 +100,13 @@ public:
 		meta = (ToolTip = "是否在状态进入 Pause 阶段时强制冻结持续时间。关闭后，Pause 阶段会遵循 DurationTickPolicy。"))
 	bool bFreezeDurationWhenPaused = true;
 
+	// 同优先级排序策略
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Slot Configuration",
+		meta = (ToolTip = "在 PriorityOnly 模式下，多个状态具有相同优先级时的排序策略"))
+	TSubclassOf<class UTcsStateSamePriorityPolicy> SamePriorityPolicy;
+
 	// 构造函数
-	FTcsStateSlotDefinition() {}
+	FTcsStateSlotDefinition();
 
 	FTcsStateSlotDefinition(const FGameplayTag& InSlotTag, ETcsStateSlotActivationMode InActivationMode)
 		: SlotTag(InSlotTag)

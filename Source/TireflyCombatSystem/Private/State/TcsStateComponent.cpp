@@ -917,10 +917,10 @@ void UTcsStateComponent::SetSlotGateOpen(FGameplayTag SlotTag, bool bOpen)
 		// 广播槽位Gate状态变化事件
 		NotifySlotGateStateChanged(SlotTag, bOpen);
 
-		// 直接调用 Subsystem 更新槽位激活状态
+		// 请求更新槽位激活状态（使用延迟请求机制）
 		if (IsValid(StateMgr))
 		{
-			StateMgr->UpdateStateSlotActivation(this, SlotTag);
+			StateMgr->RequestUpdateStateSlotActivation(this, SlotTag);
 		}
 	}
 }

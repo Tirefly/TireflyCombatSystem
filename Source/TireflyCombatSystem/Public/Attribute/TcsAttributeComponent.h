@@ -110,15 +110,21 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "Attribute")
 	TArray<FTcsAttributeModifierInstance> AttributeModifiers;
 
-	// SourceHandle ID 到 Modifier 索引的映射 (性能优化)
-	// Key: SourceHandle.Id, Value: AttributeModifiers 数组中的索引列表
-	// 注: 不使用 UPROPERTY 的原因:
+	// SourceHandle ID 到 Modifier 实例 ID 的映射 (性能优化 - 稳定索引)
+	// Key: SourceHandle.Id, Value: ModifierInstId 列表
+	// 注: 使用稳定的 ModifierInstId 而非数组下标，避免删除操作导致的索引漂移问题
+	// 不使用 UPROPERTY 的原因:
 	//   1. 仅存储值类型 (int32)，不涉及 UObject 指针，无需 GC 追踪
 	//   2. 运行时优化数据，可从 AttributeModifiers 重建，无需序列化
 	//   3. 本地缓存，无需网络复制 (每个客户端独立维护)
 	//   4. 内部实现细节，无需暴露给蓝图或编辑器
 	//   5. 生命周期跟随组件，C++ 析构函数自动释放内存
-	TMap<int32, TArray<int32>> SourceHandleIdToModifierIndices;
+	TMap<int32, TArray<int32>> SourceHandleIdToModifierInstIds;
+
+	// Modifier 实例 ID 到当前数组下标的映射 (性能优化 - 快速定位)
+	// Key: ModifierInstId, Value: AttributeModifiers 数组中的当前索引
+	// 注: 此映射在每次数组变更时更新，提供 O(1) 的 ID->Index 查询
+	TMap<int32, int32> ModifierInstIdToIndex;
 
 	// 属性当前值改变事件
 	UPROPERTY(BlueprintAssignable, Category = "Attribute|Events")

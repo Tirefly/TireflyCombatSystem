@@ -182,6 +182,7 @@ void UTcsStateInstance::RefreshDurationRemaining()
 	if (!OwnerStateCmp.IsValid())
 	{
 		UE_LOG(LogTcsState, Error, TEXT("[%s] OwnerStateCmp is invalid"), *FString(__FUNCTION__));
+		return;
 	}
 	
 	// 通知StateComponent刷新剩余时间

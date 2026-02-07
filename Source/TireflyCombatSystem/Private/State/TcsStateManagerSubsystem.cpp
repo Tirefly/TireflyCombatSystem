@@ -12,6 +12,7 @@
 #include "State/TcsState.h"
 #include "State/TcsStateComponent.h"
 #include "State/StateMerger/TcsStateMerger.h"
+#include "State/SamePriorityPolicy/TcsStateSamePriorityPolicy.h"
 #include "TcsGameplayTags.h"
 
 
@@ -533,8 +534,8 @@ bool UTcsStateManagerSubsystem::TryAssignStateToStateSlot(UTcsStateInstance* Sta
 		OwnerStateCmp->NotifyStateStageChanged(StateInstance, PreviousStage, StateInstance->GetCurrentStage());
 	}
 
-    // 更新槽位中所有状态的激活流程
-    UpdateStateSlotActivation(OwnerStateCmp, StateDef.StateSlotType);
+    // 更新槽位中所有状态的激活流程（使用延迟请求机制）
+    RequestUpdateStateSlotActivation(OwnerStateCmp, StateDef.StateSlotType);
 
 	// 发送应用成功事件（AppliedStage 以更新后的阶段为准）
 	if (StateSlot->States.Contains(StateInstance) && StateInstance->GetCurrentStage() != ETcsStateStage::SS_Expired)
@@ -655,15 +656,87 @@ void UTcsStateManagerSubsystem::RefreshSlotsForStateChange(
 	}
 }
 
+void UTcsStateManagerSubsystem::RequestUpdateStateSlotActivation(
+	UTcsStateComponent* StateComponent,
+	FGameplayTag StateSlotTag)
+{
+	if (!IsValid(StateComponent) || !StateSlotTag.IsValid())
+	{
+		UE_LOG(LogTcsState, Warning, TEXT("[%s] Invalid StateComponent or StateSlotTag"),
+			*FString(__FUNCTION__));
+		return;
+	}
+
+	if (bIsUpdatingSlotActivation)
+	{
+		// 正在更新，延迟请求
+		PendingSlotActivationUpdates.FindOrAdd(StateComponent).Add(StateSlotTag);
+		UE_LOG(LogTcsState, Verbose, TEXT("[%s] Deferred slot activation update: Component=%s Slot=%s"),
+			*FString(__FUNCTION__),
+			*StateComponent->GetOwner()->GetName(),
+			*StateSlotTag.ToString());
+	}
+	else
+	{
+		// 不在更新，立即执行
+		UpdateStateSlotActivation(StateComponent, StateSlotTag);
+	}
+}
+
+void UTcsStateManagerSubsystem::DrainPendingSlotActivationUpdates()
+{
+	const int32 MaxIterations = 10;
+	int32 Iteration = 0;
+
+	while (!PendingSlotActivationUpdates.IsEmpty() && Iteration < MaxIterations)
+	{
+		// 拷贝队列（避免遍历时修改）
+		TMap<TWeakObjectPtr<UTcsStateComponent>, TSet<FGameplayTag>> ToProcess = PendingSlotActivationUpdates;
+		PendingSlotActivationUpdates.Empty();
+
+		for (const auto& Pair : ToProcess)
+		{
+			UTcsStateComponent* StateComponent = Pair.Key.Get();
+			const TSet<FGameplayTag>& SlotTags = Pair.Value;
+
+			if (IsValid(StateComponent))
+			{
+				for (const FGameplayTag& SlotTag : SlotTags)
+				{
+					UpdateStateSlotActivation(StateComponent, SlotTag);
+				}
+			}
+		}
+
+		Iteration++;
+	}
+
+	if (Iteration >= MaxIterations)
+	{
+		UE_LOG(LogTcsState, Warning,
+			TEXT("[%s] Max iterations (%d) reached, possible infinite loop. Remaining pending updates: %d"),
+			*FString(__FUNCTION__),
+			MaxIterations,
+			PendingSlotActivationUpdates.Num());
+		// 清空剩余请求，避免下次继续循环
+		PendingSlotActivationUpdates.Empty();
+	}
+}
+
 void UTcsStateManagerSubsystem::UpdateStateSlotActivation(
     UTcsStateComponent* StateComponent,
     FGameplayTag StateSlotTag)
 {
+    // 设置更新标志，防止递归调用
+    bIsUpdatingSlotActivation = true;
+
     // 1. 参数验证和数据准备
     if (!IsValid(StateComponent) || !StateSlotTag.IsValid())
     {
         UE_LOG(LogTcsState, Warning, TEXT("[%s] Invalid StateComponent or StateSlotTag"),
             *FString(__FUNCTION__));
+        bIsUpdatingSlotActivation = false;
+        DrainPendingSlotActivationUpdates();
         return;
     }
 
@@ -673,6 +746,8 @@ void UTcsStateManagerSubsystem::UpdateStateSlotActivation(
         UE_LOG(LogTcsState, Warning, TEXT("[%s] StateSlot %s not found"),
             *FString(__FUNCTION__),
             *StateSlotTag.ToString());
+        bIsUpdatingSlotActivation = false;
+        DrainPendingSlotActivationUpdates();
         return;
     }
 
@@ -685,16 +760,15 @@ void UTcsStateManagerSubsystem::UpdateStateSlotActivation(
     // 4. 执行合并
     ProcessStateSlotMerging(StateSlot);
 
-    // 5. 处理Gate关闭情况
-    ProcessStateSlotOnGateClosed(StateComponent, StateSlot, StateSlotTag);
-
-	// 5.1 强制Gate一致性（确保Gate关闭时槽内无Active状态）
+    // 5. 强制Gate一致性（确保Gate关闭时槽内无Active状态）
 	EnforceSlotGateConsistency(StateComponent, StateSlotTag);
 
 	// Gate关闭时，不允许激活任何状态（避免后续ActivationMode将状态误激活）
 	if (!StateSlot->bIsGateOpen)
 	{
 		CleanupInvalidStates(StateSlot);
+        bIsUpdatingSlotActivation = false;
+        DrainPendingSlotActivationUpdates();
 		return;
 	}
 
@@ -703,6 +777,10 @@ void UTcsStateManagerSubsystem::UpdateStateSlotActivation(
 
     // 7. 最终清理
     CleanupInvalidStates(StateSlot);
+
+    // 清除更新标志并排空待处理队列
+    bIsUpdatingSlotActivation = false;
+    DrainPendingSlotActivationUpdates();
 }
 
 void UTcsStateManagerSubsystem::SortStatesByPriority(TArray<UTcsStateInstance*>& States)
@@ -855,6 +933,21 @@ void UTcsStateManagerSubsystem::EnforceSlotGateConsistency(UTcsStateComponent* S
 			HangUpState(State);
 		}
 	}
+
+	// 开发模式下的不变量检查：Gate关闭后，槽内不应存在Active状态
+	#if !UE_BUILD_SHIPPING
+	for (const UTcsStateInstance* State : StateSlot->States)
+	{
+		if (IsValid(State) && !State->HasPendingRemovalRequest())
+		{
+			checkf(State->GetCurrentStage() != ETcsStateStage::SS_Active,
+				TEXT("[EnforceSlotGateConsistency] Invariant violation: Active state found in closed gate slot. Slot=%s State=%s Stage=%s"),
+				*StateSlotTag.ToString(),
+				*State->GetStateDefId().ToString(),
+				*StaticEnum<ETcsStateStage>()->GetNameStringByValue(static_cast<int64>(State->GetCurrentStage())));
+		}
+	}
+	#endif
 }
 
 void UTcsStateManagerSubsystem::MergeStateGroup(
@@ -961,70 +1054,13 @@ void UTcsStateManagerSubsystem::RemoveUnmergedStates(
 			}
 		}
 
-		FinalizeStateRemoval(State, FName("MergedOut"));
+		// 使用 RequestStateRemoval 统一移除路径，确保 StateTree 退场逻辑有机会执行
+		FTcsStateRemovalRequest Request;
+		Request.Reason = ETcsStateRemovalRequestReason::Custom;
+		Request.CustomReason = FName("MergedOut");
+		RequestStateRemoval(State, Request);
 		// TODO(TCS): Merge-removed instances should be returned to pool when TireflyObjectPool refactor is complete.
-		RemoveStateFromSlot(StateSlot, State, /*bDeactivateIfNeeded*/ false);
     }
-}
-
-void UTcsStateManagerSubsystem::ProcessStateSlotOnGateClosed(
-    const UTcsStateComponent* StateComponent,
-    FTcsStateSlot* StateSlot,
-    FGameplayTag SlotTag)
-{
-    if (!IsValid(StateComponent) || !StateSlot)
-    {
-        return;
-    }
-
-    // 如果Gate开启，不需要处理关闭策略
-    if (StateSlot->bIsGateOpen)
-    {
-        return;
-    }
-
-    const FTcsStateSlotDefinition* SlotDef = StateSlotDefs.Find(SlotTag);
-    if (!SlotDef)
-    {
-        UE_LOG(LogTcsState, Warning, TEXT("[%s] StateSlotDef %s not found"),
-            *FString(__FUNCTION__),
-            *SlotTag.ToString());
-        return;
-    }
-
-	TArray<UTcsStateInstance*> StatesToCancel;
-
-    // 根据Gate关闭策略处理激活状态
-    for (UTcsStateInstance* State : StateSlot->States)
-    {
-        if (!IsValid(State) || State->HasPendingRemovalRequest() || State->GetCurrentStage() != ETcsStateStage::SS_Active)
-        {
-            continue;
-        }
-
-        switch (SlotDef->GateCloseBehavior)
-        {
-        case ETcsStateSlotGateClosePolicy::SSGCP_HangUp:
-            HangUpState(State);
-            break;
-        case ETcsStateSlotGateClosePolicy::SSGCP_Pause:
-            PauseState(State);
-            break;
-        case ETcsStateSlotGateClosePolicy::SSGCP_Cancel:
-			StatesToCancel.Add(State);
-            break;
-        }
-    }
-
-	// Gate关闭策略为Cancel：统一在循环后执行，避免遍历时修改容器
-	for (UTcsStateInstance* State : StatesToCancel)
-	{
-		if (!IsValid(State))
-		{
-			continue;
-		}
-		CancelState(State);
-	}
 }
 
 void UTcsStateManagerSubsystem::ProcessStateSlotByActivationMode(
@@ -1050,7 +1086,7 @@ void UTcsStateManagerSubsystem::ProcessStateSlotByActivationMode(
     {
     case ETcsStateSlotActivationMode::SSAM_PriorityOnly:
         {
-            ProcessPriorityOnlyMode(StateSlot, SlotDef->PreemptionPolicy);
+            ProcessPriorityOnlyMode(StateSlot, *SlotDef);
             break;
         }
     case ETcsStateSlotActivationMode::SSAM_AllActive:
@@ -1063,23 +1099,59 @@ void UTcsStateManagerSubsystem::ProcessStateSlotByActivationMode(
 
 void UTcsStateManagerSubsystem::ProcessPriorityOnlyMode(
     FTcsStateSlot* StateSlot,
-    ETcsStatePreemptionPolicy PreemptionPolicy)
+    const FTcsStateSlotDefinition& SlotDef)
 {
     if (!StateSlot || StateSlot->States.Num() == 0)
     {
         return;
     }
 
-    // 最高优先级状态（已排序，所以是第一个）
-    UTcsStateInstance* HighestPriorityState = nullptr;
+    // 找到最高优先级
+    int32 HighestPriority = TNumericLimits<int32>::Lowest();
     for (UTcsStateInstance* Candidate : StateSlot->States)
     {
         if (IsValid(Candidate) && !Candidate->HasPendingRemovalRequest())
         {
-            HighestPriorityState = Candidate;
-            break;
+            HighestPriority = FMath::Max(HighestPriority, Candidate->GetStateDef().Priority);
         }
     }
+
+    // 收集所有最高优先级的状态
+    TArray<UTcsStateInstance*> HighestPriorityStates;
+    for (UTcsStateInstance* Candidate : StateSlot->States)
+    {
+        if (IsValid(Candidate) && !Candidate->HasPendingRemovalRequest()
+            && Candidate->GetStateDef().Priority == HighestPriority)
+        {
+            HighestPriorityStates.Add(Candidate);
+        }
+    }
+
+    if (HighestPriorityStates.Num() == 0)
+    {
+        return;
+    }
+
+    // 如果有多个同优先级状态，应用策略排序
+    UTcsStateInstance* HighestPriorityState = nullptr;
+    if (HighestPriorityStates.Num() > 1 && SlotDef.SamePriorityPolicy)
+    {
+        const UTcsStateSamePriorityPolicy* Policy = SlotDef.SamePriorityPolicy->GetDefaultObject<UTcsStateSamePriorityPolicy>();
+        if (IsValid(Policy))
+        {
+            // 按策略排序（降序，越大越靠前）
+            HighestPriorityStates.Sort([Policy](const UTcsStateInstance& A, const UTcsStateInstance& B)
+            {
+                int64 KeyA = Policy->GetOrderKey(&A);
+                int64 KeyB = Policy->GetOrderKey(&B);
+                return KeyA > KeyB;
+            });
+        }
+    }
+
+    // 选择第一个作为激活状态
+    HighestPriorityState = HighestPriorityStates[0];
+
     if (!IsValid(HighestPriorityState))
     {
         return;
@@ -1094,7 +1166,7 @@ void UTcsStateManagerSubsystem::ProcessPriorityOnlyMode(
 	TArray<UTcsStateInstance*> StatesToCancel;
 
     // 按照低优先级抢占策略，处理其他低优先级状态
-    for (int32 i = 1; i < StateSlot->States.Num(); ++i)
+    for (int32 i = 0; i < StateSlot->States.Num(); ++i)
     {
         UTcsStateInstance* State = StateSlot->States[i];
         if (!IsValid(State))
@@ -1110,13 +1182,13 @@ void UTcsStateManagerSubsystem::ProcessPriorityOnlyMode(
 			continue;
 		}
 
-		if (PreemptionPolicy == ETcsStatePreemptionPolicy::SPP_CancelLowerPriority)
+		if (SlotDef.PreemptionPolicy == ETcsStatePreemptionPolicy::SPP_CancelLowerPriority)
 		{
 			StatesToCancel.Add(State);
 			continue;
 		}
 
-		ApplyPreemptionPolicyToState(State, PreemptionPolicy);
+		ApplyPreemptionPolicyToState(State, SlotDef.PreemptionPolicy);
     }
 
 	// 统一处理Cancel策略，避免遍历时修改容器
@@ -1866,7 +1938,7 @@ void UTcsStateManagerSubsystem::FinalizeStateRemoval(UTcsStateInstance* StateIns
 			if (FTcsStateSlot* Slot = StateComponent->StateSlotsX.Find(SlotTag))
 			{
 				RemoveStateFromSlot(Slot, StateInstance, /*bDeactivateIfNeeded*/ false);
-				UpdateStateSlotActivation(StateComponent, SlotTag);
+				RequestUpdateStateSlotActivation(StateComponent, SlotTag);
 			}
 		}
 	}

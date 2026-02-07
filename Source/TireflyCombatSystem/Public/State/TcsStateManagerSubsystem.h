@@ -125,8 +125,13 @@ public:
 	// 尝试分配状态到状态槽位
 	bool TryAssignStateToStateSlot(UTcsStateInstance* StateInstance);
 
-	// 更新状态槽激活状态（主函数）
-	void UpdateStateSlotActivation(UTcsStateComponent* StateComponent, FGameplayTag StateSlotTag);
+	/**
+	 * 请求更新状态槽激活状态（公开接口，支持延迟请求）
+	 *
+	 * @param StateComponent 状态组件
+	 * @param StateSlotTag 状态槽标签
+	 */
+	void RequestUpdateStateSlotActivation(UTcsStateComponent* StateComponent, FGameplayTag StateSlotTag);
 
 	// Gate一致性：当槽位Gate关闭时，强制确保槽内无Active状态，并按策略收敛阶段
 	void EnforceSlotGateConsistency(UTcsStateComponent* StateComponent, FGameplayTag StateSlotTag);
@@ -144,6 +149,18 @@ public:
 		const TArray<FName>& OldStates);
 
 protected:
+	// 更新状态槽激活状态（内部实现）
+	void UpdateStateSlotActivation(UTcsStateComponent* StateComponent, FGameplayTag StateSlotTag);
+
+	// 排空待处理的槽位激活更新请求
+	void DrainPendingSlotActivationUpdates();
+
+	// 标志：是否正在更新槽位激活
+	bool bIsUpdatingSlotActivation = false;
+
+	// 待处理的槽位激活更新请求（状态组件 -> 槽位标签集合）
+	// 修复：使用 Component 作为 Key，避免不同 Actor 共享相同 SlotTag 时互相覆盖
+	TMap<TWeakObjectPtr<UTcsStateComponent>, TSet<FGameplayTag>> PendingSlotActivationUpdates;
 	// 清除状态槽位中过期的状态
 	static void ClearStateSlotExpiredStates(UTcsStateComponent* StateComponent, FTcsStateSlot* StateSlot);
 
@@ -161,13 +178,10 @@ protected:
 		const TArray<UTcsStateInstance*>& MergedStates,
 		const TMap<FName, UTcsStateInstance*>& MergePrimaryByDefId);
 
-	// 状态槽位阀门关闭的处理
-	void ProcessStateSlotOnGateClosed(const UTcsStateComponent* StateComponent, FTcsStateSlot* StateSlot, FGameplayTag SlotTag);
-
 	// 按激活模式处理状态槽内的状态
 	void ProcessStateSlotByActivationMode(const UTcsStateComponent* StateComponent, FTcsStateSlot* StateSlot, FGameplayTag SlotTag);
 	// 按激活模式处理状态槽内的状态：优先级模式
-	void ProcessPriorityOnlyMode(FTcsStateSlot* StateSlot, ETcsStatePreemptionPolicy PreemptionPolicy);
+	void ProcessPriorityOnlyMode(FTcsStateSlot* StateSlot, const FTcsStateSlotDefinition& SlotDef);
 	// 按激活模式处理状态槽内的状态：全激活模式
 	void ProcessAllActiveMode(FTcsStateSlot* StateSlot);
 	// 按照低优先级抢占策略，处理状态实例

@@ -95,12 +95,22 @@ void UTcsAttributeManagerSubsystem::AddAttribute(
 			*FString(__FUNCTION__));
 		return;
 	}
-	
+
 	UTcsAttributeComponent* AttributeComponent = GetAttributeComponent(CombatEntity);
 	if (!IsValid(AttributeComponent))
 	{
 		UE_LOG(LogTcsAttribute, Warning, TEXT("[%s] CombatEntity does not have an AttributeComponent"),
 			*FString(__FUNCTION__));
+		return;
+	}
+
+	// 防止覆盖已存在的属性
+	if (AttributeComponent->Attributes.Contains(AttributeName))
+	{
+		UE_LOG(LogTcsAttribute, Warning, TEXT("[%s] Attribute '%s' already exists on CombatEntity '%s', skipping add"),
+			*FString(__FUNCTION__),
+			*AttributeName.ToString(),
+			*CombatEntity->GetName());
 		return;
 	}
 
@@ -136,7 +146,7 @@ void UTcsAttributeManagerSubsystem::AddAttributes(AActor* CombatEntity, const TA
 			*FString(__FUNCTION__));
 		return;
 	}
-	
+
 	UTcsAttributeComponent* AttributeComponent = GetAttributeComponent(CombatEntity);
 	if (!IsValid(AttributeComponent))
 	{
@@ -147,6 +157,16 @@ void UTcsAttributeManagerSubsystem::AddAttributes(AActor* CombatEntity, const TA
 
 	for (const FName AttributeName : AttributeNames)
 	{
+		// 防止覆盖已存在的属性
+		if (AttributeComponent->Attributes.Contains(AttributeName))
+		{
+			UE_LOG(LogTcsAttribute, Warning, TEXT("[%s] Attribute '%s' already exists on CombatEntity '%s', skipping add"),
+				*FString(__FUNCTION__),
+				*AttributeName.ToString(),
+				*CombatEntity->GetName());
+			continue;
+		}
+
 		const auto AttrDef = AttributeDefTable->FindRow<FTcsAttributeDefinition>(AttributeName, FString(__FUNCTION__));
 		if (!AttrDef)
 		{
@@ -184,8 +204,22 @@ bool UTcsAttributeManagerSubsystem::AddAttributeByTag(
 		return false;
 	}
 
+	// 检查属性是否已存在
+	UTcsAttributeComponent* AttributeComponent = GetAttributeComponent(CombatEntity);
+	if (IsValid(AttributeComponent) && AttributeComponent->Attributes.Contains(AttributeName))
+	{
+		UE_LOG(LogTcsAttribute, Warning,
+			TEXT("[%s] Attribute '%s' already exists on CombatEntity '%s', skipping add"),
+			*FString(__FUNCTION__),
+			*AttributeName.ToString(),
+			*CombatEntity->GetName());
+		return false;
+	}
+
 	AddAttribute(CombatEntity, AttributeName, InitValue);
-	return true;
+
+	// 验证是否真的添加成功
+	return IsValid(AttributeComponent) && AttributeComponent->Attributes.Contains(AttributeName);
 }
 bool UTcsAttributeManagerSubsystem::TryResolveAttributeNameByTag(
 	const FGameplayTag& AttributeTag,
@@ -259,16 +293,49 @@ bool UTcsAttributeManagerSubsystem::CreateAttributeModifier(
 	AActor* Target,
 	FTcsAttributeModifierInstance& OutModifierInst)
 {
+	// 严格输入校验
+	if (SourceName == NAME_None)
+	{
+		UE_LOG(LogTcsAttribute, Error, TEXT("[%s] SourceName cannot be NAME_None"),
+			*FString(__FUNCTION__));
+		return false;
+	}
+
+	if (!IsValid(Instigator))
+	{
+		UE_LOG(LogTcsAttribute, Error, TEXT("[%s] Instigator is not valid"),
+			*FString(__FUNCTION__));
+		return false;
+	}
+
+	if (!IsValid(Target))
+	{
+		UE_LOG(LogTcsAttribute, Error, TEXT("[%s] Target is not valid"),
+			*FString(__FUNCTION__));
+		return false;
+	}
+
+	// 验证 Instigator 和 Target 实现 ITcsEntityInterface
+	if (!Instigator->Implements<UTcsEntityInterface>())
+	{
+		UE_LOG(LogTcsAttribute, Error, TEXT("[%s] Instigator '%s' does not implement ITcsEntityInterface"),
+			*FString(__FUNCTION__),
+			*Instigator->GetName());
+		return false;
+	}
+
+	if (!Target->Implements<UTcsEntityInterface>())
+	{
+		UE_LOG(LogTcsAttribute, Error, TEXT("[%s] Target '%s' does not implement ITcsEntityInterface"),
+			*FString(__FUNCTION__),
+			*Target->GetName());
+		return false;
+	}
+
 	if (!IsValid(AttributeModifierDefTable))
 	{
 		UE_LOG(LogTcsAttribute, Error, TEXT("[%s] AttributeModifierDefTable in TcsDevSettings is not valid"),
 			*FString(__FUNCTION__));
-		return false;
-	}
-	
-	if (!IsValid(Instigator) || !IsValid(Target))
-	{
-		UE_LOG(LogTcsAttribute, Error, TEXT("[%s] Instigator or Target is not valid"), *FString(__FUNCTION__));
 		return false;
 	}
 
@@ -280,8 +347,6 @@ bool UTcsAttributeManagerSubsystem::CreateAttributeModifier(
 			*ModifierId.ToString());
 		return false;
 	}
-
-	// TODO: 验证Source是否有效
 
 	OutModifierInst = FTcsAttributeModifierInstance();
 	OutModifierInst.ModifierDef = *ModifierDef;
@@ -310,13 +375,45 @@ bool UTcsAttributeManagerSubsystem::CreateAttributeModifierWithOperands(
 	const TMap<FName, float>& Operands,
 	FTcsAttributeModifierInstance& OutModifierInst)
 {
-	if (!IsValid(Instigator) || !IsValid(Target))
+	// 严格输入校验
+	if (SourceName == NAME_None)
 	{
-		UE_LOG(LogTcsAttribute, Error, TEXT("[%s] Instigator or Target is not valid"),
+		UE_LOG(LogTcsAttribute, Error, TEXT("[%s] SourceName cannot be NAME_None"),
 			*FString(__FUNCTION__));
 		return false;
 	}
-	
+
+	if (!IsValid(Instigator))
+	{
+		UE_LOG(LogTcsAttribute, Error, TEXT("[%s] Instigator is not valid"),
+			*FString(__FUNCTION__));
+		return false;
+	}
+
+	if (!IsValid(Target))
+	{
+		UE_LOG(LogTcsAttribute, Error, TEXT("[%s] Target is not valid"),
+			*FString(__FUNCTION__));
+		return false;
+	}
+
+	// 验证 Instigator 和 Target 实现 ITcsEntityInterface
+	if (!Instigator->Implements<UTcsEntityInterface>())
+	{
+		UE_LOG(LogTcsAttribute, Error, TEXT("[%s] Instigator '%s' does not implement ITcsEntityInterface"),
+			*FString(__FUNCTION__),
+			*Instigator->GetName());
+		return false;
+	}
+
+	if (!Target->Implements<UTcsEntityInterface>())
+	{
+		UE_LOG(LogTcsAttribute, Error, TEXT("[%s] Target '%s' does not implement ITcsEntityInterface"),
+			*FString(__FUNCTION__),
+			*Target->GetName());
+		return false;
+	}
+
 	if (!IsValid(AttributeModifierDefTable))
 	{
 		UE_LOG(LogTcsAttribute, Error, TEXT("[%s] AttributeModifierDefTable in TcsDevSettings is not valid"),
@@ -333,8 +430,6 @@ bool UTcsAttributeManagerSubsystem::CreateAttributeModifierWithOperands(
 		return false;
 	}
 
-	// TODO: 验证Source是否有效
-	
 	// 验证Operands是否正确
 	if (ModifierDef->Operands.IsEmpty())
 	{
@@ -442,67 +537,45 @@ void UTcsAttributeManagerSubsystem::ApplyModifier(
 				{
 					const int32 SourceId = Incoming.SourceHandle.Id;
 
-					auto TryUpdateAtIndex = [&](int32 Index) -> bool
+					// 使用稳定 ID 缓存查找现有修改器
+					if (const TArray<int32>* InstIdsPtr = AttributeComponent->SourceHandleIdToModifierInstIds.Find(SourceId))
 					{
-						if (!AttributeComponent->AttributeModifiers.IsValidIndex(Index))
+						for (int32 ModifierInstId : *InstIdsPtr)
 						{
-							return false;
-						}
-
-						FTcsAttributeModifierInstance& Stored = AttributeComponent->AttributeModifiers[Index];
-						if (Stored.ModifierDef.ModifierName != Incoming.ModifierDef.ModifierName)
-						{
-							return false;
-						}
-
-						// Keep ModifierInstId and ApplyTimestamp stable; treat this as a refresh/update.
-						Stored.Operands = Incoming.Operands;
-						Stored.Instigator = Incoming.Instigator;
-						Stored.Target = Incoming.Target;
-						Stored.SourceHandle = Incoming.SourceHandle;
-						Stored.SourceName = Incoming.SourceName;
-						Stored.UpdateTimestamp = UtcNowTicks;
-						Stored.LastTouchedBatchId = BatchId;
-
-						// Ensure cache contains this index (defensive against drift).
-						TArray<int32>& Indices = AttributeComponent->SourceHandleIdToModifierIndices.FindOrAdd(SourceId);
-						if (!Indices.Contains(Index))
-						{
-							Indices.Add(Index);
-						}
-
-						UpdatedExistingModifiers.Add(Stored);
-						return true;
-					};
-
-					if (const TArray<int32>* IndicesPtr = AttributeComponent->SourceHandleIdToModifierIndices.Find(SourceId))
-					{
-						for (int32 Index : *IndicesPtr)
-						{
-							if (TryUpdateAtIndex(Index))
+							// 通过 ModifierInstId 查找当前数组下标
+							const int32* IndexPtr = AttributeComponent->ModifierInstIdToIndex.Find(ModifierInstId);
+							if (!IndexPtr || !AttributeComponent->AttributeModifiers.IsValidIndex(*IndexPtr))
 							{
-								bUpdated = true;
-								break;
+								// 索引失效，跳过（稍后自愈）
+								continue;
 							}
-						}
-					}
 
-					// Fallback: cache miss (or drift) - scan all modifiers.
-					if (!bUpdated)
-					{
-						for (int32 Index = 0; Index < AttributeComponent->AttributeModifiers.Num(); ++Index)
-						{
-							const FTcsAttributeModifierInstance& Candidate = AttributeComponent->AttributeModifiers[Index];
-							if (!Candidate.SourceHandle.IsValid() || Candidate.SourceHandle.Id != SourceId)
+							int32 Index = *IndexPtr;
+							FTcsAttributeModifierInstance& Stored = AttributeComponent->AttributeModifiers[Index];
+
+							// 验证 ModifierInstId 匹配（防御性检查）
+							if (Stored.ModifierInstId != ModifierInstId)
 							{
 								continue;
 							}
 
-							if (TryUpdateAtIndex(Index))
+							if (Stored.ModifierDef.ModifierName != Incoming.ModifierDef.ModifierName)
 							{
-								bUpdated = true;
-								break;
+								continue;
 							}
+
+							// Keep ModifierInstId and ApplyTimestamp stable; treat this as a refresh/update.
+							Stored.Operands = Incoming.Operands;
+							Stored.Instigator = Incoming.Instigator;
+							Stored.Target = Incoming.Target;
+							Stored.SourceHandle = Incoming.SourceHandle;
+							Stored.SourceName = Incoming.SourceName;
+							Stored.UpdateTimestamp = UtcNowTicks;
+							Stored.LastTouchedBatchId = BatchId;
+
+							UpdatedExistingModifiers.Add(Stored);
+							bUpdated = true;
+							break;
 						}
 					}
 				}
@@ -526,11 +599,13 @@ void UTcsAttributeManagerSubsystem::ApplyModifier(
 			ModifierToStore.LastTouchedBatchId = BatchId;
 			int32 NewIndex = AttributeComponent->AttributeModifiers.Add(ModifierToStore);
 
-			// 更新 SourceHandle 索引
+			// 更新两个缓存: ModifierInstId -> Index 和 SourceId -> ModifierInstIds
+			AttributeComponent->ModifierInstIdToIndex.Add(ModifierToStore.ModifierInstId, NewIndex);
+
 			if (ModifierToStore.SourceHandle.IsValid())
 			{
-				TArray<int32>& Indices = AttributeComponent->SourceHandleIdToModifierIndices.FindOrAdd(ModifierToStore.SourceHandle.Id);
-				Indices.Add(NewIndex);
+				TArray<int32>& InstIds = AttributeComponent->SourceHandleIdToModifierInstIds.FindOrAdd(ModifierToStore.SourceHandle.Id);
+				InstIds.AddUnique(ModifierToStore.ModifierInstId);
 			}
 		}
 
@@ -564,42 +639,61 @@ void UTcsAttributeManagerSubsystem::RemoveModifier(
 	bool bModified = false;
 	for (const FTcsAttributeModifierInstance& Modifier : Modifiers)
 	{
-		// 查找并移除修改器
-		int32 RemovedIndex = AttributeComponent->AttributeModifiers.IndexOfByKey(Modifier);
-		if (RemovedIndex != INDEX_NONE)
+		// 使用 ModifierInstId 定位元素
+		const int32* IndexPtr = AttributeComponent->ModifierInstIdToIndex.Find(Modifier.ModifierInstId);
+		if (!IndexPtr || !AttributeComponent->AttributeModifiers.IsValidIndex(*IndexPtr))
 		{
-			// 从索引中移除
-			if (Modifier.SourceHandle.IsValid())
-			{
-				TArray<int32>* IndicesPtr = AttributeComponent->SourceHandleIdToModifierIndices.Find(Modifier.SourceHandle.Id);
-				if (IndicesPtr)
-				{
-					IndicesPtr->Remove(RemovedIndex);
-					if (IndicesPtr->Num() == 0)
-					{
-						AttributeComponent->SourceHandleIdToModifierIndices.Remove(Modifier.SourceHandle.Id);
-					}
-				}
-			}
-
-			// 移除修改器
-			AttributeComponent->AttributeModifiers.RemoveAt(RemovedIndex);
-
-			// 更新后续索引 (因为数组元素前移)
-			for (auto& Pair : AttributeComponent->SourceHandleIdToModifierIndices)
-			{
-				for (int32& Index : Pair.Value)
-				{
-					if (Index > RemovedIndex)
-					{
-						Index--;
-					}
-				}
-			}
-
-			AttributeComponent->BroadcastAttributeModifierRemovedEvent(Modifier);
-			bModified = true;
+			// 修改器不存在或索引失效
+			continue;
 		}
+
+		int32 RemovedIndex = *IndexPtr;
+		const FTcsAttributeModifierInstance& RemovedModifierRef = AttributeComponent->AttributeModifiers[RemovedIndex];
+
+		// 验证 ModifierInstId 匹配（防御性检查）
+		if (RemovedModifierRef.ModifierInstId != Modifier.ModifierInstId)
+		{
+			UE_LOG(LogTcsAttribute, Warning,
+				TEXT("[%s] ModifierInstId mismatch at index %d: expected %d, found %d"),
+				*FString(__FUNCTION__),
+				RemovedIndex,
+				Modifier.ModifierInstId,
+				RemovedModifierRef.ModifierInstId);
+			continue;
+		}
+
+		// 在 RemoveAtSwap 之前拷贝数据，避免引用失效
+		const FTcsAttributeModifierInstance RemovedModifier = RemovedModifierRef;
+
+		// 从两个缓存中移除
+		AttributeComponent->ModifierInstIdToIndex.Remove(RemovedModifier.ModifierInstId);
+
+		if (RemovedModifier.SourceHandle.IsValid())
+		{
+			TArray<int32>* InstIdsPtr = AttributeComponent->SourceHandleIdToModifierInstIds.Find(RemovedModifier.SourceHandle.Id);
+			if (InstIdsPtr)
+			{
+				InstIdsPtr->Remove(RemovedModifier.ModifierInstId);
+				if (InstIdsPtr->Num() == 0)
+				{
+					AttributeComponent->SourceHandleIdToModifierInstIds.Remove(RemovedModifier.SourceHandle.Id);
+				}
+			}
+		}
+
+		// 使用 RemoveAtSwap 删除元素（O(1) 操作）
+		const int32 LastIndex = AttributeComponent->AttributeModifiers.Num() - 1;
+		if (RemovedIndex != LastIndex)
+		{
+			// 有元素被 swap 过来，更新其索引
+			const FTcsAttributeModifierInstance& SwappedModifier = AttributeComponent->AttributeModifiers[LastIndex];
+			AttributeComponent->ModifierInstIdToIndex[SwappedModifier.ModifierInstId] = RemovedIndex;
+		}
+
+		AttributeComponent->AttributeModifiers.RemoveAtSwap(RemovedIndex);
+
+		AttributeComponent->BroadcastAttributeModifierRemovedEvent(RemovedModifier);
+		bModified = true;
 	}
 
 	// 如果确实有属性修改器被移除，则更新属性的当前值
@@ -624,58 +718,69 @@ void UTcsAttributeManagerSubsystem::HandleModifierUpdated(
 	const int64 UtcNowTicks = FDateTime::UtcNow().GetTicks();
 	for (FTcsAttributeModifierInstance& Modifier : Modifiers)
 	{
-		if (AttributeComponent->AttributeModifiers.Contains(Modifier))
+		// 使用 ModifierInstId 定位元素
+		const int32* IndexPtr = AttributeComponent->ModifierInstIdToIndex.Find(Modifier.ModifierInstId);
+		if (!IndexPtr || !AttributeComponent->AttributeModifiers.IsValidIndex(*IndexPtr))
 		{
-			const int32 ModifierIndex = AttributeComponent->AttributeModifiers.Find(Modifier);
-			const FTcsAttributeModifierInstance OldStored = AttributeComponent->AttributeModifiers[ModifierIndex];
-
-			Modifier.UpdateTimestamp = UtcNowTicks;
-			Modifier.LastTouchedBatchId = BatchId;
-
-			AttributeComponent->AttributeModifiers[ModifierIndex] = Modifier;
-
-			// Keep SourceHandle->indices cache consistent (even if caller updated SourceHandle).
-			const int32 OldSourceId = OldStored.SourceHandle.IsValid() ? OldStored.SourceHandle.Id : -1;
-			const int32 NewSourceId = Modifier.SourceHandle.IsValid() ? Modifier.SourceHandle.Id : -1;
-			if (OldSourceId != NewSourceId)
-			{
-				// Remove from old bucket.
-				if (OldSourceId >= 0)
-				{
-					if (TArray<int32>* IndicesPtr = AttributeComponent->SourceHandleIdToModifierIndices.Find(OldSourceId))
-					{
-						IndicesPtr->Remove(ModifierIndex);
-						if (IndicesPtr->IsEmpty())
-						{
-							AttributeComponent->SourceHandleIdToModifierIndices.Remove(OldSourceId);
-						}
-					}
-				}
-
-				// Add to new bucket.
-				if (NewSourceId >= 0)
-				{
-					TArray<int32>& Indices = AttributeComponent->SourceHandleIdToModifierIndices.FindOrAdd(NewSourceId);
-					if (!Indices.Contains(ModifierIndex))
-					{
-						Indices.Add(ModifierIndex);
-					}
-				}
-			}
-			else if (NewSourceId >= 0)
-			{
-				// SourceHandle unchanged: ensure index exists (defensive against cache drift).
-				TArray<int32>& Indices = AttributeComponent->SourceHandleIdToModifierIndices.FindOrAdd(NewSourceId);
-				if (!Indices.Contains(ModifierIndex))
-				{
-					Indices.Add(ModifierIndex);
-				}
-			}
-
-			AttributeComponent->BroadcastAttributeModifierUpdatedEvent(Modifier);
-			
-			bModified = true;
+			// 修改器不存在或索引失效
+			continue;
 		}
+
+		const int32 ModifierIndex = *IndexPtr;
+		const FTcsAttributeModifierInstance OldStored = AttributeComponent->AttributeModifiers[ModifierIndex];
+
+		// 验证 ModifierInstId 匹配（防御性检查）
+		if (OldStored.ModifierInstId != Modifier.ModifierInstId)
+		{
+			UE_LOG(LogTcsAttribute, Warning,
+				TEXT("[%s] ModifierInstId mismatch at index %d: expected %d, found %d"),
+				*FString(__FUNCTION__),
+				ModifierIndex,
+				Modifier.ModifierInstId,
+				OldStored.ModifierInstId);
+			continue;
+		}
+
+		Modifier.UpdateTimestamp = UtcNowTicks;
+		Modifier.LastTouchedBatchId = BatchId;
+
+		AttributeComponent->AttributeModifiers[ModifierIndex] = Modifier;
+
+		// 更新 SourceHandle 缓存（如果 SourceHandle 发生变化）
+		const int32 OldSourceId = OldStored.SourceHandle.IsValid() ? OldStored.SourceHandle.Id : -1;
+		const int32 NewSourceId = Modifier.SourceHandle.IsValid() ? Modifier.SourceHandle.Id : -1;
+		if (OldSourceId != NewSourceId)
+		{
+			// 从旧桶中移除
+			if (OldSourceId >= 0)
+			{
+				if (TArray<int32>* InstIdsPtr = AttributeComponent->SourceHandleIdToModifierInstIds.Find(OldSourceId))
+				{
+					InstIdsPtr->Remove(Modifier.ModifierInstId);
+					if (InstIdsPtr->IsEmpty())
+					{
+						AttributeComponent->SourceHandleIdToModifierInstIds.Remove(OldSourceId);
+					}
+				}
+			}
+
+			// 添加到新桶
+			if (NewSourceId >= 0)
+			{
+				TArray<int32>& InstIds = AttributeComponent->SourceHandleIdToModifierInstIds.FindOrAdd(NewSourceId);
+				InstIds.AddUnique(Modifier.ModifierInstId);
+			}
+		}
+		else if (NewSourceId >= 0)
+		{
+			// SourceHandle 未变化：确保 InstId 存在（防御性）
+			TArray<int32>& InstIds = AttributeComponent->SourceHandleIdToModifierInstIds.FindOrAdd(NewSourceId);
+			InstIds.AddUnique(Modifier.ModifierInstId);
+		}
+
+		AttributeComponent->BroadcastAttributeModifierUpdatedEvent(Modifier);
+
+		bModified = true;
 	}
 
 	if (bModified)
@@ -781,6 +886,9 @@ void UTcsAttributeManagerSubsystem::RecalculateAttributeBaseValues(
 		ChangeEventPayloads.GenerateValueArray(Payloads);
 		AttributeComponent->BroadcastAttributeBaseValueChangeEvent(Payloads);
 	}
+
+	// 执行范围约束传播
+	EnforceAttributeRangeConstraints(AttributeComponent);
 }
 
 void UTcsAttributeManagerSubsystem::RecalculateAttributeCurrentValues(const AActor* CombatEntity, int64 ChangeBatchId)
@@ -883,6 +991,9 @@ void UTcsAttributeManagerSubsystem::RecalculateAttributeCurrentValues(const AAct
 		ChangeEventPayloads.GenerateValueArray(Payloads);
 		AttributeComponent->BroadcastAttributeValueChangeEvent(Payloads);
 	}
+
+	// 执行范围约束传播
+	EnforceAttributeRangeConstraints(AttributeComponent);
 }
 
 void UTcsAttributeManagerSubsystem::MergeAttributeModifiers(
@@ -922,7 +1033,8 @@ void UTcsAttributeManagerSubsystem::ClampAttributeValueInRange(
 	const FName& AttributeName,
 	float& NewValue,
 	float* OutMinValue,
-	float* OutMaxValue)
+	float* OutMaxValue,
+	const FAttributeValueResolver* Resolver)
 {
 	if (!IsValid(AttributeComponent))
 	{
@@ -951,10 +1063,13 @@ void UTcsAttributeManagerSubsystem::ClampAttributeValueInRange(
 		}
 	case ETcsAttributeRangeType::ART_Dynamic:
 		{
-			// DESIGN NOTE:
-			// Dynamic range is resolved against the component's current committed attribute values (previous results),
-			// not against any in-flight recalculation map in this function call.
-			if (!AttributeComponent->GetAttributeValue(Range.MinValueAttribute, MinValue))
+			// 优先从 Resolver 读取（工作集），否则从已提交值读取
+			bool bResolved = false;
+			if (Resolver && (*Resolver)(Range.MinValueAttribute, MinValue))
+			{
+				bResolved = true;
+			}
+			else if (!AttributeComponent->GetAttributeValue(Range.MinValueAttribute, MinValue))
 			{
 				UE_LOG(LogTcsAttribute, Warning, TEXT("[%s] Owner %s has no attribute named of %s as Attribute %s MinValueAttribute"),
 					*FString(__FUNCTION__),
@@ -962,7 +1077,6 @@ void UTcsAttributeManagerSubsystem::ClampAttributeValueInRange(
 					*Range.MinValueAttribute.ToString(),
 					*AttributeName.ToString());
 				// Keep default "no constraint" min value and continue clamping.
-				break;
 			}
 			break;
 		}
@@ -983,10 +1097,13 @@ void UTcsAttributeManagerSubsystem::ClampAttributeValueInRange(
 		}
 	case ETcsAttributeRangeType::ART_Dynamic:
 		{
-			// DESIGN NOTE:
-			// Dynamic range is resolved against the component's current committed attribute values (previous results),
-			// not against any in-flight recalculation map in this function call.
-			if (!AttributeComponent->GetAttributeValue(Range.MaxValueAttribute, MaxValue))
+			// 优先从 Resolver 读取（工作集），否则从已提交值读取
+			bool bResolved = false;
+			if (Resolver && (*Resolver)(Range.MaxValueAttribute, MaxValue))
+			{
+				bResolved = true;
+			}
+			else if (!AttributeComponent->GetAttributeValue(Range.MaxValueAttribute, MaxValue))
 			{
 				UE_LOG(LogTcsAttribute, Warning, TEXT("[%s] Owner %s has no attribute named of %s as Attribute %s MaxValueAttribute"),
 					*FString(__FUNCTION__),
@@ -994,7 +1111,6 @@ void UTcsAttributeManagerSubsystem::ClampAttributeValueInRange(
 					*Range.MaxValueAttribute.ToString(),
 					*AttributeName.ToString());
 				// Keep default "no constraint" max value and continue clamping.
-				break;
 			}
 			break;
 		}
@@ -1010,6 +1126,132 @@ void UTcsAttributeManagerSubsystem::ClampAttributeValueInRange(
 	if (OutMaxValue)
 	{
 		*OutMaxValue = MaxValue;
+	}
+}
+
+void UTcsAttributeManagerSubsystem::EnforceAttributeRangeConstraints(UTcsAttributeComponent* AttributeComponent)
+{
+	if (!IsValid(AttributeComponent))
+	{
+		return;
+	}
+
+	const int32 MaxIterations = 8;  // 防止无限循环
+	int32 Iteration = 0;
+	bool bAnyChanged = true;
+
+	// 工作集: 当前正在处理的值
+	TMap<FName, float> WorkingBaseValues;
+	TMap<FName, float> WorkingCurrentValues;
+
+	// 初始化工作集
+	for (auto& Pair : AttributeComponent->Attributes)
+	{
+		WorkingBaseValues.Add(Pair.Key, Pair.Value.BaseValue);
+		WorkingCurrentValues.Add(Pair.Key, Pair.Value.CurrentValue);
+	}
+
+	// 值解析器: 优先从工作集读取
+	FAttributeValueResolver Resolver = [&](FName AttributeName, float& OutValue) -> bool
+	{
+		if (float* Value = WorkingCurrentValues.Find(AttributeName))
+		{
+			OutValue = *Value;
+			return true;
+		}
+		return false;
+	};
+
+	// 迭代直到稳定
+	while (bAnyChanged && Iteration < MaxIterations)
+	{
+		bAnyChanged = false;
+		Iteration++;
+
+		for (auto& Pair : AttributeComponent->Attributes)
+		{
+			FName AttributeName = Pair.Key;
+
+			// Clamp BaseValue
+			float OldBase = WorkingBaseValues[AttributeName];
+			float NewBase = OldBase;
+			ClampAttributeValueInRange(AttributeComponent, AttributeName, NewBase, nullptr, nullptr, &Resolver);
+			if (!FMath::IsNearlyEqual(OldBase, NewBase))
+			{
+				WorkingBaseValues[AttributeName] = NewBase;
+				bAnyChanged = true;
+			}
+
+			// Clamp CurrentValue
+			float OldCurrent = WorkingCurrentValues[AttributeName];
+			float NewCurrent = OldCurrent;
+			ClampAttributeValueInRange(AttributeComponent, AttributeName, NewCurrent, nullptr, nullptr, &Resolver);
+			if (!FMath::IsNearlyEqual(OldCurrent, NewCurrent))
+			{
+				WorkingCurrentValues[AttributeName] = NewCurrent;
+				bAnyChanged = true;
+			}
+		}
+	}
+
+	// 检查是否收敛
+	if (Iteration >= MaxIterations)
+	{
+		UE_LOG(LogTcsAttribute, Warning,
+			TEXT("[%s] Max iterations reached for entity '%s', possible circular dependency"),
+			*FString(__FUNCTION__),
+			*AttributeComponent->GetOwner()->GetName());
+	}
+
+	// 提交工作集到组件
+	TArray<FTcsAttributeChangeEventPayload> BaseChangePayloads;
+	TArray<FTcsAttributeChangeEventPayload> CurrentChangePayloads;
+
+	for (auto& Pair : AttributeComponent->Attributes)
+	{
+		FName AttributeName = Pair.Key;
+		FTcsAttributeInstance& Attribute = Pair.Value;
+
+		// 提交 BaseValue
+		float NewBase = WorkingBaseValues[AttributeName];
+		if (!FMath::IsNearlyEqual(Attribute.BaseValue, NewBase))
+		{
+			float OldBase = Attribute.BaseValue;
+			Attribute.BaseValue = NewBase;
+
+			// 构造事件 payload
+			FTcsAttributeChangeEventPayload Payload;
+			Payload.AttributeName = AttributeName;
+			Payload.OldValue = OldBase;
+			Payload.NewValue = NewBase;
+			// SourceHandle: 空(因为是 enforcement 导致的变化,不是 modifier)
+			BaseChangePayloads.Add(Payload);
+		}
+
+		// 提交 CurrentValue
+		float NewCurrent = WorkingCurrentValues[AttributeName];
+		if (!FMath::IsNearlyEqual(Attribute.CurrentValue, NewCurrent))
+		{
+			float OldCurrent = Attribute.CurrentValue;
+			Attribute.CurrentValue = NewCurrent;
+
+			// 构造事件 payload
+			FTcsAttributeChangeEventPayload Payload;
+			Payload.AttributeName = AttributeName;
+			Payload.OldValue = OldCurrent;
+			Payload.NewValue = NewCurrent;
+			CurrentChangePayloads.Add(Payload);
+		}
+	}
+
+	// 广播事件
+	if (BaseChangePayloads.Num() > 0)
+	{
+		AttributeComponent->BroadcastAttributeBaseValueChangeEvent(BaseChangePayloads);
+	}
+	if (CurrentChangePayloads.Num() > 0)
+	{
+		AttributeComponent->BroadcastAttributeValueChangeEvent(CurrentChangePayloads);
 	}
 }
 
@@ -1103,20 +1345,35 @@ bool UTcsAttributeManagerSubsystem::RemoveModifiersBySourceHandle(
 		return false;
 	}
 
-	// 使用索引快速查找匹配的修改器
-	TArray<int32>* IndicesPtr = AttributeComponent->SourceHandleIdToModifierIndices.Find(SourceHandle.Id);
-	if (!IndicesPtr || IndicesPtr->Num() == 0)
+	// 使用稳定 ID 缓存查找匹配的修改器
+	const TArray<int32>* InstIdsPtr = AttributeComponent->SourceHandleIdToModifierInstIds.Find(SourceHandle.Id);
+	if (!InstIdsPtr || InstIdsPtr->Num() == 0)
 	{
 		return false;
 	}
 
+	// 先拷贝 ID 列表（避免在迭代中修改）
+	TArray<int32> InstIdsCopy = *InstIdsPtr;
+
 	// 收集要移除的修改器
 	TArray<FTcsAttributeModifierInstance> ModifiersToRemove;
-	for (int32 Index : *IndicesPtr)
+	for (int32 ModifierInstId : InstIdsCopy)
 	{
-		if (AttributeComponent->AttributeModifiers.IsValidIndex(Index))
+		// 通过 ModifierInstId 查找当前数组下标
+		const int32* IndexPtr = AttributeComponent->ModifierInstIdToIndex.Find(ModifierInstId);
+		if (!IndexPtr || !AttributeComponent->AttributeModifiers.IsValidIndex(*IndexPtr))
 		{
-			ModifiersToRemove.Add(AttributeComponent->AttributeModifiers[Index]);
+			// 索引失效，跳过
+			continue;
+		}
+
+		int32 Index = *IndexPtr;
+		const FTcsAttributeModifierInstance& Modifier = AttributeComponent->AttributeModifiers[Index];
+
+		// 验证 ModifierInstId 匹配（防御性检查）
+		if (Modifier.ModifierInstId == ModifierInstId)
+		{
+			ModifiersToRemove.Add(Modifier);
 		}
 	}
 
@@ -1151,20 +1408,59 @@ bool UTcsAttributeManagerSubsystem::GetModifiersBySourceHandle(
 
 	OutModifiers.Empty();
 
-	// 使用索引快速查找匹配的修改器
-	const TArray<int32>* IndicesPtr = AttributeComponent->SourceHandleIdToModifierIndices.Find(SourceHandle.Id);
-	if (!IndicesPtr || IndicesPtr->Num() == 0)
+	// 使用稳定 ID 缓存查找匹配的修改器
+	TArray<int32>* InstIdsPtr = AttributeComponent->SourceHandleIdToModifierInstIds.Find(SourceHandle.Id);
+	if (!InstIdsPtr || InstIdsPtr->Num() == 0)
 	{
 		return false;
 	}
 
-	// 收集匹配的修改器
-	for (int32 Index : *IndicesPtr)
+	// 收集匹配的修改器，同时自愈陈旧的 ID
+	TArray<int32> StaleIds;
+	for (int32 ModifierInstId : *InstIdsPtr)
 	{
-		if (AttributeComponent->AttributeModifiers.IsValidIndex(Index))
+		// 通过 ModifierInstId 查找当前数组下标
+		const int32* IndexPtr = AttributeComponent->ModifierInstIdToIndex.Find(ModifierInstId);
+		if (!IndexPtr || !AttributeComponent->AttributeModifiers.IsValidIndex(*IndexPtr))
 		{
-			OutModifiers.Add(AttributeComponent->AttributeModifiers[Index]);
+			// 索引失效，标记为陈旧
+			StaleIds.Add(ModifierInstId);
+			continue;
 		}
+
+		int32 Index = *IndexPtr;
+		const FTcsAttributeModifierInstance& Modifier = AttributeComponent->AttributeModifiers[Index];
+
+		// 验证 ModifierInstId 匹配（防御性检查）
+		if (Modifier.ModifierInstId != ModifierInstId)
+		{
+			// 不匹配，标记为陈旧
+			StaleIds.Add(ModifierInstId);
+			continue;
+		}
+
+		OutModifiers.Add(Modifier);
+	}
+
+	// 自愈：从桶中移除陈旧的 ID
+	if (StaleIds.Num() > 0)
+	{
+		for (int32 StaleId : StaleIds)
+		{
+			InstIdsPtr->Remove(StaleId);
+		}
+
+		// 如果桶为空，移除整个桶
+		if (InstIdsPtr->Num() == 0)
+		{
+			AttributeComponent->SourceHandleIdToModifierInstIds.Remove(SourceHandle.Id);
+		}
+
+		UE_LOG(LogTcsAttribute, Verbose,
+			TEXT("[%s] Self-healed %d stale ModifierInstIds for SourceHandle.Id=%d"),
+			*FString(__FUNCTION__),
+			StaleIds.Num(),
+			SourceHandle.Id);
 	}
 
 	return OutModifiers.Num() > 0;
