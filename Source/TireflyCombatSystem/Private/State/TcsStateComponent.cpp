@@ -287,66 +287,10 @@ void UTcsStateComponent::UpdateActiveStateDurations(float DeltaTime)
 			continue;
 		}
 
+		// 只有 Active 和 HangUp 阶段才计算持续时间
+		// Pause 阶段冻结，Inactive 阶段不计时
 		if (CurrentStage != ETcsStateStage::SS_Active
-			&& CurrentStage != ETcsStateStage::SS_HangUp
-			&& CurrentStage != ETcsStateStage::SS_Inactive
-			&& CurrentStage != ETcsStateStage::SS_Pause)
-		{
-			continue;
-		}
-
-		// 检查状态所属的状态槽的状态
-		const FGameplayTag StateSlotTag = StateInstance->GetStateDef().StateSlotType;
-		FTcsStateSlotDefinition SlotDefinition;
-		if (!StateMgr->TryGetStateSlotDefinition(StateSlotTag, SlotDefinition))
-		{
-			UE_LOG(LogTcsState, Warning, TEXT("[%s] Failed to get StateSlotDefinition for %s."),
-				*FString(__FUNCTION__),
-				*StateSlotTag.ToString());
-			continue;
-		}
-
-		// Pause 阶段默认冻结；如槽位配置允许，则 Pause 也遵循 DurationTickPolicy。
-		if (CurrentStage == ETcsStateStage::SS_Pause && SlotDefinition.bFreezeDurationWhenPaused)
-		{
-			continue;
-		}
-
-		// 判断状态是否处于"激活"状态（Active 或 HangUp 都视为激活，因为 HangUp 仍计算持续时间）
-		const bool bStateIsActive = (CurrentStage == ETcsStateStage::SS_Active);
-		const bool bStateIsHangUp = (CurrentStage == ETcsStateStage::SS_HangUp);
-
-		const FTcsStateSlot* SlotData = StateSlotTag.IsValid() ? StateSlotsX.Find(StateSlotTag) : nullptr;
-		const bool bGateOpen = !StateSlotTag.IsValid() || (SlotData && SlotData->bIsGateOpen);
-
-		bool bShouldTick = false;
-		// 根据状态槽的持续时间流失策略决定是否递减剩余持续时间
-		switch (SlotDefinition.DurationTickPolicy)
-		{
-		case ETcsDurationTickPolicy::DTP_Always:
-			// 始终计时（包括 HangUp）
-			bShouldTick = true;
-			break;
-		case ETcsDurationTickPolicy::DTP_OnlyWhenGateOpen:
-			// 仅 Gate 开启时计时
-			bShouldTick = bGateOpen;
-			break;
-		case ETcsDurationTickPolicy::DTP_ActiveOrGateOpen:
-			// Active/HangUp 或 Gate 开启时计时
-			bShouldTick = bStateIsActive || bStateIsHangUp || bGateOpen;
-			break;
-		case ETcsDurationTickPolicy::DTP_ActiveAndGateOpen:
-			// 仅 Active 且 Gate 开启时计时（HangUp 不计时）
-			bShouldTick = bStateIsActive && bGateOpen;
-			break;
-		case ETcsDurationTickPolicy::DTP_ActiveOnly:
-		default:
-			// 仅 Active 时计时（HangUp 不计时）
-			bShouldTick = bStateIsActive;
-			break;
-		}
-
-		if (!bShouldTick)
+			&& CurrentStage != ETcsStateStage::SS_HangUp)
 		{
 			continue;
 		}
@@ -600,11 +544,9 @@ FString UTcsStateComponent::GetSlotDebugSnapshot(FGameplayTag SlotFilter) const
 			FTcsStateSlotDefinition SlotDef;
 			if (StateMgr->TryGetStateSlotDefinition(SlotTag, SlotDef))
 			{
-				Line += FString::Printf(TEXT(" Mode=%s Preempt=%s DurPolicy=%s PauseFreeze=%s"),
+				Line += FString::Printf(TEXT(" Mode=%s Preempt=%s"),
 					*StaticEnum<ETcsStateSlotActivationMode>()->GetNameStringByValue(static_cast<int64>(SlotDef.ActivationMode)),
-					*StaticEnum<ETcsStatePreemptionPolicy>()->GetNameStringByValue(static_cast<int64>(SlotDef.PreemptionPolicy)),
-					*StaticEnum<ETcsDurationTickPolicy>()->GetNameStringByValue(static_cast<int64>(SlotDef.DurationTickPolicy)),
-					SlotDef.bFreezeDurationWhenPaused ? TEXT("1") : TEXT("0"));
+					*StaticEnum<ETcsStatePreemptionPolicy>()->GetNameStringByValue(static_cast<int64>(SlotDef.PreemptionPolicy)));
 			}
 		}
 
