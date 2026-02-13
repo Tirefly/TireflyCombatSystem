@@ -10,6 +10,8 @@
 #include "Attribute/TcsAttributeComponent.h"
 #include "Attribute/AttrModExecution/TcsAttributeModifierExecution.h"
 #include "Attribute/AttrModMerger/TcsAttributeModifierMerger.h"
+#include "Attribute/AttrClampStrategy/TcsAttributeClampStrategy.h"
+#include "Attribute/AttrClampStrategy/TcsAttributeClampContext.h"
 
 
 void UTcsAttributeManagerSubsystem::Initialize(FSubsystemCollectionBase& Collection)
@@ -1361,7 +1363,7 @@ void UTcsAttributeManagerSubsystem::ClampAttributeValueInRange(
 	float& NewValue,
 	float* OutMinValue,
 	float* OutMaxValue,
-	const FAttributeValueResolver* Resolver)
+	const TMap<FName, float>* WorkingValues)
 {
 	if (!IsValid(AttributeComponent))
 	{
@@ -1390,13 +1392,18 @@ void UTcsAttributeManagerSubsystem::ClampAttributeValueInRange(
 		}
 	case ETcsAttributeRangeType::ART_Dynamic:
 		{
-			// 优先从 Resolver 读取（工作集），否则从已提交值读取
+			// 优先从工作集读取（两段式 Clamp），否则从已提交值读取
 			bool bResolved = false;
-			if (Resolver && (*Resolver)(Range.MinValueAttribute, MinValue))
+			if (WorkingValues)
 			{
-				bResolved = true;
+				if (const float* Value = WorkingValues->Find(Range.MinValueAttribute))
+				{
+					MinValue = *Value;
+					bResolved = true;
+				}
 			}
-			else if (!AttributeComponent->GetAttributeValue(Range.MinValueAttribute, MinValue))
+
+			if (!bResolved && !AttributeComponent->GetAttributeValue(Range.MinValueAttribute, MinValue))
 			{
 				UE_LOG(LogTcsAttribute, Warning, TEXT("[%s] Owner %s has no attribute named of %s as Attribute %s MinValueAttribute"),
 					*FString(__FUNCTION__),
@@ -1424,13 +1431,18 @@ void UTcsAttributeManagerSubsystem::ClampAttributeValueInRange(
 		}
 	case ETcsAttributeRangeType::ART_Dynamic:
 		{
-			// 优先从 Resolver 读取（工作集），否则从已提交值读取
+			// 优先从工作集读取（两段式 Clamp），否则从已提交值读取
 			bool bResolved = false;
-			if (Resolver && (*Resolver)(Range.MaxValueAttribute, MaxValue))
+			if (WorkingValues)
 			{
-				bResolved = true;
+				if (const float* Value = WorkingValues->Find(Range.MaxValueAttribute))
+				{
+					MaxValue = *Value;
+					bResolved = true;
+				}
 			}
-			else if (!AttributeComponent->GetAttributeValue(Range.MaxValueAttribute, MaxValue))
+
+			if (!bResolved && !AttributeComponent->GetAttributeValue(Range.MaxValueAttribute, MaxValue))
 			{
 				UE_LOG(LogTcsAttribute, Warning, TEXT("[%s] Owner %s has no attribute named of %s as Attribute %s MaxValueAttribute"),
 					*FString(__FUNCTION__),
@@ -1443,8 +1455,45 @@ void UTcsAttributeManagerSubsystem::ClampAttributeValueInRange(
 		}
 	}
 
-	// 属性值范围修正
-	NewValue = FMath::Clamp(NewValue, MinValue, MaxValue);
+	// 执行属性值 Clamp（使用策略对象）
+	TSubclassOf<UTcsAttributeClampStrategy> StrategyClass = Attribute->AttributeDef.ClampStrategyClass;
+	if (StrategyClass)
+	{
+		// 使用策略对象执行 Clamp
+		UTcsAttributeClampStrategy* StrategyCDO = StrategyClass->GetDefaultObject<UTcsAttributeClampStrategy>();
+
+		// 构造固定的基础上下文
+		FTcsAttributeClampContextBase Context(
+			AttributeComponent,
+			AttributeName,
+			&Attribute->AttributeDef,
+			Attribute,
+			WorkingValues  // 传递工作集，用于读取其他属性的临时值
+		);
+
+		// 获取可选的用户配置
+		const FInstancedStruct& Config = Attribute->AttributeDef.ClampStrategyConfig;
+
+		// 调用 Clamp 接口
+		NewValue = StrategyCDO->Clamp(NewValue, MinValue, MaxValue, Context, Config);
+
+		UE_LOG(LogTcsAttribute, Verbose, TEXT("[%s] Attribute %s clamped using strategy %s: Value=%f, Min=%f, Max=%f"),
+			*FString(__FUNCTION__),
+			*AttributeName.ToString(),
+			*StrategyClass->GetName(),
+			NewValue,
+			MinValue,
+			MaxValue);
+	}
+	else
+	{
+		// 防御性代码：理论上不应该走到这里，因为构造函数设置了默认值
+		// 但为了安全，仍然提供 fallback
+		UE_LOG(LogTcsAttribute, Warning, TEXT("[%s] ClampStrategyClass is null for attribute %s, using FMath::Clamp as fallback"),
+			*FString(__FUNCTION__),
+			*AttributeName.ToString());
+		NewValue = FMath::Clamp(NewValue, MinValue, MaxValue);
+	}
 
 	if (OutMinValue)
 	{
@@ -1478,28 +1527,6 @@ void UTcsAttributeManagerSubsystem::EnforceAttributeRangeConstraints(UTcsAttribu
 		WorkingCurrentValues.Add(Pair.Key, Pair.Value.CurrentValue);
 	}
 
-	// Base值解析器: 从WorkingBaseValues读取（用于clamp Base值时解析动态范围）
-	FAttributeValueResolver BaseResolver = [&](FName AttributeName, float& OutValue) -> bool
-	{
-		if (float* Value = WorkingBaseValues.Find(AttributeName))
-		{
-			OutValue = *Value;
-			return true;
-		}
-		return false;
-	};
-
-	// Current值解析器: 从WorkingCurrentValues读取（用于clamp Current值时解析动态范围）
-	FAttributeValueResolver CurrentResolver = [&](FName AttributeName, float& OutValue) -> bool
-	{
-		if (float* Value = WorkingCurrentValues.Find(AttributeName))
-		{
-			OutValue = *Value;
-			return true;
-		}
-		return false;
-	};
-
 	// 迭代直到稳定
 	while (bAnyChanged && Iteration < MaxIterations)
 	{
@@ -1510,20 +1537,20 @@ void UTcsAttributeManagerSubsystem::EnforceAttributeRangeConstraints(UTcsAttribu
 		{
 			FName AttributeName = Pair.Key;
 
-			// 阶段1: Clamp BaseValue，使用WorkingBase解析动态范围
+			// 阶段1: Clamp BaseValue，使用 WorkingBaseValues 解析动态范围
 			float OldBase = WorkingBaseValues[AttributeName];
 			float NewBase = OldBase;
-			ClampAttributeValueInRange(AttributeComponent, AttributeName, NewBase, nullptr, nullptr, &BaseResolver);
+			ClampAttributeValueInRange(AttributeComponent, AttributeName, NewBase, nullptr, nullptr, &WorkingBaseValues);
 			if (!FMath::IsNearlyEqual(OldBase, NewBase))
 			{
 				WorkingBaseValues[AttributeName] = NewBase;
 				bAnyChanged = true;
 			}
 
-			// 阶段2: Clamp CurrentValue，使用WorkingCurrent解析动态范围
+			// 阶段2: Clamp CurrentValue，使用 WorkingCurrentValues 解析动态范围
 			float OldCurrent = WorkingCurrentValues[AttributeName];
 			float NewCurrent = OldCurrent;
-			ClampAttributeValueInRange(AttributeComponent, AttributeName, NewCurrent, nullptr, nullptr, &CurrentResolver);
+			ClampAttributeValueInRange(AttributeComponent, AttributeName, NewCurrent, nullptr, nullptr, &WorkingCurrentValues);
 			if (!FMath::IsNearlyEqual(OldCurrent, NewCurrent))
 			{
 				WorkingCurrentValues[AttributeName] = NewCurrent;

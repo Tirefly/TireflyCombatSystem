@@ -279,6 +279,7 @@ Layer 2: 动态状态实例 (动态)
 |---------|------|---------|
 | 属性执行 | `UTcsAttributeModifierExecution` | Add、Multiply、MultiplyAdditive |
 | 属性合并 | `UTcsAttributeModifierMerger` | NoMerge、UseNewest、UseMaximum、UseAdditiveSum |
+| **属性 Clamp** 🆕 | **`UTcsAttributeClampStrategy`** | **Linear（默认）、自定义策略** |
 | 状态条件 | `UTcsStateCondition` | AttributeComparison、ParameterBased |
 | 状态合并 | `UTcsStateMerger` | NoMerge、Stack、UseNewest、UseOldest |
 | 技能修正 | `UTcsSkillModifierExecution` | AdditiveParam、CooldownMultiplier、CostMultiplier |
@@ -294,6 +295,7 @@ TireflyCombatSystem/
 │   │   ├── Attribute/                    # 属性系统 (90%)
 │   │   │   ├── AttrModExecution/        # 执行算法
 │   │   │   ├── AttrModMerger/           # 合并策略
+│   │   │   ├── AttrClampStrategy/       # Clamp 策略 🆕
 │   │   │   ├── TcsAttribute.h
 │   │   │   ├── TcsAttributeComponent.h
 │   │   │   └── TcsAttributeModifier.h
@@ -366,6 +368,12 @@ TireflyCombatSystem/
 - `UTcsAttrModMerger_UseMaximum` - 取最大值
 - `UTcsAttrModMerger_UseMinimum` - 取最小值
 - `UTcsAttrModMerger_UseAdditiveSum` - 加法求和
+
+**Clamp 策略** (`AttrClampStrategy/`) 🆕:
+- `UTcsAttrClampStrategy_Linear` - 线性约束（默认，FMath::Clamp）
+- 支持自定义策略（C++ 或蓝图继承 `UTcsAttributeClampStrategy`）
+- 每个属性可独立配置 Clamp 策略
+- 示例：循环 Clamp（角度）、阶梯 Clamp（整数等级）、软 Clamp（衰减）
 
 ---
 

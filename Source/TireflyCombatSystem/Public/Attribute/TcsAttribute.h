@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameplayTagContainer.h"
+#include "StructUtils/InstancedStruct.h"
 #include "UObject/Object.h"
 #include "TcsAttribute.generated.h"
 
@@ -78,8 +79,24 @@ struct TIREFLYCOMBATSYSTEM_API FTcsAttributeDefinition : public FTableRowBase
 
 public:
 	// 属性数值范围
-	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Range")
 	FTcsAttributeRange AttributeRange;
+
+	// Clamp 策略类（默认使用线性 Clamp 策略）
+	// 用于定义属性值的约束方式，可以选择内置策略或自定义策略
+	// 默认值在构造函数中设置为 UTcsAttrClampStrategy_Linear::StaticClass()
+	// 示例：可以实现循环 Clamp（角度）、阶梯 Clamp（整数等级）等自定义策略
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Range",
+		Meta = (ToolTip = "属性值的约束策略。默认使用线性约束（FMath::Clamp）。可以选择其他内置策略或自定义策略（C++ 或蓝图）。"))
+	TSubclassOf<class UTcsAttributeClampStrategy> ClampStrategyClass;
+
+	// Clamp 策略配置（可选，使用 FInstancedStruct 存储）
+	// 用户可以定义任意结构体作为配置，不需要继承任何父类
+	// 只有当策略需要额外配置时才使用此字段
+	// 示例：条件 Clamp 可以配置触发条件，阶梯 Clamp 可以配置阶梯值列表
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Range",
+		Meta = (ToolTip = "Clamp 策略的配置（可选）。可以是任意用户定义的结构体，不需要继承父类。"))
+	FInstancedStruct ClampStrategyConfig;
 
 	// 属性类别
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Meta")
@@ -119,6 +136,10 @@ public:
 	// 是否显示为百分比
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "UI")
 	bool bAsPercentage = false;
+
+public:
+	// 构造函数：设置默认 Clamp 策略
+	FTcsAttributeDefinition();
 };
 
 

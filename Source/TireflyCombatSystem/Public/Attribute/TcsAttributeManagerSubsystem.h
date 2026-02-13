@@ -316,11 +316,6 @@ protected:
 
 #pragma region AttributeCalculation
 
-public:
-	// 属性值解析器类型定义
-	// 用于在重算过程中从工作集读取属性值，而不是从已提交的值读取
-	using FAttributeValueResolver = TFunction<bool(FName, float&)>;
-
 protected:
 	// 重新计算战斗实体的属性基值
 	static void RecalculateAttributeBaseValues(const AActor* CombatEntity, const TArray<FTcsAttributeModifierInstance>& Modifiers);
@@ -335,14 +330,14 @@ protected:
 		TArray<FTcsAttributeModifierInstance>& MergedModifiers);
 
 	// 将属性的给定值限制在指定范围内
-	// Resolver: 可选的值解析器，用于从工作集读取动态范围属性值
+	// WorkingValues: 可选的工作集，用于从工作集读取动态范围属性值（两段式 Clamp）
 	static void ClampAttributeValueInRange(
 		UTcsAttributeComponent* AttributeComponent,
 		const FName& AttributeName,
 		float& NewValue,
 		float* OutMinValue = nullptr,
 		float* OutMaxValue = nullptr,
-		const FAttributeValueResolver* Resolver = nullptr);
+		const TMap<FName, float>* WorkingValues = nullptr);
 
 	// 执行属性范围约束传播
 	// 确保所有属性的 BaseValue 和 CurrentValue 都在其定义的范围内
