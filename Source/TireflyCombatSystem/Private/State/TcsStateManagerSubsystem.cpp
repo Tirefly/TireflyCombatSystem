@@ -115,37 +115,188 @@ UTcsStateInstance* UTcsStateManagerSubsystem::CreateStateInstance(
 			*StateDefRowId.ToString());
 		return nullptr;
 	}
-    
-    // 创建状态实例
-    UTcsStateInstance* StateInstance = NewObject<UTcsStateInstance>(Owner);
-    if (IsValid(StateInstance))
-    {
-        // 初始化状态实例
-        StateInstance->SetStateDefId(StateDefRowId);
-        StateInstance->Initialize(StateDef, Owner, Instigator, ++GlobalStateInstanceIdMgr, InLevel);
 
-		if (!StateInstance->IsInitialized())
+	// 创建临时状态实例用于参数评估
+	UTcsStateInstance* TempStateInstance = NewObject<UTcsStateInstance>(Owner);
+	if (!IsValid(TempStateInstance))
+	{
+		UE_LOG(LogTcsState, Error, TEXT("[%s] Failed to create temporary state instance for parameter validation. StateDef=%s"),
+			*FString(__FUNCTION__),
+			*StateDefRowId.ToString());
+		return nullptr;
+	}
+
+	// 初始化临时实例（用于参数评估上下文）
+	TempStateInstance->SetStateDefId(StateDefRowId);
+	TempStateInstance->Initialize(StateDef, Owner, Instigator, ++GlobalStateInstanceIdMgr, InLevel);
+
+	if (!TempStateInstance->IsInitialized())
+	{
+		UE_LOG(LogTcsState, Error,
+			TEXT("[%s] Failed to initialize temporary StateInstance for parameter validation. StateDef=%s Owner=%s Instigator=%s"),
+			*FString(__FUNCTION__),
+			*StateDefRowId.ToString(),
+			*Owner->GetName(),
+			*Instigator->GetName());
+		TempStateInstance->MarkPendingGC();
+		return nullptr;
+	}
+
+	// 验证参数评估
+	TArray<FName> FailedParams;
+	if (!ValidateStateParameters(StateDef, Owner, Instigator, TempStateInstance, FailedParams))
+	{
+		FString FailedParamNames;
+		for (int32 i = 0; i < FailedParams.Num(); ++i)
 		{
-			UE_LOG(LogTcsState, Error,
-				TEXT("[%s] Failed to initialize StateInstance. StateDef=%s Owner=%s Instigator=%s"),
-				*FString(__FUNCTION__),
-				*StateDefRowId.ToString(),
-				*Owner->GetName(),
-				*Instigator->GetName());
-			StateInstance->MarkPendingGC();
-			return nullptr;
+			FailedParamNames += FailedParams[i].ToString();
+			if (i < FailedParams.Num() - 1)
+			{
+				FailedParamNames += TEXT(", ");
+			}
 		}
-        // 标记应用时间戳（用于合并器等逻辑）
-        StateInstance->SetApplyTimestamp(FDateTime::UtcNow().GetTicks());
-    }
-    
+
+		UE_LOG(LogTcsState, Error,
+			TEXT("[%s] Parameter evaluation failed for state '%s'. Failed parameters: [%s]. Owner=%s Instigator=%s"),
+			*FString(__FUNCTION__),
+			*StateDefRowId.ToString(),
+			*FailedParamNames,
+			*Owner->GetName(),
+			*Instigator->GetName());
+
+		TempStateInstance->MarkPendingGC();
+		return nullptr;
+	}
+
+    // 参数验证成功，使用临时实例作为最终实例
+    UTcsStateInstance* StateInstance = TempStateInstance;
+
+    // 标记应用时间戳（用于合并器等逻辑）
+    StateInstance->SetApplyTimestamp(FDateTime::UtcNow().GetTicks());
+
     return StateInstance;
+}
+
+bool UTcsStateManagerSubsystem::ValidateStateParameters(
+	const FTcsStateDefinition& StateDef,
+	AActor* Owner,
+	AActor* Instigator,
+	UTcsStateInstance* StateInstance,
+	TArray<FName>& OutFailedParams)
+{
+	OutFailedParams.Reset();
+
+	if (StateDef.Parameters.IsEmpty())
+	{
+		return true;  // 没有参数，验证通过
+	}
+
+	bool bAllSuccess = true;
+
+	for (const TPair<FName, FTcsStateParameter>& ParamPair : StateDef.Parameters)
+	{
+		const FName& ParamName = ParamPair.Key;
+		const FTcsStateParameter& Param = ParamPair.Value;
+
+		switch (Param.ParameterType)
+		{
+		case ETcsStateParameterType::SPT_Numeric:
+			{
+				if (!Param.NumericParamEvaluator)
+				{
+					UE_LOG(LogTcsState, Error,
+						TEXT("[%s] NumericParamEvaluator for parameter '%s' is null"),
+						*FString(__FUNCTION__),
+						*ParamName.ToString());
+					OutFailedParams.Add(ParamName);
+					bAllSuccess = false;
+					break;
+				}
+
+				float ParamValue;
+				auto ParamEvaluator = Param.NumericParamEvaluator->GetDefaultObject<UTcsStateNumericParamEvaluator>();
+				if (!ParamEvaluator->Evaluate(Instigator, Owner, StateInstance, Param.ParamValueContainer, ParamValue))
+				{
+					UE_LOG(LogTcsState, Error,
+						TEXT("[%s] Failed to evaluate numeric parameter '%s'"),
+						*FString(__FUNCTION__),
+						*ParamName.ToString());
+					OutFailedParams.Add(ParamName);
+					bAllSuccess = false;
+				}
+				break;
+			}
+		case ETcsStateParameterType::SPT_Bool:
+			{
+				if (!Param.BoolParamEvaluator)
+				{
+					UE_LOG(LogTcsState, Error,
+						TEXT("[%s] BoolParamEvaluator for parameter '%s' is null"),
+						*FString(__FUNCTION__),
+						*ParamName.ToString());
+					OutFailedParams.Add(ParamName);
+					bAllSuccess = false;
+					break;
+				}
+
+				bool ParamValue;
+				auto ParamEvaluator = Param.BoolParamEvaluator->GetDefaultObject<UTcsStateBoolParamEvaluator>();
+				if (!ParamEvaluator->Evaluate(Instigator, Owner, StateInstance, Param.ParamValueContainer, ParamValue))
+				{
+					UE_LOG(LogTcsState, Error,
+						TEXT("[%s] Failed to evaluate bool parameter '%s'"),
+						*FString(__FUNCTION__),
+						*ParamName.ToString());
+					OutFailedParams.Add(ParamName);
+					bAllSuccess = false;
+				}
+				break;
+			}
+		case ETcsStateParameterType::SPT_Vector:
+			{
+				if (!Param.VectorParamEvaluator)
+				{
+					UE_LOG(LogTcsState, Error,
+						TEXT("[%s] VectorParamEvaluator for parameter '%s' is null"),
+						*FString(__FUNCTION__),
+						*ParamName.ToString());
+					OutFailedParams.Add(ParamName);
+					bAllSuccess = false;
+					break;
+				}
+
+				FVector ParamValue;
+				auto ParamEvaluator = Param.VectorParamEvaluator->GetDefaultObject<UTcsStateVectorParamEvaluator>();
+				if (!ParamEvaluator->Evaluate(Instigator, Owner, StateInstance, Param.ParamValueContainer, ParamValue))
+				{
+					UE_LOG(LogTcsState, Error,
+						TEXT("[%s] Failed to evaluate vector parameter '%s'"),
+						*FString(__FUNCTION__),
+						*ParamName.ToString());
+					OutFailedParams.Add(ParamName);
+					bAllSuccess = false;
+				}
+				break;
+			}
+		default:
+			{
+				UE_LOG(LogTcsState, Warning,
+					TEXT("[%s] Unknown parameter type for parameter '%s'"),
+					*FString(__FUNCTION__),
+					*ParamName.ToString());
+				break;
+			}
+		}
+	}
+
+	return bAllSuccess;
 }
 
 bool UTcsStateManagerSubsystem::TryApplyStateToTarget(
     AActor* Target,
     FName StateDefId,
-    AActor* Instigator)
+    AActor* Instigator,
+    int32 StateLevel)
 {
     if (!IsValid(Target) || !IsValid(Instigator))
     {
@@ -177,7 +328,7 @@ bool UTcsStateManagerSubsystem::TryApplyStateToTarget(
 		return false;
 	}
 
-	UTcsStateInstance* NewStateInstance = CreateStateInstance(StateDefId, Target, Instigator, 1);
+	UTcsStateInstance* NewStateInstance = CreateStateInstance(StateDefId, Target, Instigator, StateLevel);
 	if (!IsValid(NewStateInstance))
 	{
 		TargetStateCmp->NotifyStateApplyFailed(
@@ -256,7 +407,7 @@ bool UTcsStateManagerSubsystem::CheckStateApplyConditions(UTcsStateInstance* Sta
                 *FString(__FUNCTION__),
                 i,
                 *StateInstance->GetStateDefId().ToString());
-            continue;
+            return false;
         }
 
         if (!StateDef.ActiveConditions[i].bCheckWhenApplying)
@@ -538,18 +689,28 @@ bool UTcsStateManagerSubsystem::TryAssignStateToStateSlot(UTcsStateInstance* Sta
     RequestUpdateStateSlotActivation(OwnerStateCmp, StateDef.StateSlotType);
 
 	// 发送应用成功事件（AppliedStage 以更新后的阶段为准）
-	if (StateSlot->States.Contains(StateInstance) && StateInstance->GetCurrentStage() != ETcsStateStage::SS_Expired)
+	// 只有状态仍然有效时才广播 ApplySuccess
+	if (IsStateStillValid(StateInstance))
 	{
 		OwnerStateCmp->StateInstanceIndex.AddInstance(StateInstance);
+
+		OwnerStateCmp->NotifyStateApplySuccess(
+			StateInstance->GetOwner(),
+			StateInstance->GetStateDefId(),
+			StateInstance,
+			StateDef.StateSlotType,
+			StateInstance->GetCurrentStage());
+	}
+	else
+	{
+		// 状态已被合并移除，不广播ApplySuccess
+		UE_LOG(LogTcsState, Verbose,
+			TEXT("[%s] State '%s' was merged and removed, skipping ApplySuccess notification"),
+			*FString(__FUNCTION__),
+			*StateInstance->GetStateDefId().ToString());
 	}
 
-	OwnerStateCmp->NotifyStateApplySuccess(
-		StateInstance->GetOwner(),
-		StateInstance->GetStateDefId(),
-		StateInstance,
-		StateDef.StateSlotType,
-		StateInstance->GetCurrentStage());
-    return true;
+	return true;
 }
 
 void UTcsStateManagerSubsystem::ClearStateSlotExpiredStates(
@@ -1311,7 +1472,7 @@ void UTcsStateManagerSubsystem::ActivateState(UTcsStateInstance* StateInstance)
 	switch (TickPolicy)
 	{
 	case ETcsStateTreeTickPolicy::RunOnce:
-		StateInstance->StartStateTree();
+		StateInstance->RestartStateTree();
 		StateInstance->TickStateTree(0.f);
 		if (StateInstance->IsStateTreeRunning())
 		{
@@ -1326,7 +1487,7 @@ void UTcsStateManagerSubsystem::ActivateState(UTcsStateInstance* StateInstance)
 		}
 		break;
 	case ETcsStateTreeTickPolicy::ManualOnly:
-		StateInstance->StartStateTree();
+		StateInstance->RestartStateTree();
 		if (IsValid(StateComponent))
 		{
 			StateComponent->StateTreeTickScheduler.Remove(StateInstance);
@@ -1334,7 +1495,7 @@ void UTcsStateManagerSubsystem::ActivateState(UTcsStateInstance* StateInstance)
 		break;
 	case ETcsStateTreeTickPolicy::WhileActive:
 	default:
-		StateInstance->StartStateTree();
+		StateInstance->RestartStateTree();
 		if (IsValid(StateComponent) && StateInstance->IsStateTreeRunning())
 		{
 			StateComponent->StateTreeTickScheduler.Add(StateInstance);
@@ -1890,6 +2051,36 @@ int32 UTcsStateManagerSubsystem::RemoveAllStates(UTcsStateComponent* StateCompon
     }
 
     return TotalRemoved;
+}
+
+bool UTcsStateManagerSubsystem::IsStateStillValid(UTcsStateInstance* StateInstance)
+{
+	if (!IsValid(StateInstance))
+	{
+		return false;
+	}
+
+	// 检查状态是否已过期
+	if (StateInstance->GetCurrentStage() == ETcsStateStage::SS_Expired)
+	{
+		return false;
+	}
+
+	// 检查状态是否仍在槽位中
+	UTcsStateComponent* StateComponent = StateInstance->GetOwnerStateComponent();
+	if (!IsValid(StateComponent))
+	{
+		return false;
+	}
+
+	const FGameplayTag SlotTag = StateInstance->GetStateDef().StateSlotType;
+	FTcsStateSlot* StateSlot = StateComponent->StateSlotsX.Find(SlotTag);
+	if (!StateSlot)
+	{
+		return false;
+	}
+
+	return StateSlot->States.Contains(StateInstance);
 }
 
 void UTcsStateManagerSubsystem::FinalizeStateRemoval(UTcsStateInstance* StateInstance, FName RemovalReason)

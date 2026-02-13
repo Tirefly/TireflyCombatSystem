@@ -15,7 +15,7 @@ struct TIREFLYCOMBATSYSTEM_API FTcsStateNumericParam_StateLevelArray
 	GENERATED_BODY()
 
 public:
-	// 参数值数组，索引对应状态等级（从0开始）
+	// 参数值数组，索引对应状态等级（从0开始），即 LevelValues[0] 对应等级 0，LevelValues[1] 对应等级 1，以此类推
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	TArray<float> LevelValues;
 

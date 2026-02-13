@@ -84,6 +84,10 @@ public:
 	UPROPERTY(BlueprintReadOnly)
 	int32 ModifierInstId = -1;
 
+	// 修改器定义Id (DataTable RowName, 用于合并分组)
+	UPROPERTY(BlueprintReadOnly)
+	FName ModifierId = NAME_None;
+
 	// 修改器来源句柄 (统一的来源追踪)
 	UPROPERTY(BlueprintReadOnly)
 	FTcsSourceHandle SourceHandle;

@@ -271,6 +271,331 @@ bool UTcsAttributeManagerSubsystem::TryGetAttributeTagByName(
 		*AttributeName.ToString());
 	return false;
 }
+
+bool UTcsAttributeManagerSubsystem::SetAttributeBaseValue(
+	AActor* CombatEntity,
+	FName AttributeName,
+	float NewValue,
+	bool bTriggerEvents)
+{
+	// 参数验证
+	if (!IsValid(CombatEntity))
+	{
+		UE_LOG(LogTcsAttribute, Error,
+			TEXT("[%s] Invalid CombatEntity"),
+			*FString(__FUNCTION__));
+		return false;
+	}
+
+	UTcsAttributeComponent* AttributeComponent = GetAttributeComponent(CombatEntity);
+	if (!AttributeComponent)
+	{
+		UE_LOG(LogTcsAttribute, Error,
+			TEXT("[%s] Entity '%s' has no AttributeComponent"),
+			*FString(__FUNCTION__),
+			*CombatEntity->GetName());
+		return false;
+	}
+
+	if (AttributeName.IsNone())
+	{
+		UE_LOG(LogTcsAttribute, Error,
+			TEXT("[%s] Invalid AttributeName"),
+			*FString(__FUNCTION__));
+		return false;
+	}
+
+	FTcsAttributeInstance* Attribute = AttributeComponent->Attributes.Find(AttributeName);
+	if (!Attribute)
+	{
+		UE_LOG(LogTcsAttribute, Error,
+			TEXT("[%s] Attribute '%s' not found on entity '%s'"),
+			*FString(__FUNCTION__),
+			*AttributeName.ToString(),
+			*CombatEntity->GetName());
+		return false;
+	}
+
+	// 保存旧值
+	float OldValue = Attribute->BaseValue;
+
+	// 设置新值并clamp
+	Attribute->BaseValue = NewValue;
+	ClampAttributeValueInRange(AttributeComponent, AttributeName, Attribute->BaseValue);
+
+	// 重新计算Current值（应用修改器）
+	RecalculateAttributeCurrentValues(CombatEntity);
+
+	// 触发事件
+	if (bTriggerEvents && !FMath::IsNearlyEqual(OldValue, Attribute->BaseValue))
+	{
+		FTcsAttributeChangeEventPayload Payload;
+		Payload.AttributeName = AttributeName;
+		Payload.OldValue = OldValue;
+		Payload.NewValue = Attribute->BaseValue;
+
+		TArray<FTcsAttributeChangeEventPayload> Payloads;
+		Payloads.Add(Payload);
+		AttributeComponent->BroadcastAttributeBaseValueChangeEvent(Payloads);
+	}
+
+	UE_LOG(LogTcsAttribute, Verbose,
+		TEXT("[%s] Set attribute '%s' BaseValue from %.2f to %.2f on entity '%s'"),
+		*FString(__FUNCTION__),
+		*AttributeName.ToString(),
+		OldValue,
+		Attribute->BaseValue,
+		*CombatEntity->GetName());
+
+	return true;
+}
+
+bool UTcsAttributeManagerSubsystem::SetAttributeCurrentValue(
+	AActor* CombatEntity,
+	FName AttributeName,
+	float NewValue,
+	bool bTriggerEvents)
+{
+	// 参数验证
+	if (!IsValid(CombatEntity))
+	{
+		UE_LOG(LogTcsAttribute, Error,
+			TEXT("[%s] Invalid CombatEntity"),
+			*FString(__FUNCTION__));
+		return false;
+	}
+
+	UTcsAttributeComponent* AttributeComponent = GetAttributeComponent(CombatEntity);
+	if (!AttributeComponent)
+	{
+		UE_LOG(LogTcsAttribute, Error,
+			TEXT("[%s] Entity '%s' has no AttributeComponent"),
+			*FString(__FUNCTION__),
+			*CombatEntity->GetName());
+		return false;
+	}
+
+	if (AttributeName.IsNone())
+	{
+		UE_LOG(LogTcsAttribute, Error,
+			TEXT("[%s] Invalid AttributeName"),
+			*FString(__FUNCTION__));
+		return false;
+	}
+
+	FTcsAttributeInstance* Attribute = AttributeComponent->Attributes.Find(AttributeName);
+	if (!Attribute)
+	{
+		UE_LOG(LogTcsAttribute, Error,
+			TEXT("[%s] Attribute '%s' not found on entity '%s'"),
+			*FString(__FUNCTION__),
+			*AttributeName.ToString(),
+			*CombatEntity->GetName());
+		return false;
+	}
+
+	// 保存旧值
+	float OldValue = Attribute->CurrentValue;
+
+	// 设置新值并clamp
+	Attribute->CurrentValue = NewValue;
+	ClampAttributeValueInRange(AttributeComponent, AttributeName, Attribute->CurrentValue);
+
+	// 触发事件
+	if (bTriggerEvents && !FMath::IsNearlyEqual(OldValue, Attribute->CurrentValue))
+	{
+		FTcsAttributeChangeEventPayload Payload;
+		Payload.AttributeName = AttributeName;
+		Payload.OldValue = OldValue;
+		Payload.NewValue = Attribute->CurrentValue;
+
+		TArray<FTcsAttributeChangeEventPayload> Payloads;
+		Payloads.Add(Payload);
+		AttributeComponent->BroadcastAttributeValueChangeEvent(Payloads);
+	}
+
+	UE_LOG(LogTcsAttribute, Verbose,
+		TEXT("[%s] Set attribute '%s' CurrentValue from %.2f to %.2f on entity '%s'"),
+		*FString(__FUNCTION__),
+		*AttributeName.ToString(),
+		OldValue,
+		Attribute->CurrentValue,
+		*CombatEntity->GetName());
+
+	return true;
+}
+
+bool UTcsAttributeManagerSubsystem::ResetAttribute(
+	AActor* CombatEntity,
+	FName AttributeName)
+{
+	// 参数验证
+	if (!IsValid(CombatEntity))
+	{
+		UE_LOG(LogTcsAttribute, Error,
+			TEXT("[%s] Invalid CombatEntity"),
+			*FString(__FUNCTION__));
+		return false;
+	}
+
+	UTcsAttributeComponent* AttributeComponent = GetAttributeComponent(CombatEntity);
+	if (!AttributeComponent)
+	{
+		UE_LOG(LogTcsAttribute, Error,
+			TEXT("[%s] Entity '%s' has no AttributeComponent"),
+			*FString(__FUNCTION__),
+			*CombatEntity->GetName());
+		return false;
+	}
+
+	if (AttributeName.IsNone())
+	{
+		UE_LOG(LogTcsAttribute, Error,
+			TEXT("[%s] Invalid AttributeName"),
+			*FString(__FUNCTION__));
+		return false;
+	}
+
+	FTcsAttributeInstance* Attribute = AttributeComponent->Attributes.Find(AttributeName);
+	if (!Attribute)
+	{
+		UE_LOG(LogTcsAttribute, Error,
+			TEXT("[%s] Attribute '%s' not found on entity '%s'"),
+			*FString(__FUNCTION__),
+			*AttributeName.ToString(),
+			*CombatEntity->GetName());
+		return false;
+	}
+
+	// 获取初始值（重置为0）
+	float InitValue = 0.0f;
+
+	// 移除所有应用到该属性的修改器
+	TArray<FTcsAttributeModifierInstance> ModifiersToRemove;
+	for (const FTcsAttributeModifierInstance& Modifier : AttributeComponent->AttributeModifiers)
+	{
+		if (Modifier.ModifierDef.AttributeName == AttributeName)
+		{
+			ModifiersToRemove.Add(Modifier);
+		}
+	}
+	if (ModifiersToRemove.Num() > 0)
+	{
+		RemoveModifier(CombatEntity, ModifiersToRemove);
+	}
+
+	// 重置Base和Current值
+	float OldBase = Attribute->BaseValue;
+	float OldCurrent = Attribute->CurrentValue;
+	Attribute->BaseValue = InitValue;
+	Attribute->CurrentValue = InitValue;
+
+	// Clamp值
+	ClampAttributeValueInRange(AttributeComponent, AttributeName, Attribute->BaseValue);
+	ClampAttributeValueInRange(AttributeComponent, AttributeName, Attribute->CurrentValue);
+
+	// 触发事件
+	if (!FMath::IsNearlyEqual(OldBase, Attribute->BaseValue))
+	{
+		FTcsAttributeChangeEventPayload Payload;
+		Payload.AttributeName = AttributeName;
+		Payload.OldValue = OldBase;
+		Payload.NewValue = Attribute->BaseValue;
+
+		TArray<FTcsAttributeChangeEventPayload> Payloads;
+		Payloads.Add(Payload);
+		AttributeComponent->BroadcastAttributeBaseValueChangeEvent(Payloads);
+	}
+
+	if (!FMath::IsNearlyEqual(OldCurrent, Attribute->CurrentValue))
+	{
+		FTcsAttributeChangeEventPayload Payload;
+		Payload.AttributeName = AttributeName;
+		Payload.OldValue = OldCurrent;
+		Payload.NewValue = Attribute->CurrentValue;
+
+		TArray<FTcsAttributeChangeEventPayload> Payloads;
+		Payloads.Add(Payload);
+		AttributeComponent->BroadcastAttributeValueChangeEvent(Payloads);
+	}
+
+	UE_LOG(LogTcsAttribute, Log,
+		TEXT("[%s] Reset attribute '%s' to initial value %.2f on entity '%s'"),
+		*FString(__FUNCTION__),
+		*AttributeName.ToString(),
+		InitValue,
+		*CombatEntity->GetName());
+
+	return true;
+}
+
+bool UTcsAttributeManagerSubsystem::RemoveAttribute(
+	AActor* CombatEntity,
+	FName AttributeName)
+{
+	// 参数验证
+	if (!IsValid(CombatEntity))
+	{
+		UE_LOG(LogTcsAttribute, Error,
+			TEXT("[%s] Invalid CombatEntity"),
+			*FString(__FUNCTION__));
+		return false;
+	}
+
+	UTcsAttributeComponent* AttributeComponent = GetAttributeComponent(CombatEntity);
+	if (!AttributeComponent)
+	{
+		UE_LOG(LogTcsAttribute, Error,
+			TEXT("[%s] Entity '%s' has no AttributeComponent"),
+			*FString(__FUNCTION__),
+			*CombatEntity->GetName());
+		return false;
+	}
+
+	if (AttributeName.IsNone())
+	{
+		UE_LOG(LogTcsAttribute, Error,
+			TEXT("[%s] Invalid AttributeName"),
+			*FString(__FUNCTION__));
+		return false;
+	}
+
+	if (!AttributeComponent->Attributes.Contains(AttributeName))
+	{
+		UE_LOG(LogTcsAttribute, Warning,
+			TEXT("[%s] Attribute '%s' not found on entity '%s'"),
+			*FString(__FUNCTION__),
+			*AttributeName.ToString(),
+			*CombatEntity->GetName());
+		return false;
+	}
+
+	// 移除所有应用到该属性的修改器
+	TArray<FTcsAttributeModifierInstance> ModifiersToRemove;
+	for (const FTcsAttributeModifierInstance& Modifier : AttributeComponent->AttributeModifiers)
+	{
+		if (Modifier.ModifierDef.AttributeName == AttributeName)
+		{
+			ModifiersToRemove.Add(Modifier);
+		}
+	}
+	if (ModifiersToRemove.Num() > 0)
+	{
+		RemoveModifier(CombatEntity, ModifiersToRemove);
+	}
+
+	// 从组件中移除属性
+	AttributeComponent->Attributes.Remove(AttributeName);
+
+	UE_LOG(LogTcsAttribute, Log,
+		TEXT("[%s] Removed attribute '%s' from entity '%s'"),
+		*FString(__FUNCTION__),
+		*AttributeName.ToString(),
+		*CombatEntity->GetName());
+
+	return true;
+}
+
 UTcsAttributeComponent* UTcsAttributeManagerSubsystem::GetAttributeComponent(const AActor* CombatEntity)
 {
 	if (!IsValid(CombatEntity))
@@ -350,6 +675,7 @@ bool UTcsAttributeManagerSubsystem::CreateAttributeModifier(
 
 	OutModifierInst = FTcsAttributeModifierInstance();
 	OutModifierInst.ModifierDef = *ModifierDef;
+	OutModifierInst.ModifierId = ModifierId;  // 设置ModifierId为DataTable RowName
 	if (OutModifierInst.ModifierDef.Priority < 0)
 	{
 		UE_LOG(LogTcsAttribute, Warning, TEXT("[%s] AttrModDef %s has invalid Priority %d, clamped to 0."),
@@ -450,6 +776,7 @@ bool UTcsAttributeManagerSubsystem::CreateAttributeModifierWithOperands(
 
 	OutModifierInst = FTcsAttributeModifierInstance();
 	OutModifierInst.ModifierDef = *ModifierDef;
+	OutModifierInst.ModifierId = ModifierId;  // 设置ModifierId为DataTable RowName
 	if (OutModifierInst.ModifierDef.Priority < 0)
 	{
 		UE_LOG(LogTcsAttribute, Warning, TEXT("[%s] AttrModDef %s has invalid Priority %d, clamped to 0."),
@@ -1001,11 +1328,11 @@ void UTcsAttributeManagerSubsystem::MergeAttributeModifiers(
 	const TArray<FTcsAttributeModifierInstance>& Modifiers,
 	TArray<FTcsAttributeModifierInstance>& MergedModifiers)
 {
-	// 按类型整理所有属性修改器，方便后续执行修改器合并
+	// 按ModifierId整理所有属性修改器，方便后续执行修改器合并
 	TMap<FName, TArray<FTcsAttributeModifierInstance>> ModifiersToMerge;
 	for (const FTcsAttributeModifierInstance& Modifier : Modifiers)
 	{
-		ModifiersToMerge.FindOrAdd(Modifier.ModifierDef.ModifierName).Add(Modifier);
+		ModifiersToMerge.FindOrAdd(Modifier.ModifierId).Add(Modifier);
 	}
 	
 	// 执行修改器合并
@@ -1151,8 +1478,19 @@ void UTcsAttributeManagerSubsystem::EnforceAttributeRangeConstraints(UTcsAttribu
 		WorkingCurrentValues.Add(Pair.Key, Pair.Value.CurrentValue);
 	}
 
-	// 值解析器: 优先从工作集读取
-	FAttributeValueResolver Resolver = [&](FName AttributeName, float& OutValue) -> bool
+	// Base值解析器: 从WorkingBaseValues读取（用于clamp Base值时解析动态范围）
+	FAttributeValueResolver BaseResolver = [&](FName AttributeName, float& OutValue) -> bool
+	{
+		if (float* Value = WorkingBaseValues.Find(AttributeName))
+		{
+			OutValue = *Value;
+			return true;
+		}
+		return false;
+	};
+
+	// Current值解析器: 从WorkingCurrentValues读取（用于clamp Current值时解析动态范围）
+	FAttributeValueResolver CurrentResolver = [&](FName AttributeName, float& OutValue) -> bool
 	{
 		if (float* Value = WorkingCurrentValues.Find(AttributeName))
 		{
@@ -1172,20 +1510,20 @@ void UTcsAttributeManagerSubsystem::EnforceAttributeRangeConstraints(UTcsAttribu
 		{
 			FName AttributeName = Pair.Key;
 
-			// Clamp BaseValue
+			// 阶段1: Clamp BaseValue，使用WorkingBase解析动态范围
 			float OldBase = WorkingBaseValues[AttributeName];
 			float NewBase = OldBase;
-			ClampAttributeValueInRange(AttributeComponent, AttributeName, NewBase, nullptr, nullptr, &Resolver);
+			ClampAttributeValueInRange(AttributeComponent, AttributeName, NewBase, nullptr, nullptr, &BaseResolver);
 			if (!FMath::IsNearlyEqual(OldBase, NewBase))
 			{
 				WorkingBaseValues[AttributeName] = NewBase;
 				bAnyChanged = true;
 			}
 
-			// Clamp CurrentValue
+			// 阶段2: Clamp CurrentValue，使用WorkingCurrent解析动态范围
 			float OldCurrent = WorkingCurrentValues[AttributeName];
 			float NewCurrent = OldCurrent;
-			ClampAttributeValueInRange(AttributeComponent, AttributeName, NewCurrent, nullptr, nullptr, &Resolver);
+			ClampAttributeValueInRange(AttributeComponent, AttributeName, NewCurrent, nullptr, nullptr, &CurrentResolver);
 			if (!FMath::IsNearlyEqual(OldCurrent, NewCurrent))
 			{
 				WorkingCurrentValues[AttributeName] = NewCurrent;

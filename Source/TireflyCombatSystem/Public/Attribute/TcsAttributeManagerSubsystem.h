@@ -10,6 +10,8 @@
 #include "TcsAttributeManagerSubsystem.generated.h"
 
 
+class UTcsAttributeComponent;
+
 
 // 属性管理器子系统，所有战斗实体执行属性相关逻辑的入口
 UCLASS()
@@ -97,6 +99,62 @@ public:
 	bool TryGetAttributeTagByName(
 		FName AttributeName,
 		FGameplayTag& OutAttributeTag) const;
+
+	/**
+	 * 直接设置属性的Base值
+	 *
+	 * @param CombatEntity 战斗实体
+	 * @param AttributeName 属性名称
+	 * @param NewValue 新的Base值
+	 * @param bTriggerEvents 是否触发事件（默认true）
+	 * @return 是否成功设置
+	 */
+	UFUNCTION(BlueprintCallable, Category = "TireflyCombatSystem|Attribute", Meta = (DefaultToSelf = "CombatEntity"))
+	bool SetAttributeBaseValue(
+		AActor* CombatEntity,
+		UPARAM(Meta = (GetParamOptions = "TcsGenericLibrary.GetAttributeNames"))FName AttributeName,
+		float NewValue,
+		bool bTriggerEvents = true);
+
+	/**
+	 * 直接设置属性的Current值
+	 *
+	 * @param CombatEntity 战斗实体
+	 * @param AttributeName 属性名称
+	 * @param NewValue 新的Current值
+	 * @param bTriggerEvents 是否触发事件（默认true）
+	 * @return 是否成功设置
+	 */
+	UFUNCTION(BlueprintCallable, Category = "TireflyCombatSystem|Attribute", Meta = (DefaultToSelf = "CombatEntity"))
+	bool SetAttributeCurrentValue(
+		AActor* CombatEntity,
+		UPARAM(Meta = (GetParamOptions = "TcsGenericLibrary.GetAttributeNames"))FName AttributeName,
+		float NewValue,
+		bool bTriggerEvents = true);
+
+	/**
+	 * 重置属性到定义的初始值
+	 *
+	 * @param CombatEntity 战斗实体
+	 * @param AttributeName 属性名称
+	 * @return 是否成功重置
+	 */
+	UFUNCTION(BlueprintCallable, Category = "TireflyCombatSystem|Attribute", Meta = (DefaultToSelf = "CombatEntity"))
+	bool ResetAttribute(
+		AActor* CombatEntity,
+		UPARAM(Meta = (GetParamOptions = "TcsGenericLibrary.GetAttributeNames"))FName AttributeName);
+
+	/**
+	 * 移除属性
+	 *
+	 * @param CombatEntity 战斗实体
+	 * @param AttributeName 属性名称
+	 * @return 是否成功移除
+	 */
+	UFUNCTION(BlueprintCallable, Category = "TireflyCombatSystem|Attribute", Meta = (DefaultToSelf = "CombatEntity"))
+	bool RemoveAttribute(
+		AActor* CombatEntity,
+		UPARAM(Meta = (GetParamOptions = "TcsGenericLibrary.GetAttributeNames"))FName AttributeName);
 
 protected:
 	// 获取战斗实体的属性组件

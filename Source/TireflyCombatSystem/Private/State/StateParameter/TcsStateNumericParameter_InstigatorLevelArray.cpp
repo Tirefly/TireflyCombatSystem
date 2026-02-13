@@ -30,7 +30,7 @@ bool UTcsStateNumericParamEvaluator_InstigatorLevelArray::Evaluate_Implementatio
 
 		const TArray<float>& LevelValues = InstigatorLevelArrayParam->LevelValues;
 
-		// 检查等级是否在数组范围内
+		// 检查等级是否在数组范围内（数组下标直接对应等级值，即 LevelValues[0] 对应等级 0）
 		if (LevelValues.IsValidIndex(InstigatorLevel))
 		{
 			OutValue = LevelValues[InstigatorLevel];

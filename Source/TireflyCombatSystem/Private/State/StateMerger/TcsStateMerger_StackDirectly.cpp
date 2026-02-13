@@ -59,6 +59,17 @@ void UTcsStateMerger_StackDirectly::Merge_Implementation(
 				StateStackCount);
 			return;
 		}
+
+		// StackCount为0的状态即将被移除，跳过
+		if (StateStackCount == 0)
+		{
+			UE_LOG(LogTcsStateMerger, Verbose,
+				TEXT("[%s] Skipping state '%s' with StackCount=0 (pending removal)"),
+				*FString(__FUNCTION__),
+				*State->GetStateDefId().ToString());
+			continue;
+		}
+
 		TotalStackCount += StateStackCount;
 	}
 

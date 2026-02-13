@@ -607,9 +607,13 @@ public:
 	// 初始化StateTree
 
 
-	// 开始执行StateTree
+	// 热恢复StateTree：保留InstanceData并启动（用于从Pause/HangUp恢复）
 	UFUNCTION(BlueprintCallable, Category = "State|StateTree")
 	void StartStateTree();
+
+	// 冷启动StateTree：重置InstanceData并启动（用于全新应用状态）
+	UFUNCTION(BlueprintCallable, Category = "State|StateTree")
+	void RestartStateTree();
 
 	// StateTree更新
 	UFUNCTION(BlueprintCallable, Category = "State|StateTree")
@@ -656,7 +660,12 @@ protected:
 		const UStateTree* StateTree,
 		TArrayView<const FStateTreeExternalDataDesc> ExternalDataDescs,
 		TArrayView<FStateTreeDataView> OutDataViews);
-	
+
+private:
+	// 内部实现：启动StateTree
+	// @param bResetInstanceData 是否重置InstanceData
+	void StartStateTreeInternal(bool bResetInstanceData);
+
 	// StateTree是否在运行
 	bool bStateTreeRunning = false;
 

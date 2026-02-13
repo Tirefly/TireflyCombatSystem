@@ -50,7 +50,7 @@ public:
 protected:
 	/**
 	 * 创建状态实例
-	 * 
+	 *
 	 * @param StateDefId 状态定义名，通过TcsGenericLibrary.GetStateDefIds获取
 	 * @param Owner 状态的拥有者，也是状态的应用目标
 	 * @param Instigator 状态的发起者
@@ -58,6 +58,23 @@ protected:
 	 * @return 如果创建状态实例成功，则返回状态实例指针，否则返回nullptr
 	 */
 	UTcsStateInstance* CreateStateInstance(FName StateDefId, AActor* Owner, AActor* Instigator, int32 InLevel = 1);
+
+	/**
+	 * 验证状态参数评估
+	 *
+	 * @param StateDef 状态定义
+	 * @param Owner 状态拥有者
+	 * @param Instigator 状态发起者
+	 * @param StateInstance 临时状态实例（用于参数评估上下文）
+	 * @param OutFailedParams 输出失败的参数名称列表
+	 * @return 是否所有参数评估成功
+	 */
+	bool ValidateStateParameters(
+		const FTcsStateDefinition& StateDef,
+		AActor* Owner,
+		AActor* Instigator,
+		UTcsStateInstance* StateInstance,
+		TArray<FName>& OutFailedParams);
 
 protected:
 	// 全局状态实例ID管理器
@@ -72,17 +89,19 @@ protected:
 public:
 	/**
 	 * 尝试向目标应用状态
-	 * 
+	 *
 	 * @param Target 目标，状态将应用到此目标
 	 * @param StateDefId 状态定义名，可通过TcsGenericLibrary.GetStateDefIds获取
 	 * @param Instigator 状态的发起者
+	 * @param StateLevel 状态等级（默认为 1）
 	 * @return 如果应用状态成功，则返回true，否则返回false
 	 */
 	UFUNCTION(BlueprintCallable, Category = "State Manager")
 	bool TryApplyStateToTarget(
 		AActor* Target,
 		FName StateDefId,
-		AActor* Instigator);
+		AActor* Instigator,
+		int32 StateLevel = 1);
 
 	/**
 	 * 
@@ -341,6 +360,9 @@ public:
 #pragma region StateRemoval_Internal
 
 protected:
+	// 检查状态是否仍然有效（未被移除或过期）
+	static bool IsStateStillValid(UTcsStateInstance* StateInstance);
+
 	// 最终化移除流程：停止逻辑、标记过期、清理容器并广播事件
 	void FinalizeStateRemoval(UTcsStateInstance* StateInstance, FName RemovalReason);
 

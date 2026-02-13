@@ -194,8 +194,9 @@ void UTcsStateInstance::SetDurationRemaining(float InDurationRemaining)
 	if (!OwnerStateCmp.IsValid())
 	{
 		UE_LOG(LogTcsState, Error, TEXT("[%s] OwnerStateCmp is invalid"), *FString(__FUNCTION__));
+		return;
 	}
-	
+
 	// 通知StateComponent设置剩余时间
 	OwnerStateCmp->SetStateRemainingDuration(this, InDurationRemaining);
 }
@@ -257,10 +258,27 @@ void UTcsStateInstance::SetStackCount(int32 InStackCount)
 	}
 
 	int32 OldStackCount = GetStackCount();
-	int32 NewStackCount = FMath::Clamp(InStackCount, 1, MaxStackCount);
+	int32 NewStackCount = FMath::Clamp(InStackCount, 0, MaxStackCount);
 
 	if (OldStackCount == NewStackCount)
 	{
+		return;
+	}
+
+	// 如果StackCount降为0，自动触发移除
+	if (NewStackCount == 0)
+	{
+		UE_LOG(LogTcsState, Warning, TEXT("[%s] State '%s' StackCount reached 0, requesting removal"),
+			*FString(__FUNCTION__),
+			*GetStateDefId().ToString());
+
+		// 根据调用上下文选择移除原因
+		FTcsStateRemovalRequest RemovalRequest;
+		RemovalRequest.Reason = (InStackCount == 0)
+			? ETcsStateRemovalRequestReason::Removed
+			: ETcsStateRemovalRequestReason::Expired;
+
+		SetPendingRemovalRequest(RemovalRequest);
 		return;
 	}
 
@@ -778,6 +796,14 @@ bool UTcsStateInstance::InitializeStateTree()
 
 void UTcsStateInstance::StartStateTree()
 {
+	StartStateTreeInternal(false);
+}
+void UTcsStateInstance::RestartStateTree()
+{
+	StartStateTreeInternal(true);
+}
+void UTcsStateInstance::StartStateTreeInternal(bool bResetInstanceData)
+{
 	if (bStateTreeRunning)
 	{
 		return;
@@ -790,6 +816,13 @@ void UTcsStateInstance::StartStateTree()
 			*FString(__FUNCTION__),
 			*GetStateDefId().ToString());
 		return;
+	}
+
+	// 如果需要重置InstanceData（冷启动）
+	if (bResetInstanceData)
+	{
+		StateTreeInstanceData.Reset();
+		CurrentStateTreeStatus = EStateTreeRunStatus::Unset;
 	}
 
 	// 创建执行上下文
@@ -811,13 +844,14 @@ void UTcsStateInstance::StartStateTree()
 	if (CurrentStateTreeStatus == EStateTreeRunStatus::Running)
 	{
 		bStateTreeRunning = true;
-		UE_LOG(LogTcsStateTree, Log, TEXT("[%s] StateTree started successfully for StateInstance: %s"),
+		UE_LOG(LogTcsStateTree, Log, TEXT("[%s] StateTree started successfully for StateInstance: %s (Reset: %s)"),
 			*FString(__FUNCTION__),
-			*GetStateDefId().ToString());
+			*GetStateDefId().ToString(),
+			bResetInstanceData ? TEXT("Yes") : TEXT("No"));
 	}
 	else
 	{
-		UE_LOG(LogTcsStateTree, Error, TEXT("[%s] Failed to start StateTree for StateInstance: %s, Status: %d"), 
+		UE_LOG(LogTcsStateTree, Error, TEXT("[%s] Failed to start StateTree for StateInstance: %s, Status: %d"),
 			*FString(__FUNCTION__),
 			*GetStateDefId().ToString(),
 			(int32)CurrentStateTreeStatus);
