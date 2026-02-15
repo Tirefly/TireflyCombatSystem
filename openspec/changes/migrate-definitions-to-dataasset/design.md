@@ -67,8 +67,11 @@ class TIREFLYCOMBATSYSTEM_API UTcsAttributeDefinitionAsset : public UPrimaryData
     GENERATED_BODY()
 
 public:
-    /** PrimaryAssetType 标识符 */
-    static const FName PrimaryAssetType;  // 在 .cpp 中定义为 "TcsAttributeDef"
+    /**
+     * PrimaryAssetType 标识符
+     * 注意：虽然 FPrimaryAssetType 是 FName 的 typedef，但使用 FPrimaryAssetType 更语义化
+     */
+    static const FPrimaryAssetType PrimaryAssetType;  // 在 .cpp 中定义为 "TcsAttributeDef"
 
     // ========== Identity ==========
 
@@ -183,8 +186,11 @@ class TIREFLYCOMBATSYSTEM_API UTcsStateDefinitionAsset : public UPrimaryDataAsse
     GENERATED_BODY()
 
 public:
-    /** PrimaryAssetType 标识符 */
-    static const FName PrimaryAssetType;  // 在 .cpp 中定义为 "TcsStateDef"
+    /**
+     * PrimaryAssetType 标识符
+     * 注意：虽然 FPrimaryAssetType 是 FName 的 typedef，但使用 FPrimaryAssetType 更语义化
+     */
+    static const FPrimaryAssetType PrimaryAssetType;  // 在 .cpp 中定义为 "TcsStateDef"
 
     // ========== Identity ==========
 
@@ -243,8 +249,11 @@ class TIREFLYCOMBATSYSTEM_API UTcsStateSlotDefinitionAsset : public UPrimaryData
     GENERATED_BODY()
 
 public:
-    /** PrimaryAssetType 标识符 */
-    static const FName PrimaryAssetType;  // 在 .cpp 中定义为 "TcsStateSlotDef"
+    /**
+     * PrimaryAssetType 标识符
+     * 注意：虽然 FPrimaryAssetType 是 FName 的 typedef，但使用 FPrimaryAssetType 更语义化
+     */
+    static const FPrimaryAssetType PrimaryAssetType;  // 在 .cpp 中定义为 "TcsStateSlotDef"
 
     /** 槽位的唯一标识符（对应原 RowName） */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity",
@@ -305,8 +314,11 @@ class TIREFLYCOMBATSYSTEM_API UTcsAttributeModifierDefinitionAsset : public UPri
     GENERATED_BODY()
 
 public:
-    /** PrimaryAssetType 标识符 */
-    static const FName PrimaryAssetType;  // 在 .cpp 中定义为 "TcsAttributeModifierDef"
+    /**
+     * PrimaryAssetType 标识符
+     * 注意：虽然 FPrimaryAssetType 是 FName 的 typedef，但使用 FPrimaryAssetType 更语义化
+     */
+    static const FPrimaryAssetType PrimaryAssetType;  // 在 .cpp 中定义为 "TcsAttributeModifierDef"
 
     /** 修改器的唯一标识符 */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity",
@@ -407,26 +419,16 @@ public:
     UPROPERTY(Transient)
     TMap<FName, TSoftObjectPtr<UTcsAttributeModifierDefAsset>> CachedAttributeModifierDefinitions;
 
-    // ========== 旧的 DataTable 引用（标记为 Deprecated） ==========
-
-    UPROPERTY(Config, EditAnywhere, Category = "DataTable (Deprecated)",
-        meta = (ToolTip = "[已弃用] 请使用 AttributeDefinitionPaths"))
-    TSoftObjectPtr<UDataTable> AttributeDefTable_DEPRECATED;
-
-    UPROPERTY(Config, EditAnywhere, Category = "DataTable (Deprecated)",
-        meta = (ToolTip = "[已弃用] 请使用 StateDefinitionPaths"))
-    TSoftObjectPtr<UDataTable> StateDefTable_DEPRECATED;
-
-    UPROPERTY(Config, EditAnywhere, Category = "DataTable (Deprecated)",
-        meta = (ToolTip = "[已弃用] 请使用 StateSlotDefinitionPaths"))
-    TSoftObjectPtr<UDataTable> StateSlotDefTable_DEPRECATED;
-
 #if WITH_EDITOR
     virtual void PostInitProperties() override;
     virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
     virtual EDataValidationResult IsDataValid(FDataValidationContext& Context) const override;
 
 private:
+    // 注意：以下回调函数不需要 UFUNCTION 标记
+    // 这些是纯 C++ 委托回调,使用 AddUObject 绑定,不涉及反射系统
+    // 只有需要蓝图调用、网络 RPC 或动态委托的函数才需要 UFUNCTION
+
     /** 扫描指定路径下的所有 DataAsset 并更新缓存 */
     void ScanAndCacheDefinitions();
 
@@ -704,6 +706,13 @@ private:
     /** StateTag -> StateDefId 映射 */
     TMap<FGameplayTag, FName> StateTagToName;
 
+    /** 运行时注册表：StateSlotDefId -> DataAsset */
+    UPROPERTY()
+    TMap<FName, UTcsStateSlotDefAsset*> StateSlotDefRegistry;
+
+    /** StateSlotTag -> StateSlotDefId 映射 */
+    TMap<FGameplayTag, FName> StateSlotTagToName;
+
 public:
     // ========== DataAsset API ==========
 
@@ -724,6 +733,24 @@ public:
      */
     UFUNCTION(BlueprintCallable, Category = "TCS|State")
     TArray<FName> GetAllStateNames() const;
+
+    /**
+     * 获取状态槽定义资产
+     */
+    UFUNCTION(BlueprintCallable, Category = "TCS|State")
+    UTcsStateSlotDefAsset* GetStateSlotDefAsset(FName StateSlotDefId) const;
+
+    /**
+     * 通过 StateSlotTag 获取状态槽定义资产
+     */
+    UFUNCTION(BlueprintCallable, Category = "TCS|State")
+    UTcsStateSlotDefAsset* GetStateSlotDefAssetByTag(FGameplayTag StateSlotTag) const;
+
+    /**
+     * 获取所有已注册的状态槽名称
+     */
+    UFUNCTION(BlueprintCallable, Category = "TCS|State")
+    TArray<FName> GetAllStateSlotNames() const;
 
 private:
     /**
@@ -762,6 +789,26 @@ void UTcsStateManagerSubsystem::LoadAndRegisterDefinitions()
 
     StateDefRegistry.Empty();
     StateTagToName.Empty();
+    StateSlotDefRegistry.Empty();
+    StateSlotTagToName.Empty();
+
+    // 加载 StateSlot 定义（总是预加载）
+    for (const auto& Pair : Settings->CachedStateSlotDefinitions)
+    {
+        const FName& DefId = Pair.Key;
+        const TSoftObjectPtr<UTcsStateSlotDefAsset>& AssetPtr = Pair.Value;
+
+        UTcsStateSlotDefAsset* Asset = AssetPtr.LoadSynchronous();
+        if (Asset)
+        {
+            StateSlotDefRegistry.Add(DefId, Asset);
+
+            if (Asset->SlotTag.IsValid())
+            {
+                StateSlotTagToName.Add(Asset->SlotTag, DefId);
+            }
+        }
+    }
 
     // 根据加载策略执行不同逻辑
     switch (Settings->StateLoadingStrategy)
@@ -778,6 +825,9 @@ void UTcsStateManagerSubsystem::LoadAndRegisterDefinitions()
         PreloadCommonStates();
         break;
     }
+
+    // 初始化状态槽
+    InitStateSlotDefs();
 }
 
 void UTcsStateManagerSubsystem::PreloadAllStates()
@@ -895,6 +945,35 @@ UTcsStateDefAsset* UTcsStateManagerSubsystem::GetStateDefAssetByTag(FGameplayTag
 
     return nullptr;
 }
+
+UTcsStateSlotDefAsset* UTcsStateManagerSubsystem::GetStateSlotDefAsset(FName StateSlotDefId) const
+{
+    if (UTcsStateSlotDefAsset* const* AssetPtr = StateSlotDefRegistry.Find(StateSlotDefId))
+    {
+        return *AssetPtr;
+    }
+
+    UE_LOG(LogTcsState, Warning, TEXT("[%s] StateSlotDefAsset not found: %s"),
+        *FString(__FUNCTION__), *StateSlotDefId.ToString());
+    return nullptr;
+}
+
+UTcsStateSlotDefAsset* UTcsStateManagerSubsystem::GetStateSlotDefAssetByTag(FGameplayTag StateSlotTag) const
+{
+    if (const FName* DefId = StateSlotTagToName.Find(StateSlotTag))
+    {
+        return GetStateSlotDefAsset(*DefId);
+    }
+
+    return nullptr;
+}
+
+TArray<FName> UTcsStateManagerSubsystem::GetAllStateSlotNames() const
+{
+    TArray<FName> Names;
+    StateSlotDefRegistry.GetKeys(Names);
+    return Names;
+}
 ```
 
 ## FTcsAttributeInstance 重构
@@ -930,7 +1009,7 @@ struct FTcsAttributeInstance
 
 ### 新设计
 
-改为只存储 ID，通过 Subsystem 获取 DataAsset：
+改为混合方案：运行时使用指针缓存，序列化使用 ID：
 
 ```cpp
 USTRUCT(BlueprintType)
@@ -938,7 +1017,15 @@ struct TIREFLYCOMBATSYSTEM_API FTcsAttributeInstance
 {
     GENERATED_BODY()
 
-    /** 属性定义 ID */
+    // ========== 运行时使用（不序列化） ==========
+
+    /** 属性定义资产（运行时缓存，不序列化） */
+    UPROPERTY(Transient, BlueprintReadOnly, Category = "Attribute")
+    UTcsAttributeDefinitionAsset* AttributeDef = nullptr;
+
+    // ========== 序列化使用 ==========
+
+    /** 属性定义 ID（用于序列化和网络同步，插件不强制存档策略） */
     UPROPERTY(BlueprintReadOnly, Category = "Attribute")
     FName AttributeDefId;
 
@@ -953,40 +1040,108 @@ struct TIREFLYCOMBATSYSTEM_API FTcsAttributeInstance
     // ========== 辅助方法 ==========
 
     /**
-     * 获取属性定义资产
-     * @param World 用于获取 Subsystem 的 World 对象
-     * @return 属性定义资产，如果未找到则返回 nullptr
+     * 获取属性定义资产（纯粹的 Get，只读）
+     * @return 缓存的属性定义资产指针，如果未加载则返回 nullptr
      */
-    UTcsAttributeDefAsset* GetAttributeDefAsset(UWorld* World) const
+    UTcsAttributeDefinitionAsset* GetAttributeDefAsset() const
     {
+        return AttributeDef;
+    }
+
+    /**
+     * 加载属性定义资产并缓存
+     * 如果缓存已存在，不会重复加载
+     * @param World 用于获取 Subsystem 的 World 对象
+     */
+    void LoadAttributeDefAsset(UWorld* World)
+    {
+        // 如果已缓存，直接返回
+        if (AttributeDef)
+        {
+            return;
+        }
+
+        // 从 Subsystem 查找并缓存
         if (!World)
         {
-            return nullptr;
+            return;
         }
 
         UGameInstance* GameInstance = World->GetGameInstance();
         if (!GameInstance)
         {
-            return nullptr;
+            return;
         }
 
         UTcsAttributeManagerSubsystem* Subsystem = GameInstance->GetSubsystem<UTcsAttributeManagerSubsystem>();
         if (!Subsystem)
         {
-            return nullptr;
+            return;
         }
 
-        return Subsystem->GetAttributeDefAsset(AttributeDefId);
+        AttributeDef = Subsystem->GetAttributeDefAsset(AttributeDefId);
+    }
+
+    /**
+     * 自定义序列化
+     * 保存时：从 AttributeDef 同步 DefId
+     * 加载时：只加载 DefId，AttributeDef 保持为 nullptr，在首次访问时自动加载
+     */
+    bool Serialize(FArchive& Ar)
+    {
+        // 保存时：确保 DefId 与 AttributeDef 同步
+        if (Ar.IsSaving() && AttributeDef)
+        {
+            AttributeDefId = AttributeDef->AttributeDefId;
+        }
+
+        // 序列化字段
+        Ar << AttributeDefId;
+        Ar << CurrentValue;
+        Ar << BaseValue;
+
+        // 加载时：AttributeDef 保持为 nullptr，在首次访问时自动加载
+        // DefAsset 是固定资产，不需要手动刷新
+
+        return true;
+    }
+
+    /**
+     * 网络序列化
+     * 保存时：同步 DefId
+     * 加载时：只加载 DefId，AttributeDef 保持为 nullptr，在首次访问时自动加载
+     */
+    bool NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess)
+    {
+        // 保存时：确保 DefId 与 AttributeDef 同步
+        if (Ar.IsSaving() && AttributeDef)
+        {
+            AttributeDefId = AttributeDef->AttributeDefId;
+        }
+
+        // 序列化 DefId
+        Ar << AttributeDefId;
+        Ar << CurrentValue;
+        Ar << BaseValue;
+
+        // 加载时：AttributeDef 保持为 nullptr，在首次访问时自动加载
+        // DefAsset 是固定资产，不需要手动刷新
+
+        bOutSuccess = true;
+        return true;
     }
 
     /**
      * 获取属性名称（本地化）
      */
-    FText GetAttributeName(UWorld* World) const
+    FText GetAttributeName(UWorld* World)
     {
-        if (UTcsAttributeDefAsset* Asset = GetAttributeDefAsset(World))
+        // 确保已加载
+        LoadAttributeDefAsset(World);
+
+        if (AttributeDef)
         {
-            return Asset->AttributeName;
+            return AttributeDef->AttributeName;
         }
         return FText::FromName(AttributeDefId);
     }
@@ -994,23 +1149,37 @@ struct TIREFLYCOMBATSYSTEM_API FTcsAttributeInstance
     /**
      * 获取属性图标
      */
-    TSoftObjectPtr<UTexture2D> GetIcon(UWorld* World) const
+    TSoftObjectPtr<UTexture2D> GetIcon(UWorld* World)
     {
-        if (UTcsAttributeDefAsset* Asset = GetAttributeDefAsset(World))
+        // 确保已加载
+        LoadAttributeDefAsset(World);
+
+        if (AttributeDef)
         {
-            return Asset->Icon;
+            return AttributeDef->Icon;
         }
         return nullptr;
     }
+};
+
+// 启用自定义网络序列化
+template<>
+struct TStructOpsTypeTraits<FTcsAttributeInstance> : public TStructOpsTypeTraitsBase2<FTcsAttributeInstance>
+{
+    enum
+    {
+        WithNetSerializer = true,
+    };
 };
 ```
 
 ### 优势
 
-1. **内存效率**: 每个实例只存储 FName（8 bytes）而不是完整结构体（可能 100+ bytes）
-2. **数据一致性**: 所有实例共享同一个定义，修改定义会立即影响所有实例
-3. **序列化优化**: 保存游戏时只需序列化 ID，不需要保存完整定义
-4. **灵活性**: 可以在运行时动态更换定义（如果需要）
+1. **运行时性能最优**: 直接指针访问，无需查询（~1-5 ns vs ~10-50 ns）
+2. **序列化开销小**: 只序列化 DefId（8 bytes）
+3. **网络同步友好**: 传递 DefId，接收端重新查找
+4. **数据一致性**: 所有实例共享同一个定义
+5. **符合 UE5 最佳实践**: 参考 GameplayAbilities 的 FGameplayEffectSpec 设计
 
 ### 迁移影响
 
@@ -1021,19 +1190,261 @@ struct TIREFLYCOMBATSYSTEM_API FTcsAttributeInstance
 FText Name = AttributeInstance.AttributeDef.AttributeName;
 ```
 
-**新代码**：
+**新代码（方式1 - 直接访问缓存）**：
 ```cpp
+// 先加载，再访问
+AttributeInstance.LoadAttributeDefAsset(GetWorld());
+if (AttributeInstance.GetAttributeDefAsset())
+{
+    FText Name = AttributeInstance.GetAttributeDefAsset()->AttributeName;
+}
+```
+
+**新代码（方式2 - 使用便捷方法，推荐）**：
+```cpp
+// 使用便捷方法（内部会自动调用 Load）
 FText Name = AttributeInstance.GetAttributeName(GetWorld());
 ```
 
-或者直接获取 DataAsset：
+**关键点**：
+- Get 和 Load 明确分离，职责清晰
+- Get 函数纯粹只读，不修改状态
+- Load 函数专门负责加载和缓存
+- DefAsset 是固定资产，加载后不会改变
+- 加载存档或网络同步后，需要显式调用 Load 函数加载缓存
+
+## FTcsAttributeModifierInstance 重构
+
+### 旧设计的问题
+
+在旧的 DataTable 方案中，`FTcsAttributeModifierInstance` 也存储完整的定义结构体：
+
 ```cpp
-if (UTcsAttributeDefAsset* Asset = AttributeInstance.GetAttributeDefAsset(GetWorld()))
+USTRUCT(BlueprintType)
+struct FTcsAttributeModifierInstance
 {
-    FText Name = Asset->AttributeName;
-    // 访问其他字段...
-}
+    GENERATED_BODY()
+
+    /** 修改器定义（完整结构体） */
+    UPROPERTY(BlueprintReadOnly)
+    FTcsAttributeModifierDefinition ModifierDef;
+
+    // ... 其他字段
+};
 ```
+
+**问题**：
+- 与 AttributeInstance 相同的问题：内存浪费、数据冗余、无法更新
+
+### 新设计
+
+采用与 FTcsAttributeInstance 相同的混合方案：
+
+```cpp
+USTRUCT(BlueprintType)
+struct TIREFLYCOMBATSYSTEM_API FTcsAttributeModifierInstance
+{
+    GENERATED_BODY()
+
+    // ========== 运行时使用（不序列化） ==========
+
+    /** 修改器定义资产（运行时缓存，不序列化） */
+    UPROPERTY(Transient, BlueprintReadOnly, Category = "Modifier")
+    UTcsAttributeModifierDefinitionAsset* ModifierDef = nullptr;
+
+    // ========== 序列化使用 ==========
+
+    /** 修改器定义 ID（用于序列化和网络同步，插件不强制存档策略） */
+    UPROPERTY(BlueprintReadOnly, Category = "Modifier")
+    FName ModifierDefId;
+
+    // ... 其他字段（ModifierInstId, SourceHandle 等）
+
+    // ========== 辅助方法 ==========
+
+    /**
+     * 获取修改器定义资产（纯粹的 Get，只读）
+     * @return 缓存的修改器定义资产指针，如果未加载则返回 nullptr
+     */
+    UTcsAttributeModifierDefinitionAsset* GetModifierDefAsset() const
+    {
+        return ModifierDef;
+    }
+
+    /**
+     * 加载修改器定义资产并缓存
+     * 如果缓存已存在，不会重复加载
+     * @param World 用于获取 Subsystem 的 World 对象
+     */
+    void LoadModifierDefAsset(UWorld* World)
+    {
+        if (ModifierDef)
+        {
+            return;
+        }
+
+        if (!World)
+        {
+            return;
+        }
+
+        UGameInstance* GameInstance = World->GetGameInstance();
+        if (!GameInstance)
+        {
+            return;
+        }
+
+        UTcsAttributeManagerSubsystem* Subsystem = GameInstance->GetSubsystem<UTcsAttributeManagerSubsystem>();
+        if (!Subsystem)
+        {
+            return;
+        }
+
+        ModifierDef = Subsystem->GetAttributeModifierDefAsset(ModifierDefId);
+    }
+
+    /**
+     * 自定义序列化
+     */
+    bool Serialize(FArchive& Ar)
+    {
+        if (Ar.IsSaving() && ModifierDef)
+        {
+            ModifierDefId = ModifierDef->AttributeModifierDefId;
+        }
+
+        Ar << ModifierDefId;
+        // ... 序列化其他字段
+
+        return true;
+    }
+
+    /**
+     * 网络序列化
+     */
+    bool NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess)
+    {
+        if (Ar.IsSaving() && ModifierDef)
+        {
+            ModifierDefId = ModifierDef->AttributeModifierDefId;
+        }
+
+        Ar << ModifierDefId;
+        // ... 序列化其他字段
+
+        bOutSuccess = true;
+        return true;
+    }
+};
+
+// 启用自定义网络序列化
+template<>
+struct TStructOpsTypeTraits<FTcsAttributeModifierInstance> : public TStructOpsTypeTraitsBase2<FTcsAttributeModifierInstance>
+{
+    enum
+    {
+        WithNetSerializer = true,
+    };
+};
+```
+
+### 优势
+
+与 FTcsAttributeInstance 相同的优势：
+1. **运行时性能最优**: 直接指针访问，无需查询
+2. **序列化开销小**: 只序列化 DefId（8 bytes）
+3. **网络同步友好**: 传递 DefId，接收端显式调用 Load 加载
+4. **数据一致性**: 所有实例共享同一个定义
+5. **职责分离清晰**: Get 和 Load 明确分离
+
+## UTcsStateInstance 重构
+
+### 旧设计的问题
+
+在旧的 DataTable 方案中，`UTcsStateInstance` 也存储完整的定义结构体：
+
+```cpp
+UCLASS(BlueprintType)
+class UTcsStateInstance : public UObject
+{
+    GENERATED_BODY()
+
+    /** 状态定义（完整结构体） */
+    UPROPERTY(BlueprintReadOnly, Category = "State")
+    FTcsStateDefinition StateDef;
+
+    /** 状态定义Id */
+    UPROPERTY(BlueprintReadOnly, Category = "State")
+    FName StateId = NAME_None;
+
+    // ... 其他字段
+};
+```
+
+**问题**：
+- 与 AttributeInstance 相同的问题：内存浪费、数据冗余、无法更新
+
+### 新设计
+
+由于 UTcsStateInstance 是 UObject，可以使用简化方案：
+
+```cpp
+UCLASS(BlueprintType)
+class TIREFLYCOMBATSYSTEM_API UTcsStateInstance : public UObject
+{
+    GENERATED_BODY()
+
+    // ========== 直接存储指针，UE 自动处理序列化 ==========
+
+    /** 状态定义资产 */
+    UPROPERTY(BlueprintReadOnly, Category = "State")
+    UTcsStateDefinitionAsset* StateDef = nullptr;
+
+    /** 状态定义 ID（保留作为备用标识符） */
+    UPROPERTY(BlueprintReadOnly, Category = "State")
+    FName StateId = NAME_None;
+
+    // ... 其他字段（StateInstId, SourceHandle 等）
+
+    // ========== 辅助方法 ==========
+
+    /**
+     * 获取状态定义资产
+     * UObject 可以直接访问，无需复杂的缓存逻辑
+     */
+    UTcsStateDefinitionAsset* GetStateDefAsset() const
+    {
+        return StateDef;
+    }
+
+    /**
+     * 设置状态定义资产
+     * 同时更新 StateId 以保持一致性
+     */
+    void SetStateDefAsset(UTcsStateDefinitionAsset* InStateDef)
+    {
+        StateDef = InStateDef;
+        if (StateDef)
+        {
+            StateId = StateDef->StateDefId;
+        }
+    }
+};
+```
+
+### 为什么 UObject 可以简化
+
+- **自动序列化**: UE 的序列化系统会自动处理 UObject 指针的序列化和反序列化
+- **自动引用管理**: UE 的垃圾回收系统会自动管理 UObject 引用
+- **无需 Transient + SaveGame**: 直接使用 `UPROPERTY()` 即可
+- **无需自定义序列化**: 不需要实现 Serialize() 和 NetSerialize()
+
+### 优势
+
+1. **代码简洁**: 无需复杂的缓存和序列化逻辑
+2. **自动管理**: UE 自动处理序列化和引用
+3. **性能优秀**: 直接指针访问，无额外开销
+4. **易于维护**: 符合 UE 标准模式
 
 ## 性能考虑
 
@@ -1060,20 +1471,30 @@ if (UTcsAttributeDefAsset* Asset = AttributeInstance.GetAttributeDefAsset(GetWor
 - 所有定义在一个 UDataTable 对象中
 - 每个 AttributeInstance 存储完整的定义结构体（~100 bytes）
 
-**DataAsset 方案**:
+**DataAsset 方案（混合模式）**:
 - 每个定义是独立的 UObject（额外开销约 100-200 bytes/对象）
-- 每个 AttributeInstance 只存储 FName ID（8 bytes）
+- 每个 AttributeInstance 存储：
+  - FName ID（8 bytes，用于序列化）
+  - 指针缓存（8 bytes，运行时使用，不序列化）
+  - 总计：16 bytes（运行时），8 bytes（序列化）
 
 **影响评估**:
 - 假设 100 个属性定义，DataAsset 额外开销约 10-20 KB
-- 假设 1000 个 AttributeInstance，节省约 92 KB 内存
-- 总体内存占用相当或更优
+- 假设 1000 个 AttributeInstance：
+  - 运行时：节省约 84 KB 内存（100 bytes → 16 bytes）
+  - 序列化：节省约 92 KB 存储（100 bytes → 8 bytes）
+- 总体内存占用显著优化
 
 ### 查找性能
 
-两种方案都是 O(1) 哈希查找，性能相当：
-- DataTable: `FindRow(FName)` → 直接返回结构体
-- DataAsset: `TMap::Find(FName)` → 返回 DataAsset 指针
+**DataTable 方案**:
+- `FindRow(FName)` → O(1) 哈希查找 → 返回结构体副本
+- 每次访问都需要查询：~10-50 ns
+
+**DataAsset 方案（混合模式）**:
+- 首次访问：`TMap::Find(FName)` → O(1) 哈希查找 → 缓存指针：~10-50 ns
+- 后续访问：直接指针访问 → ~1-5 ns
+- 性能提升：10-50x（对于频繁访问的属性）
 
 ## 测试策略
 
@@ -1129,10 +1550,6 @@ if (UTcsAttributeDefAsset* Asset = AttributeInstance.GetAttributeDefAsset(GetWor
 3. **API 文档**
    - 添加新 API 的文档
    - 说明 DataAsset 的使用方式
-
-4. **迁移指南**
-   - 为现有项目提供迁移步骤
-   - 提供常见问题解答
 
 ## 风险缓解
 

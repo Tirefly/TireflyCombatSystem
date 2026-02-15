@@ -127,8 +127,9 @@
 **When**: 检查类的静态成员
 
 **Then**:
-- 包含 `static const FName PrimaryAssetType;`
-- 在 cpp 文件中定义为 `const FName UTcsAttributeDefinitionAsset::PrimaryAssetType = FName("TcsAttributeDef");`
+- 包含 `static const FPrimaryAssetType PrimaryAssetType;`
+- 虽然 FPrimaryAssetType 是 FName 的 typedef,但使用 FPrimaryAssetType 更语义化
+- 在 cpp 文件中定义为 `const FPrimaryAssetType UTcsAttributeDefinitionAsset::PrimaryAssetType = FPrimaryAssetType(TEXT("TcsAttributeDef"));`
 - GetPrimaryAssetId() 使用此静态变量
 
 #### Scenario: 使用 PrimaryAssetType 查询资产
@@ -385,6 +386,216 @@ DataAsset 类 MUST 实现编辑器验证逻辑以在保存时检查配置错误�
 **Then**:
 - 显示 ToolTip 提示信息
 - 帮助开发者理解字段含义
+
+---
+
+### Requirement: FTcsAttributeInstance 必须使用混合方案
+
+FTcsAttributeInstance MUST 使用混合方案：运行时使用指针缓存,序列化使用 DefId。
+
+**优先级**: P0 (Critical)
+
+**理由**: 平衡运行时性能和序列化开销,符合 UE5 最佳实践(参考 GameplayAbilities 系统)。
+
+#### Scenario: FTcsAttributeInstance 包含运行时缓存和序列化字段
+
+**Given**: 查看 FTcsAttributeInstance 的定义
+
+**When**: 检查结构体字段
+
+**Then**:
+- 包含 `UPROPERTY(Transient) UTcsAttributeDefinitionAsset* AttributeDef` - 运行时缓存
+- 包含 `UPROPERTY() FName AttributeDefId` - 序列化使用（插件不强制存档策略）
+- AttributeDef 不参与序列化(Transient)
+- AttributeDefId 参与序列化
+
+#### Scenario: 运行时访问定义无需查询
+
+**Given**: 有一个 AttributeInstance,AttributeDef 已缓存
+
+**When**: 代码访问 `AttributeInstance.GetAttributeDefAsset()`
+
+**Then**:
+- 直接返回缓存的 AttributeDef 指针
+- 无需查询 Subsystem
+- 访问时间 ~1-5 ns(指针解引用)
+
+#### Scenario: 首次访问时需要显式加载
+
+**Given**: 有一个 AttributeInstance,AttributeDef 为 nullptr(刚加载存档)
+
+**When**: 代码调用 `AttributeInstance.LoadAttributeDefAsset(World)`
+
+**Then**:
+- 从 AttributeManagerSubsystem 查询 AttributeDefId
+- 缓存查询结果到 AttributeDef
+- 后续通过 GetAttributeDefAsset() 直接访问缓存
+
+#### Scenario: 序列化时只保存 DefId
+
+**Given**: 需要保存游戏存档
+
+**When**: 序列化 AttributeInstance
+
+**Then**:
+- 只序列化 AttributeDefId(8 bytes)
+- AttributeDef 不序列化(Transient)
+- 序列化开销最小
+
+#### Scenario: 加载存档后显式加载
+
+**Given**: 加载了游戏存档
+
+**When**: 调用 `AttributeInstance.LoadAttributeDefAsset(World)`
+
+**Then**:
+- 如果 AttributeDef 缓存为空，从 AttributeDefId 查找并缓存
+- 如果缓存已存在，不会重复加载
+- 后续通过 GetAttributeDefAsset() 直接访问缓存
+- DefAsset 是固定资产，加载后不会改变
+
+#### Scenario: 网络同步只传输 DefId
+
+**Given**: 需要网络同步 AttributeInstance
+
+**When**: 执行网络序列化
+
+**Then**:
+- 只传输 AttributeDefId(8 bytes)
+- 接收端需要显式调用 LoadAttributeDefAsset() 加载 AttributeDef
+- 网络开销最小
+
+---
+
+### Requirement: FTcsAttributeModifierInstance 必须使用混合方案
+
+FTcsAttributeModifierInstance MUST 使用混合方案：运行时使用指针缓存,序列化使用 DefId。
+
+**优先级**: P0 (Critical)
+
+**理由**: 与 FTcsAttributeInstance 保持一致的架构,平衡运行时性能和序列化开销。
+
+#### Scenario: FTcsAttributeModifierInstance 包含运行时缓存和序列化字段
+
+**Given**: 查看 FTcsAttributeModifierInstance 的定义
+
+**When**: 检查结构体字段
+
+**Then**:
+- 包含 `UPROPERTY(Transient) UTcsAttributeModifierDefinitionAsset* ModifierDef` - 运行时缓存
+- 包含 `UPROPERTY() FName ModifierDefId` - 序列化使用（插件不强制存档策略）
+- ModifierDef 不参与序列化(Transient)
+- ModifierDefId 参与序列化
+
+#### Scenario: 运行时访问定义无需查询
+
+**Given**: 有一个 ModifierInstance,ModifierDef 已缓存
+
+**When**: 代码访问 `ModifierInstance.GetModifierDefAsset()`
+
+**Then**:
+- 直接返回缓存的 ModifierDef 指针
+- 无需查询 Subsystem
+- 访问时间 ~1-5 ns(指针解引用)
+
+#### Scenario: 首次访问时需要显式加载
+
+**Given**: 有一个 ModifierInstance,ModifierDef 为 nullptr(刚加载存档)
+
+**When**: 代码调用 `ModifierInstance.LoadModifierDefAsset(World)`
+
+**Then**:
+- 从 AttributeManagerSubsystem 查询 ModifierDefId
+- 缓存查询结果到 ModifierDef
+- 后续通过 GetModifierDefAsset() 直接访问缓存
+
+#### Scenario: 序列化时只保存 DefId
+
+**Given**: 需要保存游戏存档
+
+**When**: 序列化 ModifierInstance
+
+**Then**:
+- 只序列化 ModifierDefId(8 bytes)
+- ModifierDef 不序列化(Transient)
+- 序列化开销最小
+
+#### Scenario: 网络同步只传输 DefId
+
+**Given**: 需要网络同步 ModifierInstance
+
+**When**: 执行网络序列化
+
+**Then**:
+- 只传输 ModifierDefId(8 bytes)
+- 接收端需要显式调用 LoadModifierDefAsset() 加载 ModifierDef
+- 网络开销最小
+
+---
+
+### Requirement: UTcsStateInstance 必须使用简化方案
+
+UTcsStateInstance MUST 直接存储 DataAsset 指针,利用 UObject 自动序列化机制。
+
+**优先级**: P0 (Critical)
+
+**理由**: UTcsStateInstance 是 UObject,可以利用 UE 自动序列化机制,无需手动管理缓存和序列化。
+
+#### Scenario: UTcsStateInstance 直接存储 DataAsset 指针
+
+**Given**: 查看 UTcsStateInstance 的定义
+
+**When**: 检查类字段
+
+**Then**:
+- 包含 `UPROPERTY(BlueprintReadOnly, Category="State") UTcsStateDefinitionAsset* StateDef` - 直接存储指针
+- 包含 `UPROPERTY(BlueprintReadOnly, Category="State") FName StateId` - 保留作为备用标识符
+- 不需要 Transient 标记(UObject 自动处理)
+- 不需要 SaveGame 标记(UObject 自动处理)
+
+#### Scenario: UObject 自动序列化
+
+**Given**: 需要保存游戏存档
+
+**When**: 序列化 StateInstance
+
+**Then**:
+- UE 自动序列化 StateDef 指针
+- 自动处理引用关系
+- 无需手动实现 Serialize() 方法
+
+#### Scenario: 运行时直接访问
+
+**Given**: 有一个 StateInstance
+
+**When**: 代码访问 `StateInstance->GetStateDefAsset()`
+
+**Then**:
+- 直接返回 StateDef 指针
+- 无需查询 Subsystem
+- 无需缓存管理
+
+#### Scenario: 网络同步自动处理
+
+**Given**: 需要网络同步 StateInstance
+
+**When**: 执行网络序列化
+
+**Then**:
+- UE 自动处理 UObject 指针的网络同步
+- 自动维护引用关系
+- 无需手动实现 NetSerialize() 方法
+
+#### Scenario: 设置定义资产时同步更新 StateId
+
+**Given**: 需要设置 StateInstance 的定义
+
+**When**: 调用 `StateInstance->SetStateDefAsset(NewStateDef)`
+
+**Then**:
+- 设置 StateDef 指针
+- 自动从 StateDef 获取 StateDefId 并更新 StateId
+- 保持 StateDef 和 StateId 的一致性
 
 ---
 

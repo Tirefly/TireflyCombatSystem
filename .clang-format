@@ -1,0 +1,44 @@
+# TCS Plugin - Clang-Format Configuration
+# 注意: 此配置仅作为参考，UE5 项目通常不使用 clang-format
+# 主要规范请参考 openspec/project.md
+
+BasedOnStyle: Microsoft
+Language: Cpp
+
+# 缩进
+IndentWidth: 4
+TabWidth: 4
+UseTab: ForIndentation
+IndentCaseLabels: true
+IndentPPDirectives: AfterHash
+
+# 空行
+MaxEmptyLinesToKeep: 3
+KeepEmptyLinesAtTheStartOfBlocks: false
+
+# 大括号
+BreakBeforeBraces: Allman
+AllowShortFunctionsOnASingleLine: Inline
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false
+
+# 指针和引用
+PointerAlignment: Left
+ReferenceAlignment: Left
+
+# 命名空间
+CompactNamespaces: false
+FixNamespaceComments: true
+
+# 注释
+ReflowComments: false
+SpacesBeforeTrailingComments: 2
+
+# 其他
+ColumnLimit: 120
+AlignConsecutiveAssignments: false
+AlignConsecutiveDeclarations: false
+AlignTrailingComments: false
+
+# UE5 特定
+# 注意: pragma region 不受 clang-format 影响，需要手动维护

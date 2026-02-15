@@ -11,6 +11,8 @@
 
 
 class UTcsAttributeComponent;
+class UTcsAttributeDefinitionAsset;
+class UTcsAttributeModifierDefinitionAsset;
 
 
 // 属性管理器子系统，所有战斗实体执行属性相关逻辑的入口
@@ -27,16 +29,15 @@ public:
 #pragma endregion
 
 
-#pragma region AttributeTables
-
-public:
-	UPROPERTY()
-	UDataTable* AttributeDefTable;
-
-	UPROPERTY()
-	UDataTable* AttributeModifierDefTable;
+#pragma region AttributeDefinitions
 
 protected:
+	// 缓存的属性定义（从 DeveloperSettings 加载）
+	TMap<FName, const UTcsAttributeDefinitionAsset*> AttributeDefinitions;
+
+	// 缓存的属性修改器定义（从 DeveloperSettings 加载）
+	TMap<FName, const UTcsAttributeModifierDefinitionAsset*> AttributeModifierDefinitions;
+
 	// AttributeTag -> AttributeName 映射（运行时构建，用于 Tag 入口 API）
 	TMap<FGameplayTag, FName> AttributeTagToName;
 

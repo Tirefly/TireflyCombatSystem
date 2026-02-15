@@ -1,6 +1,5 @@
 // Copyright Tirefly. All Rights Reserved.
 
-
 #include "TcsGenericLibrary.h"
 
 #include "TcsDeveloperSettings.h"
@@ -8,6 +7,7 @@
 #include "Attribute/TcsAttributeComponent.h"
 #include "State/TcsStateComponent.h"
 #include "Skill/TcsSkillComponent.h"
+
 
 
 TArray<FName> UTcsGenericLibrary::GetAttributeNames()
@@ -20,16 +20,16 @@ TArray<FName> UTcsGenericLibrary::GetAttributeNames()
 
 	return AttributeNames;
 }
-
 UDataTable* UTcsGenericLibrary::GetAttributeDefTable()
 {
-	if (const UTcsDeveloperSettings* Settings = GetDefault<UTcsDeveloperSettings>())
-	{
-		return Settings->AttributeDefTable.LoadSynchronous();
-	}
+	// TODO: [DataAsset Migration] This function will be removed in Phase 1.3
+	// Temporarily return nullptr to allow compilation
+	// if (const UTcsDeveloperSettings* Settings = GetDefault<UTcsDeveloperSettings>())
+	// {
+	// 	return Settings->AttributeDefTable.LoadSynchronous();
+	// }
 	return nullptr;
 }
-
 TArray<FName> UTcsGenericLibrary::GetAttributeModifierIds()
 {
 	TArray<FName> ModifierIds;
@@ -40,16 +40,16 @@ TArray<FName> UTcsGenericLibrary::GetAttributeModifierIds()
 
 	return ModifierIds;
 }
-
 UDataTable* UTcsGenericLibrary::GetAttributeModifierDefTable()
 {
-	if (const UTcsDeveloperSettings* Settings = GetDefault<UTcsDeveloperSettings>())
-	{
-		return Settings->AttributeModifierDefTable.LoadSynchronous();
-	}
+	// TODO: [DataAsset Migration] This function will be removed in Phase 1.3
+	// Temporarily return nullptr to allow compilation
+	// if (const UTcsDeveloperSettings* Settings = GetDefault<UTcsDeveloperSettings>())
+	// {
+	// 	return Settings->AttributeModifierDefTable.LoadSynchronous();
+	// }
 	return nullptr;
 }
-
 UTcsAttributeComponent *UTcsGenericLibrary::GetAttributeComponent(AActor *Actor)
 {
 	if (IsValid(Actor) && Actor->Implements<UTcsEntityInterface>())
@@ -58,7 +58,6 @@ UTcsAttributeComponent *UTcsGenericLibrary::GetAttributeComponent(AActor *Actor)
 	}
     return nullptr;
 }
-
 TArray<FName> UTcsGenericLibrary::GetStateDefNames()
 {
 	TArray<FName> StateDefNames;
@@ -68,25 +67,26 @@ TArray<FName> UTcsGenericLibrary::GetStateDefNames()
 	}
 	return StateDefNames;
 }
-
 UDataTable* UTcsGenericLibrary::GetStateDefTable()
 {
-	if (const UTcsDeveloperSettings* Settings = GetDefault<UTcsDeveloperSettings>())
-	{
-		return Settings->StateDefTable.LoadSynchronous();
-	}
+	// TODO: [DataAsset Migration] This function will be removed in Phase 1.4
+	// Temporarily return nullptr to allow compilation
+	// if (const UTcsDeveloperSettings* Settings = GetDefault<UTcsDeveloperSettings>())
+	// {
+	// 	return Settings->StateDefTable.LoadSynchronous();
+	// }
 	return nullptr;
 }
-
 UDataTable* UTcsGenericLibrary::GetStateSlotDefTable()
 {
-	if (const UTcsDeveloperSettings* Settings = GetDefault<UTcsDeveloperSettings>())
-	{
-		return Settings->StateSlotDefTable.LoadSynchronous();
-	}
+	// TODO: [DataAsset Migration] This function will be removed in Phase 1.4
+	// Temporarily return nullptr to allow compilation
+	// if (const UTcsDeveloperSettings* Settings = GetDefault<UTcsDeveloperSettings>())
+	// {
+	// 	return Settings->StateSlotDefTable.LoadSynchronous();
+	// }
 	return nullptr;
 }
-
 UTcsStateComponent* UTcsGenericLibrary::GetStateComponent(AActor *Actor)
 {
     if (IsValid(Actor) && Actor->Implements<UTcsEntityInterface>())
@@ -95,7 +95,6 @@ UTcsStateComponent* UTcsGenericLibrary::GetStateComponent(AActor *Actor)
 	}
 	return nullptr;
 }
-
 TArray<FName> UTcsGenericLibrary::GetSkillModifierIds()
 {
 	TArray<FName> ModifierIds;
@@ -106,7 +105,6 @@ TArray<FName> UTcsGenericLibrary::GetSkillModifierIds()
 
 	return ModifierIds;
 }
-
 UDataTable* UTcsGenericLibrary::GetSkillModifierDefTable()
 {
 	if (const UTcsDeveloperSettings* Settings = GetDefault<UTcsDeveloperSettings>())
@@ -115,7 +113,6 @@ UDataTable* UTcsGenericLibrary::GetSkillModifierDefTable()
 	}
 	return nullptr;
 }
-
 UTcsSkillComponent *UTcsGenericLibrary::GetSkillComponent(AActor *Actor)
 {
 	if (IsValid(Actor) && Actor->Implements<UTcsEntityInterface>())

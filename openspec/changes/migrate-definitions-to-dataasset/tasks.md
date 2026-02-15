@@ -7,40 +7,40 @@
 **目标**: 创建四个核心 DataAsset 类
 
 **任务**:
-- [ ] 创建 `UTcsAttributeDefinitionAsset` 类
+- [x] 创建 `UTcsAttributeDefinitionAsset` 类
   - 文件: `Source/TireflyCombatSystem/Public/Attribute/TcsAttributeDefinitionAsset.h`
   - 文件: `Source/TireflyCombatSystem/Private/Attribute/TcsAttributeDefinitionAsset.cpp`
   - 继承 `UPrimaryDataAsset`
   - 添加 `AttributeDefId` 字段（FName）
-  - 添加 `PrimaryAssetType` 静态变量
+  - 添加 `PrimaryAssetType` 静态变量（类型为 FPrimaryAssetType）
   - 复制 `FTcsAttributeDefinition` 的所有字段
   - 实现 `GetPrimaryAssetId()` 覆写
 
-- [ ] 创建 `UTcsStateDefinitionAsset` 类
+- [x] 创建 `UTcsStateDefinitionAsset` 类
   - 文件: `Source/TireflyCombatSystem/Public/State/TcsStateDefinitionAsset.h`
   - 文件: `Source/TireflyCombatSystem/Private/State/TcsStateDefinitionAsset.cpp`
   - 继承 `UPrimaryDataAsset`
   - 添加 `StateDefId` 字段（FName）
   - 添加 `StateTag` 字段（FGameplayTag）
-  - 添加 `PrimaryAssetType` 静态变量
+  - 添加 `PrimaryAssetType` 静态变量（类型为 FPrimaryAssetType）
   - 复制 `FTcsStateDefinition` 的所有字段
   - 实现 `GetPrimaryAssetId()` 覆写
 
-- [ ] 创建 `UTcsStateSlotDefinitionAsset` 类
+- [x] 创建 `UTcsStateSlotDefinitionAsset` 类
   - 文件: `Source/TireflyCombatSystem/Public/State/TcsStateSlotDefinitionAsset.h`
   - 文件: `Source/TireflyCombatSystem/Private/State/TcsStateSlotDefinitionAsset.cpp`
   - 继承 `UPrimaryDataAsset`
   - 添加 `StateSlotDefId` 字段（FName）
-  - 添加 `PrimaryAssetType` 静态变量
+  - 添加 `PrimaryAssetType` 静态变量（类型为 FPrimaryAssetType）
   - 复制 `FTcsStateSlotDefinition` 的所有字段
   - 实现 `GetPrimaryAssetId()` 覆写
 
-- [ ] 创建 `UTcsAttributeModifierDefinitionAsset` 类
+- [x] 创建 `UTcsAttributeModifierDefinitionAsset` 类
   - 文件: `Source/TireflyCombatSystem/Public/Attribute/TcsAttributeModifierDefinitionAsset.h`
   - 文件: `Source/TireflyCombatSystem/Private/Attribute/TcsAttributeModifierDefinitionAsset.cpp`
   - 继承 `UPrimaryDataAsset`
   - 添加 `AttributeModifierDefId` 字段（FName）
-  - 添加 `PrimaryAssetType` 静态变量
+  - 添加 `PrimaryAssetType` 静态变量（类型为 FPrimaryAssetType）
   - 复制 `FTcsAttributeModifierDefinition` 的所有字段
   - 实现 `GetPrimaryAssetId()` 覆写
 
@@ -60,7 +60,7 @@
 **任务**:
 - [ ] 修改 `UTcsDeveloperSettings` 类
   - 文件: `Source/TireflyCombatSystem/Public/TcsDeveloperSettings.h`
-  - 移除旧字段:
+  - 删除旧字段（不保留 DEPRECATED 标记）:
     - `TSoftObjectPtr<UDataTable> AttributeDefTable`
     - `TSoftObjectPtr<UDataTable> StateDefTable`
     - `TSoftObjectPtr<UDataTable> StateSlotDefTable`
@@ -218,24 +218,35 @@
 **任务**:
 - [ ] 修改 `FTcsAttributeInstance` 结构体
   - 文件: `Source/TireflyCombatSystem/Public/Attribute/TcsAttributeInstance.h`
-  - 将字段 `FTcsAttributeDefinition AttributeDef` 改为 `FName AttributeDefId`
+  - 添加字段 `UPROPERTY(Transient) UTcsAttributeDefinitionAsset* AttributeDef` - 运行时缓存
+  - 添加字段 `UPROPERTY() FName AttributeDefId` - 序列化使用（插件不强制存档策略）
+  - 移除字段 `FTcsAttributeDefinition AttributeDef`
   - 添加辅助方法:
-    - `UTcsAttributeDefinitionAsset* GetAttributeDefAsset(UWorld* World)` - 通过 AttributeManagerSubsystem 获取定义
-    - `FTcsAttributeRange GetAttributeRange(UWorld* World)` - 便捷方法
-    - `FGameplayTag GetAttributeTag(UWorld* World)` - 便捷方法
+    - `UTcsAttributeDefinitionAsset* GetAttributeDefAsset() const` - 纯粹的 Get，只返回缓存
+    - `void LoadAttributeDefAsset(UWorld* World)` - 专门的 Load，加载并缓存定义
+    - `FTcsAttributeRange GetAttributeRange(UWorld* World)` - 便捷方法（内部调用 Load）
+    - `FGameplayTag GetAttributeTag(UWorld* World)` - 便捷方法（内部调用 Load）
+    - `bool Serialize(FArchive& Ar)` - 自定义序列化
+    - `bool NetSerialize(FArchive& Ar, UPackageMap* Map, bool& bOutSuccess)` - 网络序列化
 
 - [ ] 更新所有使用 AttributeInstance 的代码
   - 文件: `Source/TireflyCombatSystem/Public/Attribute/TcsAttributeComponent.h`
   - 文件: `Source/TireflyCombatSystem/Private/Attribute/TcsAttributeComponent.cpp`
   - 文件: 其他所有引用 `AttributeInstance.AttributeDef` 的地方
-  - 将 `AttributeInstance.AttributeDef` 改为 `AttributeInstance.GetAttributeDefAsset(GetWorld())`
-  - 或使用便捷方法如 `GetAttributeRange(GetWorld())`
+  - 将 `AttributeInstance.AttributeDef` 改为先调用 `LoadAttributeDefAsset(GetWorld())`，再使用 `GetAttributeDefAsset()`
+  - 或使用便捷方法如 `GetAttributeRange(GetWorld())`（推荐）
+  - DefAsset 是固定资产，加载后不会改变
 
 **验证**:
 - 编译通过
 - AttributeInstance 正确存储 DefId
 - 可以通过 DefId 获取完整定义
 - 所有使用 AttributeInstance 的功能正常工作
+- Get 和 Load 职责分离清晰
+- 运行时访问定义无需查询（直接使用缓存）
+- 序列化只保存 DefId（8 bytes）
+- 网络同步正常工作
+- 加载存档或网络同步后，显式调用 Load 函数加载缓存
 
 **依赖**: 1.1, 1.2, 1.3 完成
 

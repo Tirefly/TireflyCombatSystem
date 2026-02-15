@@ -3,11 +3,14 @@
 
 #include "Attribute/TcsAttributeManagerSubsystem.h"
 
+#include "TcsDeveloperSettings.h"
 #include "TcsEntityInterface.h"
 #include "TcsGenericLibrary.h"
 #include "TcsLogChannels.h"
 #include "Attribute/TcsAttribute.h"
 #include "Attribute/TcsAttributeComponent.h"
+#include "Attribute/TcsAttributeDefinitionAsset.h"
+#include "Attribute/TcsAttributeModifierDefinitionAsset.h"
 #include "Attribute/AttrModExecution/TcsAttributeModifierExecution.h"
 #include "Attribute/AttrModMerger/TcsAttributeModifierMerger.h"
 #include "Attribute/AttrClampStrategy/TcsAttributeClampStrategy.h"
@@ -18,18 +21,58 @@ void UTcsAttributeManagerSubsystem::Initialize(FSubsystemCollectionBase& Collect
 {
 	Super::Initialize(Collection);
 
-	AttributeDefTable = UTcsGenericLibrary::GetAttributeDefTable();
-	if (!IsValid(AttributeDefTable))
+	const UTcsDeveloperSettings* Settings = GetDefault<UTcsDeveloperSettings>();
+	if (!Settings)
 	{
-		UE_LOG(LogTcsAttribute, Error, TEXT("[%s] AttributeDefTable in TcsDevSettings is not valid"),
+		UE_LOG(LogTcsAttribute, Error, TEXT("[%s] Failed to get TcsDeveloperSettings"),
 			*FString(__FUNCTION__));
 		return;
 	}
 
-	AttributeModifierDefTable = UTcsGenericLibrary::GetAttributeModifierDefTable();
-	if (!IsValid(AttributeModifierDefTable))
+	// 从 DeveloperSettings 的缓存中加载属性定义
+	AttributeDefinitions.Empty();
+	for (const auto& Pair : Settings->GetCachedAttributeDefinitions())
 	{
-		UE_LOG(LogTcsAttribute, Error, TEXT("[%s] AttributeModifierDefTable in TcsDevSettings is not valid"),
+		const UTcsAttributeDefinitionAsset* Asset = Pair.Value.LoadSynchronous();
+		if (Asset)
+		{
+			AttributeDefinitions.Add(Pair.Key, Asset);
+		}
+		else
+		{
+			UE_LOG(LogTcsAttribute, Warning, TEXT("[%s] Failed to load AttributeDefinition: %s"),
+				*FString(__FUNCTION__),
+				*Pair.Key.ToString());
+		}
+	}
+
+	if (AttributeDefinitions.Num() == 0)
+	{
+		UE_LOG(LogTcsAttribute, Error, TEXT("[%s] No AttributeDefinitions loaded from DeveloperSettings"),
+			*FString(__FUNCTION__));
+		return;
+	}
+
+	// 从 DeveloperSettings 的缓存中加载属性修改器定义
+	AttributeModifierDefinitions.Empty();
+	for (const auto& Pair : Settings->GetCachedAttributeModifierDefinitions())
+	{
+		const UTcsAttributeModifierDefinitionAsset* Asset = Pair.Value.LoadSynchronous();
+		if (Asset)
+		{
+			AttributeModifierDefinitions.Add(Pair.Key, Asset);
+		}
+		else
+		{
+			UE_LOG(LogTcsAttribute, Warning, TEXT("[%s] Failed to load AttributeModifierDefinition: %s"),
+				*FString(__FUNCTION__),
+				*Pair.Key.ToString());
+		}
+	}
+
+	if (AttributeModifierDefinitions.Num() == 0)
+	{
+		UE_LOG(LogTcsAttribute, Warning, TEXT("[%s] No AttributeModifierDefinitions loaded from DeveloperSettings"),
 			*FString(__FUNCTION__));
 	}
 
@@ -37,12 +80,11 @@ void UTcsAttributeManagerSubsystem::Initialize(FSubsystemCollectionBase& Collect
 	AttributeTagToName.Empty();
 	AttributeNameToTag.Empty();
 
-	TArray<FName> RowNames = AttributeDefTable->GetRowNames();
-	for (const FName& RowName : RowNames)
+	for (const auto& Pair : AttributeDefinitions)
 	{
-		const FTcsAttributeDefinition* AttrDef = AttributeDefTable->FindRow<FTcsAttributeDefinition>(
-			RowName,
-			*FString(__FUNCTION__));
+		const FName& AttributeName = Pair.Key;
+		const UTcsAttributeDefinitionAsset* AttrDef = Pair.Value;
+
 		if (!AttrDef)
 		{
 			continue;
@@ -57,7 +99,7 @@ void UTcsAttributeManagerSubsystem::Initialize(FSubsystemCollectionBase& Collect
 				UE_LOG(LogTcsAttribute, Warning,
 					TEXT("[%s] Attribute '%s' has invalid AttributeTag, skipping Tag mapping"),
 					*FString(__FUNCTION__),
-					*RowName.ToString());
+					*AttributeName.ToString());
 			}
 			continue;
 		}
@@ -71,18 +113,19 @@ void UTcsAttributeManagerSubsystem::Initialize(FSubsystemCollectionBase& Collect
 				*FString(__FUNCTION__),
 				*AttrDef->AttributeTag.ToString(),
 				*ExistingName.ToString(),
-				*RowName.ToString());
+				*AttributeName.ToString());
 			continue;
 		}
 
 		// 添加到映射
-		AttributeTagToName.Add(AttrDef->AttributeTag, RowName);
-		AttributeNameToTag.Add(RowName, AttrDef->AttributeTag);
+		AttributeTagToName.Add(AttrDef->AttributeTag, AttributeName);
+		AttributeNameToTag.Add(AttributeName, AttrDef->AttributeTag);
 	}
 
-	UE_LOG(LogTcsAttribute, Log,
-		TEXT("[%s] Built AttributeTag mappings: %d valid tags registered"),
+	UE_LOG(LogTcsAttribute, Log, TEXT("[%s] Initialized: %d Attributes, %d AttributeModifiers, %d Tag mappings"),
 		*FString(__FUNCTION__),
+		AttributeDefinitions.Num(),
+		AttributeModifierDefinitions.Num(),
 		AttributeTagToName.Num());
 }
 
@@ -91,10 +134,12 @@ void UTcsAttributeManagerSubsystem::AddAttribute(
 	FName AttributeName,
 	float InitValue)
 {
-	if (!IsValid(AttributeDefTable))
+	const UTcsAttributeDefinitionAsset* const* AttrDefPtr = AttributeDefinitions.Find(AttributeName);
+	if (!AttrDefPtr || !*AttrDefPtr)
 	{
-		UE_LOG(LogTcsAttribute, Error, TEXT("[%s] AttributeDefTable in TcsDevSettings is not valid"),
-			*FString(__FUNCTION__));
+		UE_LOG(LogTcsAttribute, Error, TEXT("[%s] AttributeDefinition '%s' not found"),
+			*FString(__FUNCTION__),
+			*AttributeName.ToString());
 		return;
 	}
 
@@ -116,17 +161,7 @@ void UTcsAttributeManagerSubsystem::AddAttribute(
 		return;
 	}
 
-	const auto AttrDef = AttributeDefTable->FindRow<FTcsAttributeDefinition>(
-		AttributeName,
-		*FString(__FUNCTION__));
-	if (!AttrDef)
-	{
-		UE_LOG(LogTcsAttribute, Error, TEXT("[%s] AttributeDefTable does not contain AttributeName %s"),
-			*FString(__FUNCTION__),
-			*AttributeName.ToString());
-		return;
-	}
-
+	const UTcsAttributeDefinitionAsset* AttrDef = *AttrDefPtr;
 	FTcsAttributeInstance AttrInst = FTcsAttributeInstance(*AttrDef, ++GlobalAttributeInstanceIdMgr, CombatEntity, InitValue);
 	AttributeComponent->Attributes.Add(AttributeName, AttrInst);
 
@@ -142,13 +177,6 @@ void UTcsAttributeManagerSubsystem::AddAttribute(
 
 void UTcsAttributeManagerSubsystem::AddAttributes(AActor* CombatEntity, const TArray<FName>& AttributeNames)
 {
-	if (!IsValid(AttributeDefTable))
-	{
-		UE_LOG(LogTcsAttribute, Error, TEXT("[%s] AttributeDefTable in TcsDevSettings is not valid"),
-			*FString(__FUNCTION__));
-		return;
-	}
-
 	UTcsAttributeComponent* AttributeComponent = GetAttributeComponent(CombatEntity);
 	if (!IsValid(AttributeComponent))
 	{
@@ -169,15 +197,16 @@ void UTcsAttributeManagerSubsystem::AddAttributes(AActor* CombatEntity, const TA
 			continue;
 		}
 
-		const auto AttrDef = AttributeDefTable->FindRow<FTcsAttributeDefinition>(AttributeName, FString(__FUNCTION__));
-		if (!AttrDef)
+		const UTcsAttributeDefinitionAsset* const* AttrDefPtr = AttributeDefinitions.Find(AttributeName);
+		if (!AttrDefPtr || !*AttrDefPtr)
 		{
-			UE_LOG(LogTcsAttribute, Error, TEXT("[%s] AttributeDefTable does not contain AttributeName %s"),
+			UE_LOG(LogTcsAttribute, Error, TEXT("[%s] AttributeDefinition '%s' not found"),
 				*FString(__FUNCTION__),
 				*AttributeName.ToString());
 			continue;
 		}
 
+		const UTcsAttributeDefinitionAsset* AttrDef = *AttrDefPtr;
 		FTcsAttributeInstance AttrInst = FTcsAttributeInstance(*AttrDef, ++GlobalAttributeInstanceIdMgr, CombatEntity);
 		AttributeComponent->Attributes.Add(AttributeName, AttrInst);
 
@@ -659,24 +688,29 @@ bool UTcsAttributeManagerSubsystem::CreateAttributeModifier(
 		return false;
 	}
 
-	if (!IsValid(AttributeModifierDefTable))
+	const UTcsAttributeModifierDefinitionAsset* const* ModifierDefPtr = AttributeModifierDefinitions.Find(ModifierId);
+	if (!ModifierDefPtr || !*ModifierDefPtr)
 	{
-		UE_LOG(LogTcsAttribute, Error, TEXT("[%s] AttributeModifierDefTable in TcsDevSettings is not valid"),
-			*FString(__FUNCTION__));
-		return false;
-	}
-
-	FTcsAttributeModifierDefinition* ModifierDef = AttributeModifierDefTable->FindRow<FTcsAttributeModifierDefinition>(ModifierId, FString(__FUNCTION__));
-	if (!ModifierDef)
-	{
-		UE_LOG(LogTcsAttribute, Error, TEXT("[%s] AttributeModifierDefTable does not contain ModifierId %s"),
+		UE_LOG(LogTcsAttribute, Error, TEXT("[%s] AttributeModifierDefinition '%s' not found"),
 			*FString(__FUNCTION__),
 			*ModifierId.ToString());
 		return false;
 	}
 
+	const UTcsAttributeModifierDefinitionAsset* ModifierDefAsset = *ModifierDefPtr;
 	OutModifierInst = FTcsAttributeModifierInstance();
-	OutModifierInst.ModifierDef = *ModifierDef;
+
+	// TODO: [DataAsset Migration] Phase 1.6 - 临时实现，将 DataAsset 转换为 struct
+	// 在 Phase 1.6 中，ModifierDef 字段将改为 TSoftObjectPtr<UTcsAttributeModifierDefinitionAsset>
+	OutModifierInst.ModifierDef.ModifierName = ModifierDefAsset->ModifierName;
+	OutModifierInst.ModifierDef.Tags = ModifierDefAsset->Tags;
+	OutModifierInst.ModifierDef.Priority = ModifierDefAsset->Priority;
+	OutModifierInst.ModifierDef.AttributeName = ModifierDefAsset->AttributeName;
+	OutModifierInst.ModifierDef.ModifierMode = ModifierDefAsset->ModifierMode;
+	OutModifierInst.ModifierDef.Operands = ModifierDefAsset->Operands;
+	OutModifierInst.ModifierDef.ModifierType = ModifierDefAsset->ModifierType;
+	OutModifierInst.ModifierDef.MergerType = ModifierDefAsset->MergerType;
+
 	OutModifierInst.ModifierId = ModifierId;  // 设置ModifierId为DataTable RowName
 	if (OutModifierInst.ModifierDef.Priority < 0)
 	{
@@ -689,7 +723,7 @@ bool UTcsAttributeManagerSubsystem::CreateAttributeModifier(
 	OutModifierInst.ModifierInstId = ++GlobalAttributeModifierInstanceIdMgr;
 	OutModifierInst.Instigator = Instigator;
 	OutModifierInst.Target = Target;
-	OutModifierInst.Operands = ModifierDef->Operands;
+	OutModifierInst.Operands = ModifierDefAsset->Operands;
 	OutModifierInst.SourceName = SourceName;
 
 	return true;
@@ -742,30 +776,25 @@ bool UTcsAttributeManagerSubsystem::CreateAttributeModifierWithOperands(
 		return false;
 	}
 
-	if (!IsValid(AttributeModifierDefTable))
+	const UTcsAttributeModifierDefinitionAsset* const* ModifierDefPtr = AttributeModifierDefinitions.Find(ModifierId);
+	if (!ModifierDefPtr || !*ModifierDefPtr)
 	{
-		UE_LOG(LogTcsAttribute, Error, TEXT("[%s] AttributeModifierDefTable in TcsDevSettings is not valid"),
-			*FString(__FUNCTION__));
-		return false;
-	}
-
-	FTcsAttributeModifierDefinition* ModifierDef = AttributeModifierDefTable->FindRow<FTcsAttributeModifierDefinition>(ModifierId, FString(__FUNCTION__));
-	if (!ModifierDef)
-	{
-		UE_LOG(LogTcsAttribute, Error, TEXT("[%s] AttributeModifierDefTable does not contain ModifierId %s"),
+		UE_LOG(LogTcsAttribute, Error, TEXT("[%s] AttributeModifierDefinition '%s' not found"),
 			*FString(__FUNCTION__),
 			*ModifierId.ToString());
 		return false;
 	}
 
+	const UTcsAttributeModifierDefinitionAsset* ModifierDefAsset = *ModifierDefPtr;
+
 	// 验证Operands是否正确
-	if (ModifierDef->Operands.IsEmpty())
+	if (ModifierDefAsset->Operands.IsEmpty())
 	{
 		UE_LOG(LogTcsAttribute, Error, TEXT("[%s] ModifierDef does not contain Operands"),
 			*FString(__FUNCTION__));
 		return false;
 	}
-	for (const TPair<FName, float>& Operand : ModifierDef->Operands)
+	for (const TPair<FName, float>& Operand : ModifierDefAsset->Operands)
 	{
 		if (!Operands.Contains(Operand.Key))
 		{
@@ -777,7 +806,18 @@ bool UTcsAttributeManagerSubsystem::CreateAttributeModifierWithOperands(
 	}
 
 	OutModifierInst = FTcsAttributeModifierInstance();
-	OutModifierInst.ModifierDef = *ModifierDef;
+
+	// TODO: [DataAsset Migration] Phase 1.6 - 临时实现，将 DataAsset 转换为 struct
+	// 在 Phase 1.6 中，ModifierDef 字段将改为 TSoftObjectPtr<UTcsAttributeModifierDefinitionAsset>
+	OutModifierInst.ModifierDef.ModifierName = ModifierDefAsset->ModifierName;
+	OutModifierInst.ModifierDef.Tags = ModifierDefAsset->Tags;
+	OutModifierInst.ModifierDef.Priority = ModifierDefAsset->Priority;
+	OutModifierInst.ModifierDef.AttributeName = ModifierDefAsset->AttributeName;
+	OutModifierInst.ModifierDef.ModifierMode = ModifierDefAsset->ModifierMode;
+	OutModifierInst.ModifierDef.Operands = ModifierDefAsset->Operands;
+	OutModifierInst.ModifierDef.ModifierType = ModifierDefAsset->ModifierType;
+	OutModifierInst.ModifierDef.MergerType = ModifierDefAsset->MergerType;
+
 	OutModifierInst.ModifierId = ModifierId;  // 设置ModifierId为DataTable RowName
 	if (OutModifierInst.ModifierDef.Priority < 0)
 	{

@@ -103,6 +103,19 @@ Manager Subsystem MUST 在 Initialize() 方法中同步加载所有扫描到的 
 - 日志输出："[AttributeManagerSubsystem] Loaded 5 attribute definitions"
 - 如果某个 DataAsset 加载失败，记录 Error 日志但继续加载其他
 
+#### Scenario: AttributeManagerSubsystem 初始化时加载 AttributeModifier 定义
+
+**Given**: 配置路径中有 10 个 AttributeModifier 定义
+
+**When**: 游戏启动，AttributeManagerSubsystem::Initialize() 被调用
+
+**Then**:
+- 扫描所有 AttributeModifierDefinitionPaths
+- 遍历所有找到的 TSoftObjectPtr，调用 LoadSynchronous()
+- 将加载的 DataAsset 存入 `TMap<FName, UTcsAttributeModifierDefinitionAsset*> AttributeModifierDefRegistry`
+- 日志输出："[AttributeManagerSubsystem] Loaded 10 attribute modifier definitions"
+- 如果某个 DataAsset 加载失败，记录 Error 日志但继续加载其他
+
 #### Scenario: StateManagerSubsystem 初始化时加载定义
 
 **Given**: 配置路径中有 8 个 State 定义和 3 个 StateSlot 定义
@@ -221,6 +234,17 @@ Manager Subsystem MUST 提供直接获取 DataAsset 的 API。
 - 返回 `UTcsAttributeDefinitionAsset*`
 - 如果找不到，返回 nullptr 并记录警告日志
 
+#### Scenario: 获取 AttributeModifierDefinitionAsset
+
+**Given**: 系统中注册了 "AttackPowerBoost" 修改器
+
+**When**: 调用 `AttributeManagerSubsystem->GetAttributeModifierDefAsset(FName("AttackPowerBoost"))`
+
+**Then**:
+- 在 AttributeModifierDefRegistry 中查找 Key 为 "AttackPowerBoost" 的条目
+- 返回 `UTcsAttributeModifierDefinitionAsset*`
+- 如果找不到，返回 nullptr 并记录警告日志
+
 #### Scenario: 获取 StateDefinitionAsset
 
 **Given**: 系统中注册了 "Stunned" 状态
@@ -242,6 +266,17 @@ Manager Subsystem MUST 提供直接获取 DataAsset 的 API。
 **Then**:
 - 返回 `TArray<UTcsAttributeDefinitionAsset*>`
 - 包含所有已注册的属性定义
+- 数组顺序不保证
+
+#### Scenario: 获取所有 AttributeModifierDefinitionAsset
+
+**Given**: 系统中注册了多个修改器
+
+**When**: 调用 `AttributeManagerSubsystem->GetAllAttributeModifierDefAssets()`
+
+**Then**:
+- 返回 `TArray<UTcsAttributeModifierDefinitionAsset*>`
+- 包含所有已注册的修改器定义
 - 数组顺序不保证
 
 ---
@@ -282,6 +317,20 @@ Manager Subsystem MUST 在初始化时构建 GameplayTag 到 DefinitionId 的双
 - `StateTagToName[FGameplayTag("TCS.State.Frozen")]` = "Frozen"
 - `StateNameToTag` 包含反向映射
 
+#### Scenario: 初始化时构建 ModifierTagToName 映射
+
+**Given**: 注册表中有以下修改器
+- "AttackPowerBoost" (ModifierTag = "TCS.Modifier.AttackPowerBoost")
+- "DefenseBoost" (ModifierTag = "TCS.Modifier.DefenseBoost")
+
+**When**: AttributeManagerSubsystem 初始化
+
+**Then**:
+- `ModifierTagToName` 包含 2 个条目
+- `ModifierTagToName[FGameplayTag("TCS.Modifier.AttackPowerBoost")]` = "AttackPowerBoost"
+- `ModifierTagToName[FGameplayTag("TCS.Modifier.DefenseBoost")]` = "DefenseBoost"
+- `ModifierNameToTag` 包含反向映射
+
 #### Scenario: 处理重复的 AttributeTag
 
 **Given**: 两个属性有相同的 AttributeTag
@@ -293,6 +342,17 @@ Manager Subsystem MUST 在初始化时构建 GameplayTag 到 DefinitionId 的双
 - 只保留第一个映射
 - 第二个属性的 Tag 映射被忽略
 
+#### Scenario: 处理重复的 ModifierTag
+
+**Given**: 两个修改器有相同的 ModifierTag
+
+**When**: AttributeManagerSubsystem 初始化
+
+**Then**:
+- 记录 Error 日志："Duplicate ModifierTag 'TCS.Modifier.AttackPowerBoost' found"
+- 只保留第一个映射
+- 第二个修改器的 Tag 映射被忽略
+
 #### Scenario: 通过 GameplayTag 查找定义
 
 **Given**: AttributeTagToName 映射已构建
@@ -301,6 +361,16 @@ Manager Subsystem MUST 在初始化时构建 GameplayTag 到 DefinitionId 的双
 
 **Then**:
 - 返回 "Health" (FName)
+- 如果找不到，返回 NAME_None
+
+#### Scenario: 通过 GameplayTag 查找修改器定义
+
+**Given**: ModifierTagToName 映射已构建
+
+**When**: 调用 `AttributeManagerSubsystem->GetAttributeModifierDefIdByTag(FGameplayTag("TCS.Modifier.AttackPowerBoost"))`
+
+**Then**:
+- 返回 "AttackPowerBoost" (FName)
 - 如果找不到，返回 NAME_None
 
 ---
@@ -312,6 +382,12 @@ Manager Subsystem MUST 支持编辑器中资产的热重载和更新。
 **优先级**: P1 (High)
 
 **理由**: 提升开发效率，避免频繁重启编辑器。
+
+**实现说明**:
+- 回调函数(OnAssetAdded、OnAssetRemoved、OnAssetRenamed)不需要 UFUNCTION 标记
+- 这些是纯 C++ 委托回调,使用 AddUObject 绑定到 Asset Registry 的委托
+- AddUObject 使用 C++ 函数指针,不需要反射系统支持
+- 只有需要蓝图调用、网络 RPC 或动态委托的函数才需要 UFUNCTION
 
 #### Scenario: 监听资产修改事件
 
@@ -338,6 +414,18 @@ Manager Subsystem MUST 支持编辑器中资产的热重载和更新。
 - 从注册表中移除该条目
 - 从 Tag 映射中移除相关条目
 - 日志输出："[AttributeManagerSubsystem] Attribute definition 'Health' removed"
+
+#### Scenario: 定义更新后刷新实例缓存
+
+**Given**: 系统中有多个 AttributeInstance 缓存了 "Health" 定义
+
+**When**: 开发者在编辑器中修改 "Health" 定义并保存
+
+**Then**:
+- AttributeManagerSubsystem 重新加载 "Health" 定义
+- 更新注册表中的条目
+- 已缓存的 AttributeInstance 需要重新调用 LoadAttributeDefAsset() 来更新缓存
+- DefAsset 是固定资产，编辑器热重载后需要显式重新加载
 
 ---
 

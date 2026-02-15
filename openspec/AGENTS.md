@@ -51,10 +51,15 @@ Track these steps as TODOs and complete them one by one.
 1. **Read proposal.md** - Understand what's being built
 2. **Read design.md** (if exists) - Review technical decisions
 3. **Read tasks.md** - Get implementation checklist
-4. **Implement tasks sequentially** - Complete in order
-5. **Confirm completion** - Ensure every item in `tasks.md` is finished before updating statuses
-6. **Update checklist** - After all work is done, set every task to `- [x]` so the list reflects reality
-7. **Approval gate** - Do not start implementation until the proposal is reviewed and approved
+4. **Review project.md code conventions** - **CRITICAL**: All code MUST follow the conventions in `openspec/project.md`:
+   - Use `#pragma region-endregion` for code organization (NOT comments)
+   - Follow file header format (Copyright → pragma once → includes → 3 empty lines)
+   - Follow spacing rules (region后1空行, endregion前1空行, 区域间2空行)
+   - Follow naming conventions and other project-specific rules
+5. **Implement tasks sequentially** - Complete in order, applying conventions from step 4
+6. **Confirm completion** - Ensure every item in `tasks.md` is finished before updating statuses
+7. **Update checklist** - After all work is done, set every task to `- [x]` so the list reflects reality
+8. **Approval gate** - Do not start implementation until the proposal is reviewed and approved
 
 ### Stage 3: Archiving Changes
 After deployment, create separate PR to:
@@ -68,9 +73,16 @@ After deployment, create separate PR to:
 **Context Checklist:**
 - [ ] Read relevant specs in `specs/[capability]/spec.md`
 - [ ] Check pending changes in `changes/` for conflicts
-- [ ] Read `openspec/project.md` for conventions
+- [ ] Read `openspec/project.md` for conventions **[MANDATORY - Code Style Section]**
 - [ ] Run `openspec list` to see active changes
 - [ ] Run `openspec list --specs` to see existing capabilities
+
+**Code Style Requirements (from project.md):**
+- [ ] Use `#pragma region-endregion` for code organization (NOT `// ========== Section ==========`)
+- [ ] Follow file header format: Copyright → pragma once → includes → 3 empty lines
+- [ ] Follow spacing: region后1空行, endregion前1空行, 区域间2空行
+- [ ] Follow function spacing: .cpp文件中函数间0空行
+- [ ] Follow naming conventions and project-specific patterns
 
 **Before Creating Specs:**
 - Always check if capability already exists

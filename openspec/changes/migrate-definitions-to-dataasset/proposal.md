@@ -46,13 +46,15 @@
    - `FTcsAttributeModifierDefinition` → `UTcsAttributeModifierDefinitionAsset`
    - `UTcsAttributeManagerSubsystem` 的加载和查找逻辑
    - `UTcsGenericLibrary::GetAttributeDefTable()` 及相关 API（将被删除）
-   - `FTcsAttributeInstance` 重构（存储 DefId 而非完整定义）
+   - `FTcsAttributeInstance` 重构（混合方案：运行时指针缓存 + 序列化 DefId）
+   - `FTcsAttributeModifierInstance` 重构（混合方案：运行时指针缓存 + 序列化 DefId）
 
 2. **State 系统**
    - `FTcsStateDefinition` → `UTcsStateDefinitionAsset`
    - `UTcsStateDefinitionAsset` 添加 `StateTag` 字段
    - `UTcsStateManagerSubsystem` 的加载和查找逻辑
    - `UTcsGenericLibrary::GetStateDefTable()` 及相关 API（将被删除）
+   - `UTcsStateInstance` 重构（UObject 简化方案：直接存储 DataAsset 指针）
    - 支持灵活的加载策略（LoadAll / LoadOnDemand）
 
 3. **StateSlot 系统**
@@ -75,8 +77,10 @@
 **破坏性变更**:
 - 删除所有返回结构体的 API（如 `GetAttributeDefinition(FName, FTcsAttributeDefinition&)`）
 - 项目设置中的 DataTable 引用需要改为路径配置
-- `FTcsAttributeInstance` 结构体字段变更（存储 DefId 而非完整定义）
-- 所有使用 `AttributeInstance.AttributeDef` 的代码需要更新
+- `FTcsAttributeInstance` 结构体字段变更（混合方案：运行时指针缓存 + 序列化 DefId）
+- `FTcsAttributeModifierInstance` 结构体字段变更（混合方案：运行时指针缓存 + 序列化 DefId）
+- `UTcsStateInstance` 类字段变更（UObject 简化方案：直接存储 DataAsset 指针）
+- 所有使用 `AttributeInstance.AttributeDef`、`ModifierInstance.ModifierDef`、`StateInstance.StateDef` 的代码需要更新
 
 **兼容性策略**:
 - 不提供过渡期的双重支持，一次性完全迁移
@@ -92,7 +96,9 @@
 - 实现路径配置 + 自动扫描的混合方案
 - 实现资产扫描和 Asset Registry 监听机制
 - 修改 Manager Subsystem 的加载逻辑
-- 重构 FTcsAttributeInstance（存储 DefId 而非完整定义）
+- 重构 FTcsAttributeInstance（混合方案：运行时指针缓存 + 序列化 DefId）
+- 重构 FTcsAttributeModifierInstance（混合方案：运行时指针缓存 + 序列化 DefId）
+- 重构 UTcsStateInstance（UObject 简化方案：直接存储 DataAsset 指针）
 - 删除所有结构体 API
 
 **Phase 2: 编辑器支持**
@@ -118,7 +124,7 @@ class UTcsAttributeDefinitionAsset : public UPrimaryDataAsset
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity")
     FName AttributeDefId;
 
-    // PrimaryAssetType 静态变量
+    // PrimaryAssetType 静态变量(使用 FPrimaryAssetType 类型更语义化)
     static const FPrimaryAssetType PrimaryAssetType;
 
     // 原 FTcsAttributeDefinition 的所有字段
@@ -149,16 +155,57 @@ class UTcsAttributeManagerSubsystem
 - 实现 `ScanAndCacheDefinitions()` 方法自动扫描路径
 - 使用 Asset Registry 监听资产变化，自动更新缓存
 
-**FTcsAttributeInstance 重构**:
+**FTcsAttributeInstance 重构（混合方案）**:
 ```cpp
 struct FTcsAttributeInstance
 {
-    // 改为存储 DefId
+    // 运行时缓存(不序列化)
+    UPROPERTY(Transient)
+    UTcsAttributeDefinitionAsset* AttributeDef;
+
+    // 序列化使用(插件不强制存档策略)
+    UPROPERTY()
     FName AttributeDefId;
 
     // 辅助方法
-    UTcsAttributeDefinitionAsset* GetAttributeDefAsset(UWorld* World);
-    FTcsAttributeRange GetAttributeRange(UWorld* World);
+    UTcsAttributeDefinitionAsset* GetAttributeDefAsset() const;  // 纯粹的 Get
+    void LoadAttributeDefAsset(UWorld* World);  // 专门的 Load
+    bool Serialize(FArchive& Ar);
+    bool NetSerialize(FArchive& Ar, UPackageMap* Map, bool& bOutSuccess);
+};
+```
+
+**FTcsAttributeModifierInstance 重构（混合方案）**:
+```cpp
+struct FTcsAttributeModifierInstance
+{
+    // 运行时缓存(不序列化)
+    UPROPERTY(Transient)
+    UTcsAttributeModifierDefinitionAsset* ModifierDef;
+
+    // 序列化使用(插件不强制存档策略)
+    UPROPERTY()
+    FName ModifierDefId;
+
+    // 辅助方法
+    UTcsAttributeModifierDefinitionAsset* GetModifierDefAsset() const;  // 纯粹的 Get
+    void LoadModifierDefAsset(UWorld* World);  // 专门的 Load
+    bool Serialize(FArchive& Ar);
+    bool NetSerialize(FArchive& Ar, UPackageMap* Map, bool& bOutSuccess);
+};
+```
+
+**UTcsStateInstance 重构（UObject 简化方案）**:
+```cpp
+class UTcsStateInstance : public UObject
+{
+    // 直接存储指针,UE自动处理序列化
+    UPROPERTY(BlueprintReadOnly, Category = "State")
+    UTcsStateDefinitionAsset* StateDef;
+
+    // 保留作为备用标识符
+    UPROPERTY(BlueprintReadOnly, Category = "State")
+    FName StateId;
 };
 ```
 
@@ -175,8 +222,13 @@ struct FTcsAttributeInstance
 3. **学习曲线**: 团队需要适应新的工作流程
    - **缓解**: 提供详细文档和示例，新工作流程实际上更直观
 
-4. **AttributeInstance 重构风险**: 修改核心数据结构可能影响多处代码
-   - **缓解**: 提供辅助方法保持使用便利性，逐步更新所有引用
+4. **Instance 重构风险**: 修改核心数据结构可能影响多处代码
+   - **缓解**:
+     - FTcsAttributeInstance 和 FTcsAttributeModifierInstance 使用混合方案平衡性能和序列化
+     - UTcsStateInstance 使用 UObject 简化方案，直接存储指针
+     - Get 和 Load 明确分离，职责清晰
+     - DefAsset 是固定资产，加载后不会改变
+     - 提供详细的迁移指南和代码示例
 
 5. **资产扫描性能**: 启动时扫描大量资产可能影响启动速度
    - **缓解**: 使用缓存机制，只在路径配置改变时重新扫描
@@ -195,7 +247,20 @@ struct FTcsAttributeInstance
 4. **文档完善**: 更新所有相关文档和示例
 5. **编辑器体验**: 策划/设计师反馈新工作流程更高效
 6. **API 清晰**: 新的 DataAsset API 使用简单直观
-7. **AttributeInstance 重构**: 所有使用 AttributeInstance 的代码正常工作
+7. **Instance 重构**:
+   - **FTcsAttributeInstance**:
+     - 所有使用 AttributeInstance 的代码正常工作
+     - 运行时访问性能优于 DefId 查询方案
+     - 序列化开销等同于 DefId 方案
+     - 网络同步正常工作
+     - 缓存刷新机制正确可靠
+   - **FTcsAttributeModifierInstance**:
+     - 所有使用 ModifierInstance 的代码正常工作
+     - 混合方案性能和序列化优势与 AttributeInstance 一致
+   - **UTcsStateInstance**:
+     - 所有使用 StateInstance 的代码正常工作
+     - UObject 自动序列化机制正常工作
+     - 指针引用正确维护
 
 ## 替代方案
 
@@ -244,10 +309,31 @@ struct FTcsAttributeInstance
    - **实现**: 在 DeveloperSettings 中配置 `ETcsStateLoadingStrategy`
    - **理由**: 提供性能优化选项，适应不同项目需求
 
-7. **FTcsAttributeInstance 如何处理**？
-   - **决策**: 重构为存储 DefId 而非完整定义
-   - **实现**: 提供辅助方法通过 DefId 获取完整定义
-   - **理由**: 减少内存占用，保持数据一致性
+7. **Instance 类型如何处理**？
+   - **决策**: 根据类型采用不同方案
+   - **实现**:
+     - **FTcsAttributeInstance** (struct): 混合方案
+       - 运行时使用 `UPROPERTY(Transient) UTcsAttributeDefinitionAsset* AttributeDef` 缓存
+       - 序列化使用 `UPROPERTY() FName AttributeDefId`（插件不强制存档策略）
+       - 提供 `GetAttributeDefAsset()` 纯粹的 Get 函数（只读）
+       - 提供 `LoadAttributeDefAsset(UWorld*)` 专门的 Load 函数（加载并缓存）
+       - 实现自定义序列化和网络序列化
+     - **FTcsAttributeModifierInstance** (struct): 混合方案
+       - 与 AttributeInstance 相同的处理方式
+       - 运行时缓存 `ModifierDef` 指针，序列化 `ModifierDefId`
+       - Get 和 Load 明确分离
+     - **UTcsStateInstance** (UObject): 简化方案
+       - 直接存储 `UPROPERTY() UTcsStateDefinitionAsset* StateDef` 指针
+       - UE 自动处理序列化，无需手动管理
+   - **理由**:
+     - Struct 需要混合方案平衡性能和序列化
+     - UObject 可以利用 UE 自动序列化机制
+     - Get 和 Load 职责分离，符合单一职责原则
+     - 运行时性能最优(直接指针访问)
+     - 序列化开销最小(struct 只保存 DefId, UObject 自动处理)
+     - 网络同步友好(struct 传递 DefId, UObject 自动同步)
+     - 符合 UE5 最佳实践(参考 GameplayAbilities 系统)
+     - 插件不强制存档策略，由游戏项目决定
 
 ## 时间线
 

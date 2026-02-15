@@ -181,4 +181,9 @@ public:
 	FTcsAttributeInstance(const FTcsAttributeDefinition& AttrDef, int32 InstId, AActor* Owner, float InitValue)
 		: AttributeDef(AttrDef), AttributeInstId(InstId), Owner(Owner), BaseValue(InitValue), CurrentValue(InitValue)
 	{}
+
+	// TODO: [DataAsset Migration] Phase 1.6 - 临时构造函数，接受 DataAsset
+	// 这个构造函数将在 Phase 1.6 中被移除，届时 AttributeDef 字段将改为 TSoftObjectPtr<UTcsAttributeDefinitionAsset>
+	FTcsAttributeInstance(const class UTcsAttributeDefinitionAsset& AttrDefAsset, int32 InstId, AActor* Owner);
+	FTcsAttributeInstance(const class UTcsAttributeDefinitionAsset& AttrDefAsset, int32 InstId, AActor* Owner, float InitValue);
 };

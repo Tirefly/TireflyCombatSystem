@@ -19,6 +19,24 @@ Keep this managed block so 'openspec update' can refresh the instructions.
 
 ---
 
+## ⚠️ 代码规范 - 强制要求
+
+**在编写任何代码前，必须阅读并遵循以下规范：**
+
+1. **项目规范**: `@/openspec/project.md` - 包含完整的代码风格规范
+2. **检查清单**: `@/CODE_REVIEW_CHECKLIST.md` - 提交前必须检查的项目
+
+### 关键规范提醒
+
+- ✅ **使用 `#pragma region-endregion`** 组织代码区域
+- ❌ **禁止使用注释** (如 `// ========== Section ==========`) 来划分区域
+- ✅ 遵循空行规范: region后1空行, endregion前1空行, 区域间2空行
+- ✅ 遵循文件头部格式: Copyright → pragma once → includes → 3空行
+
+**违反规范的代码将被要求修改！**
+
+---
+
 ## 🚀 OpenSpec 快速参考指南
 
 > **重要提示**: 本指南用于优化 OpenSpec 工作流程，避免不必要的 token 消耗。
