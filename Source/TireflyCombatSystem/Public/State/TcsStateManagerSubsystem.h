@@ -12,6 +12,8 @@
 
 class UTcsStateInstance;
 class UTcsStateComponent;
+class UTcsStateDefinitionAsset;
+class UTcsStateSlotDefinitionAsset;
 
 
 
@@ -28,24 +30,97 @@ public:
 #pragma endregion
 
 
-#pragma region StateTables
+#pragma region StateDefinitions
+
+protected:
+	// 缓存的状态定义（从 DeveloperSettings 加载）
+	TMap<FName, const UTcsStateDefinitionAsset*> StateDefinitions;
+
+	// StateTag -> StateDefId 映射（运行时构建，用于 Tag 入口 API）
+	TMap<FGameplayTag, FName> StateTagToDefId;
+
+	// 缓存的状态槽定义（从 DeveloperSettings 加载）
+	TMap<FName, const UTcsStateSlotDefinitionAsset*> StateSlotDefinitions;
+
+	/**
+	 * 从 DeveloperSettings 缓存加载定义（编辑器模式）
+	 */
+	void LoadFromDeveloperSettings();
+
+	/**
+	 * 从 AssetManager 加载定义（Runtime 模式）
+	 */
+	void LoadFromAssetManager();
+
+	/**
+	 * 按需加载 State 定义（内部方法）
+	 * 仅在 OnDemand 或 Hybrid 策略下使用
+	 *
+	 * @param StateDefId 状态定义 ID
+	 * @return 加载的状态定义资产指针，如果加载失败则返回 nullptr
+	 */
+	const UTcsStateDefinitionAsset* LoadStateOnDemand(FName StateDefId);
+
+	/**
+	 * 预加载所有 State 定义（内部方法）
+	 * 在 PreloadAll 策略下使用
+	 */
+	void PreloadAllStates();
+
+	/**
+	 * 预加载常用 State 定义（内部方法）
+	 * 在 Hybrid 策略下使用
+	 */
+	void PreloadCommonStates();
 
 public:
-	UPROPERTY()
-	UDataTable* StateDefTable;
+	/**
+	 * 获取状态定义资产
+	 * 支持按需加载（当 StateLoadingStrategy 为 OnDemand 或 Hybrid 时）
+	 *
+	 * @param DefId 状态定义 ID
+	 * @return 状态定义资产指针，如果未找到则返回 nullptr
+	 */
+	const UTcsStateDefinitionAsset* GetStateDefinitionAsset(FName DefId);
 
-	UPROPERTY()
-	UDataTable* StateSlotDefTable;
+	/**
+	 * 通过 StateTag 获取状态定义资产
+	 * 支持按需加载（当 StateLoadingStrategy 为 OnDemand 或 Hybrid 时）
+	 *
+	 * @param StateTag 状态标签
+	 * @return 状态定义资产指针，如果未找到则返回 nullptr
+	 */
+	const UTcsStateDefinitionAsset* GetStateDefinitionAssetByTag(FGameplayTag StateTag);
+
+	/**
+	 * 获取状态槽定义资产
+	 *
+	 * @param DefId 状态槽定义 ID
+	 * @return 状态槽定义资产指针，如果未找到则返回 nullptr
+	 */
+	const UTcsStateSlotDefinitionAsset* GetStateSlotDefinitionAsset(FName DefId);
+
+	/**
+	 * 通过槽位标签获取状态槽定义资产
+	 *
+	 * @param SlotTag 状态槽标签
+	 * @return 状态槽定义资产指针，如果未找到则返回 nullptr
+	 */
+	const UTcsStateSlotDefinitionAsset* GetStateSlotDefinitionAssetByTag(FGameplayTag SlotTag);
+
+	/**
+	 * 获取所有已缓存的 State 定义名称
+	 * 注意：在 OnDemand 或 Hybrid 策略下，返回的是已加载的 State 名称，不包括未加载的
+	 *
+	 * @return State 定义名称数组
+	 */
+	UFUNCTION(BlueprintCallable, Category = "State Manager")
+	TArray<FName> GetAllStateDefNames() const;
 
 #pragma endregion
 	
 
 #pragma region MetaData
-
-public:
-	// 获取状态定义
-	UFUNCTION(BlueprintCallable, Category = "State Manager")
-	bool GetStateDefinition(FName StateDefId, FTcsStateDefinition& OutStateDef);
 
 protected:
 	/**
@@ -62,7 +137,7 @@ protected:
 	/**
 	 * 验证状态参数评估
 	 *
-	 * @param StateDef 状态定义
+	 * @param StateDefAsset 状态定义资产
 	 * @param Owner 状态拥有者
 	 * @param Instigator 状态发起者
 	 * @param StateInstance 临时状态实例（用于参数评估上下文）
@@ -70,7 +145,7 @@ protected:
 	 * @return 是否所有参数评估成功
 	 */
 	bool ValidateStateParameters(
-		const FTcsStateDefinition& StateDef,
+		const UTcsStateDefinitionAsset* StateDefAsset,
 		AActor* Owner,
 		AActor* Instigator,
 		UTcsStateInstance* StateInstance,
@@ -114,22 +189,6 @@ public:
 protected:
 	// 基于状态的定义配置内容，检查状态应用条件
 	static bool CheckStateApplyConditions(UTcsStateInstance* StateInstance);
-
-#pragma endregion
-
-
-#pragma region StateSlotDef
-
-public:
-	UFUNCTION(BlueprintCallable, Category = "State Manager")
-	bool TryGetStateSlotDefinition(FGameplayTag StateSlotTag, FTcsStateSlotDefinition& OutStateSlotDef) const;
-
-	// 初始化状态槽定义
-	void InitStateSlotDefs();
-
-protected:
-	// 状态槽定义缓存
-	TMap<FGameplayTag, FTcsStateSlotDefinition> StateSlotDefs;
 
 #pragma endregion
 
@@ -200,7 +259,7 @@ protected:
 	// 按激活模式处理状态槽内的状态
 	void ProcessStateSlotByActivationMode(const UTcsStateComponent* StateComponent, FTcsStateSlot* StateSlot, FGameplayTag SlotTag);
 	// 按激活模式处理状态槽内的状态：优先级模式
-	void ProcessPriorityOnlyMode(FTcsStateSlot* StateSlot, const FTcsStateSlotDefinition& SlotDef);
+	void ProcessPriorityOnlyMode(FTcsStateSlot* StateSlot, const UTcsStateSlotDefinitionAsset* SlotDef);
 	// 按激活模式处理状态槽内的状态：全激活模式
 	void ProcessAllActiveMode(FTcsStateSlot* StateSlot);
 	// 按照低优先级抢占策略，处理状态实例

@@ -13,43 +13,29 @@
 TArray<FName> UTcsGenericLibrary::GetAttributeNames()
 {
 	TArray<FName> AttributeNames;
-	if (UDataTable* AttributeDefTable = GetAttributeDefTable())
+
+	// 从 DeveloperSettings 缓存获取（编辑器环境下已通过 Asset Registry 扫描）
+	if (const UTcsDeveloperSettings* Settings = GetDefault<UTcsDeveloperSettings>())
 	{
-		AttributeNames = AttributeDefTable->GetRowNames();
+		Settings->GetCachedAttributeDefinitions().GetKeys(AttributeNames);
 	}
 
 	return AttributeNames;
 }
-UDataTable* UTcsGenericLibrary::GetAttributeDefTable()
-{
-	// TODO: [DataAsset Migration] This function will be removed in Phase 1.3
-	// Temporarily return nullptr to allow compilation
-	// if (const UTcsDeveloperSettings* Settings = GetDefault<UTcsDeveloperSettings>())
-	// {
-	// 	return Settings->AttributeDefTable.LoadSynchronous();
-	// }
-	return nullptr;
-}
+
 TArray<FName> UTcsGenericLibrary::GetAttributeModifierIds()
 {
 	TArray<FName> ModifierIds;
-	if (UDataTable* AttributeModifierDefTable = GetAttributeModifierDefTable())
+
+	// 从 DeveloperSettings 缓存获取（编辑器环境下已通过 Asset Registry 扫描）
+	if (const UTcsDeveloperSettings* Settings = GetDefault<UTcsDeveloperSettings>())
 	{
-		ModifierIds = AttributeModifierDefTable->GetRowNames();
+		Settings->GetCachedAttributeModifierDefinitions().GetKeys(ModifierIds);
 	}
 
 	return ModifierIds;
 }
-UDataTable* UTcsGenericLibrary::GetAttributeModifierDefTable()
-{
-	// TODO: [DataAsset Migration] This function will be removed in Phase 1.3
-	// Temporarily return nullptr to allow compilation
-	// if (const UTcsDeveloperSettings* Settings = GetDefault<UTcsDeveloperSettings>())
-	// {
-	// 	return Settings->AttributeModifierDefTable.LoadSynchronous();
-	// }
-	return nullptr;
-}
+
 UTcsAttributeComponent *UTcsGenericLibrary::GetAttributeComponent(AActor *Actor)
 {
 	if (IsValid(Actor) && Actor->Implements<UTcsEntityInterface>())
@@ -61,32 +47,16 @@ UTcsAttributeComponent *UTcsGenericLibrary::GetAttributeComponent(AActor *Actor)
 TArray<FName> UTcsGenericLibrary::GetStateDefNames()
 {
 	TArray<FName> StateDefNames;
-	if (UDataTable* StateDefTable = GetStateDefTable())
+
+	// 从 DeveloperSettings 缓存获取（编辑器环境下已通过 Asset Registry 扫描）
+	if (const UTcsDeveloperSettings* Settings = GetDefault<UTcsDeveloperSettings>())
 	{
-		StateDefNames = StateDefTable->GetRowNames();
+		Settings->GetCachedStateDefinitions().GetKeys(StateDefNames);
 	}
+
 	return StateDefNames;
 }
-UDataTable* UTcsGenericLibrary::GetStateDefTable()
-{
-	// TODO: [DataAsset Migration] This function will be removed in Phase 1.4
-	// Temporarily return nullptr to allow compilation
-	// if (const UTcsDeveloperSettings* Settings = GetDefault<UTcsDeveloperSettings>())
-	// {
-	// 	return Settings->StateDefTable.LoadSynchronous();
-	// }
-	return nullptr;
-}
-UDataTable* UTcsGenericLibrary::GetStateSlotDefTable()
-{
-	// TODO: [DataAsset Migration] This function will be removed in Phase 1.4
-	// Temporarily return nullptr to allow compilation
-	// if (const UTcsDeveloperSettings* Settings = GetDefault<UTcsDeveloperSettings>())
-	// {
-	// 	return Settings->StateSlotDefTable.LoadSynchronous();
-	// }
-	return nullptr;
-}
+
 UTcsStateComponent* UTcsGenericLibrary::GetStateComponent(AActor *Actor)
 {
     if (IsValid(Actor) && Actor->Implements<UTcsEntityInterface>())
@@ -95,6 +65,7 @@ UTcsStateComponent* UTcsGenericLibrary::GetStateComponent(AActor *Actor)
 	}
 	return nullptr;
 }
+
 TArray<FName> UTcsGenericLibrary::GetSkillModifierIds()
 {
 	TArray<FName> ModifierIds;
@@ -105,6 +76,7 @@ TArray<FName> UTcsGenericLibrary::GetSkillModifierIds()
 
 	return ModifierIds;
 }
+
 UDataTable* UTcsGenericLibrary::GetSkillModifierDefTable()
 {
 	if (const UTcsDeveloperSettings* Settings = GetDefault<UTcsDeveloperSettings>())
@@ -113,6 +85,7 @@ UDataTable* UTcsGenericLibrary::GetSkillModifierDefTable()
 	}
 	return nullptr;
 }
+
 UTcsSkillComponent *UTcsGenericLibrary::GetSkillComponent(AActor *Actor)
 {
 	if (IsValid(Actor) && Actor->Implements<UTcsEntityInterface>())

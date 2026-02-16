@@ -21,17 +21,9 @@ public:
 	UFUNCTION(BlueprintCallable, CallInEditor, Category = "TireflyCombatSystem|Attribute")
 	static TArray<FName> GetAttributeNames();
 
-	// 获取属性定义总表
-	UFUNCTION(BlueprintCallable, Category = "TireflyCombatSystem|Attribute")
-	static UDataTable* GetAttributeDefTable();
-
 	// 获取所有属性修改器名称
 	UFUNCTION(BlueprintCallable, CallInEditor, Category = "TireflyCombatSystem|Attribute")
 	static TArray<FName> GetAttributeModifierIds();
-
-	// 获取属性修改器定义总表
-	UFUNCTION(BlueprintCallable, Category = "TireflyCombatSystem|Attribute")
-	static UDataTable* GetAttributeModifierDefTable();
 
 	// 获取属性组件
 	UFUNCTION(BlueprintCallable, Category = "TireflyCombatSystem|Attribute")
@@ -46,14 +38,6 @@ public:
 	// 获取所有状态定义名称
 	UFUNCTION(BlueprintCallable, CallInEditor, Category = "TireflyCombatSystem|State")
 	static TArray<FName> GetStateDefNames();
-
-	// 获取状态定义总表
-	UFUNCTION(BlueprintCallable, Category = "TireflyCombatSystem|State")
-	static UDataTable* GetStateDefTable();
-
-	// 获取状态槽定义总表
-	UFUNCTION(BlueprintCallable, Category = "TireflyCombatSystem|State")
-	static UDataTable* GetStateSlotDefTable();
 
 	// 获取状态组件
 	UFUNCTION(BlueprintCallable, Category = "TireflyCombatSystem|State")

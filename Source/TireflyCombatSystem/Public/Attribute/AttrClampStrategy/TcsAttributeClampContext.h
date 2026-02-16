@@ -7,7 +7,7 @@
 
 class UTcsAttributeComponent;
 class UTcsAttributeManagerSubsystem;
-struct FTcsAttributeDefinition;
+class UTcsAttributeDefinitionAsset;
 struct FTcsAttributeInstance;
 
 
@@ -20,7 +20,7 @@ struct FTcsAttributeInstance;
  * 字段说明：
  * - AttributeComponent: 属性组件，可以通过 GetOwner() 获取 Owner Actor
  * - AttributeName: 当前正在 Clamp 的属性名称
- * - AttributeDef: 属性定义（只读，C++ 访问）
+ * - AttributeDefAsset: 属性定义 DataAsset（只读，C++ 访问）
  * - AttributeInst: 属性实例（只读，C++ 访问）
  * - Resolver: 值解析器，用于读取工作集中的其他属性值（C++ 访问）
  *
@@ -41,9 +41,9 @@ struct TIREFLYCOMBATSYSTEM_API FTcsAttributeClampContextBase
 	UPROPERTY(BlueprintReadOnly, Category = "Context")
 	FName AttributeName = NAME_None;
 
-	// 属性定义（只读指针，不序列化，不暴露给蓝图）
+	// 属性定义 DataAsset（只读指针，不序列化，不暴露给蓝图）
 	// 在 C++ 中使用，蓝图中通过辅助库函数访问
-	const FTcsAttributeDefinition* AttributeDef = nullptr;
+	const UTcsAttributeDefinitionAsset* AttributeDefAsset = nullptr;
 
 	// 属性实例（只读指针，不序列化，不暴露给蓝图）
 	// 在 C++ 中使用，蓝图中通过辅助库函数访问
@@ -60,12 +60,12 @@ struct TIREFLYCOMBATSYSTEM_API FTcsAttributeClampContextBase
 	FTcsAttributeClampContextBase(
 		UTcsAttributeComponent* InComponent,
 		const FName& InAttributeName,
-		const FTcsAttributeDefinition* InAttributeDef,
+		const UTcsAttributeDefinitionAsset* InAttributeDefAsset,
 		const FTcsAttributeInstance* InAttributeInst,
 		const TMap<FName, float>* InWorkingValues = nullptr)
 		: AttributeComponent(InComponent)
 		, AttributeName(InAttributeName)
-		, AttributeDef(InAttributeDef)
+		, AttributeDefAsset(InAttributeDefAsset)
 		, AttributeInst(InAttributeInst)
 		, WorkingValues(InWorkingValues)
 	{}

@@ -389,169 +389,157 @@ DataAsset 类 MUST 实现编辑器验证逻辑以在保存时检查配置错误�
 
 ---
 
-### Requirement: FTcsAttributeInstance 必须使用混合方案
+### Requirement: FTcsAttributeInstance 必须使用硬指针方案
 
-FTcsAttributeInstance MUST 使用混合方案：运行时使用指针缓存,序列化使用 DefId。
+FTcsAttributeInstance MUST 使用硬指针方案：使用 UPROPERTY 硬指针，UE 自动处理序列化和加载。
 
 **优先级**: P0 (Critical)
 
-**理由**: 平衡运行时性能和序列化开销,符合 UE5 最佳实践(参考 GameplayAbilities 系统)。
+**理由**: 语义正确性（强引用关系）+ 性能优化（UE 自动加载）+ 编辑器友好。
 
-#### Scenario: FTcsAttributeInstance 包含运行时缓存和序列化字段
+#### Scenario: FTcsAttributeInstance 包含硬指针和冗余 DefId
 
 **Given**: 查看 FTcsAttributeInstance 的定义
 
 **When**: 检查结构体字段
 
 **Then**:
-- 包含 `UPROPERTY(Transient) UTcsAttributeDefinitionAsset* AttributeDef` - 运行时缓存
-- 包含 `UPROPERTY() FName AttributeDefId` - 序列化使用（插件不强制存档策略）
-- AttributeDef 不参与序列化(Transient)
-- AttributeDefId 参与序列化
+- 包含 `UPROPERTY(EditAnywhere) TObjectPtr<UTcsAttributeDefinitionAsset> AttributeDef` - 硬指针，会被序列化
+- 包含 `UPROPERTY(EditAnywhere) FName AttributeDefId` - 冗余字段，用于快速查找和调试
+- AttributeDef 会被 UE 自动序列化和加载
+- AttributeDefId 与 AttributeDef->AttributeDefId 保持同步
 
-#### Scenario: 运行时访问定义无需查询
+#### Scenario: 运行时访问定义无需手动加载
 
-**Given**: 有一个 AttributeInstance,AttributeDef 已缓存
+**Given**: 有一个 AttributeInstance，AttributeDef 已设置
 
 **When**: 代码访问 `AttributeInstance.GetAttributeDefAsset()`
 
 **Then**:
-- 直接返回缓存的 AttributeDef 指针
-- 无需查询 Subsystem
-- 访问时间 ~1-5 ns(指针解引用)
+- 直接返回 AttributeDef 指针
+- UE 自动处理资产加载，无需手动 LoadSynchronous()
+- 访问时间 ~1-5 ns（指针解引用）
 
-#### Scenario: 首次访问时需要显式加载
+#### Scenario: 设置定义资产时同步更新 DefId
 
-**Given**: 有一个 AttributeInstance,AttributeDef 为 nullptr(刚加载存档)
+**Given**: 需要设置 AttributeInstance 的定义
 
-**When**: 代码调用 `AttributeInstance.LoadAttributeDefAsset(World)`
+**When**: 调用 `AttributeInstance.SetAttributeDefAsset(NewAttributeDef)`
 
 **Then**:
-- 从 AttributeManagerSubsystem 查询 AttributeDefId
-- 缓存查询结果到 AttributeDef
-- 后续通过 GetAttributeDefAsset() 直接访问缓存
+- 设置 AttributeDef 指针
+- 自动从 AttributeDef 获取 AttributeDefId 并更新 AttributeDefId
+- 保持 AttributeDef 和 AttributeDefId 的一致性
 
-#### Scenario: 序列化时只保存 DefId
+#### Scenario: 序列化时 UE 自动处理
 
 **Given**: 需要保存游戏存档
 
 **When**: 序列化 AttributeInstance
 
 **Then**:
-- 只序列化 AttributeDefId(8 bytes)
-- AttributeDef 不序列化(Transient)
-- 序列化开销最小
+- UE 自动序列化 AttributeDef 硬指针
+- AttributeDefId 也被序列化（冗余字段）
+- 加载时 UE 自动恢复 AttributeDef 指针
 
-#### Scenario: 加载存档后显式加载
-
-**Given**: 加载了游戏存档
-
-**When**: 调用 `AttributeInstance.LoadAttributeDefAsset(World)`
-
-**Then**:
-- 如果 AttributeDef 缓存为空，从 AttributeDefId 查找并缓存
-- 如果缓存已存在，不会重复加载
-- 后续通过 GetAttributeDefAsset() 直接访问缓存
-- DefAsset 是固定资产，加载后不会改变
-
-#### Scenario: 网络同步只传输 DefId
+#### Scenario: 网络同步可选择轻量方式
 
 **Given**: 需要网络同步 AttributeInstance
 
 **When**: 执行网络序列化
 
 **Then**:
-- 只传输 AttributeDefId(8 bytes)
-- 接收端需要显式调用 LoadAttributeDefAsset() 加载 AttributeDef
-- 网络开销最小
+- 可以选择只传输 AttributeDefId（轻量）
+- 接收端 AttributeDef 由 UE 自动加载
+- 或者使用自定义 NetSerialize 只传输 DefId
 
 ---
 
-### Requirement: FTcsAttributeModifierInstance 必须使用混合方案
+### Requirement: FTcsAttributeModifierInstance 必须使用硬指针方案
 
-FTcsAttributeModifierInstance MUST 使用混合方案：运行时使用指针缓存,序列化使用 DefId。
+FTcsAttributeModifierInstance MUST 使用硬指针方案：使用 UPROPERTY 硬指针，UE 自动处理序列化和加载。
 
 **优先级**: P0 (Critical)
 
-**理由**: 与 FTcsAttributeInstance 保持一致的架构,平衡运行时性能和序列化开销。
+**理由**: 与 FTcsAttributeInstance 保持一致的架构，语义正确性 + 性能优化 + 编辑器友好。
 
-#### Scenario: FTcsAttributeModifierInstance 包含运行时缓存和序列化字段
+#### Scenario: FTcsAttributeModifierInstance 包含硬指针和冗余 DefId
 
 **Given**: 查看 FTcsAttributeModifierInstance 的定义
 
 **When**: 检查结构体字段
 
 **Then**:
-- 包含 `UPROPERTY(Transient) UTcsAttributeModifierDefinitionAsset* ModifierDef` - 运行时缓存
-- 包含 `UPROPERTY() FName ModifierDefId` - 序列化使用（插件不强制存档策略）
-- ModifierDef 不参与序列化(Transient)
-- ModifierDefId 参与序列化
+- 包含 `UPROPERTY(EditAnywhere) TObjectPtr<UTcsAttributeModifierDefinitionAsset> ModifierDef` - 硬指针，会被序列化
+- 包含 `UPROPERTY(EditAnywhere) FName ModifierDefId` - 冗余字段，用于快速查找和调试
+- ModifierDef 会被 UE 自动序列化和加载
+- ModifierDefId 与 ModifierDef->AttributeModifierDefId 保持同步
 
-#### Scenario: 运行时访问定义无需查询
+#### Scenario: 运行时访问定义无需手动加载
 
-**Given**: 有一个 ModifierInstance,ModifierDef 已缓存
+**Given**: 有一个 ModifierInstance，ModifierDef 已设置
 
 **When**: 代码访问 `ModifierInstance.GetModifierDefAsset()`
 
 **Then**:
-- 直接返回缓存的 ModifierDef 指针
-- 无需查询 Subsystem
-- 访问时间 ~1-5 ns(指针解引用)
+- 直接返回 ModifierDef 指针
+- UE 自动处理资产加载，无需手动 LoadSynchronous()
+- 访问时间 ~1-5 ns（指针解引用）
 
-#### Scenario: 首次访问时需要显式加载
+#### Scenario: 设置定义资产时同步更新 DefId
 
-**Given**: 有一个 ModifierInstance,ModifierDef 为 nullptr(刚加载存档)
+**Given**: 需要设置 ModifierInstance 的定义
 
-**When**: 代码调用 `ModifierInstance.LoadModifierDefAsset(World)`
+**When**: 调用 `ModifierInstance.SetModifierDefAsset(NewModifierDef)`
 
 **Then**:
-- 从 AttributeManagerSubsystem 查询 ModifierDefId
-- 缓存查询结果到 ModifierDef
-- 后续通过 GetModifierDefAsset() 直接访问缓存
+- 设置 ModifierDef 指针
+- 自动从 ModifierDef 获取 AttributeModifierDefId 并更新 ModifierDefId
+- 保持 ModifierDef 和 ModifierDefId 的一致性
 
-#### Scenario: 序列化时只保存 DefId
+#### Scenario: 序列化时 UE 自动处理
 
 **Given**: 需要保存游戏存档
 
 **When**: 序列化 ModifierInstance
 
 **Then**:
-- 只序列化 ModifierDefId(8 bytes)
-- ModifierDef 不序列化(Transient)
-- 序列化开销最小
+- UE 自动序列化 ModifierDef 硬指针
+- ModifierDefId 也被序列化（冗余字段）
+- 加载时 UE 自动恢复 ModifierDef 指针
 
-#### Scenario: 网络同步只传输 DefId
+#### Scenario: 网络同步可选择轻量方式
 
 **Given**: 需要网络同步 ModifierInstance
 
 **When**: 执行网络序列化
 
 **Then**:
-- 只传输 ModifierDefId(8 bytes)
-- 接收端需要显式调用 LoadModifierDefAsset() 加载 ModifierDef
-- 网络开销最小
+- 可以选择只传输 ModifierDefId（轻量）
+- 接收端 ModifierDef 由 UE 自动加载
+- 或者使用自定义 NetSerialize 只传输 DefId
 
 ---
 
-### Requirement: UTcsStateInstance 必须使用简化方案
+### Requirement: UTcsStateInstance 必须使用硬指针方案
 
-UTcsStateInstance MUST 直接存储 DataAsset 指针,利用 UObject 自动序列化机制。
+UTcsStateInstance MUST 使用硬指针方案：直接存储 DataAsset 指针，利用 UObject 自动序列化机制。
 
 **优先级**: P0 (Critical)
 
-**理由**: UTcsStateInstance 是 UObject,可以利用 UE 自动序列化机制,无需手动管理缓存和序列化。
+**理由**: UTcsStateInstance 是 UObject，可以利用 UE 自动序列化机制，使用硬指针语义正确且性能最优。
 
-#### Scenario: UTcsStateInstance 直接存储 DataAsset 指针
+#### Scenario: UTcsStateInstance 直接存储 DataAsset 硬指针
 
 **Given**: 查看 UTcsStateInstance 的定义
 
 **When**: 检查类字段
 
 **Then**:
-- 包含 `UPROPERTY(BlueprintReadOnly, Category="State") UTcsStateDefinitionAsset* StateDef` - 直接存储指针
-- 包含 `UPROPERTY(BlueprintReadOnly, Category="State") FName StateId` - 保留作为备用标识符
-- 不需要 Transient 标记(UObject 自动处理)
-- 不需要 SaveGame 标记(UObject 自动处理)
+- 包含 `UPROPERTY(EditAnywhere) TObjectPtr<UTcsStateDefinitionAsset> StateDef` - 硬指针，会被序列化
+- 包含 `UPROPERTY(EditAnywhere) FName StateId` - 冗余字段，用于快速查找和调试
+- 不需要 Transient 标记（使用硬指针）
+- UE 自动处理序列化和加载
 
 #### Scenario: UObject 自动序列化
 
@@ -560,7 +548,7 @@ UTcsStateInstance MUST 直接存储 DataAsset 指针,利用 UObject 自动序列
 **When**: 序列化 StateInstance
 
 **Then**:
-- UE 自动序列化 StateDef 指针
+- UE 自动序列化 StateDef 硬指针
 - 自动处理引用关系
 - 无需手动实现 Serialize() 方法
 

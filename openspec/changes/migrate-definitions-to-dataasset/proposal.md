@@ -46,15 +46,15 @@
    - `FTcsAttributeModifierDefinition` → `UTcsAttributeModifierDefinitionAsset`
    - `UTcsAttributeManagerSubsystem` 的加载和查找逻辑
    - `UTcsGenericLibrary::GetAttributeDefTable()` 及相关 API（将被删除）
-   - `FTcsAttributeInstance` 重构（混合方案：运行时指针缓存 + 序列化 DefId）
-   - `FTcsAttributeModifierInstance` 重构（混合方案：运行时指针缓存 + 序列化 DefId）
+   - `FTcsAttributeInstance` 重构（硬指针方案：直接存储 DataAsset 硬指针 + DefId）
+   - `FTcsAttributeModifierInstance` 重构（硬指针方案：直接存储 DataAsset 硬指针 + DefId）
 
 2. **State 系统**
    - `FTcsStateDefinition` → `UTcsStateDefinitionAsset`
    - `UTcsStateDefinitionAsset` 添加 `StateTag` 字段
    - `UTcsStateManagerSubsystem` 的加载和查找逻辑
    - `UTcsGenericLibrary::GetStateDefTable()` 及相关 API（将被删除）
-   - `UTcsStateInstance` 重构（UObject 简化方案：直接存储 DataAsset 指针）
+   - `UTcsStateInstance` 重构（硬指针方案：直接存储 DataAsset 硬指针 + DefId）
    - 支持灵活的加载策略（LoadAll / LoadOnDemand）
 
 3. **StateSlot 系统**
@@ -70,17 +70,18 @@
 
 5. **编辑器工具**
    - 实现资产扫描和 Asset Registry 监听机制
-   - 提供自定义资产工厂和编辑器验证
+   - 提供编辑器验证
 
 ### 向后兼容性
 
 **破坏性变更**:
 - 删除所有返回结构体的 API（如 `GetAttributeDefinition(FName, FTcsAttributeDefinition&)`）
 - 项目设置中的 DataTable 引用需要改为路径配置
-- `FTcsAttributeInstance` 结构体字段变更（混合方案：运行时指针缓存 + 序列化 DefId）
-- `FTcsAttributeModifierInstance` 结构体字段变更（混合方案：运行时指针缓存 + 序列化 DefId）
-- `UTcsStateInstance` 类字段变更（UObject 简化方案：直接存储 DataAsset 指针）
+- `FTcsAttributeInstance` 结构体字段变更（硬指针方案：UPROPERTY 硬指针 + DefId）
+- `FTcsAttributeModifierInstance` 结构体字段变更（硬指针方案：UPROPERTY 硬指针 + DefId）
+- `UTcsStateInstance` 类字段变更（硬指针方案：UPROPERTY 硬指针 + DefId）
 - 所有使用 `AttributeInstance.AttributeDef`、`ModifierInstance.ModifierDef`、`StateInstance.StateDef` 的代码需要更新
+- 移除所有 LoadSynchronous() 调用，直接使用硬指针访问
 
 **兼容性策略**:
 - 不提供过渡期的双重支持，一次性完全迁移
@@ -96,14 +97,16 @@
 - 实现路径配置 + 自动扫描的混合方案
 - 实现资产扫描和 Asset Registry 监听机制
 - 修改 Manager Subsystem 的加载逻辑
-- 重构 FTcsAttributeInstance（混合方案：运行时指针缓存 + 序列化 DefId）
-- 重构 FTcsAttributeModifierInstance（混合方案：运行时指针缓存 + 序列化 DefId）
+- 重构 FTcsAttributeInstance（硬指针方案：UPROPERTY 硬指针 + DefId）
+- 重构 FTcsAttributeModifierInstance（硬指针方案：UPROPERTY 硬指针 + DefId）
+- 重构 UTcsStateInstance（硬指针方案：UPROPERTY 硬指针 + DefId）
+- 更新 FTcsAttributeClampContextBase 支持硬指针
+- ✅ **已完成** (2026-02-16)
 - 重构 UTcsStateInstance（UObject 简化方案：直接存储 DataAsset 指针）
 - 删除所有结构体 API
 
 **Phase 2: 编辑器支持**
 - 添加资产验证逻辑
-- 创建资产工厂
 
 **Phase 3: 配置和文档（完善生态）**
 - 更新文档和示例

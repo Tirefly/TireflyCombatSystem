@@ -415,17 +415,17 @@ Manager Subsystem MUST 支持编辑器中资产的热重载和更新。
 - 从 Tag 映射中移除相关条目
 - 日志输出："[AttributeManagerSubsystem] Attribute definition 'Health' removed"
 
-#### Scenario: 定义更新后刷新实例缓存
+#### Scenario: 定义更新后自动刷新实例
 
-**Given**: 系统中有多个 AttributeInstance 缓存了 "Health" 定义
+**Given**: 系统中有多个 AttributeInstance 引用了 "Health" 定义
 
 **When**: 开发者在编辑器中修改 "Health" 定义并保存
 
 **Then**:
 - AttributeManagerSubsystem 重新加载 "Health" 定义
 - 更新注册表中的条目
-- 已缓存的 AttributeInstance 需要重新调用 LoadAttributeDefAsset() 来更新缓存
-- DefAsset 是固定资产，编辑器热重载后需要显式重新加载
+- 已引用的 AttributeInstance 通过硬指针自动获取最新定义
+- 无需手动刷新缓存（硬指针方案的优势）
 
 ---
 

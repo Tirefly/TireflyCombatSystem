@@ -6,6 +6,7 @@
 #include "TcsLogChannels.h"
 #include "State/TcsState.h"
 #include "State/TcsStateManagerSubsystem.h"
+#include "State/TcsStateSlotDefinitionAsset.h"
 #include "Engine/World.h"
 #include "Engine/DataTable.h"
 #include "StateTree.h"
@@ -129,9 +130,10 @@ void UTcsStateComponent::TickComponent(float DeltaTime, ELevelTick TickType, FAc
 		bool bShouldTick = bPendingRemoval;
 		if (!bShouldTick)
 		{
+			const UTcsStateDefinitionAsset* StateDefAsset = RunningState->GetStateDefAsset();
 			bShouldTick =
 				(RunningState->GetCurrentStage() == ETcsStateStage::SS_Active) &&
-				(RunningState->GetStateDef().TickPolicy == ETcsStateTreeTickPolicy::WhileActive);
+				(StateDefAsset && StateDefAsset->TickPolicy == ETcsStateTreeTickPolicy::WhileActive);
 		}
 
 		if (!bShouldTick)
@@ -177,9 +179,13 @@ void UTcsStateComponent::TickComponent(float DeltaTime, ELevelTick TickType, FAc
 
 float UTcsStateComponent::GetStateRemainingDuration(const UTcsStateInstance* StateInstance) const
 {
-	if (IsValid(StateInstance) && StateInstance->GetStateDef().DurationType == ETcsStateDurationType::SDT_Infinite)
+	if (IsValid(StateInstance))
 	{
-		return -1.0f;
+		const UTcsStateDefinitionAsset* StateDefAsset = StateInstance->GetStateDefAsset();
+		if (StateDefAsset && StateDefAsset->DurationType == ETcsStateDurationType::SDT_Infinite)
+		{
+			return -1.0f;
+		}
 	}
 
 	float Remaining = 0.f;
@@ -188,11 +194,15 @@ float UTcsStateComponent::GetStateRemainingDuration(const UTcsStateInstance* Sta
 		return Remaining;
 	}
 
-	if (IsValid(StateInstance) && StateInstance->GetStateDef().DurationType == ETcsStateDurationType::SDT_Duration)
+	if (IsValid(StateInstance))
 	{
-		return StateInstance->GetTotalDuration();
+		const UTcsStateDefinitionAsset* StateDefAsset = StateInstance->GetStateDefAsset();
+		if (StateDefAsset && StateDefAsset->DurationType == ETcsStateDurationType::SDT_Duration)
+		{
+			return StateInstance->GetTotalDuration();
+		}
 	}
-	
+
 	return 0.0f;
 }
 
@@ -204,13 +214,19 @@ void UTcsStateComponent::RefreshStateRemainingDuration(UTcsStateInstance* StateI
 		return;
 	}
 
-	if (StateInstance->GetStateDef().DurationType == ETcsStateDurationType::SDT_Infinite)
+	const UTcsStateDefinitionAsset* StateDefAsset = StateInstance->GetStateDefAsset();
+	if (!StateDefAsset)
+	{
+		return;
+	}
+
+	if (StateDefAsset->DurationType == ETcsStateDurationType::SDT_Infinite)
 	{
 		// Infinite duration state has no remaining duration to refresh.
 		return;
 	}
 
-	if (StateInstance->GetStateDef().DurationType != ETcsStateDurationType::SDT_Duration)
+	if (StateDefAsset->DurationType != ETcsStateDurationType::SDT_Duration)
 	{
 		return;
 	}
@@ -234,13 +250,19 @@ void UTcsStateComponent::SetStateRemainingDuration(UTcsStateInstance* StateInsta
 		return;
 	}
 
-	if (StateInstance->GetStateDef().DurationType == ETcsStateDurationType::SDT_Infinite)
+	const UTcsStateDefinitionAsset* StateDefAsset = StateInstance->GetStateDefAsset();
+	if (!StateDefAsset)
+	{
+		return;
+	}
+
+	if (StateDefAsset->DurationType == ETcsStateDurationType::SDT_Infinite)
 	{
 		// Infinite duration state ignores manual duration changes.
 		return;
 	}
 
-	if (StateInstance->GetStateDef().DurationType != ETcsStateDurationType::SDT_Duration)
+	if (StateDefAsset->DurationType != ETcsStateDurationType::SDT_Duration)
 	{
 		return;
 	}
@@ -472,6 +494,10 @@ void UTcsStateComponent::NotifyStateApplySuccess(
 		return;
 	}
 
+	const UTcsStateDefinitionAsset* StateDefAsset = CreatedStateInstance->GetStateDefAsset();
+	const int32 Priority = StateDefAsset ? StateDefAsset->Priority : 0;
+	const ETcsStateTreeTickPolicy TickPolicy = StateDefAsset ? StateDefAsset->TickPolicy : ETcsStateTreeTickPolicy::ManualOnly;
+
 	UE_LOG(LogTcsState, Verbose, TEXT("[%s] ApplySuccess: Target=%s State=%s Id=%d Slot=%s Stage=%s P=%d Tick=%s"),
 		*FString(__FUNCTION__),
 		*TargetActor->GetName(),
@@ -479,8 +505,8 @@ void UTcsStateComponent::NotifyStateApplySuccess(
 		CreatedStateInstance->GetInstanceId(),
 		*TargetSlot.ToString(),
 		*StaticEnum<ETcsStateStage>()->GetNameStringByValue(static_cast<int64>(AppliedStage)),
-		CreatedStateInstance->GetStateDef().Priority,
-		*StaticEnum<ETcsStateTreeTickPolicy>()->GetNameStringByValue(static_cast<int64>(CreatedStateInstance->GetStateDef().TickPolicy)));
+		Priority,
+		*StaticEnum<ETcsStateTreeTickPolicy>()->GetNameStringByValue(static_cast<int64>(TickPolicy)));
 
 	if (OnStateApplySuccess.IsBound())
 	{
@@ -541,12 +567,12 @@ FString UTcsStateComponent::GetSlotDebugSnapshot(FGameplayTag SlotFilter) const
 
 		if (IsValid(StateMgr))
 		{
-			FTcsStateSlotDefinition SlotDef;
-			if (StateMgr->TryGetStateSlotDefinition(SlotTag, SlotDef))
+			const UTcsStateSlotDefinitionAsset* SlotDef = StateMgr->GetStateSlotDefinitionAssetByTag(SlotTag);
+			if (SlotDef)
 			{
 				Line += FString::Printf(TEXT(" Mode=%s Preempt=%s"),
-					*StaticEnum<ETcsStateSlotActivationMode>()->GetNameStringByValue(static_cast<int64>(SlotDef.ActivationMode)),
-					*StaticEnum<ETcsStatePreemptionPolicy>()->GetNameStringByValue(static_cast<int64>(SlotDef.PreemptionPolicy)));
+					*StaticEnum<ETcsStateSlotActivationMode>()->GetNameStringByValue(static_cast<int64>(SlotDef->ActivationMode)),
+					*StaticEnum<ETcsStatePreemptionPolicy>()->GetNameStringByValue(static_cast<int64>(SlotDef->PreemptionPolicy)));
 			}
 		}
 
@@ -559,12 +585,13 @@ FString UTcsStateComponent::GetSlotDebugSnapshot(FGameplayTag SlotFilter) const
 
 			const FString StateId = State->GetStateDefId().ToString();
 			const int32 InstanceId = State->GetInstanceId();
-			const int32 Priority = State->GetStateDef().Priority;
+			const UTcsStateDefinitionAsset* StateDefAsset = State->GetStateDefAsset();
+			const int32 Priority = StateDefAsset ? StateDefAsset->Priority : 0;
 			const int32 StackCount = State->GetStackCount();
 			const int32 Level = State->GetLevel();
 			const float DurRemaining = State->GetDurationRemaining();
-			const ETcsStateDurationType DurType = State->GetStateDef().DurationType;
-			const ETcsStateTreeTickPolicy TickPolicy = State->GetStateDef().TickPolicy;
+			const TEnumAsByte<ETcsStateDurationType> DurType = StateDefAsset ? StateDefAsset->DurationType : TEnumAsByte<ETcsStateDurationType>(ETcsStateDurationType::SDT_None);
+			const ETcsStateTreeTickPolicy TickPolicy = StateDefAsset ? StateDefAsset->TickPolicy : ETcsStateTreeTickPolicy::ManualOnly;
 			const FString TickPolicyStr = StaticEnum<ETcsStateTreeTickPolicy>()->GetNameStringByValue(static_cast<int64>(TickPolicy));
 			const FString DurStr = (DurType == ETcsStateDurationType::SDT_Infinite || DurRemaining < 0.0f)
 				? TEXT("Inf")
@@ -595,8 +622,10 @@ FString UTcsStateComponent::GetSlotDebugSnapshot(FGameplayTag SlotFilter) const
 		{
 			States.Sort([](const UTcsStateInstance& A, const UTcsStateInstance& B)
 			{
-				const int32 AP = A.GetStateDef().Priority;
-				const int32 BP = B.GetStateDef().Priority;
+				const UTcsStateDefinitionAsset* AStateDef = A.GetStateDefAsset();
+				const UTcsStateDefinitionAsset* BStateDef = B.GetStateDefAsset();
+				const int32 AP = AStateDef ? AStateDef->Priority : 0;
+				const int32 BP = BStateDef ? BStateDef->Priority : 0;
 				if (AP != BP)
 				{
 					return AP > BP;
@@ -755,14 +784,15 @@ FString UTcsStateComponent::GetStateDebugSnapshot(FName StateDefIdFilter) const
 			return TEXT("<invalid>");
 		}
 
-		const FGameplayTag SlotTag = State->GetStateDef().StateSlotType;
+		const UTcsStateDefinitionAsset* StateDefAsset = State->GetStateDefAsset();
+		const FGameplayTag SlotTag = StateDefAsset ? StateDefAsset->StateSlotType : FGameplayTag();
 		const FTcsStateSlot* Slot = SlotTag.IsValid() ? StateSlotsX.Find(SlotTag) : nullptr;
 		const bool bGateOpen = SlotTag.IsValid() ? (Slot && Slot->bIsGateOpen) : true;
 
-		const ETcsStateTreeTickPolicy TickPolicy = State->GetStateDef().TickPolicy;
+		const ETcsStateTreeTickPolicy TickPolicy = StateDefAsset ? StateDefAsset->TickPolicy : ETcsStateTreeTickPolicy::ManualOnly;
 		const FString TickPolicyStr = StaticEnum<ETcsStateTreeTickPolicy>()->GetNameStringByValue(static_cast<int64>(TickPolicy));
 
-		const ETcsStateDurationType DurType = State->GetStateDef().DurationType;
+		const TEnumAsByte<ETcsStateDurationType> DurType = StateDefAsset ? StateDefAsset->DurationType : TEnumAsByte<ETcsStateDurationType>(ETcsStateDurationType::SDT_None);
 		const float DurRemaining = State->GetDurationRemaining();
 		const FString DurStr = (DurType == ETcsStateDurationType::SDT_Infinite || DurRemaining < 0.0f)
 			? TEXT("Inf")
@@ -777,13 +807,15 @@ FString UTcsStateComponent::GetStateDebugSnapshot(FName StateDefIdFilter) const
 		const AActor* OwnerActor = State->GetOwner();
 		const AActor* Instigator = State->GetInstigator();
 
+		const int32 Priority = StateDefAsset ? StateDefAsset->Priority : 0;
+
 		return FString::Printf(TEXT("State=%s Id=%d Slot=%s Gate=%s Stage=%s P=%d Lv=%d Stack=%d Dur=%s Tick=%s Rem=%s Owner=%s Inst=%s"),
 			*State->GetStateDefId().ToString(),
 			State->GetInstanceId(),
 			*SlotTag.ToString(),
 			bGateOpen ? TEXT("Open") : TEXT("Closed"),
 			*StaticEnum<ETcsStateStage>()->GetNameStringByValue(static_cast<int64>(State->GetCurrentStage())),
-			State->GetStateDef().Priority,
+			Priority,
 			State->GetLevel(),
 			State->GetStackCount(),
 			*DurStr,
@@ -813,15 +845,18 @@ FString UTcsStateComponent::GetStateDebugSnapshot(FName StateDefIdFilter) const
 
 	Instances.Sort([](const UTcsStateInstance& A, const UTcsStateInstance& B)
 	{
-		const FString AS = A.GetStateDef().StateSlotType.ToString();
-		const FString BS = B.GetStateDef().StateSlotType.ToString();
+		const UTcsStateDefinitionAsset* AStateDef = A.GetStateDefAsset();
+		const UTcsStateDefinitionAsset* BStateDef = B.GetStateDefAsset();
+
+		const FString AS = AStateDef ? AStateDef->StateSlotType.ToString() : TEXT("");
+		const FString BS = BStateDef ? BStateDef->StateSlotType.ToString() : TEXT("");
 		if (AS != BS)
 		{
 			return AS < BS;
 		}
 
-		const int32 AP = A.GetStateDef().Priority;
-		const int32 BP = B.GetStateDef().Priority;
+		const int32 AP = AStateDef ? AStateDef->Priority : 0;
+		const int32 BP = BStateDef ? BStateDef->Priority : 0;
 		if (AP != BP)
 		{
 			return AP > BP;

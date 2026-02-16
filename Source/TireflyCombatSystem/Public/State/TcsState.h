@@ -17,6 +17,7 @@ class UTcsStateComponent;
 class UTcsStateMerger;
 class UTcsStateCondition;
 class UTcsStateParamExtractor;
+class UTcsStateDefinitionAsset;
 
 
 
@@ -173,70 +174,6 @@ public:
 
 
 
-// 状态定义表
-USTRUCT(BlueprintType)
-struct TIREFLYCOMBATSYSTEM_API FTcsStateDefinition : public FTableRowBase
-{
-	GENERATED_BODY()
-
-public:
-	// 状态类型
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Meta")
-	TEnumAsByte<ETcsStateType> StateType = ST_State;
-
-	// 状态槽类型
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Meta", Meta = (Categories = "StateSlot"))
-	FGameplayTag StateSlotType;
-
-	// 状态优先级（值越大，优先级越高，越优先执行，默认优先级为0）
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Meta")
-	int32 Priority = 0;
-
-	// 状态类别标签
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Tag")
-	FGameplayTagContainer CategoryTags;
-
-	// 状态功能标签
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Tag")
-	FGameplayTagContainer FunctionTags;
-
-	// 持续时间类型
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Duration")
-	TEnumAsByte<ETcsStateDurationType> DurationType = SDT_None;
-
-	// 持续时间
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Duration",
-		Meta = (EditConditionHides, EditCondition = "DurationType == SDT_Duration"))
-	float Duration = 0.f;
-
-	// 最大叠层数
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stack")
-	int32 MaxStackCount = 1;
-
-	// 状态合并策略
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stack")
-	TSubclassOf<UTcsStateMerger> MergerType;
-
-	// 状态树资产引用，作为状态的运行时脚本
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "State Tree")
-	FStateTreeReference StateTreeRef;
-
-	// StateTree Tick 策略
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "State Tree")
-	ETcsStateTreeTickPolicy TickPolicy = ETcsStateTreeTickPolicy::WhileActive;
-
-	// 状态的激活条件配置
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Condition")
-	TArray<FTcsStateConditionConfig> ActiveConditions;
-
-	// 状态的参数集（FName 键）
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Parameter")
-	TMap<FName, FTcsStateParameter> Parameters;
-
-	// 状态的参数集（GameplayTag 键）
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Parameter")
-	TMap<FGameplayTag, FTcsStateParameter> TagParameters;
-};
 
 
 
@@ -261,7 +198,8 @@ public:
 public:
 	// 初始化状态实例
 	void Initialize(
-		const FTcsStateDefinition& InStateDef,
+		const UTcsStateDefinitionAsset* InStateDefAsset,
+		FName InStateDefId,
 		AActor* InOwner,
 		AActor* InInstigator,
 		int32 InInstanceId = -1,
@@ -272,24 +210,24 @@ public:
 
     // 获取状态的定义Id
     FName GetStateDefId() const { return StateDefId; }
-	
+
     // 设置状态的定义Id（由管理器填充）
     void SetStateDefId(FName InStateDefId) { StateDefId = InStateDefId; }
 
-	// 获取状态的定义数据
-	FTcsStateDefinition GetStateDef() const { return StateDef; }
+	// 获取状态定义 DataAsset 硬引用
+	const UTcsStateDefinitionAsset* GetStateDefAsset() const { return StateDefAsset; }
 
 	// 获取状态实例Id
 	int32 GetInstanceId() const { return StateInstanceId; }
 
 protected:
-	// 状态定义Id
+	// 状态定义 DataAsset 硬引用
+	UPROPERTY(BlueprintReadOnly, Category = "Meta")
+	const UTcsStateDefinitionAsset* StateDefAsset = nullptr;
+
+	// 状态定义Id（冗余字段，用于快速查询和调试）
 	UPROPERTY(BlueprintReadOnly, Category = "Meta")
 	FName StateDefId;
-	
-	// 状态定义数据
-	UPROPERTY(BlueprintReadOnly, Category = "Meta")
-	FTcsStateDefinition StateDef;
 
 	// 状态实例Id
 	UPROPERTY(BlueprintReadOnly, Category = "Meta")

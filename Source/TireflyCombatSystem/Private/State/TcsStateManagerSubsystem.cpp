@@ -6,79 +6,402 @@
 #include "Engine/DataTable.h"
 #include "StateTree.h"
 #include "StructUtils/InstancedStruct.h"
+#include "TcsDeveloperSettings.h"
 #include "TcsEntityInterface.h"
 #include "TcsGenericLibrary.h"
 #include "TcsLogChannels.h"
 #include "State/TcsState.h"
 #include "State/TcsStateComponent.h"
+#include "State/TcsStateDefinitionAsset.h"
+#include "State/TcsStateSlotDefinitionAsset.h"
 #include "State/StateMerger/TcsStateMerger.h"
 #include "State/SamePriorityPolicy/TcsStateSamePriorityPolicy.h"
 #include "TcsGameplayTags.h"
 
+#if !WITH_EDITOR
+#include "Engine/AssetManager.h"
+#endif
+
 
 void UTcsStateManagerSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
-    Super::Initialize(Collection);
+	Super::Initialize(Collection);
 
-    // 加载状态定义表
-    StateDefTable = UTcsGenericLibrary::GetStateDefTable();
-    if (!IsValid(StateDefTable))
-    {
-        UE_LOG(LogTcsState, Error, TEXT("[%s] StateDefTable in TcsDevSettings is not valid"),
-            *FString(__FUNCTION__));
-        return;
-    }
-
-    // 加载状态槽定义表
-    StateSlotDefTable = UTcsGenericLibrary::GetStateSlotDefTable();
-    if (!IsValid(StateSlotDefTable))
-    {
-        UE_LOG(LogTcsState, Error, TEXT("[%s] StateSlotDefTable in TcsDevSettings is not valid"),
-            *FString(__FUNCTION__));
-    }
-    InitStateSlotDefs();
+#if WITH_EDITOR
+	LoadFromDeveloperSettings();
+#else
+	LoadFromAssetManager();
+#endif
 }
 
-bool UTcsStateManagerSubsystem::GetStateDefinition(FName StateDefId, FTcsStateDefinition& OutStateDef)
+void UTcsStateManagerSubsystem::LoadFromDeveloperSettings()
 {
-    if (StateDefId.IsNone())
-    {
-        UE_LOG(LogTcsState, Warning, TEXT("[%s] Invalid state definition id"),
-            *FString(__FUNCTION__));
-        return false;
-    }
-
-    if (!IsValid(StateDefTable))
-    {
-        UE_LOG(LogTcsState, Error, TEXT("[%s] StateDefTable in TcsDevSettings is not valid"),
-            *FString(__FUNCTION__));
-        return false;
-    }
-
-    const FTcsStateDefinition* StateDefRow = StateDefTable->FindRow<FTcsStateDefinition>(
-        StateDefId,
-        TEXT("TCS GetStateDefinition"),
-        true);
-    if (!StateDefRow)
-    {
-        UE_LOG(LogTcsState, Warning, TEXT("[%s] Invalid state definition: %s"),
-            *FString(__FUNCTION__),
-            *StateDefId.ToString());
-        return false;
-    }
-
-    OutStateDef = *StateDefRow;
-
-	// Priority: larger is higher; clamp invalid negative values.
-	if (OutStateDef.Priority < 0)
+	const UTcsDeveloperSettings* Settings = GetDefault<UTcsDeveloperSettings>();
+	if (!Settings)
 	{
-		UE_LOG(LogTcsState, Warning, TEXT("[%s] StateDef %s has invalid Priority %d, clamped to 0."),
-			*FString(__FUNCTION__),
-			*StateDefId.ToString(),
-			OutStateDef.Priority);
-		OutStateDef.Priority = 0;
+		UE_LOG(LogTcsState, Error, TEXT("[%s] Failed to get TcsDeveloperSettings"),
+			*FString(__FUNCTION__));
+		return;
 	}
-    return true;
+
+	// 从 DeveloperSettings 的缓存中加载状态槽定义（总是全部加载）
+	StateSlotDefinitions.Empty();
+	for (const auto& Pair : Settings->GetCachedStateSlotDefinitions())
+	{
+		const UTcsStateSlotDefinitionAsset* Asset = Pair.Value.LoadSynchronous();
+		if (Asset)
+		{
+			StateSlotDefinitions.Add(Pair.Key, Asset);
+		}
+		else
+		{
+			UE_LOG(LogTcsState, Warning, TEXT("[%s] Failed to load StateSlotDefinition: %s"),
+				*FString(__FUNCTION__),
+				*Pair.Key.ToString());
+		}
+	}
+
+	if (StateSlotDefinitions.Num() == 0)
+	{
+		UE_LOG(LogTcsState, Warning, TEXT("[%s] No StateSlotDefinitions loaded from DeveloperSettings"),
+			*FString(__FUNCTION__));
+	}
+
+	// 根据 StateLoadingStrategy 决定加载策略
+	const ETcsStateLoadingStrategy LoadingStrategy = Settings->StateLoadingStrategy;
+	StateDefinitions.Empty();
+	StateTagToDefId.Empty();
+
+	switch (LoadingStrategy)
+	{
+	case ETcsStateLoadingStrategy::PreloadAll:
+		PreloadAllStates();
+		UE_LOG(LogTcsState, Log, TEXT("[%s] PreloadAll strategy: Loaded %d State definitions"),
+			*FString(__FUNCTION__),
+			StateDefinitions.Num());
+		break;
+
+	case ETcsStateLoadingStrategy::OnDemand:
+		// 不预加载，仅在使用时加载
+		UE_LOG(LogTcsState, Log, TEXT("[%s] OnDemand strategy: State definitions will be loaded on first access"),
+			*FString(__FUNCTION__));
+		break;
+
+	case ETcsStateLoadingStrategy::Hybrid:
+		PreloadCommonStates();
+		UE_LOG(LogTcsState, Log, TEXT("[%s] Hybrid strategy: Preloaded %d common State definitions"),
+			*FString(__FUNCTION__),
+			StateDefinitions.Num());
+		break;
+	}
+
+	UE_LOG(LogTcsState, Log, TEXT("[%s] Initialized: %d StateSlots, %d States, %d Tag mappings, Strategy: %s"),
+		*FString(__FUNCTION__),
+		StateSlotDefinitions.Num(),
+		StateDefinitions.Num(),
+		StateTagToDefId.Num(),
+		LoadingStrategy == ETcsStateLoadingStrategy::PreloadAll ? TEXT("PreloadAll") :
+		LoadingStrategy == ETcsStateLoadingStrategy::OnDemand ? TEXT("OnDemand") : TEXT("Hybrid"));
+}
+
+void UTcsStateManagerSubsystem::PreloadAllStates()
+{
+	const UTcsDeveloperSettings* Settings = GetDefault<UTcsDeveloperSettings>();
+	if (!Settings)
+	{
+		return;
+	}
+
+	for (const auto& Pair : Settings->GetCachedStateDefinitions())
+	{
+		const FName& DefId = Pair.Key;
+		const UTcsStateDefinitionAsset* Asset = Pair.Value.LoadSynchronous();
+		if (Asset)
+		{
+			StateDefinitions.Add(DefId, Asset);
+
+			// 构建 StateTag -> StateDefId 映射
+			if (Asset->StateTag.IsValid())
+			{
+				if (StateTagToDefId.Contains(Asset->StateTag))
+				{
+					const FName ExistingDefId = StateTagToDefId[Asset->StateTag];
+					UE_LOG(LogTcsState, Error,
+						TEXT("[%s] Duplicate StateTag '%s' found: already mapped to '%s', ignoring mapping for '%s'"),
+						*FString(__FUNCTION__),
+						*Asset->StateTag.ToString(),
+						*ExistingDefId.ToString(),
+						*DefId.ToString());
+				}
+				else
+				{
+					StateTagToDefId.Add(Asset->StateTag, DefId);
+				}
+			}
+		}
+		else
+		{
+			UE_LOG(LogTcsState, Warning, TEXT("[%s] Failed to load StateDefinition: %s"),
+				*FString(__FUNCTION__),
+				*DefId.ToString());
+		}
+	}
+}
+
+void UTcsStateManagerSubsystem::PreloadCommonStates()
+{
+	const UTcsDeveloperSettings* Settings = GetDefault<UTcsDeveloperSettings>();
+	if (!Settings)
+	{
+		return;
+	}
+
+	// 1. 首先加载精确指定的 State（优先级更高）
+	for (const TSoftObjectPtr<UTcsStateDefinitionAsset>& AssetPtr : Settings->CommonStateDefinitions)
+	{
+		if (!AssetPtr.IsNull())
+		{
+			const UTcsStateDefinitionAsset* Asset = AssetPtr.LoadSynchronous();
+			if (Asset)
+			{
+				const FName DefId = Asset->StateDefId;
+
+				// 避免重复加载
+				if (!StateDefinitions.Contains(DefId))
+				{
+					StateDefinitions.Add(DefId, Asset);
+
+					// 构建 StateTag -> StateDefId 映射
+					if (Asset->StateTag.IsValid())
+					{
+						if (StateTagToDefId.Contains(Asset->StateTag))
+						{
+							const FName ExistingDefId = StateTagToDefId[Asset->StateTag];
+							UE_LOG(LogTcsState, Error,
+								TEXT("[%s] Duplicate StateTag '%s' found: already mapped to '%s', ignoring mapping for '%s'"),
+								*FString(__FUNCTION__),
+								*Asset->StateTag.ToString(),
+								*ExistingDefId.ToString(),
+								*DefId.ToString());
+						}
+						else
+						{
+							StateTagToDefId.Add(Asset->StateTag, DefId);
+						}
+					}
+
+					UE_LOG(LogTcsState, Verbose, TEXT("[%s] Preloaded common State (explicit): %s"),
+						*FString(__FUNCTION__),
+						*DefId.ToString());
+				}
+			}
+			else
+			{
+				UE_LOG(LogTcsState, Warning, TEXT("[%s] Failed to load common State from explicit list: %s"),
+					*FString(__FUNCTION__),
+					*AssetPtr.ToSoftObjectPath().ToString());
+			}
+		}
+	}
+
+	// 2. 然后加载路径配置的 State（文件夹级别）
+	for (const auto& Pair : Settings->GetCachedStateDefinitions())
+	{
+		const FName& DefId = Pair.Key;
+
+		// 跳过已加载的（避免重复）
+		if (StateDefinitions.Contains(DefId))
+		{
+			continue;
+		}
+
+		const TSoftObjectPtr<UTcsStateDefinitionAsset>& AssetPtr = Pair.Value;
+		FString AssetPath = AssetPtr.ToSoftObjectPath().ToString();
+
+		// 检查是否在常用路径中
+		bool bIsCommon = false;
+		for (const FDirectoryPath& CommonPath : Settings->CommonStateDefinitionPaths)
+		{
+			if (AssetPath.StartsWith(CommonPath.Path))
+			{
+				bIsCommon = true;
+				break;
+			}
+		}
+
+		if (bIsCommon)
+		{
+			const UTcsStateDefinitionAsset* Asset = AssetPtr.LoadSynchronous();
+			if (Asset)
+			{
+				StateDefinitions.Add(DefId, Asset);
+
+				// 构建 StateTag -> StateDefId 映射
+				if (Asset->StateTag.IsValid())
+				{
+					if (StateTagToDefId.Contains(Asset->StateTag))
+					{
+						const FName ExistingDefId = StateTagToDefId[Asset->StateTag];
+						UE_LOG(LogTcsState, Error,
+							TEXT("[%s] Duplicate StateTag '%s' found: already mapped to '%s', ignoring mapping for '%s'"),
+							*FString(__FUNCTION__),
+							*Asset->StateTag.ToString(),
+							*ExistingDefId.ToString(),
+							*DefId.ToString());
+					}
+					else
+					{
+						StateTagToDefId.Add(Asset->StateTag, DefId);
+					}
+				}
+
+				UE_LOG(LogTcsState, Verbose, TEXT("[%s] Preloaded common State (path): %s"),
+					*FString(__FUNCTION__),
+					*DefId.ToString());
+			}
+			else
+			{
+				UE_LOG(LogTcsState, Warning, TEXT("[%s] Failed to load common StateDefinition: %s"),
+					*FString(__FUNCTION__),
+					*DefId.ToString());
+			}
+		}
+	}
+}
+
+const UTcsStateDefinitionAsset* UTcsStateManagerSubsystem::LoadStateOnDemand(FName StateDefId)
+{
+	// 检查是否已加载
+	if (const UTcsStateDefinitionAsset* const* AssetPtr = StateDefinitions.Find(StateDefId))
+	{
+		return *AssetPtr;
+	}
+
+	// 从 Settings 缓存中查找并加载
+	const UTcsDeveloperSettings* Settings = GetDefault<UTcsDeveloperSettings>();
+	if (!Settings)
+	{
+		return nullptr;
+	}
+
+	if (const TSoftObjectPtr<UTcsStateDefinitionAsset>* AssetPtr = Settings->GetCachedStateDefinitions().Find(StateDefId))
+	{
+		const UTcsStateDefinitionAsset* Asset = AssetPtr->LoadSynchronous();
+		if (Asset)
+		{
+			StateDefinitions.Add(StateDefId, Asset);
+
+			// 构建 StateTag -> StateDefId 映射
+			if (Asset->StateTag.IsValid())
+			{
+				if (!StateTagToDefId.Contains(Asset->StateTag))
+				{
+					StateTagToDefId.Add(Asset->StateTag, StateDefId);
+				}
+			}
+
+			UE_LOG(LogTcsState, Verbose, TEXT("[%s] Loaded State on demand: %s"),
+				*FString(__FUNCTION__),
+				*StateDefId.ToString());
+
+			return Asset;
+		}
+	}
+
+	UE_LOG(LogTcsState, Warning, TEXT("[%s] Failed to load State on demand: %s"),
+		*FString(__FUNCTION__),
+		*StateDefId.ToString());
+	return nullptr;
+}
+
+const UTcsStateDefinitionAsset* UTcsStateManagerSubsystem::GetStateDefinitionAsset(FName DefId)
+{
+	// 先检查是否已加载
+	if (const UTcsStateDefinitionAsset* const* AssetPtr = StateDefinitions.Find(DefId))
+	{
+		return *AssetPtr;
+	}
+
+	// 按需加载模式下尝试加载
+	const UTcsDeveloperSettings* Settings = GetDefault<UTcsDeveloperSettings>();
+	if (Settings && (Settings->StateLoadingStrategy == ETcsStateLoadingStrategy::OnDemand ||
+		Settings->StateLoadingStrategy == ETcsStateLoadingStrategy::Hybrid))
+	{
+		return LoadStateOnDemand(DefId);
+	}
+
+	UE_LOG(LogTcsState, Warning, TEXT("[%s] StateDefinition not found: %s"),
+		*FString(__FUNCTION__),
+		*DefId.ToString());
+	return nullptr;
+}
+
+const UTcsStateDefinitionAsset* UTcsStateManagerSubsystem::GetStateDefinitionAssetByTag(FGameplayTag StateTag)
+{
+	// 先通过 Tag 映射查找 DefId
+	if (const FName* DefId = StateTagToDefId.Find(StateTag))
+	{
+		return GetStateDefinitionAsset(*DefId);
+	}
+
+	// 按需加载模式下，Tag 映射可能不完整，需要遍历所有缓存
+	const UTcsDeveloperSettings* Settings = GetDefault<UTcsDeveloperSettings>();
+	if (Settings && (Settings->StateLoadingStrategy == ETcsStateLoadingStrategy::OnDemand ||
+		Settings->StateLoadingStrategy == ETcsStateLoadingStrategy::Hybrid))
+	{
+		// 遍历所有缓存的 State，查找匹配的 Tag
+		for (const auto& Pair : Settings->GetCachedStateDefinitions())
+		{
+			const FName& DefId = Pair.Key;
+			const UTcsStateDefinitionAsset* Asset = LoadStateOnDemand(DefId);
+			if (Asset && Asset->StateTag == StateTag)
+			{
+				return Asset;
+			}
+		}
+	}
+
+	UE_LOG(LogTcsState, Warning, TEXT("[%s] StateDefinition not found by tag: %s"),
+		*FString(__FUNCTION__),
+		*StateTag.ToString());
+	return nullptr;
+}
+
+const UTcsStateSlotDefinitionAsset* UTcsStateManagerSubsystem::GetStateSlotDefinitionAsset(FName DefId)
+{
+	if (const UTcsStateSlotDefinitionAsset* const* AssetPtr = StateSlotDefinitions.Find(DefId))
+	{
+		return *AssetPtr;
+	}
+
+	UE_LOG(LogTcsState, Warning, TEXT("[%s] StateSlotDefinition not found: %s"),
+		*FString(__FUNCTION__),
+		*DefId.ToString());
+	return nullptr;
+}
+
+const UTcsStateSlotDefinitionAsset* UTcsStateManagerSubsystem::GetStateSlotDefinitionAssetByTag(FGameplayTag SlotTag)
+{
+	for (const auto& Pair : StateSlotDefinitions)
+	{
+		const UTcsStateSlotDefinitionAsset* Asset = Pair.Value;
+		if (Asset && Asset->SlotTag == SlotTag)
+		{
+			return Asset;
+		}
+	}
+
+	UE_LOG(LogTcsState, Warning, TEXT("[%s] StateSlotDefinition not found for tag: %s"),
+		*FString(__FUNCTION__),
+		*SlotTag.ToString());
+	return nullptr;
+}
+
+TArray<FName> UTcsStateManagerSubsystem::GetAllStateDefNames() const
+{
+	TArray<FName> Names;
+	StateDefinitions.GetKeys(Names);
+	return Names;
 }
 
 UTcsStateInstance* UTcsStateManagerSubsystem::CreateStateInstance(
@@ -95,8 +418,7 @@ UTcsStateInstance* UTcsStateManagerSubsystem::CreateStateInstance(
         return nullptr;
     }
 
-    // 获取状态定义
-    FTcsStateDefinition StateDef;
+    // 获取状态定义资产
 	if (!Owner->Implements<UTcsEntityInterface>() || !Instigator->Implements<UTcsEntityInterface>())
 	{
 		UE_LOG(LogTcsState, Error,
@@ -108,7 +430,8 @@ UTcsStateInstance* UTcsStateManagerSubsystem::CreateStateInstance(
 		return nullptr;
 	}
 
-	if (!GetStateDefinition(StateDefRowId, StateDef))
+	const UTcsStateDefinitionAsset* StateDefAsset = GetStateDefinitionAsset(StateDefRowId);
+	if (!StateDefAsset)
 	{
 		UE_LOG(LogTcsState, Error, TEXT("[%s] Invalid state definition: %s"),
 			*FString(__FUNCTION__),
@@ -126,9 +449,9 @@ UTcsStateInstance* UTcsStateManagerSubsystem::CreateStateInstance(
 		return nullptr;
 	}
 
-	// 初始化临时实例（用于参数评估上下文）
+	// 初始化临时实例(用于参数评估上下文)
 	TempStateInstance->SetStateDefId(StateDefRowId);
-	TempStateInstance->Initialize(StateDef, Owner, Instigator, ++GlobalStateInstanceIdMgr, InLevel);
+	TempStateInstance->Initialize(StateDefAsset, StateDefRowId, Owner, Instigator, ++GlobalStateInstanceIdMgr, InLevel);
 
 	if (!TempStateInstance->IsInitialized())
 	{
@@ -144,7 +467,7 @@ UTcsStateInstance* UTcsStateManagerSubsystem::CreateStateInstance(
 
 	// 验证参数评估
 	TArray<FName> FailedParams;
-	if (!ValidateStateParameters(StateDef, Owner, Instigator, TempStateInstance, FailedParams))
+	if (!ValidateStateParameters(StateDefAsset, Owner, Instigator, TempStateInstance, FailedParams))
 	{
 		FString FailedParamNames;
 		for (int32 i = 0; i < FailedParams.Num(); ++i)
@@ -178,7 +501,7 @@ UTcsStateInstance* UTcsStateManagerSubsystem::CreateStateInstance(
 }
 
 bool UTcsStateManagerSubsystem::ValidateStateParameters(
-	const FTcsStateDefinition& StateDef,
+	const UTcsStateDefinitionAsset* StateDefAsset,
 	AActor* Owner,
 	AActor* Instigator,
 	UTcsStateInstance* StateInstance,
@@ -186,14 +509,14 @@ bool UTcsStateManagerSubsystem::ValidateStateParameters(
 {
 	OutFailedParams.Reset();
 
-	if (StateDef.Parameters.IsEmpty())
+	if (!StateDefAsset || StateDefAsset->Parameters.IsEmpty())
 	{
 		return true;  // 没有参数，验证通过
 	}
 
 	bool bAllSuccess = true;
 
-	for (const TPair<FName, FTcsStateParameter>& ParamPair : StateDef.Parameters)
+	for (const TPair<FName, FTcsStateParameter>& ParamPair : StateDefAsset->Parameters)
 	{
 		const FName& ParamName = ParamPair.Key;
 		const FTcsStateParameter& Param = ParamPair.Value;
@@ -306,8 +629,8 @@ bool UTcsStateManagerSubsystem::TryApplyStateToTarget(
         return false;
     }
 
-    FTcsStateDefinition StateDef;
-    if (!GetStateDefinition(StateDefId, StateDef))
+    const UTcsStateDefinitionAsset* StateDef = GetStateDefinitionAsset(StateDefId);
+    if (!StateDef)
     {
         UE_LOG(LogTcsState, Error, TEXT("[%s] Invalid state definition: %s"),
             *FString(__FUNCTION__),
@@ -396,12 +719,19 @@ bool UTcsStateManagerSubsystem::CheckStateApplyConditions(UTcsStateInstance* Sta
             *FString(__FUNCTION__));;
         return false;
     }
-    
-    const FTcsStateDefinition& StateDef = StateInstance->GetStateDef();
-    // 检查所有激活条件
-    for (int i = 0; i < StateDef.ActiveConditions.Num(); ++i)
+
+    const UTcsStateDefinitionAsset* StateDef = StateInstance->GetStateDefAsset();
+    if (!StateDef)
     {
-        if (!StateDef.ActiveConditions[i].IsValid())
+        UE_LOG(LogTcsState, Error, TEXT("[%s] StateInstance has invalid StateDefAsset"),
+            *FString(__FUNCTION__));
+        return false;
+    }
+
+    // 检查所有激活条件
+    for (int i = 0; i < StateDef->ActiveConditions.Num(); ++i)
+    {
+        if (!StateDef->ActiveConditions[i].IsValid())
         {
             UE_LOG(LogTcsState, Error, TEXT("[%s] Invalid state condition of index %d in StateDef %s"),
                 *FString(__FUNCTION__),
@@ -410,59 +740,20 @@ bool UTcsStateManagerSubsystem::CheckStateApplyConditions(UTcsStateInstance* Sta
             return false;
         }
 
-        if (!StateDef.ActiveConditions[i].bCheckWhenApplying)
+        if (!StateDef->ActiveConditions[i].bCheckWhenApplying)
         {
             continue;
         }
 
         // 获取条件实例并检查，有一个不满足则返回false
-        UTcsStateCondition* Condition = StateDef.ActiveConditions[i].ConditionClass.GetDefaultObject();
-        if (!Condition->CheckCondition(StateInstance, StateDef.ActiveConditions[i].Payload))
+        UTcsStateCondition* Condition = StateDef->ActiveConditions[i].ConditionClass.GetDefaultObject();
+        if (!Condition->CheckCondition(StateInstance, StateDef->ActiveConditions[i].Payload))
         {
             return false;
         }
     }
 
     return true;
-}
-
-bool UTcsStateManagerSubsystem::TryGetStateSlotDefinition(
-    FGameplayTag StateSlotTag,
-    FTcsStateSlotDefinition& OutStateSlotDef) const
-{
-    if (StateSlotDefs.Contains(StateSlotTag))
-    {
-        OutStateSlotDef = StateSlotDefs[StateSlotTag];
-        return true;
-    }
-
-    return false;
-}
-
-void UTcsStateManagerSubsystem::InitStateSlotDefs()
-{
-    if (!IsValid(StateSlotDefTable))
-    {
-        UE_LOG(LogTcsState, Error, TEXT("[%s] StateSlotDefTable in TcsDevSettings is not valid"),
-            *FString(__FUNCTION__));
-        return;
-    }
-
-    // 读取所有配置行
-    TArray<FTcsStateSlotDefinition*> StateSlotDefRows;
-    StateSlotDefTable->GetAllRows<FTcsStateSlotDefinition>(*FString(__FUNCTION__), StateSlotDefRows);
-    for (const FTcsStateSlotDefinition* Row : StateSlotDefRows)
-    {
-        if (Row && Row->SlotTag.IsValid())
-        {
-            StateSlotDefs.FindOrAdd(Row->SlotTag, *Row);
-            UE_LOG(LogTcsState, Log, TEXT("[%s], Loaded state slot def: [%s] -> Mode: %s"), 
-                *FString(__FUNCTION__),
-                *Row->SlotTag.ToString(),
-                *StaticEnum<ETcsStateSlotActivationMode>()->GetNameStringByValue(
-                    static_cast<int64>(Row->ActivationMode)));
-        }
-    }
 }
 
 void UTcsStateManagerSubsystem::InitStateSlotMappings(AActor* CombatEntity)
@@ -480,14 +771,14 @@ void UTcsStateManagerSubsystem::InitStateSlotMappings(AActor* CombatEntity)
     StateComponent->Mapping_StateSlotToStateHandle.Empty();
     StateComponent->Mapping_StateHandleToStateSlot.Empty();
 
-	// Ensure all StateSlots exist based on StateSlotDefs, regardless of optional StateTree visual mapping.
+	// Ensure all StateSlots exist based on StateSlotDefinitions, regardless of optional StateTree visual mapping.
 	// (StateTreeStateName mapping should only affect Gate automation, not whether a Slot can accept states.)
-	for (const auto& Pair : StateSlotDefs)
+	for (const auto& Pair : StateSlotDefinitions)
 	{
-		const FGameplayTag StateSlotTag = Pair.Key;
-		if (StateSlotTag.IsValid())
+		const UTcsStateSlotDefinitionAsset* SlotDefAsset = Pair.Value;
+		if (SlotDefAsset && SlotDefAsset->SlotTag.IsValid())
 		{
-			StateComponent->StateSlotsX.FindOrAdd(StateSlotTag);
+			StateComponent->StateSlotsX.FindOrAdd(SlotDefAsset->SlotTag);
 		}
 	}
 
@@ -502,12 +793,17 @@ void UTcsStateManagerSubsystem::InitStateSlotMappings(AActor* CombatEntity)
     }
 
     // 遍历配置中包含 StateTreeStateName 的槽位定义，尝试匹配到 StateTree 状态
-    for (const auto& Pair : StateSlotDefs)
+    for (const auto& Pair : StateSlotDefinitions)
     {
-        const FGameplayTag StateSlotTag = Pair.Key;
-        const FTcsStateSlotDefinition& StateSlotDef = Pair.Value;
+        const UTcsStateSlotDefinitionAsset* StateSlotDef = Pair.Value;
+        if (!StateSlotDef)
+        {
+            continue;
+        }
+
+        const FGameplayTag StateSlotTag = StateSlotDef->SlotTag;
         // 若未指定映射，跳过
-        if (StateSlotDef.StateTreeStateName.IsNone())
+        if (StateSlotDef->StateTreeStateName.IsNone())
         {
             continue;
         }
@@ -519,7 +815,7 @@ void UTcsStateManagerSubsystem::InitStateSlotMappings(AActor* CombatEntity)
         for (int32 Index = 0; Index < States.Num(); ++Index)
         {
             const FCompactStateTreeState& State = States[Index];
-            if (State.Name == StateSlotDef.StateTreeStateName)
+            if (State.Name == StateSlotDef->StateTreeStateName)
             {
                 FStateTreeStateHandle Handle(Index);
                 StateComponent->Mapping_StateSlotToStateHandle.Add(StateSlotTag, Handle);
@@ -533,7 +829,7 @@ void UTcsStateManagerSubsystem::InitStateSlotMappings(AActor* CombatEntity)
         UE_LOG(LogTcsState, Log, TEXT("[%s] State Slot [%s] -> StateTree State [%s] %s of %s"),
             *FString(__FUNCTION__),
             *StateSlotTag.ToString(),
-            *StateSlotDef.StateTreeStateName.ToString(),
+            *StateSlotDef->StateTreeStateName.ToString(),
             bMapped ? TEXT("mapped") : TEXT("not found"),
             *CombatEntity->GetName());
     }
@@ -548,8 +844,15 @@ bool UTcsStateManagerSubsystem::TryAssignStateToStateSlot(UTcsStateInstance* Sta
         return false;
     }
 
-    const FTcsStateDefinition& StateDef = StateInstance->GetStateDef();
-    if (!StateDef.StateSlotType.IsValid())
+    const UTcsStateDefinitionAsset* StateDef = StateInstance->GetStateDefAsset();
+    if (!StateDef)
+    {
+        UE_LOG(LogTcsState, Error, TEXT("[%s] StateInstance has invalid StateDefAsset"),
+            *FString(__FUNCTION__));
+        return false;
+    }
+
+    if (!StateDef->StateSlotType.IsValid())
     {
         UE_LOG(LogTcsState, Error, TEXT("[%s] StateDef %s does not specify StateSlotType."),
             *FString(__FUNCTION__),
@@ -573,31 +876,31 @@ bool UTcsStateManagerSubsystem::TryAssignStateToStateSlot(UTcsStateInstance* Sta
         return false;
     }
 
-    FTcsStateSlot* StateSlot = OwnerStateCmp->StateSlotsX.Find(StateDef.StateSlotType);
+    FTcsStateSlot* StateSlot = OwnerStateCmp->StateSlotsX.Find(StateDef->StateSlotType);
     if (!StateSlot)
     {
         UE_LOG(LogTcsState, Error, TEXT("[%s] StateSlot %s not found in owner StateComponent."),
             *FString(__FUNCTION__),
-            *StateDef.StateSlotType.ToString());
+            *StateDef->StateSlotType.ToString());
 		OwnerStateCmp->NotifyStateApplyFailed(
 			StateInstance->GetOwner(),
 			StateInstance->GetStateDefId(),
 			ETcsStateApplyFailReason::NoStateSlot,
-			FString::Printf(TEXT("StateSlot %s not found."), *StateDef.StateSlotType.ToString()));
+			FString::Printf(TEXT("StateSlot %s not found."), *StateDef->StateSlotType.ToString()));
         return false;
     }
 
-    const FTcsStateSlotDefinition* StateSlotDef = StateSlotDefs.Find(StateDef.StateSlotType);
+    const UTcsStateSlotDefinitionAsset* StateSlotDef = GetStateSlotDefinitionAssetByTag(StateDef->StateSlotType);
     if (!StateSlotDef)
     {
         UE_LOG(LogTcsState, Error, TEXT("[%s] StateSlotDef %s not found."),
             *FString(__FUNCTION__),
-            *StateDef.StateSlotType.ToString());
+            *StateDef->StateSlotType.ToString());
 		OwnerStateCmp->NotifyStateApplyFailed(
 			StateInstance->GetOwner(),
 			StateInstance->GetStateDefId(),
 			ETcsStateApplyFailReason::NoStateSlotDefinition,
-			FString::Printf(TEXT("StateSlotDef %s not found."), *StateDef.StateSlotType.ToString()));
+			FString::Printf(TEXT("StateSlotDef %s not found."), *StateDef->StateSlotType.ToString()));
         return false;
     }
 
@@ -622,7 +925,7 @@ bool UTcsStateManagerSubsystem::TryAssignStateToStateSlot(UTcsStateInstance* Sta
 			StateInstance->GetOwner(),
 			StateInstance->GetStateDefId(),
 			ETcsStateApplyFailReason::SlotGateClosed_CancelPolicy,
-			FString::Printf(TEXT("StateSlot %s gate is closed (Cancel policy)."), *StateDef.StateSlotType.ToString()));
+			FString::Printf(TEXT("StateSlot %s gate is closed (Cancel policy)."), *StateDef->StateSlotType.ToString()));
 		return false;
 	}
 
@@ -640,11 +943,15 @@ bool UTcsStateManagerSubsystem::TryAssignStateToStateSlot(UTcsStateInstance* Sta
 				continue;
 			}
 			bHasExisting = true;
-			BestPriority = FMath::Max(BestPriority, Existing->GetStateDef().Priority);
+			const UTcsStateDefinitionAsset* ExistingStateDef = Existing->GetStateDefAsset();
+			if (ExistingStateDef)
+			{
+				BestPriority = FMath::Max(BestPriority, ExistingStateDef->Priority);
+			}
 		}
 
 		// Priority值越大越高；如果新状态Priority更小，则更低优先级，拒绝入槽。
-		if (bHasExisting && StateInstance->GetStateDef().Priority < BestPriority)
+		if (bHasExisting && StateDef->Priority < BestPriority)
 		{
 			OwnerStateCmp->NotifyStateApplyFailed(
 				StateInstance->GetOwner(),
@@ -659,10 +966,10 @@ bool UTcsStateManagerSubsystem::TryAssignStateToStateSlot(UTcsStateInstance* Sta
 	StateSlot->States.Add(StateInstance);
 
 	// 如果是持续性状态，加入持久化列表
-	if (StateInstance->GetStateDef().DurationType != ETcsStateDurationType::SDT_None)
+	if (StateDef->DurationType != ETcsStateDurationType::SDT_None)
 	{
 		// 如果是有持续时间的状态，加入持续时间映射
-		if (StateInstance->GetStateDef().DurationType == ETcsStateDurationType::SDT_Duration)
+		if (StateDef->DurationType == ETcsStateDurationType::SDT_Duration)
 		{
 			OwnerStateCmp->DurationTracker.Add(StateInstance, StateInstance->GetTotalDuration());
 		}
@@ -686,7 +993,7 @@ bool UTcsStateManagerSubsystem::TryAssignStateToStateSlot(UTcsStateInstance* Sta
 	}
 
     // 更新槽位中所有状态的激活流程（使用延迟请求机制）
-    RequestUpdateStateSlotActivation(OwnerStateCmp, StateDef.StateSlotType);
+    RequestUpdateStateSlotActivation(OwnerStateCmp, StateDef->StateSlotType);
 
 	// 发送应用成功事件（AppliedStage 以更新后的阶段为准）
 	// 只有状态仍然有效时才广播 ApplySuccess
@@ -698,7 +1005,7 @@ bool UTcsStateManagerSubsystem::TryAssignStateToStateSlot(UTcsStateInstance* Sta
 			StateInstance->GetOwner(),
 			StateInstance->GetStateDefId(),
 			StateInstance,
-			StateDef.StateSlotType,
+			StateDef->StateSlotType,
 			StateInstance->GetCurrentStage());
 	}
 	else
@@ -780,14 +1087,14 @@ void UTcsStateManagerSubsystem::RefreshSlotsForStateChange(
 	for (const auto& Pair : StateComponent->Mapping_StateSlotToStateHandle)
 	{
 		const FGameplayTag SlotTag = Pair.Key;
-		FTcsStateSlotDefinition SlotDef;
+		const UTcsStateSlotDefinitionAsset* SlotDef = GetStateSlotDefinitionAssetByTag(SlotTag);
 
-		if (!TryGetStateSlotDefinition(SlotTag, SlotDef))
+		if (!SlotDef)
 		{
 			continue;
 		}
 
-		const FName& MappedStateName = SlotDef.StateTreeStateName;
+		const FName& MappedStateName = SlotDef->StateTreeStateName;
 		bool bShouldOpen = false;
 
 		if (AddedStates.Contains(MappedStateName))
@@ -948,7 +1255,13 @@ void UTcsStateManagerSubsystem::SortStatesByPriority(TArray<UTcsStateInstance*>&
 {
     States.Sort([](const UTcsStateInstance& A, const UTcsStateInstance& B)
     {
-        return A.GetStateDef().Priority > B.GetStateDef().Priority;
+        const UTcsStateDefinitionAsset* AStateDef = A.GetStateDefAsset();
+        const UTcsStateDefinitionAsset* BStateDef = B.GetStateDefAsset();
+        if (!AStateDef || !BStateDef)
+        {
+            return false;
+        }
+        return AStateDef->Priority > BStateDef->Priority;
     });
 }
 
@@ -1030,7 +1343,7 @@ void UTcsStateManagerSubsystem::EnforceSlotGateConsistency(UTcsStateComponent* S
 		return;
 	}
 
-	const FTcsStateSlotDefinition* SlotDef = StateSlotDefs.Find(StateSlotTag);
+	const UTcsStateSlotDefinitionAsset* SlotDef = GetStateSlotDefinitionAssetByTag(StateSlotTag);
 	if (!SlotDef)
 	{
 		return;
@@ -1120,8 +1433,8 @@ void UTcsStateManagerSubsystem::MergeStateGroup(
         return;
     }
 
-    FTcsStateDefinition StateDef;
-    if (!GetStateDefinition(StatesToMerge[0]->GetStateDefId(), StateDef))
+    const UTcsStateDefinitionAsset* StateDef = GetStateDefinitionAsset(StatesToMerge[0]->GetStateDefId());
+    if (!StateDef)
     {
         UE_LOG(LogTcsState, Warning, TEXT("[%s] Failed to get state definition for %s"),
             *FString(__FUNCTION__),
@@ -1130,7 +1443,7 @@ void UTcsStateManagerSubsystem::MergeStateGroup(
         return;
     }
 
-    TSubclassOf<UTcsStateMerger> MergerClass = StateDef.MergerType;
+    TSubclassOf<UTcsStateMerger> MergerClass = StateDef->MergerType;
     if (!MergerClass)
     {
         // 没有合并器，保留所有状态
@@ -1234,7 +1547,7 @@ void UTcsStateManagerSubsystem::ProcessStateSlotByActivationMode(
         return;
     }
 
-    const FTcsStateSlotDefinition* SlotDef = StateSlotDefs.Find(SlotTag);
+    const UTcsStateSlotDefinitionAsset* SlotDef = GetStateSlotDefinitionAssetByTag(SlotTag);
     if (!SlotDef)
     {
         UE_LOG(LogTcsState, Warning, TEXT("[%s] StateSlotDef %s not found"),
@@ -1247,7 +1560,7 @@ void UTcsStateManagerSubsystem::ProcessStateSlotByActivationMode(
     {
     case ETcsStateSlotActivationMode::SSAM_PriorityOnly:
         {
-            ProcessPriorityOnlyMode(StateSlot, *SlotDef);
+            ProcessPriorityOnlyMode(StateSlot, SlotDef);
             break;
         }
     case ETcsStateSlotActivationMode::SSAM_AllActive:
@@ -1260,9 +1573,9 @@ void UTcsStateManagerSubsystem::ProcessStateSlotByActivationMode(
 
 void UTcsStateManagerSubsystem::ProcessPriorityOnlyMode(
     FTcsStateSlot* StateSlot,
-    const FTcsStateSlotDefinition& SlotDef)
+    const UTcsStateSlotDefinitionAsset* SlotDef)
 {
-    if (!StateSlot || StateSlot->States.Num() == 0)
+    if (!StateSlot || StateSlot->States.Num() == 0 || !SlotDef)
     {
         return;
     }
@@ -1273,7 +1586,11 @@ void UTcsStateManagerSubsystem::ProcessPriorityOnlyMode(
     {
         if (IsValid(Candidate) && !Candidate->HasPendingRemovalRequest())
         {
-            HighestPriority = FMath::Max(HighestPriority, Candidate->GetStateDef().Priority);
+            const UTcsStateDefinitionAsset* CandidateStateDef = Candidate->GetStateDefAsset();
+            if (CandidateStateDef)
+            {
+                HighestPriority = FMath::Max(HighestPriority, CandidateStateDef->Priority);
+            }
         }
     }
 
@@ -1281,10 +1598,13 @@ void UTcsStateManagerSubsystem::ProcessPriorityOnlyMode(
     TArray<UTcsStateInstance*> HighestPriorityStates;
     for (UTcsStateInstance* Candidate : StateSlot->States)
     {
-        if (IsValid(Candidate) && !Candidate->HasPendingRemovalRequest()
-            && Candidate->GetStateDef().Priority == HighestPriority)
+        if (IsValid(Candidate) && !Candidate->HasPendingRemovalRequest())
         {
-            HighestPriorityStates.Add(Candidate);
+            const UTcsStateDefinitionAsset* CandidateStateDef = Candidate->GetStateDefAsset();
+            if (CandidateStateDef && CandidateStateDef->Priority == HighestPriority)
+            {
+                HighestPriorityStates.Add(Candidate);
+            }
         }
     }
 
@@ -1295,9 +1615,9 @@ void UTcsStateManagerSubsystem::ProcessPriorityOnlyMode(
 
     // 如果有多个同优先级状态，应用策略排序
     UTcsStateInstance* HighestPriorityState = nullptr;
-    if (HighestPriorityStates.Num() > 1 && SlotDef.SamePriorityPolicy)
+    if (HighestPriorityStates.Num() > 1 && SlotDef->SamePriorityPolicy)
     {
-        const UTcsStateSamePriorityPolicy* Policy = SlotDef.SamePriorityPolicy->GetDefaultObject<UTcsStateSamePriorityPolicy>();
+        const UTcsStateSamePriorityPolicy* Policy = SlotDef->SamePriorityPolicy->GetDefaultObject<UTcsStateSamePriorityPolicy>();
         if (IsValid(Policy))
         {
             // 按策略排序（降序，越大越靠前）
@@ -1343,13 +1663,13 @@ void UTcsStateManagerSubsystem::ProcessPriorityOnlyMode(
 			continue;
 		}
 
-		if (SlotDef.PreemptionPolicy == ETcsStatePreemptionPolicy::SPP_CancelLowerPriority)
+		if (SlotDef->PreemptionPolicy == ETcsStatePreemptionPolicy::SPP_CancelLowerPriority)
 		{
 			StatesToCancel.Add(State);
 			continue;
 		}
 
-		ApplyPreemptionPolicyToState(State, SlotDef.PreemptionPolicy);
+		ApplyPreemptionPolicyToState(State, SlotDef->PreemptionPolicy);
     }
 
 	// 统一处理Cancel策略，避免遍历时修改容器
@@ -1468,7 +1788,16 @@ void UTcsStateManagerSubsystem::ActivateState(UTcsStateInstance* StateInstance)
     StateInstance->SetCurrentStage(ETcsStateStage::SS_Active);
     // 启动StateTree
 	UTcsStateComponent* StateComponent = StateInstance->GetOwnerStateComponent();
-	const ETcsStateTreeTickPolicy TickPolicy = StateInstance->GetStateDef().TickPolicy;
+	const UTcsStateDefinitionAsset* StateDef = StateInstance->GetStateDefAsset();
+	if (!StateDef)
+	{
+		UE_LOG(LogTcsState, Error, TEXT("[%s] StateInstance has invalid StateDefAsset: %s"),
+			*FString(__FUNCTION__),
+			*StateInstance->GetStateDefId().ToString());
+		return;
+	}
+
+	const ETcsStateTreeTickPolicy TickPolicy = StateDef->TickPolicy;
 	switch (TickPolicy)
 	{
 	case ETcsStateTreeTickPolicy::RunOnce:
@@ -1598,7 +1927,16 @@ void UTcsStateManagerSubsystem::ResumeState(UTcsStateInstance* StateInstance)
     StateInstance->SetCurrentStage(ETcsStateStage::SS_Active);
     // 恢复StateTree执行
 	UTcsStateComponent* StateComponent = StateInstance->GetOwnerStateComponent();
-	const ETcsStateTreeTickPolicy TickPolicy = StateInstance->GetStateDef().TickPolicy;
+	const UTcsStateDefinitionAsset* StateDef = StateInstance->GetStateDefAsset();
+	if (!StateDef)
+	{
+		UE_LOG(LogTcsState, Error, TEXT("[%s] StateInstance has invalid StateDefAsset: %s"),
+			*FString(__FUNCTION__),
+			*StateInstance->GetStateDefId().ToString());
+		return;
+	}
+
+	const ETcsStateTreeTickPolicy TickPolicy = StateDef->TickPolicy;
 	switch (TickPolicy)
 	{
 	case ETcsStateTreeTickPolicy::RunOnce:
@@ -1929,7 +2267,16 @@ bool UTcsStateManagerSubsystem::RemoveState(UTcsStateInstance* StateInstance)
     }
 
     // 查找状态所在的槽位
-    const FGameplayTag SlotTag = StateInstance->GetStateDef().StateSlotType;
+    const UTcsStateDefinitionAsset* StateDef = StateInstance->GetStateDefAsset();
+    if (!StateDef)
+    {
+        UE_LOG(LogTcsState, Error, TEXT("[%s] StateInstance has invalid StateDefAsset: %s"),
+            *FString(__FUNCTION__),
+            *StateInstance->GetStateDefId().ToString());
+        return false;
+    }
+
+    const FGameplayTag SlotTag = StateDef->StateSlotType;
     if (!StateComponent->StateSlotsX.Contains(SlotTag))
     {
         UE_LOG(LogTcsState, Warning, TEXT("[%s] StateSlot %s not found"),
@@ -2073,7 +2420,13 @@ bool UTcsStateManagerSubsystem::IsStateStillValid(UTcsStateInstance* StateInstan
 		return false;
 	}
 
-	const FGameplayTag SlotTag = StateInstance->GetStateDef().StateSlotType;
+	const UTcsStateDefinitionAsset* StateDef = StateInstance->GetStateDefAsset();
+	if (!StateDef)
+	{
+		return false;
+	}
+
+	const FGameplayTag SlotTag = StateDef->StateSlotType;
 	FTcsStateSlot* StateSlot = StateComponent->StateSlotsX.Find(SlotTag);
 	if (!StateSlot)
 	{
@@ -2091,7 +2444,16 @@ void UTcsStateManagerSubsystem::FinalizeStateRemoval(UTcsStateInstance* StateIns
 	}
 
 	const AActor* OwnerActor = StateInstance->GetOwner();
-	const FGameplayTag SlotTag = StateInstance->GetStateDef().StateSlotType;
+	const UTcsStateDefinitionAsset* StateDef = StateInstance->GetStateDefAsset();
+	if (!StateDef)
+	{
+		UE_LOG(LogTcsState, Error, TEXT("[%s] StateInstance has invalid StateDefAsset: %s"),
+			*FString(__FUNCTION__),
+			*StateInstance->GetStateDefId().ToString());
+		return;
+	}
+
+	const FGameplayTag SlotTag = StateDef->StateSlotType;
 	UE_LOG(LogTcsState, Verbose, TEXT("[%s] FinalizeRemoval: State=%s Id=%d Reason=%s Owner=%s Slot=%s Stage=%s"),
 		*FString(__FUNCTION__),
 		*StateInstance->GetStateDefId().ToString(),
@@ -2137,4 +2499,128 @@ void UTcsStateManagerSubsystem::FinalizeStateRemoval(UTcsStateInstance* StateIns
 	StateInstance->MarkPendingGC();
 
 	// TODO(TCS): Return StateInstance to TireflyObjectPool when pool API is finalized (planned refactor).
+}
+
+void UTcsStateManagerSubsystem::LoadFromAssetManager()
+{
+#if !WITH_EDITOR
+	UAssetManager& AssetManager = UAssetManager::Get();
+
+	// 加载状态槽定义（总是全部加载）
+	StateSlotDefinitions.Empty();
+	{
+		TArray<FPrimaryAssetId> StateSlotDefIds;
+		AssetManager.GetPrimaryAssetIdList(UTcsStateSlotDefinitionAsset::PrimaryAssetType, StateSlotDefIds);
+
+		for (const FPrimaryAssetId& AssetId : StateSlotDefIds)
+		{
+			const UTcsStateSlotDefinitionAsset* Asset = Cast<UTcsStateSlotDefinitionAsset>(
+				AssetManager.LoadPrimaryAsset(AssetId));
+
+			if (Asset)
+			{
+				StateSlotDefinitions.Add(Asset->StateSlotDefId, Asset);
+			}
+			else
+			{
+				UE_LOG(LogTcsState, Warning, TEXT("[%s] Failed to load StateSlotDefinition: %s"),
+					*FString(__FUNCTION__),
+					*AssetId.ToString());
+			}
+		}
+
+		UE_LOG(LogTcsState, Log, TEXT("[%s] Loaded %d StateSlotDefinitions from AssetManager"),
+			*FString(__FUNCTION__),
+			StateSlotDefinitions.Num());
+	}
+
+	// 加载状态定义（根据策略）
+	StateDefinitions.Empty();
+	StateTagToDefId.Empty();
+
+	// Runtime 模式下，StateLoadingStrategy 从 DeveloperSettings 读取
+	const UTcsDeveloperSettings* Settings = GetDefault<UTcsDeveloperSettings>();
+	const ETcsStateLoadingStrategy LoadingStrategy = Settings ? Settings->StateLoadingStrategy : ETcsStateLoadingStrategy::PreloadAll;
+
+	switch (LoadingStrategy)
+	{
+	case ETcsStateLoadingStrategy::PreloadAll:
+		{
+			TArray<FPrimaryAssetId> StateDefIds;
+			AssetManager.GetPrimaryAssetIdList(UTcsStateDefinitionAsset::PrimaryAssetType, StateDefIds);
+
+			for (const FPrimaryAssetId& AssetId : StateDefIds)
+			{
+				const UTcsStateDefinitionAsset* Asset = Cast<UTcsStateDefinitionAsset>(
+					AssetManager.LoadPrimaryAsset(AssetId));
+
+				if (Asset)
+				{
+					StateDefinitions.Add(Asset->StateDefId, Asset);
+
+					// 构建 StateTag 映射
+					if (Asset->StateTag.IsValid())
+					{
+						if (!StateTagToDefId.Contains(Asset->StateTag))
+						{
+							StateTagToDefId.Add(Asset->StateTag, Asset->StateDefId);
+						}
+					}
+				}
+			}
+
+			UE_LOG(LogTcsState, Log, TEXT("[%s] PreloadAll strategy: Loaded %d State definitions from AssetManager"),
+				*FString(__FUNCTION__),
+				StateDefinitions.Num());
+		}
+		break;
+
+	case ETcsStateLoadingStrategy::OnDemand:
+		// 不预加载，仅在使用时加载
+		UE_LOG(LogTcsState, Log, TEXT("[%s] OnDemand strategy: State definitions will be loaded on first access"),
+			*FString(__FUNCTION__));
+		break;
+
+	case ETcsStateLoadingStrategy::Hybrid:
+		// Runtime 模式下 Hybrid 策略暂不支持（需要 DeveloperSettings 的 CommonStateDefinitions 配置）
+		// 退化为 PreloadAll
+		UE_LOG(LogTcsState, Warning, TEXT("[%s] Hybrid strategy not fully supported in Runtime mode, falling back to PreloadAll"),
+			*FString(__FUNCTION__));
+
+		{
+			TArray<FPrimaryAssetId> StateDefIds;
+			AssetManager.GetPrimaryAssetIdList(UTcsStateDefinitionAsset::PrimaryAssetType, StateDefIds);
+
+			for (const FPrimaryAssetId& AssetId : StateDefIds)
+			{
+				const UTcsStateDefinitionAsset* Asset = Cast<UTcsStateDefinitionAsset>(
+					AssetManager.LoadPrimaryAsset(AssetId));
+
+				if (Asset)
+				{
+					StateDefinitions.Add(Asset->StateDefId, Asset);
+
+					if (Asset->StateTag.IsValid())
+					{
+						if (!StateTagToDefId.Contains(Asset->StateTag))
+						{
+							StateTagToDefId.Add(Asset->StateTag, Asset->StateDefId);
+						}
+					}
+				}
+			}
+
+			UE_LOG(LogTcsState, Log, TEXT("[%s] Loaded %d State definitions from AssetManager (Hybrid fallback)"),
+				*FString(__FUNCTION__),
+				StateDefinitions.Num());
+		}
+		break;
+	}
+
+	UE_LOG(LogTcsState, Log, TEXT("[%s] Initialized from AssetManager: %d StateSlots, %d States, %d Tag mappings"),
+		*FString(__FUNCTION__),
+		StateSlotDefinitions.Num(),
+		StateDefinitions.Num(),
+		StateTagToDefId.Num());
+#endif
 }

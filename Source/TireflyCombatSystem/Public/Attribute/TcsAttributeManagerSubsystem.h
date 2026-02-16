@@ -44,6 +44,16 @@ protected:
 	// AttributeName -> AttributeTag 映射（可选，用于反查和调试）
 	TMap<FName, FGameplayTag> AttributeNameToTag;
 
+	/**
+	 * 从 DeveloperSettings 缓存加载定义（编辑器模式）
+	 */
+	void LoadFromDeveloperSettings();
+
+	/**
+	 * 从 AssetManager 加载定义（Runtime 模式）
+	 */
+	void LoadFromAssetManager();
+
 #pragma endregion
 	
 

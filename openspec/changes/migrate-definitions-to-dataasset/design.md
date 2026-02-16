@@ -1009,7 +1009,7 @@ struct FTcsAttributeInstance
 
 ### 新设计
 
-改为混合方案：运行时使用指针缓存，序列化使用 ID：
+改为硬指针方案：使用 UPROPERTY 硬指针，UE 自动处理序列化和加载：
 
 ```cpp
 USTRUCT(BlueprintType)
@@ -1017,31 +1017,37 @@ struct TIREFLYCOMBATSYSTEM_API FTcsAttributeInstance
 {
     GENERATED_BODY()
 
-    // ========== 运行时使用（不序列化） ==========
+    // ========== 定义资产硬指针 ==========
 
-    /** 属性定义资产（运行时缓存，不序列化） */
-    UPROPERTY(Transient, BlueprintReadOnly, Category = "Attribute")
-    UTcsAttributeDefinitionAsset* AttributeDef = nullptr;
+    /** 属性定义资产的硬指针（会被序列化和自动加载） */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Attribute")
+    TObjectPtr<UTcsAttributeDefinitionAsset> AttributeDef;
 
-    // ========== 序列化使用 ==========
+    // ========== 冗余 ID 字段（用于快速查找和调试） ==========
 
-    /** 属性定义 ID（用于序列化和网络同步，插件不强制存档策略） */
-    UPROPERTY(BlueprintReadOnly, Category = "Attribute")
+    /**
+     * 属性定义的 ID（冗余字段）
+     * 用途：快速查找、调试、网络同步时的轻量标识
+     * 注意：与 AttributeDef->AttributeDefId 保持同步
+     */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Attribute")
     FName AttributeDefId;
 
+    // ========== 运行时数据 ==========
+
     /** 当前值 */
-    UPROPERTY(BlueprintReadOnly, Category = "Attribute")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Attribute")
     float CurrentValue = 0.0f;
 
     /** 基础值 */
-    UPROPERTY(BlueprintReadOnly, Category = "Attribute")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Attribute")
     float BaseValue = 0.0f;
 
     // ========== 辅助方法 ==========
 
     /**
      * 获取属性定义资产（纯粹的 Get，只读）
-     * @return 缓存的属性定义资产指针，如果未加载则返回 nullptr
+     * @return 属性定义资产指针，UE 自动加载，无需手动 Load
      */
     UTcsAttributeDefinitionAsset* GetAttributeDefAsset() const
     {
@@ -1049,120 +1055,102 @@ struct TIREFLYCOMBATSYSTEM_API FTcsAttributeInstance
     }
 
     /**
-     * 加载属性定义资产并缓存
-     * 如果缓存已存在，不会重复加载
-     * @param World 用于获取 Subsystem 的 World 对象
+     * 设置属性定义资产（同时更新 DefId）
+     * @param InAttributeDef 要设置的属性定义资产
      */
-    void LoadAttributeDefAsset(UWorld* World)
+    void SetAttributeDefAsset(UTcsAttributeDefinitionAsset* InAttributeDef)
     {
-        // 如果已缓存，直接返回
-        if (AttributeDef)
-        {
-            return;
-        }
-
-        // 从 Subsystem 查找并缓存
-        if (!World)
-        {
-            return;
-        }
-
-        UGameInstance* GameInstance = World->GetGameInstance();
-        if (!GameInstance)
-        {
-            return;
-        }
-
-        UTcsAttributeManagerSubsystem* Subsystem = GameInstance->GetSubsystem<UTcsAttributeManagerSubsystem>();
-        if (!Subsystem)
-        {
-            return;
-        }
-
-        AttributeDef = Subsystem->GetAttributeDefAsset(AttributeDefId);
-    }
-
-    /**
-     * 自定义序列化
-     * 保存时：从 AttributeDef 同步 DefId
-     * 加载时：只加载 DefId，AttributeDef 保持为 nullptr，在首次访问时自动加载
-     */
-    bool Serialize(FArchive& Ar)
-    {
-        // 保存时：确保 DefId 与 AttributeDef 同步
-        if (Ar.IsSaving() && AttributeDef)
-        {
-            AttributeDefId = AttributeDef->AttributeDefId;
-        }
-
-        // 序列化字段
-        Ar << AttributeDefId;
-        Ar << CurrentValue;
-        Ar << BaseValue;
-
-        // 加载时：AttributeDef 保持为 nullptr，在首次访问时自动加载
-        // DefAsset 是固定资产，不需要手动刷新
-
-        return true;
-    }
-
-    /**
-     * 网络序列化
-     * 保存时：同步 DefId
-     * 加载时：只加载 DefId，AttributeDef 保持为 nullptr，在首次访问时自动加载
-     */
-    bool NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess)
-    {
-        // 保存时：确保 DefId 与 AttributeDef 同步
-        if (Ar.IsSaving() && AttributeDef)
-        {
-            AttributeDefId = AttributeDef->AttributeDefId;
-        }
-
-        // 序列化 DefId
-        Ar << AttributeDefId;
-        Ar << CurrentValue;
-        Ar << BaseValue;
-
-        // 加载时：AttributeDef 保持为 nullptr，在首次访问时自动加载
-        // DefAsset 是固定资产，不需要手动刷新
-
-        bOutSuccess = true;
-        return true;
-    }
-
-    /**
-     * 获取属性名称（本地化）
-     */
-    FText GetAttributeName(UWorld* World)
-    {
-        // 确保已加载
-        LoadAttributeDefAsset(World);
-
-        if (AttributeDef)
-        {
-            return AttributeDef->AttributeName;
-        }
-        return FText::FromName(AttributeDefId);
-    }
-
-    /**
-     * 获取属性图标
-     */
-    TSoftObjectPtr<UTexture2D> GetIcon(UWorld* World)
-    {
-        // 确保已加载
-        LoadAttributeDefAsset(World);
-
-        if (AttributeDef)
-        {
-            return AttributeDef->Icon;
-        }
-        return nullptr;
+        AttributeDef = InAttributeDef;
+        AttributeDefId = InAttributeDef ? InAttributeDef->AttributeDefId : NAME_None;
     }
 };
+```
 
-// 启用自定义网络序列化
+### 使用示例
+
+```cpp
+// 创建 AttributeInstance
+FTcsAttributeInstance AttrInstance;
+
+// 方式 1：直接设置资产（推荐）
+UTcsAttributeDefinitionAsset* HealthDef = Manager->GetAttributeDefAsset("Health");
+AttrInstance.SetAttributeDefAsset(HealthDef);
+
+// 方式 2：在编辑器中直接选择资产
+// AttributeDef 会被自动序列化和加载
+
+// 访问定义（无需 Load，直接访问）
+if (AttrInstance.AttributeDef)
+{
+    float MaxValue = AttrInstance.AttributeDef->MaxValue;
+}
+
+// 使用冗余 ID 进行快速查找
+FName AttrId = AttrInstance.AttributeDefId;  // 无需解引用 AttributeDef
+```
+
+### 优势
+
+1. **语义正确**: 硬指针表达"强引用"关系，符合 UE 资产管理语义
+2. **自动加载**: UE 自动处理资产加载，无需手动 LoadSynchronous()
+3. **编辑器友好**: 可以在编辑器中直接选择和预览资产
+4. **性能优化**: 冗余 ID 字段避免频繁解引用指针
+5. **保持 API 兼容性**: 外部代码仍然访问 `AttributeDef` 指针
+6. **数据一致性**: 所有实例共享同一个定义资产
+
+### 实施说明
+
+- **原计划**: 使用 Transient + Load 方案（运行时指针缓存 + 序列化 DefId）
+- **实际采用**: 硬指针方案（UPROPERTY 硬指针 + DefId 冗余字段）
+- **变更理由**:
+  1. 语义正确性：硬指针表达强引用关系，更符合 UE 资产管理语义
+  2. 性能优化：避免手动 LoadSynchronous()，UE 自动处理加载
+  3. 编辑器友好：可以在编辑器中直接选择和预览资产
+  4. 简化代码：无需实现 LoadAttributeDefAsset() 等 Load 方法
+- **DefId 保留理由**: 作为冗余字段用于快速查找、调试和网络同步
+
+### 序列化和网络同步
+
+```cpp
+// 自定义序列化（可选，用于确保 DefId 同步）
+bool FTcsAttributeInstance::Serialize(FArchive& Ar)
+{
+    // 保存时：确保 DefId 与 AttributeDef 同步
+    if (Ar.IsSaving() && AttributeDef)
+    {
+        AttributeDefId = AttributeDef->AttributeDefId;
+    }
+
+    // UE 自动序列化 AttributeDef 硬指针
+    // 手动序列化其他字段
+    Ar << AttributeDefId;
+    Ar << CurrentValue;
+    Ar << BaseValue;
+
+    return true;
+}
+
+// 网络序列化（可选，用于轻量同步）
+bool FTcsAttributeInstance::NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess)
+{
+    // 保存时：确保 DefId 与 AttributeDef 同步
+    if (Ar.IsSaving() && AttributeDef)
+    {
+        AttributeDefId = AttributeDef->AttributeDefId;
+    }
+
+    // 网络同步时只传递 DefId（轻量）
+    Ar << AttributeDefId;
+    Ar << CurrentValue;
+    Ar << BaseValue;
+
+    // 接收端：AttributeDef 由 UE 自动加载，无需手动 Load
+
+    bOutSuccess = true;
+    return true;
+}
+
+// 注册网络序列化器
 template<>
 struct TStructOpsTypeTraits<FTcsAttributeInstance> : public TStructOpsTypeTraitsBase2<FTcsAttributeInstance>
 {
@@ -1173,45 +1161,212 @@ struct TStructOpsTypeTraits<FTcsAttributeInstance> : public TStructOpsTypeTraits
 };
 ```
 
+## FTcsAttributeModifierInstance 重构
+
+### 旧设计的问题
+
+与 FTcsAttributeInstance 相同的问题：存储完整的定义结构体，造成内存浪费和数据冗余。
+
+### 新设计
+
+与 FTcsAttributeInstance 采用相同的硬指针方案：
+
+```cpp
+USTRUCT(BlueprintType)
+struct TIREFLYCOMBATSYSTEM_API FTcsAttributeModifierInstance
+{
+    GENERATED_BODY()
+
+    // ========== 定义资产硬指针 ==========
+
+    /** 修改器定义资产的硬指针（会被序列化和自动加载） */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Modifier")
+    TObjectPtr<UTcsAttributeModifierDefinitionAsset> ModifierDef;
+
+    // ========== 冗余 ID 字段（用于快速查找和调试） ==========
+
+    /**
+     * 修改器定义的 ID（冗余字段）
+     * 用途：快速查找、调试、网络同步时的轻量标识
+     * 注意：与 ModifierDef->AttributeModifierDefId 保持同步
+     */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Modifier")
+    FName ModifierDefId;
+
+    // ========== 运行时数据 ==========
+
+    /** 修改器值 */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Modifier")
+    float ModifierValue = 0.0f;
+
+    // ========== 辅助方法 ==========
+
+    /**
+     * 获取修改器定义资产（纯粹的 Get，只读）
+     * @return 修改器定义资产指针，UE 自动加载，无需手动 Load
+     */
+    UTcsAttributeModifierDefinitionAsset* GetModifierDefAsset() const
+    {
+        return ModifierDef;
+    }
+
+    /**
+     * 设置修改器定义资产（同时更新 DefId）
+     * @param InModifierDef 要设置的修改器定义资产
+     */
+    void SetModifierDefAsset(UTcsAttributeModifierDefinitionAsset* InModifierDef)
+    {
+        ModifierDef = InModifierDef;
+        ModifierDefId = InModifierDef ? InModifierDef->AttributeModifierDefId : NAME_None;
+    }
+};
+```
+
 ### 优势
 
-1. **运行时性能最优**: 直接指针访问，无需查询（~1-5 ns vs ~10-50 ns）
-2. **序列化开销小**: 只序列化 DefId（8 bytes）
-3. **网络同步友好**: 传递 DefId，接收端重新查找
-4. **数据一致性**: 所有实例共享同一个定义
-5. **符合 UE5 最佳实践**: 参考 GameplayAbilities 的 FGameplayEffectSpec 设计
+与 FTcsAttributeInstance 相同的优势：
+1. **语义正确**: 硬指针表达强引用关系
+2. **自动加载**: UE 自动处理资产加载
+3. **编辑器友好**: 可以在编辑器中直接选择和预览资产
+4. **性能优化**: 冗余 ID 字段避免频繁解引用指针
+5. **保持 API 兼容性**: 外部代码仍然访问 `ModifierDef` 指针
+6. **数据一致性**: 所有实例共享同一个定义资产
 
-### 迁移影响
+### 实施说明
 
-需要更新所有访问 `AttributeDef` 字段的代码：
+- **原计划**: 使用 Transient + Load 方案
+- **实际采用**: 硬指针方案
+- **变更理由**: 与 FTcsAttributeInstance 保持一致，理由相同
+
+## UTcsStateInstance 重构
+
+### 旧设计的问题
+
+在旧的 DataTable 方案中，`UTcsStateInstance` 也存储完整的定义结构体：
+
+```cpp
+UCLASS(BlueprintType)
+class UTcsStateInstance : public UObject
+{
+    GENERATED_BODY()
+
+    /** 状态定义（完整结构体） */
+    UPROPERTY(BlueprintReadOnly, Category = "State")
+    FTcsStateDefinition StateDef;
+
+    /** 状态定义Id */
+    UPROPERTY(BlueprintReadOnly, Category = "State")
+    FName StateId = NAME_None;
+
+    // ... 其他字段
+};
+```
+
+**问题**：
+- 与 AttributeInstance 相同的问题：内存浪费、数据冗余、无法更新
+
+### 新设计
+
+由于 UTcsStateInstance 是 UObject，采用硬指针方案：
+
+```cpp
+UCLASS(BlueprintType)
+class TIREFLYCOMBATSYSTEM_API UTcsStateInstance : public UObject
+{
+    GENERATED_BODY()
+
+    // ========== 定义资产硬指针 ==========
+
+    /** 状态定义资产的硬指针（会被序列化和自动加载） */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "State")
+    TObjectPtr<UTcsStateDefinitionAsset> StateDef;
+
+    // ========== 冗余 ID 字段（用于快速查找和调试） ==========
+
+    /**
+     * 状态定义的 ID（冗余字段）
+     * 用途：快速查找、调试、网络同步时的轻量标识
+     * 注意：与 StateDef->StateDefId 保持同步
+     */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "State")
+    FName StateId = NAME_None;
+
+    // ========== 运行时数据 ==========
+
+    // ... 其他字段（Duration, RemainingTime 等）
+
+    // ========== 辅助方法 ==========
+
+    /**
+     * 获取状态定义资产（纯粹的 Get，只读）
+     * @return 状态定义资产指针，UE 自动加载，无需手动 Load
+     */
+    UTcsStateDefinitionAsset* GetStateDefAsset() const
+    {
+        return StateDef;
+    }
+
+    /**
+     * 设置状态定义资产（同时更新 StateId）
+     * @param InStateDef 要设置的状态定义资产
+     */
+    void SetStateDefAsset(UTcsStateDefinitionAsset* InStateDef)
+    {
+        StateDef = InStateDef;
+        StateId = InStateDef ? InStateDef->StateDefId : NAME_None;
+    }
+};
+```
+
+### 优势
+
+与 FTcsAttributeInstance 相同的优势：
+1. **语义正确**: 硬指针表达强引用关系
+2. **自动加载**: UE 自动处理资产加载
+3. **编辑器友好**: 可以在编辑器中直接选择和预览资产
+4. **性能优化**: 冗余 ID 字段避免频繁解引用指针
+5. **保持 API 兼容性**: 外部代码仍然访问 `StateDef` 指针
+6. **数据一致性**: 所有实例共享同一个定义资产
+
+### 实施说明
+
+- **原计划**: 使用 Transient + Load 方案
+- **实际采用**: 硬指针方案
+- **变更理由**: 与 FTcsAttributeInstance 保持一致，理由相同
+
+## 迁移影响
+
+需要更新所有访问定义字段的代码：
 
 **旧代码**：
 ```cpp
 FText Name = AttributeInstance.AttributeDef.AttributeName;
 ```
 
-**新代码（方式1 - 直接访问缓存）**：
+**新代码（直接访问）**：
 ```cpp
-// 先加载，再访问
-AttributeInstance.LoadAttributeDefAsset(GetWorld());
-if (AttributeInstance.GetAttributeDefAsset())
+// 直接访问（UE 自动加载）
+if (AttributeInstance.AttributeDef)
 {
-    FText Name = AttributeInstance.GetAttributeDefAsset()->AttributeName;
+    FText Name = AttributeInstance.AttributeDef->AttributeName;
 }
 ```
 
-**新代码（方式2 - 使用便捷方法，推荐）**：
+**新代码（使用 Get 方法）**：
 ```cpp
-// 使用便捷方法（内部会自动调用 Load）
-FText Name = AttributeInstance.GetAttributeName(GetWorld());
+// 使用 Get 方法
+if (UTcsAttributeDefinitionAsset* Def = AttributeInstance.GetAttributeDefAsset())
+{
+    FText Name = Def->AttributeName;
+}
 ```
 
 **关键点**：
-- Get 和 Load 明确分离，职责清晰
+- 硬指针方案：UE 自动处理加载，无需手动 Load
 - Get 函数纯粹只读，不修改状态
-- Load 函数专门负责加载和缓存
+- Set 函数同时更新指针和 DefId，保持一致性
 - DefAsset 是固定资产，加载后不会改变
-- 加载存档或网络同步后，需要显式调用 Load 函数加载缓存
+- 序列化时 UE 自动处理指针的保存和加载
 
 ## FTcsAttributeModifierInstance 重构
 

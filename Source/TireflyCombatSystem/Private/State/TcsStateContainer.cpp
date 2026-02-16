@@ -40,11 +40,15 @@ void FTcsStateInstanceIndex::AddInstance(UTcsStateInstance* StateInstance)
 	FTcsStateInstanceArray& ByName = InstancesByName.FindOrAdd(StateInstance->GetStateDefId());
 	ByName.StateInstances.Add(StateInstance);
 
-	const FGameplayTag SlotTag = StateInstance->GetStateDef().StateSlotType;
-	if (SlotTag.IsValid())
+	const UTcsStateDefinitionAsset* StateDef = StateInstance->GetStateDefAsset();
+	if (StateDef)
 	{
-		FTcsStateInstanceArray& BySlot = InstancesBySlot.FindOrAdd(SlotTag);
-		BySlot.StateInstances.Add(StateInstance);
+		const FGameplayTag SlotTag = StateDef->StateSlotType;
+		if (SlotTag.IsValid())
+		{
+			FTcsStateInstanceArray& BySlot = InstancesBySlot.FindOrAdd(SlotTag);
+			BySlot.StateInstances.Add(StateInstance);
+		}
 	}
 }
 
@@ -67,15 +71,19 @@ void FTcsStateInstanceIndex::RemoveInstance(UTcsStateInstance* StateInstance)
 		}
 	}
 
-	const FGameplayTag SlotTag = StateInstance->GetStateDef().StateSlotType;
-	if (SlotTag.IsValid())
+	const UTcsStateDefinitionAsset* StateDef = StateInstance->GetStateDefAsset();
+	if (StateDef)
 	{
-		if (FTcsStateInstanceArray* SlotArray = InstancesBySlot.Find(SlotTag))
+		const FGameplayTag SlotTag = StateDef->StateSlotType;
+		if (SlotTag.IsValid())
 		{
-			SlotArray->StateInstances.Remove(StateInstance);
-			if (SlotArray->StateInstances.IsEmpty())
+			if (FTcsStateInstanceArray* SlotArray = InstancesBySlot.Find(SlotTag))
 			{
-				InstancesBySlot.Remove(SlotTag);
+				SlotArray->StateInstances.Remove(StateInstance);
+				if (SlotArray->StateInstances.IsEmpty())
+				{
+					InstancesBySlot.Remove(SlotTag);
+				}
 			}
 		}
 	}

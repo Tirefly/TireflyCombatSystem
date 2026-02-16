@@ -24,11 +24,14 @@ class UTcsAttributeModifierDefinitionAsset;
 UENUM(BlueprintType)
 enum class ETcsStateLoadingStrategy : uint8
 {
-	// 加载所有 State 定义（启动时全部加载）
-	LoadAll			UMETA(DisplayName = "Load All"),
+	// 预加载所有 State 定义（启动时全部加载）
+	PreloadAll		UMETA(DisplayName = "Preload All"),
 
 	// 按需加载 State 定义（首次使用时加载）
-	LoadOnDemand	UMETA(DisplayName = "Load On Demand"),
+	OnDemand		UMETA(DisplayName = "On Demand"),
+
+	// 混合策略：预加载常用 State，其他按需加载
+	Hybrid			UMETA(DisplayName = "Hybrid (Preload Common)"),
 };
 
 
@@ -61,6 +64,57 @@ protected:
 
 public:
 	virtual EDataValidationResult IsDataValid(FDataValidationContext& Context) const override;
+
+	/** 覆写 PostInitProperties 以在编辑器启动时触发扫描 */
+	virtual void PostInitProperties() override;
+
+	/**
+	 * 扫描并缓存所有定义资产
+	 * 从 AssetManager 配置中读取路径，使用 Asset Registry 扫描
+	 */
+	void ScanAndCacheDefinitions();
+
+protected:
+	/**
+	 * 扫描属性定义资产
+	 */
+	void ScanAttributeDefinitions(const TArray<struct FAssetData>& AssetDataList);
+
+	/**
+	 * 扫描状态定义资产
+	 */
+	void ScanStateDefinitions(const TArray<struct FAssetData>& AssetDataList);
+
+	/**
+	 * 扫描状态槽定义资产
+	 */
+	void ScanStateSlotDefinitions(const TArray<struct FAssetData>& AssetDataList);
+
+	/**
+	 * 扫描属性修改器定义资产
+	 */
+	void ScanAttributeModifierDefinitions(const TArray<struct FAssetData>& AssetDataList);
+
+	/**
+	 * 注册 Asset Registry 回调
+	 */
+	void RegisterAssetRegistryCallbacks();
+
+	/**
+	 * 资产添加回调
+	 */
+	void OnAssetAdded(const struct FAssetData& AssetData);
+
+	/**
+	 * 资产删除回调
+	 */
+	void OnAssetRemoved(const struct FAssetData& AssetData);
+
+	/**
+	 * 资产重命名回调
+	 */
+	void OnAssetRenamed(const struct FAssetData& AssetData, const FString& OldObjectPath);
+
 #endif
 
 #pragma endregion
@@ -70,45 +124,36 @@ public:
 
 public:
 	/**
-	 * 属性定义资产路径列表
-	 * 系统会自动扫描这些路径下的所有 UTcsAttributeDefinitionAsset
-	 */
-	UPROPERTY(Config, EditAnywhere, Category = "DataAsset Paths",
-		meta = (ToolTip = "属性定义资产路径列表，系统会自动扫描这些路径下的所有 UTcsAttributeDefinitionAsset"))
-	TArray<FDirectoryPath> AttributeDefinitionPaths;
-
-	/**
-	 * 状态定义资产路径列表
-	 * 系统会自动扫描这些路径下的所有 UTcsStateDefinitionAsset
-	 */
-	UPROPERTY(Config, EditAnywhere, Category = "DataAsset Paths",
-		meta = (ToolTip = "状态定义资产路径列表，系统会自动扫描这些路径下的所有 UTcsStateDefinitionAsset"))
-	TArray<FDirectoryPath> StateDefinitionPaths;
-
-	/**
-	 * 状态槽定义资产路径列表
-	 * 系统会自动扫描这些路径下的所有 UTcsStateSlotDefinitionAsset
-	 */
-	UPROPERTY(Config, EditAnywhere, Category = "DataAsset Paths",
-		meta = (ToolTip = "状态槽定义资产路径列表，系统会自动扫描这些路径下的所有 UTcsStateSlotDefinitionAsset"))
-	TArray<FDirectoryPath> StateSlotDefinitionPaths;
-
-	/**
-	 * 属性修改器定义资产路径列表
-	 * 系统会自动扫描这些路径下的所有 UTcsAttributeModifierDefinitionAsset
-	 */
-	UPROPERTY(Config, EditAnywhere, Category = "DataAsset Paths",
-		meta = (ToolTip = "属性修改器定义资产路径列表，系统会自动扫描这些路径下的所有 UTcsAttributeModifierDefinitionAsset"))
-	TArray<FDirectoryPath> AttributeModifierDefinitionPaths;
-
-	/**
 	 * State 加载策略
-	 * LoadAll: 启动时加载所有 State 定义（适合小型项目）
-	 * LoadOnDemand: 按需加载 State 定义（适合大型项目）
+	 * - PreloadAll: 启动时加载所有 State 定义（适合小型项目）
+	 * - OnDemand: 完全按需加载，启动时不加载任何 State（适合大型项目）
+	 * - Hybrid: 启动时只加载常用 State，其他按需加载（平衡性能和内存）
 	 */
 	UPROPERTY(Config, EditAnywhere, Category = "DataAsset Paths",
-		meta = (ToolTip = "State 加载策略：LoadAll（启动时加载所有）或 LoadOnDemand（按需加载）"))
-	ETcsStateLoadingStrategy StateLoadingStrategy = ETcsStateLoadingStrategy::LoadAll;
+		meta = (ToolTip = "State 定义的加载策略"))
+	ETcsStateLoadingStrategy StateLoadingStrategy = ETcsStateLoadingStrategy::PreloadAll;
+
+	/**
+	 * 常用 State 定义路径列表（仅在 Hybrid 策略下使用）
+	 * 这些路径下的 State 会在启动时预加载，其他 State 按需加载
+	 */
+	UPROPERTY(Config, EditAnywhere, Category = "DataAsset Paths",
+		meta = (ToolTip = "常用 State 定义路径列表，仅在 Hybrid 策略下使用",
+			EditCondition = "StateLoadingStrategy == ETcsStateLoadingStrategy::Hybrid",
+			EditConditionHides))
+	TArray<FDirectoryPath> CommonStateDefinitionPaths;
+
+	/**
+	 * 常用 State 定义资产列表（仅在 Hybrid 策略下使用）
+	 * 这些 State 会在启动时预加载，优先级高于路径配置
+	 * 使用软引用避免编辑器启动时加载所有资产
+	 */
+	UPROPERTY(Config, EditAnywhere, Category = "DataAsset Paths",
+		meta = (ToolTip = "常用 State 定义资产列表，仅在 Hybrid 策略下使用，优先级高于路径配置",
+			EditCondition = "StateLoadingStrategy == ETcsStateLoadingStrategy::Hybrid",
+			EditConditionHides,
+			AllowedClasses = "/Script/TireflyCombatSystem.TcsStateDefinitionAsset"))
+	TArray<TSoftObjectPtr<UTcsStateDefinitionAsset>> CommonStateDefinitions;
 
 #pragma endregion
 
@@ -233,21 +278,8 @@ inline EDataValidationResult UTcsDeveloperSettings::IsDataValid(FDataValidationC
 	const EDataValidationResult SuperResult = Super::IsDataValid(Context);
 	EDataValidationResult Result = SuperResult;
 
-	// 验证路径配置
-	if (AttributeDefinitionPaths.Num() == 0)
-	{
-		Context.AddWarning(NSLOCTEXT("TireflyCombatSystemSettings", "NoAttributeDefPaths", "No AttributeDefinitionPaths configured. Attribute definitions will not be loaded."));
-	}
-
-	if (StateDefinitionPaths.Num() == 0)
-	{
-		Context.AddWarning(NSLOCTEXT("TireflyCombatSystemSettings", "NoStateDefPaths", "No StateDefinitionPaths configured. State definitions will not be loaded."));
-	}
-
-	if (StateSlotDefinitionPaths.Num() == 0)
-	{
-		Context.AddWarning(NSLOCTEXT("TireflyCombatSystemSettings", "NoStateSlotDefPaths", "No StateSlotDefinitionPaths configured. StateSlot definitions will not be loaded."));
-	}
+	// 验证 AssetManager 配置
+	// 注意：路径配置已移至 DefaultGame.ini 的 AssetManager 设置中
 
 	return Result;
 }

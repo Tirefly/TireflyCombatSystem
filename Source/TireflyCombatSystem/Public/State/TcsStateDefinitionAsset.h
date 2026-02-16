@@ -181,4 +181,12 @@ public:
 public:
 	// 覆写 GetPrimaryAssetId
 	virtual FPrimaryAssetId GetPrimaryAssetId() const override;
+
+#if WITH_EDITOR
+	// 编辑器验证：属性值变更时的验证
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+
+	// 编辑器验证：数据有效性检查
+	virtual EDataValidationResult IsDataValid(FDataValidationContext& Context) const override;
+#endif
 };
