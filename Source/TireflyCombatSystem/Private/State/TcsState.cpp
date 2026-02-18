@@ -5,6 +5,10 @@
 
 #include "State/TcsStateComponent.h"
 #include "State/TcsStateDefinitionAsset.h"
+#include "State/TcsStateManagerSubsystem.h"
+#include "State/StateParameter/TcsStateBoolParameter.h"
+#include "State/StateParameter/TcsStateNumericParameter.h"
+#include "State/StateParameter/TcsStateVectorParameter.h"
 #include "StateTree/TcsStateTreeSchema_StateInstance.h"
 #include "StateTree.h"
 #include "StateTreeExecutionContext.h"
@@ -13,9 +17,6 @@
 #include "TcsLogChannels.h"
 #include "GameFramework/Actor.h"
 #include "Engine/World.h"
-#include "State/StateParameter/TcsStateBoolParameter.h"
-#include "State/StateParameter/TcsStateNumericParameter.h"
-#include "State/StateParameter/TcsStateVectorParameter.h"
 
 
 UTcsStateInstance::UTcsStateInstance()
@@ -289,18 +290,21 @@ void UTcsStateInstance::SetStackCount(int32 InStackCount)
 	// 如果StackCount降为0，自动触发移除
 	if (NewStackCount == 0)
 	{
-		UE_LOG(LogTcsState, Warning, TEXT("[%s] State '%s' StackCount reached 0, requesting removal"),
-			*FString(__FUNCTION__),
-			*GetStateDefId().ToString());
-
-		// 根据调用上下文选择移除原因
-		FTcsStateRemovalRequest RemovalRequest;
-		RemovalRequest.Reason = (InStackCount == 0)
-			? ETcsStateRemovalRequestReason::Removed
-			: ETcsStateRemovalRequestReason::Expired;
-
-		SetPendingRemovalRequest(RemovalRequest);
-		return;
+		UWorld* World = GetWorld();
+    	if (World)
+	    {
+  		    UTcsStateManagerSubsystem* StateMgr = World->GetSubsystem<UTcsStateManagerSubsystem>();
+    	    if (StateMgr)
+	        {
+            	FTcsStateRemovalRequest RemovalRequest;
+        	    RemovalRequest.Reason = (InStackCount == 0)
+    	            ? ETcsStateRemovalRequestReason::Removed
+	                : ETcsStateRemovalRequestReason::Expired;
+            
+            	StateMgr->RequestStateRemoval(this, RemovalRequest);
+        	}
+    	}
+	    return;
 	}
 
 	*NumericParameters.Find(Tcs_Generic_Name_StackCount) = NewStackCount;

@@ -17,6 +17,10 @@
 #include "State/StateMerger/TcsStateMerger.h"
 #include "State/SamePriorityPolicy/TcsStateSamePriorityPolicy.h"
 #include "TcsGameplayTags.h"
+#include "State/StateParameter/TcsStateBoolParameter.h"
+#include "State/StateParameter/TcsStateNumericParameter.h"
+#include "State/StateParameter/TcsStateVectorParameter.h"
+
 
 #if !WITH_EDITOR
 #include "Engine/AssetManager.h"
@@ -509,13 +513,21 @@ bool UTcsStateManagerSubsystem::ValidateStateParameters(
 {
 	OutFailedParams.Reset();
 
-	if (!StateDefAsset || StateDefAsset->Parameters.IsEmpty())
+	if (!StateDefAsset)
+	{
+		UE_LOG(LogTcsState, Error, TEXT("[%s] StateDefAsset is null during parameter validation"), *FString(__FUNCTION__));
+		return false;
+	}
+
+	// 检查是否有任何参数需要验证
+	if (StateDefAsset->Parameters.IsEmpty() && StateDefAsset->TagParameters.IsEmpty())
 	{
 		return true;  // 没有参数，验证通过
 	}
 
 	bool bAllSuccess = true;
 
+	// 验证 FName 键参数
 	for (const TPair<FName, FTcsStateParameter>& ParamPair : StateDefAsset->Parameters)
 	{
 		const FName& ParamName = ParamPair.Key;
@@ -607,6 +619,106 @@ bool UTcsStateManagerSubsystem::ValidateStateParameters(
 					TEXT("[%s] Unknown parameter type for parameter '%s'"),
 					*FString(__FUNCTION__),
 					*ParamName.ToString());
+				break;
+			}
+		}
+	}
+
+	// 验证 GameplayTag 键参数
+	for (const TPair<FGameplayTag, FTcsStateParameter>& ParamPair : StateDefAsset->TagParameters)
+	{
+		const FGameplayTag& ParamTag = ParamPair.Key;
+		const FTcsStateParameter& Param = ParamPair.Value;
+
+		// 将 Tag 转换为 FName 用于错误报告
+		const FName ParamName = ParamTag.GetTagName();
+
+		switch (Param.ParameterType)
+		{
+		case ETcsStateParameterType::SPT_Numeric:
+			{
+				if (!Param.NumericParamEvaluator)
+				{
+					UE_LOG(LogTcsState, Error,
+						TEXT("[%s] NumericParamEvaluator for tag parameter '%s' is null"),
+						*FString(__FUNCTION__),
+						*ParamTag.ToString());
+					OutFailedParams.Add(ParamName);
+					bAllSuccess = false;
+					break;
+				}
+
+				float ParamValue;
+				auto ParamEvaluator = Param.NumericParamEvaluator->GetDefaultObject<UTcsStateNumericParamEvaluator>();
+				if (!ParamEvaluator->Evaluate(Instigator, Owner, StateInstance, Param.ParamValueContainer, ParamValue))
+				{
+					UE_LOG(LogTcsState, Error,
+						TEXT("[%s] Failed to evaluate numeric tag parameter '%s'"),
+						*FString(__FUNCTION__),
+						*ParamTag.ToString());
+					OutFailedParams.Add(ParamName);
+					bAllSuccess = false;
+				}
+				break;
+			}
+		case ETcsStateParameterType::SPT_Bool:
+			{
+				if (!Param.BoolParamEvaluator)
+				{
+					UE_LOG(LogTcsState, Error,
+						TEXT("[%s] BoolParamEvaluator for tag parameter '%s' is null"),
+						*FString(__FUNCTION__),
+						*ParamTag.ToString());
+					OutFailedParams.Add(ParamName);
+					bAllSuccess = false;
+					break;
+				}
+
+				bool ParamValue;
+				auto ParamEvaluator = Param.BoolParamEvaluator->GetDefaultObject<UTcsStateBoolParamEvaluator>();
+				if (!ParamEvaluator->Evaluate(Instigator, Owner, StateInstance, Param.ParamValueContainer, ParamValue))
+				{
+					UE_LOG(LogTcsState, Error,
+						TEXT("[%s] Failed to evaluate bool tag parameter '%s'"),
+						*FString(__FUNCTION__),
+						*ParamTag.ToString());
+					OutFailedParams.Add(ParamName);
+					bAllSuccess = false;
+				}
+				break;
+			}
+		case ETcsStateParameterType::SPT_Vector:
+			{
+				if (!Param.VectorParamEvaluator)
+				{
+					UE_LOG(LogTcsState, Error,
+						TEXT("[%s] VectorParamEvaluator for tag parameter '%s' is null"),
+						*FString(__FUNCTION__),
+						*ParamTag.ToString());
+					OutFailedParams.Add(ParamName);
+					bAllSuccess = false;
+					break;
+				}
+
+				FVector ParamValue;
+				auto ParamEvaluator = Param.VectorParamEvaluator->GetDefaultObject<UTcsStateVectorParamEvaluator>();
+				if (!ParamEvaluator->Evaluate(Instigator, Owner, StateInstance, Param.ParamValueContainer, ParamValue))
+				{
+					UE_LOG(LogTcsState, Error,
+						TEXT("[%s] Failed to evaluate vector tag parameter '%s'"),
+						*FString(__FUNCTION__),
+						*ParamTag.ToString());
+					OutFailedParams.Add(ParamName);
+					bAllSuccess = false;
+				}
+				break;
+			}
+		default:
+			{
+				UE_LOG(LogTcsState, Warning,
+					TEXT("[%s] Unknown parameter type for tag parameter '%s'"),
+					*FString(__FUNCTION__),
+					*ParamTag.ToString());
 				break;
 			}
 		}
@@ -1245,6 +1357,9 @@ void UTcsStateManagerSubsystem::UpdateStateSlotActivation(
 
     // 7. 最终清理
     CleanupInvalidStates(StateSlot);
+
+	// 8. 通知槽位变化
+    StateComponent->OnStateSlotChanged(StateSlotTag);
 
     // 清除更新标志并排空待处理队列
     bIsUpdatingSlotActivation = false;
