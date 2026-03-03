@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Subsystems/WorldSubsystem.h"
+#include "Subsystems/GameInstanceSubsystem.h"
 #include "TcsStateSlot.h"
 #include "State/TcsState.h"
 #include "TcsStateManagerSubsystem.generated.h"
@@ -18,7 +18,7 @@ class UTcsStateSlotDefinitionAsset;
 
 
 UCLASS()
-class TIREFLYCOMBATSYSTEM_API UTcsStateManagerSubsystem : public UWorldSubsystem
+class TIREFLYCOMBATSYSTEM_API UTcsStateManagerSubsystem : public UGameInstanceSubsystem
 {
 	GENERATED_BODY()
 
@@ -135,16 +135,20 @@ protected:
 	UTcsStateInstance* CreateStateInstance(FName StateDefId, AActor* Owner, AActor* Instigator, int32 InLevel = 1);
 
 	/**
-	 * 验证状态参数评估
+	 * 评估并应用状态参数（合并验证与初始化为一次评估）
+	 *
+	 * 对 StateDefAsset 中定义的所有参数执行一次评估，评估成功则直接写入
+	 * StateInstance 的参数容器，失败则记录到 OutFailedParams。
+	 * 这样避免了先 Validate 再 Init 的双重评估，消除非确定性评估器的一致性风险。
 	 *
 	 * @param StateDefAsset 状态定义资产
 	 * @param Owner 状态拥有者
 	 * @param Instigator 状态发起者
-	 * @param StateInstance 临时状态实例（用于参数评估上下文）
+	 * @param StateInstance 状态实例（评估结果直接写入其参数容器）
 	 * @param OutFailedParams 输出失败的参数名称列表
 	 * @return 是否所有参数评估成功
 	 */
-	bool ValidateStateParameters(
+	bool EvaluateAndApplyStateParameters(
 		const UTcsStateDefinitionAsset* StateDefAsset,
 		AActor* Owner,
 		AActor* Instigator,
@@ -227,7 +231,45 @@ public:
 		const TArray<FName>& OldStates);
 
 protected:
-	// 更新状态槽激活状态（内部实现）
+	/**
+	 * 更新状态槽激活状态（内部实现）
+	 *
+	 * 这是状态槽激活逻辑的核心函数，按以下 8 步串行执行：
+	 *
+	 * Step 1 - 防重入保护
+	 *   检查 bIsUpdatingSlotActivation 标志，若已在更新中则将请求加入
+	 *   PendingSlotActivationUpdates 队列，函数提前返回。
+	 *
+	 * Step 2 - 清理过期状态
+	 *   调用 ClearStateSlotExpiredStates，移除槽内所有 Stage == Expired 的实例。
+	 *
+	 * Step 3 - 按优先级排序
+	 *   调用 SortStatesByPriority，对槽内所有状态按 Priority 降序排列。
+	 *
+	 * Step 4 - 叠层合并（Merging）
+	 *   调用 ProcessStateSlotMerging，按 StateDefId 分组，对每组执行
+	 *   StateMerger 策略（叠层数合并、保留主实例、移除冗余实例）。
+	 *
+	 * Step 5 - Gate 一致性强制
+	 *   调用 EnforceSlotGateConsistency。若 Gate 关闭，按 GateClosePolicy
+	 *   对槽内所有 Active 状态执行 HangUp / Pause / Cancel，然后提前返回。
+	 *
+	 * Step 6 - 激活模式处理
+	 *   调用 ProcessStateSlotByActivationMode：
+	 *   - SSAM_PriorityOnly：只激活最高优先级状态，按 PreemptionPolicy 处理低优先级。
+	 *   - SSAM_AllActive：激活所有状态。
+	 *
+	 * Step 7 - 最终清理
+	 *   调用 CleanupInvalidStates，移除槽内所有无效（nullptr / Expired）实例。
+	 *
+	 * Step 8 - 通知与排空队列
+	 *   调用 StateComponent->OnStateSlotChanged 广播槽位变化事件，
+	 *   清除 bIsUpdatingSlotActivation 标志，调用 DrainPendingSlotActivationUpdates
+	 *   处理期间积压的请求。
+	 *
+	 * @param StateComponent 拥有该槽位的状态组件
+	 * @param StateSlotTag   要更新的状态槽 GameplayTag
+	 */
 	void UpdateStateSlotActivation(UTcsStateComponent* StateComponent, FGameplayTag StateSlotTag);
 
 	// 排空待处理的槽位激活更新请求

@@ -62,7 +62,7 @@ protected:
 public:
 	// 给战斗实体添加属性
 	UFUNCTION(BlueprintCallable, Category = "TireflyCombatSystem|Attribute", Meta = (DefaultToSelf = "CombatEntity"))
-	void AddAttribute(
+	bool AddAttribute(
 		AActor* CombatEntity,
 		UPARAM(Meta = (GetParamOptions = "TcsGenericLibrary.GetAttributeNames"))FName AttributeName,
 		float InitValue = 0.f);

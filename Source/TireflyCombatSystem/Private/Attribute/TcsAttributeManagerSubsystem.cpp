@@ -142,7 +142,7 @@ void UTcsAttributeManagerSubsystem::LoadFromDeveloperSettings()
 		AttributeTagToName.Num());
 }
 
-void UTcsAttributeManagerSubsystem::AddAttribute(
+bool UTcsAttributeManagerSubsystem::AddAttribute(
 	AActor* CombatEntity,
 	FName AttributeName,
 	float InitValue)
@@ -153,7 +153,7 @@ void UTcsAttributeManagerSubsystem::AddAttribute(
 		UE_LOG(LogTcsAttribute, Error, TEXT("[%s] AttributeDefinition '%s' not found"),
 			*FString(__FUNCTION__),
 			*AttributeName.ToString());
-		return;
+		return false;
 	}
 
 	UTcsAttributeComponent* AttributeComponent = GetAttributeComponent(CombatEntity);
@@ -161,7 +161,7 @@ void UTcsAttributeManagerSubsystem::AddAttribute(
 	{
 		UE_LOG(LogTcsAttribute, Warning, TEXT("[%s] CombatEntity does not have an AttributeComponent"),
 			*FString(__FUNCTION__));
-		return;
+		return false;
 	}
 
 	// 防止覆盖已存在的属性
@@ -171,7 +171,7 @@ void UTcsAttributeManagerSubsystem::AddAttribute(
 			*FString(__FUNCTION__),
 			*AttributeName.ToString(),
 			*CombatEntity->GetName());
-		return;
+		return false;
 	}
 
 	const UTcsAttributeDefinitionAsset* AttrDef = *AttrDefPtr;
@@ -186,6 +186,10 @@ void UTcsAttributeManagerSubsystem::AddAttribute(
 		Added->BaseValue = Clamped;
 		Added->CurrentValue = Clamped;
 	}
+
+	// 传播动态范围约束（新属性可能影响其他属性的动态范围边界）
+	EnforceAttributeRangeConstraints(AttributeComponent);
+	return true;
 }
 
 void UTcsAttributeManagerSubsystem::AddAttributes(AActor* CombatEntity, const TArray<FName>& AttributeNames)
@@ -232,7 +236,11 @@ void UTcsAttributeManagerSubsystem::AddAttributes(AActor* CombatEntity, const TA
 			Added->CurrentValue = Clamped;
 		}
 	}
+
+	// 批量添加完成后统一传播动态范围约束
+	EnforceAttributeRangeConstraints(AttributeComponent);
 }
+
 bool UTcsAttributeManagerSubsystem::AddAttributeByTag(
 	AActor* CombatEntity,
 	const FGameplayTag& AttributeTag,
@@ -265,6 +273,7 @@ bool UTcsAttributeManagerSubsystem::AddAttributeByTag(
 	// 验证是否真的添加成功
 	return IsValid(AttributeComponent) && AttributeComponent->Attributes.Contains(AttributeName);
 }
+
 bool UTcsAttributeManagerSubsystem::TryResolveAttributeNameByTag(
 	const FGameplayTag& AttributeTag,
 	FName& OutAttributeName) const
@@ -290,6 +299,7 @@ bool UTcsAttributeManagerSubsystem::TryResolveAttributeNameByTag(
 		*AttributeTag.ToString());
 	return false;
 }
+
 bool UTcsAttributeManagerSubsystem::TryGetAttributeTagByName(
 	FName AttributeName,
 	FGameplayTag& OutAttributeTag) const
@@ -445,6 +455,9 @@ bool UTcsAttributeManagerSubsystem::SetAttributeCurrentValue(
 	Attribute->CurrentValue = NewValue;
 	ClampAttributeValueInRange(AttributeComponent, AttributeName, Attribute->CurrentValue);
 
+	// 传播动态范围约束（该属性值变化可能影响其他属性的动态范围边界）
+	EnforceAttributeRangeConstraints(AttributeComponent);
+
 	// 触发事件
 	if (bTriggerEvents && !FMath::IsNearlyEqual(OldValue, Attribute->CurrentValue))
 	{
@@ -511,8 +524,8 @@ bool UTcsAttributeManagerSubsystem::ResetAttribute(
 		return false;
 	}
 
-	// 获取初始值（重置为0）
-	float InitValue = 0.0f;
+	// 获取初始值（恢复到 AddAttribute 时传入的初始值）
+	float InitValue = Attribute->InitialValue;
 
 	// 移除所有应用到该属性的修改器
 	TArray<FTcsAttributeModifierInstance> ModifiersToRemove;
@@ -618,6 +631,39 @@ bool UTcsAttributeManagerSubsystem::RemoveAttribute(
 			*AttributeName.ToString(),
 			*CombatEntity->GetName());
 		return false;
+	}
+
+	// 检查是否有其他属性的动态范围依赖于该属性，若有则阻止移除
+	for (const auto& Pair : AttributeComponent->Attributes)
+	{
+		if (Pair.Key == AttributeName)
+		{
+			continue;
+		}
+
+		const UTcsAttributeDefinitionAsset* OtherDef = Pair.Value.AttributeDefAsset;
+		if (!OtherDef)
+		{
+			continue;
+		}
+
+		const FTcsAttributeRange& Range = OtherDef->AttributeRange;
+		const bool bMinRefersToThis = (Range.MinValueType == ETcsAttributeRangeType::ART_Dynamic)
+			&& (Range.MinValueAttribute == AttributeName);
+		const bool bMaxRefersToThis = (Range.MaxValueType == ETcsAttributeRangeType::ART_Dynamic)
+			&& (Range.MaxValueAttribute == AttributeName);
+
+		if (bMinRefersToThis || bMaxRefersToThis)
+		{
+			UE_LOG(LogTcsAttribute, Error,
+				TEXT("[%s] Cannot remove attribute '%s' from entity '%s': attribute '%s' has a dynamic range dependency on it (%s). Remove or update the dependent attribute first."),
+				*FString(__FUNCTION__),
+				*AttributeName.ToString(),
+				*CombatEntity->GetName(),
+				*Pair.Key.ToString(),
+				bMinRefersToThis ? TEXT("MinValue") : TEXT("MaxValue"));
+			return false;
+		}
 	}
 
 	// 移除所有应用到该属性的修改器
@@ -1232,7 +1278,7 @@ void UTcsAttributeManagerSubsystem::RecalculateAttributeBaseValues(
 		for (const TPair<FName, float>& LastPair : LastModifiedResults)
 		{
 			const float& NewValue = BaseValues.FindRef(LastPair.Key);
-			if (NewValue != LastPair.Value)
+			if (!FMath::IsNearlyEqual(NewValue, LastPair.Value))
 			{
 				FTcsAttributeChangeEventPayload& Payload = ChangeEventPayloads.FindOrAdd(LastPair.Key);
 				Payload.AttributeName = LastPair.Key;
@@ -1348,7 +1394,7 @@ void UTcsAttributeManagerSubsystem::RecalculateAttributeCurrentValues(const AAct
 		for (const TPair<FName, float>& LastPair : LastModifiedResults)
 		{
 			const float& NewValue = CurrentValuesToCalc.FindRef(LastPair.Key);
-			if (NewValue != LastPair.Value && (ChangeBatchId < 0 || Modifier.LastTouchedBatchId == ChangeBatchId))
+			if (!FMath::IsNearlyEqual(NewValue, LastPair.Value) && (ChangeBatchId < 0 || Modifier.LastTouchedBatchId == ChangeBatchId))
 			{
 				FTcsAttributeChangeEventPayload& Payload = ChangeEventPayloads.FindOrAdd(LastPair.Key);
 				Payload.AttributeName = LastPair.Key;

@@ -251,8 +251,8 @@ public:
 	// 获取状态实例的当前阶段
 	ETcsStateStage GetCurrentStage() const { return Stage; }
 
-	// 设置状态实例的当前阶段
-	void SetCurrentStage(ETcsStateStage InStage);
+	// 设置状态实例的当前阶段；返回 true 表示转换成功，false 表示非法转换（阶段未改变）
+	bool SetCurrentStage(ETcsStateStage InStage);
 
 	// 标记状态实例为待GC
 	void MarkPendingGC() { bPendingGC = true; }

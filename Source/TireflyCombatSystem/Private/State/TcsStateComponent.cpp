@@ -12,7 +12,7 @@
 #include "StateTree.h"
 #include "StateTreeExecutionTypes.h"
 #include "StateTreeExecutionContext.h"
-
+#include "State/TcsStateDefinitionAsset.h"
 
 
 UTcsStateComponent::UTcsStateComponent(const FObjectInitializer& ObjectInitializer)
@@ -31,7 +31,7 @@ void UTcsStateComponent::BeginPlay()
 		return;
 	}
 
-	StateMgr = World->GetSubsystem<UTcsStateManagerSubsystem>();
+	StateMgr = World->GetGameInstance()->GetSubsystem<UTcsStateManagerSubsystem>();
 	if (!StateMgr)
 	{
 		UE_LOG(LogTcsState, Error, TEXT("[%s] Failed to get TcsStateManagerSubsystem."),
@@ -50,10 +50,13 @@ void UTcsStateComponent::TickComponent(float DeltaTime, ELevelTick TickType, FAc
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
-	// 更新持续时间状态的剩余时间
 	UpdateActiveStateDurations(DeltaTime);
+	TickPendingRemovals();
+	TickStateTrees(DeltaTime);
+}
 
-	// Tick 激活状态的 StateTree
+void UTcsStateComponent::TickStateTrees(float DeltaTime)
+{
 	StateTreeTickScheduler.RefreshInstances();
 
 	// Safety: ensure pending removal instances are scheduled while running.
@@ -67,47 +70,6 @@ void UTcsStateComponent::TickComponent(float DeltaTime, ELevelTick TickType, FAc
 		if (StateInstance->HasPendingRemovalRequest() && StateInstance->IsStateTreeRunning())
 		{
 			StateTreeTickScheduler.Add(StateInstance);
-		}
-	}
-
-	// Warning-only: pending removal requests that never stop their StateTree.
-	{
-		static const double PendingRemovalWarnSeconds = 5.0;
-		const int64 NowTicks = FDateTime::UtcNow().GetTicks();
-		for (UTcsStateInstance* StateInstance : StateInstanceIndex.Instances)
-		{
-			if (!IsValid(StateInstance))
-			{
-				continue;
-			}
-
-			if (!StateInstance->HasPendingRemovalRequest() || !StateInstance->IsStateTreeRunning())
-			{
-				continue;
-			}
-
-			if (StateInstance->HasPendingRemovalRequestWarningIssued())
-			{
-				continue;
-			}
-
-			const int64 StartTicks = StateInstance->GetPendingRemovalRequestStartTimeTicks();
-			if (StartTicks <= 0)
-			{
-				continue;
-			}
-
-			const double ElapsedSeconds = (FDateTime(NowTicks) - FDateTime(StartTicks)).GetTotalSeconds();
-			if (ElapsedSeconds >= PendingRemovalWarnSeconds)
-			{
-				UE_LOG(LogTcsState, Warning, TEXT("[%s] Pending removal request still running after %.2fs. State=%s Id=%d Stage=%s"),
-					*FString(__FUNCTION__),
-					ElapsedSeconds,
-					*StateInstance->GetStateDefId().ToString(),
-					StateInstance->GetInstanceId(),
-					*StaticEnum<ETcsStateStage>()->GetNameStringByValue(static_cast<int64>(StateInstance->GetCurrentStage())));
-				StateInstance->MarkPendingRemovalRequestWarningIssued();
-			}
 		}
 	}
 
@@ -153,7 +115,52 @@ void UTcsStateComponent::TickComponent(float DeltaTime, ELevelTick TickType, FAc
 	{
 		StateTreeTickScheduler.Remove(StateInstance);
 	}
+}
 
+void UTcsStateComponent::TickPendingRemovals()
+{
+	// Warning-only: pending removal requests that never stop their StateTree.
+	{
+		static const double PendingRemovalWarnSeconds = 5.0;
+		const int64 NowTicks = FDateTime::UtcNow().GetTicks();
+		for (UTcsStateInstance* StateInstance : StateInstanceIndex.Instances)
+		{
+			if (!IsValid(StateInstance))
+			{
+				continue;
+			}
+
+			if (!StateInstance->HasPendingRemovalRequest() || !StateInstance->IsStateTreeRunning())
+			{
+				continue;
+			}
+
+			if (StateInstance->HasPendingRemovalRequestWarningIssued())
+			{
+				continue;
+			}
+
+			const int64 StartTicks = StateInstance->GetPendingRemovalRequestStartTimeTicks();
+			if (StartTicks <= 0)
+			{
+				continue;
+			}
+
+			const double ElapsedSeconds = (FDateTime(NowTicks) - FDateTime(StartTicks)).GetTotalSeconds();
+			if (ElapsedSeconds >= PendingRemovalWarnSeconds)
+			{
+				UE_LOG(LogTcsState, Warning, TEXT("[%s] Pending removal request still running after %.2fs. State=%s Id=%d Stage=%s"),
+					*FString(__FUNCTION__),
+					ElapsedSeconds,
+					*StateInstance->GetStateDefId().ToString(),
+					StateInstance->GetInstanceId(),
+					*StaticEnum<ETcsStateStage>()->GetNameStringByValue(static_cast<int64>(StateInstance->GetCurrentStage())));
+				StateInstance->MarkPendingRemovalRequestWarningIssued();
+			}
+		}
+	}
+
+	// Finalize instances whose StateTree has stopped.
 	if (IsValid(StateMgr))
 	{
 		TArray<UTcsStateInstance*> PendingFinalize;

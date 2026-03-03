@@ -471,7 +471,7 @@ UTcsStateInstance* UTcsStateManagerSubsystem::CreateStateInstance(
 
 	// 验证参数评估
 	TArray<FName> FailedParams;
-	if (!ValidateStateParameters(StateDefAsset, Owner, Instigator, TempStateInstance, FailedParams))
+	if (!EvaluateAndApplyStateParameters(StateDefAsset, Owner, Instigator, TempStateInstance, FailedParams))
 	{
 		FString FailedParamNames;
 		for (int32 i = 0; i < FailedParams.Num(); ++i)
@@ -504,7 +504,7 @@ UTcsStateInstance* UTcsStateManagerSubsystem::CreateStateInstance(
     return StateInstance;
 }
 
-bool UTcsStateManagerSubsystem::ValidateStateParameters(
+bool UTcsStateManagerSubsystem::EvaluateAndApplyStateParameters(
 	const UTcsStateDefinitionAsset* StateDefAsset,
 	AActor* Owner,
 	AActor* Instigator,
@@ -515,19 +515,19 @@ bool UTcsStateManagerSubsystem::ValidateStateParameters(
 
 	if (!StateDefAsset)
 	{
-		UE_LOG(LogTcsState, Error, TEXT("[%s] StateDefAsset is null during parameter validation"), *FString(__FUNCTION__));
+		UE_LOG(LogTcsState, Error, TEXT("[%s] StateDefAsset is null during parameter evaluation"), *FString(__FUNCTION__));
 		return false;
 	}
 
-	// 检查是否有任何参数需要验证
+	// 没有参数，直接通过
 	if (StateDefAsset->Parameters.IsEmpty() && StateDefAsset->TagParameters.IsEmpty())
 	{
-		return true;  // 没有参数，验证通过
+		return true;
 	}
 
 	bool bAllSuccess = true;
 
-	// 验证 FName 键参数
+	// 评估并写入 FName 键参数
 	for (const TPair<FName, FTcsStateParameter>& ParamPair : StateDefAsset->Parameters)
 	{
 		const FName& ParamName = ParamPair.Key;
@@ -558,7 +558,9 @@ bool UTcsStateManagerSubsystem::ValidateStateParameters(
 						*ParamName.ToString());
 					OutFailedParams.Add(ParamName);
 					bAllSuccess = false;
+					break;
 				}
+				StateInstance->SetNumericParam(ParamName, ParamValue);
 				break;
 			}
 		case ETcsStateParameterType::SPT_Bool:
@@ -584,7 +586,9 @@ bool UTcsStateManagerSubsystem::ValidateStateParameters(
 						*ParamName.ToString());
 					OutFailedParams.Add(ParamName);
 					bAllSuccess = false;
+					break;
 				}
+				StateInstance->SetBoolParam(ParamName, ParamValue);
 				break;
 			}
 		case ETcsStateParameterType::SPT_Vector:
@@ -610,7 +614,9 @@ bool UTcsStateManagerSubsystem::ValidateStateParameters(
 						*ParamName.ToString());
 					OutFailedParams.Add(ParamName);
 					bAllSuccess = false;
+					break;
 				}
+				StateInstance->SetVectorParam(ParamName, ParamValue);
 				break;
 			}
 		default:
@@ -624,13 +630,11 @@ bool UTcsStateManagerSubsystem::ValidateStateParameters(
 		}
 	}
 
-	// 验证 GameplayTag 键参数
+	// 评估并写入 GameplayTag 键参数
 	for (const TPair<FGameplayTag, FTcsStateParameter>& ParamPair : StateDefAsset->TagParameters)
 	{
 		const FGameplayTag& ParamTag = ParamPair.Key;
 		const FTcsStateParameter& Param = ParamPair.Value;
-
-		// 将 Tag 转换为 FName 用于错误报告
 		const FName ParamName = ParamTag.GetTagName();
 
 		switch (Param.ParameterType)
@@ -658,7 +662,9 @@ bool UTcsStateManagerSubsystem::ValidateStateParameters(
 						*ParamTag.ToString());
 					OutFailedParams.Add(ParamName);
 					bAllSuccess = false;
+					break;
 				}
+				StateInstance->SetNumericParamByTag(ParamTag, ParamValue);
 				break;
 			}
 		case ETcsStateParameterType::SPT_Bool:
@@ -684,7 +690,9 @@ bool UTcsStateManagerSubsystem::ValidateStateParameters(
 						*ParamTag.ToString());
 					OutFailedParams.Add(ParamName);
 					bAllSuccess = false;
+					break;
 				}
+				StateInstance->SetBoolParamByTag(ParamTag, ParamValue);
 				break;
 			}
 		case ETcsStateParameterType::SPT_Vector:
@@ -710,7 +718,9 @@ bool UTcsStateManagerSubsystem::ValidateStateParameters(
 						*ParamTag.ToString());
 					OutFailedParams.Add(ParamName);
 					bAllSuccess = false;
+					break;
 				}
+				StateInstance->SetVectorParamByTag(ParamTag, ParamValue);
 				break;
 			}
 		default:
@@ -1091,17 +1101,21 @@ bool UTcsStateManagerSubsystem::TryAssignStateToStateSlot(UTcsStateInstance* Sta
 	if (!StateSlot->bIsGateOpen)
 	{
 		const ETcsStateStage PreviousStage = StateInstance->GetCurrentStage();
+		bool bStageChanged = false;
 		switch (StateSlotDef->GateCloseBehavior)
 		{
 		case ETcsStateSlotGateClosePolicy::SSGCP_HangUp:
-			StateInstance->SetCurrentStage(ETcsStateStage::SS_HangUp);
+			bStageChanged = StateInstance->SetCurrentStage(ETcsStateStage::SS_HangUp);
 			break;
 		case ETcsStateSlotGateClosePolicy::SSGCP_Pause:
 		default:
-			StateInstance->SetCurrentStage(ETcsStateStage::SS_Pause);
+			bStageChanged = StateInstance->SetCurrentStage(ETcsStateStage::SS_Pause);
 			break;
 		}
-		OwnerStateCmp->NotifyStateStageChanged(StateInstance, PreviousStage, StateInstance->GetCurrentStage());
+		if (bStageChanged)
+		{
+			OwnerStateCmp->NotifyStateStageChanged(StateInstance, PreviousStage, StateInstance->GetCurrentStage());
+		}
 	}
 
     // 更新槽位中所有状态的激活流程（使用延迟请求机制）
@@ -1899,8 +1913,11 @@ void UTcsStateManagerSubsystem::ActivateState(UTcsStateInstance* StateInstance)
         *FString(__FUNCTION__),
         *StateInstance->GetStateDefId().ToString());
 
-    // 设置为激活阶段
-    StateInstance->SetCurrentStage(ETcsStateStage::SS_Active);
+    // 设置为激活阶段；若转换非法则中止（阶段未改变，不应继续执行后续操作）
+    if (!StateInstance->SetCurrentStage(ETcsStateStage::SS_Active))
+    {
+        return;
+    }
     // 启动StateTree
 	UTcsStateComponent* StateComponent = StateInstance->GetOwnerStateComponent();
 	const UTcsStateDefinitionAsset* StateDef = StateInstance->GetStateDefAsset();
@@ -1974,8 +1991,11 @@ void UTcsStateManagerSubsystem::DeactivateState(UTcsStateInstance* StateInstance
         *FString(__FUNCTION__),
         *StateInstance->GetStateDefId().ToString());
 
-    // 设置为未激活阶段
-    StateInstance->SetCurrentStage(ETcsStateStage::SS_Inactive);
+    // 设置为未激活阶段；若转换非法则中止
+    if (!StateInstance->SetCurrentStage(ETcsStateStage::SS_Inactive))
+    {
+        return;
+    }
     // Stop ticking StateTree (do not stop/lose its internal data)
     StateInstance->PauseStateTree();
 
@@ -2006,8 +2026,11 @@ void UTcsStateManagerSubsystem::HangUpState(UTcsStateInstance* StateInstance)
         *FString(__FUNCTION__),
         *StateInstance->GetStateDefId().ToString());
 
-    // 设置为挂起阶段
-    StateInstance->SetCurrentStage(ETcsStateStage::SS_HangUp);
+    // 设置为挂起阶段；若转换非法则中止
+    if (!StateInstance->SetCurrentStage(ETcsStateStage::SS_HangUp))
+    {
+        return;
+    }
     // 暂停StateTree执行 (但保持实例存活)
     StateInstance->PauseStateTree();
 
@@ -2038,8 +2061,11 @@ void UTcsStateManagerSubsystem::ResumeState(UTcsStateInstance* StateInstance)
         *FString(__FUNCTION__),
         *StateInstance->GetStateDefId().ToString());
 
-    // 恢复到激活阶段
-    StateInstance->SetCurrentStage(ETcsStateStage::SS_Active);
+    // 恢复到激活阶段；若转换非法则中止
+    if (!StateInstance->SetCurrentStage(ETcsStateStage::SS_Active))
+    {
+        return;
+    }
     // 恢复StateTree执行
 	UTcsStateComponent* StateComponent = StateInstance->GetOwnerStateComponent();
 	const UTcsStateDefinitionAsset* StateDef = StateInstance->GetStateDefAsset();
@@ -2108,10 +2134,13 @@ void UTcsStateManagerSubsystem::PauseState(UTcsStateInstance* StateInstance)
         *FString(__FUNCTION__),
         *StateInstance->GetStateDefId().ToString());
 
-    // 设置为完全暂停阶段
+    // 设置为完全暂停阶段；若转换非法则中止
     // 注意: Pause与HangUp的区别是,Pause会完全冻结状态(包括持续时间计算),
     // 而HangUp只是暂停逻辑执行但仍计算持续时间
-    StateInstance->SetCurrentStage(ETcsStateStage::SS_Pause);
+    if (!StateInstance->SetCurrentStage(ETcsStateStage::SS_Pause))
+    {
+        return;
+    }
     // 完全暂停StateTree
     StateInstance->PauseStateTree();
 
@@ -2586,8 +2615,11 @@ void UTcsStateManagerSubsystem::FinalizeStateRemoval(UTcsStateInstance* StateIns
 		StateInstance->StopStateTree();
 	}
 
-	// Mark expired.
-	StateInstance->SetCurrentStage(ETcsStateStage::SS_Expired);
+	// Mark expired；若已是 Expired（重复调用）则提前返回，避免二次清理
+	if (!StateInstance->SetCurrentStage(ETcsStateStage::SS_Expired))
+	{
+		return;
+	}
 
 	UTcsStateComponent* StateComponent = StateInstance->GetOwnerStateComponent();
 	if (IsValid(StateComponent))
@@ -2697,35 +2729,102 @@ void UTcsStateManagerSubsystem::LoadFromAssetManager()
 		break;
 
 	case ETcsStateLoadingStrategy::Hybrid:
-		// Runtime 模式下 Hybrid 策略暂不支持（需要 DeveloperSettings 的 CommonStateDefinitions 配置）
-		// 退化为 PreloadAll
-		UE_LOG(LogTcsState, Warning, TEXT("[%s] Hybrid strategy not fully supported in Runtime mode, falling back to PreloadAll"),
-			*FString(__FUNCTION__));
-
+		// Runtime Hybrid 策略：
+		// 1. 精确加载 CommonStateDefinitions 列表中的资产
+		// 2. 通过 AssetManager 枚举所有资产，按 CommonStateDefinitionPaths 路径过滤加载
+		// 3. 其余资产走 OnDemand（首次访问时加载）
 		{
-			TArray<FPrimaryAssetId> StateDefIds;
-			AssetManager.GetPrimaryAssetIdList(UTcsStateDefinitionAsset::PrimaryAssetType, StateDefIds);
-
-			for (const FPrimaryAssetId& AssetId : StateDefIds)
+			// Step 1: 加载精确指定的常用 State
+			for (const TSoftObjectPtr<UTcsStateDefinitionAsset>& AssetPtr : Settings->CommonStateDefinitions)
 			{
-				const UTcsStateDefinitionAsset* Asset = Cast<UTcsStateDefinitionAsset>(
-					AssetManager.LoadPrimaryAsset(AssetId));
+				if (AssetPtr.IsNull())
+				{
+					continue;
+				}
 
-				if (Asset)
+				const UTcsStateDefinitionAsset* Asset = AssetPtr.LoadSynchronous();
+				if (!Asset)
+				{
+					UE_LOG(LogTcsState, Warning, TEXT("[%s] Hybrid: Failed to load common State (explicit): %s"),
+						*FString(__FUNCTION__),
+						*AssetPtr.ToSoftObjectPath().ToString());
+					continue;
+				}
+
+				if (!StateDefinitions.Contains(Asset->StateDefId))
 				{
 					StateDefinitions.Add(Asset->StateDefId, Asset);
 
-					if (Asset->StateTag.IsValid())
+					if (Asset->StateTag.IsValid() && !StateTagToDefId.Contains(Asset->StateTag))
 					{
-						if (!StateTagToDefId.Contains(Asset->StateTag))
+						StateTagToDefId.Add(Asset->StateTag, Asset->StateDefId);
+					}
+
+					UE_LOG(LogTcsState, Verbose, TEXT("[%s] Hybrid: Preloaded common State (explicit): %s"),
+						*FString(__FUNCTION__),
+						*Asset->StateDefId.ToString());
+				}
+			}
+
+			// Step 2: 通过 AssetManager 枚举，按路径过滤加载常用 State
+			if (Settings->CommonStateDefinitionPaths.Num() > 0)
+			{
+				TArray<FPrimaryAssetId> AllStateDefIds;
+				AssetManager.GetPrimaryAssetIdList(UTcsStateDefinitionAsset::PrimaryAssetType, AllStateDefIds);
+
+				for (const FPrimaryAssetId& AssetId : AllStateDefIds)
+				{
+					FAssetData AssetData;
+					if (!AssetManager.GetPrimaryAssetData(AssetId, AssetData))
+					{
+						continue;
+					}
+
+					const FString AssetPath = AssetData.GetObjectPathString();
+
+					bool bIsCommon = false;
+					for (const FDirectoryPath& CommonPath : Settings->CommonStateDefinitionPaths)
+					{
+						if (AssetPath.StartsWith(CommonPath.Path))
+						{
+							bIsCommon = true;
+							break;
+						}
+					}
+
+					if (!bIsCommon)
+					{
+						continue;
+					}
+
+					const UTcsStateDefinitionAsset* Asset = Cast<UTcsStateDefinitionAsset>(
+						AssetManager.LoadPrimaryAsset(AssetId));
+
+					if (!Asset)
+					{
+						UE_LOG(LogTcsState, Warning, TEXT("[%s] Hybrid: Failed to load common State (path): %s"),
+							*FString(__FUNCTION__),
+							*AssetId.ToString());
+						continue;
+					}
+
+					if (!StateDefinitions.Contains(Asset->StateDefId))
+					{
+						StateDefinitions.Add(Asset->StateDefId, Asset);
+
+						if (Asset->StateTag.IsValid() && !StateTagToDefId.Contains(Asset->StateTag))
 						{
 							StateTagToDefId.Add(Asset->StateTag, Asset->StateDefId);
 						}
+
+						UE_LOG(LogTcsState, Verbose, TEXT("[%s] Hybrid: Preloaded common State (path): %s"),
+							*FString(__FUNCTION__),
+							*Asset->StateDefId.ToString());
 					}
 				}
 			}
 
-			UE_LOG(LogTcsState, Log, TEXT("[%s] Loaded %d State definitions from AssetManager (Hybrid fallback)"),
+			UE_LOG(LogTcsState, Log, TEXT("[%s] Hybrid strategy: Preloaded %d common State definitions, remaining will be loaded on demand"),
 				*FString(__FUNCTION__),
 				StateDefinitions.Num());
 		}

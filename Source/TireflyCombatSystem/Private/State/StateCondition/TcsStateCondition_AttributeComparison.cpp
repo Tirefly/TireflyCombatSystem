@@ -21,39 +21,32 @@ bool UTcsStateCondition_AttributeComparison::CheckCondition_Implementation(
 		return false;
 	}
 
-	// 根据检查目标获取对应的战斗实体
-	const ITcsEntityInterface* CombatEntity = nullptr;
-	
+	// 获取属性组件（使用 Execute_ 形式确保蓝图实现也能正确调用）
+	const UTcsAttributeComponent* AttributeComponent = nullptr;
 	switch (Config->CheckTarget)
 	{
 	case ETcsAttributeCheckTarget::Owner:
+		if (AActor* Owner = StateInstance->GetOwner())
 		{
-			if (AActor* Owner = StateInstance->GetOwner())
+			if (Owner->Implements<UTcsEntityInterface>())
 			{
-				CombatEntity = Cast<ITcsEntityInterface>(Owner);
+				AttributeComponent = ITcsEntityInterface::Execute_GetAttributeComponent(Owner);
 			}
-			break;
 		}
+		break;
 	case ETcsAttributeCheckTarget::Instigator:
+		if (AActor* Instigator = StateInstance->GetInstigator())
 		{
-			if (AActor* Instigator = StateInstance->GetInstigator())
+			if (Instigator->Implements<UTcsEntityInterface>())
 			{
-				CombatEntity = Cast<ITcsEntityInterface>(Instigator);
+				AttributeComponent = ITcsEntityInterface::Execute_GetAttributeComponent(Instigator);
 			}
-			break;
 		}
+		break;
 	}
-
-	if (!CombatEntity)
-	{
-		UE_LOG(LogTcsStateCondition, Warning, TEXT("[%s] CombatEntity to compare AttributeValue is null."), *FString(__FUNCTION__));
-		return false;
-	}
-
-	// 获取属性组件
-	const UTcsAttributeComponent* AttributeComponent = CombatEntity->GetAttributeComponent();
 	if (!AttributeComponent)
 	{
+		UE_LOG(LogTcsStateCondition, Warning, TEXT("[%s] CombatEntity to compare AttributeValue is null or does not implement ITcsEntityInterface."), *FString(__FUNCTION__));
 		return false;
 	}
 
