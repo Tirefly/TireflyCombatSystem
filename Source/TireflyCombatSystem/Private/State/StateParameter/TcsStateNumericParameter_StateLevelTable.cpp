@@ -15,7 +15,7 @@ bool UTcsStateNumericParamEvaluator_StateLevelTable::Evaluate_Implementation(
 {
 	if (auto StateLevelTableParam = InstancedStruct.GetPtr<FTcsStateNumericParam_StateLevelTable>())
 	{
-		if (!Instigator || !StateLevelTableParam->CurveTableRowHandle.IsValid(__FUNCTION__))
+		if (!StateInstance || !StateLevelTableParam->CurveTableRowHandle.IsValid(__FUNCTION__))
 		{
 			OutValue = StateLevelTableParam->DefaultValue;
 			return true;

@@ -10,13 +10,6 @@ bool FTcsSourceHandle::NetSerialize(FArchive& Ar, UPackageMap* Map, bool& bOutSu
 	// 序列化 ID
 	Ar << Id;
 
-	// 序列化 SourceDefinition (DataTable 和 RowName)
-	Ar << SourceDefinition.DataTable;
-	Ar << SourceDefinition.RowName;
-
-	// 序列化 SourceName
-	Ar << SourceName;
-
 	// 序列化 SourceTags
 	SourceTags.NetSerialize(Ar, Map, bOutSuccess);
 
@@ -37,6 +30,20 @@ bool FTcsSourceHandle::NetSerialize(FArchive& Ar, UPackageMap* Map, bool& bOutSu
 		{
 			Instigator = Cast<AActor>(InstigatorObject);
 		}
+	}
+
+	// 序列化 CausalityChain
+	int32 ChainNum = CausalityChain.Num();
+	Ar << ChainNum;
+
+	if (Ar.IsLoading())
+	{
+		CausalityChain.SetNum(ChainNum);
+	}
+
+	for (int32 i = 0; i < ChainNum; ++i)
+	{
+		Ar << CausalityChain[i];
 	}
 
 	bOutSuccess = true;

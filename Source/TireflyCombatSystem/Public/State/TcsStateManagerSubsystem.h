@@ -6,6 +6,7 @@
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "TcsStateSlot.h"
 #include "State/TcsState.h"
+#include "TcsSourceHandle.h"
 #include "TcsStateManagerSubsystem.generated.h"
 
 
@@ -130,9 +131,15 @@ protected:
 	 * @param Owner 状态的拥有者，也是状态的应用目标
 	 * @param Instigator 状态的发起者
 	 * @param InLevel 状态等级（默认1）
+	 * @param ParentSourceHandle 父级来源句柄 (用于因果链传递, 默认为空)
 	 * @return 如果创建状态实例成功，则返回状态实例指针，否则返回nullptr
 	 */
-	UTcsStateInstance* CreateStateInstance(FName StateDefId, AActor* Owner, AActor* Instigator, int32 InLevel = 1);
+	UTcsStateInstance* CreateStateInstance(
+		FName StateDefId,
+		AActor* Owner,
+		AActor* Instigator,
+		int32 InLevel = 1,
+		const FTcsSourceHandle& ParentSourceHandle = FTcsSourceHandle());
 
 	/**
 	 * 评估并应用状态参数（合并验证与初始化为一次评估）
@@ -173,6 +180,7 @@ public:
 	 * @param StateDefId 状态定义名，可通过TcsGenericLibrary.GetStateDefIds获取
 	 * @param Instigator 状态的发起者
 	 * @param StateLevel 状态等级（默认为 1）
+	 * @param ParentSourceHandle 父级来源句柄 (用于因果链传递, 默认为空)
 	 * @return 如果应用状态成功，则返回true，否则返回false
 	 */
 	UFUNCTION(BlueprintCallable, Category = "State Manager")
@@ -180,7 +188,8 @@ public:
 		AActor* Target,
 		FName StateDefId,
 		AActor* Instigator,
-		int32 StateLevel = 1);
+		int32 StateLevel = 1,
+		const FTcsSourceHandle& ParentSourceHandle = FTcsSourceHandle());
 
 	/**
 	 * 

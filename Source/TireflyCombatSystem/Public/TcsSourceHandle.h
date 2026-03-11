@@ -4,7 +4,6 @@
 
 #include "CoreMinimal.h"
 #include "GameplayTagContainer.h"
-#include "Engine/DataTable.h"
 #include "TcsSourceHandle.generated.h"
 
 
@@ -13,12 +12,15 @@
  * SourceHandle 用于标识和追踪效果的来源
  *
  * 核心概念:
- * - Source: 效果的定义/配置 (通过 DataTable 引用)
+ * - Id: 全局唯一标识符（单调递增）
  * - Instigator: 实际造成效果的实体 (运行时 Actor)
+ * - SourceTags: 来源标签（可选，用于分类/过滤）
+ * - CausalityChain: 因果链，从根源到直接父级的 PrimaryAssetId 有序链（不包含自身）
  *
  * 示例:
- * - 技能直接造成伤害: Source=技能Definition, Instigator=角色
- * - 陷阱造成伤害: Source=技能Definition(继承), Instigator=陷阱
+ * - 根源 State (玩家释放技能): CausalityChain 为空
+ * - 派生 State (技能 → Buff): CausalityChain = [技能StateDefAsset.PrimaryAssetId]
+ * - 多层派生 (技能 → Buff → 持续伤害): CausalityChain = [技能Id, BuffId]
  */
 USTRUCT(BlueprintType)
 struct TIREFLYCOMBATSYSTEM_API FTcsSourceHandle
@@ -30,21 +32,17 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "Source Handle")
 	int32 Id = -1;
 
-	// Source 定义的 DataTable 引用 (可选, 用户自定义效果可以为空)
-	UPROPERTY(BlueprintReadOnly, Category = "Source Handle")
-	FDataTableRowHandle SourceDefinition;
-
-	// Source 名称 (冗余字段, 用于快速访问和调试)
-	UPROPERTY(BlueprintReadOnly, Category = "Source Handle")
-	FName SourceName = NAME_None;
-
-	// Source 类型标签 (用于分类和过滤)
+	// Source 类型标签 (可选, 用于分类和过滤)
 	UPROPERTY(BlueprintReadOnly, Category = "Source Handle")
 	FGameplayTagContainer SourceTags;
 
 	// 施加者 (实际造成效果的实体, 使用弱指针避免 GC 问题)
 	UPROPERTY(BlueprintReadOnly, Category = "Source Handle")
 	TWeakObjectPtr<AActor> Instigator;
+
+	// 因果链: 从根源到直接父级的 PrimaryAssetId 有序链 (不包含自身)
+	UPROPERTY(BlueprintReadOnly, Category = "Source Handle")
+	TArray<FPrimaryAssetId> CausalityChain;
 
 public:
 	// 默认构造函数
@@ -53,31 +51,16 @@ public:
 	/**
 	 * 完整构造函数
 	 * @param InId 全局唯一ID
-	 * @param InSourceDefinition Source定义的DataTable引用
-	 * @param InSourceName Source名称
-	 * @param InSourceTags Source类型标签
+	 * @param InCausalityChain 因果链
 	 * @param InInstigator 施加者Actor
+	 * @param InSourceTags Source类型标签
 	 */
-	FTcsSourceHandle(int32 InId, const FDataTableRowHandle& InSourceDefinition, FName InSourceName,
-		const FGameplayTagContainer& InSourceTags, AActor* InInstigator)
+	FTcsSourceHandle(int32 InId, const TArray<FPrimaryAssetId>& InCausalityChain,
+		AActor* InInstigator, const FGameplayTagContainer& InSourceTags = FGameplayTagContainer())
 		: Id(InId)
-		, SourceDefinition(InSourceDefinition)
-		, SourceName(InSourceName)
 		, SourceTags(InSourceTags)
 		, Instigator(InInstigator)
-	{
-	}
-
-	/**
-	 * 简化构造函数 (用于用户自定义效果, 无 DataTable Definition)
-	 * @param InId 全局唯一ID
-	 * @param InSourceName Source名称
-	 * @param InInstigator 施加者Actor
-	 */
-	FTcsSourceHandle(int32 InId, FName InSourceName, AActor* InInstigator)
-		: Id(InId)
-		, SourceName(InSourceName)
-		, Instigator(InInstigator)
+		, CausalityChain(InCausalityChain)
 	{
 	}
 
@@ -91,34 +74,26 @@ public:
 	}
 
 	/**
-	 * 获取 Source Definition
-	 * @return Source Definition 指针, 如果不存在则返回 nullptr
-	 */
-	template<typename T>
-	T* GetSourceDefinition() const
-	{
-		if (SourceDefinition.IsNull())
-		{
-			return nullptr;
-		}
-
-		return SourceDefinition.GetRow<T>(TEXT("TcsSourceHandle"));
-	}
-
-	/**
 	 * 生成调试字符串
-	 * @return 格式: "[SourceName|ID] Instigator=ActorName" 或 "[SourceName|ID]"
+	 * @return 格式: "[SH:ID] Instigator=ActorName Chain=[...]" 或 "[SH:ID]"
 	 */
 	FString ToDebugString() const
 	{
+		FString ChainStr;
+		for (int32 i = 0; i < CausalityChain.Num(); ++i)
+		{
+			if (i > 0) ChainStr += TEXT("->");
+			ChainStr += CausalityChain[i].ToString();
+		}
+
 		if (Instigator.IsValid())
 		{
-			return FString::Printf(TEXT("[%s|%d] Instigator=%s"),
-				*SourceName.ToString(), Id, *Instigator->GetName());
+			return FString::Printf(TEXT("[SH:%d] Instigator=%s Chain=[%s]"),
+				Id, *Instigator->GetName(), *ChainStr);
 		}
 		else
 		{
-			return FString::Printf(TEXT("[%s|%d]"), *SourceName.ToString(), Id);
+			return FString::Printf(TEXT("[SH:%d] Chain=[%s]"), Id, *ChainStr);
 		}
 	}
 

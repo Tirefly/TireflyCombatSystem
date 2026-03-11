@@ -156,7 +156,7 @@ public:
 		UPARAM(Meta = (GetParamOptions = "TcsGenericLibrary.GetAttributeNames"))FName AttributeName);
 
 	/**
-	 * 移除属性
+	 * 移除属性和所有属性相关的修改器
 	 *
 	 * @param CombatEntity 战斗实体
 	 * @param AttributeName 属性名称
@@ -290,32 +290,18 @@ protected:
 
 public:
 	/**
-	 * 创建 SourceHandle (完整版本)
+	 * 创建 SourceHandle (唯一的创建入口)
 	 *
-	 * @param SourceDefinition Source定义的DataTable引用
-	 * @param SourceName Source名称
-	 * @param SourceTags Source类型标签
+	 * @param CausalityChain 因果链 (从根源到直接父级的 PrimaryAssetId 有序链)
 	 * @param Instigator 施加者Actor
+	 * @param SourceTags Source类型标签 (可选)
 	 * @return 创建的SourceHandle
 	 */
 	UFUNCTION(BlueprintCallable, Category = "TireflyCombatSystem|SourceHandle")
 	FTcsSourceHandle CreateSourceHandle(
-		const FDataTableRowHandle& SourceDefinition,
-		FName SourceName,
-		const FGameplayTagContainer& SourceTags,
-		AActor* Instigator);
-
-	/**
-	 * 创建 SourceHandle (简化版本, 用于用户自定义效果)
-	 *
-	 * @param SourceName Source名称
-	 * @param Instigator 施加者Actor
-	 * @return 创建的SourceHandle
-	 */
-	UFUNCTION(BlueprintCallable, Category = "TireflyCombatSystem|SourceHandle")
-	FTcsSourceHandle CreateSourceHandleSimple(
-		FName SourceName,
-		AActor* Instigator);
+		const TArray<FPrimaryAssetId>& CausalityChain,
+		AActor* Instigator,
+		const FGameplayTagContainer& SourceTags = FGameplayTagContainer());
 
 protected:
 	// 全局 SourceHandle ID 管理器

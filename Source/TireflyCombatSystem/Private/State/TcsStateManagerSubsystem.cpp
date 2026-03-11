@@ -3,6 +3,7 @@
 
 #include "State/TcsStateManagerSubsystem.h"
 
+#include "Attribute/TcsAttributeManagerSubsystem.h"
 #include "Engine/DataTable.h"
 #include "StateTree.h"
 #include "StructUtils/InstancedStruct.h"
@@ -412,7 +413,8 @@ UTcsStateInstance* UTcsStateManagerSubsystem::CreateStateInstance(
     FName StateDefRowId,
     AActor* Owner,
     AActor* Instigator,
-	int32 InLevel)
+	int32 InLevel,
+	const FTcsSourceHandle& ParentSourceHandle)
 {
     if (!IsValid(Owner) || !IsValid(Instigator))
     {
@@ -500,6 +502,27 @@ UTcsStateInstance* UTcsStateManagerSubsystem::CreateStateInstance(
 
     // 标记应用时间戳（用于合并器等逻辑）
     StateInstance->SetApplyTimestamp(FDateTime::UtcNow().GetTicks());
+
+    // 初始化 SourceHandle：从 ParentSourceHandle 构建因果链
+    {
+        TArray<FPrimaryAssetId> NewCausalityChain = ParentSourceHandle.CausalityChain;
+        if (ParentSourceHandle.IsValid() && StateDefAsset)
+        {
+            // 将父级 State 的 PrimaryAssetId 追加到因果链
+            NewCausalityChain.Add(StateDefAsset->GetPrimaryAssetId());
+        }
+
+        if (UTcsAttributeManagerSubsystem* AttrMgr = GetGameInstance()->GetSubsystem<UTcsAttributeManagerSubsystem>())
+        {
+            StateInstance->SetSourceHandle(AttrMgr->CreateSourceHandle(NewCausalityChain, Instigator));
+        }
+        else
+        {
+            UE_LOG(LogTcsState, Warning, TEXT("[%s] Failed to get AttributeManagerSubsystem, SourceHandle not initialized for state '%s'"),
+                *FString(__FUNCTION__),
+                *StateDefRowId.ToString());
+        }
+    }
 
     return StateInstance;
 }
@@ -741,7 +764,8 @@ bool UTcsStateManagerSubsystem::TryApplyStateToTarget(
     AActor* Target,
     FName StateDefId,
     AActor* Instigator,
-    int32 StateLevel)
+    int32 StateLevel,
+    const FTcsSourceHandle& ParentSourceHandle)
 {
     if (!IsValid(Target) || !IsValid(Instigator))
     {
@@ -773,7 +797,7 @@ bool UTcsStateManagerSubsystem::TryApplyStateToTarget(
 		return false;
 	}
 
-	UTcsStateInstance* NewStateInstance = CreateStateInstance(StateDefId, Target, Instigator, StateLevel);
+	UTcsStateInstance* NewStateInstance = CreateStateInstance(StateDefId, Target, Instigator, StateLevel, ParentSourceHandle);
 	if (!IsValid(NewStateInstance))
 	{
 		TargetStateCmp->NotifyStateApplyFailed(
@@ -2628,6 +2652,15 @@ void UTcsStateManagerSubsystem::FinalizeStateRemoval(UTcsStateInstance* StateIns
 		StateComponent->StateTreeTickScheduler.Remove(StateInstance);
 		StateComponent->DurationTracker.Remove(StateInstance);
 		StateComponent->StateInstanceIndex.RemoveInstance(StateInstance);
+
+		// Step 3.5: 清理通过 SourceHandle 创建的 Modifier (在广播事件之前)
+		if (StateInstance->GetSourceHandle().IsValid())
+		{
+			if (UTcsAttributeManagerSubsystem* AttrMgr = GetGameInstance()->GetSubsystem<UTcsAttributeManagerSubsystem>())
+			{
+				AttrMgr->RemoveModifiersBySourceHandle(StateInstance->GetOwner(), StateInstance->GetSourceHandle());
+			}
+		}
 
 		// Broadcast stage changed and removal.
 		StateComponent->NotifyStateStageChanged(StateInstance, PreviousStage, ETcsStateStage::SS_Expired);

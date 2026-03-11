@@ -70,115 +70,13 @@ openspec archive <change-id> --yes
 
 ### 实施流程（Stage 2）⭐ 最重要
 
-当提案已经存在时，**直接开始编码**：
+当提���已经存在时，**直接开始编码**：
 
 1. ✅ 读取 `tasks.md` - 获取任务清单（最重要！）
 2. ✅ 读取 `proposal.md` - 了解目标和背景
 3. ✅ 读取 `design.md` - 了解技术决策（如果存在）
 4. ✅ **直接开始实施任务** - 不需要任何 CLI 命令
 5. ✅ 完成后更新 `tasks.md`，标记 `[x]`
-
-### 文件结构速查
-
-```
-openspec/
-├── AGENTS.md           # 完整指南（只在需要时查阅特定章节）
-├── project.md          # 项目约定
-├── specs/              # 当前规范（已实现）
-└── changes/            # 变更提案（待实施）
-    └── <change-id>/
-        ├── proposal.md # 为什么、改什么
-        ├── tasks.md    # 任务清单 ⭐ 最重要
-        ├── design.md   # 技术决策（可选）
-        └── specs/      # 规范增量
-```
-
-### 优化建议
-
-#### ❌ 不要做
-
-- 尝试 `openspec apply`（不存在）
-- 完整读取 AGENTS.md（太长，6000+ tokens）
-- 在实施阶段使用 OpenSpec CLI（除了 validate）
-- 读取不必要的文件
-
-#### ✅ 应该做
-
-- 直接读取 tasks.md 开始编码
-- 只在验证时使用 `openspec validate`
-- 完成后更新 tasks.md
-- 只在遇到问题时查阅 AGENTS.md 的特定章节
-
-### 推荐工作流程
-
-#### 场景 1：实施现有提案
-
-```bash
-# 1. 快速查看（1 个命令）
-openspec show <change-id>
-
-# 2. 读取任务清单（1 个文件）
-# Read: openspec/changes/<change-id>/tasks.md
-
-# 3. 直接开始编码
-# 不需要任何 CLI 命令！
-
-# 4. 完成后验证（可选）
-openspec validate <change-id> --strict --no-interactive
-```
-
-**Token 节省**：~5,000 tokens
-
-#### 场景 2：创建新提案
-
-```bash
-# 1. 检查现有状态
-openspec list
-openspec list --specs
-
-# 2. 创建提案文件
-# 手动创建 proposal.md, tasks.md, design.md, specs/
-
-# 3. 验证
-openspec validate <change-id> --strict --no-interactive
-```
-
-### 关键经验总结
-
-1. **OpenSpec 是"文档驱动"而非"工具驱动"**
-   - CLI 工具主要用于**查看**和**验证**
-   - 实际实施是**手动编码**
-   - tasks.md 是最重要的文件
-
-2. **AGENTS.md 的正确使用方式**
-   - **不要**一次性读取整个文件
-   - **应该**在遇到具体问题时查阅相关章节
-   - **可以**在项目开始时快速浏览 "TL;DR Quick Checklist"
-
-3. **任务跟踪**
-   - 使用 TaskCreate/TaskUpdate 跟踪进度（可选但推荐）
-   - 完成后更新 tasks.md 中的 `[ ]` 为 `[x]`
-   - 使用 `openspec list` 查看进度
-
-### 下次开发的最佳实践
-
-```bash
-# === 开始前（30 秒）===
-cd Plugins/TireflyCombatSystem
-openspec list                           # 查看变更列表
-openspec show <change-id>               # 查看摘要
-
-# === 实施阶段（主要工作）===
-# 1. Read: tasks.md（必读）
-# 2. Read: proposal.md（了解背景）
-# 3. 直接开始编码
-# 4. 更新 tasks.md 标记完成
-
-# === 完成后（验证）===
-openspec validate <change-id> --strict --no-interactive
-```
-
-**预计 Token 节省**：每次开发可节省 4,000-6,000 tokens
 
 ---
 
@@ -187,55 +85,46 @@ openspec validate <change-id> --strict --no-interactive
 > **TireflyCombatSystem** 是为 UE5 设计的高度模块化战斗系统框架。
 > 核心理念："一切皆状态"，提供统一的属性、状态、技能管理方案。
 
-**版本**: 1.0 (UE5) | **状态**: Beta
+**版本**: 1.0 (UE5.6) | **状态**: Beta
 
 ## 📊 完成度速览
 
 | 模块 | 完成度 | 说明 |
 |------|--------|------|
-| 属性系统 (Attribute) | 95% | 核心功能完备，SourceHandle 机制已集成 |
-| 状态系统 (State) | 85% | 核心架构完成，StateTree集成进行中 |
+| 属性系统 (Attribute) | 95% | 核心功能完备，Clamp 策略已集成 |
+| 状态系统 (State) | 90% | 核心架构完成，StateTree 集成进行中 |
 | 技能系统 (Skill) | 95% | 基本功能完整，缺少少量高级特性 |
-| StateTree集成 | 80% | 基础集成完成，专用节点开发中 |
-| **SourceHandle 机制** | **100%** | **统一来源追踪，支持网络同步和性能优化** |
+| StateTree 集成 | 85% | 基础集成完成，专用节点开发中 |
+| SourceHandle 机制 | 100% | P0 全部实施完成，支持��果链追踪和自动生命周期管理 |
 
 ---
 
 ## 核心设计理念
 
-- **统一状态管理**: 技能、Buff、状态使用同一套 `FTcsStateDefinition` 和 `UTcsStateInstance`
-- **StateTree双层架构**: 静态槽位结构 + 动态实例执行，支持可视化编辑
-- **策略模式**: 通过CDO实现零代码扩展，所有算法都可继承和定制
-- **数据驱动**: 数据表驱动的配置，减少硬编码
+- **统一状态管理**: 技能、Buff、状态使用同一套 `UTcsStateDefinitionAsset` 和 `UTcsStateInstance`
+- **StateTree 双层架构**: 静态槽位结构 + 动态实例执行，支持可视化编辑
+- **策略模式**: 通过 CDO 实现零代码扩展，所有算法都可继承和定制
+- **数据驱动**: DataAsset 驱动的配置，减少硬编码
 - **高性能设计**: 对象池、批量更新、智能缓存机制
-- **SourceHandle 机制**: 统一的效果来源追踪，支持精确的生命周期管理和事件归因
+- **SourceHandle 机制**: 统一的效果来源追踪，支持因果链、精确的生命周期管理和事件归因
 
 ---
 
-## SourceHandle 机制 🆕
+## SourceHandle 机制
 
-**SourceHandle** 是 TCS 1.0 引入的核心机制，用于统一追踪效果来源，解决传统 `SourceName` 字符串无法提供完整来源信息的问题。
+**SourceHandle** 是 TCS 的核心追踪机制，用于标识效果来源、构建因果链、管理 Modifier 生命周期。
 
-### 核心特性
+### 核心结构
 
-- ✅ **全局唯一 ID**: int32 单调递增，保证唯一性
-- ✅ **Source vs Instigator**: 明确区分效果定义和实际施加者
-- ✅ **DataTable 引用**: 通过 `FDataTableRowHandle` 引用持久化的 Source Definition
-- ✅ **网络同步**: 自定义 NetSerialize 支持多人游戏
-- ✅ **性能优化**: O(1) 查询复杂度（索引加速）
-- ✅ **事件归因**: 属性变化事件包含完整的 SourceHandle 信息
-- ✅ **蓝图支持**: 所有 API 完整支持蓝图调用
-
-### 核心概念
-
-| 概念 | 含义 | 类型 | 示例 |
-|------|------|------|------|
-| **Source** | 效果的定义/配置 | `FDataTableRowHandle` | 技能 Definition、装备效果 Definition |
-| **Instigator** | 实际造成效果的实体 | `AActor*` (TWeakObjectPtr) | 角色、陷阱、投射物 |
-
-**典型场景**：
-- 技能直接造成伤害: Source = 技能 Definition，Instigator = 角色
-- 陷阱造成伤害: Source = 技能 Definition（继承），Instigator = 陷阱
+```cpp
+struct FTcsSourceHandle
+{
+    int32 Id;                                    // 全局唯一 ID（单调递增）
+    FGameplayTagContainer SourceTags;            // 来源标签（可选）
+    TWeakObjectPtr<AActor> Instigator;           // 施加者
+    TArray<FPrimaryAssetId> CausalityChain;      // 因果链（从根源到直接父级）
+};
+```
 
 ### 快速开始
 
@@ -245,10 +134,9 @@ UTcsAttributeManagerSubsystem* AttrMgr = GetWorld()->GetGameInstance()
     ->GetSubsystem<UTcsAttributeManagerSubsystem>();
 
 FTcsSourceHandle SourceHandle = AttrMgr->CreateSourceHandle(
-    SkillDefinition,    // Source Definition
-    FName("Fireball"),  // Source Name
-    SkillTags,          // Source Tags
-    CasterActor         // Instigator
+    {},             // CausalityChain（根源为空）
+    CasterActor,    // Instigator
+    SkillTags       // SourceTags（可选）
 );
 
 // 2. 应用修改器
@@ -260,7 +148,34 @@ AttrMgr->ApplyModifierWithSourceHandle(TargetActor, SourceHandle, ModifierIds, O
 AttrMgr->RemoveModifiersBySourceHandle(TargetActor, SourceHandle);
 ```
 
-**详细文档**: [SourceHandle 使用指南](./Documents/SourceHandle使用指南.md)
+### 设计决策
+
+1. **不存储 SourceDefinition**：各实例（Modifier、State）自身已持有定义引用
+2. **因果链用 FPrimaryAssetId**：天然兼容所有 UPrimaryDataAsset 子类
+3. **Modifier 生命周期跟随 State**：FinalizeStateRemoval 中自动清理所有通过 SourceHandle 创建的 Modifier
+4. **GetModifiersBySourceHandle 纯 const 查询**：不修改内部数据，过期 ID 仅输出 Warning
+
+### 设计规范
+
+**跨 Actor 修改规范**：
+- ❌ **禁止**：StateTree 中直接对其他 Actor 调用 `ApplyModifierWithSourceHandle`
+- ✅ **正确**：在目标 Actor 上施加独立 State，由目标 State 的 SourceHandle 管理其 Modifier 生命周期
+
+**因果链构建**：
+- 根源 State：CausalityChain 为空数组
+- 派生 State：CausalityChain = ParentSourceHandle.CausalityChain + ParentStateDefAsset.PrimaryAssetId
+
+**API**：
+- `CreateSourceHandle(CausalityChain, Instigator, SourceTags)` - 唯一的创建入口
+- `TryApplyStateToTarget(..., ParentSourceHandle)` - 支持因果链传递
+- `RemoveModifiersBySourceHandle(Owner, SourceHandle)` - 清理 Owner 上的 Modifier
+- `GetModifiersBySourceHandle(CombatEntity, SourceHandle, OutModifiers)` - 纯 const 查询
+
+### 待办
+
+- **P1**：SourceHandle 查询 API 增强（按 Tag/Instigator 批量查询）
+- **P2**：SkillModifier SourceHandle 集成（待 SkillModifier 基础架构成型）
+- **P2**：对象池集成（涉及 TCS 底层逻辑）
 
 ---
 
@@ -274,7 +189,7 @@ AttrMgr->RemoveModifiersBySourceHandle(TargetActor, SourceHandle);
 ├─ 技能 (Skill)  - 攻击、法术等
 └─ Buff (Buff)   - 增益、减益等
      ↓ 全部使用同一套系统管理
-FTcsStateDefinition + UTcsStateInstance + StateTree
+UTcsStateDefinitionAsset + UTcsStateInstance + StateTree
 ```
 
 ### StateTree 双层架构
@@ -297,81 +212,33 @@ Layer 2: 动态状态实例 (动态)
 |---------|------|---------|
 | 属性执行 | `UTcsAttributeModifierExecution` | Add、Multiply、MultiplyAdditive |
 | 属性合并 | `UTcsAttributeModifierMerger` | NoMerge、UseNewest、UseMaximum、UseAdditiveSum |
-| **属性 Clamp** 🆕 | **`UTcsAttributeClampStrategy`** | **Linear（默认）、自定义策略** |
+| 属性 Clamp | `UTcsAttributeClampStrategy` | Linear（默认）、自定义策略 |
 | 状态条件 | `UTcsStateCondition` | AttributeComparison、ParameterBased |
 | 状态合并 | `UTcsStateMerger` | NoMerge、Stack、UseNewest、UseOldest |
+| 同优先级策略 | `UTcsStateSamePriorityPolicy` | UseNewest、UseOldest |
 | 技能修正 | `UTcsSkillModifierExecution` | AdditiveParam、CooldownMultiplier、CostMultiplier |
-
----
-
-## 目录结构
-
-```
-TireflyCombatSystem/
-├── Source/TireflyCombatSystem/
-│   ├── Public/
-│   │   ├── Attribute/                    # 属性系统 (90%)
-│   │   │   ├── AttrModExecution/        # 执行算法
-│   │   │   ├── AttrModMerger/           # 合并策略
-│   │   │   ├── AttrClampStrategy/       # Clamp 策略 🆕
-│   │   │   ├── TcsAttribute.h
-│   │   │   ├── TcsAttributeComponent.h
-│   │   │   └── TcsAttributeModifier.h
-│   │   │
-│   │   ├── State/                       # 状态系统 (85%)
-│   │   │   ├── StateCondition/          # 条件检查
-│   │   │   ├── StateMerger/             # 合并策略
-│   │   │   ├── StateParameter/          # 参数解析
-│   │   │   ├── TcsState.h
-│   │   │   ├── TcsStateComponent.h
-│   │   │   └── TcsStateManagerSubsystem.h
-│   │   │
-│   │   ├── Skill/                       # 技能系统 (95%)
-│   │   │   ├── Modifiers/
-│   │   │   │   ├── Conditions/          # 修正条件
-│   │   │   │   ├── Executions/          # 修正执行
-│   │   │   │   ├── Filters/             # 过滤器
-│   │   │   │   └── Mergers/             # 修正合并
-│   │   │   ├── TcsSkillComponent.h
-│   │   │   ├── TcsSkillInstance.h
-│   │   │   └── TcsSkillManagerSubsystem.h
-│   │   │
-│   │   ├── StateTree/                   # StateTree集成 (80%)
-│   │   │   ├── TcsStateChangeNotifyTask.h
-│   │   │   ├── TcsStateSlotDebugEvaluator.h
-│   │   │   └── TcsStateTreeSchema_StateInstance.h
-│   │   │
-│   │   ├── TcsEntityInterface.h          # 战斗实体接口
-│   │   ├── TcsGenericEnum.h              # 枚举定义
-│   │   ├── TcsGenericLibrary.h           # 通用库
-│   │   ├── TcsGenericMacro.h             # 宏定义
-│   │   ├── TcsDeveloperSettings.h        # 开发者设置
-│   │   └── TcsLogChannels.h              # 日志通道
-│   │
-│   └── Private/                         # 实现文件
-│
-├── Config/DefaultTireflyCombatSystem.ini
-├── TireflyCombatSystem.uplugin
-└── CLAUDE.md (本文档)
-```
 
 ---
 
 ## 三大系统详解
 
-### 1️⃣ 属性系统 (Attribute System) - 90%
+### 1️⃣ 属性系统 (Attribute System) - 95%
 
 **职责**: 管理所有数值属性（生命值、攻击力、防御力等）
 
 **核心类**:
 - `UTcsAttributeComponent` - 属性管理组件
-- `FTcsAttribute` - 属性定义
-- `FTcsAttributeInstance` - 属性实例
+- `UTcsAttributeManagerSubsystem` - 全局属性管理（SourceHandle API 所在）
+- `UTcsAttributeDefinitionAsset` - 属性定义（UPrimaryDataAsset）
+- `UTcsAttributeModifierDefinitionAsset` - 修改器定义（UPrimaryDataAsset）
+- `FTcsAttribute` / `FTcsAttributeInstance` - 属性定义/实例
 - `FTcsAttributeModifierInstance` - 修改器实例
+- `FTcsSourceHandle` - 来源句柄
+- `FTcsAttributeChangeEventPayload` - 属性变化事件
 
 **执行流程**:
 ```
-添加属性 → 应用修改器 → 执行算法 → 合并结果 → 计算最终值 → 触发事件
+添加属性 → 应用修改器 → 执行算法 → 合并结果 → Clamp → 计算最终值 → 触发事件
 ```
 
 **执行算法** (`AttrModExecution/`):
@@ -381,53 +248,39 @@ TireflyCombatSystem/
 
 **合并策略** (`AttrModMerger/`):
 - `UTcsAttrModMerger_NoMerge` - 全部应用
-- `UTcsAttrModMerger_UseNewest` - 使用最新
-- `UTcsAttrModMerger_UseOldest` - 使用最旧
-- `UTcsAttrModMerger_UseMaximum` - 取最大值
-- `UTcsAttrModMerger_UseMinimum` - 取最小值
+- `UTcsAttrModMerger_UseNewest` / `UseOldest` - 使用最新/最旧
+- `UTcsAttrModMerger_UseMaximum` / `UseMinimum` - 取最大/最小值
 - `UTcsAttrModMerger_UseAdditiveSum` - 加法求和
 
-**Clamp 策略** (`AttrClampStrategy/`) 🆕:
+**Clamp 策略** (`AttrClampStrategy/`):
+- `UTcsAttributeClampStrategy` - 基类
 - `UTcsAttrClampStrategy_Linear` - 线性约束（默认，FMath::Clamp）
-- 支持自定义策略（C++ 或蓝图继承 `UTcsAttributeClampStrategy`）
-- 每个属性可独立配置 Clamp 策略
-- 示例：循环 Clamp（角度）、阶梯 Clamp（整数等级）、软 Clamp（衰减）
+- `FTcsAttributeClampContext` - Clamp 上下文数据
+- `UTcsAttributeClampContextLibrary` - Clamp 上下文蓝图库
 
 ---
 
-### 2️⃣ 状态系统 (State System) - 85%
+### 2️⃣ 状态系统 (State System) - 90%
 
 **职责**: 管理所有状态（技能、Buff、普通状态等）
 
 **核心类**:
 - `UTcsStateComponent` - 状态管理组件（继承 StateTreeComponent）
-- `UTcsStateInstance` - 状态实例
-- `FTcsStateDefinition` - 状态定义（TableRowBase）
 - `UTcsStateManagerSubsystem` - 全局状态管理
-- `UTcsStateSlot` - 状态槽位
+- `UTcsStateDefinitionAsset` - 状态定义（UPrimaryDataAsset）
+- `UTcsStateSlotDefinitionAsset` - 状态槽定义（UPrimaryDataAsset）
+- `UTcsStateInstance` - 状态实例（携带 SourceHandle）
+- `FTcsStateSlot` - 状态槽位
 
-**状态类型** (`ETcsStateType`):
-```cpp
-ST_State = 0    // 普通状态
-ST_Skill        // 技能
-ST_Buff         // Buff效果
-```
+**状态类型** (`ETcsStateType`): State、Skill、Buff
 
-**状态阶段** (`ETcsStateStage`):
-```cpp
-SS_Inactive = 0 // 未激活
-SS_Active       // 已激活
-SS_HangUp       // 挂起
-SS_Expired      // 已过期
-```
+**状态阶段** (`ETcsStateStage`): Inactive → Active → HangUp/Pause → Expired
 
 **参数系统** (`StateParameter/`):
-- 支持三种类型：Numeric (Float)、Bool、Vector
+- 三种类型：Numeric (Float)、Bool、Vector
 - `UTcsStateParameter_ConstNumeric` - 常数参数
-- `UTcsStateParameter_InstigatorLevelArray` - 根据施法者等级查询
-- `UTcsStateParameter_InstigatorLevelTable` - 根据施法者等级查表
-- `UTcsStateParameter_StateLevelArray` - 根据状态等级查询
-- `UTcsStateParameter_StateLevelTable` - 根据状态等级查表
+- `UTcsStateParameter_InstigatorLevelArray/Table` - 根据施法者等级查询
+- `UTcsStateParameter_StateLevelArray/Table` - 根据状态等级查询
 
 **状态条件** (`StateCondition/`):
 - `UTcsStateCondition_AttributeComparison` - 属性比较
@@ -435,9 +288,25 @@ SS_Expired      // 已过期
 
 **合并策略** (`StateMerger/`):
 - `UTcsStateMerger_NoMerge` - 不合并，可并存
-- `UTcsStateMerger_UseNewest` - 使用最新
-- `UTcsStateMerger_UseOldest` - 使用最旧
+- `UTcsStateMerger_UseNewest` / `UseOldest` - 使用最新/最旧
 - `UTcsStateMerger_Stack` - 叠加合并
+
+**同优先级策略** (`SamePriorityPolicy/`):
+- `UTcsStateSamePriorityPolicy` - 基类
+- `UTcsStateSamePriorityPolicy_UseNewest` - 使用最新
+- `UTcsStateSamePriorityPolicy_UseOldest` - 使用最旧
+
+**状态移除流程**:
+```
+RequestStateRemoval → FinalizePendingRemovalRequest → FinalizeStateRemoval
+  Step 1: Stop StateTree
+  Step 2: Mark Expired
+  Step 3: Remove from containers
+  Step 3.5: 清理 SourceHandle 关联的 Modifier ← SourceHandle 自动清理
+  Step 4: Broadcast events
+  Step 5: Slot cleanup
+  Step 6: MarkPendingGC
+```
 
 ---
 
@@ -449,11 +318,6 @@ SS_Expired      // 已过期
 - `UTcsSkillComponent` - 技能管理组件
 - `UTcsSkillInstance` - 技能实例（已学会的技能）
 - `UTcsSkillManagerSubsystem` - 全局技能管理
-
-**核心概念**:
-- **SkillInstance**: 代表角色已学会的技能，存储等级、冷却等信息
-- **StateInstance**: 技能释放时动态创建，在目标上执行
-- **参数同步**: 快照参数 vs 实时参数的性能优化
 
 **技能修正系统**:
 
@@ -478,16 +342,27 @@ SS_Expired      // 已过期
 
 ---
 
+### 4️⃣ StateTree 集成 - 85%
+
+**专用节点**:
+- `UTcsStateTreeSchema_StateInstance` - StateInstance 专用 Schema
+- `FTcsStateChangeNotifyTask` - 状态变化通知 Task
+- `FTcsStateSlotDebugEvaluator` - 状态槽调试 Evaluator
+- `FTcsStateRemovalConfirmTask` - 状态移除确认 Task
+
+---
+
 ## 命名规范
 
 ### 类命名
 
-所有TCS类使用 `Tcs` 前缀：
+所有 TCS 类使用 `Tcs` 前缀：
 
 - **组件**: `UTcs*Component`（如 `UTcsAttributeComponent`）
 - **子系统**: `UTcs*Subsystem`（如 `UTcsStateManagerSubsystem`）
 - **实例**: `UTcs*Instance` 或 `FTcs*Instance`
-- **策略**: `UTcs*Execution`、`UTcs*Merger` 等
+- **策略**: `UTcs*Execution`、`UTcs*Merger`、`UTcs*Strategy` 等
+- **定义资产**: `UTcs*DefinitionAsset`（如 `UTcsStateDefinitionAsset`）
 - **接口**: `ITcsEntityInterface`
 
 ### 文件命名
@@ -495,17 +370,16 @@ SS_Expired      // 已过期
 - 头文件: `Tcs*.h`
 - 源文件: `Tcs*.cpp`
 - 蓝图类: `BP_Tcs*`
-- 数据表: `DT_Tcs*`
 
 ### 枚举和结构体
 
 ```cpp
 enum class ETcs*          // 枚举前缀
 struct FTcs*              // 结构体前缀
-struct UObject : UTcs*    // 对象前缀
+class UTcs*               // UObject 前缀
 ```
 
-### GameplayTag约定
+### GameplayTag 约定
 
 ```
 StateSlot.Action       // 行动状态槽
@@ -520,6 +394,71 @@ State.Type.Debuff      // 减益状态
 
 ---
 
+## 目录结构
+
+```
+TireflyCombatSystem/
+├── Source/TireflyCombatSystem/
+│   ├── Public/
+│   │   ├── Attribute/                    # 属性系统
+│   │   │   ├── AttrModExecution/        # 执行算法
+│   │   │   ├── AttrModMerger/           # 合并策略
+│   │   │   ├── AttrClampStrategy/       # Clamp 策略
+│   │   │   ├── TcsAttribute.h
+│   │   │   ├── TcsAttributeComponent.h
+│   │   │   ├── TcsAttributeModifier.h
+│   │   │   ├── TcsAttributeDefinitionAsset.h
+│   │   │   ├── TcsAttributeModifierDefinitionAsset.h
+│   │   │   ├── TcsAttributeManagerSubsystem.h
+│   │   │   └── TcsAttributeChangeEventPayload.h
+│   │   │
+│   │   ├── State/                       # 状态系统
+│   │   │   ├── StateCondition/          # 条件检查
+│   │   │   ├── StateMerger/             # 合并策略
+│   │   │   ├── StateParameter/          # 参数解析
+│   │   │   ├── SamePriorityPolicy/      # 同优先级策略
+│   │   │   ├── TcsState.h
+│   │   │   ├── TcsStateComponent.h
+│   │   │   ├── TcsStateSlot.h
+│   │   │   ├── TcsStateManagerSubsystem.h
+│   │   │   ├── TcsStateDefinitionAsset.h
+│   │   │   └── TcsStateSlotDefinitionAsset.h
+│   │   │
+│   │   ├── Skill/                       # 技能系统
+│   │   │   ├── Modifiers/
+│   │   │   │   ├── Conditions/          # 修正条件
+│   │   │   │   ├── Executions/          # 修正执行
+│   │   │   │   ├── Filters/             # 过滤器
+│   │   │   │   └── Mergers/             # 修正合并
+│   │   │   ├── TcsSkillComponent.h
+│   │   │   ├── TcsSkillInstance.h
+│   │   │   └── TcsSkillManagerSubsystem.h
+│   │   │
+│   │   ├── StateTree/                   # StateTree 集成
+│   │   │   ├── TcsStateChangeNotifyTask.h
+│   │   │   ├── TcsStateSlotDebugEvaluator.h
+│   │   │   ├── TcsStateRemovalConfirmTask.h
+│   │   │   └── TcsStateTreeSchema_StateInstance.h
+│   │   │
+│   │   ├── TcsEntityInterface.h          # 战斗实体接口
+│   │   ├── TcsSourceHandle.h             # SourceHandle 结构体
+│   │   ├── TcsGenericEnum.h              # 枚举定义
+│   │   ├── TcsGenericLibrary.h           # 通用库
+│   │   ├── TcsGenericMacro.h             # 宏定义
+│   │   ├── TcsGameplayTags.h             # GameplayTag 定义
+│   │   ├── TcsDeveloperSettings.h        # 开发者设置
+│   │   └── TcsLogChannels.h              # 日志通道
+│   │
+│   └── Private/                         # 实现文件（镜像 Public 结构）
+│
+├── Source/TireflyCombatSystemTests/      # 测试代码
+├── Documents/                           # 技术文档和调研
+├── Config/DefaultTireflyCombatSystem.ini
+└── TireflyCombatSystem.uplugin
+```
+
+---
+
 ## 关键接口和类
 
 ### 战斗实体接口
@@ -527,15 +466,10 @@ State.Type.Debuff      // 减益状态
 ```cpp
 class ITcsEntityInterface : public IInterface
 {
-    // 获取属性组件
     virtual UTcsAttributeComponent* GetAttributeComponent() const;
-    // 获取状态组件
     virtual UTcsStateComponent* GetStateComponent() const;
-    // 获取技能组件
     virtual UTcsSkillComponent* GetSkillComponent() const;
-    // 获取战斗实体类型
     virtual ETcsCombatEntityType GetCombatEntityType() const;
-    // 获取战斗实体等级
     virtual int32 GetCombatEntityLevel() const;
 };
 ```
@@ -547,20 +481,22 @@ class ITcsEntityInterface : public IInterface
 | `FTcsAttribute` | 属性定义 |
 | `FTcsAttributeInstance` | 属性实例数据 |
 | `FTcsAttributeModifierInstance` | 属性修改器实例 |
-| `FTcsStateDefinition` | 状态定义（继承 FTableRowBase） |
-| `FTcsStateDurationData` | 状态持续时间数据 |
-| `FTcsStateApplyResult` | 状态应用结果 |
-| `FTcsSkillModifierEffect` | 技能修正效果 |
+| `FTcsSourceHandle` | 来源句柄（Id + CausalityChain + Instigator + SourceTags） |
+| `FTcsStateSlot` | 状态槽位 |
+| `FTcsStateRemovalRequest` | 状态移除请求 |
+| `FTcsAttributeChangeEventPayload` | 属性变化事件载荷 |
+| `FTcsAttributeClampContext` | 属性 Clamp 上下文 |
 
 ### 枚举速览
 
 | 枚举 | 说明 | 值 |
 |-----|------|-----|
 | `ETcsStateType` | 状态类型 | State, Skill, Buff |
-| `ETcsStateStage` | 状态阶段 | Inactive, Active, HangUp, Expired |
-| `ETcsStateParameterType` | 参数类型 | Numeric, Bool, Vector |
-| `ETcsNumericComparison` | 数值比较 | Equal, NotEqual, >, >=, <, <= |
-| `ETcsAttributeCheckTarget` | 属性检查目标 | Owner, Instigator |
+| `ETcsStateStage` | 状态阶段 | Inactive, Active, HangUp, Pause, Expired |
+| `ETcsStateDurationType` | 持续时间类型 | None, Duration, Infinite |
+| `ETcsStateApplyFailReason` | 应用失败原因 | InvalidInput, NoStateComponent, ... |
+| `ETcsStateParameterKeyType` | 参数键类型 | ... |
+| `ETcsAttributeModifierMode` | 修改器模式 | BaseValue, CurrentValue |
 
 ---
 
@@ -568,104 +504,50 @@ class ITcsEntityInterface : public IInterface
 
 ### 1. 为什么 "一切皆状态"？
 
-**决策**: 技能、Buff、状态使用统一的定义和实例
-
-**好处**:
-- ✅ 架构统一，减少重复代码
-- ✅ 扩展方便，新增类型无需修改核心
-- ✅ 系统灵活，所有行为都遵循同一套规则
-
----
+技能、Buff、状态使用统一的 `UTcsStateDefinitionAsset` 和 `UTcsStateInstance`。
+- 架构统一，减少重复代码
+- 扩展方便，新增类型无需修改核心
+- 所有行为都遵循同一套规则
 
 ### 2. 为什么 StateTree 双层架构？
 
-**决策**: StateTree既管理槽位，又执行逻辑
-
-**优势**:
-- ✅ 可视化编辑，状态关系图形配置
-- ✅ 静动结合，静态结构 + 动态实例
-- ✅ 零代码配置，策划直接编辑StateTree
-
----
+StateTree 既管理槽位，又执行逻辑。
+- 可视化编辑，状态关系图形配置
+- 静动结合，静态结构 + 动态实例
+- 零代码配置，策划直接编辑 StateTree
 
 ### 3. 为什么分离 SkillInstance 和 StateInstance？
 
-**决策**: 技能实例和状态实例分开管理
-
-**原因**:
-- ✅ 职责清晰，学会状态 vs 执行状态
-- ✅ 性能优化，学会的技能持久，运行的状态动态
-- ✅ 数据完整，技能等级、冷却与执行状态解耦
-
----
+技能实例和状态实例分开管理。
+- 职责清晰：学会状态 vs 执行状态
+- 性能优化：学会的技能持久，运行的状态动态
+- 数据完整：技能等级、冷却与执行状态解耦
 
 ### 4. 为什么采用策略模式？
 
-**决策**: 所有算法通过CDO策略类实现
+所有算法通过 CDO 策略类实现。
+- 零代码扩展，创建新类无需修改引擎
+- 数据驱动，编辑器选择不同策略
+- 易于测试，每个策略独立可测
 
-**收益**:
-- ✅ 零代码扩展，创建新类无需修改引擎
-- ✅ 数据驱动，编辑器选择不同策略
-- ✅ 易于测试，每个策略独立可测
+### 5. 为什么 SourceHandle 不存储 SourceDefinition？
 
----
-
-## 文件位置索引
-
-### 核心接口
-- `Source/TireflyCombatSystem/Public/TcsEntityInterface.h` - 战斗实体接口
-
-### 属性系统
-- `Source/TireflyCombatSystem/Public/Attribute/TcsAttributeComponent.h`
-- `Source/TireflyCombatSystem/Public/Attribute/TcsAttribute.h`
-- `Source/TireflyCombatSystem/Public/Attribute/TcsAttributeModifier.h`
-- `Source/TireflyCombatSystem/Public/Attribute/AttrModExecution/`
-- `Source/TireflyCombatSystem/Public/Attribute/AttrModMerger/`
-
-### 状态系统
-- `Source/TireflyCombatSystem/Public/State/TcsStateComponent.h`
-- `Source/TireflyCombatSystem/Public/State/TcsState.h`
-- `Source/TireflyCombatSystem/Public/State/TcsStateSlot.h`
-- `Source/TireflyCombatSystem/Public/State/TcsStateManagerSubsystem.h`
-- `Source/TireflyCombatSystem/Public/State/StateCondition/`
-- `Source/TireflyCombatSystem/Public/State/StateMerger/`
-- `Source/TireflyCombatSystem/Public/State/StateParameter/`
-
-### 技能系统
-- `Source/TireflyCombatSystem/Public/Skill/TcsSkillComponent.h`
-- `Source/TireflyCombatSystem/Public/Skill/TcsSkillInstance.h`
-- `Source/TireflyCombatSystem/Public/Skill/TcsSkillManagerSubsystem.h`
-- `Source/TireflyCombatSystem/Public/Skill/Modifiers/`
-
-### StateTree集成
-- `Source/TireflyCombatSystem/Public/StateTree/TcsStateChangeNotifyTask.h`
-- `Source/TireflyCombatSystem/Public/StateTree/TcsStateTreeSchema_StateInstance.h`
-
-### 枚举与配置
-- `Source/TireflyCombatSystem/Public/TcsGenericEnum.h` - 所有枚举定义
-- `Source/TireflyCombatSystem/Public/TcsGenericMacro.h` - 宏定义
-- `Source/TireflyCombatSystem/Public/TcsDeveloperSettings.h` - 开发者设置
-- `Source/TireflyCombatSystem/Public/TcsLogChannels.h` - 日志通道
-
-### 插件配置
-- `TireflyCombatSystem.uplugin` - 插件清单
-- `Config/DefaultTireflyCombatSystem.ini` - 默认配置
+各实例（Modifier、State、Skill）自身已持有定义引用。
+- 避免职责重复
+- 减少 SourceHandle 体积
+- 因果链用 FPrimaryAssetId 天然兼容所有 UPrimaryDataAsset 子类
 
 ---
 
 ## 依赖关系
 
 ### 引擎模块
-- `StateTreeModule` - StateTree核心
-- `GameplayStateTreeModule` - StateTree游戏扩展
-- `GameplayTags` - GameplayTag系统
+- `StateTreeModule` - StateTree 核心
+- `GameplayStateTreeModule` - StateTree 游戏扩展
+- `GameplayTags` - GameplayTag 系统
 - `GameplayMessageRuntime` - 消息路由
 
 ### 项目插件
 - `TireflyObjectPool` - 对象池系统
 
 ---
-
-**最后更新**: 2025年10月
-
-**相关文档**: 项目根目录 CLAUDE.md 包含整体项目指导

@@ -778,10 +778,11 @@ bool UTcsAttributeManagerSubsystem::CreateAttributeModifier(
 	// 验证优先级
 	if (ModifierDefAsset->Priority < 0)
 	{
-		UE_LOG(LogTcsAttribute, Warning, TEXT("[%s] AttrModDef %s has invalid Priority %d, clamped to 0."),
+		UE_LOG(LogTcsAttribute, Warning, TEXT("[%s] AttrModDef %s has invalid Priority %d, will use raw priority 0."),
 			*FString(__FUNCTION__),
 			*ModifierDefAsset->ModifierName.ToString(),
 			ModifierDefAsset->Priority);
+		return false;
 	}
 
 	OutModifierInst.ModifierInstId = ++GlobalAttributeModifierInstanceIdMgr;
@@ -878,7 +879,7 @@ bool UTcsAttributeManagerSubsystem::CreateAttributeModifierWithOperands(
 	// 验证优先级
 	if (ModifierDefAsset->Priority < 0)
 	{
-		UE_LOG(LogTcsAttribute, Warning, TEXT("[%s] AttrModDef %s has invalid Priority %d, clamped to 0."),
+		UE_LOG(LogTcsAttribute, Warning, TEXT("[%s] AttrModDef %s has invalid Priority %d, will use raw priority 0."),
 			*FString(__FUNCTION__),
 			*ModifierDefAsset->ModifierName.ToString(),
 			ModifierDefAsset->Priority);
@@ -1784,27 +1785,15 @@ void UTcsAttributeManagerSubsystem::EnforceAttributeRangeConstraints(UTcsAttribu
 }
 
 FTcsSourceHandle UTcsAttributeManagerSubsystem::CreateSourceHandle(
-	const FDataTableRowHandle& SourceDefinition,
-	FName SourceName,
-	const FGameplayTagContainer& SourceTags,
-	AActor* Instigator)
+	const TArray<FPrimaryAssetId>& CausalityChain,
+	AActor* Instigator,
+	const FGameplayTagContainer& SourceTags)
 {
 	// 生成全局唯一ID
 	++GlobalSourceHandleIdMgr;
 
 	// 创建并返回SourceHandle
-	return FTcsSourceHandle(GlobalSourceHandleIdMgr, SourceDefinition, SourceName, SourceTags, Instigator);
-}
-
-FTcsSourceHandle UTcsAttributeManagerSubsystem::CreateSourceHandleSimple(
-	FName SourceName,
-	AActor* Instigator)
-{
-	// 生成全局唯一ID
-	++GlobalSourceHandleIdMgr;
-
-	// 创建并返回简化的SourceHandle
-	return FTcsSourceHandle(GlobalSourceHandleIdMgr, SourceName, Instigator);
+	return FTcsSourceHandle(GlobalSourceHandleIdMgr, CausalityChain, Instigator, SourceTags);
 }
 
 bool UTcsAttributeManagerSubsystem::ApplyModifierWithSourceHandle(
@@ -1834,12 +1823,10 @@ bool UTcsAttributeManagerSubsystem::ApplyModifierWithSourceHandle(
 	for (const FName& ModifierId : ModifierIds)
 	{
 		FTcsAttributeModifierInstance ModifierInst;
-		if (CreateAttributeModifier(ModifierId, SourceHandle.SourceName, SourceHandle.Instigator.Get(), CombatEntity, ModifierInst))
+		if (CreateAttributeModifier(ModifierId, NAME_None, SourceHandle.Instigator.Get(), CombatEntity, ModifierInst))
 		{
 			// 设置SourceHandle
 			ModifierInst.SourceHandle = SourceHandle;
-			// 保持SourceName同步
-			ModifierInst.SourceName = SourceHandle.SourceName;
 
 			OutModifiers.Add(ModifierInst);
 		}
@@ -1937,22 +1924,22 @@ bool UTcsAttributeManagerSubsystem::GetModifiersBySourceHandle(
 	OutModifiers.Empty();
 
 	// 使用稳定 ID 缓存查找匹配的修改器
-	TArray<int32>* InstIdsPtr = AttributeComponent->SourceHandleIdToModifierInstIds.Find(SourceHandle.Id);
+	const TArray<int32>* InstIdsPtr = AttributeComponent->SourceHandleIdToModifierInstIds.Find(SourceHandle.Id);
 	if (!InstIdsPtr || InstIdsPtr->Num() == 0)
 	{
 		return false;
 	}
 
-	// 收集匹配的修改器，同时自愈陈旧的 ID
-	TArray<int32> StaleIds;
+	// 收集匹配的修改器，检测过期 ID 并输出 Warning
+	int32 StaleCount = 0;
 	for (int32 ModifierInstId : *InstIdsPtr)
 	{
 		// 通过 ModifierInstId 查找当前数组下标
 		const int32* IndexPtr = AttributeComponent->ModifierInstIdToIndex.Find(ModifierInstId);
 		if (!IndexPtr || !AttributeComponent->AttributeModifiers.IsValidIndex(*IndexPtr))
 		{
-			// 索引失效，标记为陈旧
-			StaleIds.Add(ModifierInstId);
+			// 索引失效，仅记录 Warning（不修改数据，保持 const 语义）
+			++StaleCount;
 			continue;
 		}
 
@@ -1962,32 +1949,20 @@ bool UTcsAttributeManagerSubsystem::GetModifiersBySourceHandle(
 		// 验证 ModifierInstId 匹配（防御性检查）
 		if (Modifier.ModifierInstId != ModifierInstId)
 		{
-			// 不匹配，标记为陈旧
-			StaleIds.Add(ModifierInstId);
+			// 不匹配，仅记录 Warning
+			++StaleCount;
 			continue;
 		}
 
 		OutModifiers.Add(Modifier);
 	}
 
-	// 自愈：从桶中移除陈旧的 ID
-	if (StaleIds.Num() > 0)
+	if (StaleCount > 0)
 	{
-		for (int32 StaleId : StaleIds)
-		{
-			InstIdsPtr->Remove(StaleId);
-		}
-
-		// 如果桶为空，移除整个桶
-		if (InstIdsPtr->Num() == 0)
-		{
-			AttributeComponent->SourceHandleIdToModifierInstIds.Remove(SourceHandle.Id);
-		}
-
-		UE_LOG(LogTcsAttribute, Verbose,
-			TEXT("[%s] Self-healed %d stale ModifierInstIds for SourceHandle.Id=%d"),
+		UE_LOG(LogTcsAttribute, Warning,
+			TEXT("[%s] Found %d stale ModifierInstIds for SourceHandle.Id=%d. This indicates a bug in Modifier lifecycle management."),
 			*FString(__FUNCTION__),
-			StaleIds.Num(),
+			StaleCount,
 			SourceHandle.Id);
 	}
 

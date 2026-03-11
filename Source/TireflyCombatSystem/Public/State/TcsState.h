@@ -8,6 +8,7 @@
 #include "StateTreeReference.h"
 #include "StateTreeInstanceData.h"
 #include "StateTreeExecutionTypes.h"
+#include "TcsSourceHandle.h"
 #include "TcsState.generated.h"
 
 
@@ -220,6 +221,12 @@ public:
 	// 获取状态实例Id
 	int32 GetInstanceId() const { return StateInstanceId; }
 
+	// 获取状态实例的来源句柄
+	const FTcsSourceHandle& GetSourceHandle() const { return SourceHandle; }
+
+	// 设置状态实例的来源句柄（由管理器在 CreateStateInstance 中填充）
+	void SetSourceHandle(const FTcsSourceHandle& InSourceHandle) { SourceHandle = InSourceHandle; }
+
 protected:
 	// 状态定义 DataAsset 硬引用
 	UPROPERTY(BlueprintReadOnly, Category = "Meta")
@@ -235,6 +242,10 @@ protected:
 
 	// Internal init guard (not exposed to BP/serialization).
 	bool bInitialized = false;
+
+	// 状态实例的来源句柄 (用于追踪 Modifier 来源和因果链)
+	UPROPERTY(BlueprintReadOnly, Category = "Meta")
+	FTcsSourceHandle SourceHandle;
 
 #pragma endregion
 

@@ -49,7 +49,7 @@ public:
 	UPROPERTY(BlueprintReadOnly)
 	FTcsSourceHandle SourceHandle;
 
-	// 修改器来源 (冗余字段, 与 SourceHandle.SourceName 保持同步, 用于向后兼容)
+	// 修改器来源 (用于快速查询和调试, 由调用方设置)
 	UPROPERTY(BlueprintReadOnly)
 	FName SourceName = NAME_None;
 
@@ -94,11 +94,7 @@ public:
 #pragma region Functions
 
 public:
-	bool IsValid() const
-	{
-		return ModifierId != NAME_None
-			&& ModifierInstId >= 0;
-	}
+	bool IsValid() const;
 
 	bool operator==(const FTcsAttributeModifierInstance& Other) const
 	{
