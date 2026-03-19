@@ -715,19 +715,11 @@ UTcsAttributeComponent* UTcsAttributeManagerSubsystem::GetAttributeComponent(con
 
 bool UTcsAttributeManagerSubsystem::CreateAttributeModifier(
 	FName ModifierId,
-	FName SourceName,
 	AActor* Instigator,
 	AActor* Target,
 	FTcsAttributeModifierInstance& OutModifierInst)
 {
 	// 严格输入校验
-	if (SourceName == NAME_None)
-	{
-		UE_LOG(LogTcsAttribute, Error, TEXT("[%s] SourceName cannot be NAME_None"),
-			*FString(__FUNCTION__));
-		return false;
-	}
-
 	if (!IsValid(Instigator))
 	{
 		UE_LOG(LogTcsAttribute, Error, TEXT("[%s] Instigator is not valid"),
@@ -789,27 +781,18 @@ bool UTcsAttributeManagerSubsystem::CreateAttributeModifier(
 	OutModifierInst.Instigator = Instigator;
 	OutModifierInst.Target = Target;
 	OutModifierInst.Operands = ModifierDefAsset->Operands;
-	OutModifierInst.SourceName = SourceName;
 
 	return true;
 }
 
 bool UTcsAttributeManagerSubsystem::CreateAttributeModifierWithOperands(
 	FName ModifierId,
-	FName SourceName,
 	AActor* Instigator,
 	AActor* Target,
 	const TMap<FName, float>& Operands,
 	FTcsAttributeModifierInstance& OutModifierInst)
 {
 	// 严格输入校验
-	if (SourceName == NAME_None)
-	{
-		UE_LOG(LogTcsAttribute, Error, TEXT("[%s] SourceName cannot be NAME_None"),
-			*FString(__FUNCTION__));
-		return false;
-	}
-
 	if (!IsValid(Instigator))
 	{
 		UE_LOG(LogTcsAttribute, Error, TEXT("[%s] Instigator is not valid"),
@@ -889,7 +872,6 @@ bool UTcsAttributeManagerSubsystem::CreateAttributeModifierWithOperands(
 	OutModifierInst.Instigator = Instigator;
 	OutModifierInst.Target = Target;
 	OutModifierInst.Operands = Operands;
-	OutModifierInst.SourceName = SourceName;
 
 	return true;
 }
@@ -1006,7 +988,6 @@ void UTcsAttributeManagerSubsystem::ApplyModifier(
 							Stored.Instigator = Incoming.Instigator;
 							Stored.Target = Incoming.Target;
 							Stored.SourceHandle = Incoming.SourceHandle;
-							Stored.SourceName = Incoming.SourceName;
 							Stored.UpdateTimestamp = UtcNowTicks;
 							Stored.LastTouchedBatchId = BatchId;
 
@@ -1823,7 +1804,7 @@ bool UTcsAttributeManagerSubsystem::ApplyModifierWithSourceHandle(
 	for (const FName& ModifierId : ModifierIds)
 	{
 		FTcsAttributeModifierInstance ModifierInst;
-		if (CreateAttributeModifier(ModifierId, NAME_None, SourceHandle.Instigator.Get(), CombatEntity, ModifierInst))
+		if (CreateAttributeModifier(ModifierId, SourceHandle.Instigator.Get(), CombatEntity, ModifierInst))
 		{
 			// 设置SourceHandle
 			ModifierInst.SourceHandle = SourceHandle;

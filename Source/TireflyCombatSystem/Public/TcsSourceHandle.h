@@ -15,7 +15,7 @@
  * - Id: 全局唯一标识符（单调递增）
  * - Instigator: 实际造成效果的实体 (运行时 Actor)
  * - SourceTags: 来源标签（可选，用于分类/过滤）
- * - CausalityChain: 因果链，从根源到直接父级的 PrimaryAssetId 有序链（不包含自身）
+ * - CausalityChain: 因果链，从根源到直接父级的完整链（包含父级自身，不包含当前实例）
  *
  * 示例:
  * - 根源 State (玩家释放技能): CausalityChain 为空
@@ -40,7 +40,7 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "Source Handle")
 	TWeakObjectPtr<AActor> Instigator;
 
-	// 因果链: 从根源到直接父级的 PrimaryAssetId 有序链 (不包含自身)
+	// 因果链: 从根源到直接父级的完整链（包含父级自身，不包含当前实例）
 	UPROPERTY(BlueprintReadOnly, Category = "Source Handle")
 	TArray<FPrimaryAssetId> CausalityChain;
 

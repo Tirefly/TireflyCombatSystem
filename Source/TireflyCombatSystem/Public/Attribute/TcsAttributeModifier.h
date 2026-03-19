@@ -49,10 +49,6 @@ public:
 	UPROPERTY(BlueprintReadOnly)
 	FTcsSourceHandle SourceHandle;
 
-	// 修改器来源 (用于快速查询和调试, 由调用方设置)
-	UPROPERTY(BlueprintReadOnly)
-	FName SourceName = NAME_None;
-
 	// 修改器发起者
 	UPROPERTY(BlueprintReadOnly)
 	TWeakObjectPtr<AActor> Instigator;

@@ -184,9 +184,8 @@ protected:
 public:
 	/**
 	 * 创建属性修改器实例
-	 * 
+	 *
 	 * @param ModifierId 属性修改器Id，通过TcsGenericLibrary.GetAttributeModifierIds获取
-	 * @param SourceName 属性修改器来源，可以是技能Id、效果Id等
 	 * @param Instigator 属性修改器发起者，应该是一个战斗实体
 	 * @param Target 属性修改器目标，应该也是一个战斗实体
 	 * @param OutModifierInst 最终创建的属性修改器实例
@@ -195,16 +194,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "TireflyCombatSystem|Attribute")
 	bool CreateAttributeModifier(
 		UPARAM(Meta = (GetParamOptions = "TcsGenericLibrary.GetAttributeModifierIds"))FName ModifierId,
-		FName SourceName,
 		AActor* Instigator,
 		AActor* Target,
 		FTcsAttributeModifierInstance& OutModifierInst);
 	
 	/**
 	 * 创建属性修改器实例，并且设置属性修改器的操作数
-	 * 
+	 *
 	 * @param ModifierId 属性修改器Id，通过TcsGenericLibrary.GetAttributeModifierIds获取
-	 * @param SourceName 属性修改器来源，可以是技能Id、效果Id等
 	 * @param Instigator 属性修改器发起者，应该是一个战斗实体
 	 * @param Target 属性修改器目标，应该也是一个战斗实体
 	 * @param Operands 属性修改器操作数
@@ -214,7 +211,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "TireflyCombatSystem|Attribute")
 	bool CreateAttributeModifierWithOperands(
 		UPARAM(Meta = (GetParamOptions = "TcsGenericLibrary.GetAttributeModifierIds"))FName ModifierId,
-		FName SourceName,
 		AActor* Instigator,
 		AActor* Target,
 		const TMap<FName, float>& Operands,
