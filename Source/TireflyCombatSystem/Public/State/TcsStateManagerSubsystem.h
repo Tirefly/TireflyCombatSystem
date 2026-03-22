@@ -460,9 +460,7 @@ public:
 	void ExpireState(UTcsStateInstance* StateInstance);
 
 	UFUNCTION(BlueprintCallable, Category = "State Manager|Removal")
-	bool RequestStateRemoval(UTcsStateInstance* StateInstance, FTcsStateRemovalRequest Request);
-
-	void FinalizePendingRemovalRequest(UTcsStateInstance* StateInstance);
+	bool RequestStateRemoval(UTcsStateInstance* StateInstance, FName RemovalReason);
 
 #pragma endregion
 

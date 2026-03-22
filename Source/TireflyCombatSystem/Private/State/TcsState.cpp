@@ -23,22 +23,6 @@ UTcsStateInstance::UTcsStateInstance()
 {
 }
 
-FName FTcsStateRemovalRequest::ToRemovalReasonName() const
-{
-	switch (Reason)
-	{
-	case ETcsStateRemovalRequestReason::Removed:
-		return FName("Removed");
-	case ETcsStateRemovalRequestReason::Cancelled:
-		return FName("Cancelled");
-	case ETcsStateRemovalRequestReason::Expired:
-		return FName("Expired");
-	case ETcsStateRemovalRequestReason::Custom:
-	default:
-		return CustomReason.IsNone() ? FName("Removed") : CustomReason;
-	}
-}
-
 UWorld* UTcsStateInstance::GetWorld() const
 {
 	// 优先从 Owner Actor 获取 World
@@ -146,9 +130,6 @@ void UTcsStateInstance::Initialize(
 	// 参数由 UTcsStateManagerSubsystem::EvaluateAndApplyStateParameters 在创建实例时统一评估并写入，
 	// 此处不再重复调用 InitParameterValues / InitParameterTagValues。
 
-	bPendingRemovalRequest = false;
-	PendingRemovalRequest = FTcsStateRemovalRequest();
-
 	bInitialized = true;
 }
 
@@ -193,26 +174,6 @@ bool UTcsStateInstance::SetCurrentStage(ETcsStateStage InStage)
 
 	Stage = InStage;
 	return true;
-}
-
-void UTcsStateInstance::ClearPendingRemovalRequest()
-{
-	bPendingRemovalRequest = false;
-	PendingRemovalRequest = FTcsStateRemovalRequest();
-	PendingRemovalRequestStartTimeTicks = 0;
-	bPendingRemovalRequestWarningIssued = false;
-}
-
-void UTcsStateInstance::SetPendingRemovalRequest(const FTcsStateRemovalRequest& Request)
-{
-	if (!bPendingRemovalRequest)
-	{
-		PendingRemovalRequestStartTimeTicks = FDateTime::UtcNow().GetTicks();
-		bPendingRemovalRequestWarningIssued = false;
-	}
-
-	bPendingRemovalRequest = true;
-	PendingRemovalRequest = Request;
 }
 
 float UTcsStateInstance::GetDurationRemaining() const
@@ -330,15 +291,9 @@ void UTcsStateInstance::SetStackCount(int32 InStackCount)
 		UWorld* World = GetWorld();
     	if (World)
 	    {
-  		    UTcsStateManagerSubsystem* StateMgr = World->GetGameInstance()->GetSubsystem<UTcsStateManagerSubsystem>();
-    	    if (StateMgr)
+  		    if (UTcsStateManagerSubsystem* StateMgr = World->GetGameInstance()->GetSubsystem<UTcsStateManagerSubsystem>())
 	        {
-            	FTcsStateRemovalRequest RemovalRequest;
-        	    RemovalRequest.Reason = (InStackCount == 0)
-    	            ? ETcsStateRemovalRequestReason::Removed
-	                : ETcsStateRemovalRequestReason::Expired;
-            
-            	StateMgr->RequestStateRemoval(this, RemovalRequest);
+            	StateMgr->RequestStateRemoval(this, FName("StackDepleted"));
         	}
     	}
 	    return;

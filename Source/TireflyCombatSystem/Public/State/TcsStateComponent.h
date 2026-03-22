@@ -402,9 +402,6 @@ protected:
 	// Tick 所有运行中的 StateTree（调度、执行、清理停止的实例）
 	void TickStateTrees(float DeltaTime);
 
-	// 处理 Pending Removal 实例：超时警告 + Finalize 已停止的 StateTree
-	void TickPendingRemovals();
-
 protected:
 	// 状态实例持续时间追踪器（仅SDT_Duration）
 	UPROPERTY()

@@ -3,7 +3,6 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "StateCondition/TcsStateCondition.h"
 #include "GameplayTagContainer.h"
 #include "StateTreeReference.h"
 #include "StateTreeInstanceData.h"
@@ -87,35 +86,6 @@ enum class ETcsStateParameterKeyType : uint8
 
 
 // StateTree Tick 策略
-// State removal request reason (used for StateTree-driven removal handling)
-UENUM(BlueprintType)
-enum class ETcsStateRemovalRequestReason : uint8
-{
-	Removed = 0		UMETA(DisplayName = "Removed"),
-	Cancelled		UMETA(DisplayName = "Cancelled"),
-	Expired			UMETA(DisplayName = "Expired"),
-	Custom			UMETA(DisplayName = "Custom"),
-};
-
-USTRUCT(BlueprintType)
-struct TIREFLYCOMBATSYSTEM_API FTcsStateRemovalRequest
-{
-	GENERATED_BODY()
-
-public:
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Removal")
-	ETcsStateRemovalRequestReason Reason = ETcsStateRemovalRequestReason::Removed;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Removal")
-	int32 StackDelta = 0;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Removal")
-	FName CustomReason = NAME_None;
-
-public:
-	FName ToRemovalReasonName() const;
-};
-
 UENUM(BlueprintType)
 enum class ETcsStateTreeTickPolicy : uint8
 {
@@ -172,9 +142,6 @@ public:
 		meta = (ToolTip = "是否为快照参数：快照参数在技能激活时计算一次；非快照参数会实时同步变化"))
 	bool bIsSnapshot = true;
 };
-
-
-
 
 
 
@@ -624,41 +591,6 @@ private:
 	// 状态树实例数据
 	UPROPERTY()
 	FStateTreeInstanceData StateTreeInstanceData;
-
-#pragma endregion
-
-
-#pragma region RemovalRequest
-
-public:
-	UFUNCTION(BlueprintPure, Category = "State|Removal")
-	bool HasPendingRemovalRequest() const { return bPendingRemovalRequest; }
-
-	UFUNCTION(BlueprintPure, Category = "State|Removal")
-	FTcsStateRemovalRequest GetPendingRemovalRequest() const { return PendingRemovalRequest; }
-
-	int64 GetPendingRemovalRequestStartTimeTicks() const { return PendingRemovalRequestStartTimeTicks; }
-	bool HasPendingRemovalRequestWarningIssued() const { return bPendingRemovalRequestWarningIssued; }
-	void MarkPendingRemovalRequestWarningIssued() { bPendingRemovalRequestWarningIssued = true; }
-
-	UFUNCTION(BlueprintCallable, Category = "State|Removal")
-	void ClearPendingRemovalRequest();
-
-	void SetPendingRemovalRequest(const FTcsStateRemovalRequest& Request);
-
-protected:
-	UPROPERTY()
-	bool bPendingRemovalRequest = false;
-
-	UPROPERTY()
-	FTcsStateRemovalRequest PendingRemovalRequest;
-
-	UPROPERTY()
-	int64 PendingRemovalRequestStartTimeTicks = 0;
-
-	UPROPERTY()
-	bool bPendingRemovalRequestWarningIssued = false;
-
 
 #pragma endregion
 };

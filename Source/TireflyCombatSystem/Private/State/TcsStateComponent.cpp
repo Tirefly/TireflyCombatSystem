@@ -51,27 +51,12 @@ void UTcsStateComponent::TickComponent(float DeltaTime, ELevelTick TickType, FAc
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
 	UpdateActiveStateDurations(DeltaTime);
-	TickPendingRemovals();
 	TickStateTrees(DeltaTime);
 }
 
 void UTcsStateComponent::TickStateTrees(float DeltaTime)
 {
-	StateTreeTickScheduler.RefreshInstances();
-
-	// Safety: ensure pending removal instances are scheduled while running.
-	for (UTcsStateInstance* StateInstance : StateInstanceIndex.Instances)
-	{
-		if (!IsValid(StateInstance))
-		{
-			continue;
-		}
-
-		if (StateInstance->HasPendingRemovalRequest() && StateInstance->IsStateTreeRunning())
-		{
-			StateTreeTickScheduler.Add(StateInstance);
-		}
-	}
+	StateTreeTickScheduler.RefreshInstances();	
 
 	TArray<UTcsStateInstance*> InstancesToRemove;
 	for (UTcsStateInstance* RunningState : StateTreeTickScheduler.RunningInstances)
@@ -88,15 +73,9 @@ void UTcsStateComponent::TickStateTrees(float DeltaTime)
 			continue;
 		}
 
-		const bool bPendingRemoval = RunningState->HasPendingRemovalRequest();
-		bool bShouldTick = bPendingRemoval;
-		if (!bShouldTick)
-		{
-			const UTcsStateDefinitionAsset* StateDefAsset = RunningState->GetStateDefAsset();
-			bShouldTick =
-				(RunningState->GetCurrentStage() == ETcsStateStage::SS_Active) &&
-				(StateDefAsset && StateDefAsset->TickPolicy == ETcsStateTreeTickPolicy::WhileActive);
-		}
+		const UTcsStateDefinitionAsset* StateDefAsset = RunningState->GetStateDefAsset();
+		const bool bShouldTick = (RunningState->GetCurrentStage() == ETcsStateStage::SS_Active) &&
+    								(StateDefAsset && (StateDefAsset->TickPolicy == ETcsStateTreeTickPolicy::WhileActive));
 
 		if (!bShouldTick)
 		{
@@ -114,73 +93,6 @@ void UTcsStateComponent::TickStateTrees(float DeltaTime)
 	for (UTcsStateInstance* StateInstance : InstancesToRemove)
 	{
 		StateTreeTickScheduler.Remove(StateInstance);
-	}
-}
-
-void UTcsStateComponent::TickPendingRemovals()
-{
-	// Warning-only: pending removal requests that never stop their StateTree.
-	{
-		static const double PendingRemovalWarnSeconds = 5.0;
-		const int64 NowTicks = FDateTime::UtcNow().GetTicks();
-		for (UTcsStateInstance* StateInstance : StateInstanceIndex.Instances)
-		{
-			if (!IsValid(StateInstance))
-			{
-				continue;
-			}
-
-			if (!StateInstance->HasPendingRemovalRequest() || !StateInstance->IsStateTreeRunning())
-			{
-				continue;
-			}
-
-			if (StateInstance->HasPendingRemovalRequestWarningIssued())
-			{
-				continue;
-			}
-
-			const int64 StartTicks = StateInstance->GetPendingRemovalRequestStartTimeTicks();
-			if (StartTicks <= 0)
-			{
-				continue;
-			}
-
-			const double ElapsedSeconds = (FDateTime(NowTicks) - FDateTime(StartTicks)).GetTotalSeconds();
-			if (ElapsedSeconds >= PendingRemovalWarnSeconds)
-			{
-				UE_LOG(LogTcsState, Warning, TEXT("[%s] Pending removal request still running after %.2fs. State=%s Id=%d Stage=%s"),
-					*FString(__FUNCTION__),
-					ElapsedSeconds,
-					*StateInstance->GetStateDefId().ToString(),
-					StateInstance->GetInstanceId(),
-					*StaticEnum<ETcsStateStage>()->GetNameStringByValue(static_cast<int64>(StateInstance->GetCurrentStage())));
-				StateInstance->MarkPendingRemovalRequestWarningIssued();
-			}
-		}
-	}
-
-	// Finalize instances whose StateTree has stopped.
-	if (IsValid(StateMgr))
-	{
-		TArray<UTcsStateInstance*> PendingFinalize;
-		for (UTcsStateInstance* StateInstance : StateInstanceIndex.Instances)
-		{
-			if (!IsValid(StateInstance))
-			{
-				continue;
-			}
-
-			if (StateInstance->HasPendingRemovalRequest() && !StateInstance->IsStateTreeRunning())
-			{
-				PendingFinalize.Add(StateInstance);
-			}
-		}
-
-		for (UTcsStateInstance* StateInstance : PendingFinalize)
-		{
-			StateMgr->FinalizePendingRemovalRequest(StateInstance);
-		}
 	}
 }
 
@@ -327,18 +239,14 @@ void UTcsStateComponent::UpdateActiveStateDurations(float DeltaTime)
 		// If already expired by duration, request expire once and keep remaining at 0 until finalized.
 		if (RemainingDuration <= 0.0f)
 		{
-			if (!StateInstance->HasPendingRemovalRequest())
-			{
-				ExpiredStates.Add(StateInstance);
-			}
-			continue;
+    		ExpiredStates.Add(StateInstance);
+    		continue;
 		}
 
-		// 递减剩余持续时间，并检查是否到期
 		RemainingDuration = FMath::Max(0.0f, RemainingDuration - DeltaTime);
-		if (RemainingDuration <= 0.0f && !StateInstance->HasPendingRemovalRequest())
+		if (RemainingDuration <= 0.0f)
 		{
-			ExpiredStates.Add(StateInstance);
+    		ExpiredStates.Add(StateInstance);
 		}
 	}
 
@@ -605,10 +513,6 @@ FString UTcsStateComponent::GetSlotDebugSnapshot(FGameplayTag SlotFilter) const
 				: FString::Printf(TEXT("%.2f"), DurRemaining);
 
 			FString RemovalStr = TEXT("-");
-			if (State->HasPendingRemovalRequest())
-			{
-				RemovalStr = State->GetPendingRemovalRequest().ToRemovalReasonName().ToString();
-			}
 
 			const AActor* Instigator = State->GetInstigator();
 			const FString InstigatorName = Instigator ? Instigator->GetName() : TEXT("None");
@@ -806,10 +710,6 @@ FString UTcsStateComponent::GetStateDebugSnapshot(FName StateDefIdFilter) const
 			: FString::Printf(TEXT("%.2f"), DurRemaining);
 
 		FString RemovalStr = TEXT("-");
-		if (State->HasPendingRemovalRequest())
-		{
-			RemovalStr = State->GetPendingRemovalRequest().ToRemovalReasonName().ToString();
-		}
 
 		const AActor* OwnerActor = State->GetOwner();
 		const AActor* Instigator = State->GetInstigator();
