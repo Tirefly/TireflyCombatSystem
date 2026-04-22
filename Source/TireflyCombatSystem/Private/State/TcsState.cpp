@@ -288,14 +288,10 @@ void UTcsStateInstance::SetStackCount(int32 InStackCount)
 	// 如果StackCount降为0，自动触发移除
 	if (NewStackCount == 0)
 	{
-		UWorld* World = GetWorld();
-    	if (World)
-	    {
-  		    if (UTcsStateManagerSubsystem* StateMgr = World->GetGameInstance()->GetSubsystem<UTcsStateManagerSubsystem>())
-	        {
-            	StateMgr->RequestStateRemoval(this, TcsStateRemovalReasons::StackDepleted);
-        	}
-    	}
+		if (OwnerStateCmp.IsValid())
+		{
+			OwnerStateCmp->RequestStateRemoval(this, TcsStateRemovalReasons::StackDepleted);
+		}
 	    return;
 	}
 
@@ -987,7 +983,7 @@ void UTcsStateInstance::StopStateTree()
 
 void UTcsStateInstance::PauseStateTree()
 {
-	// Note: State stage must be managed by UTcsStateManagerSubsystem.
+	// Note: State stage must be managed by UTcsStateComponent.
 	// This function only stops ticking StateTree (it does not stop/lose internal data).
 	if (OwnerStateCmp.IsValid())
 	{
@@ -997,7 +993,7 @@ void UTcsStateInstance::PauseStateTree()
 
 void UTcsStateInstance::ResumeStateTree()
 {
-	// Note: State stage must be managed by UTcsStateManagerSubsystem.
+	// Note: State stage must be managed by UTcsStateComponent.
 	// This function ensures StateTree is running and restores tick scheduling when applicable.
 	if (!bStateTreeRunning)
 	{

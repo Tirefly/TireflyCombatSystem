@@ -319,6 +319,98 @@ protected:
 	UPROPERTY()
 	FTcsStateTreeTickScheduler StateTreeTickScheduler;
 
+public:
+	/**
+	 * 尝试在当前组件拥有者上应用指定状态定义。
+	 * Phase D 仅提供占位入口，完整业务逻辑在 Phase E 下沉。
+	 *
+	 * @param StateDefId 要应用的状态定义 ID
+	 * @param Instigator 状态发起者
+	 * @param StateLevel 状态等级
+	 * @param ParentSourceHandle 父级来源句柄
+	 * @return 是否应用成功
+	 */
+	UFUNCTION(BlueprintCallable, Category = "State")
+	virtual bool TryApplyState(
+		FName StateDefId,
+		AActor* Instigator,
+		int32 StateLevel = 1,
+		const FTcsSourceHandle& ParentSourceHandle = FTcsSourceHandle());
+
+	/**
+	 * 请求移除指定状态实例。
+	 *
+	 * @param StateInstance 要移除的状态实例
+	 * @param RemovalReason 移除原因
+	 * @return 是否成功收敛到移除流程
+	 */
+	UFUNCTION(BlueprintCallable, Category = "State|Removal")
+	virtual bool RequestStateRemoval(UTcsStateInstance* StateInstance, FName RemovalReason);
+
+	/**
+	 * 移除指定状态实例。
+	 *
+	 * @param StateInstance 要移除的状态实例
+	 * @return 是否成功移除
+	 */
+	UFUNCTION(BlueprintCallable, Category = "State|Removal")
+	virtual bool RemoveState(UTcsStateInstance* StateInstance);
+
+	/**
+	 * 按状态定义 ID 移除状态。
+	 *
+	 * @param StateDefId 状态定义 ID
+	 * @param bRemoveAll 是否移除全部匹配实例
+	 * @return 成功移除的状态数量
+	 */
+	UFUNCTION(BlueprintCallable, Category = "State|Removal")
+	virtual int32 RemoveStatesByDefId(FName StateDefId, bool bRemoveAll = true);
+
+	/**
+	 * 清空指定槽位的所有状态。
+	 *
+	 * @param SlotTag 状态槽标签
+	 * @return 成功移除的状态数量
+	 */
+	UFUNCTION(BlueprintCallable, Category = "State|Removal")
+	virtual int32 RemoveAllStatesInSlot(FGameplayTag SlotTag);
+
+	/**
+	 * 清空当前组件中的全部状态。
+	 *
+	 * @return 成功移除的状态数量
+	 */
+	UFUNCTION(BlueprintCallable, Category = "State|Removal")
+	virtual int32 RemoveAllStates();
+
+	// 取消状态实例（非 virtual 包装器）
+	void CancelState(UTcsStateInstance* StateInstance);
+
+	// 标记状态实例为自然过期（非 virtual 包装器）
+	void ExpireState(UTcsStateInstance* StateInstance);
+
+protected:
+	// 激活状态实例
+	virtual void ActivateState(UTcsStateInstance* StateInstance);
+
+	// 停用状态实例
+	virtual void DeactivateState(UTcsStateInstance* StateInstance);
+
+	// 挂起状态实例
+	virtual void HangUpState(UTcsStateInstance* StateInstance);
+
+	// 恢复状态实例
+	virtual void ResumeState(UTcsStateInstance* StateInstance);
+
+	// 暂停状态实例
+	virtual void PauseState(UTcsStateInstance* StateInstance);
+
+	// 检查状态是否仍然属于当前组件且未过期
+	virtual bool IsStateStillValid(UTcsStateInstance* StateInstance) const;
+
+	// 最终化移除流程：停止逻辑、清理容器、广播事件并标记 GC
+	virtual void FinalizeStateRemoval(UTcsStateInstance* StateInstance, FName RemovalReason);
+
 #pragma endregion
 
 
@@ -360,11 +452,20 @@ public:
     bool IsSlotGateOpen(FGameplayTag SlotTag) const;
 
 protected:
+	// 请求刷新指定槽位的激活结果；Phase E 将把其内部逻辑完全下沉到 Component。
+	void RequestUpdateStateSlotActivation(FGameplayTag SlotTag);
+
     // 获取当前激活的StateTree状态名列表
     TArray<FName> GetCurrentActiveStateTreeStates() const;
 
     // 缓存上一帧的StateTree激活状态名,用于检测变化
     TArray<FName> CachedActiveStateNames;
+
+	// 当前是否处于 StateTree Tick/回调上下文；仅用于移除链路的 ensure 诊断。
+	bool bIsInStateTreeCallback = false;
+
+	// 判断当前是否处于 StateTree 更新上下文。
+	bool IsInStateTreeUpdateContext() const { return bIsInStateTreeCallback; }
 
 #pragma endregion
 

@@ -1898,307 +1898,94 @@ void UTcsStateManagerSubsystem::RemoveStateFromSlot(
 
 void UTcsStateManagerSubsystem::ActivateState(UTcsStateInstance* StateInstance)
 {
-    if (!IsValid(StateInstance))
-    {
-        UE_LOG(LogTcsState, Warning, TEXT("[%s] StateInstance is invalid"),
-            *FString(__FUNCTION__));
-        return;
-    }
-
-    // 如果已经是激活状态,不重复激活
-    const ETcsStateStage PreviousStage = StateInstance->GetCurrentStage();
-    if (PreviousStage == ETcsStateStage::SS_Active)
-    {
-        return;
-    }
-
-    UE_LOG(LogTcsState, Verbose, TEXT("[%s] Activating state: %s"),
-        *FString(__FUNCTION__),
-        *StateInstance->GetStateDefId().ToString());
-
-    // 设置为激活阶段；若转换非法则中止（阶段未改变，不应继续执行后续操作）
-    if (!StateInstance->SetCurrentStage(ETcsStateStage::SS_Active))
-    {
-        return;
-    }
-    // 启动StateTree
-	UTcsStateComponent* StateComponent = StateInstance->GetOwnerStateComponent();
-	const UTcsStateDefinitionAsset* StateDef = StateInstance->GetStateDefAsset();
-	if (!StateDef)
+	if (IsValid(StateInstance))
 	{
-		UE_LOG(LogTcsState, Error, TEXT("[%s] StateInstance has invalid StateDefAsset: %s"),
-			*FString(__FUNCTION__),
-			*StateInstance->GetStateDefId().ToString());
-		return;
+		if (UTcsStateComponent* StateComponent = StateInstance->GetOwnerStateComponent())
+		{
+			StateComponent->ActivateState(StateInstance);
+		}
 	}
-
-	const ETcsStateTreeTickPolicy TickPolicy = StateDef->TickPolicy;
-	switch (TickPolicy)
-	{
-	case ETcsStateTreeTickPolicy::RunOnce:
-		StateInstance->RestartStateTree();
-		StateInstance->TickStateTree(0.f);
-		if (StateInstance->IsStateTreeRunning())
-		{
-			UE_LOG(LogTcsState, Warning, TEXT("[%s] StateTree TickPolicy=RunOnce but it is still running: %s, force stopping."),
-				*FString(__FUNCTION__),
-				*StateInstance->GetStateDefId().ToString());
-			StateInstance->StopStateTree();
-		}
-		if (IsValid(StateComponent))
-		{
-			StateComponent->StateTreeTickScheduler.Remove(StateInstance);
-		}
-		break;
-	case ETcsStateTreeTickPolicy::ManualOnly:
-		StateInstance->RestartStateTree();
-		if (IsValid(StateComponent))
-		{
-			StateComponent->StateTreeTickScheduler.Remove(StateInstance);
-		}
-		break;
-	case ETcsStateTreeTickPolicy::WhileActive:
-	default:
-		StateInstance->RestartStateTree();
-		if (IsValid(StateComponent) && StateInstance->IsStateTreeRunning())
-		{
-			StateComponent->StateTreeTickScheduler.Add(StateInstance);
-		}
-		break;
-	}
-
-    // 广播状态阶段变更事件
-    if (IsValid(StateComponent))
-    {
-        StateComponent->NotifyStateStageChanged(StateInstance, PreviousStage, ETcsStateStage::SS_Active);
-    }
 }
 
 void UTcsStateManagerSubsystem::DeactivateState(UTcsStateInstance* StateInstance)
 {
-    if (!IsValid(StateInstance))
-    {
-        UE_LOG(LogTcsState, Warning, TEXT("[%s] StateInstance is invalid"),
-            *FString(__FUNCTION__));
-        return;
-    }
-
-    // 如果已经是未激活状态,不重复停用
-    const ETcsStateStage PreviousStage = StateInstance->GetCurrentStage();
-    if (PreviousStage == ETcsStateStage::SS_Inactive)
-    {
-        return;
-    }
-
-    UE_LOG(LogTcsState, Verbose, TEXT("[%s] Deactivating state: %s"),
-        *FString(__FUNCTION__),
-        *StateInstance->GetStateDefId().ToString());
-
-    // 设置为未激活阶段；若转换非法则中止
-    if (!StateInstance->SetCurrentStage(ETcsStateStage::SS_Inactive))
-    {
-        return;
-    }
-    // Stop ticking StateTree (do not stop/lose its internal data)
-    StateInstance->PauseStateTree();
-
-    // 广播状态阶段变更事件
-    if (UTcsStateComponent* StateComponent = StateInstance->GetOwnerStateComponent())
-    {
-		StateComponent->StateTreeTickScheduler.Remove(StateInstance);
-        StateComponent->NotifyStateStageChanged(StateInstance, PreviousStage, ETcsStateStage::SS_Inactive);
-		if (PreviousStage == ETcsStateStage::SS_Active)
+	if (IsValid(StateInstance))
+	{
+		if (UTcsStateComponent* StateComponent = StateInstance->GetOwnerStateComponent())
 		{
-			StateComponent->NotifyStateDeactivated(StateInstance, ETcsStateStage::SS_Inactive, FName("Deactivated"));
+			StateComponent->DeactivateState(StateInstance);
 		}
-    }
+	}
 }
 
 void UTcsStateManagerSubsystem::HangUpState(UTcsStateInstance* StateInstance)
 {
-    if (!IsValid(StateInstance))
-    {
-        UE_LOG(LogTcsState, Warning, TEXT("[%s] StateInstance is invalid"),
-            *FString(__FUNCTION__));
-        return;
-    }
-
-    const ETcsStateStage PreviousStage = StateInstance->GetCurrentStage();
-
-    UE_LOG(LogTcsState, Verbose, TEXT("[%s] Hanging up state: %s"),
-        *FString(__FUNCTION__),
-        *StateInstance->GetStateDefId().ToString());
-
-    // 设置为挂起阶段；若转换非法则中止
-    if (!StateInstance->SetCurrentStage(ETcsStateStage::SS_HangUp))
-    {
-        return;
-    }
-    // 暂停StateTree执行 (但保持实例存活)
-    StateInstance->PauseStateTree();
-
-    // 广播状态阶段变更事件
-    if (UTcsStateComponent* StateComponent = StateInstance->GetOwnerStateComponent())
-    {
-		StateComponent->StateTreeTickScheduler.Remove(StateInstance);
-        StateComponent->NotifyStateStageChanged(StateInstance, PreviousStage, ETcsStateStage::SS_HangUp);
-		if (PreviousStage == ETcsStateStage::SS_Active)
+	if (IsValid(StateInstance))
+	{
+		if (UTcsStateComponent* StateComponent = StateInstance->GetOwnerStateComponent())
 		{
-			StateComponent->NotifyStateDeactivated(StateInstance, ETcsStateStage::SS_HangUp, FName("HangUp"));
+			StateComponent->HangUpState(StateInstance);
 		}
-    }
+	}
 }
 
 void UTcsStateManagerSubsystem::ResumeState(UTcsStateInstance* StateInstance)
 {
-    if (!IsValid(StateInstance))
-    {
-        UE_LOG(LogTcsState, Warning, TEXT("[%s] StateInstance is invalid"),
-            *FString(__FUNCTION__));
-        return;
-    }
-
-    const ETcsStateStage PreviousStage = StateInstance->GetCurrentStage();
-
-    UE_LOG(LogTcsState, Verbose, TEXT("[%s] Resuming state: %s"),
-        *FString(__FUNCTION__),
-        *StateInstance->GetStateDefId().ToString());
-
-    // 恢复到激活阶段；若转换非法则中止
-    if (!StateInstance->SetCurrentStage(ETcsStateStage::SS_Active))
-    {
-        return;
-    }
-    // 恢复StateTree执行
-	UTcsStateComponent* StateComponent = StateInstance->GetOwnerStateComponent();
-	const UTcsStateDefinitionAsset* StateDef = StateInstance->GetStateDefAsset();
-	if (!StateDef)
+	if (IsValid(StateInstance))
 	{
-		UE_LOG(LogTcsState, Error, TEXT("[%s] StateInstance has invalid StateDefAsset: %s"),
-			*FString(__FUNCTION__),
-			*StateInstance->GetStateDefId().ToString());
-		return;
+		if (UTcsStateComponent* StateComponent = StateInstance->GetOwnerStateComponent())
+		{
+			StateComponent->ResumeState(StateInstance);
+		}
 	}
-
-	const ETcsStateTreeTickPolicy TickPolicy = StateDef->TickPolicy;
-	switch (TickPolicy)
-	{
-	case ETcsStateTreeTickPolicy::RunOnce:
-		StateInstance->ResumeStateTree();
-		StateInstance->TickStateTree(0.f);
-		if (StateInstance->IsStateTreeRunning())
-		{
-			UE_LOG(LogTcsState, Warning, TEXT("[%s] StateTree TickPolicy=RunOnce but it is still running: %s, force stopping."),
-				*FString(__FUNCTION__),
-				*StateInstance->GetStateDefId().ToString());
-			StateInstance->StopStateTree();
-		}
-		if (IsValid(StateComponent))
-		{
-			StateComponent->StateTreeTickScheduler.Remove(StateInstance);
-		}
-		break;
-	case ETcsStateTreeTickPolicy::ManualOnly:
-		StateInstance->ResumeStateTree();
-		if (IsValid(StateComponent))
-		{
-			StateComponent->StateTreeTickScheduler.Remove(StateInstance);
-		}
-		break;
-	case ETcsStateTreeTickPolicy::WhileActive:
-	default:
-		StateInstance->ResumeStateTree();
-		if (IsValid(StateComponent) && StateInstance->IsStateTreeRunning())
-		{
-			StateComponent->StateTreeTickScheduler.Add(StateInstance);
-		}
-		break;
-	}
-
-    // 广播状态阶段变更事件
-    if (IsValid(StateComponent))
-    {
-        StateComponent->NotifyStateStageChanged(StateInstance, PreviousStage, ETcsStateStage::SS_Active);
-    }
 }
 
 void UTcsStateManagerSubsystem::PauseState(UTcsStateInstance* StateInstance)
 {
-    if (!IsValid(StateInstance))
-    {
-        UE_LOG(LogTcsState, Warning, TEXT("[%s] StateInstance is invalid"),
-            *FString(__FUNCTION__));
-        return;
-    }
-
-    const ETcsStateStage PreviousStage = StateInstance->GetCurrentStage();
-
-    UE_LOG(LogTcsState, Verbose, TEXT("[%s] Pausing state: %s"),
-        *FString(__FUNCTION__),
-        *StateInstance->GetStateDefId().ToString());
-
-    // 设置为完全暂停阶段；若转换非法则中止
-    // 注意: Pause与HangUp的区别是,Pause会完全冻结状态(包括持续时间计算),
-    // 而HangUp只是暂停逻辑执行但仍计算持续时间
-    if (!StateInstance->SetCurrentStage(ETcsStateStage::SS_Pause))
-    {
-        return;
-    }
-    // 完全暂停StateTree
-    StateInstance->PauseStateTree();
-
-    // 广播状态阶段变更事件
-    if (UTcsStateComponent* StateComponent = StateInstance->GetOwnerStateComponent())
-    {
-		StateComponent->StateTreeTickScheduler.Remove(StateInstance);
-        StateComponent->NotifyStateStageChanged(StateInstance, PreviousStage, ETcsStateStage::SS_Pause);
-		if (PreviousStage == ETcsStateStage::SS_Active)
+	if (IsValid(StateInstance))
+	{
+		if (UTcsStateComponent* StateComponent = StateInstance->GetOwnerStateComponent())
 		{
-			StateComponent->NotifyStateDeactivated(StateInstance, ETcsStateStage::SS_Pause, FName("Pause"));
+			StateComponent->PauseState(StateInstance);
 		}
-    }
+	}
 }
 
 void UTcsStateManagerSubsystem::CancelState(UTcsStateInstance* StateInstance)
 {
-    if (!IsValid(StateInstance))
-    {
-        UE_LOG(LogTcsState, Warning, TEXT("[%s] StateInstance is invalid"),
-            *FString(__FUNCTION__));
-        return;
-    }
-
-	RequestStateRemoval(StateInstance, TcsStateRemovalReasons::Cancelled);
+	if (IsValid(StateInstance))
+	{
+		if (UTcsStateComponent* StateComponent = StateInstance->GetOwnerStateComponent())
+		{
+			StateComponent->CancelState(StateInstance);
+		}
+	}
 }
 
 void UTcsStateManagerSubsystem::ExpireState(UTcsStateInstance* StateInstance)
 {
-    if (!IsValid(StateInstance))
-    {
-        UE_LOG(LogTcsState, Warning, TEXT("[%s] StateInstance is invalid"),
-            *FString(__FUNCTION__));
-        return;
-    }
-
-	RequestStateRemoval(StateInstance, TcsStateRemovalReasons::Expired);
-
-	// 从槽位中移除并刷新槽位（自然过期应立刻反映到槽位激活结果）
+	if (IsValid(StateInstance))
+	{
+		if (UTcsStateComponent* StateComponent = StateInstance->GetOwnerStateComponent())
+		{
+			StateComponent->ExpireState(StateInstance);
+		}
+	}
 }
 
 bool UTcsStateManagerSubsystem::RequestStateRemoval(UTcsStateInstance* StateInstance, FName RemovalReason)
 {
 	if (!IsValid(StateInstance))
-    {
-        return false;
-    }
+	{
+		return false;
+	}
 
-    if (StateInstance->GetCurrentStage() == ETcsStateStage::SS_Expired)
-    {
-        return true;
-    }
+	if (UTcsStateComponent* StateComponent = StateInstance->GetOwnerStateComponent())
+	{
+		return StateComponent->RequestStateRemoval(StateInstance, RemovalReason);
+	}
 
-    FinalizeStateRemoval(StateInstance, RemovalReason);
-    return true;
+	return false;
 }
 
 bool UTcsStateManagerSubsystem::GetStatesInSlot(
@@ -2338,42 +2125,17 @@ bool UTcsStateManagerSubsystem::HasActiveStateInSlot(
 
 bool UTcsStateManagerSubsystem::RemoveState(UTcsStateInstance* StateInstance)
 {
-    if (!IsValid(StateInstance))
-    {
-        UE_LOG(LogTcsState, Warning, TEXT("[%s] StateInstance is invalid"),
-            *FString(__FUNCTION__));
-        return false;
-    }
+	if (!IsValid(StateInstance))
+	{
+		return false;
+	}
 
-    UTcsStateComponent* StateComponent = StateInstance->GetOwnerStateComponent();
-    if (!IsValid(StateComponent))
-    {
-        UE_LOG(LogTcsState, Warning, TEXT("[%s] StateComponent is invalid"),
-            *FString(__FUNCTION__));
-        return false;
-    }
+	if (UTcsStateComponent* StateComponent = StateInstance->GetOwnerStateComponent())
+	{
+		return StateComponent->RemoveState(StateInstance);
+	}
 
-    // 查找状态所在的槽位
-    const UTcsStateDefinitionAsset* StateDef = StateInstance->GetStateDefAsset();
-    if (!StateDef)
-    {
-        UE_LOG(LogTcsState, Error, TEXT("[%s] StateInstance has invalid StateDefAsset: %s"),
-            *FString(__FUNCTION__),
-            *StateInstance->GetStateDefId().ToString());
-        return false;
-    }
-
-    const FGameplayTag SlotTag = StateDef->StateSlotType;
-    if (!StateComponent->StateSlotsX.Contains(SlotTag))
-    {
-        UE_LOG(LogTcsState, Warning, TEXT("[%s] StateSlot %s not found"),
-            *FString(__FUNCTION__),
-            *SlotTag.ToString());
-        return false;
-    }
-
-	// 移除状态并从槽位中移除
-	return RequestStateRemoval(StateInstance, TcsStateRemovalReasons::Removed);
+	return false;
 }
 
 int32 UTcsStateManagerSubsystem::RemoveStatesByDefId(
@@ -2381,102 +2143,19 @@ int32 UTcsStateManagerSubsystem::RemoveStatesByDefId(
     FName StateDefId,
     bool bRemoveAll)
 {
-    if (!IsValid(StateComponent) || StateDefId.IsNone())
-    {
-        return 0;
-    }
-
-    int32 RemovedCount = 0;
-
-    // 遍历所有槽位查找匹配的状态
-    for (auto& Pair : StateComponent->StateSlotsX)
-    {
-        FTcsStateSlot& StateSlot = Pair.Value;
-
-        TArray<UTcsStateInstance*> StatesToRemove;
-        for (UTcsStateInstance* State : StateSlot.States)
-        {
-            if (IsValid(State) && State->GetStateDefId() == StateDefId)
-            {
-                StatesToRemove.Add(State);
-                if (!bRemoveAll)
-                {
-                    break;
-                }
-            }
-        }
-
-		for (UTcsStateInstance* State : StatesToRemove)
-        {
-			RequestStateRemoval(State, TcsStateRemovalReasons::Removed);
-            RemovedCount++;
-        }
-
-        if (!bRemoveAll && RemovedCount > 0)
-        {
-            break;
-        }
-    }
-
-    return RemovedCount;
+	return IsValid(StateComponent) ? StateComponent->RemoveStatesByDefId(StateDefId, bRemoveAll) : 0;
 }
 
 int32 UTcsStateManagerSubsystem::RemoveAllStatesInSlot(
     UTcsStateComponent* StateComponent,
     FGameplayTag SlotTag)
 {
-    if (!IsValid(StateComponent) || !SlotTag.IsValid())
-    {
-        return 0;
-    }
-
-    FTcsStateSlot* StateSlot = StateComponent->StateSlotsX.Find(SlotTag);
-    if (!StateSlot)
-    {
-        return 0;
-    }
-
-    int32 RemovedCount = 0;
-    TArray<UTcsStateInstance*> StatesToRemove = StateSlot->States;
-
-    for (UTcsStateInstance* State : StatesToRemove)
-    {
-        if (IsValid(State))
-        {
-			RequestStateRemoval(State, TcsStateRemovalReasons::Removed);
-            RemovedCount++;
-        }
-    }
-
-    return RemovedCount;
+	return IsValid(StateComponent) ? StateComponent->RemoveAllStatesInSlot(SlotTag) : 0;
 }
 
 int32 UTcsStateManagerSubsystem::RemoveAllStates(UTcsStateComponent* StateComponent)
 {
-    if (!IsValid(StateComponent))
-    {
-        return 0;
-    }
-
-    int32 TotalRemoved = 0;
-
-    // 遍历所有槽位
-    for (auto& Pair : StateComponent->StateSlotsX)
-    {
-        FTcsStateSlot& StateSlot = Pair.Value;
-
-        for (UTcsStateInstance* State : StateSlot.States)
-        {
-            if (IsValid(State))
-            {
-				RequestStateRemoval(State, TcsStateRemovalReasons::Removed);
-                TotalRemoved++;
-            }
-        }
-
-    }
-
-    return TotalRemoved;
+	return IsValid(StateComponent) ? StateComponent->RemoveAllStates() : 0;
 }
 
 bool UTcsStateManagerSubsystem::IsStateStillValid(UTcsStateInstance* StateInstance)
@@ -2486,113 +2165,23 @@ bool UTcsStateManagerSubsystem::IsStateStillValid(UTcsStateInstance* StateInstan
 		return false;
 	}
 
-	// 检查状态是否已过期
-	if (StateInstance->GetCurrentStage() == ETcsStateStage::SS_Expired)
+	if (UTcsStateComponent* StateComponent = StateInstance->GetOwnerStateComponent())
 	{
-		return false;
+		return StateComponent->IsStateStillValid(StateInstance);
 	}
 
-	// 检查状态是否仍在槽位中
-	UTcsStateComponent* StateComponent = StateInstance->GetOwnerStateComponent();
-	if (!IsValid(StateComponent))
-	{
-		return false;
-	}
-
-	const UTcsStateDefinitionAsset* StateDef = StateInstance->GetStateDefAsset();
-	if (!StateDef)
-	{
-		return false;
-	}
-
-	const FGameplayTag SlotTag = StateDef->StateSlotType;
-	FTcsStateSlot* StateSlot = StateComponent->StateSlotsX.Find(SlotTag);
-	if (!StateSlot)
-	{
-		return false;
-	}
-
-	return StateSlot->States.Contains(StateInstance);
+	return false;
 }
 
 void UTcsStateManagerSubsystem::FinalizeStateRemoval(UTcsStateInstance* StateInstance, FName RemovalReason)
 {
-	if (!IsValid(StateInstance))
+	if (IsValid(StateInstance))
 	{
-		return;
-	}
-
-	const AActor* OwnerActor = StateInstance->GetOwner();
-	const UTcsStateDefinitionAsset* StateDef = StateInstance->GetStateDefAsset();
-	if (!StateDef)
-	{
-		UE_LOG(LogTcsState, Error, TEXT("[%s] StateInstance has invalid StateDefAsset: %s"),
-			*FString(__FUNCTION__),
-			*StateInstance->GetStateDefId().ToString());
-		return;
-	}
-
-	const FGameplayTag SlotTag = StateDef->StateSlotType;
-	UE_LOG(LogTcsState, Verbose, TEXT("[%s] FinalizeRemoval: State=%s Id=%d Reason=%s Owner=%s Slot=%s Stage=%s"),
-		*FString(__FUNCTION__),
-		*StateInstance->GetStateDefId().ToString(),
-		StateInstance->GetInstanceId(),
-		*RemovalReason.ToString(),
-		OwnerActor ? *OwnerActor->GetName() : TEXT("None"),
-		*SlotTag.ToString(),
-		*StaticEnum<ETcsStateStage>()->GetNameStringByValue(static_cast<int64>(StateInstance->GetCurrentStage())));
-
-	const ETcsStateStage PreviousStage = StateInstance->GetCurrentStage();
-
-	// Stop StateTree logic if running.
-	if (StateInstance->IsStateTreeRunning())
-	{
-		StateInstance->StopStateTree();
-	}
-
-	// Mark expired；若已是 Expired（重复调用）则提前返回，避免二次清理
-	if (!StateInstance->SetCurrentStage(ETcsStateStage::SS_Expired))
-	{
-		return;
-	}
-
-	UTcsStateComponent* StateComponent = StateInstance->GetOwnerStateComponent();
-	if (IsValid(StateComponent))
-	{
-		// Remove from containers.
-		StateComponent->StateTreeTickScheduler.Remove(StateInstance);
-		StateComponent->DurationTracker.Remove(StateInstance);
-		StateComponent->StateInstanceIndex.RemoveInstance(StateInstance);
-
-		// Step 3.5: 清理通过 SourceHandle 创建的 Modifier (在广播事件之前)
-		if (StateInstance->GetSourceHandle().IsValid())
+		if (UTcsStateComponent* StateComponent = StateInstance->GetOwnerStateComponent())
 		{
-			if (AActor* MutableOwnerActor = StateInstance->GetOwner())
-			{
-				if (UTcsAttributeComponent* AC = MutableOwnerActor->FindComponentByClass<UTcsAttributeComponent>())
-				{
-					AC->RemoveModifiersBySourceHandle(StateInstance->GetSourceHandle());
-				}
-			}
-		}
-
-		// Broadcast stage changed and removal.
-		StateComponent->NotifyStateStageChanged(StateInstance, PreviousStage, ETcsStateStage::SS_Expired);
-		StateComponent->NotifyStateRemoved(StateInstance, RemovalReason);
-
-		if (SlotTag.IsValid())
-		{
-			if (FTcsStateSlot* Slot = StateComponent->StateSlotsX.Find(SlotTag))
-			{
-				RemoveStateFromSlot(Slot, StateInstance, /*bDeactivateIfNeeded*/ false);
-				RequestUpdateStateSlotActivation(StateComponent, SlotTag);
-			}
+			StateComponent->FinalizeStateRemoval(StateInstance, RemovalReason);
 		}
 	}
-
-	StateInstance->MarkPendingGC();
-
-	// TODO(TCS): Return StateInstance to TireflyObjectPool when pool API is finalized (planned refactor).
 }
 
 void UTcsStateManagerSubsystem::LoadFromAssetManager()
