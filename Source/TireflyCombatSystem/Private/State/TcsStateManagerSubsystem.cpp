@@ -456,7 +456,7 @@ UTcsStateInstance* UTcsStateManagerSubsystem::CreateStateInstance(
 
 	// 初始化临时实例(用于参数评估上下文)
 	TempStateInstance->SetStateDefId(StateDefRowId);
-	TempStateInstance->Initialize(StateDefAsset, StateDefRowId, Owner, Instigator, ++GlobalStateInstanceIdMgr, InLevel);
+	TempStateInstance->Initialize(StateDefAsset, StateDefRowId, Owner, Instigator, AllocateStateInstanceId(), InLevel);
 
 	if (!TempStateInstance->IsInitialized())
 	{

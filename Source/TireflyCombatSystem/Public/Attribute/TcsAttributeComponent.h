@@ -11,6 +11,10 @@
 
 
 
+class UTcsAttributeManagerSubsystem;
+
+
+
 // 属性值改变事件委托声明
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(
 	FTcsAttributeChangeDelegate,
@@ -59,6 +63,18 @@ public:
 
 protected:
 	virtual void BeginPlay() override;
+
+	// 缓存的 AttributeManager 指针（迁移期供 Phase C 下沉的业务方法直接访问）
+	UPROPERTY()
+	TObjectPtr<UTcsAttributeManagerSubsystem> AttrMgr;
+
+	/**
+	 * 懒加载获取 AttributeManager
+	 * BeginPlay 已预热；业务方法中若首访为空，会在此补拉取并 ensureMsgf 诊断
+	 *
+	 * @return AttributeManager 指针；失败时返回 nullptr 并触发 ensureMsgf
+	 */
+	UTcsAttributeManagerSubsystem* ResolveAttributeManager();
 
 #pragma endregion
 

@@ -7,6 +7,7 @@
 #include "State/TcsState.h"
 #include "State/TcsStateManagerSubsystem.h"
 #include "State/TcsStateSlotDefinitionAsset.h"
+#include "Attribute/TcsAttributeManagerSubsystem.h"
 #include "Engine/World.h"
 #include "Engine/DataTable.h"
 #include "StateTree.h"
@@ -31,7 +32,13 @@ void UTcsStateComponent::BeginPlay()
 		return;
 	}
 
-	StateMgr = World->GetGameInstance()->GetSubsystem<UTcsStateManagerSubsystem>();
+	UGameInstance* GI = World->GetGameInstance();
+	if (GI)
+	{
+		StateMgr = GI->GetSubsystem<UTcsStateManagerSubsystem>();
+		AttrMgr = GI->GetSubsystem<UTcsAttributeManagerSubsystem>();
+	}
+
 	if (!StateMgr)
 	{
 		UE_LOG(LogTcsState, Error, TEXT("[%s] Failed to get TcsStateManagerSubsystem."),
@@ -44,6 +51,47 @@ void UTcsStateComponent::BeginPlay()
 
 	// 各项初始化之后，再执行状态管理StateTree
 	Super::BeginPlay();
+
+#if !UE_BUILD_SHIPPING
+	// 预热自测断言：GameInstanceSubsystem 在 BeginPlay 之前必然完成 Initialize，
+	// 若此处仍为空表明 Subsystem 生命周期被破坏，立即暴露。
+	checkf(StateMgr, TEXT("StateMgr resolve failed in BeginPlay for %s; GameInstanceSubsystem lifecycle broken."), *GetPathName());
+	checkf(AttrMgr, TEXT("AttrMgr resolve failed in BeginPlay for %s; GameInstanceSubsystem lifecycle broken."), *GetPathName());
+#endif
+}
+
+UTcsStateManagerSubsystem* UTcsStateComponent::ResolveStateManager()
+{
+	if (!StateMgr)
+	{
+		if (UWorld* World = GetWorld())
+		{
+			if (UGameInstance* GI = World->GetGameInstance())
+			{
+				StateMgr = GI->GetSubsystem<UTcsStateManagerSubsystem>();
+			}
+		}
+		ensureMsgf(StateMgr, TEXT("[%s] Failed to resolve StateManagerSubsystem for %s"),
+			*FString(__FUNCTION__), *GetPathName());
+	}
+	return StateMgr;
+}
+
+UTcsAttributeManagerSubsystem* UTcsStateComponent::ResolveAttributeManager()
+{
+	if (!AttrMgr)
+	{
+		if (UWorld* World = GetWorld())
+		{
+			if (UGameInstance* GI = World->GetGameInstance())
+			{
+				AttrMgr = GI->GetSubsystem<UTcsAttributeManagerSubsystem>();
+			}
+		}
+		ensureMsgf(AttrMgr, TEXT("[%s] Failed to resolve AttributeManagerSubsystem for %s"),
+			*FString(__FUNCTION__), *GetPathName());
+	}
+	return AttrMgr;
 }
 
 void UTcsStateComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)

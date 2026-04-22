@@ -54,6 +54,23 @@ protected:
 	 */
 	void LoadFromAssetManager();
 
+public:
+	/**
+	 * 获取属性定义资产（迁移期供 Component 查询的 public 入口）
+	 *
+	 * @param AttributeName 属性名
+	 * @return 属性定义资产指针；未找到返回 nullptr
+	 */
+	const UTcsAttributeDefinitionAsset* GetAttributeDefinitionAsset(FName AttributeName) const;
+
+	/**
+	 * 获取属性修改器定义资产（迁移期供 Component 查询的 public 入口）
+	 *
+	 * @param ModifierId 修改器定义 ID
+	 * @return 修改器定义资产指针；未找到返回 nullptr
+	 */
+	const UTcsAttributeModifierDefinitionAsset* GetModifierDefinitionAsset(FName ModifierId) const;
+
 #pragma endregion
 	
 
@@ -171,6 +188,10 @@ protected:
 	// 获取战斗实体的属性组件
 	static class UTcsAttributeComponent* GetAttributeComponent(const AActor* CombatEntity);
 
+public:
+	/** 分配全局唯一的属性实例 ID（迁移期供 Component 调用的 ID 工厂入口） */
+	int32 AllocateAttributeInstanceId() { return ++GlobalAttributeInstanceIdMgr; }
+
 protected:
 	// 全局属性实例ID管理器
 	UPROPERTY()
@@ -269,6 +290,13 @@ public:
 	// 处理战斗实体的属性修改器更新时的逻辑
 	UFUNCTION(BlueprintCallable, Category = "TireflyCombatSystem|Attribute", Meta = (DefaultToSelf = "CombatEntity"))
 	void HandleModifierUpdated(AActor* CombatEntity, UPARAM(ref)TArray<FTcsAttributeModifierInstance>& Modifiers);
+
+public:
+	/** 分配全局唯一的修改器实例 ID（迁移期供 Component 调用的 ID 工厂入口） */
+	int32 AllocateModifierInstanceId() { return ++GlobalAttributeModifierInstanceIdMgr; }
+
+	/** 分配全局唯一的修改器变更批次 ID（迁移期供 Component 调用的 ID 工厂入口） */
+	int64 AllocateModifierChangeBatchId() { return ++GlobalAttributeModifierChangeBatchIdMgr; }
 
 protected:
 	// 全局属性修改器实例ID管理器

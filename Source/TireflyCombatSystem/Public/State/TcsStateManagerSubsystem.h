@@ -162,6 +162,10 @@ protected:
 		UTcsStateInstance* StateInstance,
 		TArray<FName>& OutFailedParams);
 
+public:
+	/** 分配全局唯一的状态实例 ID（迁移期供 Component 调用的 ID 工厂入口） */
+	int32 AllocateStateInstanceId() { return ++GlobalStateInstanceIdMgr; }
+
 protected:
 	// 全局状态实例ID管理器
 	UPROPERTY()

@@ -3,6 +3,10 @@
 
 #include "Attribute/TcsAttributeComponent.h"
 
+#include "Attribute/TcsAttributeManagerSubsystem.h"
+#include "Engine/GameInstance.h"
+#include "Engine/World.h"
+
 
 
 UTcsAttributeComponent::UTcsAttributeComponent()
@@ -13,6 +17,37 @@ UTcsAttributeComponent::UTcsAttributeComponent()
 void UTcsAttributeComponent::BeginPlay()
 {
 	Super::BeginPlay();
+
+	if (UWorld* World = GetWorld())
+	{
+		if (UGameInstance* GI = World->GetGameInstance())
+		{
+			AttrMgr = GI->GetSubsystem<UTcsAttributeManagerSubsystem>();
+		}
+	}
+
+#if !UE_BUILD_SHIPPING
+	// 预热自测断言：GameInstanceSubsystem 在 BeginPlay 之前必然完成 Initialize，
+	// 若此处仍为空表明 Subsystem 生命周期被破坏，立即暴露。
+	checkf(AttrMgr, TEXT("AttrMgr resolve failed in BeginPlay for %s; GameInstanceSubsystem lifecycle broken."), *GetPathName());
+#endif
+}
+
+UTcsAttributeManagerSubsystem* UTcsAttributeComponent::ResolveAttributeManager()
+{
+	if (!AttrMgr)
+	{
+		if (UWorld* World = GetWorld())
+		{
+			if (UGameInstance* GI = World->GetGameInstance())
+			{
+				AttrMgr = GI->GetSubsystem<UTcsAttributeManagerSubsystem>();
+			}
+		}
+		ensureMsgf(AttrMgr, TEXT("[%s] Failed to resolve AttributeManagerSubsystem for %s"),
+			*FString(__FUNCTION__), *GetPathName());
+	}
+	return AttrMgr;
 }
 
 bool UTcsAttributeComponent::GetAttributeValue(FName AttributeName, float& OutValue) const

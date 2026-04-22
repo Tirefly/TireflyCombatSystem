@@ -1950,6 +1950,24 @@ bool UTcsAttributeManagerSubsystem::GetModifiersBySourceHandle(
 	return OutModifiers.Num() > 0;
 }
 
+const UTcsAttributeDefinitionAsset* UTcsAttributeManagerSubsystem::GetAttributeDefinitionAsset(FName AttributeName) const
+{
+	if (const UTcsAttributeDefinitionAsset* const* Found = AttributeDefinitions.Find(AttributeName))
+	{
+		return *Found;
+	}
+	return nullptr;
+}
+
+const UTcsAttributeModifierDefinitionAsset* UTcsAttributeManagerSubsystem::GetModifierDefinitionAsset(FName ModifierId) const
+{
+	if (const UTcsAttributeModifierDefinitionAsset* const* Found = AttributeModifierDefinitions.Find(ModifierId))
+	{
+		return *Found;
+	}
+	return nullptr;
+}
+
 void UTcsAttributeManagerSubsystem::LoadFromAssetManager()
 {
 #if !WITH_EDITOR

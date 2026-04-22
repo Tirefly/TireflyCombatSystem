@@ -16,6 +16,7 @@
 
 class UTcsStateInstance;
 class UTcsStateManagerSubsystem;
+class UTcsAttributeManagerSubsystem;
 struct FStateTreeStateHandle;
 
 
@@ -290,6 +291,25 @@ protected:
 	// 状态管理器子系统
 	UPROPERTY()
 	TObjectPtr<UTcsStateManagerSubsystem> StateMgr;
+
+	// 属性管理器子系统（迁移期缓存，供 Phase D/E 下沉的生命周期/清理逻辑直接访问）
+	UPROPERTY()
+	TObjectPtr<UTcsAttributeManagerSubsystem> AttrMgr;
+
+	/**
+	 * 懒加载获取 StateManager
+	 * BeginPlay 已预热；业务方法中若首访为空，会在此补拉取并 ensureMsgf 诊断
+	 *
+	 * @return StateManager 指针；失败时返回 nullptr 并触发 ensureMsgf
+	 */
+	UTcsStateManagerSubsystem* ResolveStateManager();
+
+	/**
+	 * 懒加载获取 AttributeManager
+	 *
+	 * @return AttributeManager 指针；失败时返回 nullptr 并触发 ensureMsgf
+	 */
+	UTcsAttributeManagerSubsystem* ResolveAttributeManager();
 
 	// 状态实例索引：按Id/DefId/Slot查询
 	UPROPERTY()
