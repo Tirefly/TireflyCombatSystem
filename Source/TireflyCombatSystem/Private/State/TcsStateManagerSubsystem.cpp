@@ -1666,7 +1666,7 @@ void UTcsStateManagerSubsystem::RemoveUnmergedStates(
 		}
 
 		// 使用 RequestStateRemoval 统一移除路径，确保 StateTree 退场逻辑有机会执行
-		RequestStateRemoval(State, FName("MergedOut"));
+		RequestStateRemoval(State, TcsStateRemovalReasons::MergedOut);
 		// TODO(TCS): Merge-removed instances should be returned to pool when TireflyObjectPool refactor is complete.
     }
 }
@@ -2167,7 +2167,7 @@ void UTcsStateManagerSubsystem::CancelState(UTcsStateInstance* StateInstance)
         return;
     }
 
-	RequestStateRemoval(StateInstance, FName("Cancelled"));
+	RequestStateRemoval(StateInstance, TcsStateRemovalReasons::Cancelled);
 }
 
 void UTcsStateManagerSubsystem::ExpireState(UTcsStateInstance* StateInstance)
@@ -2179,7 +2179,7 @@ void UTcsStateManagerSubsystem::ExpireState(UTcsStateInstance* StateInstance)
         return;
     }
 
-	RequestStateRemoval(StateInstance, FName("Expired"));
+	RequestStateRemoval(StateInstance, TcsStateRemovalReasons::Expired);
 
 	// 从槽位中移除并刷新槽位（自然过期应立刻反映到槽位激活结果）
 }
@@ -2372,7 +2372,7 @@ bool UTcsStateManagerSubsystem::RemoveState(UTcsStateInstance* StateInstance)
     }
 
 	// 移除状态并从槽位中移除
-	return RequestStateRemoval(StateInstance, FName("Removed"));
+	return RequestStateRemoval(StateInstance, TcsStateRemovalReasons::Removed);
 }
 
 int32 UTcsStateManagerSubsystem::RemoveStatesByDefId(
@@ -2407,7 +2407,7 @@ int32 UTcsStateManagerSubsystem::RemoveStatesByDefId(
 
 		for (UTcsStateInstance* State : StatesToRemove)
         {
-			RequestStateRemoval(State, FName("Removed"));
+			RequestStateRemoval(State, TcsStateRemovalReasons::Removed);
             RemovedCount++;
         }
 
@@ -2442,7 +2442,7 @@ int32 UTcsStateManagerSubsystem::RemoveAllStatesInSlot(
     {
         if (IsValid(State))
         {
-			RequestStateRemoval(State, FName("Removed"));
+			RequestStateRemoval(State, TcsStateRemovalReasons::Removed);
             RemovedCount++;
         }
     }
@@ -2468,7 +2468,7 @@ int32 UTcsStateManagerSubsystem::RemoveAllStates(UTcsStateComponent* StateCompon
         {
             if (IsValid(State))
             {
-				RequestStateRemoval(State, FName("Removed"));
+				RequestStateRemoval(State, TcsStateRemovalReasons::Removed);
                 TotalRemoved++;
             }
         }

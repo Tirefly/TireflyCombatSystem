@@ -60,7 +60,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams(
 );
 
 // 状态移除事件签名
-// (状态组件, 状态实例, 移除原因: Expired=自然过期, Removed=主动移除, Cancelled=被取消)
+// (状态组件, 状态实例, 移除原因: Expired=自然过期, Removed=主动移除, Cancelled=被取消, MergedOut=合并淘汰, StackDepleted=叠层耗尽)
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(
 	FTcsOnStateRemovedSignature,
 	UTcsStateComponent*, StateComponent,
@@ -172,7 +172,7 @@ public:
 		FName DeactivateReason);
 
 	// 通知状态被移除
-	// RemovalReason: "Expired"=自然过期, "Removed"=主动移除, "Cancelled"=被取消
+	// RemovalReason: "Expired"=自然过期, "Removed"=主动移除, "Cancelled"=被取消, "MergedOut"=合并淘汰, "StackDepleted"=叠层耗尽
 	void NotifyStateRemoved(UTcsStateInstance* StateInstance, FName RemovalReason);
 
 	// 通知状态叠层变化
@@ -327,7 +327,7 @@ public:
 	UFUNCTION(BlueprintPure, Category = "State Slot|Debug", meta = (AutoCreateRefTerm = "SlotFilter"))
 	FString GetSlotDebugSnapshot(FGameplayTag SlotFilter = FGameplayTag()) const;
 
-	// 状态实例调试输出（按实例枚举，便于定位 PendingRemoval/Duration/Tick 等字段）
+	// 状态实例调试输出（按实例枚举，便于定位 Duration/Tick 等字段）
 	UFUNCTION(BlueprintPure, Category = "State|Debug")
 	FString GetStateDebugSnapshot(FName StateDefIdFilter = NAME_None) const;
 

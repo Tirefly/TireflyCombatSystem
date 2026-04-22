@@ -5,7 +5,7 @@
 
 ---
 
-## E-1. 状态创建与应用主流程（5 个函数）
+## E-1. 状态创建与应用主流程（6 个函数）
 
 ### 1. TryApplyStateToTarget（保留在 Manager，改为薄转发）
 
@@ -72,6 +72,44 @@
 | **迁移后签名** | `virtual bool CheckStateApplyConditions(UTcsStateInstance* StateInstance)` |
 | **内部依赖** | `StateInstance->GetStateDefAsset()` → 遍历 `ActiveConditions` → `UTcsStateCondition::CheckCondition()` |
 | **变化** | static → virtual 成员方法 |
+
+### 6. TryApplyStateInstance（State 应用核心入口，独立迁移）
+
+> **定位**：`TryApplyStateInstance` 是整合版 §6.1 明确列出的 **StateComponent 核心 virtual 扩展点**。它既是 `TryApplyState` 的内部步骤，也是对外暴露给"已有 StateInstance、想直接走后半段流程"的公共入口（BlueprintCallable），因此**必须作为独立的迁移条目**，而不是隐藏在 `TryApplyState` 的内部实现里。
+
+| 项 | 详情 |
+|----|------|
+| **声明** | `StateMgr.h:199-200` |
+| **实现** | `StateMgr.cpp:813-857`（45 行） |
+| **签名** | `bool TryApplyStateInstance(UTcsStateInstance* StateInstance)` |
+| **UFUNCTION** | BlueprintCallable, Category = "State Manager" |
+| **迁移后签名** | `virtual bool TryApplyStateInstance(UTcsStateInstance* StateInstance)` |
+| **UFUNCTION（迁移后）** | BlueprintCallable, Category = "State" |
+| **最终形态** | `UTcsStateComponent` 的核心 virtual 扩展点 |
+
+**内部依赖与替换**：
+
+| 原代码 / 调用 | 替换为 | 行号 |
+|---------------|--------|------|
+| `StateInstance->IsInitialized()` 校验 | 保持不变 | 822 |
+| `StateInstance->GetOwnerStateComponent()` 上的 `NotifyStateApplyFailed(...)` | 改为 `this->NotifyStateApplyFailed(...)`（当 `StateInstance->GetOwner() == GetOwner()` 时） | 827-833, 843-849 |
+| `CheckStateApplyConditions(StateInstance)` | `this->CheckStateApplyConditions(StateInstance)`（迁移后为成员 virtual） | 841 |
+| `TryAssignStateToStateSlot(StateInstance)` | `this->TryAssignStateToStateSlot(StateInstance)` | 855 |
+| `// TODO: 未来实现CheckImmunity` | 原样保留 | 840 |
+
+**归属校验（新增）**：
+- 迁移后 `TryApplyStateInstance` 运行在具体 `StateComponent` 上，需要在入口校验 `StateInstance->GetOwner() == GetOwner()`；若不匹配，走 `NotifyStateApplyFailed(ETcsStateApplyFailReason::InvalidInput, ...)` 并返回 false
+- 避免调用方把 A Actor 的 StateInstance 递给 B Actor 的 StateComponent
+
+**`TryApplyState` 与 `TryApplyStateInstance` 的分工**：
+
+| 方法 | 职责 | 调用关系 |
+|------|------|----------|
+| `TryApplyState(DefId, Instigator, Level, ParentSourceHandle)` | 从 DefId 走**完整流程**：创建实例 → 初始化 → 参数求值 → 应用 | 内部调用 `CreateStateInstance()` + `TryApplyStateInstance()` |
+| `TryApplyStateInstance(StateInstance)` | 跳过创建，对**已有实例**走**后半段**：条件检查 → 槽位分配 → 索引注册 → 成功通知 | 由 `TryApplyState` 调用；也允许外部直接调用 |
+
+**兼容层映射**（Phase F）：
+- `UTcsStateManagerSubsystem::TryApplyStateInstance(UTcsStateInstance*)` 标记 `UE_DEPRECATED`，内部转发到 `StateInstance->GetOwnerStateComponent()->TryApplyStateInstance(StateInstance)`
 
 ### TryApplyStateInstance 完整调用链保序
 
@@ -292,8 +330,12 @@ TryApplyState (新入口)
 |----|------|
 | **声明** | `StateMgr.h:297`（protected static） |
 | **实现** | `StateMgr.cpp:1406-1418`（13 行） |
-| **迁移后** | `void SortStatesByPriority(TArray<UTcsStateInstance*>& States)` |
-| **变化** | static → 成员方法（或保持 static 也可，无需访问 this） |
+| **签名** | `static void SortStatesByPriority(TArray<UTcsStateInstance*>& States)` |
+| **迁移后** | `virtual void SortStatesByPriority(TArray<UTcsStateInstance*>& States)` — 成员 virtual 方法 |
+| **可见性** | protected |
+| **变化** | static → virtual 成员方法（不保留 static） |
+| **设计理由** | 排序比较器是合理的子类扩展点：项目可能需要按 DefId / 自定义 Tag / 时戳权重 / 多关键字比较等方式重定义优先级。保持 static 会阻止这种扩展，与本轮迁移「Component 子类为扩展单位」的原则不一致 |
+| **性能说明** | virtual 方法调用开销在排序本身的 O(N log N) 面前可忽略，且大部分调用站在单槽内执行（N 通常很小） |
 
 ---
 
@@ -306,11 +348,13 @@ TryApplyState (新入口)
 | `bIsUpdatingSlotActivation` | `StateMgr.h:288` | `StateCmp.h` (protected) |
 | `PendingSlotActivationUpdates` | `StateMgr.h:292` | `StateCmp.h` (protected) |
 
-### 类型变化
+### 类型变化 & 设计修正
 
-当前 `PendingSlotActivationUpdates` 是 `TMap<TWeakObjectPtr<UTcsStateComponent>, TSet<FGameplayTag>>`（全局 Manager 管理多个 Component 的队列）。
+当前 `PendingSlotActivationUpdates` 是 `TMap<TWeakObjectPtr<UTcsStateComponent>, TSet<FGameplayTag>>`（全局 Manager 管理多个 Component 的队列），`bIsUpdatingSlotActivation` 也是全局标志。
 
-迁移到 Component 后简化为每个实例独立：
+**这是原有设计的缺陷**：`UpdateStateSlotActivation` 的 8 步流程全部操作传入的单个 Component 的 `StateSlotsX`，内部没有任何跨 Actor 调用，防重入本来就应该是 Actor 自身的状态管理逻辑。全局锁会导致 Actor A 的槽位更新意外阻塞无关的 Actor B 的更新请求。
+
+迁移到 Component 后不仅是简化，而是**修正了原有设计缺陷**，让防重入粒度与实际操作粒度一致：
 
 ```cpp
 protected:
@@ -330,6 +374,33 @@ protected:
 | IsEmpty | `StateMgr.cpp:1308` | `DrainPendingSlotActivationUpdates` |
 | 拷贝+清空 | `StateMgr.cpp:1311-1312` | `DrainPendingSlotActivationUpdates` |
 | 超限清空 | `StateMgr.cpp:1339` | `DrainPendingSlotActivationUpdates` |
+
+### S2 场景保护：用 `TGuardValue` 管理防重入标志（必做，见整合版 §11.2）
+
+迁移后 `UpdateStateSlotActivation` 必须用 `TGuardValue<bool>` 管理 `bIsUpdatingSlotActivation`，理由：
+- 旧实现用"手动置 true + 多处手动置 false"模式（上表的 4 处重置），一旦未来新增提前 `return` 分支就可能遗漏重置，导致"卡死防重入锁"——后续所有同帧请求都被当作重入而入队，但入队者再也不会被 drain
+- `TGuardValue` 在作用域结束（含 `return` / 异常）时自动还原，完全消除这类遗漏
+
+**迁移后实现骨架**：
+```cpp
+void UTcsStateComponent::UpdateStateSlotActivation(FGameplayTag SlotTag)
+{
+    if (bIsUpdatingSlotActivation)
+    {
+        PendingSlotActivationUpdates.Add(SlotTag);
+        return;
+    }
+
+    // 作用域守卫：无论从哪个分支返回都会自动置回 false
+    TGuardValue<bool> Guard(bIsUpdatingSlotActivation, true);
+
+    // ... 原 8 步流程（StateMgr.cpp:1343-1404），删除手动的 bIsUpdatingSlotActivation = false 赋值 ...
+
+    DrainPendingSlotActivationUpdates();
+}
+```
+
+**相关测试**（Phase E PR 必带）：`FTcs_SameFrameMultiApplySpec`——同帧对同一 Actor 多次 `TryApplyState`，断言最终 Slot 状态正确、`PendingSlotActivationUpdates` 为空、无重复激活/停用事件。
 
 ---
 
@@ -374,7 +445,7 @@ struct FTcsStateInstanceIndex
 ### 迁移后签名
 
 ```cpp
-// 全部在 UTcsStateComponent 上
+// 全部在 UTcsStateComponent 上：均不加 virtual（设计决定，见下方说明）
 bool GetStatesInSlot(FGameplayTag SlotTag, TArray<UTcsStateInstance*>& OutStates) const;
 bool GetStatesByDefId(FName StateDefId, TArray<UTcsStateInstance*>& OutStates) const;
 bool GetAllActiveStates(TArray<UTcsStateInstance*>& OutStates) const;
@@ -383,6 +454,19 @@ bool HasActiveStateInSlot(FGameplayTag SlotTag) const;
 ```
 
 **注意**: 查询 API 不需要 `StateComponent` 参数（已是 Component 自身方法），也不应在查询中偷偷调用 `RefreshInstances()` 修改运行时状态。
+
+### 为什么查询 API 不标 `virtual`（设计决定，非遗漏）
+
+上述 5 个查询 API 有意设为非 `virtual`，不列入整合版 §6.1 的「核心 virtual 扩展点」清单：
+
+| 理由 | 说明 |
+|------|------|
+| 纯读语义 | 查询不改状态；子类覆写容易引入副作用或绕过 `StateInstanceIndex`，破坏契约 |
+| 索引是内部缓存 | `StateInstanceIndex` 的维护责任属于写路径（`TryAssignStateToStateSlot` / `FinalizeStateRemoval`），不应因覆写查询而耦合给子类 |
+| 延伸点在业务层 | Tag/Gate 等过滤需求应在业务层基于查询结果构建新 API，而不是覆写现有 5 个查询 |
+| 与写路径对比 | `TryApplyState*` / `CreateStateInstance` / `CheckStateApplyConditions` 等子类有合理插入需求，才标 virtual；查询没有等价动机 |
+
+未来确实需要扩展查询行为时，应单独设计 `BlueprintNativeEvent` 或 Hook 点，**不在本次迁移一道为 5 个查询 API 补 `virtual`**。
 
 ---
 

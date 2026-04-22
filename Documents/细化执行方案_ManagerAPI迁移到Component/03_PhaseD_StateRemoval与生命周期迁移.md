@@ -163,6 +163,7 @@
 | **迁移后** | `virtual int32 RemoveAllStates()` |
 | **UFUNCTION** | BlueprintCallable |
 | **内部依赖** | 遍历所有 `StateSlotsX` → `RequestStateRemoval()` |
+| **S3 场景防护** | 见整合版 §11.3。**UE 5.6 引擎侧 `FStateTreeExecutionContext::Stop()` 已对"自 Tick / Task 内重入 Stop"做延迟处理**（`StateTreeExecutionContext.cpp:1292-1300`：`if (Exec.CurrentPhase != Unset) { Exec.RequestedStop = ...; return Running; }`），迁移层**无需自建** `bIsInStateTreeCallback`/`bPendingRemoveAllStates` 兜底 Flag。但 `FinalizeStateRemoval.Step2~8`（Scheduler/Duration/Index 清理、Modifier 移除、`MarkPendingGC`）会在 StateTree 延迟 Stop 之前同步执行，可能早于 Task 的 `ExitState`。处置：① 调用方合约约束"归还在帧间触发"；② `RemoveAllStates` 入口加 `ensureMsgf(!IsInStateTreeUpdateContext(), ...)` 诊断，不改变控制流；③ 可选保留一个 `bIsInStateTreeCallback` 标志仅用于 ensure，不再做 pending 延迟。 |
 
 ---
 
@@ -212,6 +213,16 @@ if (UTcsAttributeComponent* OwnerAttrComp = StateInstance->GetOwnerAttributeComp
 - 优先使用 `StateInstance` 已缓存的 `OwnerAttributeComponent`，避免多一次跨系统查找
 - Phase C 完成后 `RemoveModifiersBySourceHandle` 已是 `AttributeComponent` 的方法
 
+> **硬依赖：Phase C 必须先于 Phase D 完成**
+>
+> Step 3.5 的迁移后代码直接调用 `UTcsAttributeComponent::RemoveModifiersBySourceHandle(...)`——该 API 是 Phase C-1 的迁移产物，Phase C 合入前不存在。
+>
+> 因此：
+>
+> - **不允许并行开发**：两个分支并行会逼迫 D 分支 mock / stub `RemoveModifiersBySourceHandle`，mock 行为与真实行为的偏差会让 D 阶段测试结果失真
+> - **不允许"暂时保留旧调用"**：若在 D 阶段暂留 `AttrMgr->RemoveModifiersBySourceHandle(Owner, SourceHandle)`，等 C 合入后再改，会遗留一次"二次替换"，且违反 §5.3「internal call 必须 component-first」
+> - **正确做法**：等 Phase C PR 合入 main 后，Phase D 分支从最新 main rebase，再开始 `FinalizeStateRemoval` 的迁移工作
+
 ---
 
 ## D-3. 必须同步修改的外部调用点
@@ -235,6 +246,34 @@ if (UTcsAttributeComponent* OwnerAttrComp = StateInstance->GetOwnerAttributeComp
 | **当前调用** | 行 260: `StateMgr->ExpireState(ExpiredState)` |
 | **迁移后** | `ExpireState(ExpiredState)` 或 `this->ExpireState(ExpiredState)` |
 | **注意** | 变为 Component 内部自调用，无需经过 Manager |
+
+#### 附加修改：S1 场景自毁防护（必做，见整合版 §11.1）
+
+`ExpireState` → `FinalizeStateRemoval` → 移除 Modifier → 属性回调 / 蓝图回调 中，回调可能 `Destroy(Owner)` 或 `UnregisterComponent()`。本方法第二阶段的 `for (ExpiredState : ExpiredStates)` 循环，**每次 `ExpireState` 返回后必须检查 `this` 自身是否仍有效**，否则后续元素会踩悬空指针。
+
+在 `StateCmp.cpp:258-267` 第二阶段循环中按下例修改（`ExpireState` 的调用同步改为本地调用）：
+
+```cpp
+for (UTcsStateInstance* ExpiredState : ExpiredStates)
+{
+    if (IsValid(ExpiredState))
+    {
+        ExpireState(ExpiredState);                      // 从 StateMgr->ExpireState 改为本地调用
+
+        // S1 防护：ExpireState 链路可能触发用户回调销毁 Owner / Component
+        if (IsBeingDestroyed() || !IsValid(GetOwner()))
+        {
+            return;                                     // 剩余元素不再处理，DurationTracker 随 Component 一起释放
+        }
+    }
+    else
+    {
+        InvalidStates.Add(ExpiredState);
+    }
+}
+```
+
+**性能说明**：`IsBeingDestroyed()` 是 `UActorComponent` 的原生内联查询，无反射/GC 开销。
 
 ### 调用点 3-N: StateMgr 内部互调（Phase E 一并迁移后自动解决）
 

@@ -63,9 +63,11 @@
 
 保留以下优点：
 
-- 允许短暂存在的 deprecated 兼容层，减少迁移期蓝图 / C++ 爆炸半径。
+- 允许短暂存在的 deprecated 兼容层，减少迁移期 C++ 爆炸半径。
 - 迁移期间要求“内部调用优先改走 Component”，不能只搬 API 不搬调用路径。
 - 强调补测试，不只做接口重排。
+
+> 说明：插件目前处于开发阶段，无任何蓝图资产引用旧 Manager API，因此下文不再讨论“蓝图节点迁移 / redirector / 资产扫描”。Phase F 兼容层只服务于 C++ 编译过渡。
 
 ### 2.2 吸收 Claude 方案的部分
 
@@ -98,7 +100,7 @@
 | SR-05 | 最终移除时清理 Modifier 的路径过于绕 | `FinalizeStateRemoval()` 仍先拿 `AttrMgr` 再传 `OwnerActor` 去删 Modifier | 多一次跨系统查找，且忽略了 `StateInstance` 已缓存的 OwnerAttributeComp | 优先直接用 `StateInstance->GetOwnerAttributeComponent()` |
 | SR-06 | 调试注释仍带着旧 PendingRemoval 残影 | `GetStateDebugSnapshot` 注释仍提到 `PendingRemoval`，调试字符串里还有占位的 `RemovalStr` | 文档和调试输出继续误导维护者 | 清理注释与无意义字段，统一为当前单阶段语义 |
 | SR-07 | 移除后查询与槽位状态仍过度依赖全表扫描 | 查询 API 主要遍历 `StateSlotsX`，没有充分使用 `StateInstanceIndex` | 移除后的查询行为分散、重复、性能差 | 查询 API 下沉到 `StateComponent` 后优先使用 `StateInstanceIndex` |
-| SR-08 | 槽位激活防重入仍是全局状态 | `bIsUpdatingSlotActivation` 和 `PendingSlotActivationUpdates` 仍挂在 `StateManagerSubsystem` | 不同 Actor 的槽位更新彼此耦合 | 迁移到每个 `StateComponent` 实例 |
+| SR-08 | 槽位激活防重入是全局状态（原有设计缺陷） | `bIsUpdatingSlotActivation` 和 `PendingSlotActivationUpdates` 仍挂在 `StateManagerSubsystem`。`UpdateStateSlotActivation` 的 8 步流程全部操作单个 Component 的 `StateSlotsX`，内部没有任何跨 Actor 调用，防重入本来就应该是 Actor 自身的状态管理逻辑；全局锁会导致 Actor A 的更新意外阻塞无关的 Actor B | 不同 Actor 的槽位更新彼此耦合（设计错误） | 迁移到每个 `StateComponent` 实例——不仅是简化，而是修正原有缺陷，让防重入粒度与实际操作粒度一致 |
 | SR-09 | 如果 deprecated 包装器长期保留，会形成双实现 | 迁移期容易把包装器“先留着”变成“永久留着” | `Manager` 与 `Component` 职责重新重叠 | 把“删除包装器”写成完成定义，未删除即未完成 |
 
 ---
@@ -165,6 +167,14 @@
 - 属性重算
 - Clamp 与范围传播
 
+> **设计约束：属性夹值计算的单 Component 边界**
+>
+> `FTcsAttributeRange` 的 `MinValueAttribute` / `MaxValueAttribute` 是纯 `FName`，只能引用同一 `AttributeComponent` 上的属性。
+> `EnforceAttributeRangeConstraints` 和 `ClampAttributeValueInRange` 迁移为成员方法后，所有动态范围依赖都在 `this` 上解析，不支持跨 Actor 属性引用。
+>
+> 自定义 Clamp 策略（`UTcsAttributeClampStrategy` 子类）接收的 `FTcsAttributeClampContextBase` 上下文也绑定到单个 `AttributeComponent`。
+> 未来若需支持跨 Actor 属性依赖，应通过扩展 Context 或引入跨 Component Resolver 实现，而非破坏当前单 Component 假设。
+
 ---
 
 ## 5. 迁移原则
@@ -173,9 +183,10 @@
 
 允许在迁移中间阶段保留 deprecated 包装器，但它只服务于：
 
-- 编译过渡
-- 蓝图节点迁移
+- C++ 编译过渡
 - 分阶段提交
+
+（插件开发阶段无蓝图引用，不涉及蓝图节点迁移 / redirector。）
 
 **注意：这不是最终形态。**
 
@@ -225,12 +236,14 @@
 
 ### 5.5 Manager 缓存不能只依赖 BeginPlay
 
-`StateMgr` / `AttrMgr` 仍然会作为缓存指针存在于组件上，但运行时方法不能假设：
+`StateMgr` / `AttrMgr` 仍然会作为缓存指针存在于组件上。
 
-- 组件一定已经 `BeginPlay`
-- 缓存一定已经填好
+由于 `GameInstanceSubsystem::Initialize()` 保证在所有 Actor::BeginPlay 之前完成，正常流程中 BeginPlay 获取 Subsystem 必然成功。因此采用**「BeginPlay 预热 + ensureMsgf 诊断保护」**策略：
 
-因此两个组件都需要新增 lazy resolve helper，例如：
+- `BeginPlay` 负责获取并缓存 Manager 指针
+- 运行时方法通过 `ResolveStateManager()` / `ResolveAttributeManager()` 访问缓存
+- 若缓存为空，helper 执行一次补拉取并通过 `ensureMsgf` 报告诊断信息
+- 不依赖"运行时自愈"假设——如果 BeginPlay 时获取失败，运行时再试也不可能成功（GameInstance 不会在中途重新创建 Subsystem）
 
 ```cpp
 protected:
@@ -238,7 +251,7 @@ protected:
     UTcsAttributeManagerSubsystem* ResolveAttributeManager();
 ```
 
-`BeginPlay` 负责预热，但真正的业务方法需要在缓存为空时自行补拉取。
+Resolve helper 的价值在于**诊断**而非自愈：若预热成功（正常流程 100% 成功），运行时零开销；若失败，`ensureMsgf` 在第一次调用时立即报告，而非等到某个随机操作才 nullptr crash。
 
 ### 5.6 只把真正的扩展点做成 virtual
 
@@ -251,6 +264,8 @@ protected:
 - 清理型底层 helper 尽量保持 non-virtual / static
 
 如果未来要支持蓝图覆写，再单独设计 `BlueprintNativeEvent`，不在本轮一起扩面。
+
+> 注：当前插件无蓝图引用，因此本次迁移不考虑蓝图侧兼容性；后续若对外发布需支持蓝图覆写，再单独规划。
 
 ---
 
@@ -304,6 +319,7 @@ virtual int32 RemoveAllStates();
 - `ProcessStateSlotMerging(...)`
 - `ProcessStateSlotByActivationMode(...)`
 - `ApplyPreemptionPolicyToState(...)`
+- `SortStatesByPriority(...)` — 排序比较函数允许子类覆写（例如按 DefId/自定义 Tag/时戳加权）
 
 ### `UTcsStateComponent` 的非 virtual 包装/辅助
 
@@ -314,7 +330,6 @@ virtual int32 RemoveAllStates();
 - `RemoveStateFromSlot(...)`
 - `MergeStateGroup(...)`
 - `RemoveUnmergedStates(...)`
-- `SortStatesByPriority(...)`
 - `CleanupInvalidStates(...)`
 - `IsStateStillValid(...)`
 
@@ -331,6 +346,17 @@ virtual int32 RemoveAllStates();
 
 - `StateSlotsX` 仍然是槽位激活顺序与 Gate 状态的真源。
 - `StateInstanceIndex` 是查询缓存，不是替代槽位运行时容器。
+
+### 查询 API 有意不标 `virtual`（设计决定）
+
+上述五个查询 API（`GetStatesInSlot` / `GetStatesByDefId` / `GetAllActiveStates` / `HasStateWithDefId` / `HasActiveStateInSlot`）**不加 `virtual`**，亦不列入核心 virtual 扩展点。原因：
+
+- **纯读取语义**：查询 API 不修改运行时状态，子类覆写很容易客进修改或遗漏索引读取，与「查询不对状态有副作用」的契约冲突。
+- **索引是内部实现**：`StateInstanceIndex` 是 `StateComponent` 维护的缓存，其完整性依赖写路径（`TryAssignStateToStateSlot` / `FinalizeStateRemoval`）的正确调用。若允许子类覆写查询路径，就必须附带「子类自己维护索引的契约」，彌散扩面不合算。
+- **延伸点在下一层**：真需要扩展时（例如添加 Tag 过滤、Gate 过滤），应基于查询结果在业务层再结合 `StateInstanceIndex` 新增专用 API，而不是覆写现有查询。
+- **与 TryApply× 的对比**：`TryApplyState` / `TryApplyStateInstance` / `CreateStateInstance` 等写路径是 virtual，因为子类有合理动机插入自定义创建/条件/参数求值逻辑；查询没有等价的扩展需求。
+
+如果未来确实要扩展查询行为，应单独设计新的 BlueprintNativeEvent/Hook，而不是在本轮一道给 5 个查询 API 补 `virtual`。
 
 ### 一个重要修正：`ClearStateSlotExpiredStates` 不应该变成“无 this 的 static”
 
@@ -464,6 +490,17 @@ namespace TcsStateRemovalReasons
 
 后续所有调用统一替换成常量，避免迁移期间拼写漂移。
 
+> **执行建议：A-2 作为独立 pre-PR 先合入**
+>
+> 本步骤（namespace 引入 + 现有字符串字面量批量替换为常量）是**纯机械操作、零语义风险**，与后续 Phase B~G 的任何改动都没有耦合。
+> 建议作为**独立 pre-PR** 先合入 main，收益：
+>
+> - 减少 Phase C/D/E 主迁移 PR 的 diff 体积，review 聚焦业务迁移本身
+> - 迁移过程中所有新代码直接引用常量，避免再次出现字面量漂移
+> - 可被任意时间点 revert，不影响主迁移进度
+>
+> 该 pre-PR 与 Phase A-1 / A-3（文档与注释清理）可合并为同一批次，命名建议 `TCS: unify state removal reasons`。
+
 ### A-3. 清理遗留注释和调试残影
 
 需要同步清理：
@@ -529,11 +566,57 @@ protected:
 要求：
 
 - `BeginPlay` 里继续预热缓存
-- 业务方法里发现缓存为空时，仍能自行拉起
+- 业务方法里发现缓存为空时，通过 `ensureMsgf` 报告诊断信息（参见 §5.5）
+
+### B-4. 预热自测断言（Debug/Development 专用）
+
+B-3 的 `ResolveStateManager()` / `ResolveAttributeManager()` 实现后，**立即**在 `BeginPlay` 末尾加一条自测断言，确认预热链路正常工作：
+
+```cpp
+void UTcsStateComponent::BeginPlay()
+{
+    Super::BeginPlay();
+
+    // ... 既有初始化（InitStateSlotMappings 等）...
+
+    // 预热 Manager 缓存
+    StateMgr = ResolveStateManager();
+    // AttributeComponent 侧同理：AttrMgr = ResolveAttributeManager();
+
+#if !UE_BUILD_SHIPPING
+    // 预热链路自测：Shipping 以外所有配置下启用
+    // 若此处触发，说明 GameInstance 初始化顺序异常或 Subsystem 被意外卸载
+    checkf(StateMgr, TEXT("StateMgr resolve failed in BeginPlay; Subsystem lifecycle broken."));
+#endif
+}
+```
+
+**为什么在 Phase B 就加，而不等 Phase D/E 出 bug**：
+
+- Phase B 本身改动极小，此时 `check` 失败的唯一原因就是 `ResolveStateManager` 实现有误——**问题定位窗口极小**
+- 一旦 Phase C/D/E 业务代码堆上去，再触发 `StateMgr == nullptr` 路径时，需要排查的嫌疑代码规模 ×10
+- `check` 仅 Debug/Development 生效，Shipping 零开销；且 B 阶段正常流程下**必然**成功（`GameInstanceSubsystem::Initialize` 在 `Actor::BeginPlay` 之前完成，见 §5.5）
+
+**使用 `checkf` 而非 `ensureMsgf` 的理由**：Phase B 的预热断言意图是“如果失败就立即停机，暴露环境问题”，而非“记一条错误日志继续跑”。运行时 `ResolveXxxManager()` 内部的 `ensureMsgf`（§5.5）处理的是“已发生的不可恢复情况下的诊断”，定位不同。
 
 ---
 
 ## Phase C：先迁 Attribute，再迁 State
+
+> **Phase C 与 Phase D 必须串行，不能并行开发。**
+>
+> 虽然两者触及的文件集合看似不重叠（C 动 `AttributeComponent`，D 动 `StateComponent`），但存在**单向依赖**：
+>
+> - Phase D 的 `FinalizeStateRemoval` Step 5（Modifier 清理）要求调用 `UTcsAttributeComponent::RemoveModifiersBySourceHandle(...)`
+> - 该 API 是 Phase C-1 的迁移产物，Phase C 完成前不存在
+>
+> **不推荐的做法**：
+>
+> - 在 Phase D 分支里 mock/stub `RemoveModifiersBySourceHandle` ——mock 行为与真实行为的偏差会让 D 阶段的测试结果失真，后续联调时需要重测
+> - 在 Phase D 里暂时保留旧的 `AttrMgr->RemoveModifiersBySourceHandle(Owner, SourceHandle)` 调用 ——会遗留一次“二次替换”，违反 §5.3 “internal call 必须 component-first”
+>
+> **正确顺序**：Phase A（pre-PR）→ Phase B → **Phase C 合入 main** → Phase D → Phase E → Phase F → Phase G。
+> 只有 Phase E 内部（状态应用 / 槽位链路 / 查询三个子项）在 Phase D 合入后可以并行拆分。
 
 ## C-1. 迁移 Attribute 业务到 `UTcsAttributeComponent`
 
@@ -849,13 +932,13 @@ protected:
 
 - 组件 API 已经落地
 - 内部调用点正在批量替换
-- 蓝图节点正在迁移
 
 一旦以下条件全部满足，就必须进入下一阶段删除：
 
 - 所有 C++ 内部调用已改到 Component
-- 所有蓝图节点已完成迁移并可编译
 - 回归测试通过
+
+（插件开发阶段无蓝图引用，无需蓝图节点迁移条件。）
 
 ---
 
@@ -970,7 +1053,8 @@ protected:
 
 - grep 不再出现旧的内部调用路径
 - `Manager` 头文件中不再存在 `Deprecated_MigrationOnly` 区域
-- 蓝图重新编译无旧节点引用
+
+（插件开发阶段无蓝图引用，跳过「蓝图重新编译」验证。）
 
 ---
 
@@ -986,3 +1070,146 @@ protected:
 6. 编译通过，行为验证通过，关键测试场景通过。
 
 **只要 deprecated 包装器还在，或者 Manager 上还残留 actor-local 业务 API，本议题就不能算完成。**
+
+---
+
+## 11. 边缘场景与测试用例
+
+> 以下场景都不是迁移 **引入** 的新 Bug——它们在旧的 Manager 架构下同样存在——但迁移是审视并修复这些潜在崩溃/行为漂移的最佳时机。
+
+### 11.1 场景 S1：Component 在过期链路中被销毁（崩溃风险）
+
+**触发路径**：
+```
+UpdateActiveStateDurations
+  → ExpireState(Expired)
+    → FinalizeStateRemoval
+      → 移除 Modifier
+        → 属性变化回调 / 蓝图回调
+          → 回调中 Destroy(Owner) 或 UnregisterComponent()
+```
+回调返回后，外层 `for (ExpiredState : ExpiredStates)` 循环继续遍历下一个元素时，`this` 已是悬空指针。
+
+**修复方案（Phase D 迁移时一并做）**：
+- `UpdateActiveStateDurations` 的"过期分发"第二阶段循环，**每次 `ExpireState` 返回后检查 `this` 自身存活**
+- 使用 `IsBeingDestroyed()` + `IsValid(GetOwner())` 双重判断（`UActorComponent` 原生 API，无反射/GC 开销）
+- 一旦检测到自毁，`break` 提前退出；剩余 `ExpiredStates` 不再处理（Actor 已死，`DurationTracker` 随 Component 一起释放）
+
+**为什么选这个方案而不是"临时数组 + 最后统一处理"**：
+- 现有实现**已经**用了临时数组 `ExpiredStates`（`StateCmp.cpp:205-250`），问题不在收集阶段，而在**分发阶段的元素之间**——一次分发触发 Owner 销毁后，`this` 对后续元素就是悬空的
+- 只增加一次 `IsBeingDestroyed()` 检查，成本可忽略；不需要引入 `TWeakObjectPtr<this>` 等重型方案
+
+**迁移后代码骨架**：
+```cpp
+// StateCmp.cpp, UpdateActiveStateDurations 的第二阶段循环
+for (UTcsStateInstance* ExpiredState : ExpiredStates)
+{
+    if (IsValid(ExpiredState))
+    {
+        ExpireState(ExpiredState);                // 原 StateMgr->ExpireState 改本地调用
+
+        // 防御：ExpireState 链路可能回调用户代码销毁 Owner / Component
+        if (IsBeingDestroyed() || !IsValid(GetOwner()))
+        {
+            return;                                // 剩余元素不再处理
+        }
+    }
+    else
+    {
+        InvalidStates.Add(ExpiredState);
+    }
+}
+```
+
+**测试用例**：
+- `FTcs_DurationExpireDestroyOwnerSpec`：Actor 装载 3 个过期状态，其中第 1 个过期触发的属性回调 `Destroy(Owner)`；断言不崩溃、`ExpireState` 不会被第 2、3 个元素触发。
+
+### 11.2 场景 S2：同一帧多次 `TryApplyState` 对同一 Component
+
+**观察**：
+- 迁移后每次 `TryApplyState` 都走 `StateComponent` 的入口，首个调用在 `UpdateStateSlotActivation` 内把 `bIsUpdatingSlotActivation = true`，后续同帧调用走 `RequestUpdateStateSlotActivation` 进入 `PendingSlotActivationUpdates`，由首个调用的 `DrainPendingSlotActivationUpdates` 统一消费
+- 行为**应与 Manager 全局锁时代一致**（防重入锁的粒度从"全局 → 单 Component"是修正，不是语义变化）
+
+**迁移时的保护与验证**：
+1. **用 `TGuardValue<bool>` 包裹 `bIsUpdatingSlotActivation`**：即使 `UpdateStateSlotActivation` 中途 `return` / 抛异常，标志也会被还原，避免"卡死防重入锁"
+   ```cpp
+   void UTcsStateComponent::UpdateStateSlotActivation(FGameplayTag SlotTag)
+   {
+       if (bIsUpdatingSlotActivation)
+       {
+           PendingSlotActivationUpdates.Add(SlotTag);
+           return;
+       }
+       TGuardValue<bool> Guard(bIsUpdatingSlotActivation, true);
+       // ... 原 8 步流程 ...
+       DrainPendingSlotActivationUpdates();
+   }
+   ```
+2. **不变量注释**：在 `TryApplyState` 头文件注释中明确："同一帧内可安全地对同一 Component 多次调用；槽位激活更新会被自动合批"
+3. **测试用例**：
+   - `FTcs_SameFrameMultiApplySpec`：同帧对同一 Actor 调用 `TryApplyState(A)` / `TryApplyState(B)` / `TryApplyState(C)`（分属不同 Slot 或同 Slot），断言最终 Slot 状态正确、`PendingSlotActivationUpdates` 为空、无重复激活/停用事件
+
+### 11.3 场景 S3：StateTree 运行中调用 `RemoveAllStates`（对象池回收路径）
+
+**触发路径**：Actor 回收进 `TireflyActorPool` → 池的 `OnReturnedToPool` → `StateComponent->RemoveAllStates()` → `FinalizeStateRemoval.Step1 = StopStateTree()`。如果此时 `UStateTreeComponent::TickComponent` / `TickStateTree` 正在中途（例如 Task 的 `EnterState`/`Tick` 中同步触发回收），就是**自身 Tick 中 stop 自身**。
+
+**引擎侧审计结论（UE 5.6，已核对源码）**：
+
+`UStateTreeComponent::StopLogic()`（`Engine/Plugins/Runtime/GameplayStateTree/.../StateTreeComponent.cpp:193`）最终进入 `FStateTreeExecutionContext::Stop()`（`Engine/Plugins/Runtime/StateTree/.../StateTreeExecutionContext.cpp:1263`），其中有如下自保护分支：
+
+```cpp
+// A reentrant call to Stop or a call from Start or Tick must be deferred.
+if (Exec.CurrentPhase != EStateTreeUpdatePhase::Unset)
+{
+    Exec.RequestedStop = CompletionStatus;
+    return EStateTreeRunStatus::Running;           // 当前 Phase 结束后由 Tick 循环真正收敛 Stop
+}
+```
+
+即**引擎已原生支持"自 Tick / Task 内部同步 Stop"**：重入会被记录到 `RequestedStop`，真正的 `ExitState` 与清理会被延迟到当前 Phase 结束后执行。迁移层**不需要**再自建 `bIsInStateTreeCallback` / `bPendingRemoveAllStates` 这类兜底 Flag。
+
+**但仍存在的次级风险（真正需要关注的时序问题）**：
+
+`FinalizeStateRemoval` 的 Step 1 是 `StopStateTree()`，但在 `Context.Stop()` 被延迟的情况下，Step 2~8 会**立刻同步执行**，包括：
+- Step 4：从 `StateTreeTickScheduler` / `DurationTracker` / `StateInstanceIndex` 移除
+- Step 5：清理由该状态创建的 Modifier
+- Step 6：广播 `NotifyStateRemoved`
+- Step 8：`MarkPendingGC()` 对应 `UTcsStateInstance`
+
+此时 StateTree 仍处于 "Deferred Stop" 状态，尚未真正走完当前 Task 的 `ExitState`。如果 **Task 的 `ExitState` 实现会访问已被 `MarkPendingGC` 的 `UTcsStateInstance`**（例如读取 Parameters、发广播），就会触发 PendingKill 对象访问。
+
+**分层处理（降级后）**：
+
+1. **首选（且足够）：调用方合约** —— 在活跃文档（`Plugins/TireflyActorPool` 集成指南 + TCS README）明确：
+   > 对象池的"归还"回调应在帧间（`TickComponent` 之外）运行。虽然 StateTree 引擎层已对"自 Tick Stop"做延迟处理，但避免 Step 2~8 与尚未执行的 `ExitState` 交错是最稳妥的做法。
+
+2. **轻量诊断（取代原 §11.3.2 兜底 Flag）** —— 在 `RemoveAllStates()` 入口加一条 `ensureMsgf` 检测，不改变控制流：
+   ```cpp
+   virtual int32 RemoveAllStates() override
+   {
+       ensureMsgf(
+           !IsInStateTreeUpdateContext(),
+           TEXT("RemoveAllStates() called from inside StateTree update context; "
+                "engine defers Stop automatically but Step2~8 (MarkPendingGC etc.) "
+                "will run before ExitState. Prefer frame-edge call sites."));
+       // ... 原实现 ...
+   }
+   ```
+   其中 `IsInStateTreeUpdateContext()` 可以通过"在 `OnStateTreeStateChanged` / `TickStateTrees` 入口 `TGuardValue` 置位一个 `bIsInStateTreeCallback`"来实现——**但这个标志位只用于 `ensure` 诊断**，不用于控制延迟；不是 S3 原方案里那种引擎级兜底。
+
+3. **时序测试（必做）** —— 不再测试"是否崩溃"（引擎已保护），改为测试"Step 2~8 与 Task `ExitState` 的先后顺序":
+   - `FTcs_RemoveAllDuringStateTreeTickSpec`：自定义 StateTree Task 在其 `Tick` 中对持有者调用 `RemoveAllStates()`；Task 的 `ExitState` 中访问 `UTcsStateInstance::GetStateDefAsset()`，断言：
+     - 不崩溃（引擎保护 + 合约遵守）
+     - `ExitState` 中读到的 `StateInstance` 仍可访问（基本字段可读）或明确为 nullptr（已被 GC）——无论哪种，都不出现野指针崩溃
+     - Step 6 的 `NotifyStateRemoved` 广播发生在 Task 的 `ExitState` 之后或之前一致可预期
+   - `FTcs_PoolReclaimSpec`：Actor 持有 3 个状态、StateTree 处于 Active；**帧间**调用 `RemoveAllStates()` 后归还到池；断言 StateTree 停止、`DurationTracker` / `StateInstanceIndex` 清空、下次 `CheckOut` 时状态为纯净。
+
+**总结**：S3 从"需要自建兜底 Flag"降级为"引擎已自保护 + 合约约束 + ensureMsgf 诊断"。两个 `UPROPERTY` 位不需要了；`bIsInStateTreeCallback` 若保留仅用于 ensure，不参与控制流。
+
+### 11.4 小结
+
+| 场景 | 实施阶段 | 新增代码位置 | 必须测试用例 |
+|------|----------|--------------|--------------|
+| S1 崩溃防护 | Phase D（`UpdateActiveStateDurations` 改本地调用时一并加） | `StateCmp.cpp` 二阶段循环末尾 | `FTcs_DurationExpireDestroyOwnerSpec` |
+| S2 同帧多次 Apply | Phase E（`UpdateStateSlotActivation` 迁入时用 `TGuardValue`） | `StateCmp.cpp: UpdateStateSlotActivation` | `FTcs_SameFrameMultiApplySpec` |
+| S3 StateTree 自 Tick 停机 | 合约说明 + Phase D `RemoveAllStates` 入口 `ensureMsgf`（引擎已自保护，**无需** Flag 兜底） | `StateCmp.h` 可选 1 个 `bIsInStateTreeCallback`（仅用于 ensure 诊断）；`StateCmp.cpp: RemoveAllStates` 入口 | `FTcs_RemoveAllDuringStateTreeTickSpec` / `FTcs_PoolReclaimSpec` |

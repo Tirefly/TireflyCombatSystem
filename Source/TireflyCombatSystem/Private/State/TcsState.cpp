@@ -293,7 +293,7 @@ void UTcsStateInstance::SetStackCount(int32 InStackCount)
 	    {
   		    if (UTcsStateManagerSubsystem* StateMgr = World->GetGameInstance()->GetSubsystem<UTcsStateManagerSubsystem>())
 	        {
-            	StateMgr->RequestStateRemoval(this, FName("StackDepleted"));
+            	StateMgr->RequestStateRemoval(this, TcsStateRemovalReasons::StackDepleted);
         	}
     	}
 	    return;

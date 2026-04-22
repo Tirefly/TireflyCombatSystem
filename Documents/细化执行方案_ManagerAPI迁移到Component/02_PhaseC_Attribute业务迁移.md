@@ -173,6 +173,42 @@
 | | `RemoveModifier()` |
 | **UFUNCTION** | BlueprintCallable |
 
+---
+
+### 性能 TODO：Modifier 批量移除路径的 O(K²) 退化
+
+> 迁移 #12 `RemoveModifier` 与 #13 `RemoveModifiersBySourceHandle` 到 Component 时，须在函数声明和实现中保留以下 `TODO(Perf)` 注释，避免后续维护者丢失优化上下文。
+
+**问题**：
+- `SourceHandleIdToModifierInstIds` 当前 Value 为 `TArray<int32>`，单次 `TArray::Remove(InstId)` 为 O(bucket)
+- 批量移除同一 SourceHandle 下 K 个 Modifier 时，整体退化为 **O(K²)**
+- 热点路径：`RemoveModifiersBySourceHandle` → 逐个委托 `RemoveModifier` → 每次都在同一桶上 `Remove`
+
+**优化方向**（迁移时保持现状，列为 TODO）：
+1. **桶类型换为 `TSet<int32>`**：单次删除 O(1)；桶内元素量通常较小，内存开销可接受（首选）
+2. **提取 `RemoveModifierInternal` 无桶维护版**：`RemoveModifiersBySourceHandle` 末尾一次性 `SourceHandleIdToModifierInstIds.Remove(SourceHandle.Id)` 整桶丢弃，跳过逐个 `Remove`
+3. **批量移除引入延迟紧凑化**：先标记后重建，一次性扫描 O(N)
+
+**迁移时在 Component 头文件对应函数声明上添加注释**：
+
+```cpp
+// TODO(Perf): 批量移除同一 SourceHandle 下 K 个 Modifier 时，桶维护退化为 O(K^2)。
+//   优化方向见 RemoveModifiersBySourceHandle 实现注释，以及 SourceHandleIdToModifierInstIds 成员注释。
+virtual void RemoveModifier(UPARAM(ref) TArray<FTcsAttributeModifierInstance>& Modifiers);
+
+// TODO(Perf): 当前实现逐个委托给 RemoveModifier，桶内 Remove 导致 O(K^2)。
+//   优化优先级：1) 将 SourceHandleIdToModifierInstIds 桶类型改为 TSet<int32>；
+//              2) 或提取 RemoveModifierInternal(无桶维护)，在末尾一次性整桶丢弃。
+virtual bool RemoveModifiersBySourceHandle(const FTcsSourceHandle& SourceHandle);
+```
+
+**迁移时在 Component .cpp 实现内部热点行也加行内 `TODO(Perf)`**：
+
+- `RemoveModifier` 内的 `InstIdsPtr->Remove(RemovedModifier.ModifierInstId)` 行上方
+- `RemoveModifiersBySourceHandle` 内 "拷贝 ID 列表" 之后、收集循环之前
+
+---
+
 #### 14. GetModifiersBySourceHandle
 
 | 项 | 详情 |
@@ -267,6 +303,25 @@
 | **签名** | `static UTcsAttributeComponent* GetAttributeComponent(const AActor* CombatEntity)` |
 | **处理** | 迁移后不再需要——Component 内部用 `this`，外部通过 `ITcsEntityInterface` 获取 |
 | **最终** | Phase G 删除 |
+
+---
+
+### 设计约束：属性夹值计算的单 Component 边界
+
+> **重要**：以下约束适用于 `ClampAttributeValueInRange`（#19）和 `EnforceAttributeRangeConstraints`（#20），迁移实现时须在代码注释中明确。
+
+- `FTcsAttributeRange::MinValueAttribute` / `MaxValueAttribute` 是纯 `FName`，只能引用**同一 `AttributeComponent` 上**的属性，不支持跨 Actor 属性引用
+- 迁移为成员方法后，所有动态范围依赖都在 `this` 上解析
+- 自定义 Clamp 策略（`UTcsAttributeClampStrategy` 子类）接收的 `FTcsAttributeClampContextBase` 上下文绑定到单个 `AttributeComponent`
+- 未来若需支持跨 Actor 属性依赖，应通过扩展 Context 或引入跨 Component Resolver 实现，**不应破坏当前单 Component 假设**
+
+迁移后应在 `UTcsAttributeComponent` 头文件的 Clamp region 注释中明确此约束：
+
+```cpp
+// 属性夹值计算：所有动态范围依赖（ART_Dynamic）仅在本 Component 上解析。
+// 不支持跨 Actor 属性引用。自定义 ClampStrategy 接收的 Context 也绑定到本 Component。
+// 若未来需要跨 Actor 依赖，应扩展 FTcsAttributeClampContextBase 或引入跨 Component Resolver。
+```
 
 ---
 

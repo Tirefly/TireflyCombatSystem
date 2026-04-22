@@ -512,12 +512,10 @@ FString UTcsStateComponent::GetSlotDebugSnapshot(FGameplayTag SlotFilter) const
 				? TEXT("Inf")
 				: FString::Printf(TEXT("%.2f"), DurRemaining);
 
-			FString RemovalStr = TEXT("-");
-
 			const AActor* Instigator = State->GetInstigator();
 			const FString InstigatorName = Instigator ? Instigator->GetName() : TEXT("None");
 
-			return FString::Printf(TEXT("%s#%d(P=%d,Stack=%d,Lv=%d,Dur=%s,Tick=%s,Rem=%s,Inst=%s)"),
+			return FString::Printf(TEXT("%s#%d(P=%d,Stack=%d,Lv=%d,Dur=%s,Tick=%s,Inst=%s)"),
 				*StateId,
 				InstanceId,
 				Priority,
@@ -525,7 +523,6 @@ FString UTcsStateComponent::GetSlotDebugSnapshot(FGameplayTag SlotFilter) const
 				Level,
 				*DurStr,
 				*TickPolicyStr,
-				*RemovalStr,
 				*InstigatorName);
 		};
 
@@ -709,14 +706,12 @@ FString UTcsStateComponent::GetStateDebugSnapshot(FName StateDefIdFilter) const
 			? TEXT("Inf")
 			: FString::Printf(TEXT("%.2f"), DurRemaining);
 
-		FString RemovalStr = TEXT("-");
-
 		const AActor* OwnerActor = State->GetOwner();
 		const AActor* Instigator = State->GetInstigator();
 
 		const int32 Priority = StateDefAsset ? StateDefAsset->Priority : 0;
 
-		return FString::Printf(TEXT("State=%s Id=%d Slot=%s Gate=%s Stage=%s P=%d Lv=%d Stack=%d Dur=%s Tick=%s Rem=%s Owner=%s Inst=%s"),
+		return FString::Printf(TEXT("State=%s Id=%d Slot=%s Gate=%s Stage=%s P=%d Lv=%d Stack=%d Dur=%s Tick=%s Owner=%s Inst=%s"),
 			*State->GetStateDefId().ToString(),
 			State->GetInstanceId(),
 			*SlotTag.ToString(),
@@ -727,7 +722,6 @@ FString UTcsStateComponent::GetStateDebugSnapshot(FName StateDefIdFilter) const
 			State->GetStackCount(),
 			*DurStr,
 			*TickPolicyStr,
-			*RemovalStr,
 			OwnerActor ? *OwnerActor->GetName() : TEXT("None"),
 			Instigator ? *Instigator->GetName() : TEXT("None"));
 	};

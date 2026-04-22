@@ -119,11 +119,20 @@ public:
 	//   3. 本地缓存，无需网络复制 (每个客户端独立维护)
 	//   4. 内部实现细节，无需暴露给蓝图或编辑器
 	//   5. 生命周期跟随组件，C++ 析构函数自动释放内存
+	// TODO(Perf): Value 当前为 TArray<int32>，`Remove(InstId)` 为 O(bucket)。
+	//   批量移除同一 SourceHandle 下 K 个 Modifier 时整体退化为 O(K^2)。
+	//   优化方向:
+	//     1) 改为 TSet<int32>，单次删除 O(1)，桶内元素量通常较小，内存开销可接受；
+	//     2) 保持 TArray 但在 RemoveModifiersBySourceHandle 路径直接整桶丢弃，跳过逐个 Remove；
+	//     3) 批量移除 API 引入 "延迟紧凑化"：先标记后重建，避免 O(K^2)。
 	TMap<int32, TArray<int32>> SourceHandleIdToModifierInstIds;
 
 	// Modifier 实例 ID 到当前数组下标的映射 (性能优化 - 快速定位)
 	// Key: ModifierInstId, Value: AttributeModifiers 数组中的当前索引
 	// 注: 此映射在每次数组变更时更新，提供 O(1) 的 ID->Index 查询
+	// TODO(Perf): 当前 RemoveAtSwap 路径已是 O(1) 维护；若未来新增 "多元素批量移除" 场景，
+	//   避免对每个元素独立 Swap+Map 更新，可改为 "先收集所有待删索引 → 一次性重排 → 整体重建 Index Map"，
+	//   将 K 次移除的总成本从 O(K) 次 Map 写入降为一次性 O(N) 扫描（当 K 接近 N 时更优）。
 	TMap<int32, int32> ModifierInstIdToIndex;
 
 	// 属性当前值改变事件

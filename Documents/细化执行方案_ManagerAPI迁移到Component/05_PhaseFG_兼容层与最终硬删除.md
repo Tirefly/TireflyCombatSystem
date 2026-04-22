@@ -42,7 +42,7 @@
 | `StateMgr.h:282` | `UpdateStateSlotActivation(...)` | protected |
 | `StateMgr.h:285` | `DrainPendingSlotActivationUpdates()` | protected |
 | `StateMgr.h:294` | `ClearStateSlotExpiredStates(...)` | protected static |
-| `StateMgr.h:297` | `SortStatesByPriority(...)` | protected static |
+| `StateMgr.h:297` | `SortStatesByPriority(...)` | protected virtual（static → 成员方法） |
 | `StateMgr.h:300` | `ProcessStateSlotMerging(...)` | protected |
 | `StateMgr.h:302` | `MergeStateGroup(...)` | protected |
 | `StateMgr.h:304-308` | `RemoveUnmergedStates(...)` | protected |

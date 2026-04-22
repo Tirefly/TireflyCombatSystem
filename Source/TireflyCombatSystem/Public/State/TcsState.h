@@ -21,6 +21,24 @@ class UTcsStateDefinitionAsset;
 
 
 
+// 状态移除原因常量命名空间
+// 用于在 State 生命周期管线中统一移除原因的 FName 值，替代散落的字符串字面量。
+namespace TcsStateRemovalReasons
+{
+	// 主动移除（由 RemoveState / RemoveStatesByDefId / RemoveAllStatesInSlot / RemoveAllStates 触发）
+	static const FName Removed(TEXT("Removed"));
+	// 被取消（由 CancelState 触发）
+	static const FName Cancelled(TEXT("Cancelled"));
+	// 自然过期（由 Duration 到期的 ExpireState 触发）
+	static const FName Expired(TEXT("Expired"));
+	// 合并时被淘汰（由 RemoveUnmergedStates 触发）
+	static const FName MergedOut(TEXT("MergedOut"));
+	// 叠层耗尽（由 SetStackCount 归零触发）
+	static const FName StackDepleted(TEXT("StackDepleted"));
+}
+
+
+
 // 状态类型
 UENUM(BlueprintType)
 enum ETcsStateType :  uint8
