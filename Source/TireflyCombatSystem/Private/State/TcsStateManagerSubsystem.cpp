@@ -3,6 +3,7 @@
 
 #include "State/TcsStateManagerSubsystem.h"
 
+#include "Attribute/TcsAttributeComponent.h"
 #include "Attribute/TcsAttributeManagerSubsystem.h"
 #include "Engine/DataTable.h"
 #include "StateTree.h"
@@ -2566,9 +2567,12 @@ void UTcsStateManagerSubsystem::FinalizeStateRemoval(UTcsStateInstance* StateIns
 		// Step 3.5: 清理通过 SourceHandle 创建的 Modifier (在广播事件之前)
 		if (StateInstance->GetSourceHandle().IsValid())
 		{
-			if (UTcsAttributeManagerSubsystem* AttrMgr = GetGameInstance()->GetSubsystem<UTcsAttributeManagerSubsystem>())
+			if (AActor* MutableOwnerActor = StateInstance->GetOwner())
 			{
-				AttrMgr->RemoveModifiersBySourceHandle(StateInstance->GetOwner(), StateInstance->GetSourceHandle());
+				if (UTcsAttributeComponent* AC = MutableOwnerActor->FindComponentByClass<UTcsAttributeComponent>())
+				{
+					AC->RemoveModifiersBySourceHandle(StateInstance->GetSourceHandle());
+				}
 			}
 		}
 

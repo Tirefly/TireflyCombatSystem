@@ -77,28 +77,32 @@ public:
 #pragma region AttributeInstance
 
 public:
-	// 给战斗实体添加属性
-	UFUNCTION(BlueprintCallable, Category = "TireflyCombatSystem|Attribute", Meta = (DefaultToSelf = "CombatEntity"))
+	/**
+	 * @deprecated 请使用 UTcsAttributeComponent::AddAttribute
+	 */
+	UFUNCTION(BlueprintCallable, Category = "TireflyCombatSystem|Attribute", Meta = (DefaultToSelf = "CombatEntity", DeprecatedFunction, DeprecationMessage = "Use UTcsAttributeComponent::AddAttribute instead."))
 	bool AddAttribute(
 		AActor* CombatEntity,
 		UPARAM(Meta = (GetParamOptions = "TcsGenericLibrary.GetAttributeNames"))FName AttributeName,
 		float InitValue = 0.f);
 
-	// 批量给战斗实体添加属性
-	UFUNCTION(BlueprintCallable, Category = "TireflyCombatSystem|Attribute", Meta = (DefaultToSelf = "CombatEntity"))
+	/**
+	 * @deprecated 请使用 UTcsAttributeComponent::AddAttributes
+	 */
+	UFUNCTION(BlueprintCallable, Category = "TireflyCombatSystem|Attribute", Meta = (DefaultToSelf = "CombatEntity", DeprecatedFunction, DeprecationMessage = "Use UTcsAttributeComponent::AddAttributes instead."))
 	void AddAttributes(
 		AActor* CombatEntity,
 		const TArray<FName>& AttributeNames);
 
 	/**
-	 * 通过 GameplayTag 给战斗实体添加属性
+	 * @deprecated 请使用 UTcsAttributeComponent::AddAttributeByTag
 	 *
 	 * @param CombatEntity 战斗实体
 	 * @param AttributeTag 属性的 GameplayTag 标识
 	 * @param InitValue 初始值
-	 * @return 是否成功添加（Tag 有效、在映射中注册、且属性不存在时返回 true）
+	 * @return 是否成功添加
 	 */
-	UFUNCTION(BlueprintCallable, Category = "TireflyCombatSystem|Attribute", Meta = (DefaultToSelf = "CombatEntity", Categories = "TCS.Attribute"))
+	UFUNCTION(BlueprintCallable, Category = "TireflyCombatSystem|Attribute", Meta = (DefaultToSelf = "CombatEntity", Categories = "TCS.Attribute", DeprecatedFunction, DeprecationMessage = "Use UTcsAttributeComponent::AddAttributeByTag instead."))
 	bool AddAttributeByTag(
 		AActor* CombatEntity,
 		const FGameplayTag& AttributeTag,
@@ -129,7 +133,7 @@ public:
 		FGameplayTag& OutAttributeTag) const;
 
 	/**
-	 * 直接设置属性的Base值
+	 * @deprecated 请使用 UTcsAttributeComponent::SetAttributeBaseValue
 	 *
 	 * @param CombatEntity 战斗实体
 	 * @param AttributeName 属性名称
@@ -137,7 +141,7 @@ public:
 	 * @param bTriggerEvents 是否触发事件（默认true）
 	 * @return 是否成功设置
 	 */
-	UFUNCTION(BlueprintCallable, Category = "TireflyCombatSystem|Attribute", Meta = (DefaultToSelf = "CombatEntity"))
+	UFUNCTION(BlueprintCallable, Category = "TireflyCombatSystem|Attribute", Meta = (DefaultToSelf = "CombatEntity", DeprecatedFunction, DeprecationMessage = "Use UTcsAttributeComponent::SetAttributeBaseValue instead."))
 	bool SetAttributeBaseValue(
 		AActor* CombatEntity,
 		UPARAM(Meta = (GetParamOptions = "TcsGenericLibrary.GetAttributeNames"))FName AttributeName,
@@ -145,7 +149,7 @@ public:
 		bool bTriggerEvents = true);
 
 	/**
-	 * 直接设置属性的Current值
+	 * @deprecated 请使用 UTcsAttributeComponent::SetAttributeCurrentValue
 	 *
 	 * @param CombatEntity 战斗实体
 	 * @param AttributeName 属性名称
@@ -153,7 +157,7 @@ public:
 	 * @param bTriggerEvents 是否触发事件（默认true）
 	 * @return 是否成功设置
 	 */
-	UFUNCTION(BlueprintCallable, Category = "TireflyCombatSystem|Attribute", Meta = (DefaultToSelf = "CombatEntity"))
+	UFUNCTION(BlueprintCallable, Category = "TireflyCombatSystem|Attribute", Meta = (DefaultToSelf = "CombatEntity", DeprecatedFunction, DeprecationMessage = "Use UTcsAttributeComponent::SetAttributeCurrentValue instead."))
 	bool SetAttributeCurrentValue(
 		AActor* CombatEntity,
 		UPARAM(Meta = (GetParamOptions = "TcsGenericLibrary.GetAttributeNames"))FName AttributeName,
@@ -161,31 +165,31 @@ public:
 		bool bTriggerEvents = true);
 
 	/**
-	 * 重置属性到定义的初始值
+	 * @deprecated 请使用 UTcsAttributeComponent::ResetAttribute
 	 *
 	 * @param CombatEntity 战斗实体
 	 * @param AttributeName 属性名称
 	 * @return 是否成功重置
 	 */
-	UFUNCTION(BlueprintCallable, Category = "TireflyCombatSystem|Attribute", Meta = (DefaultToSelf = "CombatEntity"))
+	UFUNCTION(BlueprintCallable, Category = "TireflyCombatSystem|Attribute", Meta = (DefaultToSelf = "CombatEntity", DeprecatedFunction, DeprecationMessage = "Use UTcsAttributeComponent::ResetAttribute instead."))
 	bool ResetAttribute(
 		AActor* CombatEntity,
 		UPARAM(Meta = (GetParamOptions = "TcsGenericLibrary.GetAttributeNames"))FName AttributeName);
 
 	/**
-	 * 移除属性和所有属性相关的修改器
+	 * @deprecated 请使用 UTcsAttributeComponent::RemoveAttribute
 	 *
 	 * @param CombatEntity 战斗实体
 	 * @param AttributeName 属性名称
 	 * @return 是否成功移除
 	 */
-	UFUNCTION(BlueprintCallable, Category = "TireflyCombatSystem|Attribute", Meta = (DefaultToSelf = "CombatEntity"))
+	UFUNCTION(BlueprintCallable, Category = "TireflyCombatSystem|Attribute", Meta = (DefaultToSelf = "CombatEntity", DeprecatedFunction, DeprecationMessage = "Use UTcsAttributeComponent::RemoveAttribute instead."))
 	bool RemoveAttribute(
 		AActor* CombatEntity,
 		UPARAM(Meta = (GetParamOptions = "TcsGenericLibrary.GetAttributeNames"))FName AttributeName);
 
 protected:
-	// 获取战斗实体的属性组件
+	// 获取战斗实体的属性组件（迁移期内部辅助，Phase G 删除）
 	static class UTcsAttributeComponent* GetAttributeComponent(const AActor* CombatEntity);
 
 public:
@@ -204,15 +208,15 @@ protected:
 
 public:
 	/**
-	 * 创建属性修改器实例
+	 * @deprecated 请使用 UTcsAttributeComponent::CreateAttributeModifier
 	 *
-	 * @param ModifierId 属性修改器Id，通过TcsGenericLibrary.GetAttributeModifierIds获取
-	 * @param Instigator 属性修改器发起者，应该是一个战斗实体
-	 * @param Target 属性修改器目标，应该也是一个战斗实体
+	 * @param ModifierId 属性修改器Id
+	 * @param Instigator 属性修改器发起者
+	 * @param Target 属性修改器目标
 	 * @param OutModifierInst 最终创建的属性修改器实例
 	 * @return 是否创建成功
 	 */
-	UFUNCTION(BlueprintCallable, Category = "TireflyCombatSystem|Attribute")
+	UFUNCTION(BlueprintCallable, Category = "TireflyCombatSystem|Attribute", Meta = (DeprecatedFunction, DeprecationMessage = "Use UTcsAttributeComponent::CreateAttributeModifier instead."))
 	bool CreateAttributeModifier(
 		UPARAM(Meta = (GetParamOptions = "TcsGenericLibrary.GetAttributeModifierIds"))FName ModifierId,
 		AActor* Instigator,
@@ -220,16 +224,16 @@ public:
 		FTcsAttributeModifierInstance& OutModifierInst);
 	
 	/**
-	 * 创建属性修改器实例，并且设置属性修改器的操作数
+	 * @deprecated 请使用 UTcsAttributeComponent::CreateAttributeModifierWithOperands
 	 *
-	 * @param ModifierId 属性修改器Id，通过TcsGenericLibrary.GetAttributeModifierIds获取
-	 * @param Instigator 属性修改器发起者，应该是一个战斗实体
-	 * @param Target 属性修改器目标，应该也是一个战斗实体
+	 * @param ModifierId 属性修改器Id
+	 * @param Instigator 属性修改器发起者
+	 * @param Target 属性修改器目标
 	 * @param Operands 属性修改器操作数
 	 * @param OutModifierInst 最终创建的属性修改器实例
 	 * @return 是否创建成功
 	 */
-	UFUNCTION(BlueprintCallable, Category = "TireflyCombatSystem|Attribute")
+	UFUNCTION(BlueprintCallable, Category = "TireflyCombatSystem|Attribute", Meta = (DeprecatedFunction, DeprecationMessage = "Use UTcsAttributeComponent::CreateAttributeModifierWithOperands instead."))
 	bool CreateAttributeModifierWithOperands(
 		UPARAM(Meta = (GetParamOptions = "TcsGenericLibrary.GetAttributeModifierIds"))FName ModifierId,
 		AActor* Instigator,
@@ -237,12 +241,14 @@ public:
 		const TMap<FName, float>& Operands,
 		FTcsAttributeModifierInstance& OutModifierInst);
 	
-	// 给战斗实体应用多个属性修改器
-	UFUNCTION(BlueprintCallable, Category = "TireflyCombatSystem|Attribute", Meta = (DefaultToSelf = "CombatEntity"))
+	/**
+	 * @deprecated 请使用 UTcsAttributeComponent::ApplyModifier
+	 */
+	UFUNCTION(BlueprintCallable, Category = "TireflyCombatSystem|Attribute", Meta = (DefaultToSelf = "CombatEntity", DeprecatedFunction, DeprecationMessage = "Use UTcsAttributeComponent::ApplyModifier instead."))
 	void ApplyModifier(AActor* CombatEntity, UPARAM(ref)TArray<FTcsAttributeModifierInstance>& Modifiers);
 
 	/**
-	 * 使用 SourceHandle 应用属性修改器
+	 * @deprecated 请使用 UTcsAttributeComponent::ApplyModifierWithSourceHandle
 	 *
 	 * @param CombatEntity 战斗实体
 	 * @param SourceHandle 来源句柄
@@ -250,45 +256,49 @@ public:
 	 * @param OutModifiers 输出创建的修改器实例列表
 	 * @return 是否成功应用
 	 */
-	UFUNCTION(BlueprintCallable, Category = "TireflyCombatSystem|Attribute", Meta = (DefaultToSelf = "CombatEntity"))
+	UFUNCTION(BlueprintCallable, Category = "TireflyCombatSystem|Attribute", Meta = (DefaultToSelf = "CombatEntity", DeprecatedFunction, DeprecationMessage = "Use UTcsAttributeComponent::ApplyModifierWithSourceHandle instead."))
 	bool ApplyModifierWithSourceHandle(
 		AActor* CombatEntity,
 		const FTcsSourceHandle& SourceHandle,
 		const TArray<FName>& ModifierIds,
 		TArray<FTcsAttributeModifierInstance>& OutModifiers);
 
-	// 从战斗实体身上移除多个属性修改器
-	UFUNCTION(BlueprintCallable, Category = "TireflyCombatSystem|Attribute", Meta = (DefaultToSelf = "CombatEntity"))
+	/**
+	 * @deprecated 请使用 UTcsAttributeComponent::RemoveModifier
+	 */
+	UFUNCTION(BlueprintCallable, Category = "TireflyCombatSystem|Attribute", Meta = (DefaultToSelf = "CombatEntity", DeprecatedFunction, DeprecationMessage = "Use UTcsAttributeComponent::RemoveModifier instead."))
 	void RemoveModifier(AActor* CombatEntity, UPARAM(ref)TArray<FTcsAttributeModifierInstance>& Modifiers);
 
 	/**
-	 * 按 SourceHandle 移除属性修改器
+	 * @deprecated 请使用 UTcsAttributeComponent::RemoveModifiersBySourceHandle
 	 *
 	 * @param CombatEntity 战斗实体
 	 * @param SourceHandle 来源句柄
 	 * @return 是否成功移除
 	 */
-	UFUNCTION(BlueprintCallable, Category = "TireflyCombatSystem|Attribute", Meta = (DefaultToSelf = "CombatEntity"))
+	UFUNCTION(BlueprintCallable, Category = "TireflyCombatSystem|Attribute", Meta = (DefaultToSelf = "CombatEntity", DeprecatedFunction, DeprecationMessage = "Use UTcsAttributeComponent::RemoveModifiersBySourceHandle instead."))
 	bool RemoveModifiersBySourceHandle(
 		AActor* CombatEntity,
 		const FTcsSourceHandle& SourceHandle);
 
 	/**
-	 * 按 SourceHandle 查询属性修改器
+	 * @deprecated 请使用 UTcsAttributeComponent::GetModifiersBySourceHandle
 	 *
 	 * @param CombatEntity 战斗实体
 	 * @param SourceHandle 来源句柄
 	 * @param OutModifiers 输出查询到的修改器实例列表
 	 * @return 是否查询到修改器
 	 */
-	UFUNCTION(BlueprintCallable, Category = "TireflyCombatSystem|Attribute", Meta = (DefaultToSelf = "CombatEntity"))
+	UFUNCTION(BlueprintCallable, Category = "TireflyCombatSystem|Attribute", Meta = (DefaultToSelf = "CombatEntity", DeprecatedFunction, DeprecationMessage = "Use UTcsAttributeComponent::GetModifiersBySourceHandle instead."))
 	bool GetModifiersBySourceHandle(
 		AActor* CombatEntity,
 		const FTcsSourceHandle& SourceHandle,
 		TArray<FTcsAttributeModifierInstance>& OutModifiers) const;
 
-	// 处理战斗实体的属性修改器更新时的逻辑
-	UFUNCTION(BlueprintCallable, Category = "TireflyCombatSystem|Attribute", Meta = (DefaultToSelf = "CombatEntity"))
+	/**
+	 * @deprecated 请使用 UTcsAttributeComponent::HandleModifierUpdated
+	 */
+	UFUNCTION(BlueprintCallable, Category = "TireflyCombatSystem|Attribute", Meta = (DefaultToSelf = "CombatEntity", DeprecatedFunction, DeprecationMessage = "Use UTcsAttributeComponent::HandleModifierUpdated instead."))
 	void HandleModifierUpdated(AActor* CombatEntity, UPARAM(ref)TArray<FTcsAttributeModifierInstance>& Modifiers);
 
 public:
@@ -338,20 +348,23 @@ protected:
 #pragma region AttributeCalculation
 
 protected:
-	// 重新计算战斗实体的属性基值
+	/** @deprecated Use UTcsAttributeComponent::RecalculateAttributeBaseValues */
+	UE_DEPRECATED(5.6, "Use UTcsAttributeComponent::RecalculateAttributeBaseValues instead.")
 	static void RecalculateAttributeBaseValues(const AActor* CombatEntity, const TArray<FTcsAttributeModifierInstance>& Modifiers);
 
-	// 重新计算战斗实体的属性当前值
+	/** @deprecated Use UTcsAttributeComponent::RecalculateAttributeCurrentValues */
+	UE_DEPRECATED(5.6, "Use UTcsAttributeComponent::RecalculateAttributeCurrentValues instead.")
 	static void RecalculateAttributeCurrentValues(const AActor* CombatEntity, int64 ChangeBatchId = -1);
 
-	// 属性修改器合并
+	/** @deprecated Use UTcsAttributeComponent::MergeAttributeModifiers */
+	UE_DEPRECATED(5.6, "Use UTcsAttributeComponent::MergeAttributeModifiers instead.")
 	static void MergeAttributeModifiers(
 		const AActor* CombatEntity,
 		const TArray<FTcsAttributeModifierInstance>& Modifiers,
 		TArray<FTcsAttributeModifierInstance>& MergedModifiers);
 
-	// 将属性的给定值限制在指定范围内
-	// WorkingValues: 可选的工作集，用于从工作集读取动态范围属性值（两段式 Clamp）
+	/** @deprecated Use UTcsAttributeComponent::ClampAttributeValueInRange */
+	UE_DEPRECATED(5.6, "Use UTcsAttributeComponent::ClampAttributeValueInRange instead.")
 	static void ClampAttributeValueInRange(
 		UTcsAttributeComponent* AttributeComponent,
 		const FName& AttributeName,
@@ -360,9 +373,8 @@ protected:
 		float* OutMaxValue = nullptr,
 		const TMap<FName, float>* WorkingValues = nullptr);
 
-	// 执行属性范围约束传播
-	// 确保所有属性的 BaseValue 和 CurrentValue 都在其定义的范围内
-	// 支持多跳依赖（如 HP <= MaxHP，MaxHP 依赖 Level）
+	/** @deprecated Use UTcsAttributeComponent::EnforceAttributeRangeConstraints */
+	UE_DEPRECATED(5.6, "Use UTcsAttributeComponent::EnforceAttributeRangeConstraints instead.")
 	static void EnforceAttributeRangeConstraints(UTcsAttributeComponent* AttributeComponent);
 
 #pragma endregion

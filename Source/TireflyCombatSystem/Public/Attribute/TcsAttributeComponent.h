@@ -4,14 +4,18 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
+#include "GameplayTagContainer.h"
 #include "TcsAttribute.h"
 #include "TcsAttributeChangeEventPayload.h"
 #include "TcsAttributeModifier.h"
+#include "TcsSourceHandle.h"
 #include "TcsAttributeComponent.generated.h"
 
 
 
 class UTcsAttributeManagerSubsystem;
+class UTcsAttributeDefinitionAsset;
+class UTcsAttributeModifierDefinitionAsset;
 
 
 
@@ -55,6 +59,8 @@ UCLASS(ClassGroup = (TireflyCombatSystem), Meta = (BlueprintSpawnableComponent, 
 class TIREFLYCOMBATSYSTEM_API UTcsAttributeComponent : public UActorComponent
 {
 	GENERATED_BODY()
+
+	friend class UTcsAttributeManagerSubsystem;
 
 #pragma region ActorComponent
 
@@ -178,6 +184,206 @@ public:
 	 */
 	UPROPERTY(BlueprintAssignable, Category = "Attribute|Events")
 	FTcsOnAttributeReachedBoundarySignature OnAttributeReachedBoundary;
+
+#pragma endregion
+
+
+#pragma region AttributeInstance
+
+public:
+	// 给战斗实体添加属性
+	UFUNCTION(BlueprintCallable, Category = "Attribute")
+	virtual bool AddAttribute(
+		UPARAM(Meta = (GetParamOptions = "TcsGenericLibrary.GetAttributeNames"))FName AttributeName,
+		float InitValue = 0.f);
+
+	// 批量给战斗实体添加属性
+	UFUNCTION(BlueprintCallable, Category = "Attribute")
+	void AddAttributes(const TArray<FName>& AttributeNames);
+
+	/**
+	 * 通过 GameplayTag 给战斗实体添加属性（非 virtual，通过 Tag 解析后调用 AddAttribute）
+	 *
+	 * @param AttributeTag 属性的 GameplayTag 标识
+	 * @param InitValue 初始值
+	 * @return 是否成功添加（Tag 有效、在映射中注册、且属性不存在时返回 true）
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Attribute", Meta = (Categories = "TCS.Attribute"))
+	bool AddAttributeByTag(const FGameplayTag& AttributeTag, float InitValue = 0.f);
+
+	/**
+	 * 直接设置属性的 Base 值
+	 *
+	 * @param AttributeName 属性名称
+	 * @param NewValue 新的 Base 值
+	 * @param bTriggerEvents 是否触发事件（默认 true）
+	 * @return 是否成功设置
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Attribute")
+	virtual bool SetAttributeBaseValue(
+		UPARAM(Meta = (GetParamOptions = "TcsGenericLibrary.GetAttributeNames"))FName AttributeName,
+		float NewValue,
+		bool bTriggerEvents = true);
+
+	/**
+	 * 直接设置属性的 Current 值
+	 *
+	 * @param AttributeName 属性名称
+	 * @param NewValue 新的 Current 值
+	 * @param bTriggerEvents 是否触发事件（默认 true）
+	 * @return 是否成功设置
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Attribute")
+	virtual bool SetAttributeCurrentValue(
+		UPARAM(Meta = (GetParamOptions = "TcsGenericLibrary.GetAttributeNames"))FName AttributeName,
+		float NewValue,
+		bool bTriggerEvents = true);
+
+	/**
+	 * 重置属性到定义的初始值
+	 *
+	 * @param AttributeName 属性名称
+	 * @return 是否成功重置
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Attribute")
+	virtual bool ResetAttribute(
+		UPARAM(Meta = (GetParamOptions = "TcsGenericLibrary.GetAttributeNames"))FName AttributeName);
+
+	/**
+	 * 移除属性和所有属性相关的修改器
+	 *
+	 * @param AttributeName 属性名称
+	 * @return 是否成功移除
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Attribute")
+	virtual bool RemoveAttribute(
+		UPARAM(Meta = (GetParamOptions = "TcsGenericLibrary.GetAttributeNames"))FName AttributeName);
+
+#pragma endregion
+
+
+#pragma region AttributeModifier
+
+public:
+	/**
+	 * 创建属性修改器实例
+	 * （Component 已知自身 Owner 作为 Target，移除了原有 Target 参数）
+	 *
+	 * @param ModifierId 属性修改器 Id
+	 * @param Instigator 修改器发起者
+	 * @param OutModifierInst 输出创建的修改器实例
+	 * @return 是否创建成功
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Attribute|Modifier")
+	virtual bool CreateAttributeModifier(
+		UPARAM(Meta = (GetParamOptions = "TcsGenericLibrary.GetAttributeModifierIds"))FName ModifierId,
+		AActor* Instigator,
+		FTcsAttributeModifierInstance& OutModifierInst);
+
+	/**
+	 * 创建属性修改器实例，并设置操作数
+	 *
+	 * @param ModifierId 属性修改器 Id
+	 * @param Instigator 修改器发起者
+	 * @param Operands 属性修改器操作数
+	 * @param OutModifierInst 输出创建的修改器实例
+	 * @return 是否创建成功
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Attribute|Modifier")
+	virtual bool CreateAttributeModifierWithOperands(
+		UPARAM(Meta = (GetParamOptions = "TcsGenericLibrary.GetAttributeModifierIds"))FName ModifierId,
+		AActor* Instigator,
+		const TMap<FName, float>& Operands,
+		FTcsAttributeModifierInstance& OutModifierInst);
+
+	// TODO(Perf): 批量移除同一 SourceHandle 下 K 个 Modifier 时，桶维护退化为 O(K^2)。
+	//   优化方向见 RemoveModifiersBySourceHandle 实现注释，以及 SourceHandleIdToModifierInstIds 成员注释。
+	// 应用多个属性修改器
+	UFUNCTION(BlueprintCallable, Category = "Attribute|Modifier")
+	virtual void ApplyModifier(UPARAM(ref) TArray<FTcsAttributeModifierInstance>& Modifiers);
+
+	/**
+	 * 使用 SourceHandle 应用属性修改器（非 virtual，调用 CreateAttributeModifier + ApplyModifier）
+	 *
+	 * @param SourceHandle 来源句柄
+	 * @param ModifierIds 要应用的修改器 ID 列表
+	 * @param OutModifiers 输出创建的修改器实例列表
+	 * @return 是否成功应用
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Attribute|Modifier")
+	bool ApplyModifierWithSourceHandle(
+		const FTcsSourceHandle& SourceHandle,
+		const TArray<FName>& ModifierIds,
+		TArray<FTcsAttributeModifierInstance>& OutModifiers);
+
+	// TODO(Perf): 批量移除同一 SourceHandle 下 K 个 Modifier 时，桶维护退化为 O(K^2)。
+	//   优化方向见 RemoveModifiersBySourceHandle 实现注释，以及 SourceHandleIdToModifierInstIds 成员注释。
+	// 从战斗实体移除多个属性修改器
+	UFUNCTION(BlueprintCallable, Category = "Attribute|Modifier")
+	virtual void RemoveModifier(UPARAM(ref) TArray<FTcsAttributeModifierInstance>& Modifiers);
+
+	/**
+	 * 按 SourceHandle 移除属性修改器
+	 * TODO(Perf): 当前实现逐个委托给 RemoveModifier，桶内 Remove 导致 O(K^2)。
+	 *   优化优先级：1) 将 SourceHandleIdToModifierInstIds 桶类型改为 TSet<int32>；
+	 *              2) 或提取 RemoveModifierInternal(无桶维护)，在末尾一次性整桶丢弃。
+	 *
+	 * @param SourceHandle 来源句柄
+	 * @return 是否成功移除
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Attribute|Modifier")
+	virtual bool RemoveModifiersBySourceHandle(const FTcsSourceHandle& SourceHandle);
+
+	/**
+	 * 按 SourceHandle 查询属性修改器（非 virtual，纯读取操作）
+	 *
+	 * @param SourceHandle 来源句柄
+	 * @param OutModifiers 输出查询到的修改器实例列表
+	 * @return 是否查询到修改器
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Attribute|Modifier")
+	bool GetModifiersBySourceHandle(
+		const FTcsSourceHandle& SourceHandle,
+		TArray<FTcsAttributeModifierInstance>& OutModifiers) const;
+
+	// 处理属性修改器更新时的逻辑
+	UFUNCTION(BlueprintCallable, Category = "Attribute|Modifier")
+	virtual void HandleModifierUpdated(UPARAM(ref) TArray<FTcsAttributeModifierInstance>& Modifiers);
+
+#pragma endregion
+
+
+#pragma region AttributeCalculation
+
+protected:
+	// 属性夹值计算：所有动态范围依赖（ART_Dynamic）仅在本 Component 上解析。
+	// 不支持跨 Actor 属性引用。自定义 ClampStrategy 接收的 Context 也绑定到本 Component。
+	// 若未来需要跨 Actor 依赖，应扩展 FTcsAttributeClampContextBase 或引入跨 Component Resolver。
+
+	// 重新计算属性基础值
+	virtual void RecalculateAttributeBaseValues(const TArray<FTcsAttributeModifierInstance>& Modifiers);
+
+	// 重新计算属性当前值
+	virtual void RecalculateAttributeCurrentValues(int64 ChangeBatchId = -1);
+
+	// 属性修改器合并
+	virtual void MergeAttributeModifiers(
+		const TArray<FTcsAttributeModifierInstance>& Modifiers,
+		TArray<FTcsAttributeModifierInstance>& MergedModifiers);
+
+	// 将属性的给定值限制在指定范围内
+	// WorkingValues: 可选的工作集，用于从工作集读取动态范围属性值（两段式 Clamp）
+	virtual void ClampAttributeValueInRange(
+		const FName& AttributeName,
+		float& NewValue,
+		float* OutMinValue = nullptr,
+		float* OutMaxValue = nullptr,
+		const TMap<FName, float>* WorkingValues = nullptr);
+
+	// 执行属性范围约束传播
+	// 确保所有属性的 BaseValue 和 CurrentValue 都在其定义的范围内
+	// 支持多跳依赖（如 HP <= MaxHP，MaxHP 依赖 Level）
+	virtual void EnforceAttributeRangeConstraints();
 
 #pragma endregion
 };
