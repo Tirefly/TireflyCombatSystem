@@ -219,12 +219,9 @@ void ActivateState(UTcsStateInstance* StateInstance)
 
 ### G-5. 活跃文档过时表述清理
 
-| 文件 | 行号 | 过时内容 | 处理���议 |
+| 文件 | 行号 | 过时内容 | 处理建议 |
 |------|------|---------|---------|
 | `StateCmp.h` | 330 | 注释提到 `PendingRemoval` | 修改注释文字 |
-| `Documents/文档：后续改进细节.md` | 52 | `bPendingRemovalRequest 为 true` | 修正或移入 `_archive` |
-| `Documents/文档：后续改进细节.md` | 59 | `非 PendingRemoval` | 同上 |
-| `Documents/文档：后续改进细节（简略版）.md` | 107 | `PendingRemovalHardTimeoutSeconds` | 修正或移入 `_archive` |
 | `Documents/调研：Manager API迁移到Component.md` | 9 | 提到两阶段→单阶段（历史事实） | 可保留，加注已完成 |
 | `Documents/执行文档：Manager API迁移到Component（整合版）.md` | 多处 | 在"舍弃"上下文中提到 PendingRemoval | 本文为执行依据，无需修改 |
 

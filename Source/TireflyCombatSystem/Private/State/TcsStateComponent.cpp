@@ -5,6 +5,7 @@
 
 #include "Attribute/TcsAttributeComponent.h"
 #include "TcsLogChannels.h"
+#include "TcsEntityInterface.h"
 #include "State/TcsState.h"
 #include "State/TcsStateManagerSubsystem.h"
 #include "State/TcsStateSlotDefinitionAsset.h"
@@ -15,6 +16,9 @@
 #include "StateTreeExecutionTypes.h"
 #include "StateTreeExecutionContext.h"
 #include "State/TcsStateDefinitionAsset.h"
+#include "State/StateParameter/TcsStateBoolParameter.h"
+#include "State/StateParameter/TcsStateNumericParameter.h"
+#include "State/StateParameter/TcsStateVectorParameter.h"
 
 
 UTcsStateComponent::UTcsStateComponent(const FObjectInitializer& ObjectInitializer)
@@ -47,8 +51,8 @@ void UTcsStateComponent::BeginPlay()
 		return;
 	}
 
-    // 初始化StateSlot和StateTreeState的映射
-	StateMgr->InitStateSlotMappings(GetOwner());
+	// 初始化 StateSlot 和 StateTreeState 的映射
+	InitStateSlotMappings();
 
 	// 各项初始化之后，再执行状态管理StateTree
 	Super::BeginPlay();
@@ -326,21 +330,1436 @@ bool UTcsStateComponent::TryApplyState(
 	const FTcsSourceHandle& ParentSourceHandle)
 {
 	AActor* OwnerActor = GetOwner();
-	UE_LOG(LogTcsState, Warning, TEXT("[%s] UTcsStateComponent::TryApplyState is a Phase E stub. Owner=%s State=%s Instigator=%s Level=%d HasParentSource=%s"),
-		*FString(__FUNCTION__),
-		OwnerActor ? *OwnerActor->GetName() : TEXT("None"),
-		*StateDefId.ToString(),
-		Instigator ? *Instigator->GetName() : TEXT("None"),
-		StateLevel,
-		ParentSourceHandle.IsValid() ? TEXT("true") : TEXT("false"));
+	if (!IsValid(OwnerActor) || !IsValid(Instigator) || StateDefId.IsNone())
+	{
+		UE_LOG(LogTcsState, Error, TEXT("[%s] Invalid input to apply state. Owner=%s State=%s Instigator=%s"),
+			*FString(__FUNCTION__),
+			OwnerActor ? *OwnerActor->GetName() : TEXT("None"),
+			*StateDefId.ToString(),
+			Instigator ? *Instigator->GetName() : TEXT("None"));
 
-	if (IsValid(OwnerActor) && !StateDefId.IsNone())
+		if (IsValid(OwnerActor) && !StateDefId.IsNone())
+		{
+			NotifyStateApplyFailed(
+				OwnerActor,
+				StateDefId,
+				ETcsStateApplyFailReason::InvalidInput,
+				TEXT("Invalid input while applying state."));
+		}
+		return false;
+	}
+
+	UTcsStateManagerSubsystem* LocalStateMgr = ResolveStateManager();
+	if (!LocalStateMgr)
 	{
 		NotifyStateApplyFailed(
 			OwnerActor,
 			StateDefId,
 			ETcsStateApplyFailReason::InvalidInput,
-			TEXT("UTcsStateComponent::TryApplyState is not implemented until Phase E."));
+			TEXT("Failed to resolve StateManagerSubsystem."));
+		return false;
+	}
+
+	const UTcsStateDefinitionAsset* StateDef = LocalStateMgr->GetStateDefinitionAsset(StateDefId);
+	if (!StateDef)
+	{
+		NotifyStateApplyFailed(
+			OwnerActor,
+			StateDefId,
+			ETcsStateApplyFailReason::InvalidStateDefinition,
+			TEXT("Invalid state definition."));
+		return false;
+	}
+
+	UTcsStateInstance* NewStateInstance = CreateStateInstance(StateDefId, Instigator, StateLevel, ParentSourceHandle);
+	if (!IsValid(NewStateInstance))
+	{
+		NotifyStateApplyFailed(
+			OwnerActor,
+			StateDefId,
+			ETcsStateApplyFailReason::CreateInstanceFailed,
+			TEXT("Failed to create StateInstance."));
+		return false;
+	}
+
+	return TryApplyStateInstance(NewStateInstance);
+}
+
+UTcsStateInstance* UTcsStateComponent::CreateStateInstance(
+	FName StateDefRowId,
+	AActor* Instigator,
+	int32 InLevel,
+	const FTcsSourceHandle& ParentSourceHandle)
+{
+	AActor* OwnerActor = GetOwner();
+	if (!IsValid(OwnerActor) || !IsValid(Instigator))
+	{
+		UE_LOG(LogTcsState, Error, TEXT("[%s] Invalid owner or instigator to create state instance %s"),
+			*FString(__FUNCTION__),
+			*StateDefRowId.ToString());
+		return nullptr;
+	}
+
+	if (!OwnerActor->Implements<UTcsEntityInterface>() || !Instigator->Implements<UTcsEntityInterface>())
+	{
+		UE_LOG(LogTcsState, Error,
+			TEXT("[%s] Owner or Instigator does not implement TcsEntityInterface. StateDef=%s Owner=%s Instigator=%s"),
+			*FString(__FUNCTION__),
+			*StateDefRowId.ToString(),
+			*OwnerActor->GetName(),
+			*Instigator->GetName());
+		return nullptr;
+	}
+
+	UTcsStateManagerSubsystem* LocalStateMgr = ResolveStateManager();
+	if (!LocalStateMgr)
+	{
+		return nullptr;
+	}
+
+	const UTcsStateDefinitionAsset* StateDefAsset = LocalStateMgr->GetStateDefinitionAsset(StateDefRowId);
+	if (!StateDefAsset)
+	{
+		UE_LOG(LogTcsState, Error, TEXT("[%s] Invalid state definition: %s"),
+			*FString(__FUNCTION__),
+			*StateDefRowId.ToString());
+		return nullptr;
+	}
+
+	UTcsStateInstance* TempStateInstance = NewObject<UTcsStateInstance>(OwnerActor);
+	if (!IsValid(TempStateInstance))
+	{
+		UE_LOG(LogTcsState, Error, TEXT("[%s] Failed to create temporary state instance for parameter validation. StateDef=%s"),
+			*FString(__FUNCTION__),
+			*StateDefRowId.ToString());
+		return nullptr;
+	}
+
+	TempStateInstance->SetStateDefId(StateDefRowId);
+	TempStateInstance->Initialize(
+		StateDefAsset,
+		StateDefRowId,
+		OwnerActor,
+		Instigator,
+		LocalStateMgr->AllocateStateInstanceId(),
+		InLevel);
+
+	if (!TempStateInstance->IsInitialized())
+	{
+		UE_LOG(LogTcsState, Error,
+			TEXT("[%s] Failed to initialize temporary StateInstance for parameter validation. StateDef=%s Owner=%s Instigator=%s"),
+			*FString(__FUNCTION__),
+			*StateDefRowId.ToString(),
+			*OwnerActor->GetName(),
+			*Instigator->GetName());
+		TempStateInstance->MarkPendingGC();
+		return nullptr;
+	}
+
+	TArray<FName> FailedParams;
+	if (!EvaluateAndApplyStateParameters(StateDefAsset, Instigator, TempStateInstance, FailedParams))
+	{
+		FString FailedParamNames;
+		for (int32 i = 0; i < FailedParams.Num(); ++i)
+		{
+			FailedParamNames += FailedParams[i].ToString();
+			if (i < FailedParams.Num() - 1)
+			{
+				FailedParamNames += TEXT(", ");
+			}
+		}
+
+		UE_LOG(LogTcsState, Error,
+			TEXT("[%s] Parameter evaluation failed for state '%s'. Failed parameters: [%s]. Owner=%s Instigator=%s"),
+			*FString(__FUNCTION__),
+			*StateDefRowId.ToString(),
+			*FailedParamNames,
+			*OwnerActor->GetName(),
+			*Instigator->GetName());
+
+		TempStateInstance->MarkPendingGC();
+		return nullptr;
+	}
+
+	UTcsStateInstance* StateInstance = TempStateInstance;
+	StateInstance->SetApplyTimestamp(FDateTime::UtcNow().GetTicks());
+
+	TArray<FPrimaryAssetId> NewCausalityChain = ParentSourceHandle.CausalityChain;
+	if (ParentSourceHandle.IsValid())
+	{
+		NewCausalityChain.Add(StateDefAsset->GetPrimaryAssetId());
+	}
+
+	if (UTcsAttributeManagerSubsystem* LocalAttrMgr = ResolveAttributeManager())
+	{
+		StateInstance->SetSourceHandle(LocalAttrMgr->CreateSourceHandle(NewCausalityChain, Instigator));
+	}
+	else
+	{
+		UE_LOG(LogTcsState, Warning, TEXT("[%s] Failed to get AttributeManagerSubsystem, SourceHandle not initialized for state '%s'"),
+			*FString(__FUNCTION__),
+			*StateDefRowId.ToString());
+	}
+
+	return StateInstance;
+}
+
+bool UTcsStateComponent::EvaluateAndApplyStateParameters(
+	const UTcsStateDefinitionAsset* StateDefAsset,
+	AActor* Instigator,
+	UTcsStateInstance* StateInstance,
+	TArray<FName>& OutFailedParams)
+{
+	OutFailedParams.Reset();
+
+	if (!StateDefAsset)
+	{
+		UE_LOG(LogTcsState, Error, TEXT("[%s] StateDefAsset is null during parameter evaluation"), *FString(__FUNCTION__));
+		return false;
+	}
+
+	if (StateDefAsset->Parameters.IsEmpty() && StateDefAsset->TagParameters.IsEmpty())
+	{
+		return true;
+	}
+
+	AActor* OwnerActor = GetOwner();
+	bool bAllSuccess = true;
+
+	for (const TPair<FName, FTcsStateParameter>& ParamPair : StateDefAsset->Parameters)
+	{
+		const FName& ParamName = ParamPair.Key;
+		const FTcsStateParameter& Param = ParamPair.Value;
+
+		switch (Param.ParameterType)
+		{
+		case ETcsStateParameterType::SPT_Numeric:
+			{
+				if (!Param.NumericParamEvaluator)
+				{
+					UE_LOG(LogTcsState, Error,
+						TEXT("[%s] NumericParamEvaluator for parameter '%s' is null"),
+						*FString(__FUNCTION__),
+						*ParamName.ToString());
+					OutFailedParams.Add(ParamName);
+					bAllSuccess = false;
+					break;
+				}
+
+				float ParamValue;
+				auto ParamEvaluator = Param.NumericParamEvaluator->GetDefaultObject<UTcsStateNumericParamEvaluator>();
+				if (!ParamEvaluator->Evaluate(Instigator, OwnerActor, StateInstance, Param.ParamValueContainer, ParamValue))
+				{
+					UE_LOG(LogTcsState, Error,
+						TEXT("[%s] Failed to evaluate numeric parameter '%s'"),
+						*FString(__FUNCTION__),
+						*ParamName.ToString());
+					OutFailedParams.Add(ParamName);
+					bAllSuccess = false;
+					break;
+				}
+				StateInstance->SetNumericParam(ParamName, ParamValue);
+				break;
+			}
+		case ETcsStateParameterType::SPT_Bool:
+			{
+				if (!Param.BoolParamEvaluator)
+				{
+					UE_LOG(LogTcsState, Error,
+						TEXT("[%s] BoolParamEvaluator for parameter '%s' is null"),
+						*FString(__FUNCTION__),
+						*ParamName.ToString());
+					OutFailedParams.Add(ParamName);
+					bAllSuccess = false;
+					break;
+				}
+
+				bool ParamValue;
+				auto ParamEvaluator = Param.BoolParamEvaluator->GetDefaultObject<UTcsStateBoolParamEvaluator>();
+				if (!ParamEvaluator->Evaluate(Instigator, OwnerActor, StateInstance, Param.ParamValueContainer, ParamValue))
+				{
+					UE_LOG(LogTcsState, Error,
+						TEXT("[%s] Failed to evaluate bool parameter '%s'"),
+						*FString(__FUNCTION__),
+						*ParamName.ToString());
+					OutFailedParams.Add(ParamName);
+					bAllSuccess = false;
+					break;
+				}
+				StateInstance->SetBoolParam(ParamName, ParamValue);
+				break;
+			}
+		case ETcsStateParameterType::SPT_Vector:
+			{
+				if (!Param.VectorParamEvaluator)
+				{
+					UE_LOG(LogTcsState, Error,
+						TEXT("[%s] VectorParamEvaluator for parameter '%s' is null"),
+						*FString(__FUNCTION__),
+						*ParamName.ToString());
+					OutFailedParams.Add(ParamName);
+					bAllSuccess = false;
+					break;
+				}
+
+				FVector ParamValue;
+				auto ParamEvaluator = Param.VectorParamEvaluator->GetDefaultObject<UTcsStateVectorParamEvaluator>();
+				if (!ParamEvaluator->Evaluate(Instigator, OwnerActor, StateInstance, Param.ParamValueContainer, ParamValue))
+				{
+					UE_LOG(LogTcsState, Error,
+						TEXT("[%s] Failed to evaluate vector parameter '%s'"),
+						*FString(__FUNCTION__),
+						*ParamName.ToString());
+					OutFailedParams.Add(ParamName);
+					bAllSuccess = false;
+					break;
+				}
+				StateInstance->SetVectorParam(ParamName, ParamValue);
+				break;
+			}
+		default:
+			UE_LOG(LogTcsState, Warning,
+				TEXT("[%s] Unknown parameter type for parameter '%s'"),
+				*FString(__FUNCTION__),
+				*ParamName.ToString());
+			break;
+		}
+	}
+
+	for (const TPair<FGameplayTag, FTcsStateParameter>& ParamPair : StateDefAsset->TagParameters)
+	{
+		const FGameplayTag& ParamTag = ParamPair.Key;
+		const FTcsStateParameter& Param = ParamPair.Value;
+		const FName ParamName = ParamTag.GetTagName();
+
+		switch (Param.ParameterType)
+		{
+		case ETcsStateParameterType::SPT_Numeric:
+			{
+				if (!Param.NumericParamEvaluator)
+				{
+					UE_LOG(LogTcsState, Error,
+						TEXT("[%s] NumericParamEvaluator for tag parameter '%s' is null"),
+						*FString(__FUNCTION__),
+						*ParamTag.ToString());
+					OutFailedParams.Add(ParamName);
+					bAllSuccess = false;
+					break;
+				}
+
+				float ParamValue;
+				auto ParamEvaluator = Param.NumericParamEvaluator->GetDefaultObject<UTcsStateNumericParamEvaluator>();
+				if (!ParamEvaluator->Evaluate(Instigator, OwnerActor, StateInstance, Param.ParamValueContainer, ParamValue))
+				{
+					UE_LOG(LogTcsState, Error,
+						TEXT("[%s] Failed to evaluate numeric tag parameter '%s'"),
+						*FString(__FUNCTION__),
+						*ParamTag.ToString());
+					OutFailedParams.Add(ParamName);
+					bAllSuccess = false;
+					break;
+				}
+				StateInstance->SetNumericParamByTag(ParamTag, ParamValue);
+				break;
+			}
+		case ETcsStateParameterType::SPT_Bool:
+			{
+				if (!Param.BoolParamEvaluator)
+				{
+					UE_LOG(LogTcsState, Error,
+						TEXT("[%s] BoolParamEvaluator for tag parameter '%s' is null"),
+						*FString(__FUNCTION__),
+						*ParamTag.ToString());
+					OutFailedParams.Add(ParamName);
+					bAllSuccess = false;
+					break;
+				}
+
+				bool ParamValue;
+				auto ParamEvaluator = Param.BoolParamEvaluator->GetDefaultObject<UTcsStateBoolParamEvaluator>();
+				if (!ParamEvaluator->Evaluate(Instigator, OwnerActor, StateInstance, Param.ParamValueContainer, ParamValue))
+				{
+					UE_LOG(LogTcsState, Error,
+						TEXT("[%s] Failed to evaluate bool tag parameter '%s'"),
+						*FString(__FUNCTION__),
+						*ParamTag.ToString());
+					OutFailedParams.Add(ParamName);
+					bAllSuccess = false;
+					break;
+				}
+				StateInstance->SetBoolParamByTag(ParamTag, ParamValue);
+				break;
+			}
+		case ETcsStateParameterType::SPT_Vector:
+			{
+				if (!Param.VectorParamEvaluator)
+				{
+					UE_LOG(LogTcsState, Error,
+						TEXT("[%s] VectorParamEvaluator for tag parameter '%s' is null"),
+						*FString(__FUNCTION__),
+						*ParamTag.ToString());
+					OutFailedParams.Add(ParamName);
+					bAllSuccess = false;
+					break;
+				}
+
+				FVector ParamValue;
+				auto ParamEvaluator = Param.VectorParamEvaluator->GetDefaultObject<UTcsStateVectorParamEvaluator>();
+				if (!ParamEvaluator->Evaluate(Instigator, OwnerActor, StateInstance, Param.ParamValueContainer, ParamValue))
+				{
+					UE_LOG(LogTcsState, Error,
+						TEXT("[%s] Failed to evaluate vector tag parameter '%s'"),
+						*FString(__FUNCTION__),
+						*ParamTag.ToString());
+					OutFailedParams.Add(ParamName);
+					bAllSuccess = false;
+					break;
+				}
+				StateInstance->SetVectorParamByTag(ParamTag, ParamValue);
+				break;
+			}
+		default:
+			UE_LOG(LogTcsState, Warning,
+				TEXT("[%s] Unknown parameter type for tag parameter '%s'"),
+				*FString(__FUNCTION__),
+				*ParamTag.ToString());
+			break;
+		}
+	}
+
+	return bAllSuccess;
+}
+
+bool UTcsStateComponent::TryApplyStateInstance(UTcsStateInstance* StateInstance)
+{
+	if (!IsValid(StateInstance))
+	{
+		UE_LOG(LogTcsState, Error, TEXT("[%s] StateInstance is invalid."), *FString(__FUNCTION__));
+		return false;
+	}
+
+	AActor* OwnerActor = GetOwner();
+	if (StateInstance->GetOwner() != OwnerActor)
+	{
+		if (IsValid(OwnerActor) && !StateInstance->GetStateDefId().IsNone())
+		{
+			NotifyStateApplyFailed(
+				OwnerActor,
+				StateInstance->GetStateDefId(),
+				ETcsStateApplyFailReason::InvalidInput,
+				TEXT("StateInstance owner does not match target StateComponent owner."));
+		}
+		return false;
+	}
+
+	if (!StateInstance->IsInitialized())
+	{
+		UE_LOG(LogTcsState, Error, TEXT("[%s] StateInstance is not initialized. StateDef=%s"),
+			*FString(__FUNCTION__),
+			*StateInstance->GetStateDefId().ToString());
+		NotifyStateApplyFailed(
+			OwnerActor,
+			StateInstance->GetStateDefId(),
+			ETcsStateApplyFailReason::InvalidInput,
+			TEXT("StateInstance is not initialized."));
+		return false;
+	}
+
+	if (!CheckStateApplyConditions(StateInstance))
+	{
+		NotifyStateApplyFailed(
+			OwnerActor,
+			StateInstance->GetStateDefId(),
+			ETcsStateApplyFailReason::ApplyConditionsFailed,
+			TEXT("State apply conditions check failed."));
+		return false;
+	}
+
+	return TryAssignStateToStateSlot(StateInstance);
+}
+
+bool UTcsStateComponent::CheckStateApplyConditions(UTcsStateInstance* StateInstance)
+{
+	if (!IsValid(StateInstance))
+	{
+		UE_LOG(LogTcsState, Error, TEXT("[%s] StateInstance is invalid."), *FString(__FUNCTION__));
+		return false;
+	}
+
+	const UTcsStateDefinitionAsset* StateDef = StateInstance->GetStateDefAsset();
+	if (!StateDef)
+	{
+		UE_LOG(LogTcsState, Error, TEXT("[%s] StateInstance has invalid StateDefAsset"), *FString(__FUNCTION__));
+		return false;
+	}
+
+	for (int32 Index = 0; Index < StateDef->ActiveConditions.Num(); ++Index)
+	{
+		if (!StateDef->ActiveConditions[Index].IsValid())
+		{
+			UE_LOG(LogTcsState, Error, TEXT("[%s] Invalid state condition of index %d in StateDef %s"),
+				*FString(__FUNCTION__),
+				Index,
+				*StateInstance->GetStateDefId().ToString());
+			return false;
+		}
+
+		if (!StateDef->ActiveConditions[Index].bCheckWhenApplying)
+		{
+			continue;
+		}
+
+		UTcsStateCondition* Condition = StateDef->ActiveConditions[Index].ConditionClass.GetDefaultObject();
+		if (!Condition->CheckCondition(StateInstance, StateDef->ActiveConditions[Index].Payload))
+		{
+			return false;
+		}
+	}
+
+	return true;
+}
+
+void UTcsStateComponent::InitStateSlotMappings()
+{
+	AActor* OwnerActor = GetOwner();
+	if (!IsValid(OwnerActor))
+	{
+		UE_LOG(LogTcsState, Warning, TEXT("[%s] OwnerActor is invalid"), *FString(__FUNCTION__));
+		return;
+	}
+
+	UTcsStateManagerSubsystem* LocalStateMgr = ResolveStateManager();
+	if (!LocalStateMgr)
+	{
+		return;
+	}
+
+	Mapping_StateSlotToStateHandle.Empty();
+	Mapping_StateHandleToStateSlot.Empty();
+
+	const TArray<FName> SlotDefIds = LocalStateMgr->GetAllStateSlotDefNames();
+	for (const FName& SlotDefId : SlotDefIds)
+	{
+		const UTcsStateSlotDefinitionAsset* SlotDefAsset = LocalStateMgr->GetStateSlotDefinitionAsset(SlotDefId);
+		if (SlotDefAsset && SlotDefAsset->SlotTag.IsValid())
+		{
+			StateSlotsX.FindOrAdd(SlotDefAsset->SlotTag);
+		}
+	}
+
+	const UStateTree* StateTree = GetStateTree();
+	if (!IsValid(StateTree))
+	{
+		UE_LOG(LogTcsState, Verbose, TEXT("[%s] No StateTree assigned on StateComponent of %s"),
+			*FString(__FUNCTION__),
+			*OwnerActor->GetName());
+		return;
+	}
+
+	for (const FName& SlotDefId : SlotDefIds)
+	{
+		const UTcsStateSlotDefinitionAsset* StateSlotDef = LocalStateMgr->GetStateSlotDefinitionAsset(SlotDefId);
+		if (!StateSlotDef)
+		{
+			continue;
+		}
+
+		const FGameplayTag StateSlotTag = StateSlotDef->SlotTag;
+		if (StateSlotDef->StateTreeStateName.IsNone())
+		{
+			continue;
+		}
+
+		bool bMapped = false;
+		const TArrayView<const FCompactStateTreeState> States = StateTree->GetStates();
+		for (int32 Index = 0; Index < States.Num(); ++Index)
+		{
+			const FCompactStateTreeState& State = States[Index];
+			if (State.Name == StateSlotDef->StateTreeStateName)
+			{
+				FStateTreeStateHandle Handle(Index);
+				Mapping_StateSlotToStateHandle.Add(StateSlotTag, Handle);
+				Mapping_StateHandleToStateSlot.Add(Handle, StateSlotTag);
+				StateSlotsX.FindOrAdd(StateSlotTag);
+				bMapped = true;
+				break;
+			}
+		}
+
+		UE_LOG(LogTcsState, Log, TEXT("[%s] State Slot [%s] -> StateTree State [%s] %s of %s"),
+			*FString(__FUNCTION__),
+			*StateSlotTag.ToString(),
+			*StateSlotDef->StateTreeStateName.ToString(),
+			bMapped ? TEXT("mapped") : TEXT("not found"),
+			*OwnerActor->GetName());
+	}
+}
+
+bool UTcsStateComponent::TryAssignStateToStateSlot(UTcsStateInstance* StateInstance)
+{
+	if (!IsValid(StateInstance))
+	{
+		UE_LOG(LogTcsState, Error, TEXT("[%s] StateInstance is invalid."), *FString(__FUNCTION__));
+		return false;
+	}
+
+	const UTcsStateDefinitionAsset* StateDef = StateInstance->GetStateDefAsset();
+	if (!StateDef)
+	{
+		UE_LOG(LogTcsState, Error, TEXT("[%s] StateInstance has invalid StateDefAsset"), *FString(__FUNCTION__));
+		return false;
+	}
+
+	if (!StateDef->StateSlotType.IsValid())
+	{
+		UE_LOG(LogTcsState, Error, TEXT("[%s] StateDef %s does not specify StateSlotType."),
+			*FString(__FUNCTION__),
+			*StateInstance->GetStateDefId().ToString());
+		NotifyStateApplyFailed(
+			StateInstance->GetOwner(),
+			StateInstance->GetStateDefId(),
+			ETcsStateApplyFailReason::InvalidStateDefinition,
+			TEXT("StateDef does not specify a valid StateSlotType."));
+		return false;
+	}
+
+	if (StateInstance->GetOwnerStateComponent() != this)
+	{
+		UE_LOG(LogTcsState, Error, TEXT("[%s] StateInstance owner component mismatch. State=%s Component=%s"),
+			*FString(__FUNCTION__),
+			*StateInstance->GetStateDefId().ToString(),
+			*GetPathName());
+		return false;
+	}
+
+	FTcsStateSlot* StateSlot = StateSlotsX.Find(StateDef->StateSlotType);
+	if (!StateSlot)
+	{
+		UE_LOG(LogTcsState, Error, TEXT("[%s] StateSlot %s not found in owner StateComponent."),
+			*FString(__FUNCTION__),
+			*StateDef->StateSlotType.ToString());
+		NotifyStateApplyFailed(
+			StateInstance->GetOwner(),
+			StateInstance->GetStateDefId(),
+			ETcsStateApplyFailReason::NoStateSlot,
+			FString::Printf(TEXT("StateSlot %s not found."), *StateDef->StateSlotType.ToString()));
+		return false;
+	}
+
+	UTcsStateManagerSubsystem* LocalStateMgr = ResolveStateManager();
+	if (!LocalStateMgr)
+	{
+		NotifyStateApplyFailed(
+			StateInstance->GetOwner(),
+			StateInstance->GetStateDefId(),
+			ETcsStateApplyFailReason::NoStateSlotDefinition,
+			TEXT("Failed to resolve StateManagerSubsystem."));
+		return false;
+	}
+
+	const UTcsStateSlotDefinitionAsset* StateSlotDef = LocalStateMgr->GetStateSlotDefinitionAssetByTag(StateDef->StateSlotType);
+	if (!StateSlotDef)
+	{
+		UE_LOG(LogTcsState, Error, TEXT("[%s] StateSlotDef %s not found."),
+			*FString(__FUNCTION__),
+			*StateDef->StateSlotType.ToString());
+		NotifyStateApplyFailed(
+			StateInstance->GetOwner(),
+			StateInstance->GetStateDefId(),
+			ETcsStateApplyFailReason::NoStateSlotDefinition,
+			FString::Printf(TEXT("StateSlotDef %s not found."), *StateDef->StateSlotType.ToString()));
+		return false;
+	}
+
+	ClearStateSlotExpiredStates(StateSlot);
+
+	if (StateSlot->States.Contains(StateInstance))
+	{
+		NotifyStateApplyFailed(
+			StateInstance->GetOwner(),
+			StateInstance->GetStateDefId(),
+			ETcsStateApplyFailReason::AlreadyInSlot,
+			TEXT("StateInstance already exists in target slot."));
+		return false;
+	}
+
+	if (!StateSlot->bIsGateOpen && StateSlotDef->GateCloseBehavior == ETcsStateSlotGateClosePolicy::SSGCP_Cancel)
+	{
+		NotifyStateApplyFailed(
+			StateInstance->GetOwner(),
+			StateInstance->GetStateDefId(),
+			ETcsStateApplyFailReason::SlotGateClosed_CancelPolicy,
+			FString::Printf(TEXT("StateSlot %s gate is closed (Cancel policy)."), *StateDef->StateSlotType.ToString()));
+		return false;
+	}
+
+	if (StateSlot->bIsGateOpen
+		&& StateSlotDef->ActivationMode == ETcsStateSlotActivationMode::SSAM_PriorityOnly
+		&& StateSlotDef->PreemptionPolicy == ETcsStatePreemptionPolicy::SPP_CancelLowerPriority)
+	{
+		bool bHasExisting = false;
+		int32 BestPriority = TNumericLimits<int32>::Lowest();
+		for (const UTcsStateInstance* Existing : StateSlot->States)
+		{
+			if (!IsValid(Existing) || Existing->GetCurrentStage() == ETcsStateStage::SS_Expired)
+			{
+				continue;
+			}
+
+			bHasExisting = true;
+			const UTcsStateDefinitionAsset* ExistingStateDef = Existing->GetStateDefAsset();
+			if (ExistingStateDef)
+			{
+				BestPriority = FMath::Max(BestPriority, ExistingStateDef->Priority);
+			}
+		}
+
+		if (bHasExisting && StateDef->Priority < BestPriority)
+		{
+			NotifyStateApplyFailed(
+				StateInstance->GetOwner(),
+				StateInstance->GetStateDefId(),
+				ETcsStateApplyFailReason::LowerPriorityRejected,
+				TEXT("State application rejected: lower priority than existing state in PriorityOnly slot."));
+			return false;
+		}
+	}
+
+	StateSlot->States.Add(StateInstance);
+
+	if (StateDef->DurationType != ETcsStateDurationType::SDT_None)
+	{
+		if (StateDef->DurationType == ETcsStateDurationType::SDT_Duration)
+		{
+			DurationTracker.Add(StateInstance, StateInstance->GetTotalDuration());
+		}
+	}
+
+	if (!StateSlot->bIsGateOpen)
+	{
+		const ETcsStateStage PreviousStage = StateInstance->GetCurrentStage();
+		bool bStageChanged = false;
+		switch (StateSlotDef->GateCloseBehavior)
+		{
+		case ETcsStateSlotGateClosePolicy::SSGCP_HangUp:
+			bStageChanged = StateInstance->SetCurrentStage(ETcsStateStage::SS_HangUp);
+			break;
+		case ETcsStateSlotGateClosePolicy::SSGCP_Pause:
+		default:
+			bStageChanged = StateInstance->SetCurrentStage(ETcsStateStage::SS_Pause);
+			break;
+		}
+
+		if (bStageChanged)
+		{
+			NotifyStateStageChanged(StateInstance, PreviousStage, StateInstance->GetCurrentStage());
+		}
+	}
+
+	RequestUpdateStateSlotActivation(StateDef->StateSlotType);
+
+	if (IsStateStillValid(StateInstance))
+	{
+		StateInstanceIndex.AddInstance(StateInstance);
+		NotifyStateApplySuccess(
+			StateInstance->GetOwner(),
+			StateInstance->GetStateDefId(),
+			StateInstance,
+			StateDef->StateSlotType,
+			StateInstance->GetCurrentStage());
+	}
+	else
+	{
+		UE_LOG(LogTcsState, Verbose,
+			TEXT("[%s] State '%s' was merged and removed, skipping ApplySuccess notification"),
+			*FString(__FUNCTION__),
+			*StateInstance->GetStateDefId().ToString());
+	}
+
+	return true;
+}
+
+void UTcsStateComponent::RefreshSlotsForStateChange(const TArray<FName>& NewStates, const TArray<FName>& OldStates)
+{
+	UTcsStateManagerSubsystem* LocalStateMgr = ResolveStateManager();
+	if (!LocalStateMgr)
+	{
+		return;
+	}
+
+	TSet<FName> AddedStates(NewStates);
+	for (const FName& OldState : OldStates)
+	{
+		AddedStates.Remove(OldState);
+	}
+
+	TSet<FName> RemovedStates(OldStates);
+	for (const FName& NewState : NewStates)
+	{
+		RemovedStates.Remove(NewState);
+	}
+
+	for (const auto& Pair : Mapping_StateSlotToStateHandle)
+	{
+		const FGameplayTag SlotTag = Pair.Key;
+		const UTcsStateSlotDefinitionAsset* SlotDef = LocalStateMgr->GetStateSlotDefinitionAssetByTag(SlotTag);
+		if (!SlotDef)
+		{
+			continue;
+		}
+
+		const FName& MappedStateName = SlotDef->StateTreeStateName;
+		bool bShouldOpen = false;
+		if (AddedStates.Contains(MappedStateName))
+		{
+			bShouldOpen = true;
+		}
+		else if (RemovedStates.Contains(MappedStateName))
+		{
+			bShouldOpen = false;
+		}
+		else
+		{
+			bShouldOpen = NewStates.Contains(MappedStateName);
+		}
+
+		const bool bWasOpen = IsSlotGateOpen(SlotTag);
+		if (bShouldOpen != bWasOpen)
+		{
+			SetSlotGateOpen(SlotTag, bShouldOpen);
+			UE_LOG(LogTcsState, Log,
+				TEXT("[StateTree Event] Slot [%s] gate %s due to StateTree state '%s'"),
+				*SlotTag.ToString(),
+				bShouldOpen ? TEXT("opened") : TEXT("closed"),
+				*MappedStateName.ToString());
+		}
+	}
+}
+
+void UTcsStateComponent::RequestUpdateStateSlotActivation(FGameplayTag SlotTag)
+{
+	if (!SlotTag.IsValid())
+	{
+		UE_LOG(LogTcsState, Warning, TEXT("[%s] Invalid StateSlotTag"), *FString(__FUNCTION__));
+		return;
+	}
+
+	if (bIsUpdatingSlotActivation)
+	{
+		PendingSlotActivationUpdates.Add(SlotTag);
+		UE_LOG(LogTcsState, Verbose, TEXT("[%s] Deferred slot activation update: Component=%s Slot=%s"),
+			*FString(__FUNCTION__),
+			*GetNameSafe(GetOwner()),
+			*SlotTag.ToString());
+		return;
+	}
+
+	UpdateStateSlotActivation(SlotTag);
+}
+
+void UTcsStateComponent::DrainPendingSlotActivationUpdates()
+{
+	const int32 MaxIterations = 10;
+	int32 Iteration = 0;
+
+	while (!PendingSlotActivationUpdates.IsEmpty() && Iteration < MaxIterations)
+	{
+		const TSet<FGameplayTag> ToProcess = PendingSlotActivationUpdates;
+		PendingSlotActivationUpdates.Empty();
+
+		for (const FGameplayTag& SlotTag : ToProcess)
+		{
+			if (StateSlotsX.Contains(SlotTag))
+			{
+				UpdateStateSlotActivation(SlotTag);
+			}
+		}
+
+		Iteration++;
+	}
+
+	if (Iteration >= MaxIterations)
+	{
+		UE_LOG(LogTcsState, Warning,
+			TEXT("[%s] Max iterations (%d) reached, possible infinite loop. Remaining pending updates: %d"),
+			*FString(__FUNCTION__),
+			MaxIterations,
+			PendingSlotActivationUpdates.Num());
+		PendingSlotActivationUpdates.Empty();
+	}
+}
+
+void UTcsStateComponent::UpdateStateSlotActivation(FGameplayTag StateSlotTag)
+{
+	if (bIsUpdatingSlotActivation)
+	{
+		PendingSlotActivationUpdates.Add(StateSlotTag);
+		return;
+	}
+
+	{
+		TGuardValue<bool> Guard(bIsUpdatingSlotActivation, true);
+
+		if (!StateSlotTag.IsValid())
+		{
+			UE_LOG(LogTcsState, Warning, TEXT("[%s] Invalid StateSlotTag"), *FString(__FUNCTION__));
+		}
+		else if (FTcsStateSlot* StateSlot = StateSlotsX.Find(StateSlotTag))
+		{
+			ClearStateSlotExpiredStates(StateSlot);
+			SortStatesByPriority(StateSlot->States);
+			ProcessStateSlotMerging(StateSlot);
+			EnforceSlotGateConsistency(StateSlotTag);
+
+			if (!StateSlot->bIsGateOpen)
+			{
+				CleanupInvalidStates(StateSlot);
+			}
+			else
+			{
+				ProcessStateSlotByActivationMode(StateSlot, StateSlotTag);
+				CleanupInvalidStates(StateSlot);
+				OnStateSlotChanged(StateSlotTag);
+			}
+		}
+		else
+		{
+			UE_LOG(LogTcsState, Warning, TEXT("[%s] StateSlot %s not found"),
+				*FString(__FUNCTION__),
+				*StateSlotTag.ToString());
+		}
+	}
+
+	DrainPendingSlotActivationUpdates();
+}
+
+void UTcsStateComponent::EnforceSlotGateConsistency(FGameplayTag StateSlotTag)
+{
+	if (!StateSlotTag.IsValid())
+	{
+		return;
+	}
+
+	FTcsStateSlot* StateSlot = StateSlotsX.Find(StateSlotTag);
+	if (!StateSlot || StateSlot->bIsGateOpen)
+	{
+		return;
+	}
+
+	UTcsStateManagerSubsystem* LocalStateMgr = ResolveStateManager();
+	if (!LocalStateMgr)
+	{
+		return;
+	}
+
+	const UTcsStateSlotDefinitionAsset* SlotDef = LocalStateMgr->GetStateSlotDefinitionAssetByTag(StateSlotTag);
+	if (!SlotDef)
+	{
+		return;
+	}
+
+	TArray<UTcsStateInstance*> StatesToCancel;
+	for (UTcsStateInstance* State : StateSlot->States)
+	{
+		if (!IsValid(State))
+		{
+			continue;
+		}
+
+		const ETcsStateStage Stage = State->GetCurrentStage();
+		if (Stage == ETcsStateStage::SS_Expired)
+		{
+			continue;
+		}
+
+		switch (SlotDef->GateCloseBehavior)
+		{
+		case ETcsStateSlotGateClosePolicy::SSGCP_HangUp:
+			if (Stage == ETcsStateStage::SS_Active)
+			{
+				HangUpState(State);
+			}
+			break;
+		case ETcsStateSlotGateClosePolicy::SSGCP_Pause:
+			if (Stage == ETcsStateStage::SS_Active || Stage == ETcsStateStage::SS_HangUp)
+			{
+				PauseState(State);
+			}
+			break;
+		case ETcsStateSlotGateClosePolicy::SSGCP_Cancel:
+			StatesToCancel.Add(State);
+			break;
+		}
+	}
+
+	for (UTcsStateInstance* State : StatesToCancel)
+	{
+		if (IsValid(State))
+		{
+			CancelState(State);
+		}
+	}
+
+	for (UTcsStateInstance* State : StateSlot->States)
+	{
+		if (IsValid(State) && State->GetCurrentStage() == ETcsStateStage::SS_Active)
+		{
+			HangUpState(State);
+		}
+	}
+
+#if !UE_BUILD_SHIPPING
+	for (const UTcsStateInstance* State : StateSlot->States)
+	{
+		if (IsValid(State))
+		{
+			checkf(State->GetCurrentStage() != ETcsStateStage::SS_Active,
+				TEXT("[EnforceSlotGateConsistency] Invariant violation: Active state found in closed gate slot. Slot=%s State=%s Stage=%s"),
+				*StateSlotTag.ToString(),
+				*State->GetStateDefId().ToString(),
+				*StaticEnum<ETcsStateStage>()->GetNameStringByValue(static_cast<int64>(State->GetCurrentStage())));
+		}
+	}
+#endif
+}
+
+void UTcsStateComponent::ClearStateSlotExpiredStates(FTcsStateSlot* StateSlot)
+{
+	if (!StateSlot)
+	{
+		UE_LOG(LogTcsState, Warning, TEXT("[%s] StateSlot is null."), *FString(__FUNCTION__));
+		return;
+	}
+
+	StateSlot->States.RemoveAll([this](UTcsStateInstance* State)
+	{
+		if (!IsValid(State))
+		{
+			return true;
+		}
+
+		if (State->GetCurrentStage() == ETcsStateStage::SS_Expired)
+		{
+			StateTreeTickScheduler.Remove(State);
+			DurationTracker.Remove(State);
+			StateInstanceIndex.RemoveInstance(State);
+			return true;
+		}
+
+		return false;
+	});
+
+	StateTreeTickScheduler.RefreshInstances();
+	DurationTracker.RefreshInstances();
+	StateInstanceIndex.RefreshInstances();
+}
+
+void UTcsStateComponent::SortStatesByPriority(TArray<UTcsStateInstance*>& States)
+{
+	States.Sort([](const UTcsStateInstance& A, const UTcsStateInstance& B)
+	{
+		const UTcsStateDefinitionAsset* AStateDef = A.GetStateDefAsset();
+		const UTcsStateDefinitionAsset* BStateDef = B.GetStateDefAsset();
+		if (!AStateDef || !BStateDef)
+		{
+			return false;
+		}
+		return AStateDef->Priority > BStateDef->Priority;
+	});
+}
+
+void UTcsStateComponent::ProcessStateSlotMerging(FTcsStateSlot* StateSlot)
+{
+	if (!StateSlot)
+	{
+		return;
+	}
+
+	TMap<FName, TArray<UTcsStateInstance*>> StatesByDefId;
+	for (UTcsStateInstance* State : StateSlot->States)
+	{
+		if (IsValid(State))
+		{
+			StatesByDefId.FindOrAdd(State->GetStateDefId()).Add(State);
+		}
+	}
+
+	TArray<UTcsStateInstance*> AllMergedStates;
+	TMap<FName, UTcsStateInstance*> MergePrimaryByDefId;
+	for (auto& Pair : StatesByDefId)
+	{
+		TArray<UTcsStateInstance*> MergedGroup;
+		MergeStateGroup(Pair.Value, MergedGroup);
+		AllMergedStates.Append(MergedGroup);
+		if (MergedGroup.Num() > 0 && IsValid(MergedGroup[0]))
+		{
+			MergePrimaryByDefId.Add(Pair.Key, MergedGroup[0]);
+		}
+	}
+
+	RemoveUnmergedStates(StateSlot, AllMergedStates, MergePrimaryByDefId);
+}
+
+void UTcsStateComponent::MergeStateGroup(
+	TArray<UTcsStateInstance*>& StatesToMerge,
+	TArray<UTcsStateInstance*>& OutMergedStates)
+{
+	if (StatesToMerge.Num() == 0)
+	{
+		return;
+	}
+
+	UTcsStateManagerSubsystem* LocalStateMgr = ResolveStateManager();
+	if (!LocalStateMgr)
+	{
+		OutMergedStates = StatesToMerge;
+		return;
+	}
+
+	const UTcsStateDefinitionAsset* StateDef = LocalStateMgr->GetStateDefinitionAsset(StatesToMerge[0]->GetStateDefId());
+	if (!StateDef)
+	{
+		UE_LOG(LogTcsState, Warning, TEXT("[%s] Failed to get state definition for %s"),
+			*FString(__FUNCTION__),
+			*StatesToMerge[0]->GetStateDefId().ToString());
+		OutMergedStates = StatesToMerge;
+		return;
+	}
+
+	TSubclassOf<UTcsStateMerger> MergerClass = StateDef->MergerType;
+	if (!MergerClass)
+	{
+		OutMergedStates = StatesToMerge;
+		return;
+	}
+
+	UTcsStateMerger* Merger = MergerClass->GetDefaultObject<UTcsStateMerger>();
+	if (!IsValid(Merger))
+	{
+		UE_LOG(LogTcsState, Warning, TEXT("[%s] Failed to get merger instance for %s"),
+			*FString(__FUNCTION__),
+			*MergerClass->GetName());
+		OutMergedStates = StatesToMerge;
+		return;
+	}
+
+	Merger->Merge(StatesToMerge, OutMergedStates);
+}
+
+void UTcsStateComponent::RemoveUnmergedStates(
+	FTcsStateSlot* StateSlot,
+	const TArray<UTcsStateInstance*>& MergedStates,
+	const TMap<FName, UTcsStateInstance*>& MergePrimaryByDefId)
+{
+	if (!StateSlot)
+	{
+		return;
+	}
+
+	TArray<UTcsStateInstance*> StatesToRemove;
+	for (UTcsStateInstance* State : StateSlot->States)
+	{
+		if (!MergedStates.Contains(State))
+		{
+			StatesToRemove.Add(State);
+		}
+	}
+
+	for (UTcsStateInstance* State : StatesToRemove)
+	{
+		if (!IsValid(State))
+		{
+			continue;
+		}
+
+		UTcsStateInstance* MergeTarget = nullptr;
+		for (UTcsStateInstance* Candidate : MergedStates)
+		{
+			if (!IsValid(Candidate) || Candidate->GetStateDefId() != State->GetStateDefId())
+			{
+				continue;
+			}
+
+			if (Candidate->GetInstigator() == State->GetInstigator())
+			{
+				MergeTarget = Candidate;
+				break;
+			}
+
+			if (!MergeTarget)
+			{
+				MergeTarget = Candidate;
+			}
+		}
+
+		if (!IsValid(MergeTarget))
+		{
+			if (UTcsStateInstance* const* Primary = MergePrimaryByDefId.Find(State->GetStateDefId()))
+			{
+				MergeTarget = IsValid(*Primary) ? *Primary : nullptr;
+			}
+		}
+
+		if (IsValid(MergeTarget))
+		{
+			NotifyStateMerged(MergeTarget, State, MergeTarget->GetStackCount());
+		}
+
+		RequestStateRemoval(State, TcsStateRemovalReasons::MergedOut);
+	}
+}
+
+void UTcsStateComponent::ProcessStateSlotByActivationMode(FTcsStateSlot* StateSlot, FGameplayTag SlotTag)
+{
+	if (!StateSlot)
+	{
+		return;
+	}
+
+	UTcsStateManagerSubsystem* LocalStateMgr = ResolveStateManager();
+	if (!LocalStateMgr)
+	{
+		return;
+	}
+
+	const UTcsStateSlotDefinitionAsset* SlotDef = LocalStateMgr->GetStateSlotDefinitionAssetByTag(SlotTag);
+	if (!SlotDef)
+	{
+		UE_LOG(LogTcsState, Warning, TEXT("[%s] StateSlotDef %s not found"),
+			*FString(__FUNCTION__),
+			*SlotTag.ToString());
+		return;
+	}
+
+	switch (SlotDef->ActivationMode)
+	{
+	case ETcsStateSlotActivationMode::SSAM_PriorityOnly:
+		ProcessPriorityOnlyMode(StateSlot, SlotDef);
+		break;
+	case ETcsStateSlotActivationMode::SSAM_AllActive:
+		ProcessAllActiveMode(StateSlot);
+		break;
+	}
+}
+
+void UTcsStateComponent::ProcessPriorityOnlyMode(FTcsStateSlot* StateSlot, const UTcsStateSlotDefinitionAsset* SlotDef)
+{
+	if (!StateSlot || StateSlot->States.Num() == 0 || !SlotDef)
+	{
+		return;
+	}
+
+	int32 HighestPriority = TNumericLimits<int32>::Lowest();
+	for (UTcsStateInstance* Candidate : StateSlot->States)
+	{
+		if (IsValid(Candidate))
+		{
+			const UTcsStateDefinitionAsset* CandidateStateDef = Candidate->GetStateDefAsset();
+			if (CandidateStateDef)
+			{
+				HighestPriority = FMath::Max(HighestPriority, CandidateStateDef->Priority);
+			}
+		}
+	}
+
+	TArray<UTcsStateInstance*> HighestPriorityStates;
+	for (UTcsStateInstance* Candidate : StateSlot->States)
+	{
+		if (IsValid(Candidate))
+		{
+			const UTcsStateDefinitionAsset* CandidateStateDef = Candidate->GetStateDefAsset();
+			if (CandidateStateDef && CandidateStateDef->Priority == HighestPriority)
+			{
+				HighestPriorityStates.Add(Candidate);
+			}
+		}
+	}
+
+	if (HighestPriorityStates.Num() == 0)
+	{
+		return;
+	}
+
+	if (HighestPriorityStates.Num() > 1 && SlotDef->SamePriorityPolicy)
+	{
+		const UTcsStateSamePriorityPolicy* Policy = SlotDef->SamePriorityPolicy->GetDefaultObject<UTcsStateSamePriorityPolicy>();
+		if (IsValid(Policy))
+		{
+			HighestPriorityStates.Sort([Policy](const UTcsStateInstance& A, const UTcsStateInstance& B)
+			{
+				const int64 KeyA = Policy->GetOrderKey(&A);
+				const int64 KeyB = Policy->GetOrderKey(&B);
+				return KeyA > KeyB;
+			});
+		}
+	}
+
+	UTcsStateInstance* HighestPriorityState = HighestPriorityStates[0];
+	if (!IsValid(HighestPriorityState))
+	{
+		return;
+	}
+
+	if (HighestPriorityState->GetCurrentStage() != ETcsStateStage::SS_Active)
+	{
+		ActivateState(HighestPriorityState);
+	}
+
+	TArray<UTcsStateInstance*> StatesToCancel;
+	for (UTcsStateInstance* State : StateSlot->States)
+	{
+		if (!IsValid(State) || State == HighestPriorityState)
+		{
+			continue;
+		}
+
+		if (SlotDef->PreemptionPolicy == ETcsStatePreemptionPolicy::SPP_CancelLowerPriority)
+		{
+			StatesToCancel.Add(State);
+			continue;
+		}
+
+		ApplyPreemptionPolicyToState(State, SlotDef->PreemptionPolicy);
+	}
+
+	for (UTcsStateInstance* State : StatesToCancel)
+	{
+		if (IsValid(State))
+		{
+			CancelState(State);
+		}
+	}
+}
+
+void UTcsStateComponent::ProcessAllActiveMode(FTcsStateSlot* StateSlot)
+{
+	if (!StateSlot)
+	{
+		return;
+	}
+
+	for (UTcsStateInstance* State : StateSlot->States)
+	{
+		if (IsValid(State) && State->GetCurrentStage() != ETcsStateStage::SS_Active)
+		{
+			ActivateState(State);
+		}
+	}
+}
+
+void UTcsStateComponent::ApplyPreemptionPolicyToState(
+	UTcsStateInstance* State,
+	ETcsStatePreemptionPolicy Policy)
+{
+	if (!IsValid(State))
+	{
+		return;
+	}
+
+	switch (Policy)
+	{
+	case ETcsStatePreemptionPolicy::SPP_HangUpLowerPriority:
+		if (State->GetCurrentStage() == ETcsStateStage::SS_Active)
+		{
+			HangUpState(State);
+		}
+		break;
+	case ETcsStatePreemptionPolicy::SPP_PauseLowerPriority:
+		if (State->GetCurrentStage() == ETcsStateStage::SS_Active)
+		{
+			PauseState(State);
+		}
+		break;
+	case ETcsStatePreemptionPolicy::SPP_CancelLowerPriority:
+		break;
+	}
+}
+
+void UTcsStateComponent::CleanupInvalidStates(FTcsStateSlot* StateSlot)
+{
+	if (!StateSlot)
+	{
+		return;
+	}
+
+	StateSlot->States.RemoveAll([](const UTcsStateInstance* State)
+	{
+		return !IsValid(State);
+	});
+}
+
+void UTcsStateComponent::RemoveStateFromSlot(
+	FTcsStateSlot* StateSlot,
+	UTcsStateInstance* State,
+	bool bDeactivateIfNeeded)
+{
+	if (!StateSlot || !IsValid(State))
+	{
+		return;
+	}
+
+	StateSlot->States.Remove(State);
+	if (bDeactivateIfNeeded && State->GetCurrentStage() != ETcsStateStage::SS_Inactive)
+	{
+		DeactivateState(State);
+	}
+}
+
+bool UTcsStateComponent::GetStatesInSlot(FGameplayTag SlotTag, TArray<UTcsStateInstance*>& OutStates) const
+{
+	if (!SlotTag.IsValid())
+	{
+		OutStates.Empty();
+		return false;
+	}
+
+	return StateInstanceIndex.GetInstancesBySlot(SlotTag, OutStates);
+}
+
+bool UTcsStateComponent::GetStatesByDefId(FName StateDefId, TArray<UTcsStateInstance*>& OutStates) const
+{
+	if (StateDefId.IsNone())
+	{
+		OutStates.Empty();
+		return false;
+	}
+
+	return StateInstanceIndex.GetInstancesByName(StateDefId, OutStates);
+}
+
+bool UTcsStateComponent::GetAllActiveStates(TArray<UTcsStateInstance*>& OutStates) const
+{
+	OutStates.Empty();
+	for (UTcsStateInstance* State : StateInstanceIndex.Instances)
+	{
+		if (IsValid(State) && State->GetCurrentStage() == ETcsStateStage::SS_Active)
+		{
+			OutStates.Add(State);
+		}
+	}
+	return OutStates.Num() > 0;
+}
+
+bool UTcsStateComponent::HasStateWithDefId(FName StateDefId) const
+{
+	TArray<UTcsStateInstance*> States;
+	return GetStatesByDefId(StateDefId, States);
+}
+
+bool UTcsStateComponent::HasActiveStateInSlot(FGameplayTag SlotTag) const
+{
+	TArray<UTcsStateInstance*> States;
+	if (!GetStatesInSlot(SlotTag, States))
+	{
+		return false;
+	}
+
+	for (const UTcsStateInstance* State : States)
+	{
+		if (IsValid(State) && State->GetCurrentStage() == ETcsStateStage::SS_Active)
+		{
+			return true;
+		}
 	}
 
 	return false;
@@ -1360,16 +2779,8 @@ void UTcsStateComponent::SetSlotGateOpen(FGameplayTag SlotTag, bool bOpen)
 		// 广播槽位Gate状态变化事件
 		NotifySlotGateStateChanged(SlotTag, bOpen);
 
-		// 请求更新槽位激活状态（迁移期先通过组件包装器转发到 Manager）
+		// 请求更新槽位激活状态
 		RequestUpdateStateSlotActivation(SlotTag);
-	}
-}
-
-void UTcsStateComponent::RequestUpdateStateSlotActivation(FGameplayTag SlotTag)
-{
-	if (UTcsStateManagerSubsystem* LocalStateMgr = ResolveStateManager())
-	{
-		LocalStateMgr->RequestUpdateStateSlotActivation(this, SlotTag);
 	}
 }
 
@@ -1422,11 +2833,7 @@ void UTcsStateComponent::OnStateTreeStateChanged(const FStateTreeExecutionContex
 	// 检测变化
 	if (!AreStateNamesEqual(CurrentActiveStates, CachedActiveStateNames))
 	{
-		// 委托给 Subsystem 处理槽位 Gate 刷新
-		if (IsValid(StateMgr))
-		{
-			StateMgr->RefreshSlotsForStateChange(this, CurrentActiveStates, CachedActiveStateNames);
-		}
+		RefreshSlotsForStateChange(CurrentActiveStates, CachedActiveStateNames);
 		CachedActiveStateNames = CurrentActiveStates;
 
 		UE_LOG(LogTcsState, Log,

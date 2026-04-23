@@ -17,6 +17,8 @@
 class UTcsStateInstance;
 class UTcsStateManagerSubsystem;
 class UTcsAttributeManagerSubsystem;
+class UTcsStateDefinitionAsset;
+class UTcsStateSlotDefinitionAsset;
 struct FStateTreeStateHandle;
 
 
@@ -145,8 +147,6 @@ protected:
 		FActorComponentTickFunction* ThisTickFunction) override;
 
 public:
-	// 友元类声明，允许状态子系统访问私有成员
-	friend class UTcsStateManagerSubsystem;
 	friend class UTcsStateInstance;
 
 public:
@@ -322,7 +322,6 @@ protected:
 public:
 	/**
 	 * 尝试在当前组件拥有者上应用指定状态定义。
-	 * Phase D 仅提供占位入口，完整业务逻辑在 Phase E 下沉。
 	 *
 	 * @param StateDefId 要应用的状态定义 ID
 	 * @param Instigator 状态发起者
@@ -336,6 +335,54 @@ public:
 		AActor* Instigator,
 		int32 StateLevel = 1,
 		const FTcsSourceHandle& ParentSourceHandle = FTcsSourceHandle());
+
+	/**
+	 * 尝试将已初始化的状态实例应用到当前组件。
+	 *
+	 * @param StateInstance 要应用的状态实例
+	 * @return 如果应用成功则返回 true，否则返回 false
+	 */
+	UFUNCTION(BlueprintCallable, Category = "State")
+	virtual bool TryApplyStateInstance(UTcsStateInstance* StateInstance);
+
+protected:
+	/**
+	 * 在当前组件拥有者上创建状态实例。
+	 *
+	 * @param StateDefId 状态定义 ID
+	 * @param Instigator 状态发起者
+	 * @param InLevel 状态等级
+	 * @param ParentSourceHandle 父级来源句柄
+	 * @return 如果创建成功则返回状态实例，否则返回 nullptr
+	 */
+	virtual UTcsStateInstance* CreateStateInstance(
+		FName StateDefId,
+		AActor* Instigator,
+		int32 InLevel = 1,
+		const FTcsSourceHandle& ParentSourceHandle = FTcsSourceHandle());
+
+	/**
+	 * 评估并写入状态参数。
+	 *
+	 * @param StateDefAsset 状态定义资产
+	 * @param Instigator 状态发起者
+	 * @param StateInstance 状态实例
+	 * @param OutFailedParams 输出失败的参数名列表
+	 * @return 如果所有参数评估成功则返回 true，否则返回 false
+	 */
+	virtual bool EvaluateAndApplyStateParameters(
+		const UTcsStateDefinitionAsset* StateDefAsset,
+		AActor* Instigator,
+		UTcsStateInstance* StateInstance,
+		TArray<FName>& OutFailedParams);
+
+	/**
+	 * 检查状态实例是否满足应用条件。
+	 *
+	 * @param StateInstance 要检查的状态实例
+	 * @return 如果满足应用条件则返回 true，否则返回 false
+	 */
+	virtual bool CheckStateApplyConditions(UTcsStateInstance* StateInstance);
 
 	/**
 	 * 请求移除指定状态实例。
@@ -435,6 +482,54 @@ protected:
 #pragma region StateSlot_Gate
 
 public:
+	/**
+	 * 获取指定槽位中的全部状态实例。
+	 *
+	 * @param SlotTag 状态槽标签
+	 * @param OutStates 输出状态实例列表
+	 * @return 如果找到状态则返回 true，否则返回 false
+	 */
+	UFUNCTION(BlueprintCallable, Category = "State|Query")
+	bool GetStatesInSlot(FGameplayTag SlotTag, TArray<UTcsStateInstance*>& OutStates) const;
+
+	/**
+	 * 获取指定定义 ID 的全部状态实例。
+	 *
+	 * @param StateDefId 状态定义 ID
+	 * @param OutStates 输出状态实例列表
+	 * @return 如果找到状态则返回 true，否则返回 false
+	 */
+	UFUNCTION(BlueprintCallable, Category = "State|Query")
+	bool GetStatesByDefId(FName StateDefId, TArray<UTcsStateInstance*>& OutStates) const;
+
+	/**
+	 * 获取当前组件中的全部激活状态。
+	 *
+	 * @param OutStates 输出激活状态列表
+	 * @return 如果找到激活状态则返回 true，否则返回 false
+	 */
+	UFUNCTION(BlueprintCallable, Category = "State|Query")
+	bool GetAllActiveStates(TArray<UTcsStateInstance*>& OutStates) const;
+
+	/**
+	 * 检查是否存在指定定义 ID 的状态。
+	 *
+	 * @param StateDefId 状态定义 ID
+	 * @return 如果存在则返回 true，否则返回 false
+	 */
+	UFUNCTION(BlueprintCallable, Category = "State|Query")
+	bool HasStateWithDefId(FName StateDefId) const;
+
+	/**
+	 * 检查指定槽位中是否存在激活状态。
+	 *
+	 * @param SlotTag 状态槽标签
+	 * @return 如果存在激活状态则返回 true，否则返回 false
+	 */
+	UFUNCTION(BlueprintCallable, Category = "State|Query")
+	bool HasActiveStateInSlot(FGameplayTag SlotTag) const;
+
+public:
 	// 调试输出
 	UFUNCTION(BlueprintPure, Category = "State Slot|Debug", meta = (AutoCreateRefTerm = "SlotFilter"))
 	FString GetSlotDebugSnapshot(FGameplayTag SlotFilter = FGameplayTag()) const;
@@ -452,14 +547,74 @@ public:
     bool IsSlotGateOpen(FGameplayTag SlotTag) const;
 
 protected:
-	// 请求刷新指定槽位的激活结果；Phase E 将把其内部逻辑完全下沉到 Component。
+	// 初始化当前组件的 StateSlot 与 StateTreeState 映射。
+	virtual void InitStateSlotMappings();
+
+	// 尝试把状态实例放入目标槽位并驱动后续激活流程。
+	virtual bool TryAssignStateToStateSlot(UTcsStateInstance* StateInstance);
+
+	// 响应 StateTree 激活状态变更并刷新相关槽位。
+	virtual void RefreshSlotsForStateChange(const TArray<FName>& NewStates, const TArray<FName>& OldStates);
+
+	// 请求刷新指定槽位的激活结果。
 	void RequestUpdateStateSlotActivation(FGameplayTag SlotTag);
+
+	// 排空同帧累积的槽位激活请求。
+	void DrainPendingSlotActivationUpdates();
+
+	// 更新指定槽位的激活结果。
+	virtual void UpdateStateSlotActivation(FGameplayTag SlotTag);
+
+	// Gate 一致性：当槽位关闭时，强制收敛阶段。
+	virtual void EnforceSlotGateConsistency(FGameplayTag SlotTag);
+
+	// 清理槽位中已经过期的状态实例。
+	void ClearStateSlotExpiredStates(FTcsStateSlot* StateSlot);
+
+	// 按优先级排序槽位中的状态。
+	virtual void SortStatesByPriority(TArray<UTcsStateInstance*>& States);
+
+	// 处理槽位中的状态合并。
+	virtual void ProcessStateSlotMerging(FTcsStateSlot* StateSlot);
+
+	// 对同一组状态执行合并策略。
+	void MergeStateGroup(TArray<UTcsStateInstance*>& StatesToMerge, TArray<UTcsStateInstance*>& OutMergedStates);
+
+	// 移除在合并后未被保留的状态实例。
+	void RemoveUnmergedStates(
+		FTcsStateSlot* StateSlot,
+		const TArray<UTcsStateInstance*>& MergedStates,
+		const TMap<FName, UTcsStateInstance*>& MergePrimaryByDefId);
+
+	// 按槽位激活模式处理状态。
+	virtual void ProcessStateSlotByActivationMode(FTcsStateSlot* StateSlot, FGameplayTag SlotTag);
+
+	// 优先级模式：只保留最高优先级状态激活。
+	void ProcessPriorityOnlyMode(FTcsStateSlot* StateSlot, const UTcsStateSlotDefinitionAsset* SlotDef);
+
+	// 全激活模式：槽位中所有状态都保持激活。
+	void ProcessAllActiveMode(FTcsStateSlot* StateSlot);
+
+	// 按抢占策略处理低优先级状态。
+	virtual void ApplyPreemptionPolicyToState(UTcsStateInstance* State, ETcsStatePreemptionPolicy Policy);
+
+	// 清理槽位中的无效实例。
+	void CleanupInvalidStates(FTcsStateSlot* StateSlot);
+
+	// 从槽位中移除指定状态实例。
+	void RemoveStateFromSlot(FTcsStateSlot* StateSlot, UTcsStateInstance* State, bool bDeactivateIfNeeded = true);
 
     // 获取当前激活的StateTree状态名列表
     TArray<FName> GetCurrentActiveStateTreeStates() const;
 
     // 缓存上一帧的StateTree激活状态名,用于检测变化
     TArray<FName> CachedActiveStateNames;
+
+	// 当前组件是否正在执行槽位激活刷新；用于同帧防重入。
+	bool bIsUpdatingSlotActivation = false;
+
+	// 当前组件待排空的槽位激活请求集合。
+	TSet<FGameplayTag> PendingSlotActivationUpdates;
 
 	// 当前是否处于 StateTree Tick/回调上下文；仅用于移除链路的 ensure 诊断。
 	bool bIsInStateTreeCallback = false;
