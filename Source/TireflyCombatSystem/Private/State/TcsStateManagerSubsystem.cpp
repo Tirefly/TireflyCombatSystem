@@ -3,12 +3,17 @@
 
 #include "State/TcsStateManagerSubsystem.h"
 
+#include "TcsDefinitionRegistrySubsystem.h"
 #include "TcsDeveloperSettings.h"
 #include "TcsGenericLibrary.h"
 #include "TcsLogChannels.h"
 #include "State/TcsStateComponent.h"
-#include "State/TcsStateDefinitionAsset.h"
-#include "State/TcsStateSlotDefinitionAsset.h"
+#include "State/TcsStateDefinition.h"
+#include "State/TcsStateSlotDefinition.h"
+
+#if WITH_EDITOR
+#include "Engine/Engine.h"
+#endif
 
 #if !WITH_EDITOR
 #include "Engine/AssetManager.h"
@@ -20,10 +25,34 @@ void UTcsStateManagerSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	Super::Initialize(Collection);
 
 #if WITH_EDITOR
-	LoadFromDeveloperSettings();
+	LoadFromDefinitionRegistry();
+
+	if (UTcsDefinitionRegistrySubsystem* Registry = GetDefinitionRegistry())
+	{
+		DefinitionRegistryRefreshedHandle = Registry->OnDefinitionsRefreshed().AddUObject(
+			this,
+			&UTcsStateManagerSubsystem::HandleDefinitionRegistryRefreshed);
+	}
 #else
 	LoadFromAssetManager();
 #endif
+}
+
+void UTcsStateManagerSubsystem::Deinitialize()
+{
+#if WITH_EDITOR
+	if (DefinitionRegistryRefreshedHandle.IsValid())
+	{
+		if (UTcsDefinitionRegistrySubsystem* Registry = GetDefinitionRegistry())
+		{
+			Registry->OnDefinitionsRefreshed().Remove(DefinitionRegistryRefreshedHandle);
+		}
+
+		DefinitionRegistryRefreshedHandle.Reset();
+	}
+#endif
+
+	Super::Deinitialize();
 }
 
 void UTcsStateManagerSubsystem::LoadFromDeveloperSettings()
@@ -39,7 +68,7 @@ void UTcsStateManagerSubsystem::LoadFromDeveloperSettings()
 	StateSlotDefinitions.Empty();
 	for (const auto& Pair : Settings->GetCachedStateSlotDefinitions())
 	{
-		const UTcsStateSlotDefinitionAsset* Asset = Pair.Value.LoadSynchronous();
+		const UTcsStateSlotDefinition* Asset = Pair.Value.LoadSynchronous();
 		if (Asset)
 		{
 			StateSlotDefinitions.Add(Pair.Key, Asset);
@@ -91,18 +120,116 @@ void UTcsStateManagerSubsystem::LoadFromDeveloperSettings()
 		LoadingStrategy == ETcsStateLoadingStrategy::OnDemand ? TEXT("OnDemand") : TEXT("Hybrid"));
 }
 
-void UTcsStateManagerSubsystem::PreloadAllStates()
+void UTcsStateManagerSubsystem::LoadFromDefinitionRegistry()
 {
-	const UTcsDeveloperSettings* Settings = GetDefault<UTcsDeveloperSettings>();
-	if (!Settings)
+#if WITH_EDITOR
+	UTcsDefinitionRegistrySubsystem* Registry = GetDefinitionRegistry();
+	if (!Registry)
 	{
+		LoadFromDeveloperSettings();
 		return;
 	}
 
-	for (const auto& Pair : Settings->GetCachedStateDefinitions())
+	if (!Registry->HasCompletedInitialRefresh())
+	{
+		Registry->RefreshDefinitionsNow();
+	}
+
+	const UTcsDeveloperSettings* Settings = GetDefault<UTcsDeveloperSettings>();
+	if (!Settings)
+	{
+		UE_LOG(LogTcsState, Error, TEXT("[%s] Failed to get TcsDeveloperSettings"),
+			*FString(__FUNCTION__));
+		return;
+	}
+
+	const TMap<FName, TSoftObjectPtr<UTcsStateSlotDefinition>>* StateSlotSourceCache = GetStateSlotDefinitionSourceCache();
+	if (!StateSlotSourceCache)
+	{
+		LoadFromDeveloperSettings();
+		return;
+	}
+
+	StateSlotDefinitions.Empty();
+	for (const auto& Pair : *StateSlotSourceCache)
+	{
+		const UTcsStateSlotDefinition* Asset = Pair.Value.LoadSynchronous();
+		if (Asset)
+		{
+			StateSlotDefinitions.Add(Pair.Key, Asset);
+		}
+		else
+		{
+			UE_LOG(LogTcsState, Warning, TEXT("[%s] Failed to load StateSlotDefinition: %s"),
+				*FString(__FUNCTION__),
+				*Pair.Key.ToString());
+		}
+	}
+
+	if (StateSlotDefinitions.Num() == 0)
+	{
+		UE_LOG(LogTcsState, Warning, TEXT("[%s] No StateSlotDefinitions loaded from DefinitionRegistry"),
+			*FString(__FUNCTION__));
+	}
+
+	const ETcsStateLoadingStrategy LoadingStrategy = Settings->StateLoadingStrategy;
+	StateDefinitions.Empty();
+	StateTagToDefId.Empty();
+
+	switch (LoadingStrategy)
+	{
+	case ETcsStateLoadingStrategy::PreloadAll:
+		PreloadAllStates();
+		UE_LOG(LogTcsState, Log, TEXT("[%s] PreloadAll strategy: Loaded %d State definitions"),
+			*FString(__FUNCTION__),
+			StateDefinitions.Num());
+		break;
+	case ETcsStateLoadingStrategy::OnDemand:
+		UE_LOG(LogTcsState, Log, TEXT("[%s] OnDemand strategy: State definitions will be loaded on first access"),
+			*FString(__FUNCTION__));
+		break;
+	case ETcsStateLoadingStrategy::Hybrid:
+		PreloadCommonStates();
+		UE_LOG(LogTcsState, Log, TEXT("[%s] Hybrid strategy: Preloaded %d common State definitions"),
+			*FString(__FUNCTION__),
+			StateDefinitions.Num());
+		break;
+	}
+
+	UE_LOG(LogTcsState, Log, TEXT("[%s] Initialized: %d StateSlots, %d States, %d Tag mappings, Strategy: %s"),
+		*FString(__FUNCTION__),
+		StateSlotDefinitions.Num(),
+		StateDefinitions.Num(),
+		StateTagToDefId.Num(),
+		LoadingStrategy == ETcsStateLoadingStrategy::PreloadAll ? TEXT("PreloadAll") :
+		LoadingStrategy == ETcsStateLoadingStrategy::OnDemand ? TEXT("OnDemand") : TEXT("Hybrid"));
+#else
+	LoadFromDeveloperSettings();
+#endif
+}
+
+void UTcsStateManagerSubsystem::PreloadAllStates()
+{
+	const TMap<FName, TSoftObjectPtr<UTcsStateDefinition>>* StateSourceCache = nullptr;
+#if WITH_EDITOR
+	StateSourceCache = GetStateDefinitionSourceCache();
+#endif
+
+	if (!StateSourceCache)
+	{
+		const UTcsDeveloperSettings* Settings = GetDefault<UTcsDeveloperSettings>();
+		if (!Settings)
+		{
+			return;
+		}
+
+		StateSourceCache = &Settings->GetCachedStateDefinitions();
+	}
+
+	for (const auto& Pair : *StateSourceCache)
 	{
 		const FName& DefId = Pair.Key;
-		const UTcsStateDefinitionAsset* Asset = Pair.Value.LoadSynchronous();
+		const UTcsStateDefinition* Asset = Pair.Value.LoadSynchronous();
 		if (Asset)
 		{
 			StateDefinitions.Add(DefId, Asset);
@@ -142,14 +269,14 @@ void UTcsStateManagerSubsystem::PreloadCommonStates()
 		return;
 	}
 
-	for (const TSoftObjectPtr<UTcsStateDefinitionAsset>& AssetPtr : Settings->CommonStateDefinitions)
+	for (const TSoftObjectPtr<UTcsStateDefinition>& AssetPtr : Settings->CommonStateDefinitions)
 	{
 		if (AssetPtr.IsNull())
 		{
 			continue;
 		}
 
-		const UTcsStateDefinitionAsset* Asset = AssetPtr.LoadSynchronous();
+		const UTcsStateDefinition* Asset = AssetPtr.LoadSynchronous();
 		if (!Asset)
 		{
 			UE_LOG(LogTcsState, Warning, TEXT("[%s] Failed to load common State from explicit list: %s"),
@@ -188,7 +315,17 @@ void UTcsStateManagerSubsystem::PreloadCommonStates()
 			*DefId.ToString());
 	}
 
-	for (const auto& Pair : Settings->GetCachedStateDefinitions())
+	const TMap<FName, TSoftObjectPtr<UTcsStateDefinition>>* StateSourceCache = nullptr;
+#if WITH_EDITOR
+	StateSourceCache = GetStateDefinitionSourceCache();
+#endif
+
+	if (!StateSourceCache)
+	{
+		StateSourceCache = &Settings->GetCachedStateDefinitions();
+	}
+
+	for (const auto& Pair : *StateSourceCache)
 	{
 		const FName& DefId = Pair.Key;
 		if (StateDefinitions.Contains(DefId))
@@ -196,7 +333,7 @@ void UTcsStateManagerSubsystem::PreloadCommonStates()
 			continue;
 		}
 
-		const TSoftObjectPtr<UTcsStateDefinitionAsset>& AssetPtr = Pair.Value;
+		const TSoftObjectPtr<UTcsStateDefinition>& AssetPtr = Pair.Value;
 		const FString AssetPath = AssetPtr.ToSoftObjectPath().ToString();
 
 		bool bIsCommon = false;
@@ -214,7 +351,7 @@ void UTcsStateManagerSubsystem::PreloadCommonStates()
 			continue;
 		}
 
-		const UTcsStateDefinitionAsset* Asset = AssetPtr.LoadSynchronous();
+		const UTcsStateDefinition* Asset = AssetPtr.LoadSynchronous();
 		if (!Asset)
 		{
 			UE_LOG(LogTcsState, Warning, TEXT("[%s] Failed to load common StateDefinition: %s"),
@@ -248,9 +385,9 @@ void UTcsStateManagerSubsystem::PreloadCommonStates()
 	}
 }
 
-const UTcsStateDefinitionAsset* UTcsStateManagerSubsystem::LoadStateOnDemand(FName StateDefId)
+const UTcsStateDefinition* UTcsStateManagerSubsystem::LoadStateOnDemand(FName StateDefId)
 {
-	if (const UTcsStateDefinitionAsset* const* AssetPtr = StateDefinitions.Find(StateDefId))
+	if (const UTcsStateDefinition* const* AssetPtr = StateDefinitions.Find(StateDefId))
 	{
 		return *AssetPtr;
 	}
@@ -261,9 +398,19 @@ const UTcsStateDefinitionAsset* UTcsStateManagerSubsystem::LoadStateOnDemand(FNa
 		return nullptr;
 	}
 
-	if (const TSoftObjectPtr<UTcsStateDefinitionAsset>* AssetPtr = Settings->GetCachedStateDefinitions().Find(StateDefId))
+	const TMap<FName, TSoftObjectPtr<UTcsStateDefinition>>* StateSourceCache = nullptr;
+#if WITH_EDITOR
+	StateSourceCache = GetStateDefinitionSourceCache();
+#endif
+
+	if (!StateSourceCache)
 	{
-		const UTcsStateDefinitionAsset* Asset = AssetPtr->LoadSynchronous();
+		StateSourceCache = &Settings->GetCachedStateDefinitions();
+	}
+
+	if (const TSoftObjectPtr<UTcsStateDefinition>* AssetPtr = StateSourceCache->Find(StateDefId))
+	{
+		const UTcsStateDefinition* Asset = AssetPtr->LoadSynchronous();
 		if (Asset)
 		{
 			StateDefinitions.Add(StateDefId, Asset);
@@ -285,9 +432,9 @@ const UTcsStateDefinitionAsset* UTcsStateManagerSubsystem::LoadStateOnDemand(FNa
 	return nullptr;
 }
 
-const UTcsStateDefinitionAsset* UTcsStateManagerSubsystem::GetStateDefinitionAsset(FName DefId)
+const UTcsStateDefinition* UTcsStateManagerSubsystem::GetStateDefinition(FName DefId)
 {
-	if (const UTcsStateDefinitionAsset* const* AssetPtr = StateDefinitions.Find(DefId))
+	if (const UTcsStateDefinition* const* AssetPtr = StateDefinitions.Find(DefId))
 	{
 		return *AssetPtr;
 	}
@@ -305,21 +452,31 @@ const UTcsStateDefinitionAsset* UTcsStateManagerSubsystem::GetStateDefinitionAss
 	return nullptr;
 }
 
-const UTcsStateDefinitionAsset* UTcsStateManagerSubsystem::GetStateDefinitionAssetByTag(FGameplayTag StateTag)
+const UTcsStateDefinition* UTcsStateManagerSubsystem::GetStateDefinitionByTag(FGameplayTag StateTag)
 {
 	if (const FName* DefId = StateTagToDefId.Find(StateTag))
 	{
-		return GetStateDefinitionAsset(*DefId);
+		return GetStateDefinition(*DefId);
 	}
 
 	const UTcsDeveloperSettings* Settings = GetDefault<UTcsDeveloperSettings>();
 	if (Settings && (Settings->StateLoadingStrategy == ETcsStateLoadingStrategy::OnDemand ||
 		Settings->StateLoadingStrategy == ETcsStateLoadingStrategy::Hybrid))
 	{
-		for (const auto& Pair : Settings->GetCachedStateDefinitions())
+		const TMap<FName, TSoftObjectPtr<UTcsStateDefinition>>* StateSourceCache = nullptr;
+#if WITH_EDITOR
+		StateSourceCache = GetStateDefinitionSourceCache();
+#endif
+
+		if (!StateSourceCache)
+		{
+			StateSourceCache = &Settings->GetCachedStateDefinitions();
+		}
+
+		for (const auto& Pair : *StateSourceCache)
 		{
 			const FName& DefId = Pair.Key;
-			const UTcsStateDefinitionAsset* Asset = LoadStateOnDemand(DefId);
+			const UTcsStateDefinition* Asset = LoadStateOnDemand(DefId);
 			if (Asset && Asset->StateTag == StateTag)
 			{
 				return Asset;
@@ -333,9 +490,51 @@ const UTcsStateDefinitionAsset* UTcsStateManagerSubsystem::GetStateDefinitionAss
 	return nullptr;
 }
 
-const UTcsStateSlotDefinitionAsset* UTcsStateManagerSubsystem::GetStateSlotDefinitionAsset(FName DefId)
+#if WITH_EDITOR
+UTcsDefinitionRegistrySubsystem* UTcsStateManagerSubsystem::GetDefinitionRegistry() const
 {
-	if (const UTcsStateSlotDefinitionAsset* const* AssetPtr = StateSlotDefinitions.Find(DefId))
+	return GEngine ? GEngine->GetEngineSubsystem<UTcsDefinitionRegistrySubsystem>() : nullptr;
+}
+
+void UTcsStateManagerSubsystem::HandleDefinitionRegistryRefreshed(const UTcsDefinitionRegistrySubsystem* Registry)
+{
+	LoadFromDefinitionRegistry();
+}
+
+const TMap<FName, TSoftObjectPtr<UTcsStateDefinition>>* UTcsStateManagerSubsystem::GetStateDefinitionSourceCache() const
+{
+	if (const UTcsDefinitionRegistrySubsystem* Registry = GetDefinitionRegistry())
+	{
+		return &Registry->GetStateDefinitions();
+	}
+
+	if (const UTcsDeveloperSettings* Settings = GetDefault<UTcsDeveloperSettings>())
+	{
+		return &Settings->GetCachedStateDefinitions();
+	}
+
+	return nullptr;
+}
+
+const TMap<FName, TSoftObjectPtr<UTcsStateSlotDefinition>>* UTcsStateManagerSubsystem::GetStateSlotDefinitionSourceCache() const
+{
+	if (const UTcsDefinitionRegistrySubsystem* Registry = GetDefinitionRegistry())
+	{
+		return &Registry->GetStateSlotDefinitions();
+	}
+
+	if (const UTcsDeveloperSettings* Settings = GetDefault<UTcsDeveloperSettings>())
+	{
+		return &Settings->GetCachedStateSlotDefinitions();
+	}
+
+	return nullptr;
+}
+#endif
+
+const UTcsStateSlotDefinition* UTcsStateManagerSubsystem::GetStateSlotDefinition(FName DefId)
+{
+	if (const UTcsStateSlotDefinition* const* AssetPtr = StateSlotDefinitions.Find(DefId))
 	{
 		return *AssetPtr;
 	}
@@ -346,11 +545,11 @@ const UTcsStateSlotDefinitionAsset* UTcsStateManagerSubsystem::GetStateSlotDefin
 	return nullptr;
 }
 
-const UTcsStateSlotDefinitionAsset* UTcsStateManagerSubsystem::GetStateSlotDefinitionAssetByTag(FGameplayTag SlotTag)
+const UTcsStateSlotDefinition* UTcsStateManagerSubsystem::GetStateSlotDefinitionByTag(FGameplayTag SlotTag)
 {
 	for (const auto& Pair : StateSlotDefinitions)
 	{
-		const UTcsStateSlotDefinitionAsset* Asset = Pair.Value;
+		const UTcsStateSlotDefinition* Asset = Pair.Value;
 		if (Asset && Asset->SlotTag == SlotTag)
 		{
 			return Asset;
@@ -411,11 +610,11 @@ void UTcsStateManagerSubsystem::LoadFromAssetManager()
 	StateSlotDefinitions.Empty();
 	{
 		TArray<FPrimaryAssetId> StateSlotDefIds;
-		AssetManager.GetPrimaryAssetIdList(UTcsStateSlotDefinitionAsset::PrimaryAssetType, StateSlotDefIds);
+		AssetManager.GetPrimaryAssetIdList(UTcsStateSlotDefinition::PrimaryAssetType, StateSlotDefIds);
 
 		for (const FPrimaryAssetId& AssetId : StateSlotDefIds)
 		{
-			const UTcsStateSlotDefinitionAsset* Asset = Cast<UTcsStateSlotDefinitionAsset>(AssetManager.LoadPrimaryAsset(AssetId));
+			const UTcsStateSlotDefinition* Asset = Cast<UTcsStateSlotDefinition>(AssetManager.LoadPrimaryAsset(AssetId));
 			if (Asset)
 			{
 				StateSlotDefinitions.Add(Asset->StateSlotDefId, Asset);
@@ -444,11 +643,11 @@ void UTcsStateManagerSubsystem::LoadFromAssetManager()
 	case ETcsStateLoadingStrategy::PreloadAll:
 		{
 			TArray<FPrimaryAssetId> StateDefIds;
-			AssetManager.GetPrimaryAssetIdList(UTcsStateDefinitionAsset::PrimaryAssetType, StateDefIds);
+			AssetManager.GetPrimaryAssetIdList(UTcsStateDefinition::PrimaryAssetType, StateDefIds);
 
 			for (const FPrimaryAssetId& AssetId : StateDefIds)
 			{
-				const UTcsStateDefinitionAsset* Asset = Cast<UTcsStateDefinitionAsset>(AssetManager.LoadPrimaryAsset(AssetId));
+				const UTcsStateDefinition* Asset = Cast<UTcsStateDefinition>(AssetManager.LoadPrimaryAsset(AssetId));
 				if (Asset)
 				{
 					StateDefinitions.Add(Asset->StateDefId, Asset);
@@ -472,14 +671,14 @@ void UTcsStateManagerSubsystem::LoadFromAssetManager()
 
 	case ETcsStateLoadingStrategy::Hybrid:
 		{
-			for (const TSoftObjectPtr<UTcsStateDefinitionAsset>& AssetPtr : Settings->CommonStateDefinitions)
+			for (const TSoftObjectPtr<UTcsStateDefinition>& AssetPtr : Settings->CommonStateDefinitions)
 			{
 				if (AssetPtr.IsNull())
 				{
 					continue;
 				}
 
-				const UTcsStateDefinitionAsset* Asset = AssetPtr.LoadSynchronous();
+				const UTcsStateDefinition* Asset = AssetPtr.LoadSynchronous();
 				if (!Asset)
 				{
 					UE_LOG(LogTcsState, Warning, TEXT("[%s] Hybrid: Failed to load common State (explicit): %s"),
@@ -505,7 +704,7 @@ void UTcsStateManagerSubsystem::LoadFromAssetManager()
 			if (Settings->CommonStateDefinitionPaths.Num() > 0)
 			{
 				TArray<FPrimaryAssetId> AllStateDefIds;
-				AssetManager.GetPrimaryAssetIdList(UTcsStateDefinitionAsset::PrimaryAssetType, AllStateDefIds);
+				AssetManager.GetPrimaryAssetIdList(UTcsStateDefinition::PrimaryAssetType, AllStateDefIds);
 
 				for (const FPrimaryAssetId& AssetId : AllStateDefIds)
 				{
@@ -531,7 +730,7 @@ void UTcsStateManagerSubsystem::LoadFromAssetManager()
 						continue;
 					}
 
-					const UTcsStateDefinitionAsset* Asset = Cast<UTcsStateDefinitionAsset>(AssetManager.LoadPrimaryAsset(AssetId));
+					const UTcsStateDefinition* Asset = Cast<UTcsStateDefinition>(AssetManager.LoadPrimaryAsset(AssetId));
 					if (!Asset)
 					{
 						UE_LOG(LogTcsState, Warning, TEXT("[%s] Hybrid: Failed to load common State (path): %s"),

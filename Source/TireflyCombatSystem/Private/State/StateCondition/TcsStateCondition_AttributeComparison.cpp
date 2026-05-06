@@ -2,7 +2,7 @@
 
 
 #include "State/StateCondition/TcsStateCondition_AttributeComparison.h"
-#include "State/TcsState.h"
+#include "State/TcsStateInstance.h"
 #include "Attribute/TcsAttributeComponent.h"
 #include "Attribute/TcsAttributeManagerSubsystem.h"
 #include "TcsEntityInterface.h"

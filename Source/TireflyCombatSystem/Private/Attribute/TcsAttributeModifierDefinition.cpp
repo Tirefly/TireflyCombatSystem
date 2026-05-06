@@ -1,6 +1,6 @@
 // Copyright Tirefly. All Rights Reserved.
 
-#include "Attribute/TcsAttributeModifierDefinitionAsset.h"
+#include "Attribute/TcsAttributeModifierDefinition.h"
 #include "Attribute/TcsAttributeModifier.h"
 #include "Attribute/AttrModExecution/TcsAttributeModifierExecution.h"
 
@@ -10,28 +10,28 @@
 
 
 // 定义 PrimaryAssetType 静态变量
-const FPrimaryAssetType UTcsAttributeModifierDefinitionAsset::PrimaryAssetType = FPrimaryAssetType("TcsAttributeModifierDef");
+const FPrimaryAssetType UTcsAttributeModifierDefinition::PrimaryAssetType = FPrimaryAssetType("TcsAttributeModifierDef");
 
-UTcsAttributeModifierDefinitionAsset::UTcsAttributeModifierDefinitionAsset()
+UTcsAttributeModifierDefinition::UTcsAttributeModifierDefinition()
 {
 	// 设置默认操作数
 	Operands.Add(FName("Magnitude"), 0.f);
 }
-FPrimaryAssetId UTcsAttributeModifierDefinitionAsset::GetPrimaryAssetId() const
+FPrimaryAssetId UTcsAttributeModifierDefinition::GetPrimaryAssetId() const
 {
 	// 使用 AttributeModifierDefId 作为 PrimaryAssetName
 	return FPrimaryAssetId(PrimaryAssetType, AttributeModifierDefId);
 }
 
 #if WITH_EDITOR
-void UTcsAttributeModifierDefinitionAsset::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+void UTcsAttributeModifierDefinition::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
 	const FName PropertyName = PropertyChangedEvent.GetPropertyName();
 
 	// 验证 Operands（确保至少有 Magnitude）
-	if (PropertyName == GET_MEMBER_NAME_CHECKED(UTcsAttributeModifierDefinitionAsset, Operands))
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(UTcsAttributeModifierDefinition, Operands))
 	{
 		if (!Operands.Contains(FName("Magnitude")))
 		{
@@ -40,7 +40,7 @@ void UTcsAttributeModifierDefinitionAsset::PostEditChangeProperty(FPropertyChang
 	}
 }
 
-EDataValidationResult UTcsAttributeModifierDefinitionAsset::IsDataValid(FDataValidationContext& Context) const
+EDataValidationResult UTcsAttributeModifierDefinition::IsDataValid(FDataValidationContext& Context) const
 {
 	EDataValidationResult Result = Super::IsDataValid(Context);
 

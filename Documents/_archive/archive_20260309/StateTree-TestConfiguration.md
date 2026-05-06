@@ -355,7 +355,7 @@ struct FTcsTestPrintStateInfoTask : public FStateTreeTaskCommonBase
 
 ```cpp
 #include "TcsTestPrintStateInfoTask.h"
-#include "State/TcsState.h"
+#include "State/TcsStateInstance.h"
 
 EStateTreeRunStatus FTcsTestPrintStateInfoTask::EnterState(
     FStateTreeExecutionContext& Context,
@@ -482,7 +482,7 @@ struct FTcsTriggerNestedStateTask : public FStateTreeTaskCommonBase
 
 ```cpp
 #include "TcsTriggerNestedStateTask.h"
-#include "State/TcsState.h"
+#include "State/TcsStateInstance.h"
 #include "State/TcsStateManagerSubsystem.h"
 
 EStateTreeRunStatus FTcsTriggerNestedStateTask::EnterState(
@@ -619,7 +619,7 @@ struct FTcsWaitForRemovalRequestTask : public FStateTreeTaskCommonBase
 
 ```cpp
 #include "TcsWaitForRemovalRequestTask.h"
-#include "State/TcsState.h"
+#include "State/TcsStateInstance.h"
 
 EStateTreeRunStatus FTcsWaitForRemovalRequestTask::EnterState(
     FStateTreeExecutionContext& Context,

@@ -49,14 +49,6 @@ public:
 #pragma region SkillHelper
 
 public:
-	// 获取所有技能修改器名称
-	UFUNCTION(BlueprintCallable, CallInEditor, Category = "TireflyCombatSystem|Skill")
-	static TArray<FName> GetSkillModifierIds();
-
-	// 获取技能修改器定义总表
-	UFUNCTION(BlueprintCallable, Category = "TireflyCombatSystem|Skill")
-	static UDataTable* GetSkillModifierDefTable();
-
 	// 获取技能组件
 	UFUNCTION(BlueprintCallable, Category = "TireflyCombatSystem|Skill")
 	static class UTcsSkillComponent* GetSkillComponent(AActor* Actor);

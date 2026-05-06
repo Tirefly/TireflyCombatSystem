@@ -11,8 +11,9 @@
 
 
 class UTcsAttributeComponent;
-class UTcsAttributeDefinitionAsset;
-class UTcsAttributeModifierDefinitionAsset;
+class UTcsAttributeDefinition;
+class UTcsAttributeModifierDefinition;
+class UTcsDefinitionRegistrySubsystem;
 
 
 // 属性管理器子系统，所有战斗实体执行属性相关逻辑的入口
@@ -25,6 +26,7 @@ class TIREFLYCOMBATSYSTEM_API UTcsAttributeManagerSubsystem : public UGameInstan
 
 public:
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
+	virtual void Deinitialize() override;
 
 #pragma endregion
 
@@ -33,10 +35,10 @@ public:
 
 protected:
 	// 缓存的属性定义（从 DeveloperSettings 加载）
-	TMap<FName, const UTcsAttributeDefinitionAsset*> AttributeDefinitions;
+	TMap<FName, const UTcsAttributeDefinition*> AttributeDefinitions;
 
 	// 缓存的属性修改器定义（从 DeveloperSettings 加载）
-	TMap<FName, const UTcsAttributeModifierDefinitionAsset*> AttributeModifierDefinitions;
+	TMap<FName, const UTcsAttributeModifierDefinition*> AttributeModifierDefinitions;
 
 	// AttributeTag -> AttributeName 映射（运行时构建，用于 Tag 入口 API）
 	TMap<FGameplayTag, FName> AttributeTagToName;
@@ -50,9 +52,22 @@ protected:
 	void LoadFromDeveloperSettings();
 
 	/**
+	 * 从 DefinitionRegistry 快照加载定义（编辑器模式）
+	 */
+	void LoadFromDefinitionRegistry();
+
+	/**
 	 * 从 AssetManager 加载定义（Runtime 模式）
 	 */
 	void LoadFromAssetManager();
+
+	void RebuildAttributeTagMappings();
+
+#if WITH_EDITOR
+	UTcsDefinitionRegistrySubsystem* GetDefinitionRegistry() const;
+	void HandleDefinitionRegistryRefreshed(const UTcsDefinitionRegistrySubsystem* Registry);
+	FDelegateHandle DefinitionRegistryRefreshedHandle;
+#endif
 
 public:
 	/**
@@ -61,7 +76,7 @@ public:
 	 * @param AttributeName 属性名
 	 * @return 属性定义资产指针；未找到返回 nullptr
 	 */
-	const UTcsAttributeDefinitionAsset* GetAttributeDefinitionAsset(FName AttributeName) const;
+	const UTcsAttributeDefinition* GetAttributeDefinition(FName AttributeName) const;
 
 	/**
 	 * 获取属性修改器定义资产（迁移期供 Component 查询的 public 入口）
@@ -69,7 +84,7 @@ public:
 	 * @param ModifierId 修改器定义 ID
 	 * @return 修改器定义资产指针；未找到返回 nullptr
 	 */
-	const UTcsAttributeModifierDefinitionAsset* GetModifierDefinitionAsset(FName ModifierId) const;
+	const UTcsAttributeModifierDefinition* GetModifierDefinition(FName ModifierId) const;
 
 #pragma endregion
 	

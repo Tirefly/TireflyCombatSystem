@@ -1,6 +1,6 @@
 // Copyright Tirefly. All Rights Reserved.
 
-#include "State/TcsStateSlotDefinitionAsset.h"
+#include "State/TcsStateSlotDefinition.h"
 #include "State/SamePriorityPolicy/TcsStateSamePriorityPolicy_UseNewest.h"
 
 #if WITH_EDITOR
@@ -8,29 +8,29 @@
 #endif
 
 // 定义 PrimaryAssetType 静态变量
-const FPrimaryAssetType UTcsStateSlotDefinitionAsset::PrimaryAssetType = FPrimaryAssetType("TcsStateSlotDef");
+const FPrimaryAssetType UTcsStateSlotDefinition::PrimaryAssetType = FPrimaryAssetType("TcsStateSlotDef");
 
-UTcsStateSlotDefinitionAsset::UTcsStateSlotDefinitionAsset()
+UTcsStateSlotDefinition::UTcsStateSlotDefinition()
 {
 	// 设置默认的同优先级排序策略
 	SamePriorityPolicy = UTcsStateSamePriorityPolicy_UseNewest::StaticClass();
 }
 
-FPrimaryAssetId UTcsStateSlotDefinitionAsset::GetPrimaryAssetId() const
+FPrimaryAssetId UTcsStateSlotDefinition::GetPrimaryAssetId() const
 {
 	// 使用 StateSlotDefId 作为 PrimaryAssetName
 	return FPrimaryAssetId(PrimaryAssetType, StateSlotDefId);
 }
 
 #if WITH_EDITOR
-void UTcsStateSlotDefinitionAsset::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+void UTcsStateSlotDefinition::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
 	const FName PropertyName = PropertyChangedEvent.GetPropertyName();
 
 	// 验证 SamePriorityPolicy
-	if (PropertyName == GET_MEMBER_NAME_CHECKED(UTcsStateSlotDefinitionAsset, SamePriorityPolicy))
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(UTcsStateSlotDefinition, SamePriorityPolicy))
 	{
 		// 如果 SamePriorityPolicy 为空，设置为默认值
 		if (!SamePriorityPolicy)
@@ -40,7 +40,7 @@ void UTcsStateSlotDefinitionAsset::PostEditChangeProperty(FPropertyChangedEvent&
 	}
 }
 
-EDataValidationResult UTcsStateSlotDefinitionAsset::IsDataValid(FDataValidationContext& Context) const
+EDataValidationResult UTcsStateSlotDefinition::IsDataValid(FDataValidationContext& Context) const
 {
 	EDataValidationResult Result = Super::IsDataValid(Context);
 

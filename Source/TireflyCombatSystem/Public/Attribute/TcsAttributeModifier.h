@@ -8,7 +8,7 @@
 #include "TcsAttributeModifier.generated.h"
 
 
-class UTcsAttributeModifierDefinitionAsset;
+class UTcsAttributeModifierDefinition;
 
 
 // 修改器修改属性的方式
@@ -35,7 +35,7 @@ struct TIREFLYCOMBATSYSTEM_API FTcsAttributeModifierInstance
 public:
 	// 修改器定义 DataAsset 硬引用
 	UPROPERTY(BlueprintReadOnly)
-	const UTcsAttributeModifierDefinitionAsset* ModifierDefAsset = nullptr;
+	const UTcsAttributeModifierDefinition* ModifierDef = nullptr;
 
 	// 修改器实例Id
 	UPROPERTY(BlueprintReadOnly)

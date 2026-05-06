@@ -6,7 +6,7 @@
 #include "Engine/DataAsset.h"
 #include "GameplayTagContainer.h"
 #include "TcsAttributeModifier.h"
-#include "TcsAttributeModifierDefinitionAsset.generated.h"
+#include "TcsAttributeModifierDefinition.generated.h"
 
 
 
@@ -18,7 +18,7 @@
  * 命名约定: DA_AttrMod_<ModifierName> (例如: DA_AttrMod_HealthRegen)
  */
 UCLASS(BlueprintType, Const)
-class TIREFLYCOMBATSYSTEM_API UTcsAttributeModifierDefinitionAsset : public UPrimaryDataAsset
+class TIREFLYCOMBATSYSTEM_API UTcsAttributeModifierDefinition : public UPrimaryDataAsset
 {
 	GENERATED_BODY()
 
@@ -111,7 +111,7 @@ public:
 
 public:
 	// 构造函数
-	UTcsAttributeModifierDefinitionAsset();
+	UTcsAttributeModifierDefinition();
 
 	// 覆写 GetPrimaryAssetId
 	virtual FPrimaryAssetId GetPrimaryAssetId() const override;

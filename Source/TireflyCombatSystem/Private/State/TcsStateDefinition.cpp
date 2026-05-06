@@ -1,6 +1,6 @@
 // Copyright Tirefly. All Rights Reserved.
 
-#include "State/TcsStateDefinitionAsset.h"
+#include "State/TcsStateDefinition.h"
 
 #if WITH_EDITOR
 #include "Misc/DataValidation.h"
@@ -8,23 +8,23 @@
 
 
 // 定义 PrimaryAssetType 静态变量
-const FPrimaryAssetType UTcsStateDefinitionAsset::PrimaryAssetType = FPrimaryAssetType("TcsStateDef");
+const FPrimaryAssetType UTcsStateDefinition::PrimaryAssetType = FPrimaryAssetType("TcsStateDef");
 
-FPrimaryAssetId UTcsStateDefinitionAsset::GetPrimaryAssetId() const
+FPrimaryAssetId UTcsStateDefinition::GetPrimaryAssetId() const
 {
 	// 使用 StateDefId 作为 PrimaryAssetName
 	return FPrimaryAssetId(PrimaryAssetType, StateDefId);
 }
 
 #if WITH_EDITOR
-void UTcsStateDefinitionAsset::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+void UTcsStateDefinition::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
 	const FName PropertyName = PropertyChangedEvent.GetPropertyName();
 
 	// 验证 Duration
-	if (PropertyName == GET_MEMBER_NAME_CHECKED(UTcsStateDefinitionAsset, Duration))
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(UTcsStateDefinition, Duration))
 	{
 		// 确保 Duration >= 0
 		if (Duration < 0.f)
@@ -34,7 +34,7 @@ void UTcsStateDefinitionAsset::PostEditChangeProperty(FPropertyChangedEvent& Pro
 	}
 
 	// 验证 MaxStackCount
-	if (PropertyName == GET_MEMBER_NAME_CHECKED(UTcsStateDefinitionAsset, MaxStackCount))
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(UTcsStateDefinition, MaxStackCount))
 	{
 		// 确保 MaxStackCount >= 1
 		if (MaxStackCount < 1)
@@ -44,7 +44,7 @@ void UTcsStateDefinitionAsset::PostEditChangeProperty(FPropertyChangedEvent& Pro
 	}
 }
 
-EDataValidationResult UTcsStateDefinitionAsset::IsDataValid(FDataValidationContext& Context) const
+EDataValidationResult UTcsStateDefinition::IsDataValid(FDataValidationContext& Context) const
 {
 	EDataValidationResult Result = Super::IsDataValid(Context);
 

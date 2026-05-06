@@ -101,7 +101,7 @@ openspec archive <change-id> --yes
 
 ## 核心设计理念
 
-- **统一状态管理**: 技能、Buff、状态使用同一套 `UTcsStateDefinitionAsset` 和 `UTcsStateInstance`
+- **统一状态管理**: 技能、Buff、状态使用同一套 `UTcsStateDefinition` 和 `UTcsStateInstance`
 - **StateTree 双层架构**: 静态槽位结构 + 动态实例执行，支持可视化编辑
 - **策略模式**: 通过 CDO 实现零代码扩展，所有算法都可继承和定制
 - **数据驱动**: DataAsset 驱动的配置，减少硬编码
@@ -163,7 +163,7 @@ AttrMgr->RemoveModifiersBySourceHandle(TargetActor, SourceHandle);
 
 **因果链构建**：
 - 根源 State：CausalityChain 为空数组
-- 派生 State：CausalityChain = ParentSourceHandle.CausalityChain + ParentStateDefAsset.PrimaryAssetId
+- 派生 State：CausalityChain = ParentSourceHandle.CausalityChain + ParentStateDef.PrimaryAssetId
 
 **API**：
 - `CreateSourceHandle(CausalityChain, Instigator, SourceTags)` - 唯一的创建入口
@@ -189,7 +189,7 @@ AttrMgr->RemoveModifiersBySourceHandle(TargetActor, SourceHandle);
 ├─ 技能 (Skill)  - 攻击、法术等
 └─ Buff (Buff)   - 增益、减益等
      ↓ 全部使用同一套系统管理
-UTcsStateDefinitionAsset + UTcsStateInstance + StateTree
+UTcsStateDefinition + UTcsStateInstance + StateTree
 ```
 
 ### StateTree 双层架构
@@ -229,8 +229,8 @@ Layer 2: 动态状态实例 (动态)
 **核心类**:
 - `UTcsAttributeComponent` - 属性管理组件
 - `UTcsAttributeManagerSubsystem` - 全局属性管理（SourceHandle API 所在）
-- `UTcsAttributeDefinitionAsset` - 属性定义（UPrimaryDataAsset）
-- `UTcsAttributeModifierDefinitionAsset` - 修改器定义（UPrimaryDataAsset）
+- `UTcsAttributeDefinition` - 属性定义（UPrimaryDataAsset）
+- `UTcsAttributeModifierDefinition` - 修改器定义（UPrimaryDataAsset）
 - `FTcsAttribute` / `FTcsAttributeInstance` - 属性定义/实例
 - `FTcsAttributeModifierInstance` - 修改器实例
 - `FTcsSourceHandle` - 来源句柄
@@ -267,8 +267,8 @@ Layer 2: 动态状态实例 (动态)
 **核心类**:
 - `UTcsStateComponent` - 状态管理组件（继承 StateTreeComponent）
 - `UTcsStateManagerSubsystem` - 全局状态管理
-- `UTcsStateDefinitionAsset` - 状态定义（UPrimaryDataAsset）
-- `UTcsStateSlotDefinitionAsset` - 状态槽定义（UPrimaryDataAsset）
+- `UTcsStateDefinition` - 状态定义（UPrimaryDataAsset）
+- `UTcsStateSlotDefinition` - 状态槽定义（UPrimaryDataAsset）
 - `UTcsStateInstance` - 状态实例（携带 SourceHandle）
 - `FTcsStateSlot` - 状态槽位
 
@@ -362,7 +362,7 @@ RequestStateRemoval → FinalizePendingRemovalRequest → FinalizeStateRemoval
 - **子系统**: `UTcs*Subsystem`（如 `UTcsStateManagerSubsystem`）
 - **实例**: `UTcs*Instance` 或 `FTcs*Instance`
 - **策略**: `UTcs*Execution`、`UTcs*Merger`、`UTcs*Strategy` 等
-- **定义资产**: `UTcs*DefinitionAsset`（如 `UTcsStateDefinitionAsset`）
+- **定义资产**: `UTcs*DefinitionAsset`（如 `UTcsStateDefinition`）
 - **接口**: `ITcsEntityInterface`
 
 ### 文件命名
@@ -404,11 +404,11 @@ TireflyCombatSystem/
 │   │   │   ├── AttrModExecution/        # 执行算法
 │   │   │   ├── AttrModMerger/           # 合并策略
 │   │   │   ├── AttrClampStrategy/       # Clamp 策略
-│   │   │   ├── TcsAttribute.h
+│   │   │   ├── TcsAttributeInstance.h
 │   │   │   ├── TcsAttributeComponent.h
 │   │   │   ├── TcsAttributeModifier.h
-│   │   │   ├── TcsAttributeDefinitionAsset.h
-│   │   │   ├── TcsAttributeModifierDefinitionAsset.h
+│   │   │   ├── TcsAttributeDefinition.h
+│   │   │   ├── TcsAttributeModifierDefinition.h
 │   │   │   ├── TcsAttributeManagerSubsystem.h
 │   │   │   └── TcsAttributeChangeEventPayload.h
 │   │   │
@@ -417,12 +417,12 @@ TireflyCombatSystem/
 │   │   │   ├── StateMerger/             # 合并策略
 │   │   │   ├── StateParameter/          # 参数解析
 │   │   │   ├── SamePriorityPolicy/      # 同优先级策略
-│   │   │   ├── TcsState.h
+│   │   │   ├── TcsStateInstance.h
 │   │   │   ├── TcsStateComponent.h
 │   │   │   ├── TcsStateSlot.h
 │   │   │   ├── TcsStateManagerSubsystem.h
-│   │   │   ├── TcsStateDefinitionAsset.h
-│   │   │   └── TcsStateSlotDefinitionAsset.h
+│   │   │   ├── TcsStateDefinition.h
+│   │   │   └── TcsStateSlotDefinition.h
 │   │   │
 │   │   ├── Skill/                       # 技能系统
 │   │   │   ├── Modifiers/
@@ -504,7 +504,7 @@ class ITcsEntityInterface : public IInterface
 
 ### 1. 为什么 "一切皆状态"？
 
-技能、Buff、状态使用统一的 `UTcsStateDefinitionAsset` 和 `UTcsStateInstance`。
+技能、Buff、状态使用统一的 `UTcsStateDefinition` 和 `UTcsStateInstance`。
 - 架构统一，减少重复代码
 - 扩展方便，新增类型无需修改核心
 - 所有行为都遵循同一套规则

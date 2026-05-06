@@ -1,6 +1,6 @@
 // Copyright Tirefly. All Rights Reserved.
 
-#include "Attribute/TcsAttributeDefinitionAsset.h"
+#include "Attribute/TcsAttributeDefinition.h"
 #include "Attribute/AttrClampStrategy/TcsAttrClampStrategy_Linear.h"
 
 #if WITH_EDITOR
@@ -9,28 +9,28 @@
 
 
 // 定义 PrimaryAssetType 静态变量
-const FPrimaryAssetType UTcsAttributeDefinitionAsset::PrimaryAssetType = FPrimaryAssetType("TcsAttributeDef");
+const FPrimaryAssetType UTcsAttributeDefinition::PrimaryAssetType = FPrimaryAssetType("TcsAttributeDef");
 
-UTcsAttributeDefinitionAsset::UTcsAttributeDefinitionAsset()
+UTcsAttributeDefinition::UTcsAttributeDefinition()
 {
 	// 设置默认 Clamp 策略
 	ClampStrategyClass = UTcsAttrClampStrategy_Linear::StaticClass();
 }
-FPrimaryAssetId UTcsAttributeDefinitionAsset::GetPrimaryAssetId() const
+FPrimaryAssetId UTcsAttributeDefinition::GetPrimaryAssetId() const
 {
 	// 使用 AttributeDefId 作为 PrimaryAssetName
 	return FPrimaryAssetId(PrimaryAssetType, AttributeDefId);
 }
 
 #if WITH_EDITOR
-void UTcsAttributeDefinitionAsset::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+void UTcsAttributeDefinition::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
 	const FName PropertyName = PropertyChangedEvent.GetPropertyName();
 
 	// 验证 AttributeRange（静态类型时，确保 MinValue <= MaxValue）
-	if (PropertyName == GET_MEMBER_NAME_CHECKED(UTcsAttributeDefinitionAsset, AttributeRange))
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(UTcsAttributeDefinition, AttributeRange))
 	{
 		if (AttributeRange.MinValueType == ETcsAttributeRangeType::ART_Static &&
 			AttributeRange.MaxValueType == ETcsAttributeRangeType::ART_Static)
@@ -45,7 +45,7 @@ void UTcsAttributeDefinitionAsset::PostEditChangeProperty(FPropertyChangedEvent&
 	}
 
 	// 验证 ClampStrategyClass
-	if (PropertyName == GET_MEMBER_NAME_CHECKED(UTcsAttributeDefinitionAsset, ClampStrategyClass))
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(UTcsAttributeDefinition, ClampStrategyClass))
 	{
 		// 如果 ClampStrategyClass 为空，设置为默认值
 		if (!ClampStrategyClass)
@@ -55,7 +55,7 @@ void UTcsAttributeDefinitionAsset::PostEditChangeProperty(FPropertyChangedEvent&
 	}
 }
 
-EDataValidationResult UTcsAttributeDefinitionAsset::IsDataValid(FDataValidationContext& Context) const
+EDataValidationResult UTcsAttributeDefinition::IsDataValid(FDataValidationContext& Context) const
 {
 	EDataValidationResult Result = Super::IsDataValid(Context);
 

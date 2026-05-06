@@ -9,7 +9,7 @@
 #include "StateTreeTaskBase.h"
 #include "TcsEntityInterface.h"
 #include "TcsLogChannels.h"
-#include "State/TcsState.h"
+#include "State/TcsStateInstance.h"
 #include "State/TcsStateComponent.h"
 #include "Attribute/TcsAttributeComponent.h"
 #include "Blueprint/StateTreeNodeBlueprintBase.h"

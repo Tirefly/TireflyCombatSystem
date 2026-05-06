@@ -119,10 +119,10 @@
   - `PreloadAllStates`
   - `PreloadCommonStates`
 - 定义查询
-  - `GetStateDefinitionAsset`
-  - `GetStateDefinitionAssetByTag`
-  - `GetStateSlotDefinitionAsset`
-  - `GetStateSlotDefinitionAssetByTag`
+  - `GetStateDefinition`
+  - `GetStateDefinitionByTag`
+  - `GetStateSlotDefinition`
+  - `GetStateSlotDefinitionByTag`
   - `GetAllStateDefNames`
 - 全局状态实例 ID 分配
   - `AllocateStateInstanceId()`
@@ -136,8 +136,8 @@
   - `LoadFromDeveloperSettings`
   - `LoadFromAssetManager`
 - 定义/Tag 查询
-  - `GetAttributeDefinitionAsset(FName)`
-  - `GetModifierDefinitionAsset(FName)`
+  - `GetAttributeDefinition(FName)`
+  - `GetModifierDefinition(FName)`
   - `TryResolveAttributeNameByTag(...)`
   - `TryGetAttributeTagByName(...)`
 - 全局 ID 分配
@@ -475,7 +475,7 @@ virtual bool RemoveModifiersBySourceHandle(const FTcsSourceHandle& SourceHandle)
 - `"MergedOut"`
 - `"StackDepleted"`
 
-迁移过程中建议统一成一个常量命名区，例如放在 `TcsState.h`：
+迁移过程中建议统一成一个常量命名区，例如放在 `TcsStateInstance.h`：
 
 ```cpp
 namespace TcsStateRemovalReasons
@@ -535,8 +535,8 @@ public:
 
 新增 public 方法：
 
-- `GetAttributeDefinitionAsset(FName) const`
-- `GetModifierDefinitionAsset(FName) const`
+- `GetAttributeDefinition(FName) const`
+- `GetModifierDefinition(FName) const`
 - `AllocateAttributeInstanceId()`
 - `AllocateModifierInstanceId()`
 - `AllocateModifierChangeBatchId()`
@@ -654,8 +654,8 @@ void UTcsStateComponent::BeginPlay()
 - `++GlobalAttributeInstanceIdMgr` -> `ResolveAttributeManager()->AllocateAttributeInstanceId()`
 - `++GlobalAttributeModifierInstanceIdMgr` -> `ResolveAttributeManager()->AllocateModifierInstanceId()`
 - `++GlobalAttributeModifierChangeBatchIdMgr` -> `ResolveAttributeManager()->AllocateModifierChangeBatchId()`
-- `AttributeDefinitions.Find(...)` -> `ResolveAttributeManager()->GetAttributeDefinitionAsset(...)`
-- `AttributeModifierDefinitions.Find(...)` -> `ResolveAttributeManager()->GetModifierDefinitionAsset(...)`
+- `AttributeDefinitions.Find(...)` -> `ResolveAttributeManager()->GetAttributeDefinition(...)`
+- `AttributeModifierDefinitions.Find(...)` -> `ResolveAttributeManager()->GetModifierDefinition(...)`
 
 必须保留的行为顺序：
 
@@ -767,7 +767,7 @@ if (UTcsAttributeComponent* OwnerAttrComp = StateInstance->GetOwnerAttributeComp
 
 ### D-4. 同步改掉当前两个内部调用点
 
-#### `Private/State/TcsState.cpp`
+#### `Private/State/TcsStateInstance.cpp`
 
 `UTcsStateInstance::SetStackCount()` 中：
 
@@ -800,7 +800,7 @@ if (UTcsAttributeComponent* OwnerAttrComp = StateInstance->GetOwnerAttributeComp
 #### `CreateStateInstance(...)`
 
 - `Owner` 不再作为参数传入，直接使用 `GetOwner()`
-- `StateDefAsset` 通过 `ResolveStateManager()->GetStateDefinitionAsset(...)` 获取
+- `StateDef` 通过 `ResolveStateManager()->GetStateDefinition(...)` 获取
 - `StateInstanceId` 通过 `ResolveStateManager()->AllocateStateInstanceId()` 获取
 - `SourceHandle` 仍然通过 `UTcsAttributeManagerSubsystem::CreateSourceHandle(...)` 创建
 
@@ -1001,8 +1001,8 @@ protected:
 - `Plugins/TireflyCombatSystem/Source/TireflyCombatSystem/Private/State/TcsStateComponent.cpp`
 - `Plugins/TireflyCombatSystem/Source/TireflyCombatSystem/Public/State/TcsStateManagerSubsystem.h`
 - `Plugins/TireflyCombatSystem/Source/TireflyCombatSystem/Private/State/TcsStateManagerSubsystem.cpp`
-- `Plugins/TireflyCombatSystem/Source/TireflyCombatSystem/Public/State/TcsState.h`
-- `Plugins/TireflyCombatSystem/Source/TireflyCombatSystem/Private/State/TcsState.cpp`
+- `Plugins/TireflyCombatSystem/Source/TireflyCombatSystem/Public/State/TcsStateInstance.h`
+- `Plugins/TireflyCombatSystem/Source/TireflyCombatSystem/Private/State/TcsStateInstance.cpp`
 - `Plugins/TireflyCombatSystem/Source/TireflyCombatSystem/Public/Attribute/TcsAttributeComponent.h`
 - `Plugins/TireflyCombatSystem/Source/TireflyCombatSystem/Private/Attribute/TcsAttributeComponent.cpp`
 - `Plugins/TireflyCombatSystem/Source/TireflyCombatSystem/Public/Attribute/TcsAttributeManagerSubsystem.h`
@@ -1198,7 +1198,7 @@ if (Exec.CurrentPhase != EStateTreeUpdatePhase::Unset)
    其中 `IsInStateTreeUpdateContext()` 可以通过"在 `OnStateTreeStateChanged` / `TickStateTrees` 入口 `TGuardValue` 置位一个 `bIsInStateTreeCallback`"来实现——**但这个标志位只用于 `ensure` 诊断**，不用于控制延迟；不是 S3 原方案里那种引擎级兜底。
 
 3. **时序测试（必做）** —— 不再测试"是否崩溃"（引擎已保护），改为测试"Step 2~8 与 Task `ExitState` 的先后顺序":
-   - `FTcs_RemoveAllDuringStateTreeTickSpec`：自定义 StateTree Task 在其 `Tick` 中对持有者调用 `RemoveAllStates()`；Task 的 `ExitState` 中访问 `UTcsStateInstance::GetStateDefAsset()`，断言：
+   - `FTcs_RemoveAllDuringStateTreeTickSpec`：自定义 StateTree Task 在其 `Tick` 中对持有者调用 `RemoveAllStates()`；Task 的 `ExitState` 中访问 `UTcsStateInstance::GetStateDef()`，断言：
      - 不崩溃（引擎保护 + 合约遵守）
      - `ExitState` 中读到的 `StateInstance` 仍可访问（基本字段可读）或明确为 nullptr（已被 GC）——无论哪种，都不出现野指针崩溃
      - Step 6 的 `NotifyStateRemoved` 广播发生在 Task 的 `ExitState` 之后或之前一致可预期

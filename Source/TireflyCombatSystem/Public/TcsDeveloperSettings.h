@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Engine/DeveloperSettings.h"
-#include "State/TcsState.h"
+#include "State/TcsStateInstance.h"
 
 #if WITH_EDITOR
 #include "Misc/DataValidation.h"
@@ -14,10 +14,10 @@
 
 
 // 前向声明
-class UTcsAttributeDefinitionAsset;
-class UTcsStateDefinitionAsset;
-class UTcsStateSlotDefinitionAsset;
-class UTcsAttributeModifierDefinitionAsset;
+class UTcsAttributeDefinition;
+class UTcsStateDefinition;
+class UTcsStateSlotDefinition;
+class UTcsAttributeModifierDefinition;
 
 
 // State 加载策略
@@ -65,56 +65,6 @@ protected:
 public:
 	virtual EDataValidationResult IsDataValid(FDataValidationContext& Context) const override;
 
-	/** 覆写 PostInitProperties 以在编辑器启动时触发扫描 */
-	virtual void PostInitProperties() override;
-
-	/**
-	 * 扫描并缓存所有定义资产
-	 * 从 AssetManager 配置中读取路径，使用 Asset Registry 扫描
-	 */
-	void ScanAndCacheDefinitions();
-
-protected:
-	/**
-	 * 扫描属性定义资产
-	 */
-	void ScanAttributeDefinitions(const TArray<struct FAssetData>& AssetDataList);
-
-	/**
-	 * 扫描状态定义资产
-	 */
-	void ScanStateDefinitions(const TArray<struct FAssetData>& AssetDataList);
-
-	/**
-	 * 扫描状态槽定义资产
-	 */
-	void ScanStateSlotDefinitions(const TArray<struct FAssetData>& AssetDataList);
-
-	/**
-	 * 扫描属性修改器定义资产
-	 */
-	void ScanAttributeModifierDefinitions(const TArray<struct FAssetData>& AssetDataList);
-
-	/**
-	 * 注册 Asset Registry 回调
-	 */
-	void RegisterAssetRegistryCallbacks();
-
-	/**
-	 * 资产添加回调
-	 */
-	void OnAssetAdded(const struct FAssetData& AssetData);
-
-	/**
-	 * 资产删除回调
-	 */
-	void OnAssetRemoved(const struct FAssetData& AssetData);
-
-	/**
-	 * 资产重命名回调
-	 */
-	void OnAssetRenamed(const struct FAssetData& AssetData, const FString& OldObjectPath);
-
 #endif
 
 #pragma endregion
@@ -152,8 +102,8 @@ public:
 		meta = (ToolTip = "常用 State 定义资产列表，仅在 Hybrid 策略下使用，优先级高于路径配置",
 			EditCondition = "StateLoadingStrategy == ETcsStateLoadingStrategy::Hybrid",
 			EditConditionHides,
-			AllowedClasses = "/Script/TireflyCombatSystem.TcsStateDefinitionAsset"))
-	TArray<TSoftObjectPtr<UTcsStateDefinitionAsset>> CommonStateDefinitions;
+			AllowedClasses = "/Script/TireflyCombatSystem.TcsStateDefinition"))
+	TArray<TSoftObjectPtr<UTcsStateDefinition>> CommonStateDefinitions;
 
 #pragma endregion
 
@@ -164,40 +114,40 @@ protected:
 	/**
 	 * 内部缓存：属性定义资产映射（Transient，运行时自动填充）
 	 * Key: AttributeDefId (FName)
-	 * Value: TSoftObjectPtr<UTcsAttributeDefinitionAsset>
+	 * Value: TSoftObjectPtr<UTcsAttributeDefinition>
 	 */
 	UPROPERTY(Transient)
-	TMap<FName, TSoftObjectPtr<UTcsAttributeDefinitionAsset>> CachedAttributeDefinitions;
+	TMap<FName, TSoftObjectPtr<UTcsAttributeDefinition>> CachedAttributeDefinitions;
 
 	/**
 	 * 内部缓存：状态定义资产映射（Transient，运行时自动填充）
 	 * Key: StateDefId (FName)
-	 * Value: TSoftObjectPtr<UTcsStateDefinitionAsset>
+	 * Value: TSoftObjectPtr<UTcsStateDefinition>
 	 */
 	UPROPERTY(Transient)
-	TMap<FName, TSoftObjectPtr<UTcsStateDefinitionAsset>> CachedStateDefinitions;
+	TMap<FName, TSoftObjectPtr<UTcsStateDefinition>> CachedStateDefinitions;
 
 	/**
 	 * 内部缓存：状态槽定义资产映射（Transient，运行时自动填充）
 	 * Key: StateSlotDefId (FName)
-	 * Value: TSoftObjectPtr<UTcsStateSlotDefinitionAsset>
+	 * Value: TSoftObjectPtr<UTcsStateSlotDefinition>
 	 */
 	UPROPERTY(Transient)
-	TMap<FName, TSoftObjectPtr<UTcsStateSlotDefinitionAsset>> CachedStateSlotDefinitions;
+	TMap<FName, TSoftObjectPtr<UTcsStateSlotDefinition>> CachedStateSlotDefinitions;
 
 	/**
 	 * 内部缓存：属性修改器定义资产映射（Transient，运行时自动填充）
 	 * Key: AttributeModifierDefId (FName)
-	 * Value: TSoftObjectPtr<UTcsAttributeModifierDefinitionAsset>
+	 * Value: TSoftObjectPtr<UTcsAttributeModifierDefinition>
 	 */
 	UPROPERTY(Transient)
-	TMap<FName, TSoftObjectPtr<UTcsAttributeModifierDefinitionAsset>> CachedAttributeModifierDefinitions;
+	TMap<FName, TSoftObjectPtr<UTcsAttributeModifierDefinition>> CachedAttributeModifierDefinitions;
 
 public:
 	/**
 	 * 获取缓存的属性定义资产映射
 	 */
-	const TMap<FName, TSoftObjectPtr<UTcsAttributeDefinitionAsset>>& GetCachedAttributeDefinitions() const
+	const TMap<FName, TSoftObjectPtr<UTcsAttributeDefinition>>& GetCachedAttributeDefinitions() const
 	{
 		return CachedAttributeDefinitions;
 	}
@@ -205,7 +155,7 @@ public:
 	/**
 	 * 获取缓存的状态定义资产映射
 	 */
-	const TMap<FName, TSoftObjectPtr<UTcsStateDefinitionAsset>>& GetCachedStateDefinitions() const
+	const TMap<FName, TSoftObjectPtr<UTcsStateDefinition>>& GetCachedStateDefinitions() const
 	{
 		return CachedStateDefinitions;
 	}
@@ -213,7 +163,7 @@ public:
 	/**
 	 * 获取缓存的状态槽定义资产映射
 	 */
-	const TMap<FName, TSoftObjectPtr<UTcsStateSlotDefinitionAsset>>& GetCachedStateSlotDefinitions() const
+	const TMap<FName, TSoftObjectPtr<UTcsStateSlotDefinition>>& GetCachedStateSlotDefinitions() const
 	{
 		return CachedStateSlotDefinitions;
 	}
@@ -221,7 +171,7 @@ public:
 	/**
 	 * 获取缓存的属性修改器定义资产映射
 	 */
-	const TMap<FName, TSoftObjectPtr<UTcsAttributeModifierDefinitionAsset>>& GetCachedAttributeModifierDefinitions() const
+	const TMap<FName, TSoftObjectPtr<UTcsAttributeModifierDefinition>>& GetCachedAttributeModifierDefinitions() const
 	{
 		return CachedAttributeModifierDefinitions;
 	}
@@ -229,7 +179,7 @@ public:
 	/**
 	 * 设置缓存的属性定义资产映射（由 Subsystem 调用）
 	 */
-	void SetCachedAttributeDefinitions(const TMap<FName, TSoftObjectPtr<UTcsAttributeDefinitionAsset>>& InCache)
+	void SetCachedAttributeDefinitions(const TMap<FName, TSoftObjectPtr<UTcsAttributeDefinition>>& InCache)
 	{
 		CachedAttributeDefinitions = InCache;
 	}
@@ -237,7 +187,7 @@ public:
 	/**
 	 * 设置缓存的状态定义资产映射（由 Subsystem 调用）
 	 */
-	void SetCachedStateDefinitions(const TMap<FName, TSoftObjectPtr<UTcsStateDefinitionAsset>>& InCache)
+	void SetCachedStateDefinitions(const TMap<FName, TSoftObjectPtr<UTcsStateDefinition>>& InCache)
 	{
 		CachedStateDefinitions = InCache;
 	}
@@ -245,7 +195,7 @@ public:
 	/**
 	 * 设置缓存的状态槽定义资产映射（由 Subsystem 调用）
 	 */
-	void SetCachedStateSlotDefinitions(const TMap<FName, TSoftObjectPtr<UTcsStateSlotDefinitionAsset>>& InCache)
+	void SetCachedStateSlotDefinitions(const TMap<FName, TSoftObjectPtr<UTcsStateSlotDefinition>>& InCache)
 	{
 		CachedStateSlotDefinitions = InCache;
 	}
@@ -253,21 +203,10 @@ public:
 	/**
 	 * 设置缓存的属性修改器定义资产映射（由 Subsystem 调用）
 	 */
-	void SetCachedAttributeModifierDefinitions(const TMap<FName, TSoftObjectPtr<UTcsAttributeModifierDefinitionAsset>>& InCache)
+	void SetCachedAttributeModifierDefinitions(const TMap<FName, TSoftObjectPtr<UTcsAttributeModifierDefinition>>& InCache)
 	{
 		CachedAttributeModifierDefinitions = InCache;
 	}
-
-#pragma endregion
-
-
-#pragma region SkillDataTable
-
-	// 技能修改器定义数据表
-	UPROPERTY(Config, EditAnywhere, Category = "DataTable",
-		meta = (ToolTip = "技能修改器定义数据表：行结构应为 FTcsSkillModifierDefinition",
-			RequiredAssetDataTags = "RowStructure=/Script/TireflyCombatSystem.TcsSkillModifierDefinition"))
-	TSoftObjectPtr<UDataTable> SkillModifierDefTable;
 
 #pragma endregion
 };

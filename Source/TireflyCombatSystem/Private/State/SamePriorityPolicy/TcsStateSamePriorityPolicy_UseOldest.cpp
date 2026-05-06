@@ -2,7 +2,7 @@
 
 
 #include "State/SamePriorityPolicy/TcsStateSamePriorityPolicy_UseOldest.h"
-#include "State/TcsState.h"
+#include "State/TcsStateInstance.h"
 
 
 int64 UTcsStateSamePriorityPolicy_UseOldest::GetOrderKey_Implementation(const UTcsStateInstance* State) const

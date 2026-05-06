@@ -66,26 +66,6 @@ UTcsStateComponent* UTcsGenericLibrary::GetStateComponent(AActor *Actor)
 	return nullptr;
 }
 
-TArray<FName> UTcsGenericLibrary::GetSkillModifierIds()
-{
-	TArray<FName> ModifierIds;
-	if (UDataTable* SkillModifierDefTable = GetSkillModifierDefTable())
-	{
-		ModifierIds = SkillModifierDefTable->GetRowNames();
-	}
-
-	return ModifierIds;
-}
-
-UDataTable* UTcsGenericLibrary::GetSkillModifierDefTable()
-{
-	if (const UTcsDeveloperSettings* Settings = GetDefault<UTcsDeveloperSettings>())
-	{
-		return Settings->SkillModifierDefTable.LoadSynchronous();
-	}
-	return nullptr;
-}
-
 UTcsSkillComponent *UTcsGenericLibrary::GetSkillComponent(AActor *Actor)
 {
 	if (IsValid(Actor) && Actor->Implements<UTcsEntityInterface>())

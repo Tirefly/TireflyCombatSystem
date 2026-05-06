@@ -7,7 +7,7 @@
 #include "GameplayTagContainer.h"
 #include "Engine/DataTable.h"
 #include "Containers/ArrayView.h"
-#include "TcsState.h"
+#include "TcsStateInstance.h"
 #include "TcsStateContainer.h"
 #include "TcsStateSlot.h"
 #include "TcsStateComponent.generated.h"
@@ -17,8 +17,8 @@
 class UTcsStateInstance;
 class UTcsStateManagerSubsystem;
 class UTcsAttributeManagerSubsystem;
-class UTcsStateDefinitionAsset;
-class UTcsStateSlotDefinitionAsset;
+class UTcsStateDefinition;
+class UTcsStateSlotDefinition;
 struct FStateTreeStateHandle;
 
 
@@ -364,14 +364,14 @@ protected:
 	/**
 	 * 评估并写入状态参数。
 	 *
-	 * @param StateDefAsset 状态定义资产
+	 * @param StateDef 状态定义资产
 	 * @param Instigator 状态发起者
 	 * @param StateInstance 状态实例
 	 * @param OutFailedParams 输出失败的参数名列表
 	 * @return 如果所有参数评估成功则返回 true，否则返回 false
 	 */
 	virtual bool EvaluateAndApplyStateParameters(
-		const UTcsStateDefinitionAsset* StateDefAsset,
+		const UTcsStateDefinition* StateDef,
 		AActor* Instigator,
 		UTcsStateInstance* StateInstance,
 		TArray<FName>& OutFailedParams);
@@ -590,7 +590,7 @@ protected:
 	virtual void ProcessStateSlotByActivationMode(FTcsStateSlot* StateSlot, FGameplayTag SlotTag);
 
 	// 优先级模式：只保留最高优先级状态激活。
-	void ProcessPriorityOnlyMode(FTcsStateSlot* StateSlot, const UTcsStateSlotDefinitionAsset* SlotDef);
+	void ProcessPriorityOnlyMode(FTcsStateSlot* StateSlot, const UTcsStateSlotDefinition* SlotDef);
 
 	// 全激活模式：槽位中所有状态都保持激活。
 	void ProcessAllActiveMode(FTcsStateSlot* StateSlot);

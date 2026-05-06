@@ -33,12 +33,12 @@
 
 **删除的概念**：PendingRemovalRequest、Event_RemovalRequested、两阶段等待
 
-**TcsState.h** — 删除 `#pragma region RemovalRequest` 整个区域：
+**TcsStateInstance.h** — 删除 `#pragma region RemovalRequest` 整个区域：
 
 - 删除字段：`bPendingRemovalRequest`, `PendingRemovalRequest`, `PendingRemovalRequestStartTimeTicks`, `bPendingRemovalRequestWarningIssued`
 - 删除方法：`HasPendingRemovalRequest()`, `GetPendingRemovalRequest()`, `ClearPendingRemovalRequest()`, `SetPendingRemovalRequest()`, `GetPendingRemovalRequestStartTimeTicks()`, `HasPendingRemovalRequestWarningIssued()`, `MarkPendingRemovalRequestWarningIssued()`
 
-**TcsState.cpp** — 删除 `ClearPendingRemovalRequest()` 和 `SetPendingRemovalRequest()` 的实现
+**TcsStateInstance.cpp** — 删除 `ClearPendingRemovalRequest()` 和 `SetPendingRemovalRequest()` 的实现
 
 **评估 FTcsStateRemovalRequest 结构体**：简化为 FName RemovalReason（不再需要结构体包装）。如果 FTcsStateRemovalRequest 只剩 Reason 字段，直接用 FName 替代。
 
@@ -96,9 +96,9 @@ void CancelState(UTcsStateInstance* StateInstance)
 
 ## 删除 ETcsStateRemovalRequestReason 枚举
 
-**TcsState.h** — 删除 `ETcsStateRemovalRequestReason` 枚举（仅被 FTcsStateRemovalRequest 和 RemovalConfirmTask 使用）
+**TcsStateInstance.h** — 删除 `ETcsStateRemovalRequestReason` 枚举（仅被 FTcsStateRemovalRequest 和 RemovalConfirmTask 使用）
 
-**TcsState.h** — 删除 `FTcsStateRemovalRequest` 结构体，所有移除 API 改用 `FName RemovalReason` 参数
+**TcsStateInstance.h** — 删除 `FTcsStateRemovalRequest` 结构体，所有移除 API 改用 `FName RemovalReason` 参数
 
 ---
 
@@ -106,7 +106,7 @@ void CancelState(UTcsStateInstance* StateInstance)
 
 > 以下所有行号基于当前代码快照。路径相对于 `Plugins/TireflyCombatSystem/Source/TireflyCombatSystem/`
 
-## 文件 1: `Public/State/TcsState.h`
+## 文件 1: `Public/State/TcsStateInstance.h`
 
 ### 1-A. 删除 `ETcsStateRemovalRequestReason` 枚举 (行 89-98)
 
@@ -183,7 +183,7 @@ protected:
 
 ---
 
-## 文件 2: `Private/State/TcsState.cpp`
+## 文件 2: `Private/State/TcsStateInstance.cpp`
 
 ### 2-A. 删除 `FTcsStateRemovalRequest::ToRemovalReasonName` 实现 (行 26-40)
 
@@ -300,9 +300,9 @@ bool RequestStateRemoval(UTcsStateInstance* StateInstance, FName RemovalReason);
 void FinalizePendingRemovalRequest(UTcsStateInstance* StateInstance);
 ```
 
-### 3-C. 删除 `#include "State/TcsState.h"` 依赖检查
+### 3-C. 删除 `#include "State/TcsStateInstance.h"` 依赖检查
 
-头文件行 8 `#include "State/TcsState.h"` 引入了 `FTcsStateRemovalRequest`。删除该结构体后，检查此 include 是否仍被需要（答案：是，因为 `ETcsStateStage` 等仍在使用）。无需修改。
+头文件行 8 `#include "State/TcsStateInstance.h"` 引入了 `FTcsStateRemovalRequest`。删除该结构体后，检查此 include 是否仍被需要（答案：是，因为 `ETcsStateStage` 等仍在使用）。无需修改。
 
 ---
 
@@ -523,19 +523,19 @@ const bool bPendingRemoval = RunningState->HasPendingRemovalRequest();
 bool bShouldTick = bPendingRemoval;
 if (!bShouldTick)
 {
-    const UTcsStateDefinitionAsset* StateDefAsset = RunningState->GetStateDefAsset();
+    const UTcsStateDefinition* StateDef = RunningState->GetStateDef();
     bShouldTick =
         (RunningState->GetCurrentStage() == ETcsStateStage::SS_Active) &&
-        (StateDefAsset && StateDefAsset->TickPolicy == ETcsStateTreeTickPolicy::WhileActive);
+        (StateDef && StateDef->TickPolicy == ETcsStateTreeTickPolicy::WhileActive);
 }
 ```
 
 改为（删除 PendingRemoval 优先判断）：
 ```cpp
-const UTcsStateDefinitionAsset* StateDefAsset = RunningState->GetStateDefAsset();
+const UTcsStateDefinition* StateDef = RunningState->GetStateDef();
 const bool bShouldTick =
     (RunningState->GetCurrentStage() == ETcsStateStage::SS_Active) &&
-    (StateDefAsset && StateDefAsset->TickPolicy == ETcsStateTreeTickPolicy::WhileActive);
+    (StateDef && StateDef->TickPolicy == ETcsStateTreeTickPolicy::WhileActive);
 ```
 
 ### 6-C. 删除 `TickPendingRemovals()` 整个实现 (行 120-185)
@@ -646,8 +646,8 @@ UE_DEFINE_GAMEPLAY_TAG(Event_RemovalRequested, "Tcs.Event.RemovalRequested");
 
 ## 执行顺序建议
 
-1. 先删 `TcsState.h` 中的枚举/结构体/region（文件 1）
-2. 再删 `TcsState.cpp` 中的对应实现（文件 2）
+1. 先删 `TcsStateInstance.h` 中的枚举/结构体/region（文件 1）
+2. 再删 `TcsStateInstance.cpp` 中的对应实现（文件 2）
 3. 修改 `TcsStateManagerSubsystem.h` 签名（文件 3）
 4. 修改 `TcsStateManagerSubsystem.cpp` 所有引用点（文件 4，最多修改）
 5. 修改 `TcsStateComponent.h`（文件 5）
@@ -698,12 +698,12 @@ UE_DEFINE_GAMEPLAY_TAG(Event_RemovalRequested, "Tcs.Event.RemovalRequested");
 
 **删除的概念**：PendingRemovalRequest、Event_RemovalRequested、两阶段等待
 
-**TcsState.h** — 删除 `#pragma region RemovalRequest` 整个区域：
+**TcsStateInstance.h** — 删除 `#pragma region RemovalRequest` 整个区域：
 
 - 删除字段：`bPendingRemovalRequest`, `PendingRemovalRequest`, `PendingRemovalRequestStartTimeTicks`, `bPendingRemovalRequestWarningIssued`
 - 删除方法：`HasPendingRemovalRequest()`, `GetPendingRemovalRequest()`, `ClearPendingRemovalRequest()`, `SetPendingRemovalRequest()`, `GetPendingRemovalRequestStartTimeTicks()`, `HasPendingRemovalRequestWarningIssued()`, `MarkPendingRemovalRequestWarningIssued()`
 
-**TcsState.cpp** — 删除 `ClearPendingRemovalRequest()` 和 `SetPendingRemovalRequest()` 的实现
+**TcsStateInstance.cpp** — 删除 `ClearPendingRemovalRequest()` 和 `SetPendingRemovalRequest()` 的实现
 
 **评估 FTcsStateRemovalRequest 结构体**：简化为 FName RemovalReason（不再需要结构体包装）。如果 FTcsStateRemovalRequest 只剩 Reason 字段，直接用 FName 替代。
 
@@ -761,9 +761,9 @@ void CancelState(UTcsStateInstance* StateInstance)
 
 ## 删除 ETcsStateRemovalRequestReason 枚举
 
-**TcsState.h** — 删除 `ETcsStateRemovalRequestReason` 枚举（仅被 FTcsStateRemovalRequest 和 RemovalConfirmTask 使用）
+**TcsStateInstance.h** — 删除 `ETcsStateRemovalRequestReason` 枚举（仅被 FTcsStateRemovalRequest 和 RemovalConfirmTask 使用）
 
-**TcsState.h** — 删除 `FTcsStateRemovalRequest` 结构体，所有移除 API 改用 `FName RemovalReason` 参数
+**TcsStateInstance.h** — 删除 `FTcsStateRemovalRequest` 结构体，所有移除 API 改用 `FName RemovalReason` 参数
 
 ---
 
@@ -771,7 +771,7 @@ void CancelState(UTcsStateInstance* StateInstance)
 
 > 以下所有行号基于当前代码快照。路径相对于 `Plugins/TireflyCombatSystem/Source/TireflyCombatSystem/`
 
-## 文件 1: `Public/State/TcsState.h`
+## 文件 1: `Public/State/TcsStateInstance.h`
 
 ### 1-A. 删除 `ETcsStateRemovalRequestReason` 枚举 (行 89-98)
 
@@ -848,7 +848,7 @@ protected:
 
 ---
 
-## 文件 2: `Private/State/TcsState.cpp`
+## 文件 2: `Private/State/TcsStateInstance.cpp`
 
 ### 2-A. 删除 `FTcsStateRemovalRequest::ToRemovalReasonName` 实现 (行 26-40)
 
@@ -965,9 +965,9 @@ bool RequestStateRemoval(UTcsStateInstance* StateInstance, FName RemovalReason);
 void FinalizePendingRemovalRequest(UTcsStateInstance* StateInstance);
 ```
 
-### 3-C. 删除 `#include "State/TcsState.h"` 依赖检查
+### 3-C. 删除 `#include "State/TcsStateInstance.h"` 依赖检查
 
-头文件行 8 `#include "State/TcsState.h"` 引入了 `FTcsStateRemovalRequest`。删除该结构体后，检查此 include 是否仍被需要（答案：是，因为 `ETcsStateStage` 等仍在使用）。无需修改。
+头文件行 8 `#include "State/TcsStateInstance.h"` 引入了 `FTcsStateRemovalRequest`。删除该结构体后，检查此 include 是否仍被需要（答案：是，因为 `ETcsStateStage` 等仍在使用）。无需修改。
 
 ---
 
@@ -1188,19 +1188,19 @@ const bool bPendingRemoval = RunningState->HasPendingRemovalRequest();
 bool bShouldTick = bPendingRemoval;
 if (!bShouldTick)
 {
-    const UTcsStateDefinitionAsset* StateDefAsset = RunningState->GetStateDefAsset();
+    const UTcsStateDefinition* StateDef = RunningState->GetStateDef();
     bShouldTick =
         (RunningState->GetCurrentStage() == ETcsStateStage::SS_Active) &&
-        (StateDefAsset && StateDefAsset->TickPolicy == ETcsStateTreeTickPolicy::WhileActive);
+        (StateDef && StateDef->TickPolicy == ETcsStateTreeTickPolicy::WhileActive);
 }
 ```
 
 改为（删除 PendingRemoval 优先判断）：
 ```cpp
-const UTcsStateDefinitionAsset* StateDefAsset = RunningState->GetStateDefAsset();
+const UTcsStateDefinition* StateDef = RunningState->GetStateDef();
 const bool bShouldTick =
     (RunningState->GetCurrentStage() == ETcsStateStage::SS_Active) &&
-    (StateDefAsset && StateDefAsset->TickPolicy == ETcsStateTreeTickPolicy::WhileActive);
+    (StateDef && StateDef->TickPolicy == ETcsStateTreeTickPolicy::WhileActive);
 ```
 
 ### 6-C. 删除 `TickPendingRemovals()` 整个实现 (行 120-185)
@@ -1311,8 +1311,8 @@ UE_DEFINE_GAMEPLAY_TAG(Event_RemovalRequested, "Tcs.Event.RemovalRequested");
 
 ## 执行顺序建议
 
-1. 先删 `TcsState.h` 中的枚举/结构体/region（文件 1）
-2. 再删 `TcsState.cpp` 中的对应实现（文件 2）
+1. 先删 `TcsStateInstance.h` 中的枚举/结构体/region（文件 1）
+2. 再删 `TcsStateInstance.cpp` 中的对应实现（文件 2）
 3. 修改 `TcsStateManagerSubsystem.h` 签名（文件 3）
 4. 修改 `TcsStateManagerSubsystem.cpp` 所有引用点（文件 4，最多修改）
 5. 修改 `TcsStateComponent.h`（文件 5）

@@ -132,8 +132,8 @@ public:
 
 | 数据 | 声明位置 | 类型 |
 |------|---------|------|
-| `AttributeDefinitions` | `AttrMgr.h:36` | `TMap<FName, const UTcsAttributeDefinitionAsset*>` |
-| `AttributeModifierDefinitions` | `AttrMgr.h:39` | `TMap<FName, const UTcsAttributeModifierDefinitionAsset*>` |
+| `AttributeDefinitions` | `AttrMgr.h:36` | `TMap<FName, const UTcsAttributeDefinition*>` |
+| `AttributeModifierDefinitions` | `AttrMgr.h:39` | `TMap<FName, const UTcsAttributeModifierDefinition*>` |
 | `AttributeTagToName` | `AttrMgr.h:42` | `TMap<FGameplayTag, FName>` |
 | `AttributeNameToTag` | `AttrMgr.h:45` | `TMap<FName, FGameplayTag>` |
 
@@ -146,10 +146,10 @@ public:
 ```cpp
 public:
     /** 获取属性定义资产 */
-    const UTcsAttributeDefinitionAsset* GetAttributeDefinitionAsset(FName AttributeName) const;
+    const UTcsAttributeDefinition* GetAttributeDefinition(FName AttributeName) const;
 
     /** 获取修改器定义资产 */
-    const UTcsAttributeModifierDefinitionAsset* GetModifierDefinitionAsset(FName ModifierId) const;
+    const UTcsAttributeModifierDefinition* GetModifierDefinition(FName ModifierId) const;
 
     /** 分配全局唯一的属性实例 ID */
     int32 AllocateAttributeInstanceId() { return ++GlobalAttributeInstanceIdMgr; }
@@ -164,7 +164,7 @@ public:
 在 `AttrMgr.cpp` 中实现定义查询：
 
 ```cpp
-const UTcsAttributeDefinitionAsset* UTcsAttributeManagerSubsystem::GetAttributeDefinitionAsset(FName AttributeName) const
+const UTcsAttributeDefinition* UTcsAttributeManagerSubsystem::GetAttributeDefinition(FName AttributeName) const
 {
     if (const auto* Found = AttributeDefinitions.Find(AttributeName))
     {
@@ -173,7 +173,7 @@ const UTcsAttributeDefinitionAsset* UTcsAttributeManagerSubsystem::GetAttributeD
     return nullptr;
 }
 
-const UTcsAttributeModifierDefinitionAsset* UTcsAttributeManagerSubsystem::GetModifierDefinitionAsset(FName ModifierId) const
+const UTcsAttributeModifierDefinition* UTcsAttributeManagerSubsystem::GetModifierDefinition(FName ModifierId) const
 {
     if (const auto* Found = AttributeModifierDefinitions.Find(ModifierId))
     {

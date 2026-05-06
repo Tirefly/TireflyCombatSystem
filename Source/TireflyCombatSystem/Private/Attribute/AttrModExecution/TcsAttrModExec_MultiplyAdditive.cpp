@@ -3,7 +3,7 @@
 
 #include "Attribute/AttrModExecution/TcsAttrModExec_MultiplyAdditive.h"
 
-#include "Attribute/TcsAttributeModifierDefinitionAsset.h"
+#include "Attribute/TcsAttributeModifierDefinition.h"
 #include "TcsLogChannels.h"
 
 
@@ -14,15 +14,15 @@ void UTcsAttrModExec_MultiplyAdditive::Execute_Implementation(
 	TMap<FName, float>& CurrentValues)
 {
 	// 检查修改器定义 DataAsset
-	if (!ModInst.ModifierDefAsset)
+	if (!ModInst.ModifierDef)
 	{
-		UE_LOG(LogTcsAttrModExec, Error, TEXT("[%s] ModifierDefAsset is null for ModifierId: %s"),
+		UE_LOG(LogTcsAttrModExec, Error, TEXT("[%s] ModifierDef is null for ModifierId: %s"),
 			*FString(__FUNCTION__),
 			*ModInst.ModifierId.ToString());
 		return;
 	}
 
-	const UTcsAttributeModifierDefinitionAsset* ModDef = ModInst.ModifierDefAsset;
+	const UTcsAttributeModifierDefinition* ModDef = ModInst.ModifierDef;
 	const FName& AttrToMod = ModDef->AttributeName;
 	float* BaseValue = BaseValues.Find(AttrToMod);
 	float* CurrentValue = CurrentValues.Find(AttrToMod);

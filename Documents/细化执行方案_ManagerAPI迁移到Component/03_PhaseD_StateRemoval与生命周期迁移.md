@@ -21,7 +21,7 @@
 | | `StateInstance->RestartStateTree()` / `TickStateTree()` / `StopStateTree()` |
 | | `StateComponent->StateTreeTickScheduler`（添加/管理 Tick） |
 | | `StateComponent->NotifyStateStageChanged()` |
-| | `StateDefAsset->TickPolicy` |
+| | `StateDef->TickPolicy` |
 
 #### 2. DeactivateState
 
@@ -94,7 +94,7 @@
 | **实现** | `StateMgr.cpp:2481-2515`（35 行） |
 | **签名** | `static bool IsStateStillValid(UTcsStateInstance* StateInstance)` |
 | **迁移后** | `bool IsStateStillValid(UTcsStateInstance* StateInstance) const` |
-| **内部依赖** | `StateInstance->GetCurrentStage()`、`GetOwnerStateComponent()`、`GetStateDefAsset()`、`StateSlotsX` |
+| **内部依赖** | `StateInstance->GetCurrentStage()`、`GetOwnerStateComponent()`、`GetStateDef()`、`StateSlotsX` |
 
 ---
 

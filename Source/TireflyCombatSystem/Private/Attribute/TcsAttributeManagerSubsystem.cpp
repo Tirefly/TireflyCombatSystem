@@ -3,10 +3,15 @@
 
 #include "Attribute/TcsAttributeManagerSubsystem.h"
 
+#include "TcsDefinitionRegistrySubsystem.h"
 #include "TcsDeveloperSettings.h"
 #include "TcsLogChannels.h"
-#include "Attribute/TcsAttributeDefinitionAsset.h"
-#include "Attribute/TcsAttributeModifierDefinitionAsset.h"
+#include "Attribute/TcsAttributeDefinition.h"
+#include "Attribute/TcsAttributeModifierDefinition.h"
+
+#if WITH_EDITOR
+#include "Engine/Engine.h"
+#endif
 
 #if !WITH_EDITOR
 #include "Engine/AssetManager.h"
@@ -18,10 +23,34 @@ void UTcsAttributeManagerSubsystem::Initialize(FSubsystemCollectionBase& Collect
 	Super::Initialize(Collection);
 
 #if WITH_EDITOR
-	LoadFromDeveloperSettings();
+	LoadFromDefinitionRegistry();
+
+	if (UTcsDefinitionRegistrySubsystem* Registry = GetDefinitionRegistry())
+	{
+		DefinitionRegistryRefreshedHandle = Registry->OnDefinitionsRefreshed().AddUObject(
+			this,
+			&UTcsAttributeManagerSubsystem::HandleDefinitionRegistryRefreshed);
+	}
 #else
 	LoadFromAssetManager();
 #endif
+}
+
+void UTcsAttributeManagerSubsystem::Deinitialize()
+{
+#if WITH_EDITOR
+	if (DefinitionRegistryRefreshedHandle.IsValid())
+	{
+		if (UTcsDefinitionRegistrySubsystem* Registry = GetDefinitionRegistry())
+		{
+			Registry->OnDefinitionsRefreshed().Remove(DefinitionRegistryRefreshedHandle);
+		}
+
+		DefinitionRegistryRefreshedHandle.Reset();
+	}
+#endif
+
+	Super::Deinitialize();
 }
 
 void UTcsAttributeManagerSubsystem::LoadFromDeveloperSettings()
@@ -37,7 +66,7 @@ void UTcsAttributeManagerSubsystem::LoadFromDeveloperSettings()
 	AttributeDefinitions.Empty();
 	for (const auto& Pair : Settings->GetCachedAttributeDefinitions())
 	{
-		const UTcsAttributeDefinitionAsset* Asset = Pair.Value.LoadSynchronous();
+		const UTcsAttributeDefinition* Asset = Pair.Value.LoadSynchronous();
 		if (Asset)
 		{
 			AttributeDefinitions.Add(Pair.Key, Asset);
@@ -60,7 +89,7 @@ void UTcsAttributeManagerSubsystem::LoadFromDeveloperSettings()
 	AttributeModifierDefinitions.Empty();
 	for (const auto& Pair : Settings->GetCachedAttributeModifierDefinitions())
 	{
-		const UTcsAttributeModifierDefinitionAsset* Asset = Pair.Value.LoadSynchronous();
+		const UTcsAttributeModifierDefinition* Asset = Pair.Value.LoadSynchronous();
 		if (Asset)
 		{
 			AttributeModifierDefinitions.Add(Pair.Key, Asset);
@@ -79,13 +108,96 @@ void UTcsAttributeManagerSubsystem::LoadFromDeveloperSettings()
 			*FString(__FUNCTION__));
 	}
 
+	RebuildAttributeTagMappings();
+
+	UE_LOG(LogTcsAttribute, Log, TEXT("[%s] Initialized: %d Attributes, %d AttributeModifiers, %d Tag mappings"),
+		*FString(__FUNCTION__),
+		AttributeDefinitions.Num(),
+		AttributeModifierDefinitions.Num(),
+		AttributeTagToName.Num());
+}
+
+void UTcsAttributeManagerSubsystem::LoadFromDefinitionRegistry()
+{
+#if WITH_EDITOR
+	UTcsDefinitionRegistrySubsystem* Registry = GetDefinitionRegistry();
+	if (!Registry)
+	{
+		LoadFromDeveloperSettings();
+		return;
+	}
+
+	if (!Registry->HasCompletedInitialRefresh())
+	{
+		Registry->RefreshDefinitionsNow();
+	}
+
+	AttributeDefinitions.Empty();
+	for (const auto& Pair : Registry->GetAttributeDefinitions())
+	{
+		const UTcsAttributeDefinition* Asset = Pair.Value.LoadSynchronous();
+		if (Asset)
+		{
+			AttributeDefinitions.Add(Pair.Key, Asset);
+		}
+		else
+		{
+			UE_LOG(LogTcsAttribute, Warning, TEXT("[%s] Failed to load AttributeDefinition: %s"),
+				*FString(__FUNCTION__),
+				*Pair.Key.ToString());
+		}
+	}
+
+	if (AttributeDefinitions.Num() == 0)
+	{
+		UE_LOG(LogTcsAttribute, Error, TEXT("[%s] No AttributeDefinitions loaded from DefinitionRegistry"),
+			*FString(__FUNCTION__));
+	}
+
+	AttributeModifierDefinitions.Empty();
+	for (const auto& Pair : Registry->GetAttributeModifierDefinitions())
+	{
+		const UTcsAttributeModifierDefinition* Asset = Pair.Value.LoadSynchronous();
+		if (Asset)
+		{
+			AttributeModifierDefinitions.Add(Pair.Key, Asset);
+		}
+		else
+		{
+			UE_LOG(LogTcsAttribute, Warning, TEXT("[%s] Failed to load AttributeModifierDefinition: %s"),
+				*FString(__FUNCTION__),
+				*Pair.Key.ToString());
+		}
+	}
+
+	if (AttributeModifierDefinitions.Num() == 0)
+	{
+		UE_LOG(LogTcsAttribute, Warning, TEXT("[%s] No AttributeModifierDefinitions loaded from DefinitionRegistry"),
+			*FString(__FUNCTION__));
+	}
+#else
+	LoadFromDeveloperSettings();
+#endif
+
+	RebuildAttributeTagMappings();
+
+	UE_LOG(LogTcsAttribute, Log, TEXT("[%s] Initialized: %d Attributes, %d AttributeModifiers, %d Tag mappings"),
+		*FString(__FUNCTION__),
+		AttributeDefinitions.Num(),
+		AttributeModifierDefinitions.Num(),
+		AttributeTagToName.Num());
+}
+
+void UTcsAttributeManagerSubsystem::RebuildAttributeTagMappings()
+{
+
 	AttributeTagToName.Empty();
 	AttributeNameToTag.Empty();
 
 	for (const auto& Pair : AttributeDefinitions)
 	{
 		const FName& AttributeName = Pair.Key;
-		const UTcsAttributeDefinitionAsset* AttrDef = Pair.Value;
+		const UTcsAttributeDefinition* AttrDef = Pair.Value;
 		if (!AttrDef)
 		{
 			continue;
@@ -118,12 +230,6 @@ void UTcsAttributeManagerSubsystem::LoadFromDeveloperSettings()
 		AttributeTagToName.Add(AttrDef->AttributeTag, AttributeName);
 		AttributeNameToTag.Add(AttributeName, AttrDef->AttributeTag);
 	}
-
-	UE_LOG(LogTcsAttribute, Log, TEXT("[%s] Initialized: %d Attributes, %d AttributeModifiers, %d Tag mappings"),
-		*FString(__FUNCTION__),
-		AttributeDefinitions.Num(),
-		AttributeModifierDefinitions.Num(),
-		AttributeTagToName.Num());
 }
 
 bool UTcsAttributeManagerSubsystem::TryResolveAttributeNameByTag(
@@ -181,18 +287,18 @@ FTcsSourceHandle UTcsAttributeManagerSubsystem::CreateSourceHandle(
 	return FTcsSourceHandle(GlobalSourceHandleIdMgr, CausalityChain, Instigator, SourceTags);
 }
 
-const UTcsAttributeDefinitionAsset* UTcsAttributeManagerSubsystem::GetAttributeDefinitionAsset(FName AttributeName) const
+const UTcsAttributeDefinition* UTcsAttributeManagerSubsystem::GetAttributeDefinition(FName AttributeName) const
 {
-	if (const UTcsAttributeDefinitionAsset* const* Found = AttributeDefinitions.Find(AttributeName))
+	if (const UTcsAttributeDefinition* const* Found = AttributeDefinitions.Find(AttributeName))
 	{
 		return *Found;
 	}
 	return nullptr;
 }
 
-const UTcsAttributeModifierDefinitionAsset* UTcsAttributeManagerSubsystem::GetModifierDefinitionAsset(FName ModifierId) const
+const UTcsAttributeModifierDefinition* UTcsAttributeManagerSubsystem::GetModifierDefinition(FName ModifierId) const
 {
-	if (const UTcsAttributeModifierDefinitionAsset* const* Found = AttributeModifierDefinitions.Find(ModifierId))
+	if (const UTcsAttributeModifierDefinition* const* Found = AttributeModifierDefinitions.Find(ModifierId))
 	{
 		return *Found;
 	}
@@ -207,11 +313,11 @@ void UTcsAttributeManagerSubsystem::LoadFromAssetManager()
 	AttributeDefinitions.Empty();
 	{
 		TArray<FPrimaryAssetId> AttributeDefIds;
-		AssetManager.GetPrimaryAssetIdList(UTcsAttributeDefinitionAsset::PrimaryAssetType, AttributeDefIds);
+		AssetManager.GetPrimaryAssetIdList(UTcsAttributeDefinition::PrimaryAssetType, AttributeDefIds);
 
 		for (const FPrimaryAssetId& AssetId : AttributeDefIds)
 		{
-			const UTcsAttributeDefinitionAsset* Asset = Cast<UTcsAttributeDefinitionAsset>(AssetManager.LoadPrimaryAsset(AssetId));
+			const UTcsAttributeDefinition* Asset = Cast<UTcsAttributeDefinition>(AssetManager.LoadPrimaryAsset(AssetId));
 			if (Asset)
 			{
 				AttributeDefinitions.Add(Asset->AttributeDefId, Asset);
@@ -232,11 +338,11 @@ void UTcsAttributeManagerSubsystem::LoadFromAssetManager()
 	AttributeModifierDefinitions.Empty();
 	{
 		TArray<FPrimaryAssetId> ModifierDefIds;
-		AssetManager.GetPrimaryAssetIdList(UTcsAttributeModifierDefinitionAsset::PrimaryAssetType, ModifierDefIds);
+		AssetManager.GetPrimaryAssetIdList(UTcsAttributeModifierDefinition::PrimaryAssetType, ModifierDefIds);
 
 		for (const FPrimaryAssetId& AssetId : ModifierDefIds)
 		{
-			const UTcsAttributeModifierDefinitionAsset* Asset = Cast<UTcsAttributeModifierDefinitionAsset>(AssetManager.LoadPrimaryAsset(AssetId));
+			const UTcsAttributeModifierDefinition* Asset = Cast<UTcsAttributeModifierDefinition>(AssetManager.LoadPrimaryAsset(AssetId));
 			if (Asset)
 			{
 				AttributeModifierDefinitions.Add(Asset->AttributeModifierDefId, Asset);
@@ -254,36 +360,22 @@ void UTcsAttributeManagerSubsystem::LoadFromAssetManager()
 			AttributeModifierDefinitions.Num());
 	}
 
-	AttributeTagToName.Empty();
-	AttributeNameToTag.Empty();
-
-	for (const auto& Pair : AttributeDefinitions)
-	{
-		const FName& AttributeName = Pair.Key;
-		const UTcsAttributeDefinitionAsset* AttrDef = Pair.Value;
-		if (!AttrDef || !AttrDef->AttributeTag.IsValid())
-		{
-			continue;
-		}
-
-		if (AttributeTagToName.Contains(AttrDef->AttributeTag))
-		{
-			const FName ExistingName = AttributeTagToName[AttrDef->AttributeTag];
-			UE_LOG(LogTcsAttribute, Error,
-				TEXT("[%s] Duplicate AttributeTag '%s' found: already mapped to '%s', ignoring mapping for '%s'"),
-				*FString(__FUNCTION__),
-				*AttrDef->AttributeTag.ToString(),
-				*ExistingName.ToString(),
-				*AttributeName.ToString());
-			continue;
-		}
-
-		AttributeTagToName.Add(AttrDef->AttributeTag, AttributeName);
-		AttributeNameToTag.Add(AttributeName, AttrDef->AttributeTag);
-	}
+	RebuildAttributeTagMappings();
 
 	UE_LOG(LogTcsAttribute, Log, TEXT("[%s] Built %d AttributeTag mappings"),
 		*FString(__FUNCTION__),
 		AttributeTagToName.Num());
 #endif
 }
+
+#if WITH_EDITOR
+UTcsDefinitionRegistrySubsystem* UTcsAttributeManagerSubsystem::GetDefinitionRegistry() const
+{
+	return GEngine ? GEngine->GetEngineSubsystem<UTcsDefinitionRegistrySubsystem>() : nullptr;
+}
+
+void UTcsAttributeManagerSubsystem::HandleDefinitionRegistryRefreshed(const UTcsDefinitionRegistrySubsystem* Registry)
+{
+	LoadFromDefinitionRegistry();
+}
+#endif

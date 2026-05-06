@@ -44,7 +44,7 @@
 ### Step 3 — 按优先级排序
 
 - 调用 `SortStatesByPriority`
-- 对槽内所有存活状态按 `UTcsStateDefinitionAsset::Priority` **降序**排列
+- 对槽内所有存活状态按 `UTcsStateDefinition::Priority` **降序**排列
 - 排序结果影响 Step 4 的合并主实例选择和 Step 6 的激活判断
 
 ### Step 4 — 叠层合并（Merging）
@@ -66,7 +66,7 @@
 
 ### Step 6 — 激活模式处理
 
-- 调用 `ProcessStateSlotByActivationMode`，根据 `UTcsStateSlotDefinitionAsset::ActivationMode`：
+- 调用 `ProcessStateSlotByActivationMode`，根据 `UTcsStateSlotDefinition::ActivationMode`：
 
 #### SSAM_PriorityOnly（优先级激活模式）
 
@@ -156,8 +156,8 @@ Gate 的典型用途：用顶层 StateTree 的状态（如"眩晕"、"死亡"）
 | `EnforceSlotGateConsistency` | `Private/State/TcsStateManagerSubsystem.cpp` |
 | `ProcessStateSlotByActivationMode` | `Private/State/TcsStateManagerSubsystem.cpp` |
 | `ActivateState / DeactivateState / HangUpState / PauseState / ResumeState` | `Private/State/TcsStateManagerSubsystem.cpp` |
-| `SetCurrentStage` | `Private/State/TcsState.cpp` |
-| `ETcsStateStage` | `Public/State/TcsState.h` |
+| `SetCurrentStage` | `Private/State/TcsStateInstance.cpp` |
+| `ETcsStateStage` | `Public/State/TcsStateInstance.h` |
 | `ETcsStateSlotActivationMode` | `Public/State/TcsStateSlot.h` |
 | `ETcsStateSlotGateClosePolicy` | `Public/State/TcsStateSlot.h` |
 | `ETcsStatePreemptionPolicy` | `Public/State/TcsStateSlot.h` |

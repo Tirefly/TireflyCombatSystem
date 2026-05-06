@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "TcsStateSlot.h"
-#include "State/TcsState.h"
+#include "State/TcsStateInstance.h"
 #include "TcsSourceHandle.h"
 #include "TcsStateManagerSubsystem.generated.h"
 
@@ -13,8 +13,9 @@
 
 class UTcsStateInstance;
 class UTcsStateComponent;
-class UTcsStateDefinitionAsset;
-class UTcsStateSlotDefinitionAsset;
+class UTcsStateDefinition;
+class UTcsStateSlotDefinition;
+class UTcsDefinitionRegistrySubsystem;
 
 
 
@@ -27,6 +28,7 @@ class TIREFLYCOMBATSYSTEM_API UTcsStateManagerSubsystem : public UGameInstanceSu
 
 public:
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
+	virtual void Deinitialize() override;
 
 #pragma endregion
 
@@ -35,18 +37,23 @@ public:
 
 protected:
 	// 缓存的状态定义（从 DeveloperSettings 加载）
-	TMap<FName, const UTcsStateDefinitionAsset*> StateDefinitions;
+	TMap<FName, const UTcsStateDefinition*> StateDefinitions;
 
 	// StateTag -> StateDefId 映射（运行时构建，用于 Tag 入口 API）
 	TMap<FGameplayTag, FName> StateTagToDefId;
 
 	// 缓存的状态槽定义（从 DeveloperSettings 加载）
-	TMap<FName, const UTcsStateSlotDefinitionAsset*> StateSlotDefinitions;
+	TMap<FName, const UTcsStateSlotDefinition*> StateSlotDefinitions;
 
 	/**
 	 * 从 DeveloperSettings 缓存加载定义（编辑器模式）
 	 */
 	void LoadFromDeveloperSettings();
+
+	/**
+	 * 从 DefinitionRegistry 快照加载定义（编辑器模式）
+	 */
+	void LoadFromDefinitionRegistry();
 
 	/**
 	 * 从 AssetManager 加载定义（Runtime 模式）
@@ -60,7 +67,7 @@ protected:
 	 * @param StateDefId 状态定义 ID
 	 * @return 加载的状态定义资产指针，如果加载失败则返回 nullptr
 	 */
-	const UTcsStateDefinitionAsset* LoadStateOnDemand(FName StateDefId);
+	const UTcsStateDefinition* LoadStateOnDemand(FName StateDefId);
 
 	/**
 	 * 预加载所有 State 定义（内部方法）
@@ -74,6 +81,14 @@ protected:
 	 */
 	void PreloadCommonStates();
 
+#if WITH_EDITOR
+	UTcsDefinitionRegistrySubsystem* GetDefinitionRegistry() const;
+	void HandleDefinitionRegistryRefreshed(const UTcsDefinitionRegistrySubsystem* Registry);
+	const TMap<FName, TSoftObjectPtr<UTcsStateDefinition>>* GetStateDefinitionSourceCache() const;
+	const TMap<FName, TSoftObjectPtr<UTcsStateSlotDefinition>>* GetStateSlotDefinitionSourceCache() const;
+	FDelegateHandle DefinitionRegistryRefreshedHandle;
+#endif
+
 public:
 	/**
 	 * 获取状态定义资产
@@ -82,7 +97,7 @@ public:
 	 * @param DefId 状态定义 ID
 	 * @return 状态定义资产指针，如果未找到则返回 nullptr
 	 */
-	const UTcsStateDefinitionAsset* GetStateDefinitionAsset(FName DefId);
+	const UTcsStateDefinition* GetStateDefinition(FName DefId);
 
 	/**
 	 * 通过 StateTag 获取状态定义资产
@@ -91,7 +106,7 @@ public:
 	 * @param StateTag 状态标签
 	 * @return 状态定义资产指针，如果未找到则返回 nullptr
 	 */
-	const UTcsStateDefinitionAsset* GetStateDefinitionAssetByTag(FGameplayTag StateTag);
+	const UTcsStateDefinition* GetStateDefinitionByTag(FGameplayTag StateTag);
 
 	/**
 	 * 获取状态槽定义资产
@@ -99,7 +114,7 @@ public:
 	 * @param DefId 状态槽定义 ID
 	 * @return 状态槽定义资产指针，如果未找到则返回 nullptr
 	 */
-	const UTcsStateSlotDefinitionAsset* GetStateSlotDefinitionAsset(FName DefId);
+	const UTcsStateSlotDefinition* GetStateSlotDefinition(FName DefId);
 
 	/**
 	 * 通过槽位标签获取状态槽定义资产
@@ -107,7 +122,7 @@ public:
 	 * @param SlotTag 状态槽标签
 	 * @return 状态槽定义资产指针，如果未找到则返回 nullptr
 	 */
-	const UTcsStateSlotDefinitionAsset* GetStateSlotDefinitionAssetByTag(FGameplayTag SlotTag);
+	const UTcsStateSlotDefinition* GetStateSlotDefinitionByTag(FGameplayTag SlotTag);
 
 	/**
 	 * 获取所有已缓存的 State 定义名称

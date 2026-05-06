@@ -17,7 +17,7 @@
 | **实现** | `AttrMgr.cpp:145-193`（49 行） |
 | **签名** | `bool AddAttribute(AActor* CombatEntity, FName AttributeName, float InitValue = 0.f)` |
 | **迁移后签名** | `virtual bool AddAttribute(FName AttributeName, float InitValue = 0.f)` |
-| **内部依赖** | `AttributeDefinitions.Find()` → `ResolveAttributeManager()->GetAttributeDefinitionAsset()` |
+| **内部依赖** | `AttributeDefinitions.Find()` → `ResolveAttributeManager()->GetAttributeDefinition()` |
 | | `GetAttributeComponent(CombatEntity)` → `this` |
 | | `++GlobalAttributeInstanceIdMgr` → `ResolveAttributeManager()->AllocateAttributeInstanceId()` |
 | | `ClampAttributeValueInRange()`, `EnforceAttributeRangeConstraints()` |
@@ -102,7 +102,7 @@
 | **实现** | `AttrMgr.cpp:716-786`（71 行） |
 | **签名** | `bool CreateAttributeModifier(FName ModifierId, AActor* Instigator, AActor* Target, FTcsAttributeModifierInstance& OutModifierInst)` |
 | **迁移后签名** | `virtual bool CreateAttributeModifier(FName ModifierId, AActor* Instigator, FTcsAttributeModifierInstance& OutModifierInst)` |
-| **内部依赖** | `AttributeModifierDefinitions.Find()` → `ResolveAttributeManager()->GetModifierDefinitionAsset()` |
+| **内部依赖** | `AttributeModifierDefinitions.Find()` → `ResolveAttributeManager()->GetModifierDefinition()` |
 | | `++GlobalAttributeModifierInstanceIdMgr` → `ResolveAttributeManager()->AllocateModifierInstanceId()` |
 | **注意** | 移除 `Target` 参数，Component 已知自身 Owner |
 | **UFUNCTION** | BlueprintCallable |
@@ -332,7 +332,7 @@ virtual bool RemoveModifiersBySourceHandle(const FTcsSourceHandle& SourceHandle)
 ```
 CoreMinimal.h
 Components/ActorComponent.h
-TcsAttribute.h
+TcsAttributeInstance.h
 TcsAttributeChangeEventPayload.h
 TcsAttributeModifier.h
 TcsAttributeComponent.generated.h
@@ -436,8 +436,8 @@ TcsAttributeComponent.generated.h
 
 | 原代码 | 替换为 | 出现行号 |
 |--------|--------|---------|
-| `AttributeDefinitions.Find(...)` | `ResolveAttributeManager()->GetAttributeDefinitionAsset(...)` | 150, 217 |
-| `AttributeModifierDefinitions.Find(...)` | `ResolveAttributeManager()->GetModifierDefinitionAsset(...)` | 754, 827 |
+| `AttributeDefinitions.Find(...)` | `ResolveAttributeManager()->GetAttributeDefinition(...)` | 150, 217 |
+| `AttributeModifierDefinitions.Find(...)` | `ResolveAttributeManager()->GetModifierDefinition(...)` | 754, 827 |
 
 ---
 

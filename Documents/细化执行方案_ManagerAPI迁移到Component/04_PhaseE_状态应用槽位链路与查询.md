@@ -41,13 +41,13 @@
 | 原代码 | 替换为 | 行号 |
 |--------|--------|------|
 | `Owner` 参数 | `GetOwner()` | 参数移除 |
-| `GetStateDefinitionAsset(StateDefRowId)` | `ResolveStateManager()->GetStateDefinitionAsset(StateDefRowId)` | 427 |
+| `GetStateDefinition(StateDefRowId)` | `ResolveStateManager()->GetStateDefinition(StateDefRowId)` | 427 |
 | `++GlobalStateInstanceIdMgr` | `ResolveStateManager()->AllocateStateInstanceId()` | 459 |
 | `NewObject<UTcsStateInstance>(Owner)` | `NewObject<UTcsStateInstance>(GetOwner())` | 456 |
 | `UTcsAttributeManagerSubsystem::CreateSourceHandle(...)` | `ResolveAttributeManager()->CreateSourceHandle(...)` | 514-517 |
 
 **因果链构建逻辑**（`StateMgr.cpp:506-524`）：
-- 行 506-510: 构建 CausalityChain = ParentSourceHandle.CausalityChain + ParentStateDefAsset.PrimaryAssetId
+- 行 506-510: 构建 CausalityChain = ParentSourceHandle.CausalityChain + ParentStateDef.PrimaryAssetId
 - 行 514-517: 创建 SourceHandle
 - 行 520-524: 设置到 StateInstance
 
@@ -57,8 +57,8 @@
 |----|------|
 | **声明** | `StateMgr.h:158-163`（protected） |
 | **实现** | `StateMgr.cpp:529-760`（232 行） |
-| **签名** | `bool EvaluateAndApplyStateParameters(const UTcsStateDefinitionAsset* StateDefAsset, AActor* Owner, AActor* Instigator, UTcsStateInstance* StateInstance, TArray<FName>& OutFailedParams)` |
-| **迁移后签名** | `virtual bool EvaluateAndApplyStateParameters(const UTcsStateDefinitionAsset* StateDefAsset, AActor* Instigator, UTcsStateInstance* StateInstance, TArray<FName>& OutFailedParams)` |
+| **签名** | `bool EvaluateAndApplyStateParameters(const UTcsStateDefinition* StateDef, AActor* Owner, AActor* Instigator, UTcsStateInstance* StateInstance, TArray<FName>& OutFailedParams)` |
+| **迁移后签名** | `virtual bool EvaluateAndApplyStateParameters(const UTcsStateDefinition* StateDef, AActor* Instigator, UTcsStateInstance* StateInstance, TArray<FName>& OutFailedParams)` |
 | **内部依赖** | `UTcsStateNumericParamEvaluator::Evaluate(...)` / `UTcsStateBoolParamEvaluator::Evaluate(...)` / `UTcsStateVectorParamEvaluator::Evaluate(...)` |
 | **变化** | 移除 `Owner` 参数，内部用 `GetOwner()` |
 
@@ -70,7 +70,7 @@
 | **实现** | `StateMgr.cpp:859-902`（44 行） |
 | **签名** | `static bool CheckStateApplyConditions(UTcsStateInstance* StateInstance)` |
 | **迁移后签名** | `virtual bool CheckStateApplyConditions(UTcsStateInstance* StateInstance)` |
-| **内部依赖** | `StateInstance->GetStateDefAsset()` → 遍历 `ActiveConditions` → `UTcsStateCondition::CheckCondition()` |
+| **内部依赖** | `StateInstance->GetStateDef()` → 遍历 `ActiveConditions` → `UTcsStateCondition::CheckCondition()` |
 | **变化** | static → virtual 成员方法 |
 
 ### 6. TryApplyStateInstance（State 应用核心入口，独立迁移）
@@ -116,7 +116,7 @@
 ```
 TryApplyState (新入口)
   → CreateStateInstance
-      → ResolveStateManager()->GetStateDefinitionAsset()
+      → ResolveStateManager()->GetStateDefinition()
       → NewObject<UTcsStateInstance>
       → Initialize()
       → EvaluateAndApplyStateParameters()
@@ -244,7 +244,7 @@ TryApplyState (新入口)
 | **声明** | `StateMgr.h:302`（protected） |
 | **实现** | `StateMgr.cpp:1568-1606`（39 行） |
 | **迁移后** | `void MergeStateGroup(TArray<UTcsStateInstance*>& StatesToMerge, TArray<UTcsStateInstance*>& OutMergedStates)` |
-| **内部依赖** | `ResolveStateManager()->GetStateDefinitionAsset()` → `StateDef->MergerType` → CDO `UTcsStateMerger::Merge()` |
+| **内部依赖** | `ResolveStateManager()->GetStateDefinition()` → `StateDef->MergerType` → CDO `UTcsStateMerger::Merge()` |
 
 #### 15. RemoveUnmergedStates
 
@@ -272,7 +272,7 @@ TryApplyState (新入口)
 |----|------|
 | **声明** | `StateMgr.h:313`（protected） |
 | **实现** | `StateMgr.cpp:1708-1815`（108 行） |
-| **迁移后** | `void ProcessPriorityOnlyMode(FTcsStateSlot* StateSlot, const UTcsStateSlotDefinitionAsset* SlotDef)` |
+| **迁移后** | `void ProcessPriorityOnlyMode(FTcsStateSlot* StateSlot, const UTcsStateSlotDefinition* SlotDef)` |
 | **内部依赖** | 找最高优先级 → 同优先级策略 `SlotDef->SamePriorityPolicy`（行 1752-1765）→ `ActivateState()` → `ApplyPreemptionPolicyToState()` 或 `CancelState()` |
 
 #### 18. ProcessAllActiveMode
@@ -499,7 +499,7 @@ bool HasActiveStateInSlot(FGameplayTag SlotTag) const;
 ```
 TryApplyStateToTarget (StateMgr, 保留为门面)
   → StateComp->TryApplyState()                    [新入口]
-    → ResolveStateManager()->GetStateDefinitionAsset()
+    → ResolveStateManager()->GetStateDefinition()
     → CreateStateInstance()                         [从StateMgr迁入]
         → NewObject<UTcsStateInstance>(GetOwner())
         → Initialize()

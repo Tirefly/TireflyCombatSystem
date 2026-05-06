@@ -2,7 +2,7 @@
 
 
 #include "Attribute/TcsAttributeModifier.h"
-#include "Attribute/TcsAttributeModifierDefinitionAsset.h"
+#include "Attribute/TcsAttributeModifierDefinition.h"
 
 
 bool FTcsAttributeModifierInstance::IsValid() const
@@ -24,11 +24,11 @@ bool FTcsAttributeModifierInstance::IsValid() const
 bool FTcsAttributeModifierInstance::operator<(const FTcsAttributeModifierInstance& Other) const
 {
 	// 直接使用硬指针获取优先级
-	if (ModifierDefAsset && Other.ModifierDefAsset)
+	if (ModifierDef && Other.ModifierDef)
 	{
 		// Higher priority first.
-		int32 thisPriority = FMath::Max<int32>(0, ModifierDefAsset->Priority);
-		int32 OtherPriority = FMath::Max<int32>(0, Other.ModifierDefAsset->Priority);
+		int32 thisPriority = FMath::Max<int32>(0, ModifierDef->Priority);
+		int32 OtherPriority = FMath::Max<int32>(0, Other.ModifierDef->Priority);
 		return thisPriority > OtherPriority;
 	}
 

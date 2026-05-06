@@ -8,7 +8,7 @@
 #include "StateTreeInstanceData.h"
 #include "StateTreeExecutionTypes.h"
 #include "TcsSourceHandle.h"
-#include "TcsState.generated.h"
+#include "TcsStateInstance.generated.h"
 
 
 class UTcsAttributeComponent;
@@ -17,7 +17,7 @@ class UTcsStateComponent;
 class UTcsStateMerger;
 class UTcsStateCondition;
 class UTcsStateParamExtractor;
-class UTcsStateDefinitionAsset;
+class UTcsStateDefinition;
 
 
 
@@ -184,7 +184,7 @@ public:
 public:
 	// 初始化状态实例
 	void Initialize(
-		const UTcsStateDefinitionAsset* InStateDefAsset,
+		const UTcsStateDefinition* InStateDef,
 		FName InStateDefId,
 		AActor* InOwner,
 		AActor* InInstigator,
@@ -201,7 +201,7 @@ public:
     void SetStateDefId(FName InStateDefId) { StateDefId = InStateDefId; }
 
 	// 获取状态定义 DataAsset 硬引用
-	const UTcsStateDefinitionAsset* GetStateDefAsset() const { return StateDefAsset; }
+	const UTcsStateDefinition* GetStateDef() const { return StateDef; }
 
 	// 获取状态实例Id
 	int32 GetInstanceId() const { return StateInstanceId; }
@@ -215,7 +215,7 @@ public:
 protected:
 	// 状态定义 DataAsset 硬引用
 	UPROPERTY(BlueprintReadOnly, Category = "Meta")
-	const UTcsStateDefinitionAsset* StateDefAsset = nullptr;
+	const UTcsStateDefinition* StateDef = nullptr;
 
 	// 状态定义Id（冗余字段，用于快速查询和调试）
 	UPROPERTY(BlueprintReadOnly, Category = "Meta")

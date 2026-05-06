@@ -4,7 +4,7 @@
 #include "State/TcsStateContainer.h"
 
 #include "TcsLogChannels.h"
-#include "State/TcsState.h"
+#include "State/TcsStateInstance.h"
 
 
 static void RemoveInvalidAndExpired(TArray<TObjectPtr<UTcsStateInstance>>& Instances)
@@ -40,7 +40,7 @@ void FTcsStateInstanceIndex::AddInstance(UTcsStateInstance* StateInstance)
 	FTcsStateInstanceArray& ByName = InstancesByName.FindOrAdd(StateInstance->GetStateDefId());
 	ByName.StateInstances.Add(StateInstance);
 
-	const UTcsStateDefinitionAsset* StateDef = StateInstance->GetStateDefAsset();
+	const UTcsStateDefinition* StateDef = StateInstance->GetStateDef();
 	if (StateDef)
 	{
 		const FGameplayTag SlotTag = StateDef->StateSlotType;
@@ -71,7 +71,7 @@ void FTcsStateInstanceIndex::RemoveInstance(UTcsStateInstance* StateInstance)
 		}
 	}
 
-	const UTcsStateDefinitionAsset* StateDef = StateInstance->GetStateDefAsset();
+	const UTcsStateDefinition* StateDef = StateInstance->GetStateDef();
 	if (StateDef)
 	{
 		const FGameplayTag SlotTag = StateDef->StateSlotType;

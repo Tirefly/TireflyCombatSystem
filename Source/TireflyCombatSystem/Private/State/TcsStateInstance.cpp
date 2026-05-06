@@ -1,10 +1,10 @@
 // Copyright Tirefly. All Rights Reserved.
 
 
-#include "State/TcsState.h"
+#include "State/TcsStateInstance.h"
 
 #include "State/TcsStateComponent.h"
-#include "State/TcsStateDefinitionAsset.h"
+#include "State/TcsStateDefinition.h"
 #include "State/TcsStateManagerSubsystem.h"
 #include "State/StateParameter/TcsStateBoolParameter.h"
 #include "State/StateParameter/TcsStateNumericParameter.h"
@@ -41,7 +41,7 @@ UWorld* UTcsStateInstance::GetWorld() const
 }
 
 void UTcsStateInstance::Initialize(
-	const UTcsStateDefinitionAsset* InStateDefAsset,
+	const UTcsStateDefinition* InStateDef,
 	FName InStateDefId,
 	AActor* InOwner,
 	AActor* InInstigator,
@@ -62,13 +62,13 @@ void UTcsStateInstance::Initialize(
 	InstigatorAttributeCmp.Reset();
 	InstigatorSkillCmp.Reset();
 
-	StateDefAsset = InStateDefAsset;
+	StateDef = InStateDef;
 	StateDefId = InStateDefId;
 	StateInstanceId = InInstanceId;
 	Level = InLevel;
 
 	// 验证状态定义 DataAsset
-	if (!InStateDefAsset)
+	if (!InStateDef)
 	{
 		UE_LOG(LogTcsState, Error, TEXT("[%s] Invalid StateDefinitionAsset for StateDefId: %s"),
 			*FString(__FUNCTION__),
@@ -117,12 +117,12 @@ void UTcsStateInstance::Initialize(
 	VectorParametersTag.Reset();
 
 	// 初始化基础数值参数：持续时间
-	if (InStateDefAsset->DurationType == ETcsStateDurationType::SDT_Duration)
+	if (InStateDef->DurationType == ETcsStateDurationType::SDT_Duration)
 	{
-		NumericParameters.Add(Tcs_Generic_Name_TotalDuration, InStateDefAsset->Duration);
+		NumericParameters.Add(Tcs_Generic_Name_TotalDuration, InStateDef->Duration);
 	}
 	// 初始化基础数值参数：堆叠层数
-	if (InStateDefAsset->MaxStackCount > 0)
+	if (InStateDef->MaxStackCount > 0)
 	{
 		NumericParameters.Add(Tcs_Generic_Name_StackCount, 1);
 	}
@@ -214,12 +214,12 @@ void UTcsStateInstance::SetDurationRemaining(float InDurationRemaining)
 
 float UTcsStateInstance::GetTotalDuration() const
 {
-	if (!StateDefAsset)
+	if (!StateDef)
 	{
 		return 0.0f;
 	}
 
-	switch (StateDefAsset->DurationType)
+	switch (StateDef->DurationType)
 	{
 	default:
 	case SDT_None:
@@ -230,7 +230,7 @@ float UTcsStateInstance::GetTotalDuration() const
 		break;
 	}
 
-	float TotalDuration = StateDefAsset->Duration;
+	float TotalDuration = StateDef->Duration;
 	if (const float* DurationParam = NumericParameters.Find(Tcs_Generic_Name_TotalDuration))
 	{
 		TotalDuration = *DurationParam;
@@ -262,11 +262,11 @@ int32 UTcsStateInstance::GetStackCount() const
 
 int32 UTcsStateInstance::GetMaxStackCount() const
 {
-	if (!StateDefAsset)
+	if (!StateDef)
 	{
 		return 0;
 	}
-	return StateDefAsset->MaxStackCount;
+	return StateDef->MaxStackCount;
 }
 
 void UTcsStateInstance::SetStackCount(int32 InStackCount)
@@ -333,12 +333,12 @@ void UTcsStateInstance::SetLevel(int32 InLevel)
 
 void UTcsStateInstance::InitParameterValues()
 {
-	if (!StateDefAsset || StateDefAsset->Parameters.IsEmpty())
+	if (!StateDef || StateDef->Parameters.IsEmpty())
 	{
 		return;
 	}
 
-	for (const TPair<FName, FTcsStateParameter>& ParamPair : StateDefAsset->Parameters)
+	for (const TPair<FName, FTcsStateParameter>& ParamPair : StateDef->Parameters)
 	{
 		switch (ParamPair.Value.ParameterType)
 		{
@@ -435,12 +435,12 @@ void UTcsStateInstance::InitParameterValues()
 
 void UTcsStateInstance::InitParameterTagValues()
 {
-	if (!StateDefAsset || StateDefAsset->TagParameters.IsEmpty())
+	if (!StateDef || StateDef->TagParameters.IsEmpty())
 	{
 		return;
 	}
 
-	for (const TPair<FGameplayTag, FTcsStateParameter>& ParamPair : StateDefAsset->TagParameters)
+	for (const TPair<FGameplayTag, FTcsStateParameter>& ParamPair : StateDef->TagParameters)
 	{
 		switch (ParamPair.Value.ParameterType)
 		{
@@ -790,7 +790,7 @@ TArray<FGameplayTag> UTcsStateInstance::GetAllVectorParamTags() const
 #if 0 // Removed: InitializeStateTree() was unused; keep code disabled for history.
 bool UTcsStateInstance::InitializeStateTree()
 {
-	if (!StateDefAsset || !StateDefAsset->StateTreeRef.IsValid())
+	if (!StateDef || !StateDef->StateTreeRef.IsValid())
 	{
 		UE_LOG(LogTcsStateTree, Error, TEXT("[%s] StateTreeRef is invalid of State %s"),
 			*FString(__FUNCTION__),
@@ -822,15 +822,15 @@ void UTcsStateInstance::StartStateTreeInternal(bool bResetInstanceData)
 		return;
 	}
 
-	if (!StateDefAsset)
+	if (!StateDef)
 	{
-		UE_LOG(LogTcsStateTree, Error, TEXT("[%s] StateDefAsset is invalid for StateInstance: %s"),
+		UE_LOG(LogTcsStateTree, Error, TEXT("[%s] StateDef is invalid for StateInstance: %s"),
 			*FString(__FUNCTION__),
 			*GetStateDefId().ToString());
 		return;
 	}
 
-	const UStateTree* StateTree = StateDefAsset->StateTreeRef.GetStateTree();
+	const UStateTree* StateTree = StateDef->StateTreeRef.GetStateTree();
 	if (!IsValid(StateTree))
 	{
 		UE_LOG(LogTcsStateTree, Error, TEXT("[%s] Failed to get StateTree for StateInstance: %s"),
@@ -886,15 +886,15 @@ void UTcsStateInstance::TickStateTree(float DeltaTime)
 		return;
 	}
 
-	if (!StateDefAsset)
+	if (!StateDef)
 	{
-		UE_LOG(LogTcsStateTree, Error, TEXT("[%s] StateDefAsset is invalid for StateInstance: %s"),
+		UE_LOG(LogTcsStateTree, Error, TEXT("[%s] StateDef is invalid for StateInstance: %s"),
 			*FString(__FUNCTION__),
 			*GetStateDefId().ToString());
 		return;
 	}
 
-	const UStateTree* StateTree = StateDefAsset->StateTreeRef.GetStateTree();
+	const UStateTree* StateTree = StateDef->StateTreeRef.GetStateTree();
 	if (!IsValid(StateTree))
 	{
 		UE_LOG(LogTcsStateTree, Error, TEXT("[%s] Failed to get StateTree for StateInstance: %s"),
@@ -949,15 +949,15 @@ void UTcsStateInstance::StopStateTree()
 		return;
 	}
 
-	if (!StateDefAsset)
+	if (!StateDef)
 	{
-		UE_LOG(LogTcsStateTree, Error, TEXT("[%s] StateDefAsset is invalid for StateInstance: %s"),
+		UE_LOG(LogTcsStateTree, Error, TEXT("[%s] StateDef is invalid for StateInstance: %s"),
 			*FString(__FUNCTION__),
 			*GetStateDefId().ToString());
 		return;
 	}
 
-	const UStateTree* StateTree = StateDefAsset->StateTreeRef.GetStateTree();
+	const UStateTree* StateTree = StateDef->StateTreeRef.GetStateTree();
 	if (!IsValid(StateTree))
 	{
 		UE_LOG(LogTcsStateTree, Error, TEXT("[%s] Failed to get StateTree for StateInstance: %s"),
@@ -1000,12 +1000,12 @@ void UTcsStateInstance::ResumeStateTree()
 		StartStateTree();
 	}
 
-	if (!bStateTreeRunning || !OwnerStateCmp.IsValid() || !StateDefAsset)
+	if (!bStateTreeRunning || !OwnerStateCmp.IsValid() || !StateDef)
 	{
 		return;
 	}
 
-	switch (StateDefAsset->TickPolicy)
+	switch (StateDef->TickPolicy)
 	{
 	case ETcsStateTreeTickPolicy::WhileActive:
 		if (Stage == ETcsStateStage::SS_Active)
@@ -1037,15 +1037,15 @@ void UTcsStateInstance::SendStateTreeEvent(FGameplayTag EventTag, const FInstanc
 		return;
 	}
 
-	if (!StateDefAsset)
+	if (!StateDef)
 	{
-		UE_LOG(LogTcsStateTree, Error, TEXT("[%s] StateDefAsset is invalid for StateInstance: %s"),
+		UE_LOG(LogTcsStateTree, Error, TEXT("[%s] StateDef is invalid for StateInstance: %s"),
 			*FString(__FUNCTION__),
 			*GetStateDefId().ToString());
 		return;
 	}
 
-	const UStateTree* StateTree = StateDefAsset->StateTreeRef.GetStateTree();
+	const UStateTree* StateTree = StateDef->StateTreeRef.GetStateTree();
 	if (!IsValid(StateTree))
 	{
 		UE_LOG(LogTcsStateTree, Error, TEXT("[%s] Failed to get StateTree for StateInstance: %s"),

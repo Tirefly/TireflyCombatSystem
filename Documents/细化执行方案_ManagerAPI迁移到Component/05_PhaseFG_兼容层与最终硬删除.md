@@ -176,7 +176,7 @@ void ActivateState(UTcsStateInstance* StateInstance)
 |------|------|------|
 | `StateMgr.h:29` | `Initialize(...)` | 初始化 |
 | `StateMgr.h:49-75` | 加载方法（`LoadFromDeveloperSettings` 等） | 定义缓存 |
-| `StateMgr.h:85-119` | 定义查询（`GetStateDefinitionAsset` 等） | 全局查询 |
+| `StateMgr.h:85-119` | 定义查询（`GetStateDefinition` 等） | 全局查询 |
 | `StateMgr.h:168` | `GlobalStateInstanceIdMgr` + 新增的 `AllocateStateInstanceId()` | 全局 ID |
 | `StateMgr.h:186-192` | `TryApplyStateToTarget(...)` | 跨 Actor 门面（改为薄转发） |
 | `StateMgr.h:38-44` | 定义缓存成员 | 全局数据 |
@@ -197,7 +197,7 @@ void ActivateState(UTcsStateInstance* StateInstance)
 | `AttrMgr.h:36-45` | 定义缓存成员 | 全局数据 |
 | `AttrMgr.h:176-177, 276, 280` | 全局 ID 管理器 + 新增 `Allocate*()` | 全局 ID |
 | `AttrMgr.h:296-304` | `CreateSourceHandle(...)` + `GlobalSourceHandleIdMgr` | 全局工厂 |
-| 新增 | `GetAttributeDefinitionAsset()` / `GetModifierDefinitionAsset()` | 定义查询 |
+| 新增 | `GetAttributeDefinition()` / `GetModifierDefinition()` | 定义查询 |
 
 ---
 

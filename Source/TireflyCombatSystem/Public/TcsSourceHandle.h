@@ -19,7 +19,7 @@
  *
  * 示例:
  * - 根源 State (玩家释放技能): CausalityChain 为空
- * - 派生 State (技能 → Buff): CausalityChain = [技能StateDefAsset.PrimaryAssetId]
+ * - 派生 State (技能 → Buff): CausalityChain = [技能StateDef.PrimaryAssetId]
  * - 多层派生 (技能 → Buff → 持续伤害): CausalityChain = [技能Id, BuffId]
  */
 USTRUCT(BlueprintType)

@@ -6,7 +6,7 @@
 #include "Engine/DataAsset.h"
 #include "GameplayTagContainer.h"
 #include "TcsStateSlot.h"
-#include "TcsStateSlotDefinitionAsset.generated.h"
+#include "TcsStateSlotDefinition.generated.h"
 
 
 
@@ -18,7 +18,7 @@
  * 命名约定: DA_StateSlot_<SlotName> (例如: DA_StateSlot_Action)
  */
 UCLASS(BlueprintType, Const)
-class TIREFLYCOMBATSYSTEM_API UTcsStateSlotDefinitionAsset : public UPrimaryDataAsset
+class TIREFLYCOMBATSYSTEM_API UTcsStateSlotDefinition : public UPrimaryDataAsset
 {
 	GENERATED_BODY()
 
@@ -103,7 +103,7 @@ public:
 
 public:
 	// 构造函数
-	UTcsStateSlotDefinitionAsset();
+	UTcsStateSlotDefinition();
 
 	// 覆写 GetPrimaryAssetId
 	virtual FPrimaryAssetId GetPrimaryAssetId() const override;

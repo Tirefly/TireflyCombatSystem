@@ -6,10 +6,10 @@
 #include "GameplayTagContainer.h"
 #include "StructUtils/InstancedStruct.h"
 #include "UObject/Object.h"
-#include "TcsAttribute.generated.h"
+#include "TcsAttributeInstance.generated.h"
 
 
-class UTcsAttributeDefinitionAsset;
+class UTcsAttributeDefinition;
 
 
 // 属性范围类型
@@ -82,7 +82,7 @@ struct TIREFLYCOMBATSYSTEM_API FTcsAttributeInstance
 public:
 	// 属性定义 DataAsset 硬引用
 	UPROPERTY(BlueprintReadOnly)
-	const UTcsAttributeDefinitionAsset* AttributeDefAsset = nullptr;
+	const UTcsAttributeDefinition* AttributeDef = nullptr;
 
 	// 属性定义 ID（冗余字段，用于快速查询和调试）
 	UPROPERTY(BlueprintReadOnly)
@@ -111,11 +111,11 @@ public:
 public:
 	FTcsAttributeInstance() {}
 
-	FTcsAttributeInstance(const UTcsAttributeDefinitionAsset* InAttrDefAsset, FName InAttrDefId, int32 InstId, AActor* InOwner)
-		: AttributeDefAsset(InAttrDefAsset), AttributeDefId(InAttrDefId), AttributeInstId(InstId), Owner(InOwner), InitialValue(0.f), BaseValue(0.f), CurrentValue(0.f)
+	FTcsAttributeInstance(const UTcsAttributeDefinition* InAttrDefAsset, FName InAttrDefId, int32 InstId, AActor* InOwner)
+		: AttributeDef(InAttrDefAsset), AttributeDefId(InAttrDefId), AttributeInstId(InstId), Owner(InOwner), InitialValue(0.f), BaseValue(0.f), CurrentValue(0.f)
 	{}
 
-	FTcsAttributeInstance(const UTcsAttributeDefinitionAsset* InAttrDefAsset, FName InAttrDefId, int32 InstId, AActor* InOwner, float InitValue)
-		: AttributeDefAsset(InAttrDefAsset), AttributeDefId(InAttrDefId), AttributeInstId(InstId), Owner(InOwner), InitialValue(InitValue), BaseValue(InitValue), CurrentValue(InitValue)
+	FTcsAttributeInstance(const UTcsAttributeDefinition* InAttrDefAsset, FName InAttrDefId, int32 InstId, AActor* InOwner, float InitValue)
+		: AttributeDef(InAttrDefAsset), AttributeDefId(InAttrDefId), AttributeInstId(InstId), Owner(InOwner), InitialValue(InitValue), BaseValue(InitValue), CurrentValue(InitValue)
 	{}
 };

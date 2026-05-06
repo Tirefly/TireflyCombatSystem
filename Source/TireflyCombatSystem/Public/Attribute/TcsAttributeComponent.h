@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
 #include "GameplayTagContainer.h"
-#include "TcsAttribute.h"
+#include "TcsAttributeInstance.h"
 #include "TcsAttributeChangeEventPayload.h"
 #include "TcsAttributeModifier.h"
 #include "TcsSourceHandle.h"
@@ -14,8 +14,8 @@
 
 
 class UTcsAttributeManagerSubsystem;
-class UTcsAttributeDefinitionAsset;
-class UTcsAttributeModifierDefinitionAsset;
+class UTcsAttributeDefinition;
+class UTcsAttributeModifierDefinition;
 
 
 

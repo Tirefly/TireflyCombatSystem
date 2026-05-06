@@ -6,8 +6,9 @@
 #include "Engine/DataAsset.h"
 #include "GameplayTagContainer.h"
 #include "StateTreeReference.h"
-#include "TcsState.h"
-#include "TcsStateDefinitionAsset.generated.h"
+#include "TcsStateInstance.h"
+#include "StateCondition/TcsStateCondition.h"
+#include "TcsStateDefinition.generated.h"
 
 
 
@@ -19,7 +20,7 @@
  * 命名约定: DA_State_<StateName> (例如: DA_State_Stunned)
  */
 UCLASS(BlueprintType, Const)
-class TIREFLYCOMBATSYSTEM_API UTcsStateDefinitionAsset : public UPrimaryDataAsset
+class TIREFLYCOMBATSYSTEM_API UTcsStateDefinition : public UPrimaryDataAsset
 {
 	GENERATED_BODY()
 

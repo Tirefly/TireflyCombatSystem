@@ -4,7 +4,7 @@
 #include "State/StateMerger/TcsStateMerger_StackDirectly.h"
 
 #include "TcsLogChannels.h"
-#include "State/TcsState.h"
+#include "State/TcsStateInstance.h"
 
 
 

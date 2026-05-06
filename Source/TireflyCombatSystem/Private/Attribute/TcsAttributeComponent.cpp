@@ -6,8 +6,8 @@
 #include "TcsEntityInterface.h"
 #include "TcsLogChannels.h"
 #include "Attribute/TcsAttributeManagerSubsystem.h"
-#include "Attribute/TcsAttributeDefinitionAsset.h"
-#include "Attribute/TcsAttributeModifierDefinitionAsset.h"
+#include "Attribute/TcsAttributeDefinition.h"
+#include "Attribute/TcsAttributeModifierDefinition.h"
 #include "Attribute/AttrModExecution/TcsAttributeModifierExecution.h"
 #include "Attribute/AttrModMerger/TcsAttributeModifierMerger.h"
 #include "Attribute/AttrClampStrategy/TcsAttributeClampStrategy.h"
@@ -173,7 +173,7 @@ bool UTcsAttributeComponent::AddAttribute(FName AttributeName, float InitValue)
 		return false;
 	}
 
-	const UTcsAttributeDefinitionAsset* AttrDef = Mgr->GetAttributeDefinitionAsset(AttributeName);
+	const UTcsAttributeDefinition* AttrDef = Mgr->GetAttributeDefinition(AttributeName);
 	if (!AttrDef)
 	{
 		UE_LOG(LogTcsAttribute, Error, TEXT("[%s] AttributeDefinition '%s' not found"),
@@ -229,7 +229,7 @@ void UTcsAttributeComponent::AddAttributes(const TArray<FName>& AttributeNames)
 			continue;
 		}
 
-		const UTcsAttributeDefinitionAsset* AttrDef = Mgr->GetAttributeDefinitionAsset(AttributeName);
+		const UTcsAttributeDefinition* AttrDef = Mgr->GetAttributeDefinition(AttributeName);
 		if (!AttrDef)
 		{
 			UE_LOG(LogTcsAttribute, Error, TEXT("[%s] AttributeDefinition '%s' not found"),
@@ -422,11 +422,11 @@ bool UTcsAttributeComponent::ResetAttribute(FName AttributeName)
 	TArray<FTcsAttributeModifierInstance> ModifiersToRemove;
 	for (const FTcsAttributeModifierInstance& Modifier : AttributeModifiers)
 	{
-		if (!Modifier.ModifierDefAsset)
+		if (!Modifier.ModifierDef)
 		{
 			continue;
 		}
-		const UTcsAttributeModifierDefinitionAsset* ModDef = Modifier.ModifierDefAsset;
+		const UTcsAttributeModifierDefinition* ModDef = Modifier.ModifierDef;
 		if (ModDef && ModDef->AttributeName == AttributeName)
 		{
 			ModifiersToRemove.Add(Modifier);
@@ -508,7 +508,7 @@ bool UTcsAttributeComponent::RemoveAttribute(FName AttributeName)
 			continue;
 		}
 
-		const UTcsAttributeDefinitionAsset* OtherDef = Pair.Value.AttributeDefAsset;
+		const UTcsAttributeDefinition* OtherDef = Pair.Value.AttributeDef;
 		if (!OtherDef)
 		{
 			continue;
@@ -537,11 +537,11 @@ bool UTcsAttributeComponent::RemoveAttribute(FName AttributeName)
 	TArray<FTcsAttributeModifierInstance> ModifiersToRemove;
 	for (const FTcsAttributeModifierInstance& Modifier : AttributeModifiers)
 	{
-		if (!Modifier.ModifierDefAsset)
+		if (!Modifier.ModifierDef)
 		{
 			continue;
 		}
-		const UTcsAttributeModifierDefinitionAsset* ModDef = Modifier.ModifierDefAsset;
+		const UTcsAttributeModifierDefinition* ModDef = Modifier.ModifierDef;
 		if (ModDef && ModDef->AttributeName == AttributeName)
 		{
 			ModifiersToRemove.Add(Modifier);
@@ -594,8 +594,8 @@ bool UTcsAttributeComponent::CreateAttributeModifier(
 		return false;
 	}
 
-	const UTcsAttributeModifierDefinitionAsset* ModifierDefAsset = Mgr->GetModifierDefinitionAsset(ModifierId);
-	if (!ModifierDefAsset)
+	const UTcsAttributeModifierDefinition* ModifierDef = Mgr->GetModifierDefinition(ModifierId);
+	if (!ModifierDef)
 	{
 		UE_LOG(LogTcsAttribute, Error, TEXT("[%s] AttributeModifierDefinition '%s' not found"),
 			*FString(__FUNCTION__),
@@ -606,23 +606,23 @@ bool UTcsAttributeComponent::CreateAttributeModifier(
 	OutModifierInst = FTcsAttributeModifierInstance();
 
 	// 设置 DataAsset 引用和 ModifierId
-	OutModifierInst.ModifierDefAsset = ModifierDefAsset;
+	OutModifierInst.ModifierDef = ModifierDef;
 	OutModifierInst.ModifierId = ModifierId;
 
 	// 验证优先级
-	if (ModifierDefAsset->Priority < 0)
+	if (ModifierDef->Priority < 0)
 	{
 		UE_LOG(LogTcsAttribute, Warning, TEXT("[%s] AttrModDef %s has invalid Priority %d, will use raw priority 0."),
 			*FString(__FUNCTION__),
-			*ModifierDefAsset->ModifierName.ToString(),
-			ModifierDefAsset->Priority);
+			*ModifierDef->ModifierName.ToString(),
+			ModifierDef->Priority);
 		return false;
 	}
 
 	OutModifierInst.ModifierInstId = Mgr->AllocateModifierInstanceId();
 	OutModifierInst.Instigator = Instigator;
 	OutModifierInst.Target = GetOwner();
-	OutModifierInst.Operands = ModifierDefAsset->Operands;
+	OutModifierInst.Operands = ModifierDef->Operands;
 
 	return true;
 }
@@ -653,8 +653,8 @@ bool UTcsAttributeComponent::CreateAttributeModifierWithOperands(
 		return false;
 	}
 
-	const UTcsAttributeModifierDefinitionAsset* ModifierDefAsset = Mgr->GetModifierDefinitionAsset(ModifierId);
-	if (!ModifierDefAsset)
+	const UTcsAttributeModifierDefinition* ModifierDef = Mgr->GetModifierDefinition(ModifierId);
+	if (!ModifierDef)
 	{
 		UE_LOG(LogTcsAttribute, Error, TEXT("[%s] AttributeModifierDefinition '%s' not found"),
 			*FString(__FUNCTION__),
@@ -663,12 +663,12 @@ bool UTcsAttributeComponent::CreateAttributeModifierWithOperands(
 	}
 
 	// 验证 Operands 是否正确
-	if (ModifierDefAsset->Operands.IsEmpty())
+	if (ModifierDef->Operands.IsEmpty())
 	{
 		UE_LOG(LogTcsAttribute, Error, TEXT("[%s] ModifierDef does not contain Operands"), *FString(__FUNCTION__));
 		return false;
 	}
-	for (const TPair<FName, float>& Operand : ModifierDefAsset->Operands)
+	for (const TPair<FName, float>& Operand : ModifierDef->Operands)
 	{
 		if (!Operands.Contains(Operand.Key))
 		{
@@ -682,16 +682,16 @@ bool UTcsAttributeComponent::CreateAttributeModifierWithOperands(
 	OutModifierInst = FTcsAttributeModifierInstance();
 
 	// 设置 DataAsset 引用和 ModifierId
-	OutModifierInst.ModifierDefAsset = ModifierDefAsset;
+	OutModifierInst.ModifierDef = ModifierDef;
 	OutModifierInst.ModifierId = ModifierId;
 
 	// 验证优先级
-	if (ModifierDefAsset->Priority < 0)
+	if (ModifierDef->Priority < 0)
 	{
 		UE_LOG(LogTcsAttribute, Warning, TEXT("[%s] AttrModDef %s has invalid Priority %d, will use raw priority 0."),
 			*FString(__FUNCTION__),
-			*ModifierDefAsset->ModifierName.ToString(),
-			ModifierDefAsset->Priority);
+			*ModifierDef->ModifierName.ToString(),
+			ModifierDef->Priority);
 	}
 
 	OutModifierInst.ModifierInstId = Mgr->AllocateModifierInstanceId();
@@ -723,14 +723,14 @@ void UTcsAttributeComponent::ApplyModifier(TArray<FTcsAttributeModifierInstance>
 	// 区分修改属性 Base 值和 Current 值的两种修改器
 	for (FTcsAttributeModifierInstance& Modifier : Modifiers)
 	{
-		if (!Modifier.ModifierDefAsset)
+		if (!Modifier.ModifierDef)
 		{
-			UE_LOG(LogTcsAttribute, Error, TEXT("[%s] ModifierDefAsset is null for ModifierId: %s"),
+			UE_LOG(LogTcsAttribute, Error, TEXT("[%s] ModifierDef is null for ModifierId: %s"),
 				*FString(__FUNCTION__),
 				*Modifier.ModifierId.ToString());
 			continue;
 		}
-		const UTcsAttributeModifierDefinitionAsset* ModDef = Modifier.ModifierDefAsset;
+		const UTcsAttributeModifierDefinition* ModDef = Modifier.ModifierDef;
 
 		switch (ModDef->ModifierMode)
 		{
@@ -1160,15 +1160,15 @@ void UTcsAttributeComponent::RecalculateAttributeBaseValues(const TArray<FTcsAtt
 	TMap<FName, float> BaseValues = GetAttributeBaseValues();
 	for (const FTcsAttributeModifierInstance& Modifier : MergedModifiers)
 	{
-		if (!Modifier.ModifierDefAsset)
+		if (!Modifier.ModifierDef)
 		{
-			UE_LOG(LogTcsAttrModExec, Warning, TEXT("[%s] ModifierId %s has null ModifierDefAsset. Entity: %s"),
+			UE_LOG(LogTcsAttrModExec, Warning, TEXT("[%s] ModifierId %s has null ModifierDef. Entity: %s"),
 				*FString(__FUNCTION__),
 				*Modifier.ModifierId.ToString(),
 				GetOwner() ? *GetOwner()->GetName() : TEXT("Unknown"));
 			continue;
 		}
-		const UTcsAttributeModifierDefinitionAsset* ModDef = Modifier.ModifierDefAsset;
+		const UTcsAttributeModifierDefinition* ModDef = Modifier.ModifierDef;
 		if (!ModDef->ModifierType)
 		{
 			UE_LOG(LogTcsAttrModExec, Warning, TEXT("[%s] ModifierId %s has no valid AttributeModifierExecution type. Entity: %s"),
@@ -1267,15 +1267,15 @@ void UTcsAttributeComponent::RecalculateAttributeCurrentValues(int64 ChangeBatch
 	// 执行属性修改器的修改计算
 	for (const FTcsAttributeModifierInstance& Modifier : MergedModifiers)
 	{
-		if (!Modifier.ModifierDefAsset)
+		if (!Modifier.ModifierDef)
 		{
-			UE_LOG(LogTcsAttrModExec, Warning, TEXT("[%s] ModifierId %s has null ModifierDefAsset. Entity: %s"),
+			UE_LOG(LogTcsAttrModExec, Warning, TEXT("[%s] ModifierId %s has null ModifierDef. Entity: %s"),
 				*FString(__FUNCTION__),
 				*Modifier.ModifierId.ToString(),
 				GetOwner() ? *GetOwner()->GetName() : TEXT("Unknown"));
 			continue;
 		}
-		const UTcsAttributeModifierDefinitionAsset* ModDef = Modifier.ModifierDefAsset;
+		const UTcsAttributeModifierDefinition* ModDef = Modifier.ModifierDef;
 		if (!ModDef->ModifierType)
 		{
 			UE_LOG(LogTcsAttrModExec, Warning, TEXT("[%s] ModifierId %s has no valid AttributeModifierExecution type. Entity: %s"),
@@ -1373,14 +1373,14 @@ void UTcsAttributeComponent::MergeAttributeModifiers(
 			continue;
 		}
 
-		if (!Pair.Value[0].ModifierDefAsset)
+		if (!Pair.Value[0].ModifierDef)
 		{
-			UE_LOG(LogTcsAttribute, Warning, TEXT("[%s] ModifierDefAsset is null for ModifierId: %s"),
+			UE_LOG(LogTcsAttribute, Warning, TEXT("[%s] ModifierDef is null for ModifierId: %s"),
 				*FString(__FUNCTION__),
 				*Pair.Value[0].ModifierId.ToString());
 			continue;
 		}
-		const UTcsAttributeModifierDefinitionAsset* ModDef = Pair.Value[0].ModifierDefAsset;
+		const UTcsAttributeModifierDefinition* ModDef = Pair.Value[0].ModifierDef;
 
 		// No merger: do not merge, keep all instances.
 		if (!ModDef->MergerType)
@@ -1406,7 +1406,7 @@ void UTcsAttributeComponent::ClampAttributeValueInRange(
 	{
 		return;
 	}
-	const FTcsAttributeRange& Range = Attribute->AttributeDefAsset->AttributeRange;
+	const FTcsAttributeRange& Range = Attribute->AttributeDef->AttributeRange;
 
 	// 计算属性范围的最小值
 	float MinValue = TNumericLimits<float>::Lowest();
@@ -1475,7 +1475,7 @@ void UTcsAttributeComponent::ClampAttributeValueInRange(
 	}
 
 	// 执行属性值 Clamp（使用策略对象）
-	TSubclassOf<UTcsAttributeClampStrategy> StrategyClass = Attribute->AttributeDefAsset->ClampStrategyClass;
+	TSubclassOf<UTcsAttributeClampStrategy> StrategyClass = Attribute->AttributeDef->ClampStrategyClass;
 	if (StrategyClass)
 	{
 		UTcsAttributeClampStrategy* StrategyCDO = StrategyClass->GetDefaultObject<UTcsAttributeClampStrategy>();
@@ -1483,12 +1483,12 @@ void UTcsAttributeComponent::ClampAttributeValueInRange(
 		FTcsAttributeClampContextBase Context(
 			this,
 			AttributeName,
-			Attribute->AttributeDefAsset,
+			Attribute->AttributeDef,
 			Attribute,
 			WorkingValues
 		);
 
-		const FInstancedStruct& Config = Attribute->AttributeDefAsset->ClampStrategyConfig;
+		const FInstancedStruct& Config = Attribute->AttributeDef->ClampStrategyConfig;
 
 		NewValue = StrategyCDO->Clamp(NewValue, MinValue, MaxValue, Context, Config);
 
