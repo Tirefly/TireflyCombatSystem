@@ -4,6 +4,7 @@
 #include "State/TcsStateContainer.h"
 
 #include "TcsLogChannels.h"
+#include "State/TcsStateDefinition.h"
 #include "State/TcsStateInstance.h"
 
 
@@ -178,75 +179,6 @@ bool FTcsStateInstanceIndex::GetInstancesBySlot(FGameplayTag SlotTag, TArray<UTc
 
 	OutInstances.Empty();
 	return false;
-}
-
-
-void FTcsStateDurationTracker::Add(UTcsStateInstance* StateInstance, float InitialRemaining)
-{
-	if (!IsValid(StateInstance))
-	{
-		return;
-	}
-
-	RemainingByInstance.FindOrAdd(StateInstance) = InitialRemaining;
-}
-
-void FTcsStateDurationTracker::Remove(UTcsStateInstance* StateInstance)
-{
-	if (!StateInstance)
-	{
-		return;
-	}
-
-	RemainingByInstance.Remove(StateInstance);
-}
-
-bool FTcsStateDurationTracker::GetRemaining(const UTcsStateInstance* StateInstance, float& OutRemaining) const
-{
-	if (!IsValid(StateInstance))
-	{
-		return false;
-	}
-
-	if (const float* Remaining = RemainingByInstance.Find(const_cast<UTcsStateInstance*>(StateInstance)))
-	{
-		OutRemaining = *Remaining;
-		return true;
-	}
-
-	return false;
-}
-
-bool FTcsStateDurationTracker::SetRemaining(UTcsStateInstance* StateInstance, float NewRemaining)
-{
-	if (!IsValid(StateInstance))
-	{
-		return false;
-	}
-
-	if (float* Remaining = RemainingByInstance.Find(StateInstance))
-	{
-		*Remaining = NewRemaining;
-		return true;
-	}
-
-	return false;
-}
-
-void FTcsStateDurationTracker::RefreshInstances()
-{
-	TArray<TObjectPtr<UTcsStateInstance>> InvalidStates;
-	for (const TPair<TObjectPtr<UTcsStateInstance>, float>& Pair : RemainingByInstance)
-	{
-		if (!IsValid(Pair.Key) || Pair.Key->GetCurrentStage() == ETcsStateStage::SS_Expired)
-		{
-			InvalidStates.Add(Pair.Key);
-		}
-	}
-	for (const TObjectPtr<UTcsStateInstance>& State : InvalidStates)
-	{
-		RemainingByInstance.Remove(State);
-	}
 }
 
 

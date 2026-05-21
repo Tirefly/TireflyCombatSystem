@@ -8,6 +8,22 @@
 #include "State/TcsStateComponent.h"
 #include "Skill/TcsSkillComponent.h"
 
+namespace
+{
+void NormalizeEditorOptionNames(TArray<FName>& Names)
+{
+	Names.RemoveAll([](const FName& Name)
+	{
+		return Name.IsNone();
+	});
+
+	Names.Sort([](const FName& Left, const FName& Right)
+	{
+		return Left.LexicalLess(Right);
+	});
+}
+}
+
 
 
 TArray<FName> UTcsGenericLibrary::GetAttributeNames()
@@ -19,6 +35,8 @@ TArray<FName> UTcsGenericLibrary::GetAttributeNames()
 	{
 		Settings->GetCachedAttributeDefinitions().GetKeys(AttributeNames);
 	}
+
+	NormalizeEditorOptionNames(AttributeNames);
 
 	return AttributeNames;
 }
@@ -32,6 +50,8 @@ TArray<FName> UTcsGenericLibrary::GetAttributeModifierIds()
 	{
 		Settings->GetCachedAttributeModifierDefinitions().GetKeys(ModifierIds);
 	}
+
+	NormalizeEditorOptionNames(ModifierIds);
 
 	return ModifierIds;
 }
@@ -53,6 +73,8 @@ TArray<FName> UTcsGenericLibrary::GetStateDefNames()
 	{
 		Settings->GetCachedStateDefinitions().GetKeys(StateDefNames);
 	}
+
+	NormalizeEditorOptionNames(StateDefNames);
 
 	return StateDefNames;
 }

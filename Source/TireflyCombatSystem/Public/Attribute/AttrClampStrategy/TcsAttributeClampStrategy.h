@@ -47,7 +47,7 @@
  * - 在属性定义数据表中选择该蓝图类作为 ClampStrategyClass
  * - 可选：定义自定义配置结构体并在属性定义中设置 ClampStrategyConfig
  */
-UCLASS(BlueprintType, Blueprintable, Abstract, ClassGroup = (TireflyCombatSystem))
+UCLASS(Abstract, BlueprintType, Blueprintable, ClassGroup = (TireflyCombatSystem))
 class TIREFLYCOMBATSYSTEM_API UTcsAttributeClampStrategy : public UObject
 {
 	GENERATED_BODY()

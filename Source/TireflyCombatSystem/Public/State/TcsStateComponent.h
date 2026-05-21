@@ -14,12 +14,13 @@
 
 
 
+class UTcsStateComponent;
 class UTcsStateInstance;
 class UTcsStateManagerSubsystem;
 class UTcsAttributeManagerSubsystem;
+class UTcsBuffComponent;
 class UTcsStateDefinition;
 class UTcsStateSlotDefinition;
-struct FStateTreeStateHandle;
 
 
 
@@ -63,21 +64,12 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams(
 );
 
 // 状态移除事件签名
-// (状态组件, 状态实例, 移除原因: Expired=自然过期, Removed=主动移除, Cancelled=被取消, MergedOut=合并淘汰, StackDepleted=叠层耗尽)
+// (状态组件, 状态实例, 移除原因: 共享原因通常包括 Expired/Removed/Cancelled；模块扩展可附加专属原因)
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(
 	FTcsOnStateRemovedSignature,
 	UTcsStateComponent*, StateComponent,
 	UTcsStateInstance*, StateInstance,
 	FName, RemovalReason);
-
-// 状态叠层变化事件签名
-// (状态组件, 状态实例, 旧叠层数, 新叠层数)
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams(
-	FTcsOnStateStackChangedSignature,
-	UTcsStateComponent*, StateComponent,
-	UTcsStateInstance*, StateInstance,
-	int32, OldStackCount,
-	int32, NewStackCount);
 
 // 状态等级变化事件签名
 // (状态组件, 状态实例, 旧等级, 新等级)
@@ -87,15 +79,6 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams(
 	UTcsStateInstance*, StateInstance,
 	int32, OldLevel,
 	int32, NewLevel);
-
-// 状态持续时间刷新事件签名
-// (状态组件, 状态实例, 新的持续时间)
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(
-	FTcsOnStateDurationRefreshedSignature,
-	UTcsStateComponent*, StateComponent,
-	UTcsStateInstance*, StateInstance,
-	float, NewDuration);
-
 // 槽位Gate状态变化事件签名
 // (状态组件, 槽位标签, 是否开启)
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(
@@ -114,18 +97,26 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_FiveParams(
 	FGameplayTag, ParameterTag,
 	ETcsStateParameterType, ParameterType);
 
-// 状态合并事件签名
-// (状态组件, 目标状态实例, 源状态实例, 合并后的叠层数)
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams(
-	FTcsOnStateMergedSignature,
-	UTcsStateComponent*, StateComponent,
-	UTcsStateInstance*, TargetStateInstance,
-	UTcsStateInstance*, SourceStateInstance,
-	int32, ResultStackCount);
+// 槽位激活刷新前置扩展点签名
+// (状态组件, 槽位标签, 槽位运行时数据)
+DECLARE_MULTICAST_DELEGATE_ThreeParams(
+	FTcsOnPrepareStateSlotActivationSignature,
+	UTcsStateComponent*,
+	FGameplayTag,
+	FTcsStateSlot*);
+
+// 状态调试叠加层扩展点签名
+// (状态组件, 状态实例, 输出叠层数, 输出时长文本)
+DECLARE_MULTICAST_DELEGATE_FourParams(
+	FTcsOnBuildStateDebugOverlaySignature,
+	UTcsStateComponent*,
+	const UTcsStateInstance*,
+	int32&,
+	FString&);
 
 
 
-UCLASS(ClassGroup = (TireflyCombatSystem), Meta = (BlueprintSpawnableComponent, DisplayName = "Tirefly State Cmp"))
+UCLASS(ClassGroup = (TireflyCombatSystem), Meta = (BlueprintSpawnableComponent, DisplayName = "Tcs State Component"))
 class TIREFLYCOMBATSYSTEM_API UTcsStateComponent : public UStateTreeComponent
 {
     GENERATED_BODY()
@@ -148,15 +139,25 @@ protected:
 
 public:
 	friend class UTcsStateInstance;
+	friend class UTcsBuffComponent;
 
 public:
+	// 供状态实例调用的接口，移除状态实例到状态树 Tick 调度器
 	void AddToStateTreeTickScheduler(UTcsStateInstance* StateInstance) { StateTreeTickScheduler.Add(StateInstance); }
+	// 供状态实例调用的接口，移除状态实例到状态树 Tick 调度器
 	void RemoveFromStateTreeTickScheduler(UTcsStateInstance* StateInstance) { StateTreeTickScheduler.Remove(StateInstance); }
+
+	/**
+	 * 获取共享 StateManager。
+	 *
+	 * @return 共享 StateManager 子系统；失败时返回 nullptr
+	 */
+	UTcsStateManagerSubsystem* GetStateManager() const { return const_cast<UTcsStateComponent*>(this)->ResolveStateManager(); }
 
 #pragma endregion
 
 
-#pragma region StateInstance
+#pragma region StateEvents
 
 public:
 	// 通知阶段发生变化（内部与外部均可触发）
@@ -173,17 +174,11 @@ public:
 		FName DeactivateReason);
 
 	// 通知状态被移除
-	// RemovalReason: "Expired"=自然过期, "Removed"=主动移除, "Cancelled"=被取消, "MergedOut"=合并淘汰, "StackDepleted"=叠层耗尽
+	// RemovalReason: 统一透传移除原因字符串；Buff-only 语义请优先通过 Buff 模块事件面理解
 	void NotifyStateRemoved(UTcsStateInstance* StateInstance, FName RemovalReason);
-
-	// 通知状态叠层变化
-	void NotifyStateStackChanged(UTcsStateInstance* StateInstance, int32 OldStackCount, int32 NewStackCount);
 
 	// 通知状态等级变化
 	void NotifyStateLevelChanged(UTcsStateInstance* StateInstance, int32 OldLevel, int32 NewLevel);
-
-	// 通知状态持续时间刷新
-	void NotifyStateDurationRefreshed(UTcsStateInstance* StateInstance, float NewDuration);
 
 	// 通知槽位Gate状态变化
 	void NotifySlotGateStateChanged(FGameplayTag SlotTag, bool bIsOpen);
@@ -195,9 +190,6 @@ public:
 		FName ParameterName,
 		FGameplayTag ParameterTag,
 		ETcsStateParameterType ParameterType);
-
-	// 通知状态合并
-	void NotifyStateMerged(UTcsStateInstance* TargetStateInstance, UTcsStateInstance* SourceStateInstance, int32 ResultStackCount);
 
 	// 通知状态应用成功
 	void NotifyStateApplySuccess(
@@ -246,25 +238,11 @@ public:
 	FTcsOnStateRemovedSignature OnStateRemoved;
 
 	/**
-	 * 状态叠层变化事件
-	 * 当状态的叠层数发生变化时广播
-	 */
-	UPROPERTY(BlueprintAssignable, Category = "State|Events")
-	FTcsOnStateStackChangedSignature OnStateStackChanged;
-
-	/**
 	 * 状态等级变化事件
 	 * 当状态的等级发生变化时广播
 	 */
 	UPROPERTY(BlueprintAssignable, Category = "State|Events")
 	FTcsOnStateLevelChangedSignature OnStateLevelChanged;
-
-	/**
-	 * 状态持续时间刷新事件
-	 * 当状态的持续时间被刷新时广播
-	 */
-	UPROPERTY(BlueprintAssignable, Category = "State|Events")
-	FTcsOnStateDurationRefreshedSignature OnStateDurationRefreshed;
 
 	/**
 	 * 槽位Gate状态变化事件
@@ -280,12 +258,46 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "State|Events")
 	FTcsOnStateParameterChangedSignature OnStateParameterChanged;
 
+#pragma endregion
+
+
+#pragma region StateExtensibility
+
+public:
 	/**
-	 * 状态合并事件
-	 * 当两个同类型状态合并时广播
+	 * 获取槽位激活刷新前置扩展点。
+	 *
+	 * @return 槽位激活刷新前置扩展事件引用
 	 */
-	UPROPERTY(BlueprintAssignable, Category = "State|Events")
-	FTcsOnStateMergedSignature OnStateMerged;
+	FTcsOnPrepareStateSlotActivationSignature& OnPrepareStateSlotActivation() { return PrepareStateSlotActivationEvent; }
+
+	/**
+	 * 获取状态调试叠加层扩展点。
+	 *
+	 * @return 状态调试叠加层扩展事件引用
+	 */
+	FTcsOnBuildStateDebugOverlaySignature& OnBuildStateDebugOverlay() { return StateDebugOverlayEvent; }
+
+	/**
+	 * 构建状态调试叠加层。
+	 *
+	 * @param StateInstance 目标状态实例
+	 * @param OutStackCount 输出叠层数
+	 * @param OutDurationText 输出时长文本
+	 */
+	void BuildStateDebugOverlay(const UTcsStateInstance* StateInstance, int32& OutStackCount, FString& OutDurationText) const;
+
+protected:
+	// 槽位激活刷新前置扩展事件。
+	FTcsOnPrepareStateSlotActivationSignature PrepareStateSlotActivationEvent;
+
+	// 状态调试叠加层扩展事件。
+	mutable FTcsOnBuildStateDebugOverlaySignature StateDebugOverlayEvent;
+
+#pragma endregion
+
+
+#pragma region StateReferences
 
 protected:
 	// 状态管理器子系统
@@ -311,13 +323,10 @@ protected:
 	 */
 	UTcsAttributeManagerSubsystem* ResolveAttributeManager();
 
-	// 状态实例索引：按Id/DefId/Slot查询
-	UPROPERTY()
-	FTcsStateInstanceIndex StateInstanceIndex;
+#pragma endregion
 
-	// StateTree Tick调度器：只保存正在Running的实例
-	UPROPERTY()
-	FTcsStateTreeTickScheduler StateTreeTickScheduler;
+
+#pragma region StateInstance
 
 public:
 	/**
@@ -329,7 +338,6 @@ public:
 	 * @param ParentSourceHandle 父级来源句柄
 	 * @return 是否应用成功
 	 */
-	UFUNCTION(BlueprintCallable, Category = "State")
 	virtual bool TryApplyState(
 		FName StateDefId,
 		AActor* Instigator,
@@ -342,7 +350,6 @@ public:
 	 * @param StateInstance 要应用的状态实例
 	 * @return 如果应用成功则返回 true，否则返回 false
 	 */
-	UFUNCTION(BlueprintCallable, Category = "State")
 	virtual bool TryApplyStateInstance(UTcsStateInstance* StateInstance);
 
 protected:
@@ -353,13 +360,19 @@ protected:
 	 * @param Instigator 状态发起者
 	 * @param InLevel 状态等级
 	 * @param ParentSourceHandle 父级来源句柄
+	 * @param OutFailureReason 可选输出参数，用于返回创建失败原因
+	 * @param OutFailureMessage 可选输出参数，用于返回创建失败描述
+	 * @param bOutFailureLogged 可选输出参数，用于标记失败是否已在内部记录日志
 	 * @return 如果创建成功则返回状态实例，否则返回 nullptr
 	 */
 	virtual UTcsStateInstance* CreateStateInstance(
 		FName StateDefId,
 		AActor* Instigator,
 		int32 InLevel = 1,
-		const FTcsSourceHandle& ParentSourceHandle = FTcsSourceHandle());
+		const FTcsSourceHandle& ParentSourceHandle = FTcsSourceHandle(),
+		ETcsStateApplyFailReason* OutFailureReason = nullptr,
+		FString* OutFailureMessage = nullptr,
+		bool* bOutFailureLogged = nullptr);
 
 	/**
 	 * 评估并写入状态参数。
@@ -384,6 +397,8 @@ protected:
 	 */
 	virtual bool CheckStateApplyConditions(UTcsStateInstance* StateInstance);
 
+public:
+
 	/**
 	 * 请求移除指定状态实例。
 	 *
@@ -391,7 +406,6 @@ protected:
 	 * @param RemovalReason 移除原因
 	 * @return 是否成功收敛到移除流程
 	 */
-	UFUNCTION(BlueprintCallable, Category = "State|Removal")
 	virtual bool RequestStateRemoval(UTcsStateInstance* StateInstance, FName RemovalReason);
 
 	/**
@@ -400,7 +414,6 @@ protected:
 	 * @param StateInstance 要移除的状态实例
 	 * @return 是否成功移除
 	 */
-	UFUNCTION(BlueprintCallable, Category = "State|Removal")
 	virtual bool RemoveState(UTcsStateInstance* StateInstance);
 
 	/**
@@ -410,7 +423,6 @@ protected:
 	 * @param bRemoveAll 是否移除全部匹配实例
 	 * @return 成功移除的状态数量
 	 */
-	UFUNCTION(BlueprintCallable, Category = "State|Removal")
 	virtual int32 RemoveStatesByDefId(FName StateDefId, bool bRemoveAll = true);
 
 	/**
@@ -419,7 +431,6 @@ protected:
 	 * @param SlotTag 状态槽标签
 	 * @return 成功移除的状态数量
 	 */
-	UFUNCTION(BlueprintCallable, Category = "State|Removal")
 	virtual int32 RemoveAllStatesInSlot(FGameplayTag SlotTag);
 
 	/**
@@ -427,7 +438,6 @@ protected:
 	 *
 	 * @return 成功移除的状态数量
 	 */
-	UFUNCTION(BlueprintCallable, Category = "State|Removal")
 	virtual int32 RemoveAllStates();
 
 	// 取消状态实例（非 virtual 包装器）
@@ -458,23 +468,28 @@ protected:
 	// 最终化移除流程：停止逻辑、清理容器、广播事件并标记 GC
 	virtual void FinalizeStateRemoval(UTcsStateInstance* StateInstance, FName RemovalReason);
 
+protected:
+	// 状态实例索引：按Id/DefId/Slot查询
+	UPROPERTY()
+	FTcsStateInstanceIndex StateInstanceIndex;
+
+	// StateTree Tick调度器：只保存正在Running的实例
+	UPROPERTY()
+	FTcsStateTreeTickScheduler StateTreeTickScheduler;
+
 #pragma endregion
 
 
 #pragma region StateSlot_References
 
 protected:
-	// 映射集合：StateSlot 到 StateTreeState
+	// 映射集合：StateSlot 到当前 StateTree 中成功绑定的状态名
 	UPROPERTY()
-	TMap<FGameplayTag, FStateTreeStateHandle> Mapping_StateSlotToStateHandle;
-	
-	// 映射集合：StateTreeState 到 StateSlot
-	UPROPERTY()
-	TMap<FStateTreeStateHandle, FGameplayTag> Mapping_StateHandleToStateSlot;
+	TMap<FGameplayTag, FName> Mapping_StateSlotToStateTreeStateName;
 
-	// StateTree状态槽映射 (运行时状态数据)
+	// StateSlot 运行时状态数据容器
 	UPROPERTY()
-	TMap<FGameplayTag, FTcsStateSlot> StateSlotsX;
+	TMap<FGameplayTag, FTcsStateSlot> RuntimeStateSlots;
 
 #pragma endregion
 
@@ -489,7 +504,6 @@ public:
 	 * @param OutStates 输出状态实例列表
 	 * @return 如果找到状态则返回 true，否则返回 false
 	 */
-	UFUNCTION(BlueprintCallable, Category = "State|Query")
 	bool GetStatesInSlot(FGameplayTag SlotTag, TArray<UTcsStateInstance*>& OutStates) const;
 
 	/**
@@ -499,7 +513,6 @@ public:
 	 * @param OutStates 输出状态实例列表
 	 * @return 如果找到状态则返回 true，否则返回 false
 	 */
-	UFUNCTION(BlueprintCallable, Category = "State|Query")
 	bool GetStatesByDefId(FName StateDefId, TArray<UTcsStateInstance*>& OutStates) const;
 
 	/**
@@ -508,7 +521,6 @@ public:
 	 * @param OutStates 输出激活状态列表
 	 * @return 如果找到激活状态则返回 true，否则返回 false
 	 */
-	UFUNCTION(BlueprintCallable, Category = "State|Query")
 	bool GetAllActiveStates(TArray<UTcsStateInstance*>& OutStates) const;
 
 	/**
@@ -517,7 +529,6 @@ public:
 	 * @param StateDefId 状态定义 ID
 	 * @return 如果存在则返回 true，否则返回 false
 	 */
-	UFUNCTION(BlueprintCallable, Category = "State|Query")
 	bool HasStateWithDefId(FName StateDefId) const;
 
 	/**
@@ -526,7 +537,6 @@ public:
 	 * @param SlotTag 状态槽标签
 	 * @return 如果存在激活状态则返回 true，否则返回 false
 	 */
-	UFUNCTION(BlueprintCallable, Category = "State|Query")
 	bool HasActiveStateInSlot(FGameplayTag SlotTag) const;
 
 public:
@@ -539,7 +549,6 @@ public:
 	FString GetStateDebugSnapshot(FName StateDefIdFilter = NAME_None) const;
 
 	// 槽位Gate开关
-    UFUNCTION(BlueprintCallable, Category = "StateTree Integration")
     void SetSlotGateOpen(FGameplayTag SlotTag, bool bOpen);
 
 	// 槽位Gate开关状态
@@ -547,8 +556,23 @@ public:
     bool IsSlotGateOpen(FGameplayTag SlotTag) const;
 
 protected:
-	// 初始化当前组件的 StateSlot 与 StateTreeState 映射。
+	// 重建当前组件的 StateSlot 运行时容器，并建立与当前 StateTree 的绑定关系。
 	virtual void InitStateSlotMappings();
+
+	/**
+	 * 根据当前 StateSlotDefinition 重建运行时槽位容器。
+	 *
+	 * 该步骤会重建 RuntimeStateSlots，并在可复用时保留已有槽位的运行时数据。
+	 */
+	void RebuildStateSlotRuntimeData();
+
+	/**
+	 * 根据当前 StateTree 重建槽位到状态名的绑定表。
+	 *
+	 * 该步骤只重建 Mapping_StateSlotToStateTreeStateName，
+	 * 不修改 RuntimeStateSlots 中已经建立的运行时槽位数据。
+	 */
+	void RebuildStateTreeSlotBindings();
 
 	// 尝试把状态实例放入目标槽位并驱动后续激活流程。
 	virtual bool TryAssignStateToStateSlot(UTcsStateInstance* StateInstance);
@@ -565,6 +589,15 @@ protected:
 	// 更新指定槽位的激活结果。
 	virtual void UpdateStateSlotActivation(FGameplayTag SlotTag);
 
+	// 获取指定槽位的运行时槽位数据。
+	FTcsStateSlot* FindRuntimeStateSlot(FGameplayTag SlotTag);
+
+	// 获取指定槽位的只读运行时槽位数据。
+	const FTcsStateSlot* FindRuntimeStateSlot(FGameplayTag SlotTag) const;
+
+	// 请求刷新指定槽位的激活与扩展逻辑。
+	void RequestStateSlotRefresh(FGameplayTag SlotTag);
+
 	// Gate 一致性：当槽位关闭时，强制收敛阶段。
 	virtual void EnforceSlotGateConsistency(FGameplayTag SlotTag);
 
@@ -573,18 +606,6 @@ protected:
 
 	// 按优先级排序槽位中的状态。
 	virtual void SortStatesByPriority(TArray<UTcsStateInstance*>& States);
-
-	// 处理槽位中的状态合并。
-	virtual void ProcessStateSlotMerging(FTcsStateSlot* StateSlot);
-
-	// 对同一组状态执行合并策略。
-	void MergeStateGroup(TArray<UTcsStateInstance*>& StatesToMerge, TArray<UTcsStateInstance*>& OutMergedStates);
-
-	// 移除在合并后未被保留的状态实例。
-	void RemoveUnmergedStates(
-		FTcsStateSlot* StateSlot,
-		const TArray<UTcsStateInstance*>& MergedStates,
-		const TMap<FName, UTcsStateInstance*>& MergePrimaryByDefId);
 
 	// 按槽位激活模式处理状态。
 	virtual void ProcessStateSlotByActivationMode(FTcsStateSlot* StateSlot, FGameplayTag SlotTag);
@@ -628,10 +649,8 @@ protected:
 #pragma region StateTree_Reference
 
 public:
-	UFUNCTION(BlueprintCallable, Category = "StateTree")
 	FStateTreeReference GetStateTreeReference() const;
 
-	UFUNCTION(BlueprintCallable, Category = "StateTree")
 	const UStateTree* GetStateTree() const;
 
 #pragma endregion
@@ -655,33 +674,7 @@ protected:
 
 #pragma endregion
 
-	
-#pragma region StateDuration
-
-public:
-	// 获取状态实例的剩余时间
-	UFUNCTION(BlueprintCallable, Category = "State|Duration")
-	float GetStateRemainingDuration(const UTcsStateInstance* StateInstance) const;
-
-	// 刷新状态实例的剩余时间
-	UFUNCTION(BlueprintCallable, Category = "State|Duration")
-	void RefreshStateRemainingDuration(UTcsStateInstance* StateInstance);
-
-	// 设置状态实例的剩余时间
-	UFUNCTION(BlueprintCallable, Category = "State|Duration")
-	void SetStateRemainingDuration(UTcsStateInstance* StateInstance, float InDurationRemaining);
-
 protected:
-	// 更新所有持续存在的状态实例的持续时间
-	void UpdateActiveStateDurations(float DeltaTime);
-
 	// Tick 所有运行中的 StateTree（调度、执行、清理停止的实例）
 	void TickStateTrees(float DeltaTime);
-
-protected:
-	// 状态实例持续时间追踪器（仅SDT_Duration）
-	UPROPERTY()
-	FTcsStateDurationTracker DurationTracker;
-
-#pragma endregion
 };

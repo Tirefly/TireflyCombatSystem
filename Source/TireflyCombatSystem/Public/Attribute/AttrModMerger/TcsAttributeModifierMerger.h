@@ -10,7 +10,7 @@
 
 
 // 属性修改器合并器
-UCLASS(BlueprintType, Blueprintable, Abstract, ClassGroup = (TireflyCombatSystem))
+UCLASS(Abstract, BlueprintType, Blueprintable, ClassGroup = (TireflyCombatSystem))
 class TIREFLYCOMBATSYSTEM_API UTcsAttributeModifierMerger : public UObject
 {
 	GENERATED_BODY()

@@ -30,7 +30,7 @@ public:
 
 
 // 状态向量类参数值解析器
-UCLASS(DisplayName = "Vector Evaluator：Constant")
+UCLASS(Abstract, DisplayName = "Vector Evaluator：Constant")
 class TIREFLYCOMBATSYSTEM_API UTcsStateVectorParamEvaluator : public UObject
 {
 	GENERATED_BODY()

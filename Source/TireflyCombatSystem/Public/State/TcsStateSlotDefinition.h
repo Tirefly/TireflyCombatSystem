@@ -22,11 +22,21 @@ class TIREFLYCOMBATSYSTEM_API UTcsStateSlotDefinition : public UPrimaryDataAsset
 {
 	GENERATED_BODY()
 
+#pragma region PrimaryAsset
+
 public:
+	// 构造函数
+	UTcsStateSlotDefinition();
+
+	// 覆写 GetPrimaryAssetId
+	virtual FPrimaryAssetId GetPrimaryAssetId() const override;
+
 	/**
 	 * PrimaryAssetType 标识符
 	 */
 	static const FPrimaryAssetType PrimaryAssetType;
+
+#pragma endregion
 
 
 #pragma region Identity
@@ -39,12 +49,6 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity")
 	FName StateSlotDefId;
 
-#pragma endregion
-
-
-#pragma region StateSlot
-
-public:
 	/**
 	 * 槽位标签
 	 */
@@ -65,14 +69,14 @@ public:
 
 public:
 	/**
-	 * 激活模式
+	 * 该槽位的状态激活模式
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "State Slot Gate",
 		meta = (ToolTip = "该槽位的状态激活模式"))
 	ETcsStateSlotActivationMode ActivationMode = ETcsStateSlotActivationMode::SSAM_PriorityOnly;
 
 	/**
-	 * Gate关闭时的处理策略
+	 * Gate关闭时对槽位内状态采取的处理策略
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "State Slot Gate",
 		meta = (ToolTip = "当Gate关闭时对槽位内状态采取的处理策略"))
@@ -85,28 +89,22 @@ public:
 
 public:
 	/**
-	 * 优先级抢占策略
+	 * 高优先级状态进入槽位时，对低优先级状态的处理策略
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Slot Configuration",
 		meta = (ToolTip = "高优先级状态进入槽位时，对低优先级状态的处理策略"))
 	ETcsStatePreemptionPolicy PreemptionPolicy = ETcsStatePreemptionPolicy::SPP_PauseLowerPriority;
 
 	/**
-	 * 同优先级排序策略
+	 * 在 PriorityOnly 模式下，多个状态具有相同优先级时的排序策略
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Slot Configuration",
-		meta = (ToolTip = "在 PriorityOnly 模式下，多个状态具有相同优先级时的排序策略"))
+		meta = (EditCondition = "PreemptionPolicy == ETcsStatePreemptionPolicy::SPP_PriorityOnly", EditConditionHides = true, 
+			ToolTip = "在 PriorityOnly 模式下，多个状态具有相同优先级时的排序策略"))
 	TSubclassOf<class UTcsStateSamePriorityPolicy> SamePriorityPolicy;
 
 #pragma endregion
 
-
-public:
-	// 构造函数
-	UTcsStateSlotDefinition();
-
-	// 覆写 GetPrimaryAssetId
-	virtual FPrimaryAssetId GetPrimaryAssetId() const override;
 
 #if WITH_EDITOR
 	// 编辑器验证：属性值变更时的验证

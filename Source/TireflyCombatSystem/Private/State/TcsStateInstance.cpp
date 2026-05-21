@@ -13,7 +13,6 @@
 #include "StateTree.h"
 #include "StateTreeExecutionContext.h"
 #include "TcsEntityInterface.h"
-#include "TcsGenericMacro.h"
 #include "TcsLogChannels.h"
 #include "GameFramework/Actor.h"
 #include "Engine/World.h"
@@ -116,16 +115,7 @@ void UTcsStateInstance::Initialize(
 	VectorParameters.Reset();
 	VectorParametersTag.Reset();
 
-	// 初始化基础数值参数：持续时间
-	if (InStateDef->DurationType == ETcsStateDurationType::SDT_Duration)
-	{
-		NumericParameters.Add(Tcs_Generic_Name_TotalDuration, InStateDef->Duration);
-	}
-	// 初始化基础数值参数：堆叠层数
-	if (InStateDef->MaxStackCount > 0)
-	{
-		NumericParameters.Add(Tcs_Generic_Name_StackCount, 1);
-	}
+	InitializeRuntimeParameters();
 
 	// 参数由 UTcsStateManagerSubsystem::EvaluateAndApplyStateParameters 在创建实例时统一评估并写入，
 	// 此处不再重复调用 InitParameterValues / InitParameterTagValues。
@@ -176,142 +166,9 @@ bool UTcsStateInstance::SetCurrentStage(ETcsStateStage InStage)
 	return true;
 }
 
-float UTcsStateInstance::GetDurationRemaining() const
+void UTcsStateInstance::InitializeRuntimeParameters()
 {
-	if (!OwnerStateCmp.IsValid())
-	{
-		UE_LOG(LogTcsState, Error, TEXT("[%s] OwnerStateCmp is invalid"), *FString(__FUNCTION__));
-		return -1.f;
-	}
-	
-	// 从StateComponent获取剩余时间
-	return OwnerStateCmp->GetStateRemainingDuration(this);
-}
-
-void UTcsStateInstance::RefreshDurationRemaining()
-{
-	if (!OwnerStateCmp.IsValid())
-	{
-		UE_LOG(LogTcsState, Error, TEXT("[%s] OwnerStateCmp is invalid"), *FString(__FUNCTION__));
-		return;
-	}
-	
-	// 通知StateComponent刷新剩余时间
-	OwnerStateCmp->RefreshStateRemainingDuration(this);
-}
-
-void UTcsStateInstance::SetDurationRemaining(float InDurationRemaining)
-{
-	if (!OwnerStateCmp.IsValid())
-	{
-		UE_LOG(LogTcsState, Error, TEXT("[%s] OwnerStateCmp is invalid"), *FString(__FUNCTION__));
-		return;
-	}
-
-	// 通知StateComponent设置剩余时间
-	OwnerStateCmp->SetStateRemainingDuration(this, InDurationRemaining);
-}
-
-float UTcsStateInstance::GetTotalDuration() const
-{
-	if (!StateDef)
-	{
-		return 0.0f;
-	}
-
-	switch (StateDef->DurationType)
-	{
-	default:
-	case SDT_None:
-		return 0.0f;
-	case SDT_Infinite:
-		return -1.f;
-	case SDT_Duration:
-		break;
-	}
-
-	float TotalDuration = StateDef->Duration;
-	if (const float* DurationParam = NumericParameters.Find(Tcs_Generic_Name_TotalDuration))
-	{
-		TotalDuration = *DurationParam;
-	}
-
-	return TotalDuration;
-}
-
-bool UTcsStateInstance::CanStack() const
-{
-	int32 MaxStackCount = GetMaxStackCount();
-	if (MaxStackCount <= 0)
-	{
-		return false;
-	}
-	
-	return GetStackCount() < MaxStackCount;
-}
-
-int32 UTcsStateInstance::GetStackCount() const
-{
-	if (const float* StackCount = NumericParameters.Find(Tcs_Generic_Name_StackCount))
-	{
-		return *StackCount;
-	}
-
-	return -1;
-}
-
-int32 UTcsStateInstance::GetMaxStackCount() const
-{
-	if (!StateDef)
-	{
-		return 0;
-	}
-	return StateDef->MaxStackCount;
-}
-
-void UTcsStateInstance::SetStackCount(int32 InStackCount)
-{
-	int32 MaxStackCount = GetMaxStackCount();
-	if (MaxStackCount <= 0)
-	{
-		return;
-	}
-
-	int32 OldStackCount = GetStackCount();
-	int32 NewStackCount = FMath::Clamp(InStackCount, 0, MaxStackCount);
-
-	if (OldStackCount == NewStackCount)
-	{
-		return;
-	}
-
-	// 如果StackCount降为0，自动触发移除
-	if (NewStackCount == 0)
-	{
-		if (OwnerStateCmp.IsValid())
-		{
-			OwnerStateCmp->RequestStateRemoval(this, TcsStateRemovalReasons::StackDepleted);
-		}
-	    return;
-	}
-
-	*NumericParameters.Find(Tcs_Generic_Name_StackCount) = NewStackCount;
-
-	// 通知状态组件叠层变化
-	if (OwnerStateCmp.IsValid())
-	{
-		OwnerStateCmp->NotifyStateStackChanged(this, OldStackCount, NewStackCount);
-	}
-}
-
-void UTcsStateInstance::AddStack(int32 Count)
-{
-	SetStackCount(GetStackCount() + Count);
-}
-
-void UTcsStateInstance::RemoveStack(int32 Count)
-{
-	SetStackCount(GetStackCount() - Count);
+	// Base state instances have no specialized runtime parameters.
 }
 
 void UTcsStateInstance::SetLevel(int32 InLevel)

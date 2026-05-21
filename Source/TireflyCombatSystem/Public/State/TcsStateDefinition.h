@@ -13,22 +13,30 @@
 
 
 /**
- * 状态定义资产
+ * 状态定义抽象基类
  *
- * 用途: 定义单个状态的所有配置信息
+ * 用途: 定义所有运行态共享的状态配置信息
  * 继承: UPrimaryDataAsset（支持 Asset Manager）
- * 命名约定: DA_State_<StateName> (例如: DA_State_Stunned)
+ * 命名约定: 由具体派生定义类型决定
  */
-UCLASS(BlueprintType, Const)
+UCLASS(Abstract, BlueprintType, Const)
 class TIREFLYCOMBATSYSTEM_API UTcsStateDefinition : public UPrimaryDataAsset
 {
 	GENERATED_BODY()
+
+#pragma region PrimaryAsset
 
 public:
 	/**
 	 * PrimaryAssetType 标识符
 	 */
 	static const FPrimaryAssetType PrimaryAssetType;
+
+public:
+	// 覆写 GetPrimaryAssetId
+	virtual FPrimaryAssetId GetPrimaryAssetId() const override;
+
+#pragma endregion
 
 
 #pragma region Identity
@@ -44,9 +52,9 @@ public:
 	/**
 	 * 状态的语义标识（新增字段）
 	 * 用于父子 Tag 匹配、分类筛选、跨系统对齐
-	 * 推荐命名约定：TCS.State.<StateDefId>
+	 * 命名约定：StateTag.<StateDefId>
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity", Meta = (Categories = "TCS.State"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity", Meta = (Categories = "StateTag"))
 	FGameplayTag StateTag;
 
 #pragma endregion
@@ -56,21 +64,16 @@ public:
 
 public:
 	/**
-	 * 状态类型
-	 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Meta")
-	TEnumAsByte<ETcsStateType> StateType = ST_State;
-
-	/**
 	 * 状态槽类型
+	 * 命名约定：StateSlotTag.<StateSlotId>
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Meta", Meta = (Categories = "StateSlot"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "State Slot", Meta = (Categories = "StateSlotTag"))
 	FGameplayTag StateSlotType;
 
 	/**
 	 * 状态优先级（值越大，优先级越高，越优先执行，默认优先级为0）
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Meta")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "State Slot")
 	int32 Priority = 0;
 
 #pragma endregion
@@ -82,51 +85,14 @@ public:
 	/**
 	 * 状态类别标签
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Tag")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gameplay Tag")
 	FGameplayTagContainer CategoryTags;
 
 	/**
 	 * 状态功能标签
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Tag")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gameplay Tag")
 	FGameplayTagContainer FunctionTags;
-
-#pragma endregion
-
-
-#pragma region Duration
-
-public:
-	/**
-	 * 持续时间类型
-	 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Duration")
-	TEnumAsByte<ETcsStateDurationType> DurationType = SDT_None;
-
-	/**
-	 * 持续时间
-	 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Duration",
-		Meta = (EditConditionHides, EditCondition = "DurationType == SDT_Duration"))
-	float Duration = 0.f;
-
-#pragma endregion
-
-
-#pragma region Stack
-
-public:
-	/**
-	 * 最大叠层数
-	 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stack")
-	int32 MaxStackCount = 1;
-
-	/**
-	 * 状态合并策略
-	 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stack")
-	TSubclassOf<class UTcsStateMerger> MergerType;
 
 #pragma endregion
 
@@ -179,9 +145,14 @@ public:
 #pragma endregion
 
 
+#pragma region Runtime
+
 public:
-	// 覆写 GetPrimaryAssetId
-	virtual FPrimaryAssetId GetPrimaryAssetId() const override;
+	/** @return 当前定义对应的运行时实例类；默认返回共享的 StateInstance。 */
+	virtual UClass* ResolveStateInstanceClass() const;
+
+#pragma endregion
+
 
 #if WITH_EDITOR
 	// 编辑器验证：属性值变更时的验证

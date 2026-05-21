@@ -14,7 +14,6 @@
 class UTcsAttributeComponent;
 class UTcsSkillComponent;
 class UTcsStateComponent;
-class UTcsStateMerger;
 class UTcsStateCondition;
 class UTcsStateParamExtractor;
 class UTcsStateDefinition;
@@ -25,39 +24,13 @@ class UTcsStateDefinition;
 // 用于在 State 生命周期管线中统一移除原因的 FName 值，替代散落的字符串字面量。
 namespace TcsStateRemovalReasons
 {
+	// 自然过期（由运行时生命周期推进后触发）
+	static const FName Expired(TEXT("Expired"));
 	// 主动移除（由 RemoveState / RemoveStatesByDefId / RemoveAllStatesInSlot / RemoveAllStates 触发）
 	static const FName Removed(TEXT("Removed"));
 	// 被取消（由 CancelState 触发）
 	static const FName Cancelled(TEXT("Cancelled"));
-	// 自然过期（由 Duration 到期的 ExpireState 触发）
-	static const FName Expired(TEXT("Expired"));
-	// 合并时被淘汰（由 RemoveUnmergedStates 触发）
-	static const FName MergedOut(TEXT("MergedOut"));
-	// 叠层耗尽（由 SetStackCount 归零触发）
-	static const FName StackDepleted(TEXT("StackDepleted"));
 }
-
-
-
-// 状态类型
-UENUM(BlueprintType)
-enum ETcsStateType :  uint8
-{
-	ST_State = 0		UMETA(DisplayName = "State", ToolTip = "状态"),
-	ST_Skill			UMETA(DisplayName = "Skill", ToolTip = "技能"),
-	ST_Buff				UMETA(DisplayName = "Buff", ToolTip = "BUFF效果"),
-};
-
-
-
-// 状态持续时间类型
-UENUM(BlueprintType)
-enum ETcsStateDurationType : uint8
-{
-	SDT_None = 0		UMETA(DisplayName = "None", ToolTip = "无持续时间"),
-	SDT_Duration		UMETA(DisplayName = "Duration", ToolTip = "有持续时间"),
-	SDT_Infinite		UMETA(DisplayName = "Infinite", ToolTip = "无限持续时间"),
-};
 
 
 
@@ -107,9 +80,9 @@ enum class ETcsStateParameterKeyType : uint8
 UENUM(BlueprintType)
 enum class ETcsStateTreeTickPolicy : uint8
 {
-	RunOnce = 0		UMETA(DisplayName = "Run Once", ToolTip = "激活时启动并Tick一次(DeltaTime=0)，不加入调度器；若仍在运行则强制Stop并警告"),
-	WhileActive		UMETA(DisplayName = "While Active", ToolTip = "处于Active阶段时加入TickScheduler，按帧推进StateTree"),
-	ManualOnly		UMETA(DisplayName = "Manual Only", ToolTip = "只启动，不自动Tick；由外部事件手动Tick推进"),
+	WhileActive = 0		UMETA(DisplayName = "While Active", ToolTip = "处于Active阶段时加入TickScheduler，按帧推进StateTree"),
+	RunOnce				UMETA(DisplayName = "Run Once", ToolTip = "激活时启动并Tick一次(DeltaTime=0)，不加入调度器；若仍在运行则强制Stop并警告"),
+	ManualOnly			UMETA(DisplayName = "Manual Only", ToolTip = "只启动，不自动Tick；由外部事件手动Tick推进"),
 };
 
 
@@ -136,6 +109,11 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Parameter Type")
 	ETcsStateParameterType ParameterType = ETcsStateParameterType::SPT_Numeric;
 
+	// 快照配置（共享参数求值时机策略）
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Parameter Policy",
+	          meta = (ToolTip = "是否为快照参数：快照参数在技能激活时计算一次；非快照参数会实时同步变化"))
+	bool bIsSnapshot = true;
+
 	// 参数值提取类 (仅Numeric类型使用)
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Numeric Parameter", 
 		meta = (EditCondition = "ParameterType == ETcsStateParameterType::SPT_Numeric", EditConditionHides))
@@ -154,11 +132,6 @@ public:
 	// 参数值容器
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Parameter Value")
 	FInstancedStruct ParamValueContainer;
-
-	// 快照配置 (仅技能使用，其他状态类型忽略此设置)
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Skill Parameter", 
-		meta = (ToolTip = "是否为快照参数：快照参数在技能激活时计算一次；非快照参数会实时同步变化"))
-	bool bIsSnapshot = true;
 };
 
 
@@ -183,22 +156,19 @@ public:
 
 public:
 	// 初始化状态实例
-	void Initialize(
+	virtual void Initialize(
 		const UTcsStateDefinition* InStateDef,
 		FName InStateDefId,
 		AActor* InOwner,
 		AActor* InInstigator,
-		int32 InInstanceId = -1,
-		int32 InLevel = -1);
+		int32 InInstanceId,
+		int32 InLevel = 1);
 
 	// Initialize() succeeds only when Owner/Instigator are valid combat entities and required component refs are resolved.
 	bool IsInitialized() const { return bInitialized; }
-
+	
     // 获取状态的定义Id
     FName GetStateDefId() const { return StateDefId; }
-
-    // 设置状态的定义Id（由管理器填充）
-    void SetStateDefId(FName InStateDefId) { StateDefId = InStateDefId; }
 
 	// 获取状态定义 DataAsset 硬引用
 	const UTcsStateDefinition* GetStateDef() const { return StateDef; }
@@ -213,6 +183,9 @@ public:
 	void SetSourceHandle(const FTcsSourceHandle& InSourceHandle) { SourceHandle = InSourceHandle; }
 
 protected:
+	// 初始化派生运行态的专属参数缓存。
+	virtual void InitializeRuntimeParameters();
+
 	// 状态定义 DataAsset 硬引用
 	UPROPERTY(BlueprintReadOnly, Category = "Meta")
 	const UTcsStateDefinition* StateDef = nullptr;
@@ -368,7 +341,7 @@ protected:
 #pragma endregion
 
 
-#pragma region Parameters
+#pragma region Parameter_Init
 
 protected:
 	void InitParameterValues();
@@ -479,58 +452,6 @@ protected:
 	// 向量类型参数（Tag）
 	UPROPERTY(BlueprintReadOnly, Category = "State|Parameters")
 	TMap<FGameplayTag, FVector> VectorParametersTag;
-
-#pragma endregion
-
-
-#pragma region Duration
-
-public:
-	// 获取状态剩余时间
-	UFUNCTION(BlueprintCallable, Category = "State|Duration")
-	float GetDurationRemaining() const;
-
-	// 刷新状态剩余时间
-	UFUNCTION(BlueprintCallable, Category = "State|Duration")
-	void RefreshDurationRemaining();
-
-	// 设置状态剩余时间
-	UFUNCTION(BlueprintCallable, Category = "State|Duration")
-	void SetDurationRemaining(float InDurationRemaining);
-
-	// 获取状态总持续时间
-	UFUNCTION(BlueprintCallable, Category = "State|Duration")
-	float GetTotalDuration() const;
-
-#pragma endregion
-
-
-#pragma region Stack
-
-public:
-	// 检查状态是否可以叠加
-	UFUNCTION(BlueprintCallable, Category = "State|Stack")
-	bool CanStack() const;
-
-	// 获取状态叠层数
-	UFUNCTION(BlueprintCallable, Category = "State|Stack")
-	int32 GetStackCount() const;
-
-	// 获取状态最大叠层数
-	UFUNCTION(BlueprintCallable, Category = "State|Stack")
-	int32 GetMaxStackCount() const;
-
-	// 设置状态叠层数
-	UFUNCTION(BlueprintCallable, Category = "State|Stack")
-	void SetStackCount(int32 InStackCount);
-
-	// 增加状态叠层数
-	UFUNCTION(BlueprintCallable, Category = "State|Stack")
-	void AddStack(int32 Count = 1);
-
-	// 减少状态叠层数
-	UFUNCTION(BlueprintCallable, Category = "State|Stack")
-	void RemoveStack(int32 Count = 1);
 
 #pragma endregion
 

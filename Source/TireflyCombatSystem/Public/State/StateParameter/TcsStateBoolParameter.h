@@ -30,7 +30,7 @@ public:
 
 
 // 状态布尔类参数值解析器
-UCLASS(DisplayName = "Bool Evaluator：Constant")
+UCLASS(Abstract, DisplayName = "Bool Evaluator：Constant")
 class TIREFLYCOMBATSYSTEM_API UTcsStateBoolParamEvaluator : public UObject
 {
 	GENERATED_BODY()

@@ -28,7 +28,7 @@ public:
 
 
 // 状态数值类参数值解析器
-UCLASS(BlueprintType, Blueprintable,
+UCLASS(Abstract, BlueprintType, Blueprintable, 
 	ClassGroup = (TireflyCombatSystem),
 	DisplayName="Numeric Evaluator: Constant")
 class TIREFLYCOMBATSYSTEM_API UTcsStateNumericParamEvaluator : public UObject

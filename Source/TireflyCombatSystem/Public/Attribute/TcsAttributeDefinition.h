@@ -6,8 +6,67 @@
 #include "Engine/DataAsset.h"
 #include "GameplayTagContainer.h"
 #include "StructUtils/InstancedStruct.h"
-#include "TcsAttributeInstance.h"
 #include "TcsAttributeDefinition.generated.h"
+
+
+// 属性范围类型
+UENUM(BlueprintType)
+enum class ETcsAttributeRangeType : uint8
+{
+	ART_None  = 0		UMETA(DisplayName = "无", ToolTip = "属性值范围的一侧（最小值或最大值）没有限制"),
+	ART_Static = 1		UMETA(DisplayName = "静态", ToolTip = "属性值范围的一侧（最小值或最大值）是一个恒定的数值"),
+	ART_Dynamic = 2		UMETA(DisplayName = "动态", ToolTip = "属性值范围的一侧（最小值或最大值）是动态的，受另一个属性值的影响"),
+};
+
+
+
+// 属性范围
+USTRUCT(BlueprintType)
+struct TIREFLYCOMBATSYSTEM_API FTcsAttributeRange
+{
+	GENERATED_BODY()
+
+#pragma region MinValue
+	
+public:
+	// 最小值类型
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Min Value")
+	ETcsAttributeRangeType MinValueType = ETcsAttributeRangeType::ART_None;
+
+	// 最小值（静态：常数）
+	UPROPERTY(Meta = (EditCondition = "MinValueType == ETcsAttributeRangeType::ART_Static",  EditConditionHides),
+		EditAnywhere, BlueprintReadOnly, Category = "Min Value")
+	float MinValue = 0.f;
+
+	// 最小值（动态：属性）
+	UPROPERTY(Meta = (EditCondition = "MinValueType == ETcsAttributeRangeType::ART_Dynamic",  EditConditionHides,
+		GetOptions = "GetOtherAttributeDefIds"),
+		EditAnywhere, BlueprintReadOnly, Category = "Min Value")
+	FName MinValueAttribute = NAME_None;
+
+#pragma endregion
+
+
+#pragma region MaxValue
+	
+public:
+	// 最大值类型
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Max Value")
+	ETcsAttributeRangeType MaxValueType = ETcsAttributeRangeType::ART_None;
+
+	// 最大值（静态：常数）
+	UPROPERTY(Meta = (EditCondition = "MaxValueType == ETcsAttributeRangeType::ART_Static",  EditConditionHides),
+		EditAnywhere, BlueprintReadOnly, Category = "Max Value")
+	float MaxValue = 0.f;
+
+	// 最大值（动态：属性）
+	UPROPERTY(Meta = (EditCondition = "MaxValueType == ETcsAttributeRangeType::ART_Dynamic",  EditConditionHides,
+		GetOptions = "GetOtherAttributeDefIds"),
+		EditAnywhere, BlueprintReadOnly, Category = "Max Value")
+	FName MaxValueAttribute = NAME_None;
+
+#pragma endregion
+};
 
 
 
@@ -154,6 +213,14 @@ public:
 public:
 	// 构造函数：设置默认 Clamp 策略
 	UTcsAttributeDefinition();
+
+	/**
+	 * 获取可供动态范围引用的其他属性 ID 列表。
+	 *
+	 * 用途：为编辑器 `GetOptions` 提供上下文化选项源，自动排除当前资产自己的 `AttributeDefId`。
+	 */
+	UFUNCTION(BlueprintCallable, CallInEditor, Category = "TireflyCombatSystem|Attribute|Editor")
+	TArray<FName> GetOtherAttributeDefIds() const;
 
 	// 覆写 GetPrimaryAssetId
 	virtual FPrimaryAssetId GetPrimaryAssetId() const override;

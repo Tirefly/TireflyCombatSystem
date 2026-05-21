@@ -10,38 +10,23 @@
 // 定义 PrimaryAssetType 静态变量
 const FPrimaryAssetType UTcsStateDefinition::PrimaryAssetType = FPrimaryAssetType("TcsStateDef");
 
+
 FPrimaryAssetId UTcsStateDefinition::GetPrimaryAssetId() const
 {
 	// 使用 StateDefId 作为 PrimaryAssetName
 	return FPrimaryAssetId(PrimaryAssetType, StateDefId);
 }
 
+UClass* UTcsStateDefinition::ResolveStateInstanceClass() const
+{
+	return UTcsStateInstance::StaticClass();
+}
+
+
 #if WITH_EDITOR
 void UTcsStateDefinition::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
-
-	const FName PropertyName = PropertyChangedEvent.GetPropertyName();
-
-	// 验证 Duration
-	if (PropertyName == GET_MEMBER_NAME_CHECKED(UTcsStateDefinition, Duration))
-	{
-		// 确保 Duration >= 0
-		if (Duration < 0.f)
-		{
-			Duration = 0.f;
-		}
-	}
-
-	// 验证 MaxStackCount
-	if (PropertyName == GET_MEMBER_NAME_CHECKED(UTcsStateDefinition, MaxStackCount))
-	{
-		// 确保 MaxStackCount >= 1
-		if (MaxStackCount < 1)
-		{
-			MaxStackCount = 1;
-		}
-	}
 }
 
 EDataValidationResult UTcsStateDefinition::IsDataValid(FDataValidationContext& Context) const
@@ -70,37 +55,6 @@ EDataValidationResult UTcsStateDefinition::IsDataValid(FDataValidationContext& C
 	{
 		Context.AddError(FText::FromString(TEXT("StateSlotType cannot be empty")));
 		Result = EDataValidationResult::Invalid;
-	}
-
-	// 验证 Duration（如果 DurationType 为 Duration）
-	if (DurationType == ETcsStateDurationType::SDT_Duration)
-	{
-		if (Duration <= 0.f)
-		{
-			Context.AddError(FText::FromString(FString::Printf(
-				TEXT("DurationType is Duration, but Duration (%.2f) <= 0"),
-				Duration)));
-			Result = EDataValidationResult::Invalid;
-		}
-	}
-
-	// 验证 MaxStackCount
-	if (MaxStackCount < 1)
-	{
-		Context.AddError(FText::FromString(FString::Printf(
-			TEXT("MaxStackCount (%d) must be >= 1"),
-			MaxStackCount)));
-		Result = EDataValidationResult::Invalid;
-	}
-
-	// 验证 MergerType（如果 MaxStackCount > 1）
-	if (MaxStackCount > 1 && !MergerType)
-	{
-		Context.AddWarning(FText::FromString(TEXT("MaxStackCount > 1, but MergerType is empty, state merging may not work properly")));
-		if (Result == EDataValidationResult::Valid)
-		{
-			Result = EDataValidationResult::NotValidated;
-		}
 	}
 
 	return Result;

@@ -21,7 +21,7 @@ class UTcsStateInstance;
  * - Buff 槽位：通常使用 UseNewest 策略，新的 Buff 覆盖旧的
  * - 技能队列槽位：通常使用 UseOldest 策略，先释放的技能先执行
  */
-UCLASS(BlueprintType, Blueprintable, Abstract, ClassGroup = (TireflyCombatSystem))
+UCLASS(Abstract, BlueprintType, Blueprintable, ClassGroup = (TireflyCombatSystem))
 class TIREFLYCOMBATSYSTEM_API UTcsStateSamePriorityPolicy : public UObject
 {
 	GENERATED_BODY()

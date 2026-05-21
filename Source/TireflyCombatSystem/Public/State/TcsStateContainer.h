@@ -65,25 +65,6 @@ public:
 };
 
 
-// 状态持续时间追踪器：只负责 SDT_Duration 的剩余时间存储与更新
-USTRUCT()
-struct FTcsStateDurationTracker
-{
-	GENERATED_BODY()
-
-public:
-	UPROPERTY()
-	TMap<TObjectPtr<UTcsStateInstance>, float> RemainingByInstance;
-
-public:
-	void Add(UTcsStateInstance* StateInstance, float InitialRemaining);
-	void Remove(UTcsStateInstance* StateInstance);
-	bool GetRemaining(const UTcsStateInstance* StateInstance, float& OutRemaining) const;
-	bool SetRemaining(UTcsStateInstance* StateInstance, float NewRemaining);
-	void RefreshInstances();
-};
-
-
 // StateTree Tick 调度器：只保存正在 Running 的实例
 USTRUCT()
 struct FTcsStateTreeTickScheduler

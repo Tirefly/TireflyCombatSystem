@@ -2,10 +2,34 @@
 
 #include "Attribute/TcsAttributeDefinition.h"
 #include "Attribute/AttrClampStrategy/TcsAttrClampStrategy_Linear.h"
+#include "TcsGenericLibrary.h"
 
 #if WITH_EDITOR
 #include "Misc/DataValidation.h"
 #endif
+
+namespace
+{
+void SanitizeSelfReferencedRange(FTcsAttributeRange& AttributeRange, const FName SelfAttributeDefId)
+{
+	if (SelfAttributeDefId.IsNone())
+	{
+		return;
+	}
+
+	if (AttributeRange.MinValueType == ETcsAttributeRangeType::ART_Dynamic &&
+		AttributeRange.MinValueAttribute == SelfAttributeDefId)
+	{
+		AttributeRange.MinValueAttribute = NAME_None;
+	}
+
+	if (AttributeRange.MaxValueType == ETcsAttributeRangeType::ART_Dynamic &&
+		AttributeRange.MaxValueAttribute == SelfAttributeDefId)
+	{
+		AttributeRange.MaxValueAttribute = NAME_None;
+	}
+}
+}
 
 
 // 定义 PrimaryAssetType 静态变量
@@ -16,6 +40,19 @@ UTcsAttributeDefinition::UTcsAttributeDefinition()
 	// 设置默认 Clamp 策略
 	ClampStrategyClass = UTcsAttrClampStrategy_Linear::StaticClass();
 }
+
+TArray<FName> UTcsAttributeDefinition::GetOtherAttributeDefIds() const
+{
+	TArray<FName> AttributeDefIds = UTcsGenericLibrary::GetAttributeNames();
+
+	if (!AttributeDefId.IsNone())
+	{
+		AttributeDefIds.Remove(AttributeDefId);
+	}
+
+	return AttributeDefIds;
+}
+
 FPrimaryAssetId UTcsAttributeDefinition::GetPrimaryAssetId() const
 {
 	// 使用 AttributeDefId 作为 PrimaryAssetName
@@ -28,6 +65,12 @@ void UTcsAttributeDefinition::PostEditChangeProperty(FPropertyChangedEvent& Prop
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
 	const FName PropertyName = PropertyChangedEvent.GetPropertyName();
+
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(UTcsAttributeDefinition, AttributeDefId) ||
+		PropertyName == GET_MEMBER_NAME_CHECKED(UTcsAttributeDefinition, AttributeRange))
+	{
+		SanitizeSelfReferencedRange(AttributeRange, AttributeDefId);
+	}
 
 	// 验证 AttributeRange（静态类型时，确保 MinValue <= MaxValue）
 	if (PropertyName == GET_MEMBER_NAME_CHECKED(UTcsAttributeDefinition, AttributeRange))
@@ -77,6 +120,22 @@ EDataValidationResult UTcsAttributeDefinition::IsDataValid(FDataValidationContex
 				AttributeRange.MinValue, AttributeRange.MaxValue)));
 			Result = EDataValidationResult::Invalid;
 		}
+	}
+
+	if (AttributeRange.MinValueType == ETcsAttributeRangeType::ART_Dynamic &&
+		!AttributeRange.MinValueAttribute.IsNone() &&
+		AttributeRange.MinValueAttribute == AttributeDefId)
+	{
+		Context.AddError(FText::FromString(TEXT("AttributeRange.MinValueAttribute cannot reference AttributeDefId itself")));
+		Result = EDataValidationResult::Invalid;
+	}
+
+	if (AttributeRange.MaxValueType == ETcsAttributeRangeType::ART_Dynamic &&
+		!AttributeRange.MaxValueAttribute.IsNone() &&
+		AttributeRange.MaxValueAttribute == AttributeDefId)
+	{
+		Context.AddError(FText::FromString(TEXT("AttributeRange.MaxValueAttribute cannot reference AttributeDefId itself")));
+		Result = EDataValidationResult::Invalid;
 	}
 
 	// 验证 ClampStrategyClass

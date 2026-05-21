@@ -43,7 +43,7 @@ public:
 
 
 // 状态条件
-UCLASS(BlueprintType, Blueprintable, Abstract, ClassGroup = (TireflyCombatSystem))
+UCLASS(Abstract, BlueprintType, Blueprintable, ClassGroup = (TireflyCombatSystem))
 class TIREFLYCOMBATSYSTEM_API UTcsStateCondition : public UObject
 {
 	GENERATED_BODY()

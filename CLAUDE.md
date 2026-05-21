@@ -1,7 +1,7 @@
 <!-- OPENSPEC:START -->
 # OpenSpec Instructions
 
-These instructions are for AI assistants working in this project.
+These instructions are for AI assistants working in the TireflyCombatSystem plugin.
 
 Always open `@/openspec/AGENTS.md` when the request:
 - Mentions planning or proposals (words like proposal, spec, change, plan)
@@ -9,9 +9,9 @@ Always open `@/openspec/AGENTS.md` when the request:
 - Sounds ambiguous and you need the authoritative spec before coding
 
 Use `@/openspec/AGENTS.md` to learn:
-- How to create and apply change proposals
-- Spec format and conventions
-- Project structure and guidelines
+- How to create and implement change proposals in this plugin-local OpenSpec workspace
+- Spec format and conventions for TireflyCombatSystem
+- Project structure and engineering guidelines for this plugin
 
 Keep this managed block so 'openspec update' can refresh the instructions.
 
@@ -23,7 +23,7 @@ Keep this managed block so 'openspec update' can refresh the instructions.
 
 **在编写任何代码前，必须阅读并遵循以下规范：**
 
-1. **项目规范**: `@/openspec/project.md` - 包含完整的代码风格规范
+1. **项目规范**: `@/openspec/project.md` - 当前插件本地 OpenSpec Project Context，包含完整的代码风格规范
 2. **检查清单**: `@/CODE_REVIEW_CHECKLIST.md` - 提交前必须检查的项目
 
 ### 关键规范提醒
@@ -40,6 +40,8 @@ Keep this managed block so 'openspec update' can refresh the instructions.
 ## 🚀 OpenSpec 快速参考指南
 
 > **重要提示**: 本指南用于优化 OpenSpec 工作流程，避免不必要的 token 消耗。
+
+当前插件的 OpenSpec 根目录就是 `@/openspec/`，下文所有 `openspec ...` 命令都应在 `Plugins/TireflyCombatSystem` 目录下执行。
 
 ### 核心原则
 
@@ -444,7 +446,6 @@ TireflyCombatSystem/
 │   │   ├── TcsSourceHandle.h             # SourceHandle 结构体
 │   │   ├── TcsGenericEnum.h              # 枚举定义
 │   │   ├── TcsGenericLibrary.h           # 通用库
-│   │   ├── TcsGenericMacro.h             # 宏定义
 │   │   ├── TcsGameplayTags.h             # GameplayTag 定义
 │   │   ├── TcsDeveloperSettings.h        # 开发者设置
 │   │   └── TcsLogChannels.h              # 日志通道
