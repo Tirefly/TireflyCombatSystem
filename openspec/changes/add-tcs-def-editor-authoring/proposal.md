@@ -22,22 +22,33 @@ TCS 已经定义了专用的 DefinitionAsset 类，但当前在编辑器中创�
   - `UTcsStateSlotDefinition`
   - `UTcsBuffDefinition`
 - 为 TCS 开发者应直接创建的 runtime 资产新增 `Tirefly Combat System -> Gameplay Runtime` 子菜单：
-  - `UStateTree` preset for `UTcsStateComponent` usage through `UStateTreeComponentSchema`
-  - `UStateTree` preset for `UTcsStateInstance` usage through `UTcsStateTreeSchema_StateInstance`
-  - Blueprint subclasses of `UTcsSkillInstance`
+  - `UStateTree` preset for `UTcsStateComponent` usage through `UTcsStateSchema_StateComponent`
+  - `UStateTree` preset for `UTcsBuffInstance` usage through `UTcsStateSchema_Buff`
+  - Blueprint subclasses of `UTcsSkillEntry`
 - 协调当前 `UTcsStateDefinition` 编辑器入口与其抽象运行时状态之间的关系：
   - 如果 `UTcsStateDefinition` 仍保持抽象，就不要把它暴露成一个损坏的直接创建目标
   - 取而代之，应暴露那些真正可 authoring 的具体 state 侧 DefinitionAsset 类型
   - 如果未来 `UTcsStateDefinition` 再次变成可直接 authoring 的类型，那么对应入口必须指向一个可实例化类
-- 为每个受支持的 DefinitionAsset 补上专用 `UFactory` 与 `UAssetDefinitionDefault`，使其在 UE 5.6 中具备明确的显示名、分类、颜色和创建行为。
+- 为每个受支持的 DefinitionAsset 补上专用 `UFactory` 与 `UAssetDefinitionDefault`，使其在 UE 5.7 中具备明确的显示名、分类、颜色和创建行为。
 - 对 Gameplay Runtime authoring 入口使用预设工厂配置，避免开发者在受支持的 TCS runtime 目标上再次经历 schema picker 或 parent-class picker。
 - 保持所有 TCS Def 资产继续是 `UPrimaryDataAsset` 的子类。本次变更只处理编辑器 authoring 入口，不改变运行时资产基类。
 - 保持 Def subclassing 在技术上兼容，但不把它视为主要扩展模型。官方扩展方向仍然是 composition-first，并可在未来演进到 Def fragments。
+- 新增编辑器阶段的 `AssetManagerSettings` 勘误校验：在编辑器内检查 TCS DefinitionAsset 是否被 `PrimaryAssetTypesToScan` 正确覆盖，并在漏配时提供可读错误提示。
+- 勘误校验只用于编辑器阶段的配置完整性检查，不修改运行时加载时机与加载策略。
+- 在 `UTcsDeveloperSettings` 中新增 TCS DefinitionAsset 勘误忽略列表；忽略列表中的 DefAsset 类型不参与漏配报错。
+- 勘误检查对“类型漏配”和“扫描路径漏配”都必须单独报错，不允许仅检查类型是否存在。
+- 只要存在未忽略且未修复的漏配项，开发者每次在编辑器执行 Save 操作都应收到一次勘误提示，直到配置被修复或被加入忽略列表。
+
+## 后续参考口径
+
+- 若后续需要评估勘误提示是否已经过度打扰开发流程，可先观察 5 个工作日窗口内的 Save 提示频率、同一漏配项的重复触发密度、提示后的修复转化率、忽略列表膨胀率与开发者主观干扰反馈。
+- 这组观察口径仅作为后续调整策略的参考，不属于本次实现范围。
 
 ## 延后跟进与归档门槛
 
-- 当前 `State Component StateTree` 入口有意指向 `UStateTreeComponentSchema`，因为 TCS 目前还没有专用的 `UTcsStateTreeSchema_StateComponent`。
-- 如果未来引入了专用的 `UTcsStateTreeSchema_StateComponent`，应在这条 change 中直接把现有 `Gameplay Runtime` 入口改指向它，而不是再额外提出一个单独只做菜单布线的 proposal。
+- 当前 `State Component StateTree` 入口已经切换到 `UTcsStateSchema_StateComponent`；后续如需扩展组件树 authoring 能力，应继续沿用同一条 `Gameplay Runtime` 菜单路径，而不是拆出另一条无关入口。
+- 当前 gameplay runtime 的运行时树入口已经不再暴露 generic `StateInstance StateTree`，而是收敛为 concrete runtime owner 入口（当前为 `Buff StateTree`）；后续新增其他 concrete runtime 入口时，也应继续沿用同一 capability。
+- 当前 learned-skill data Blueprint 入口已经切换到 `UTcsSkillEntry`，避免 editor authoring 面继续固化旧名。
 - 在 Skill 侧编辑器 authoring 面成熟到足以并入同一 capability 之前，这条 change 不应归档；至少要等到 `SkillDef` 能作为稳定的资产化 authoring 入口暴露出来。
 
 ## 影响范围
@@ -49,6 +60,9 @@ TCS 已经定义了专用的 DefinitionAsset 类，但当前在编辑器中创�
   - new `Plugins/TireflyCombatSystem/Source/TireflyCombatSystemEditor/` module
   - editor-only factories and asset definitions for all supported TCS DefinitionAsset types
   - editor-only runtime asset factories for TCS-owned gameplay authoring entries
+  - editor-only validation path for `AssetManagerSettings` coverage of TCS DefinitionAsset types/directories
+  - `UTcsDeveloperSettings` 中新增用于勘误过滤的忽略列表配置项
 - 受影响文档：
   - TCS authoring/setup 文档应把用户引导到插件自有的资产创建路径，而不是通用 `Data Asset` 流程
   - TCS authoring/setup 文档应说明 `Definition Asset` 与 `Gameplay Runtime` 子菜单的划分
+  - TCS authoring/setup 文档应新增“AssetManagerSettings 漏配勘误提示”的解释与处理步骤

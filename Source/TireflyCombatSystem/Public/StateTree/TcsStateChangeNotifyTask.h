@@ -7,6 +7,7 @@
 #include "TcsStateChangeNotifyTask.generated.h"
 
 class UTcsStateComponent;
+class UTcsStateInstance;
 struct FStateTreeLinker;
 
 /**
@@ -17,7 +18,7 @@ struct FTcsStateChangeNotifyTaskInstanceData
 {
 	GENERATED_BODY()
 
-	/** Optional reference to TcsStateComponent (will auto-resolve from Owner) */
+	/** Optional reference to TcsStateComponent (will auto-resolve from StateInstance) */
 	UPROPERTY(EditAnywhere, Category = "Parameter", meta = (Optional))
 	TObjectPtr<UTcsStateComponent> StateComponent = nullptr;
 };
@@ -68,5 +69,5 @@ struct TIREFLYCOMBATSYSTEM_API FTcsStateChangeNotifyTask : public FStateTreeTask
 #endif
 
 protected:
-	TStateTreeExternalDataHandle<UTcsStateComponent> StateComponentHandle;
+	TStateTreeExternalDataHandle<UTcsStateInstance> StateInstanceHandle;
 };

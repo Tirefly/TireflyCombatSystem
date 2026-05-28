@@ -12,6 +12,7 @@
 
 
 class UTcsAttributeComponent;
+class UTcsBuffComponent;
 class UTcsSkillComponent;
 class UTcsStateComponent;
 class UTcsStateCondition;
@@ -137,7 +138,7 @@ public:
 
 
 // 状态实例
-UCLASS(BlueprintType, Blueprintable)
+UCLASS(Abstract, BlueprintType, Blueprintable)
 class TIREFLYCOMBATSYSTEM_API UTcsStateInstance : public UObject
 {
 	GENERATED_BODY()
@@ -277,6 +278,9 @@ public:
 	UTcsStateComponent* GetOwnerStateComponent() const { return OwnerStateCmp.Get(); }
 
 	UFUNCTION(BlueprintCallable, Category = "State|Runtime")
+	UTcsBuffComponent* GetOwnerBuffComponent() const { return OwnerBuffCmp.Get(); }
+
+	UFUNCTION(BlueprintCallable, Category = "State|Runtime")
 	UTcsAttributeComponent* GetOwnerAttributeComponent() const { return OwnerAttributeCmp.Get(); }
 
 	UFUNCTION(BlueprintCallable, Category = "State|Runtime")
@@ -290,6 +294,9 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "State|Runtime")
 	UTcsStateComponent* GetInstigatorStateComponent() const { return InstigatorStateCmp.Get(); }
+
+	UFUNCTION(BlueprintCallable, Category = "State|Runtime")
+	UTcsBuffComponent* GetInstigatorBuffComponent() const { return InstigatorBuffCmp.Get(); }
 
 	UFUNCTION(BlueprintCallable, Category = "State|Runtime")
 	UTcsAttributeComponent* GetInstigatorAttributeComponent() const { return InstigatorAttributeCmp.Get(); }
@@ -310,6 +317,10 @@ protected:
 	UPROPERTY(BlueprintReadOnly, Category = "State|Runtime")
 	TWeakObjectPtr<UTcsStateComponent> OwnerStateCmp;
 
+	// 状态实例拥有者的 Buff 组件
+	UPROPERTY(BlueprintReadOnly, Category = "State|Runtime")
+	TWeakObjectPtr<UTcsBuffComponent> OwnerBuffCmp;
+
 	// 状态实例拥有者的属性组件
 	UPROPERTY(BlueprintReadOnly, Category = "State|Runtime")
 	TWeakObjectPtr<UTcsAttributeComponent> OwnerAttributeCmp;
@@ -329,6 +340,10 @@ protected:
 	// 状态实例发起者的状态组件
 	UPROPERTY(BlueprintReadOnly, Category = "State|Runtime")
 	TWeakObjectPtr<UTcsStateComponent> InstigatorStateCmp;
+
+	// 状态实例发起者的 Buff 组件
+	UPROPERTY(BlueprintReadOnly, Category = "State|Runtime")
+	TWeakObjectPtr<UTcsBuffComponent> InstigatorBuffCmp;
 
 	// 状态实例发起者的属性组件
 	UPROPERTY(BlueprintReadOnly, Category = "State|Runtime")

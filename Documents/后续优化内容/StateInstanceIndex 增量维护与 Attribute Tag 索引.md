@@ -1,230 +1,186 @@
-# StateInstanceIndex 增量维护 & Attribute 侧 Tag 索引
+# StateInstanceIndex 增量维护与 Attribute Tag 索引
 
-> 文档定位：后续独立议题的前置调研记录。不在「Manager API 迁移到 Component」议题范围内。
+> 文档定位：TCS 当前版本下的剩余优化评估。
 >
-> 触发时机：迁移议题完成 + 性能基线采集之后，视性能数据决定是否推进。
+> 当前结论：
+>
+> - `StateInstanceIndex` 批量清理仍有少量价值，但不再是旧文所说的“低风险顺手清理”，因为当前移除回调会观测索引状态。
+> - `Attribute` 侧持久化 `Tag` 索引在当前架构下不建议推进；现有 `ManagerSubsystem` 映射已经覆盖了最核心的 Tag 入口需求。
 
 ---
 
-## 优化 2：`StateInstanceIndex` 的批量清空
+## 1. 当前实现基线
 
-### 1. 当前形态
+### 1.1 `StateInstanceIndex` 现状
 
-`FTcsStateInstanceIndex` 的维护粒度是**逐条**：
+`FTcsStateInstanceIndex` 当前维护的并不是旧文里那三项，而是四组数据：
 
-- `AddInstance(UTcsStateInstance*)` — 写入 `Instances` / `BySlot` / `ByName` 等多个子索引
-- `RemoveInstance(UTcsStateInstance*)` — 从上述子索引里逐个移除
+- `Instances`
+- `InstancesById`
+- `InstancesByName`
+- `InstancesBySlot`
 
-调用路径：
+写路径仍然是逐条维护：
 
-- `TryApplyStateInstance` → `AddInstance`（单次）
-- `FinalizeStateRemoval` → `RemoveInstance`（单次）
-- `RemoveAllStates()` → 对每个 `UTcsStateInstance` 调用一次 `FinalizeStateRemoval` → 内部一次 `RemoveInstance`
+- `AddInstance()`
+- `RemoveInstance()`
+- `RefreshInstances()`
 
-### 2. 问题
+`UTcsStateComponent::RemoveAllStates()` 当前流程也比旧文假设更完整：
 
-`RemoveAllStates()` 是对象池回收、场景切换、角色重置等场景的常见路径，调用时通常持有 `N` 个 State（N 可能是 10~50）：
+1. 先收集所有有效 `State`
+2. 开启 `BeginStateSlotActivationBatch()`
+3. 逐个调用 `RequestStateRemoval()`
+4. 在 `FinalizeStateRemoval()` 中依次执行：
+   - StopStateTree / 标记 `Expired`
+   - `StateTreeTickScheduler.Remove()`
+   - `StateInstanceIndex.RemoveInstance()`
+   - `RemoveModifiersBySourceHandle()`
+   - `NotifyStateStageChanged()` / `NotifyStateRemoved()`
+   - 从 Slot 中移除，并请求槽位刷新
+5. 最后 `EndStateSlotActivationBatch()`
 
-- 每次 `RemoveInstance` 都要：
-  - 从 `Instances` 数组里线性查找 + 删除（`O(N)` 每次，累计 `O(N²)`）
-  - 从 `BySlot` 的 `TArray` 里 `Remove`（每个 Slot 内线性查找）
-  - 从 `ByName` 的 `TMap<FName, TArray<...>>` 里 `Remove`
-- 所有子索引最终都要清空，**中间过程的“部分一致性”没有意义**
+也就是说，当前 `RemoveAllStates()` 并不只是“把容器清空”，它还承担着**事件语义与查询语义**。
 
-典型开销：`N=30` 时，`RemoveAllStates` 在索引侧做了 `~900` 次 `TArray::Remove` 比较，其中 `~870` 次是纯粹的浪费。
+### 1.2 `Attribute Tag` 现状
 
-### 3. 方案：提供 `ClearAll()`
+当前 `Attribute` 数据模型已经和旧文写作时不同：
 
-```cpp
-struct FTcsStateInstanceIndex
-{
-    TArray<TObjectPtr<UTcsStateInstance>>                    Instances;
-    TMap<FGameplayTag, TArray<TObjectPtr<UTcsStateInstance>>> BySlot;
-    TMap<FName, TArray<TObjectPtr<UTcsStateInstance>>>        ByName;
+- `UTcsAttributeDefinition` 只有一个可选的 `AttributeTag`
+- `UTcsAttributeManagerSubsystem` 已维护 `AttributeTagToName` / `AttributeNameToTag`
+- `UTcsAttributeComponent` 已提供 `AddAttributeByTag()`
+- 精确 Tag 入口本质上已经可以走 `Tag -> Name -> Attributes.Find(Name)` 这条链路
 
-    void AddInstance(UTcsStateInstance* Inst);
-    void RemoveInstance(UTcsStateInstance* Inst);
-
-    /** O(1) 均摊：直接 Reset 全部子索引 */
-    void ClearAll()
-    {
-        Instances.Reset();
-        BySlot.Reset();
-        ByName.Reset();
-    }
-};
-```
-
-### 4. 调用点改造
-
-```cpp
-int32 UTcsStateComponent::RemoveAllStates()
-{
-    const int32 RemovedCount = StateInstanceIndex.Instances.Num();
-
-    // 先逐个走完 FinalizeStateRemoval（需要广播事件、清 Modifier、StopStateTree）
-    // 但 FinalizeStateRemoval 里对 StateInstanceIndex.RemoveInstance 的调用改为 no-op
-    // 或者引入 bSuppressIndexUpdate 参数，跳过单条维护
-    for (UTcsStateInstance* Inst : CollectAllInstances())
-    {
-        FinalizeStateRemoval(Inst, TcsStateRemovalReasons::Removed, /*bSuppressIndexUpdate*/true);
-    }
-
-    // 最后一次性清空
-    StateInstanceIndex.ClearAll();
-
-    return RemovedCount;
-}
-```
-
-### 5. 关键设计点
-
-| 点 | 说明 |
-|----|------|
-| **不影响单条路径** | `AddInstance` / `RemoveInstance` 不变，常规 `TryApplyState` / `RequestStateRemoval` 路径零改动 |
-| **可选抑制参数** | `FinalizeStateRemoval(..., bool bSuppressIndexUpdate = false)`，仅批量路径传 true；单条路径保持当前行为 |
-| **替代方案：仅重置 BySlot/ByName** | 若 `Instances` 数组本身需要精确维护（例如 Iterator 仍在遍历），可以只 `ClearAll` 子索引，保留 `Instances` 的逐条 Remove；但 `RemoveAllStates` 结束时 `Instances` 必然是空的，没必要保留 |
-| **Debug 一致性** | `GetStateDebugSnapshot` 在 `RemoveAllStates` 运行中不能被调用，否则会看到“索引已清空但 StateSlots 还有残余” |
-
-### 6. 收益评估
-
-- **高频场景**：对象池回收（`TireflyActorPool` 的 `OnReturnedToPool`）、场景切换、角色死亡重置
-- **单次收益有限**（索引维护本来就不是性能热点），但
-- **心智收益显著**：`RemoveAllStates` 的意图从“逐条清”变成“整体清”，代码意图与实现贴合
-- **风险**：低。`ClearAll` 语义简单，只要保证不在迭代 `Instances` 途中调用即可
-
-### 7. 是否值得独立立项
-
-**建议不单独立项，作为“后续小幅清理”一次性带入**。
-
-原因：
-- 改造面仅限 `FTcsStateInstanceIndex` + `RemoveAllStates` + `RemoveAllStatesInSlot`（可选）
-- 无新设计决策、无监听者影响
-- 可以和「事件广播批量化」议题（`FScopedBatchNotification`）合并到同一个 PR：两者都是“`RemoveAllStates` 路径的性能优化”
+因此，旧文里“组件内部需要额外的 Tag 索引来承接 Tag 入口 API”这个前提，已经不成立。
 
 ---
 
-## 优化 3：Attribute 侧按 Tag 的快速查询索引
+## 2. `StateInstanceIndex::ClearAll` 现在还剩多少价值
 
-### 1. 当前形态
+### 2.1 仍有价值的部分
 
-`UTcsAttributeComponent` 的属性存储：
+这部分优化并没有完全失效。`RemoveAllStates()` 在对象池回收、Actor 重置、切图清理等路径上，仍然会做一轮逐条索引移除：
 
-```cpp
-UPROPERTY()
-TMap<FName, FTcsAttributeInstance> Attributes;
-```
+- `Instances.Remove()`
+- `InstancesById.Remove()`
+- `InstancesByName` 内部数组移除
+- `InstancesBySlot` 内部数组移除
 
-查询接口：
+如果一个实体身上经常挂很多 `State`，且批量回收频繁，这里确实存在一些重复工作。
 
-- `GetAttributeValue(FName AttributeName)` — `O(1)` `TMap` 查找
-- `GetAttributesByTag(FGameplayTag Tag)` — **不存在**，需遍历 `Attributes` 对每个 `FTcsAttributeInstance` 查其 Def 的 Tags，做 `HasTag` 比较
+### 2.2 旧文低估了语义风险
 
-### 2. 潜在需求场景
+旧文最大的问题，不是“少算了一个 `InstancesById`”，而是把这件事当成了几乎没有行为影响的容器优化。但当前代码并不是这样：
 
-- **AOE 修饰**：一个 Modifier 想“对所有带 `Attribute.Combat.*` Tag 的属性生效”
-- **UI 展示分组**：HUD 想展示“所有 `Attribute.Display.HUD` 的属性”
-- **Clamp 策略批量应用**：自定义策略需要“对所有 `Attribute.Clamped` 属性执行夹值”
-- **调试/序列化**：导出某 Tag 子集的快照
+- `FinalizeStateRemoval()` 会先执行 `StateInstanceIndex.RemoveInstance()`
+- 然后才广播 `NotifyStateStageChanged()` / `NotifyStateRemoved()`
 
-当前实现方式是线性遍历整个 `Attributes` + 每个属性查 Def 做 `HasTag`，复杂度 `O(N × M)`（`N` 属性数，`M` Tag 平均层级）。
+这意味着监听者若在回调里调用：
 
-### 3. 方案：参考 `FTcsStateInstanceIndex` 引入 `FTcsAttributeIndex`
+- `GetStatesByDefId()`
+- `GetStatesInSlot()`
+- `HasStateWithDefId()`
 
-```cpp
-USTRUCT()
-struct FTcsAttributeIndex
-{
-    GENERATED_BODY()
+看到的是“移除后的索引结果”。
 
-    /** 所有属性的 FName 列表（与 Attributes TMap 同步） */
-    UPROPERTY()
-    TArray<FName> AttributeNames;
+如果未来在批量路径里抑制逐条 `RemoveInstance()`，改成最后一次性 `ClearAll()`，那么回调中的查询结果会立刻变化。这已经不是纯性能优化，而是**可观察行为变更**。
 
-    /** Tag -> 属性 FName 列表（一个属性可属于多个 Tag） */
-    UPROPERTY()
-    TMap<FGameplayTag, FTcsAttributeNameList> ByTag;
+### 2.3 当前更现实的判断
 
-    void AddAttribute(FName AttrName, const UTcsAttributeDefinition* Def);
-    void RemoveAttribute(FName AttrName, const UTcsAttributeDefinition* Def);
-    void ClearAll();
-
-    /** O(1) 平均查询 */
-    const TArray<FName>* GetAttributesByTag(FGameplayTag Tag) const;
-};
-
-USTRUCT()
-struct FTcsAttributeNameList
-{
-    GENERATED_BODY()
-
-    UPROPERTY()
-    TArray<FName> Names;
-};
-```
-
-`UTcsAttributeComponent` 新增：
-
-```cpp
-UPROPERTY()
-FTcsAttributeIndex AttributeIndex;
-
-/** 按 Tag 查询属性 FName 列表（不修改状态） */
-UFUNCTION(BlueprintCallable, Category = "Attribute")
-TArray<FName> GetAttributeNamesByTag(const FGameplayTag& Tag) const;
-
-UFUNCTION(BlueprintCallable, Category = "Attribute")
-TArray<FName> GetAttributeNamesByTagQuery(const FGameplayTagQuery& Query) const;
-```
-
-### 4. 索引维护点
-
-| 写路径 | 维护动作 |
-|--------|----------|
-| `AddAttribute(FName, float)` | 查 Def → 读 Tags → `AttributeIndex.AddAttribute` |
-| `RemoveAttribute(FName)` | 查 Def → 读 Tags → `AttributeIndex.RemoveAttribute` |
-| `ResetAttribute(FName)` | 无需变更索引（属性仍存在） |
-| `SetAttribute*Value` | 无需变更索引（Tag 不依赖值） |
-
-### 5. 关键设计决策（需 brainstorm 时展开）
-
-| 决策点 | 选项 A | 选项 B |
-|--------|--------|--------|
-| **Tag 继承语义** | 索引只存 Def 显式声明的 Tags，查询时用 `HasTagExact` | 索引存 Tag + 所有父 Tag，查询时用 `HasTag`（支持层级匹配） |
-| **精确 vs 查询** | 只支持 `GetByTag`（单 Tag） | 同时支持 `GetByTagQuery`（`FGameplayTagQuery` 任意布尔组合） |
-| **内存代价** | 小，只存 N 条映射 | 大，每属性展开所有父 Tag 后 ×3~5 倍 |
-| **查询性能** | `O(1)` 但父 Tag 查询需走 Query 慢路径 | `O(1)` 所有层级 Tag 直达 |
-| **与 `ByName` 对等** | 仅 Tag 索引，不为 FName 加索引（`TMap<FName, ...>` 已是 O(1)） | — |
-
-推荐默认：**选项 A + Query 慢路径**——显式 Tag O(1) 命中，父 Tag 查询走 `FGameplayTagQuery::Matches` 线性遍历 `AttributeNames`。父 Tag 查询是低频场景（UI 分组、AOE 修饰），不值得用 ×3~5 内存换。
-
-### 6. 与 State 侧索引的对称性
-
-| 侧面 | State | Attribute |
-|------|-------|-----------|
-| Name 索引 | `ByName: TMap<FName, TArray<Inst*>>`（一名多实例） | `Attributes` 本身就是 `TMap<FName, Inst>`（一名一实例），无需额外 Name 索引 |
-| Slot/Tag 索引 | `BySlot: TMap<FGameplayTag, TArray<Inst*>>` | `ByTag: TMap<FGameplayTag, TArray<FName>>` |
-| 全集遍历 | `Instances: TArray<Inst*>` | `AttributeNames: TArray<FName>`（可从 `Attributes.GetKeys` 导出，索引里保留是为了稳定顺序 + 避免每次 `GenerateKeyArray`） |
-| 清空 API | `ClearAll()` | `ClearAll()` |
-
-### 7. 是否值得独立立项
-
-**建议独立立项**，理由：
-
-1. **触发条件是“出现第一个 ByTag 查询需求”**——当前代码里没有任何 `GetAttributesByTag` 调用点，纯粹是未来需求储备
-2. **Tag 继承语义需要 brainstorm**（选项 A vs B 的决策会影响所有调用方）
-3. **改造面涵盖所有属性写路径**：`AddAttribute` / `RemoveAttribute` / `ResetAttribute`，需要一次把事务性写清楚
-4. **序列化/存档**：`FTcsAttributeIndex` 是否 `UPROPERTY()` 持久化，还是运行时从 `Attributes` 重建？取决于存档策略
-
-**何时启动**：
-- 游戏层出现第一个明确的 `GetAttributesByTag` 需求时
-- 或者性能 Profiling 发现“遍历 Attributes + HasTag”是热点时
+因此，`ClearAll()` 仍然可以是一个候选方向，但它不再适合被描述为“低风险、顺手一起做”的小清理。
 
 ---
 
-## 小结
+## 3. `StateIndex` 更合理的后续方向
 
-| 优化 | 立项建议 | 改造面 | 前置条件 |
-|------|----------|--------|----------|
-| **优化 2（`StateInstanceIndex::ClearAll`）** | 不单独立项，附加到「事件广播批量化」PR 里一起做 | `StateInstanceIndex` + `RemoveAllStates` + `FinalizeStateRemoval` 可选参数 | Manager API 迁移完成（`FinalizeStateRemoval` 在 Component 内） |
-| **优化 3（`FTcsAttributeIndex`）** | 独立立项，触发时启动 | `AttributeComponent` 所有属性写路径 + 新增 2 个查询 API + 存档策略决策 | 出现 `GetAttributesByTag` 实际需求 |
+如果后续 Profiling 证明 `RemoveAllStates()` 真的在这里有明显成本，更稳妥的路线应当是分层推进：
+
+### 3.1 先把 `ClearAll()` 当成容器原语，而不是直接接到批量移除路径
+
+先给 `FTcsStateInstanceIndex` 提供一个明确的全量清空 API，本身问题不大；但它应该先被理解为：
+
+- 供未来 destructive reset / rebuild 使用
+- 不默认等同于“可以直接替换当前 `RemoveAllStates()` 的逐条维护”
+
+### 3.2 若真要优化 `RemoveAllStates()`，需要先定义语义
+
+到那一步时，至少要回答：
+
+1. 批量移除期间，查询 API 应该看到“最新状态”还是“已广播状态”
+2. 是否允许回调里查询到尚未物理移除但已逻辑失效的实例
+3. 是否需要在 bulk 模式下给查询 API 增加“待移除过滤”逻辑
+
+这类设计一旦引入，就已经不是旧文里描述的单纯容器重置了。
+
+### 3.3 还要考虑整体收益上限
+
+即便 `StateInstanceIndex` 做了批量优化，`RemoveAllStates()` 当前仍然要逐条做：
+
+- `StateTreeTickScheduler.Remove()`
+- Modifier 清理
+- 事件广播
+- Slot 成员移除
+
+因此这项优化即便成立，收益也多半是“局部改善”，不会单靠一个 `ClearAll()` 就把整条路径大幅提速。
+
+---
+
+## 4. `Attribute Tag` 索引为什么不再适合当前版本
+
+旧文对 `Attribute Tag` 索引的想象，默认了两个前提：
+
+1. 组件内部缺少 Tag 入口
+2. 一个属性可能天然需要参与较复杂的 Tag 分组查询
+
+当前代码并不满足这两个前提：
+
+- 组件已经有 `AddAttributeByTag()`
+- `ManagerSubsystem` 已经负责精确 Tag 与 `AttributeName` 的映射
+- 当前每个属性定义只有一个语义性 `AttributeTag`
+- 当前没有任何已知的 `GetAttributesByTag()` 调用点或性能热点
+
+对“精确 Tag 找单个属性”这件事来说，持久化一个组件内 `FTcsAttributeIndex` 基本只是**重复存储已有信息**。
+
+---
+
+## 5. 当前更合理的 `Attribute` 路线
+
+当前已经确认并落地的方向，不是上索引，而是补轻量级 Tag 查询便捷 API：
+
+- `HasAttributeByTag()`
+- `GetAttributeValueByTag()`
+- `GetAttributeBaseValueByTag()`
+
+这些 API 可以直接复用：
+
+- `UTcsAttributeManagerSubsystem::TryResolveAttributeNameByTag()`
+- 组件现有的 `Attributes.Find()`
+
+这样能先满足大部分“按 Tag 查询单个属性”的需求，而不引入新的写路径维护成本。
+
+---
+
+## 6. 如果未来真出现“按 Tag 分组查询”需求，应该先重审数据模型
+
+只有在以下两个条件同时成立时，才值得重新讨论 `FTcsAttributeIndex`：
+
+1. 游戏层确实出现了“按 Tag / 父 Tag / TagQuery 批量取属性”的明确需求
+2. Profiling 证明现有按需遍历真的成了热点
+
+届时优先要回答的不是“索引怎么写”，而是：
+
+- 单个 `AttributeTag` 是否足够，还是需要多 Tag 归属
+- 需求是精确 Tag，还是父 Tag / `FGameplayTagQuery`
+- 返回结果应该是 `AttributeName`、实例引用，还是快照数据
+- 当前单实体属性数量是否大到值得维护持久化索引
+
+在这些问题没有明确之前，旧文里的 `FTcsAttributeIndex` 设计是偏超前的。
+
+---
+
+## 7. 当前建议总结
+
+| 议题 | 当前判断 | 建议 |
+|------|----------|------|
+| `StateInstanceIndex::ClearAll` | 仍有少量价值，但风险不再是“低且透明” | 低优先级；先 Profiling，再决定是否要引入 bulk 语义设计 |
+| `FTcsAttributeIndex` | 对当前 TCS 模型基本不成立 | 先不立项；当前已补 Tag 查询便捷 API，后续仅在出现分组查询需求时再判断是否需要索引 |

@@ -6,7 +6,9 @@
 #include "Buff/TcsBuffComponent.h"
 #include "Buff/BuffMerger/TcsBuffMerger.h"
 #include "Buff/TcsBuffDefinition.h"
+#include "Misc/ScopeExit.h"
 #include "State/TcsStateComponent.h"
+#include "StateTree/TcsStateSchema_Buff.h"
 #include "TcsLogChannels.h"
 
 
@@ -155,6 +157,12 @@ void UTcsBuffInstance::SetPeriod(float InPeriod)
 
 	if (UTcsBuffComponent* BuffComponent = ResolveOwnerBuffComponent())
 	{
+		BuffComponent->BeginPublicEventBatch();
+		ON_SCOPE_EXIT
+		{
+			BuffComponent->EndPublicEventBatch();
+		};
+
 		BuffComponent->NotifyBuffPeriodChanged(this, OldPeriod, Period);
 	}
 }
@@ -191,15 +199,28 @@ void UTcsBuffInstance::SetMaxStackCount(int32 InMaxStackCount)
 	const int32 OldMaxStackCount = MaxStackCount;
 	MaxStackCount = NewMaxStackCount;
 
+	if (UTcsBuffComponent* BuffComponent = ResolveOwnerBuffComponent())
+	{
+		BuffComponent->BeginPublicEventBatch();
+		ON_SCOPE_EXIT
+		{
+			BuffComponent->EndPublicEventBatch();
+		};
+
+		const int32 CurrentStackCount = GetStackCount();
+		if (CurrentStackCount > MaxStackCount)
+		{
+			SetStackCount(MaxStackCount);
+		}
+
+		BuffComponent->NotifyBuffMaxStackCountChanged(this, OldMaxStackCount, MaxStackCount);
+		return;
+	}
+
 	const int32 CurrentStackCount = GetStackCount();
 	if (CurrentStackCount > MaxStackCount)
 	{
 		SetStackCount(MaxStackCount);
-	}
-
-	if (UTcsBuffComponent* BuffComponent = ResolveOwnerBuffComponent())
-	{
-		BuffComponent->NotifyBuffMaxStackCountChanged(this, OldMaxStackCount, MaxStackCount);
 	}
 }
 
@@ -233,6 +254,12 @@ void UTcsBuffInstance::SetStackCount(int32 InStackCount)
 	{
 		if (UTcsBuffComponent* BuffComponent = ResolveOwnerBuffComponent())
 		{
+			BuffComponent->BeginPublicEventBatch();
+			ON_SCOPE_EXIT
+			{
+				BuffComponent->EndPublicEventBatch();
+			};
+
 			BuffComponent->RemoveBuffInstance(this, TcsBuffRemovalReasons::StackDepleted);
 		}
 		return;
@@ -241,6 +268,12 @@ void UTcsBuffInstance::SetStackCount(int32 InStackCount)
 	StackCount = NewStackCount;
 	if (UTcsBuffComponent* BuffComponent = ResolveOwnerBuffComponent())
 	{
+		BuffComponent->BeginPublicEventBatch();
+		ON_SCOPE_EXIT
+		{
+			BuffComponent->EndPublicEventBatch();
+		};
+
 		BuffComponent->HandleBuffStackCountChangedInternal(this, OldStackCount, NewStackCount);
 		BuffComponent->NotifyBuffStackChanged(this, OldStackCount, NewStackCount);
 	}
@@ -254,6 +287,38 @@ void UTcsBuffInstance::AddStack(int32 Count)
 void UTcsBuffInstance::RemoveStack(int32 Count)
 {
 	SetStackCount(GetStackCount() - Count);
+}
+
+bool UTcsBuffInstance::SetContextRequirements(FStateTreeExecutionContext& Context)
+{
+	if (!Context.IsValid())
+	{
+		UE_LOG(LogTcsStateTree, Error, TEXT("Invalid BuffStateTree execution context"));
+		return false;
+	}
+
+	Context.SetCollectExternalDataCallback(
+		FOnCollectStateTreeExternalData::CreateUObject(
+			this,
+			&UTcsBuffInstance::CollectExternalData
+		)
+	);
+
+	return UTcsStateSchema_Buff::SetContextRequirements(*this, Context);
+}
+
+bool UTcsBuffInstance::CollectExternalData(
+	const FStateTreeExecutionContext& Context,
+	const UStateTree* StateTree,
+	TArrayView<const FStateTreeExternalDataDesc> ExternalDataDescs,
+	TArrayView<FStateTreeDataView> OutDataViews)
+{
+	return UTcsStateSchema_Buff::CollectExternalData(
+		Context,
+		StateTree,
+		this,
+		ExternalDataDescs,
+		OutDataViews);
 }
 
 void UTcsBuffInstance::InitializeRuntimeParameters()

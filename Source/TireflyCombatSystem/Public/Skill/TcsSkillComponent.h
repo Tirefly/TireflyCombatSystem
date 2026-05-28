@@ -8,6 +8,11 @@
 
 
 
+class UTcsSkillDefinition;
+class UTcsSkillEntry;
+
+
+
 UCLASS(ClassGroup = (TireflyCombatSystem), Meta = (BlueprintSpawnableComponent, DisplayName = "Tirefly Skill Comp"))
 class TIREFLYCOMBATSYSTEM_API UTcsSkillComponent : public UActorComponent
 {

@@ -14,6 +14,24 @@
 #include "Attribute/AttrClampStrategy/TcsAttributeClampContext.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
+#include "ProfilingDebugging/CpuProfilerTrace.h"
+
+
+namespace
+{
+	void BuildModifierEventPayloads(
+		const TArray<FTcsAttributeModifierInstance>& Modifiers,
+		TArray<FTcsAttributeModifierEventPayload>& OutPayloads)
+	{
+		OutPayloads.Reset();
+		OutPayloads.Reserve(Modifiers.Num());
+
+		for (const FTcsAttributeModifierInstance& Modifier : Modifiers)
+		{
+			OutPayloads.Emplace(Modifier);
+		}
+	}
+}
 
 
 
@@ -69,6 +87,40 @@ bool UTcsAttributeComponent::GetAttributeValue(FName AttributeName, float& OutVa
 	return false;
 }
 
+bool UTcsAttributeComponent::HasAttributeByTag(const FGameplayTag& AttributeTag) const
+{
+	UTcsAttributeManagerSubsystem* Mgr = const_cast<UTcsAttributeComponent*>(this)->ResolveAttributeManager();
+	if (!Mgr)
+	{
+		return false;
+	}
+
+	FName AttributeName;
+	if (!Mgr->TryResolveAttributeNameByTag(AttributeTag, AttributeName))
+	{
+		return false;
+	}
+
+	return Attributes.Contains(AttributeName);
+}
+
+bool UTcsAttributeComponent::GetAttributeValueByTag(const FGameplayTag& AttributeTag, float& OutValue) const
+{
+	UTcsAttributeManagerSubsystem* Mgr = const_cast<UTcsAttributeComponent*>(this)->ResolveAttributeManager();
+	if (!Mgr)
+	{
+		return false;
+	}
+
+	FName AttributeName;
+	if (!Mgr->TryResolveAttributeNameByTag(AttributeTag, AttributeName))
+	{
+		return false;
+	}
+
+	return GetAttributeValue(AttributeName, OutValue);
+}
+
 bool UTcsAttributeComponent::GetAttributeBaseValue(FName AttributeName, float& OutValue) const
 {
 	if (const FTcsAttributeInstance* AttrInst = Attributes.Find(AttributeName))
@@ -80,9 +132,27 @@ bool UTcsAttributeComponent::GetAttributeBaseValue(FName AttributeName, float& O
 	return false;
 }
 
+bool UTcsAttributeComponent::GetAttributeBaseValueByTag(const FGameplayTag& AttributeTag, float& OutValue) const
+{
+	UTcsAttributeManagerSubsystem* Mgr = const_cast<UTcsAttributeComponent*>(this)->ResolveAttributeManager();
+	if (!Mgr)
+	{
+		return false;
+	}
+
+	FName AttributeName;
+	if (!Mgr->TryResolveAttributeNameByTag(AttributeTag, AttributeName))
+	{
+		return false;
+	}
+
+	return GetAttributeBaseValue(AttributeName, OutValue);
+}
+
 TMap<FName, float> UTcsAttributeComponent::GetAttributeValues() const
 {
 	TMap<FName, float> AttributeValues;
+	AttributeValues.Reserve(Attributes.Num());
 	for (const auto& AttrInst : Attributes)
 	{
 		AttributeValues.Add(AttrInst.Key, AttrInst.Value.CurrentValue);
@@ -94,6 +164,7 @@ TMap<FName, float> UTcsAttributeComponent::GetAttributeValues() const
 TMap<FName, float> UTcsAttributeComponent::GetAttributeBaseValues() const
 {
 	TMap<FName, float> AttributeValues;
+	AttributeValues.Reserve(Attributes.Num());
 	for (const auto& AttrInst : Attributes)
 	{
 		AttributeValues.Add(AttrInst.Key, AttrInst.Value.BaseValue);
@@ -120,44 +191,142 @@ void UTcsAttributeComponent::BroadcastAttributeBaseValueChangeEvent(
 	}
 }
 
-void UTcsAttributeComponent::BroadcastAttributeModifierAddedEvent(
-	const FTcsAttributeModifierInstance& ModifierInstance) const
+void UTcsAttributeComponent::BroadcastAttributeModifierAddedBatchEvent(
+	const TArray<FTcsAttributeModifierEventPayload>& Payloads) const
 {
-	if (OnAttributeModifierAdded.IsBound())
+	if (Payloads.IsEmpty())
 	{
-		OnAttributeModifierAdded.Broadcast(ModifierInstance);
+		return;
+	}
+
+	if (OnAttributeModifiersAdded.IsBound())
+	{
+		OnAttributeModifiersAdded.Broadcast(Payloads);
 	}
 }
 
-void UTcsAttributeComponent::BroadcastAttributeModifierRemovedEvent(
-	const FTcsAttributeModifierInstance& ModifierInstance) const
+void UTcsAttributeComponent::BroadcastAttributeModifierRemovedBatchEvent(
+	const TArray<FTcsAttributeModifierEventPayload>& Payloads) const
 {
-	if (OnAttributeModifierRemoved.IsBound())
+	if (Payloads.IsEmpty())
 	{
-		OnAttributeModifierRemoved.Broadcast(ModifierInstance);
+		return;
+	}
+
+	if (OnAttributeModifiersRemoved.IsBound())
+	{
+		OnAttributeModifiersRemoved.Broadcast(Payloads);
 	}
 }
 
-void UTcsAttributeComponent::BroadcastAttributeModifierUpdatedEvent(
-	const FTcsAttributeModifierInstance& ModifierInstance) const
+void UTcsAttributeComponent::BroadcastAttributeModifierUpdatedBatchEvent(
+	const TArray<FTcsAttributeModifierEventPayload>& Payloads) const
 {
-	if (OnAttributeModifierUpdated.IsBound())
+	if (Payloads.IsEmpty())
 	{
-		OnAttributeModifierUpdated.Broadcast(ModifierInstance);
+		return;
+	}
+
+	if (OnAttributeModifiersUpdated.IsBound())
+	{
+		OnAttributeModifiersUpdated.Broadcast(Payloads);
 	}
 }
 
-void UTcsAttributeComponent::BroadcastAttributeReachedBoundaryEvent(
-	FName AttributeName,
-	bool bIsMaxBoundary,
-	float OldValue,
-	float NewValue,
-	float BoundaryValue) const
+void UTcsAttributeComponent::BroadcastAttributeReachedBoundaryBatchEvent(
+	const TArray<FTcsAttributeBoundaryEventPayload>& Payloads) const
 {
-	if (OnAttributeReachedBoundary.IsBound())
+	if (Payloads.IsEmpty())
 	{
-		OnAttributeReachedBoundary.Broadcast(AttributeName, bIsMaxBoundary, OldValue, NewValue, BoundaryValue);
+		return;
 	}
+
+	if (OnAttributesReachedBoundary.IsBound())
+	{
+		OnAttributesReachedBoundary.Broadcast(Payloads);
+	}
+}
+
+void UTcsAttributeComponent::BroadcastAttributeStateDiffs(
+	const TMap<FName, float>& PreviousBaseValues,
+	const TMap<FName, float>& PreviousCurrentValues)
+{
+	TArray<FTcsAttributeChangeEventPayload> BaseChangePayloads;
+	TArray<FTcsAttributeChangeEventPayload> CurrentChangePayloads;
+	TArray<FTcsAttributeBoundaryEventPayload> BoundaryPayloads;
+	BaseChangePayloads.Reserve(Attributes.Num());
+	CurrentChangePayloads.Reserve(Attributes.Num());
+	BoundaryPayloads.Reserve(Attributes.Num());
+
+	for (const TPair<FName, FTcsAttributeInstance>& Pair : Attributes)
+	{
+		const FName AttributeName = Pair.Key;
+		const FTcsAttributeInstance& Attribute = Pair.Value;
+
+		const float PreviousBase = PreviousBaseValues.FindRef(AttributeName);
+		if (!FMath::IsNearlyEqual(PreviousBase, Attribute.BaseValue))
+		{
+			FTcsAttributeChangeEventPayload Payload;
+			Payload.AttributeName = AttributeName;
+			Payload.OldValue = PreviousBase;
+			Payload.NewValue = Attribute.BaseValue;
+			BaseChangePayloads.Add(Payload);
+
+			float BoundaryCandidate = Attribute.BaseValue;
+			float RangeMin = BoundaryCandidate;
+			float RangeMax = BoundaryCandidate;
+			ClampAttributeValueInRange(AttributeName, BoundaryCandidate, &RangeMin, &RangeMax);
+			const bool bReachedMin = FMath::IsNearlyEqual(Attribute.BaseValue, RangeMin);
+			const bool bReachedMax = FMath::IsNearlyEqual(Attribute.BaseValue, RangeMax);
+			if (bReachedMin || bReachedMax)
+			{
+				BoundaryPayloads.Emplace(
+					AttributeName,
+					bReachedMax,
+					PreviousBase,
+					Attribute.BaseValue,
+					bReachedMax ? RangeMax : RangeMin);
+			}
+		}
+
+		const float PreviousCurrent = PreviousCurrentValues.FindRef(AttributeName);
+		if (!FMath::IsNearlyEqual(PreviousCurrent, Attribute.CurrentValue))
+		{
+			FTcsAttributeChangeEventPayload Payload;
+			Payload.AttributeName = AttributeName;
+			Payload.OldValue = PreviousCurrent;
+			Payload.NewValue = Attribute.CurrentValue;
+			CurrentChangePayloads.Add(Payload);
+
+			float BoundaryCandidate = Attribute.CurrentValue;
+			float RangeMin = BoundaryCandidate;
+			float RangeMax = BoundaryCandidate;
+			ClampAttributeValueInRange(AttributeName, BoundaryCandidate, &RangeMin, &RangeMax);
+			const bool bReachedMin = FMath::IsNearlyEqual(Attribute.CurrentValue, RangeMin);
+			const bool bReachedMax = FMath::IsNearlyEqual(Attribute.CurrentValue, RangeMax);
+			if (bReachedMin || bReachedMax)
+			{
+				BoundaryPayloads.Emplace(
+					AttributeName,
+					bReachedMax,
+					PreviousCurrent,
+					Attribute.CurrentValue,
+					bReachedMax ? RangeMax : RangeMin);
+			}
+		}
+	}
+
+	if (!BaseChangePayloads.IsEmpty())
+	{
+		BroadcastAttributeBaseValueChangeEvent(BaseChangePayloads);
+	}
+
+	if (!CurrentChangePayloads.IsEmpty())
+	{
+		BroadcastAttributeValueChangeEvent(CurrentChangePayloads);
+	}
+
+	BroadcastAttributeReachedBoundaryBatchEvent(BoundaryPayloads);
 }
 
 
@@ -205,7 +374,9 @@ bool UTcsAttributeComponent::AddAttribute(FName AttributeName, float InitValue)
 	}
 
 	// 传播动态范围约束（新属性可能影响其他属性的动态范围边界）
-	EnforceAttributeRangeConstraints();
+	TSet<FName> DirtyAttributes;
+	DirtyAttributes.Add(AttributeName);
+	EnforceAttributeRangeConstraints(DirtyAttributes);
 	return true;
 }
 
@@ -216,6 +387,8 @@ void UTcsAttributeComponent::AddAttributes(const TArray<FName>& AttributeNames)
 	{
 		return;
 	}
+
+	TSet<FName> DirtyAttributes;
 
 	for (const FName AttributeName : AttributeNames)
 	{
@@ -248,11 +421,15 @@ void UTcsAttributeComponent::AddAttributes(const TArray<FName>& AttributeNames)
 			ClampAttributeValueInRange(AttributeName, Clamped);
 			Added->BaseValue = Clamped;
 			Added->CurrentValue = Clamped;
+			DirtyAttributes.Add(AttributeName);
 		}
 	}
 
 	// 批量添加完成后统一传播动态范围约束
-	EnforceAttributeRangeConstraints();
+	if (!DirtyAttributes.IsEmpty())
+	{
+		EnforceAttributeRangeConstraints(DirtyAttributes);
+	}
 }
 
 bool UTcsAttributeComponent::AddAttributeByTag(const FGameplayTag& AttributeTag, float InitValue)
@@ -311,25 +488,25 @@ bool UTcsAttributeComponent::SetAttributeBaseValue(FName AttributeName, float Ne
 
 	// 保存旧值
 	float OldValue = Attribute->BaseValue;
+	TMap<FName, float> PreviousBaseValues;
+	TMap<FName, float> PreviousCurrentValues;
+	if (bTriggerEvents)
+	{
+		PreviousBaseValues = GetAttributeBaseValues();
+		PreviousCurrentValues = GetAttributeValues();
+	}
 
 	// 设置新值并 Clamp
 	Attribute->BaseValue = NewValue;
 	ClampAttributeValueInRange(AttributeName, Attribute->BaseValue);
 
 	// 重新计算 Current 值（应用修改器）
-	RecalculateAttributeCurrentValues();
+	RecalculateAttributeCurrentValues(-1, false);
 
 	// 触发事件
 	if (bTriggerEvents && !FMath::IsNearlyEqual(OldValue, Attribute->BaseValue))
 	{
-		FTcsAttributeChangeEventPayload Payload;
-		Payload.AttributeName = AttributeName;
-		Payload.OldValue = OldValue;
-		Payload.NewValue = Attribute->BaseValue;
-
-		TArray<FTcsAttributeChangeEventPayload> Payloads;
-		Payloads.Add(Payload);
-		BroadcastAttributeBaseValueChangeEvent(Payloads);
+		BroadcastAttributeStateDiffs(PreviousBaseValues, PreviousCurrentValues);
 	}
 
 	UE_LOG(LogTcsAttribute, Verbose,
@@ -364,25 +541,27 @@ bool UTcsAttributeComponent::SetAttributeCurrentValue(FName AttributeName, float
 
 	// 保存旧值
 	float OldValue = Attribute->CurrentValue;
+	TMap<FName, float> PreviousBaseValues;
+	TMap<FName, float> PreviousCurrentValues;
+	if (bTriggerEvents)
+	{
+		PreviousBaseValues = GetAttributeBaseValues();
+		PreviousCurrentValues = GetAttributeValues();
+	}
 
 	// 设置新值并 Clamp
 	Attribute->CurrentValue = NewValue;
 	ClampAttributeValueInRange(AttributeName, Attribute->CurrentValue);
 
 	// 传播动态范围约束（该属性值变化可能影响其他属性的动态范围边界）
-	EnforceAttributeRangeConstraints();
+	TSet<FName> DirtyAttributes;
+	DirtyAttributes.Add(AttributeName);
+	EnforceAttributeRangeConstraints(DirtyAttributes, false);
 
 	// 触发事件
 	if (bTriggerEvents && !FMath::IsNearlyEqual(OldValue, Attribute->CurrentValue))
 	{
-		FTcsAttributeChangeEventPayload Payload;
-		Payload.AttributeName = AttributeName;
-		Payload.OldValue = OldValue;
-		Payload.NewValue = Attribute->CurrentValue;
-
-		TArray<FTcsAttributeChangeEventPayload> Payloads;
-		Payloads.Add(Payload);
-		BroadcastAttributeValueChangeEvent(Payloads);
+		BroadcastAttributeStateDiffs(PreviousBaseValues, PreviousCurrentValues);
 	}
 
 	UE_LOG(LogTcsAttribute, Verbose,
@@ -437,6 +616,9 @@ bool UTcsAttributeComponent::ResetAttribute(FName AttributeName)
 		RemoveModifier(ModifiersToRemove);
 	}
 
+	TMap<FName, float> PreviousBaseValues = GetAttributeBaseValues();
+	TMap<FName, float> PreviousCurrentValues = GetAttributeValues();
+
 	// 重置 Base 和 Current 值
 	float OldBase = Attribute->BaseValue;
 	float OldCurrent = Attribute->CurrentValue;
@@ -446,30 +628,13 @@ bool UTcsAttributeComponent::ResetAttribute(FName AttributeName)
 	// Clamp 值
 	ClampAttributeValueInRange(AttributeName, Attribute->BaseValue);
 	ClampAttributeValueInRange(AttributeName, Attribute->CurrentValue);
+	EnforceAttributeRangeConstraints(false);
 
 	// 触发事件
-	if (!FMath::IsNearlyEqual(OldBase, Attribute->BaseValue))
+	if (!FMath::IsNearlyEqual(OldBase, Attribute->BaseValue)
+		|| !FMath::IsNearlyEqual(OldCurrent, Attribute->CurrentValue))
 	{
-		FTcsAttributeChangeEventPayload Payload;
-		Payload.AttributeName = AttributeName;
-		Payload.OldValue = OldBase;
-		Payload.NewValue = Attribute->BaseValue;
-
-		TArray<FTcsAttributeChangeEventPayload> Payloads;
-		Payloads.Add(Payload);
-		BroadcastAttributeBaseValueChangeEvent(Payloads);
-	}
-
-	if (!FMath::IsNearlyEqual(OldCurrent, Attribute->CurrentValue))
-	{
-		FTcsAttributeChangeEventPayload Payload;
-		Payload.AttributeName = AttributeName;
-		Payload.OldValue = OldCurrent;
-		Payload.NewValue = Attribute->CurrentValue;
-
-		TArray<FTcsAttributeChangeEventPayload> Payloads;
-		Payloads.Add(Payload);
-		BroadcastAttributeValueChangeEvent(Payloads);
+		BroadcastAttributeStateDiffs(PreviousBaseValues, PreviousCurrentValues);
 	}
 
 	UE_LOG(LogTcsAttribute, Log,
@@ -704,6 +869,8 @@ bool UTcsAttributeComponent::CreateAttributeModifierWithOperands(
 
 void UTcsAttributeComponent::ApplyModifier(TArray<FTcsAttributeModifierInstance>& Modifiers)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(TcsAttributeComponent_ApplyModifier);
+
 	if (Modifiers.IsEmpty())
 	{
 		return;
@@ -717,6 +884,8 @@ void UTcsAttributeComponent::ApplyModifier(TArray<FTcsAttributeModifierInstance>
 
 	TArray<FTcsAttributeModifierInstance> ModifiersToExecute; // 对属性 Base 值执行操作的属性修改器
 	TArray<FTcsAttributeModifierInstance> ModifiersToApply;   // 对属性 Current 值应用的属性修改器
+	ModifiersToExecute.Reserve(Modifiers.Num());
+	ModifiersToApply.Reserve(Modifiers.Num());
 	const int64 BatchId = Mgr->AllocateModifierChangeBatchId();
 	const int64 UtcNowTicks = FDateTime::UtcNow().GetTicks();
 
@@ -755,6 +924,14 @@ void UTcsAttributeComponent::ApplyModifier(TArray<FTcsAttributeModifierInstance>
 		}
 	}
 
+	UE_LOG(LogTcsAttribute, VeryVerbose,
+		TEXT("[Perf][%s] Input=%d BaseOps=%d CurrentOps=%d StoredCurrentModifiers=%d"),
+		*FString(__FUNCTION__),
+		Modifiers.Num(),
+		ModifiersToExecute.Num(),
+		ModifiersToApply.Num(),
+		AttributeModifiers.Num());
+
 	// 先执行针对属性 Base 值的修改器
 	if (!ModifiersToExecute.IsEmpty())
 	{
@@ -766,7 +943,9 @@ void UTcsAttributeComponent::ApplyModifier(TArray<FTcsAttributeModifierInstance>
 	{
 		TArray<FTcsAttributeModifierInstance> NewlyAddedModifiers;
 		TArray<FTcsAttributeModifierInstance> UpdatedExistingModifiers;
+		TArray<FTcsAttributeModifierEventPayload> ModifierEventPayloads;
 		NewlyAddedModifiers.Reserve(ModifiersToApply.Num());
+		UpdatedExistingModifiers.Reserve(ModifiersToApply.Num());
 
 		// 把已经用过但有改变的属性修改器更新一下，并从待应用列表中移除
 		{
@@ -782,7 +961,7 @@ void UTcsAttributeComponent::ApplyModifier(TArray<FTcsAttributeModifierInstance>
 					const int32 SourceId = Incoming.SourceHandle.Id;
 
 					// 使用稳定 ID 缓存查找现有修改器
-					if (const TArray<int32>* InstIdsPtr = SourceHandleIdToModifierInstIds.Find(SourceId))
+					if (const TSet<int32>* InstIdsPtr = SourceHandleIdToModifierInstIds.Find(SourceId))
 					{
 						for (int32 ModifierInstId : *InstIdsPtr)
 						{
@@ -844,21 +1023,17 @@ void UTcsAttributeComponent::ApplyModifier(TArray<FTcsAttributeModifierInstance>
 
 			if (ModifierToStore.SourceHandle.IsValid())
 			{
-				TArray<int32>& InstIds = SourceHandleIdToModifierInstIds.FindOrAdd(ModifierToStore.SourceHandle.Id);
-				InstIds.AddUnique(ModifierToStore.ModifierInstId);
+				TSet<int32>& InstIds = SourceHandleIdToModifierInstIds.FindOrAdd(ModifierToStore.SourceHandle.Id);
+				InstIds.Add(ModifierToStore.ModifierInstId);
 			}
 		}
 
-		// 广播新增事件
-		for (const FTcsAttributeModifierInstance& Updated : UpdatedExistingModifiers)
-		{
-			BroadcastAttributeModifierUpdatedEvent(Updated);
-		}
+		// 对外统一走批量事件面；旧的逐条事件仅作为兼容出口，由批量广播函数按需回放。
+		BuildModifierEventPayloads(UpdatedExistingModifiers, ModifierEventPayloads);
+		BroadcastAttributeModifierUpdatedBatchEvent(ModifierEventPayloads);
 
-		for (const FTcsAttributeModifierInstance& Added : NewlyAddedModifiers)
-		{
-			BroadcastAttributeModifierAddedEvent(Added);
-		}
+		BuildModifierEventPayloads(NewlyAddedModifiers, ModifierEventPayloads);
+		BroadcastAttributeModifierAddedBatchEvent(ModifierEventPayloads);
 	}
 
 	// 无论如何，都要重新计算属性 Current 值
@@ -909,6 +1084,8 @@ void UTcsAttributeComponent::RemoveModifier(TArray<FTcsAttributeModifierInstance
 
 	const int64 BatchId = Mgr->AllocateModifierChangeBatchId();
 	bool bModified = false;
+	TArray<FTcsAttributeModifierInstance> RemovedModifiers;
+	RemovedModifiers.Reserve(Modifiers.Num());
 	for (const FTcsAttributeModifierInstance& Modifier : Modifiers)
 	{
 		// 使用 ModifierInstId 定位元素
@@ -941,10 +1118,9 @@ void UTcsAttributeComponent::RemoveModifier(TArray<FTcsAttributeModifierInstance
 
 		if (RemovedModifier.SourceHandle.IsValid())
 		{
-			TArray<int32>* InstIdsPtr = SourceHandleIdToModifierInstIds.Find(RemovedModifier.SourceHandle.Id);
+			TSet<int32>* InstIdsPtr = SourceHandleIdToModifierInstIds.Find(RemovedModifier.SourceHandle.Id);
 			if (InstIdsPtr)
 			{
-				// TODO(Perf): 逐个 Remove 导致 O(K^2) 批量退化；见 SourceHandleIdToModifierInstIds 注释。
 				InstIdsPtr->Remove(RemovedModifier.ModifierInstId);
 				if (InstIdsPtr->Num() == 0)
 				{
@@ -964,8 +1140,15 @@ void UTcsAttributeComponent::RemoveModifier(TArray<FTcsAttributeModifierInstance
 
 		AttributeModifiers.RemoveAtSwap(RemovedIndex);
 
-		BroadcastAttributeModifierRemovedEvent(RemovedModifier);
+		RemovedModifiers.Add(RemovedModifier);
 		bModified = true;
+	}
+
+	if (!RemovedModifiers.IsEmpty())
+	{
+		TArray<FTcsAttributeModifierEventPayload> RemovedPayloads;
+		BuildModifierEventPayloads(RemovedModifiers, RemovedPayloads);
+		BroadcastAttributeModifierRemovedBatchEvent(RemovedPayloads);
 	}
 
 	// 如果确实有属性修改器被移除，则更新属性的当前值
@@ -977,6 +1160,8 @@ void UTcsAttributeComponent::RemoveModifier(TArray<FTcsAttributeModifierInstance
 
 bool UTcsAttributeComponent::RemoveModifiersBySourceHandle(const FTcsSourceHandle& SourceHandle)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(TcsAttributeComponent_RemoveModifiersBySourceHandle);
+
 	if (!SourceHandle.IsValid())
 	{
 		UE_LOG(LogTcsAttribute, Warning, TEXT("[%s] SourceHandle is invalid"), *FString(__FUNCTION__));
@@ -984,44 +1169,26 @@ bool UTcsAttributeComponent::RemoveModifiersBySourceHandle(const FTcsSourceHandl
 	}
 
 	// 使用稳定 ID 缓存查找匹配的修改器
-	const TArray<int32>* InstIdsPtr = SourceHandleIdToModifierInstIds.Find(SourceHandle.Id);
+	const TSet<int32>* InstIdsPtr = SourceHandleIdToModifierInstIds.Find(SourceHandle.Id);
 	if (!InstIdsPtr || InstIdsPtr->Num() == 0)
 	{
 		return false;
 	}
 
-	// 先拷贝 ID 列表（避免在迭代中修改）
-	// TODO(Perf): 当前实现逐个委托给 RemoveModifier，桶内 Remove 导致 O(K^2)。
-	//   优化优先级：1) 将 SourceHandleIdToModifierInstIds 桶类型改为 TSet<int32>；
-	//              2) 或提取 RemoveModifierInternal(无桶维护)，在末尾一次性整桶丢弃。
-	TArray<int32> InstIdsCopy = *InstIdsPtr;
-
-	// 收集要移除的修改器
-	TArray<FTcsAttributeModifierInstance> ModifiersToRemove;
-	for (int32 ModifierInstId : InstIdsCopy)
+	UTcsAttributeManagerSubsystem* Mgr = ResolveAttributeManager();
+	if (!Mgr)
 	{
-		const int32* IndexPtr = ModifierInstIdToIndex.Find(ModifierInstId);
-		if (!IndexPtr || !AttributeModifiers.IsValidIndex(*IndexPtr))
-		{
-			continue;
-		}
-
-		int32 Index = *IndexPtr;
-		const FTcsAttributeModifierInstance& Modifier = AttributeModifiers[Index];
-
-		if (Modifier.ModifierInstId == ModifierInstId)
-		{
-			ModifiersToRemove.Add(Modifier);
-		}
+		return false;
 	}
 
-	if (ModifiersToRemove.Num() > 0)
-	{
-		RemoveModifier(ModifiersToRemove);
-		return true;
-	}
+	UE_LOG(LogTcsAttribute, VeryVerbose,
+		TEXT("[Perf][%s] SourceId=%d BucketSize=%d StoredCurrentModifiers=%d"),
+		*FString(__FUNCTION__),
+		SourceHandle.Id,
+		InstIdsPtr->Num(),
+		AttributeModifiers.Num());
 
-	return false;
+	return RemoveStoredModifiersByInstIds(*InstIdsPtr, Mgr->AllocateModifierChangeBatchId());
 }
 
 bool UTcsAttributeComponent::GetModifiersBySourceHandle(
@@ -1034,13 +1201,14 @@ bool UTcsAttributeComponent::GetModifiersBySourceHandle(
 		return false;
 	}
 
-	const TArray<int32>* InstIdsPtr = SourceHandleIdToModifierInstIds.Find(SourceHandle.Id);
+	const TSet<int32>* InstIdsPtr = SourceHandleIdToModifierInstIds.Find(SourceHandle.Id);
 	if (!InstIdsPtr || InstIdsPtr->Num() == 0)
 	{
 		return false;
 	}
 
 	OutModifiers.Empty();
+	OutModifiers.Reserve(InstIdsPtr->Num());
 	for (int32 ModifierInstId : *InstIdsPtr)
 	{
 		const int32* IndexPtr = ModifierInstIdToIndex.Find(ModifierInstId);
@@ -1072,6 +1240,8 @@ void UTcsAttributeComponent::HandleModifierUpdated(TArray<FTcsAttributeModifierI
 	bool bModified = false;
 	const int64 BatchId = Mgr->AllocateModifierChangeBatchId();
 	const int64 UtcNowTicks = FDateTime::UtcNow().GetTicks();
+	TArray<FTcsAttributeModifierInstance> UpdatedModifiers;
+	UpdatedModifiers.Reserve(Modifiers.Num());
 	for (FTcsAttributeModifierInstance& Modifier : Modifiers)
 	{
 		const int32* IndexPtr = ModifierInstIdToIndex.Find(Modifier.ModifierInstId);
@@ -1107,7 +1277,7 @@ void UTcsAttributeComponent::HandleModifierUpdated(TArray<FTcsAttributeModifierI
 		{
 			if (OldSourceId >= 0)
 			{
-				if (TArray<int32>* InstIdsPtr = SourceHandleIdToModifierInstIds.Find(OldSourceId))
+				if (TSet<int32>* InstIdsPtr = SourceHandleIdToModifierInstIds.Find(OldSourceId))
 				{
 					InstIdsPtr->Remove(Modifier.ModifierInstId);
 					if (InstIdsPtr->IsEmpty())
@@ -1119,19 +1289,26 @@ void UTcsAttributeComponent::HandleModifierUpdated(TArray<FTcsAttributeModifierI
 
 			if (NewSourceId >= 0)
 			{
-				TArray<int32>& InstIds = SourceHandleIdToModifierInstIds.FindOrAdd(NewSourceId);
-				InstIds.AddUnique(Modifier.ModifierInstId);
+				TSet<int32>& InstIds = SourceHandleIdToModifierInstIds.FindOrAdd(NewSourceId);
+				InstIds.Add(Modifier.ModifierInstId);
 			}
 		}
 		else if (NewSourceId >= 0)
 		{
-			TArray<int32>& InstIds = SourceHandleIdToModifierInstIds.FindOrAdd(NewSourceId);
-			InstIds.AddUnique(Modifier.ModifierInstId);
+			TSet<int32>& InstIds = SourceHandleIdToModifierInstIds.FindOrAdd(NewSourceId);
+			InstIds.Add(Modifier.ModifierInstId);
 		}
 
-		BroadcastAttributeModifierUpdatedEvent(Modifier);
+		UpdatedModifiers.Add(Modifier);
 
 		bModified = true;
+	}
+
+	if (!UpdatedModifiers.IsEmpty())
+	{
+		TArray<FTcsAttributeModifierEventPayload> UpdatedPayloads;
+		BuildModifierEventPayloads(UpdatedModifiers, UpdatedPayloads);
+		BroadcastAttributeModifierUpdatedBatchEvent(UpdatedPayloads);
 	}
 
 	if (bModified)
@@ -1140,24 +1317,125 @@ void UTcsAttributeComponent::HandleModifierUpdated(TArray<FTcsAttributeModifierI
 	}
 }
 
+bool UTcsAttributeComponent::RemoveStoredModifiersByInstIds(
+	const TSet<int32>& ModifierInstIdsToRemove,
+	int64 ChangeBatchId)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(TcsAttributeComponent_RemoveStoredModifiersByInstIds);
+
+	if (ModifierInstIdsToRemove.IsEmpty() || AttributeModifiers.IsEmpty())
+	{
+		return false;
+	}
+
+	TArray<FTcsAttributeModifierInstance> RemovedModifiers;
+	RemovedModifiers.Reserve(FMath::Min(ModifierInstIdsToRemove.Num(), AttributeModifiers.Num()));
+
+	TArray<FTcsAttributeModifierInstance> RemainingModifiers;
+	RemainingModifiers.Reserve(AttributeModifiers.Num());
+
+	// 先把旧数组拆成“移除集”和“保留集”。
+	// 这样可以避免边遍历边删除导致下标失效，也避免在循环里反复维护缓存索引。
+	for (const FTcsAttributeModifierInstance& StoredModifier : AttributeModifiers)
+	{
+		if (ModifierInstIdsToRemove.Contains(StoredModifier.ModifierInstId))
+		{
+			RemovedModifiers.Add(StoredModifier);
+			continue;
+		}
+
+		RemainingModifiers.Add(StoredModifier);
+	}
+
+	if (RemovedModifiers.IsEmpty())
+	{
+		return false;
+	}
+
+	UE_LOG(LogTcsAttribute, VeryVerbose,
+		TEXT("[Perf][%s] RemoveIds=%d Removed=%d Remaining=%d BatchId=%lld"),
+		*FString(__FUNCTION__),
+		ModifierInstIdsToRemove.Num(),
+		RemovedModifiers.Num(),
+		RemainingModifiers.Num(),
+		ChangeBatchId);
+
+	AttributeModifiers = MoveTemp(RemainingModifiers);
+	// ModifierInstIdToIndex 和 SourceHandleIdToModifierInstIds 都依赖 AttributeModifiers 的当前排布。
+	// 批量删除完成后统一重建，能保证索引绝对一致，也比逐个挪动缓存更简单可靠。
+	RebuildModifierRuntimeCaches();
+
+	// 先落存储和缓存，再发移除事件，避免监听方在回调里读到已经过期的下标缓存。
+	TArray<FTcsAttributeModifierEventPayload> RemovedPayloads;
+	BuildModifierEventPayloads(RemovedModifiers, RemovedPayloads);
+	BroadcastAttributeModifierRemovedBatchEvent(RemovedPayloads);
+
+	// 删除持久化修改器后，CurrentValue 必须按“剩余修改器集合”重新求值。
+	// 这里沿用传入的 ChangeBatchId，方便后续增量传播继续识别这一轮变更。
+	RecalculateAttributeCurrentValues(ChangeBatchId);
+	return true;
+}
+
+void UTcsAttributeComponent::RebuildModifierRuntimeCaches()
+{
+	// 这两个缓存都只是 AttributeModifiers 的运行时索引视图，
+	// 不应保留旧状态并尝试增量修补；全量重建更容易保证一致性。
+	ModifierInstIdToIndex.Reset();
+	SourceHandleIdToModifierInstIds.Reset();
+
+	ModifierInstIdToIndex.Reserve(AttributeModifiers.Num());
+	SourceHandleIdToModifierInstIds.Reserve(AttributeModifiers.Num());
+
+	for (int32 Index = 0; Index < AttributeModifiers.Num(); ++Index)
+	{
+		const FTcsAttributeModifierInstance& Modifier = AttributeModifiers[Index];
+		// ModifierInstId -> Index 主要服务于单实例快速更新和删除定位。
+		ModifierInstIdToIndex.Add(Modifier.ModifierInstId, Index);
+
+		if (Modifier.SourceHandle.IsValid())
+		{
+			// SourceHandle -> ModifierInstId 集合主要服务于按 SourceHandle 批量删除。
+			SourceHandleIdToModifierInstIds.FindOrAdd(Modifier.SourceHandle.Id).Add(Modifier.ModifierInstId);
+		}
+	}
+}
+
 
 // ============================================================
 // #pragma region AttributeCalculation
 // ============================================================
 
-void UTcsAttributeComponent::RecalculateAttributeBaseValues(const TArray<FTcsAttributeModifierInstance>& Modifiers)
+void UTcsAttributeComponent::RecalculateAttributeBaseValues(
+	const TArray<FTcsAttributeModifierInstance>& Modifiers,
+	bool bBroadcastEvents)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(TcsAttributeComponent_RecalculateAttributeBaseValues);
+
 	// 按类型整理所有属性修改器，方便后续执行修改器合并
 	TArray<FTcsAttributeModifierInstance> MergedModifiers;
 	MergeAttributeModifiers(Modifiers, MergedModifiers);
 	// 按照优先级对属性修改器进行排序
 	MergedModifiers.Sort();
 
+	UE_LOG(LogTcsAttribute, VeryVerbose,
+		TEXT("[Perf][%s] Attrs=%d InputModifiers=%d MergedModifiers=%d"),
+		*FString(__FUNCTION__),
+		Attributes.Num(),
+		Modifiers.Num(),
+		MergedModifiers.Num());
+
 	// 属性修改事件记录
 	TMap<FName, FTcsAttributeChangeEventPayload> ChangeEventPayloads;
+	ChangeEventPayloads.Reserve(Attributes.Num());
 
 	// 执行对属性基础值的修改计算
 	TMap<FName, float> BaseValues = GetAttributeBaseValues();
+	// 这些临时容器在整个循环里复用，避免每个 Modifier 都重新分配。
+	TArray<FName> TouchedAttributes;
+	TouchedAttributes.Reserve(4);
+	TArray<float> TouchedOldValues;
+	TouchedOldValues.Reserve(4);
+	TMap<FName, float> FallbackLastModifiedResults;
 	for (const FTcsAttributeModifierInstance& Modifier : MergedModifiers)
 	{
 		if (!Modifier.ModifierDef)
@@ -1178,28 +1456,71 @@ void UTcsAttributeComponent::RecalculateAttributeBaseValues(const TArray<FTcsAtt
 			continue;
 		}
 
-		// 缓存属性基础值的上一次修改最终值
-		TMap<FName, float> LastModifiedResults = BaseValues;
-
 		// 执行修改器
 		auto Execution = ModDef->ModifierType->GetDefaultObject<UTcsAttributeModifierExecution>();
+		TouchedAttributes.Reset();
+		TouchedOldValues.Reset();
+		// touched-report 只收窄“记录差异”的采样范围，不改变 Execute 的真实写入行为。
+		const bool bHasTouchedReport = Execution->CollectTouchedAttributes(Modifier, TouchedAttributes);
+		if (bHasTouchedReport)
+		{
+			// 先过滤掉无效名字，再只为声明 touched 的属性截取旧值。
+			// 这样后面比较差异时就不需要复制整张 BaseValues。
+			TouchedAttributes.RemoveAll([](const FName AttributeName) { return AttributeName.IsNone(); });
+			TouchedOldValues.Reserve(TouchedAttributes.Num());
+			for (const FName AttributeName : TouchedAttributes)
+			{
+				TouchedOldValues.Add(BaseValues.FindRef(AttributeName));
+			}
+		}
+		else
+		{
+			// 未声明 touched 集时，保留原来的全表差异检测路径，确保行为正确。
+			FallbackLastModifiedResults = BaseValues;
+		}
+
+		// BaseValue 重算阶段把同一张 BaseValues 同时作为 Base/Current 视图传入 Execute。
+		// 这样复用现有执行器接口，但不会引入独立的 CurrentValue 计算状态。
 		Execution->Execute(Modifier, BaseValues, BaseValues);
 
-		// 记录属性修改过程
-		for (const TPair<FName, float>& LastPair : LastModifiedResults)
+		// Execute 之后只做差异归因：把本次执行真正改动的值累计到 SourceHandle 对应的记录里。
+		if (bHasTouchedReport)
 		{
-			const float& NewValue = BaseValues.FindRef(LastPair.Key);
-			if (!FMath::IsNearlyEqual(NewValue, LastPair.Value))
+			for (int32 Index = 0; Index < TouchedAttributes.Num(); ++Index)
 			{
-				FTcsAttributeChangeEventPayload& Payload = ChangeEventPayloads.FindOrAdd(LastPair.Key);
-				Payload.AttributeName = LastPair.Key;
-				float& PayloadValue = Payload.ChangeSourceRecord.FindOrAdd(Modifier.SourceHandle);
-				PayloadValue += NewValue - LastPair.Value;
+				const FName AttributeName = TouchedAttributes[Index];
+				const float OldValue = TouchedOldValues.IsValidIndex(Index) ? TouchedOldValues[Index] : BaseValues.FindRef(AttributeName);
+				const float NewValue = BaseValues.FindRef(AttributeName);
+				if (!FMath::IsNearlyEqual(NewValue, OldValue))
+				{
+					FTcsAttributeChangeEventPayload& Payload = ChangeEventPayloads.FindOrAdd(AttributeName);
+					Payload.AttributeName = AttributeName;
+					float& PayloadValue = Payload.ChangeSourceRecord.FindOrAdd(Modifier.SourceHandle);
+					PayloadValue += NewValue - OldValue;
+				}
+			}
+		}
+		else
+		{
+			for (const TPair<FName, float>& LastPair : FallbackLastModifiedResults)
+			{
+				const float& NewValue = BaseValues.FindRef(LastPair.Key);
+				if (!FMath::IsNearlyEqual(NewValue, LastPair.Value))
+				{
+					FTcsAttributeChangeEventPayload& Payload = ChangeEventPayloads.FindOrAdd(LastPair.Key);
+					Payload.AttributeName = LastPair.Key;
+					float& PayloadValue = Payload.ChangeSourceRecord.FindOrAdd(Modifier.SourceHandle);
+					PayloadValue += NewValue - LastPair.Value;
+				}
 			}
 		}
 	}
 
-	// 对修改后的属性基础值进行范围修正，然后更新属性基础值
+	// 这一轮先处理“属性自身定义的直接 Clamp”，并同步收集真实发生变化的属性。
+	// 多跳依赖传播（例如 MaxHP 变化后 HP 再次受限）留给后面的 Enforce 阶段统一处理。
+	TSet<FName> ChangedAttributes;
+	TArray<FTcsAttributeBoundaryEventPayload> BoundaryPayloads;
+	BoundaryPayloads.Reserve(BaseValues.Num());
 	for (TPair<FName, float>& Pair : BaseValues)
 	{
 		if (FTcsAttributeInstance* Attribute = Attributes.Find(Pair.Key))
@@ -1215,7 +1536,7 @@ void UTcsAttributeComponent::RecalculateAttributeBaseValues(const TArray<FTcsAtt
 			const bool bReachedMin = FMath::IsNearlyEqual(Pair.Value, RangeMin);
 			const bool bReachedMax = FMath::IsNearlyEqual(Pair.Value, RangeMax);
 
-			// 记录属性修改事件的最终结果
+			// 前面如果已经按 SourceHandle 记录过贡献，这里只负责把最终 old/new 补齐到事件载荷里。
 			if (FTcsAttributeChangeEventPayload* Payload = ChangeEventPayloads.Find(Pair.Key))
 			{
 				Payload->NewValue = Pair.Value;
@@ -1225,44 +1546,72 @@ void UTcsAttributeComponent::RecalculateAttributeBaseValues(const TArray<FTcsAtt
 			// 把属性基础值的最终修改赋值
 			const float OldValue = Attribute->BaseValue;
 			Attribute->BaseValue = Pair.Value;
+			ChangedAttributes.Add(Pair.Key);
 
 			// 广播达到边界值事件
 			if (bReachedMin || bReachedMax)
 			{
 				const bool bIsMaxBoundary = bReachedMax;
 				const float BoundaryValue = bReachedMax ? RangeMax : RangeMin;
-				BroadcastAttributeReachedBoundaryEvent(Pair.Key, bIsMaxBoundary, OldValue, Pair.Value, BoundaryValue);
+				BoundaryPayloads.Emplace(Pair.Key, bIsMaxBoundary, OldValue, Pair.Value, BoundaryValue);
 			}
 		}
 	}
 
-	// 属性基础值更新广播
-	if (!ChangeEventPayloads.IsEmpty())
+	// BaseValue 广播发生在直接写回之后、范围传播之前。
+	// 这里表达的是“基础值第一阶段结算结果”，而不是多跳 Clamp 完成后的全局稳定态。
+	if (bBroadcastEvents && !ChangeEventPayloads.IsEmpty())
 	{
 		TArray<FTcsAttributeChangeEventPayload> Payloads;
 		ChangeEventPayloads.GenerateValueArray(Payloads);
 		BroadcastAttributeBaseValueChangeEvent(Payloads);
 	}
 
-	// 执行范围约束传播
-	EnforceAttributeRangeConstraints();
+	if (bBroadcastEvents)
+	{
+		BroadcastAttributeReachedBoundaryBatchEvent(BoundaryPayloads);
+	}
+
+	// 只有真实改过的属性才作为传播种子，避免无意义地从整张属性表重新出发。
+	if (!ChangedAttributes.IsEmpty())
+	{
+		EnforceAttributeRangeConstraints(ChangedAttributes, bBroadcastEvents);
+	}
 }
 
-void UTcsAttributeComponent::RecalculateAttributeCurrentValues(int64 ChangeBatchId)
+void UTcsAttributeComponent::RecalculateAttributeCurrentValues(int64 ChangeBatchId, bool bBroadcastEvents)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(TcsAttributeComponent_RecalculateAttributeCurrentValues);
+
 	// 按类型整理所有属性修改器，方便后续执行修改器合并
 	TArray<FTcsAttributeModifierInstance> MergedModifiers;
 	MergeAttributeModifiers(AttributeModifiers, MergedModifiers);
 	// 按照优先级对属性修改器进行排序
 	MergedModifiers.Sort();
 
+	UE_LOG(LogTcsAttribute, VeryVerbose,
+		TEXT("[Perf][%s] Attrs=%d StoredModifiers=%d MergedModifiers=%d BatchId=%lld"),
+		*FString(__FUNCTION__),
+		Attributes.Num(),
+		AttributeModifiers.Num(),
+		MergedModifiers.Num(),
+		ChangeBatchId);
+
 	// 属性修改事件记录
 	TMap<FName, FTcsAttributeChangeEventPayload> ChangeEventPayloads;
+	ChangeEventPayloads.Reserve(Attributes.Num());
 
 	// 获取属性基础值，用于计算
 	TMap<FName, float> BaseValues = GetAttributeBaseValues();
-	// 用于更新计算的临时属性值容器，基于属性的基础值
+	// CurrentValue 的执行既可能读取 BaseValue，也可能在 CurrentValue 结果上继续叠加，
+	// 因此这里显式保留 BaseValues 和 CurrentValuesToCalc 两张表。
 	TMap<FName, float> CurrentValuesToCalc = BaseValues;
+	// 这些容器专门服务于 touched-report 的局部差异记录。
+	TArray<FName> TouchedAttributes;
+	TouchedAttributes.Reserve(4);
+	TArray<float> TouchedOldValues;
+	TouchedOldValues.Reserve(4);
+	TMap<FName, float> FallbackLastModifiedResults;
 
 	// 执行属性修改器的修改计算
 	for (const FTcsAttributeModifierInstance& Modifier : MergedModifiers)
@@ -1285,28 +1634,70 @@ void UTcsAttributeComponent::RecalculateAttributeCurrentValues(int64 ChangeBatch
 			continue;
 		}
 
-		// 缓存属性当前值的上一次修改最终值
-		TMap<FName, float> LastModifiedResults = CurrentValuesToCalc;
-
 		// 执行修改器
 		auto Execution = ModDef->ModifierType->GetDefaultObject<UTcsAttributeModifierExecution>();
+		TouchedAttributes.Reset();
+		TouchedOldValues.Reset();
+		// CurrentValue 重算沿用同一套 touched-report 机制，未知执行器继续走全表 fallback。
+		const bool bHasTouchedReport = Execution->CollectTouchedAttributes(Modifier, TouchedAttributes);
+		if (bHasTouchedReport)
+		{
+			// 这里记录的是 CurrentValuesToCalc 的旧值，因为真正要统计的是当前值阶段的增量贡献。
+			TouchedAttributes.RemoveAll([](const FName AttributeName) { return AttributeName.IsNone(); });
+			TouchedOldValues.Reserve(TouchedAttributes.Num());
+			for (const FName AttributeName : TouchedAttributes)
+			{
+				TouchedOldValues.Add(CurrentValuesToCalc.FindRef(AttributeName));
+			}
+		}
+		else
+		{
+			// 未声明 touched 集时，保留原来的全表差异检测路径，确保行为正确。
+			FallbackLastModifiedResults = CurrentValuesToCalc;
+		}
+
+		// BaseValues 作为只读输入参与计算，CurrentValuesToCalc 承接每个执行器的叠加结果。
 		Execution->Execute(Modifier, BaseValues, CurrentValuesToCalc);
 
-		// 记录属性修改过程，需要属性修改器的更新时间为最新
-		for (const TPair<FName, float>& LastPair : LastModifiedResults)
+		// 只有命中本轮 BatchId 的修改器，才会把差异记进本次事件归因。
+		// 这样可以避免旧修改器在全量重算时被误报成“本轮新增变化来源”。
+		if (bHasTouchedReport)
 		{
-			const float& NewValue = CurrentValuesToCalc.FindRef(LastPair.Key);
-			if (!FMath::IsNearlyEqual(NewValue, LastPair.Value) && (ChangeBatchId < 0 || Modifier.LastTouchedBatchId == ChangeBatchId))
+			for (int32 Index = 0; Index < TouchedAttributes.Num(); ++Index)
 			{
-				FTcsAttributeChangeEventPayload& Payload = ChangeEventPayloads.FindOrAdd(LastPair.Key);
-				Payload.AttributeName = LastPair.Key;
-				float& PayloadValue = Payload.ChangeSourceRecord.FindOrAdd(Modifier.SourceHandle);
-				PayloadValue += NewValue - LastPair.Value;
+				const FName AttributeName = TouchedAttributes[Index];
+				const float OldValue = TouchedOldValues.IsValidIndex(Index) ? TouchedOldValues[Index] : CurrentValuesToCalc.FindRef(AttributeName);
+				const float NewValue = CurrentValuesToCalc.FindRef(AttributeName);
+				if (!FMath::IsNearlyEqual(NewValue, OldValue) && (ChangeBatchId < 0 || Modifier.LastTouchedBatchId == ChangeBatchId))
+				{
+					FTcsAttributeChangeEventPayload& Payload = ChangeEventPayloads.FindOrAdd(AttributeName);
+					Payload.AttributeName = AttributeName;
+					float& PayloadValue = Payload.ChangeSourceRecord.FindOrAdd(Modifier.SourceHandle);
+					PayloadValue += NewValue - OldValue;
+				}
+			}
+		}
+		else
+		{
+			for (const TPair<FName, float>& LastPair : FallbackLastModifiedResults)
+			{
+				const float& NewValue = CurrentValuesToCalc.FindRef(LastPair.Key);
+				if (!FMath::IsNearlyEqual(NewValue, LastPair.Value) && (ChangeBatchId < 0 || Modifier.LastTouchedBatchId == ChangeBatchId))
+				{
+					FTcsAttributeChangeEventPayload& Payload = ChangeEventPayloads.FindOrAdd(LastPair.Key);
+					Payload.AttributeName = LastPair.Key;
+					float& PayloadValue = Payload.ChangeSourceRecord.FindOrAdd(Modifier.SourceHandle);
+					PayloadValue += NewValue - LastPair.Value;
+				}
 			}
 		}
 	}
 
-	// 对修改后的属性当前值进行范围修正，然后更新属性当前值
+	// 这里先完成“每个属性自身”的当前值 Clamp 和写回。
+	// 由于动态范围可能存在多跳依赖，真正的全局稳定化仍然交给后面的传播阶段。
+	TSet<FName> ChangedAttributes;
+	TArray<FTcsAttributeBoundaryEventPayload> BoundaryPayloads;
+	BoundaryPayloads.Reserve(CurrentValuesToCalc.Num());
 	for (TPair<FName, float>& Pair : CurrentValuesToCalc)
 	{
 		if (FTcsAttributeInstance* Attribute = Attributes.Find(Pair.Key))
@@ -1322,7 +1713,8 @@ void UTcsAttributeComponent::RecalculateAttributeCurrentValues(int64 ChangeBatch
 			const bool bReachedMin = FMath::IsNearlyEqual(Pair.Value, RangeMin);
 			const bool bReachedMax = FMath::IsNearlyEqual(Pair.Value, RangeMax);
 
-			// 记录属性修改事件的最终结果，因为修改器移除导致的属性当前值变更，不会有修改记录，所以需要在此处查漏补缺
+			// 修改器移除、合并等情况可能不会留下逐条 SourceHandle 差异记录，
+			// 因此这里统一用最终 old/new 补齐当前值变化事件，避免漏报。
 			FTcsAttributeChangeEventPayload& Payload = ChangeEventPayloads.FindOrAdd(Pair.Key);
 			Payload.AttributeName = Pair.Key;
 			Payload.NewValue = Pair.Value;
@@ -1331,35 +1723,53 @@ void UTcsAttributeComponent::RecalculateAttributeCurrentValues(int64 ChangeBatch
 			// 把属性当前值的最终修改赋值
 			const float OldValue = Attribute->CurrentValue;
 			Attribute->CurrentValue = Pair.Value;
+			ChangedAttributes.Add(Pair.Key);
 
 			// 广播达到边界值事件
 			if (bReachedMin || bReachedMax)
 			{
 				const bool bIsMaxBoundary = bReachedMax;
 				const float BoundaryValue = bReachedMax ? RangeMax : RangeMin;
-				BroadcastAttributeReachedBoundaryEvent(Pair.Key, bIsMaxBoundary, OldValue, Pair.Value, BoundaryValue);
+				BoundaryPayloads.Emplace(Pair.Key, bIsMaxBoundary, OldValue, Pair.Value, BoundaryValue);
 			}
 		}
 	}
 
-	// 属性当前值更新广播
-	if (!ChangeEventPayloads.IsEmpty())
+	// 当前值广播反映的是本轮执行器求值后的直接结果；
+	// 如果后续范围传播又把值压回去了，会再由传播阶段补发对应事件。
+	if (bBroadcastEvents && !ChangeEventPayloads.IsEmpty())
 	{
 		TArray<FTcsAttributeChangeEventPayload> Payloads;
 		ChangeEventPayloads.GenerateValueArray(Payloads);
 		BroadcastAttributeValueChangeEvent(Payloads);
 	}
 
-	// 执行范围约束传播
-	EnforceAttributeRangeConstraints();
+	if (bBroadcastEvents)
+	{
+		BroadcastAttributeReachedBoundaryBatchEvent(BoundaryPayloads);
+	}
+
+	// 增量批次更新时，只有真实变更过的属性才作为传播种子；全量重算仍走保守路径。
+	if (ChangeBatchId >= 0 && !ChangedAttributes.IsEmpty())
+	{
+		EnforceAttributeRangeConstraints(ChangedAttributes, bBroadcastEvents);
+	}
+	else
+	{
+		EnforceAttributeRangeConstraints(bBroadcastEvents);
+	}
 }
 
 void UTcsAttributeComponent::MergeAttributeModifiers(
 	const TArray<FTcsAttributeModifierInstance>& Modifiers,
 	TArray<FTcsAttributeModifierInstance>& MergedModifiers)
 {
+	MergedModifiers.Reset();
+	MergedModifiers.Reserve(Modifiers.Num());
+
 	// 按 ModifierId 整理所有属性修改器，方便后续执行修改器合并
 	TMap<FName, TArray<FTcsAttributeModifierInstance>> ModifiersToMerge;
+	ModifiersToMerge.Reserve(Modifiers.Num());
 	for (const FTcsAttributeModifierInstance& Modifier : Modifiers)
 	{
 		ModifiersToMerge.FindOrAdd(Modifier.ModifierId).Add(Modifier);
@@ -1408,7 +1818,8 @@ void UTcsAttributeComponent::ClampAttributeValueInRange(
 	}
 	const FTcsAttributeRange& Range = Attribute->AttributeDef->AttributeRange;
 
-	// 计算属性范围的最小值
+	// 先解析最小边界。若传播过程传入了 WorkingValues，则优先读取工作集里的候选值，
+	// 这样同一轮 fixpoint 可以看到“尚未提交到组件但已经在本轮推导出的新值”。
 	float MinValue = TNumericLimits<float>::Lowest();
 	switch (Range.MinValueType)
 	{
@@ -1441,7 +1852,7 @@ void UTcsAttributeComponent::ClampAttributeValueInRange(
 		}
 	}
 
-	// 计算属性范围的最大值
+	// 最大边界与最小边界同理，也优先读取工作集，保证传播阶段的依赖解析基于最新候选状态。
 	float MaxValue = TNumericLimits<float>::Max();
 	switch (Range.MaxValueType)
 	{
@@ -1474,7 +1885,8 @@ void UTcsAttributeComponent::ClampAttributeValueInRange(
 		}
 	}
 
-	// 执行属性值 Clamp（使用策略对象）
+	// 到这里 Min/Max 已经解析完毕，真正“如何在范围内修正”的策略交给 ClampStrategy。
+	// 依赖声明属于 CollectDependentAttributes 的职责，不在这里推导。
 	TSubclassOf<UTcsAttributeClampStrategy> StrategyClass = Attribute->AttributeDef->ClampStrategyClass;
 	if (StrategyClass)
 	{
@@ -1518,15 +1930,81 @@ void UTcsAttributeComponent::ClampAttributeValueInRange(
 	}
 }
 
-void UTcsAttributeComponent::EnforceAttributeRangeConstraints()
+bool UTcsAttributeComponent::TryBuildDeclaredRangeConstraintDependents(
+	TMap<FName, TSet<FName>>& OutDependents) const
 {
+	OutDependents.Reset();
+	OutDependents.Reserve(Attributes.Num());
+
+	TArray<FName> DeclaredDependencies;
+	DeclaredDependencies.Reserve(4);
+
+	// 对每个属性询问“我的 Clamp 结果依赖哪些属性”，再反向建图成“谁变化后需要重新检查我”。
+	for (const TPair<FName, FTcsAttributeInstance>& Pair : Attributes)
+	{
+		const FName AttributeName = Pair.Key;
+		const FTcsAttributeInstance& Attribute = Pair.Value;
+		if (!Attribute.AttributeDef || !Attribute.AttributeDef->ClampStrategyClass)
+		{
+			return false;
+		}
+
+		UTcsAttributeClampStrategy* StrategyCDO = Attribute.AttributeDef->ClampStrategyClass->GetDefaultObject<UTcsAttributeClampStrategy>();
+		if (!StrategyCDO)
+		{
+			return false;
+		}
+
+		DeclaredDependencies.Reset();
+		if (!StrategyCDO->CollectDependentAttributes(AttributeName, Attribute.AttributeDef, Attribute.AttributeDef->ClampStrategyConfig, DeclaredDependencies))
+		{
+			// 只要有一个策略不给出完整声明，就不能证明局部传播闭包正确，只能回退到全局 fixpoint。
+			return false;
+		}
+
+		for (const FName DependencyAttribute : DeclaredDependencies)
+		{
+			// 忽略空依赖、自依赖和组件内不存在的属性，避免构造出无效传播边。
+			if (DependencyAttribute.IsNone() || DependencyAttribute == AttributeName || !Attributes.Contains(DependencyAttribute))
+			{
+				continue;
+			}
+
+			OutDependents.FindOrAdd(DependencyAttribute).Add(AttributeName);
+		}
+	}
+
+	return true;
+}
+
+void UTcsAttributeComponent::EnforceAttributeRangeConstraints(
+	const TSet<FName>& DirtyAttributes,
+	bool bBroadcastEvents)
+{
+	EnforceAttributeRangeConstraintsInternal(&DirtyAttributes, bBroadcastEvents);
+}
+
+void UTcsAttributeComponent::EnforceAttributeRangeConstraints(bool bBroadcastEvents)
+{
+	EnforceAttributeRangeConstraintsInternal(nullptr, bBroadcastEvents);
+}
+
+void UTcsAttributeComponent::EnforceAttributeRangeConstraintsInternal(
+	const TSet<FName>* DirtyAttributes,
+	bool bBroadcastEvents)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(TcsAttributeComponent_EnforceAttributeRangeConstraints);
+
 	const int32 MaxIterations = 8; // 防止无限循环
 	int32 Iteration = 0;
 	bool bAnyChanged = true;
 
-	// 工作集: 当前正在处理的值
+	// 工作集承接整轮传播的中间态。
+	// 在最终收敛前，不直接写回 Attributes，避免半更新状态污染后续依赖解析。
 	TMap<FName, float> WorkingBaseValues;
 	TMap<FName, float> WorkingCurrentValues;
+	WorkingBaseValues.Reserve(Attributes.Num());
+	WorkingCurrentValues.Reserve(Attributes.Num());
 
 	// 初始化工作集
 	for (auto& Pair : Attributes)
@@ -1535,34 +2013,140 @@ void UTcsAttributeComponent::EnforceAttributeRangeConstraints()
 		WorkingCurrentValues.Add(Pair.Key, Pair.Value.CurrentValue);
 	}
 
-	// 迭代直到稳定
-	while (bAnyChanged && Iteration < MaxIterations)
+	TMap<FName, TSet<FName>> DeclaredDependents;
+	const bool bTryLocalPropagation = DirtyAttributes && !DirtyAttributes->IsEmpty();
+	const bool bUseDeclaredLocalPropagation = bTryLocalPropagation && TryBuildDeclaredRangeConstraintDependents(DeclaredDependents);
+
+	if (bUseDeclaredLocalPropagation)
 	{
-		bAnyChanged = false;
-		Iteration++;
+		// 从本轮脏属性出发，只沿“已声明依赖它们的属性”继续扩散，避免无意义的全表扫描。
+		TSet<FName> PendingAttributes = *DirtyAttributes;
 
-		for (auto& Pair : Attributes)
+		while (!PendingAttributes.IsEmpty() && Iteration < MaxIterations)
 		{
-			FName AttributeName = Pair.Key;
+			Iteration++;
+			bool bAnyChangedThisPass = false;
 
-			// 阶段1: Clamp BaseValue，使用 WorkingBaseValues 解析动态范围
-			float OldBase = WorkingBaseValues[AttributeName];
-			float NewBase = OldBase;
-			ClampAttributeValueInRange(AttributeName, NewBase, nullptr, nullptr, &WorkingBaseValues);
-			if (!FMath::IsNearlyEqual(OldBase, NewBase))
+			TArray<FName> AttributesToProcess;
+			AttributesToProcess.Reserve(PendingAttributes.Num());
+			// 先冻结本轮要处理的节点，再把新脏节点留到下一轮，避免边遍历边扩队列导致语义混乱。
+			for (const FName PendingAttribute : PendingAttributes)
 			{
-				WorkingBaseValues[AttributeName] = NewBase;
-				bAnyChanged = true;
+				AttributesToProcess.Add(PendingAttribute);
+			}
+			PendingAttributes.Empty();
+
+			for (const FName AttributeName : AttributesToProcess)
+			{
+				if (!Attributes.Contains(AttributeName))
+				{
+					continue;
+				}
+
+				bool bAttributeChanged = false;
+
+				float OldBase = WorkingBaseValues.FindRef(AttributeName);
+				float NewBase = OldBase;
+				ClampAttributeValueInRange(AttributeName, NewBase, nullptr, nullptr, &WorkingBaseValues);
+				if (!FMath::IsNearlyEqual(OldBase, NewBase))
+				{
+					WorkingBaseValues.Add(AttributeName, NewBase);
+					bAnyChangedThisPass = true;
+					bAttributeChanged = true;
+				}
+
+				float OldCurrent = WorkingCurrentValues.FindRef(AttributeName);
+				float NewCurrent = OldCurrent;
+				ClampAttributeValueInRange(AttributeName, NewCurrent, nullptr, nullptr, &WorkingCurrentValues);
+				if (!FMath::IsNearlyEqual(OldCurrent, NewCurrent))
+				{
+					WorkingCurrentValues.Add(AttributeName, NewCurrent);
+					bAnyChangedThisPass = true;
+					bAttributeChanged = true;
+				}
+
+				// 只有当前属性在这一轮真的被 Clamp 改动了，才有必要继续唤醒它的声明式依赖下游。
+				if (bAttributeChanged)
+				{
+					if (const TSet<FName>* Dependents = DeclaredDependents.Find(AttributeName))
+					{
+						for (const FName DependentAttribute : *Dependents)
+						{
+							PendingAttributes.Add(DependentAttribute);
+						}
+					}
+				}
 			}
 
-			// 阶段2: Clamp CurrentValue，使用 WorkingCurrentValues 解析动态范围
-			float OldCurrent = WorkingCurrentValues[AttributeName];
-			float NewCurrent = OldCurrent;
-			ClampAttributeValueInRange(AttributeName, NewCurrent, nullptr, nullptr, &WorkingCurrentValues);
-			if (!FMath::IsNearlyEqual(OldCurrent, NewCurrent))
+			if (!bAnyChangedThisPass && PendingAttributes.IsEmpty())
 			{
-				WorkingCurrentValues[AttributeName] = NewCurrent;
-				bAnyChanged = true;
+				break;
+			}
+		}
+
+		if (!PendingAttributes.IsEmpty())
+		{
+			UE_LOG(LogTcsAttribute, Warning,
+				TEXT("[%s] Declared local propagation did not converge for entity '%s', fallback to full fixpoint."),
+				*FString(__FUNCTION__),
+				GetOwner() ? *GetOwner()->GetName() : TEXT("Unknown"));
+
+			// 局部传播不收敛时，不继续沿用中间工作集，直接回到组件当前已提交状态重新跑全局 fixpoint。
+			// 这样可以避免把“未证明正确的局部中间态”带进保守路径。
+			WorkingBaseValues.Reset();
+			WorkingCurrentValues.Reset();
+			WorkingBaseValues.Reserve(Attributes.Num());
+			WorkingCurrentValues.Reserve(Attributes.Num());
+			for (const TPair<FName, FTcsAttributeInstance>& Pair : Attributes)
+			{
+				WorkingBaseValues.Add(Pair.Key, Pair.Value.BaseValue);
+				WorkingCurrentValues.Add(Pair.Key, Pair.Value.CurrentValue);
+			}
+
+			Iteration = 0;
+			bAnyChanged = true;
+		}
+		else
+		{
+			bAnyChanged = false;
+		}
+	}
+
+	if (!bUseDeclaredLocalPropagation || bAnyChanged)
+	{
+		// 未提供脏属性、策略未声明依赖，或局部传播未收敛时，回退到现有全局 fixpoint。
+		Iteration = 0;
+		bAnyChanged = true;
+		while (bAnyChanged && Iteration < MaxIterations)
+		{
+			bAnyChanged = false;
+			Iteration++;
+
+			// 这里故意回到全表扫描。
+			// 当依赖闭包未知时，只有重复检查所有属性，才能保守地逼近稳定态。
+			for (auto& Pair : Attributes)
+			{
+				FName AttributeName = Pair.Key;
+
+				// 阶段1: Clamp BaseValue，使用 WorkingBaseValues 解析动态范围
+				float OldBase = WorkingBaseValues[AttributeName];
+				float NewBase = OldBase;
+				ClampAttributeValueInRange(AttributeName, NewBase, nullptr, nullptr, &WorkingBaseValues);
+				if (!FMath::IsNearlyEqual(OldBase, NewBase))
+				{
+					WorkingBaseValues[AttributeName] = NewBase;
+					bAnyChanged = true;
+				}
+
+				// 阶段2: Clamp CurrentValue，使用 WorkingCurrentValues 解析动态范围
+				float OldCurrent = WorkingCurrentValues[AttributeName];
+				float NewCurrent = OldCurrent;
+				ClampAttributeValueInRange(AttributeName, NewCurrent, nullptr, nullptr, &WorkingCurrentValues);
+				if (!FMath::IsNearlyEqual(OldCurrent, NewCurrent))
+				{
+					WorkingCurrentValues[AttributeName] = NewCurrent;
+					bAnyChanged = true;
+				}
 			}
 		}
 	}
@@ -1576,15 +2160,28 @@ void UTcsAttributeComponent::EnforceAttributeRangeConstraints()
 			GetOwner() ? *GetOwner()->GetName() : TEXT("Unknown"));
 	}
 
-	// 提交工作集到组件
+	UE_LOG(LogTcsAttribute, VeryVerbose,
+		TEXT("[Perf][%s] Attrs=%d Iterations=%d ReachedMaxIterations=%s"),
+		*FString(__FUNCTION__),
+		Attributes.Num(),
+		Iteration,
+		Iteration >= MaxIterations ? TEXT("true") : TEXT("false"));
+
+	// 所有 Clamp 传播完成后再统一提交，避免半更新状态污染后续依赖解析和广播结果。
 	TArray<FTcsAttributeChangeEventPayload> BaseChangePayloads;
 	TArray<FTcsAttributeChangeEventPayload> CurrentChangePayloads;
+	TArray<FTcsAttributeBoundaryEventPayload> BoundaryPayloads;
+	BaseChangePayloads.Reserve(Attributes.Num());
+	CurrentChangePayloads.Reserve(Attributes.Num());
+	BoundaryPayloads.Reserve(Attributes.Num());
 
 	for (auto& Pair : Attributes)
 	{
 		FName AttributeName = Pair.Key;
 		FTcsAttributeInstance& Attribute = Pair.Value;
 
+		// 提交阶段只负责把收敛后的工作集写回组件，并补发变更/边界事件，不再参与依赖推导。
+		// 这样“求值传播”和“对外可见状态提交”两个阶段是解耦的。
 		// 提交 BaseValue
 		float NewBase = WorkingBaseValues[AttributeName];
 		if (!FMath::IsNearlyEqual(Attribute.BaseValue, NewBase))
@@ -1608,7 +2205,7 @@ void UTcsAttributeComponent::EnforceAttributeRangeConstraints()
 			{
 				const bool bIsMaxBoundary = bReachedMax;
 				const float BoundaryValue = bReachedMax ? RangeMax : RangeMin;
-				BroadcastAttributeReachedBoundaryEvent(AttributeName, bIsMaxBoundary, OldBase, NewBase, BoundaryValue);
+				BoundaryPayloads.Emplace(AttributeName, bIsMaxBoundary, OldBase, NewBase, BoundaryValue);
 			}
 		}
 
@@ -1635,18 +2232,22 @@ void UTcsAttributeComponent::EnforceAttributeRangeConstraints()
 			{
 				const bool bIsMaxBoundary = bReachedMax;
 				const float BoundaryValue = bReachedMax ? RangeMax : RangeMin;
-				BroadcastAttributeReachedBoundaryEvent(AttributeName, bIsMaxBoundary, OldCurrent, NewCurrent, BoundaryValue);
+				BoundaryPayloads.Emplace(AttributeName, bIsMaxBoundary, OldCurrent, NewCurrent, BoundaryValue);
 			}
 		}
 	}
 
 	// 广播事件
-	if (BaseChangePayloads.Num() > 0)
+	if (bBroadcastEvents && BaseChangePayloads.Num() > 0)
 	{
 		BroadcastAttributeBaseValueChangeEvent(BaseChangePayloads);
 	}
-	if (CurrentChangePayloads.Num() > 0)
+	if (bBroadcastEvents && CurrentChangePayloads.Num() > 0)
 	{
 		BroadcastAttributeValueChangeEvent(CurrentChangePayloads);
+	}
+	if (bBroadcastEvents)
+	{
+		BroadcastAttributeReachedBoundaryBatchEvent(BoundaryPayloads);
 	}
 }

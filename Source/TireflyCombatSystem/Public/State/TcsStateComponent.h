@@ -79,6 +79,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams(
 	UTcsStateInstance*, StateInstance,
 	int32, OldLevel,
 	int32, NewLevel);
+	
 // 槽位Gate状态变化事件签名
 // (状态组件, 槽位标签, 是否开启)
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(
@@ -96,6 +97,45 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_FiveParams(
 	FName, ParameterName,
 	FGameplayTag, ParameterTag,
 	ETcsStateParameterType, ParameterType);
+
+// 状态模块内部联动使用的原生阶段变更事件签名。
+DECLARE_MULTICAST_DELEGATE_FourParams(
+	FTcsOnInternalStateStageChangedSignature,
+	UTcsStateComponent*,
+	UTcsStateInstance*,
+	ETcsStateStage,
+	ETcsStateStage);
+
+// 状态模块内部联动使用的原生应用成功事件签名。
+DECLARE_MULTICAST_DELEGATE_FiveParams(
+	FTcsOnInternalStateApplySuccessSignature,
+	AActor*,
+	FName,
+	UTcsStateInstance*,
+	FGameplayTag,
+	ETcsStateStage);
+
+// 状态模块内部联动使用的原生应用失败事件签名。
+DECLARE_MULTICAST_DELEGATE_FourParams(
+	FTcsOnInternalStateApplyFailedSignature,
+	AActor*,
+	FName,
+	ETcsStateApplyFailReason,
+	const FString&);
+
+// 状态模块内部联动使用的原生移除事件签名。
+DECLARE_MULTICAST_DELEGATE_ThreeParams(
+	FTcsOnInternalStateRemovedSignature,
+	UTcsStateComponent*,
+	UTcsStateInstance*,
+	FName);
+
+// 状态模块内部联动使用的原生槽位 Gate 事件签名。
+DECLARE_MULTICAST_DELEGATE_ThreeParams(
+	FTcsOnInternalSlotGateStateChangedSignature,
+	UTcsStateComponent*,
+	FGameplayTag,
+	bool);
 
 // 槽位激活刷新前置扩展点签名
 // (状态组件, 槽位标签, 槽位运行时数据)
@@ -257,6 +297,57 @@ public:
 	 */
 	UPROPERTY(BlueprintAssignable, Category = "State|Events")
 	FTcsOnStateParameterChangedSignature OnStateParameterChanged;
+
+	/**
+	 * 获取供模块内部联动使用的原生阶段变更事件。
+	 *
+	 * @return 原生阶段变更事件引用；优先供 Buff 等运行时模块绑定
+	 */
+	FTcsOnInternalStateStageChangedSignature& OnInternalStateStageChanged() { return InternalStateStageChangedEvent; }
+
+	/**
+	 * 获取供模块内部联动使用的原生状态应用成功事件。
+	 *
+	 * @return 原生状态应用成功事件引用；优先供 Buff 等运行时模块绑定
+	 */
+	FTcsOnInternalStateApplySuccessSignature& OnInternalStateApplySuccess() { return InternalStateApplySuccessEvent; }
+
+	/**
+	 * 获取供模块内部联动使用的原生状态应用失败事件。
+	 *
+	 * @return 原生状态应用失败事件引用；优先供运行时模块绑定
+	 */
+	FTcsOnInternalStateApplyFailedSignature& OnInternalStateApplyFailed() { return InternalStateApplyFailedEvent; }
+
+	/**
+	 * 获取供模块内部联动使用的原生状态移除事件。
+	 *
+	 * @return 原生状态移除事件引用；优先供 Buff 等运行时模块绑定
+	 */
+	FTcsOnInternalStateRemovedSignature& OnInternalStateRemoved() { return InternalStateRemovedEvent; }
+
+	/**
+	 * 获取供模块内部联动使用的原生槽位 Gate 事件。
+	 *
+	 * @return 原生槽位 Gate 事件引用；优先供 Buff 等运行时模块绑定
+	 */
+	FTcsOnInternalSlotGateStateChangedSignature& OnInternalSlotGateStateChanged() { return InternalSlotGateStateChangedEvent; }
+
+protected:
+	// 供模块内部联动使用的原生阶段变更事件。
+	FTcsOnInternalStateStageChangedSignature InternalStateStageChangedEvent;
+
+	// 供模块内部联动使用的原生状态应用成功事件。
+	FTcsOnInternalStateApplySuccessSignature InternalStateApplySuccessEvent;
+
+	// 供模块内部联动使用的原生状态应用失败事件。
+	FTcsOnInternalStateApplyFailedSignature InternalStateApplyFailedEvent;
+
+	// 供模块内部联动使用的原生状态移除事件。
+	FTcsOnInternalStateRemovedSignature InternalStateRemovedEvent;
+
+	// 供模块内部联动使用的原生槽位 Gate 事件。
+	FTcsOnInternalSlotGateStateChangedSignature InternalSlotGateStateChangedEvent;
 
 #pragma endregion
 
@@ -487,6 +578,10 @@ protected:
 	UPROPERTY()
 	TMap<FGameplayTag, FName> Mapping_StateSlotToStateTreeStateName;
 
+	// 反向映射缓存：StateTree 状态名到所有受其驱动的槽位。
+	// 这是从正向绑定表派生出来的本地索引，只服务于差量刷新路径。
+	TMultiMap<FName, FGameplayTag> Mapping_StateTreeStateNameToStateSlotTags;
+
 	// StateSlot 运行时状态数据容器
 	UPROPERTY()
 	TMap<FGameplayTag, FTcsStateSlot> RuntimeStateSlots;
@@ -577,11 +672,67 @@ protected:
 	// 尝试把状态实例放入目标槽位并驱动后续激活流程。
 	virtual bool TryAssignStateToStateSlot(UTcsStateInstance* StateInstance);
 
+	/**
+	 * 计算 StateTree 激活状态集合的差异。
+	 *
+	 * AddedStates 表示本轮新出现的状态名，RemovedStates 表示本轮消失的状态名。
+	 * 这里把输入视为集合语义，只关心是否存在，不关心顺序。
+	 */
+	void DiffStateTreeStateNames(
+		const TArray<FName>& NewStates,
+		const TArray<FName>& OldStates,
+		TSet<FName>& AddedStates,
+		TSet<FName>& RemovedStates) const;
+
+	/**
+	 * 根据状态名变化集合收集受影响的槽位。
+	 *
+	 * 优先使用反向绑定缓存；若缓存为空，则保守回退到正向绑定表扫描。
+	 */
+	void CollectAffectedSlotTagsForStateChanges(
+		const TSet<FName>& AddedStates,
+		const TSet<FName>& RemovedStates,
+		TSet<FGameplayTag>& OutAffectedSlotTags) const;
+
 	// 响应 StateTree 激活状态变更并刷新相关槽位。
 	virtual void RefreshSlotsForStateChange(const TArray<FName>& NewStates, const TArray<FName>& OldStates);
 
-	// 请求刷新指定槽位的激活结果。
+	/**
+	 * 请求刷新指定槽位的激活结果。
+	 *
+	 * 这是槽位刷新链路的统一入口：外部逻辑不直接判断“现在该不该立刻重算”，
+	 * 而是统一把请求交给这里做分流。
+	 *
+	 * 分流规则如下：
+	 * 1. 如果当前没有重入刷新，也不处于批处理作用域，则立即执行 `UpdateStateSlotActivation()`，
+	 *    保持单次变更路径的同步结算语义。
+	 * 2. 如果当前正在刷新，或正处于 `BeginStateSlotActivationBatch()` / `EndStateSlotActivationBatch()`
+	 *    包裹的批处理作用域内，则本次请求只会写入 `PendingSlotActivationUpdates`。
+	 *
+	 * 这套批处理的核心作用不是“延后到下一帧”，而是把同一帧、同一批次内的多次槽位语义变化
+	 * 压缩成“每个槽位最多一次最终结算”，避免重复执行排序、阶段收敛、广播和清理链路。
+	 * 因为待处理请求会在最外层批处理结束时立即排空，所以仍然保持当前帧内完成最终收敛。
+	 */
 	void RequestUpdateStateSlotActivation(FGameplayTag SlotTag);
+
+	/**
+	 * 开始一段槽位激活刷新批处理作用域。
+	 *
+	 * 调用方应在“会连续触发多个槽位刷新请求，但最终只需要一次稳定结算”的路径外层调用它，
+	 * 例如 StateTree Gate 批量开关、批量状态移除等。
+	 *
+	 * 进入批处理后，`RequestUpdateStateSlotActivation()` 不再立即执行刷新，而是只按槽位去重入队，
+	 * 等待最外层批次结束后统一排空。
+	 */
+	void BeginStateSlotActivationBatch();
+
+	/**
+	 * 结束一段槽位激活刷新批处理作用域。
+	 *
+	 * 只有最外层批处理结束时才会真正触发 `DrainPendingSlotActivationUpdates()`，
+	 * 因此嵌套批处理不会过早打断“先集中改语义、再统一结算”的节奏。
+	 */
+	void EndStateSlotActivationBatch();
 
 	// 排空同帧累积的槽位激活请求。
 	void DrainPendingSlotActivationUpdates();
@@ -634,8 +785,12 @@ protected:
 	// 当前组件是否正在执行槽位激活刷新；用于同帧防重入。
 	bool bIsUpdatingSlotActivation = false;
 
-	// 当前组件待排空的槽位激活请求集合。
+	// 当前组件待排空的槽位激活请求集合；按槽位去重，保证同批次同槽位最多只结算一次。
 	TSet<FGameplayTag> PendingSlotActivationUpdates;
+
+	// 当前嵌套的槽位刷新批处理深度；大于 0 时 RequestUpdateStateSlotActivation 只入队不立即执行。
+	// 这样可以把同批次内的多次语义变化压缩到批次尾部统一收敛，但仍保持当前帧内完成最终结算。
+	int32 StateSlotActivationBatchDepth = 0;
 
 	// 当前是否处于 StateTree Tick/回调上下文；仅用于移除链路的 ensure 诊断。
 	bool bIsInStateTreeCallback = false;

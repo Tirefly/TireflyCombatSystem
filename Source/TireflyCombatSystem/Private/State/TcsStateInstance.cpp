@@ -3,13 +3,13 @@
 
 #include "State/TcsStateInstance.h"
 
+#include "Buff/TcsBuffComponent.h"
 #include "State/TcsStateComponent.h"
 #include "State/TcsStateDefinition.h"
 #include "State/TcsStateManagerSubsystem.h"
 #include "State/StateParameter/TcsStateBoolParameter.h"
 #include "State/StateParameter/TcsStateNumericParameter.h"
 #include "State/StateParameter/TcsStateVectorParameter.h"
-#include "StateTree/TcsStateTreeSchema_StateInstance.h"
 #include "StateTree.h"
 #include "StateTreeExecutionContext.h"
 #include "TcsEntityInterface.h"
@@ -52,12 +52,14 @@ void UTcsStateInstance::Initialize(
 	Owner = nullptr;
 	OwnerController = nullptr;
 	OwnerStateCmp.Reset();
+	OwnerBuffCmp.Reset();
 	OwnerAttributeCmp.Reset();
 	OwnerSkillCmp.Reset();
 
 	Instigator = nullptr;
 	InstigatorController = nullptr;
 	InstigatorStateCmp.Reset();
+	InstigatorBuffCmp.Reset();
 	InstigatorAttributeCmp.Reset();
 	InstigatorSkillCmp.Reset();
 
@@ -84,6 +86,7 @@ void UTcsStateInstance::Initialize(
 	}
 	OwnerController = Owner->GetInstigatorController();
 	OwnerStateCmp = ITcsEntityInterface::Execute_GetStateComponent(InOwner);
+	OwnerBuffCmp = ITcsEntityInterface::Execute_GetBuffComponent(InOwner);
 	OwnerAttributeCmp = ITcsEntityInterface::Execute_GetAttributeComponent(InOwner);
 	OwnerSkillCmp = ITcsEntityInterface::Execute_GetSkillComponent(InOwner);
 
@@ -104,6 +107,7 @@ void UTcsStateInstance::Initialize(
 	}
 	InstigatorController = Instigator->GetInstigatorController();
 	InstigatorStateCmp = ITcsEntityInterface::Execute_GetStateComponent(InInstigator);
+	InstigatorBuffCmp = ITcsEntityInterface::Execute_GetBuffComponent(InInstigator);
 	InstigatorAttributeCmp = ITcsEntityInterface::Execute_GetAttributeComponent(InInstigator);
 	InstigatorSkillCmp = ITcsEntityInterface::Execute_GetSkillComponent(InInstigator);
 
@@ -924,21 +928,10 @@ void UTcsStateInstance::SendStateTreeEvent(FGameplayTag EventTag, const FInstanc
 
 bool UTcsStateInstance::SetContextRequirements(FStateTreeExecutionContext& Context)
 {
-	if (!Context.IsValid())
-	{
-		UE_LOG(LogTcsStateTree, Error, TEXT("Invalid StateTree execution context"));
-		return false;
-	}
-
-	// 设置外部数据收集回调
-	Context.SetCollectExternalDataCallback(
-		FOnCollectStateTreeExternalData::CreateUObject(
-			this, 
-			&UTcsStateInstance::CollectExternalData
-		)
-	);
-	
-	return UTcsStateTreeSchema_StateInstance::SetContextRequirements(*this, Context);
+	UE_LOG(LogTcsStateTree, Error,
+		TEXT("%s Generic UTcsStateInstance no longer provides a concrete StateTree schema. Use a concrete runtime subclass instead."),
+		*FString(__FUNCTION__));
+	return false;
 }
 
 bool UTcsStateInstance::CollectExternalData(
@@ -947,12 +940,10 @@ bool UTcsStateInstance::CollectExternalData(
 	TArrayView<const FStateTreeExternalDataDesc> ExternalDataDescs, 
 	TArrayView<FStateTreeDataView> OutDataViews)
 {
-	return UTcsStateTreeSchema_StateInstance::CollectExternalData(
-		Context,
-		StateTree,
-		this,
-		ExternalDataDescs,
-		OutDataViews);
+	UE_LOG(LogTcsStateTree, Error,
+		TEXT("%s Generic UTcsStateInstance no longer provides external data collection. Use a concrete runtime subclass instead."),
+		*FString(__FUNCTION__));
+	return false;
 }
 
 

@@ -3,9 +3,9 @@
 #include "Factories/TcsRuntimeAssetFactories.h"
 
 #include "AssetTypeCategories.h"
-#include "Components/StateTreeComponentSchema.h"
-#include "Skill/TcsSkillInstance.h"
-#include "StateTree/TcsStateTreeSchema_StateInstance.h"
+#include "Skill/TcsSkillEntry.h"
+#include "StateTree/TcsStateSchema_Buff.h"
+#include "StateTree/TcsStateSchema_StateComponent.h"
 #include "TireflyCombatSystemEditor.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(TcsRuntimeAssetFactories)
@@ -28,12 +28,12 @@ namespace TcsRuntimeAssetFactories
 
 UTcsStateComponentStateTreeFactory::UTcsStateComponentStateTreeFactory()
 {
-	StateTreeSchemaClass = UStateTreeComponentSchema::StaticClass();
+	StateTreeSchemaClass = UTcsStateSchema_StateComponent::StaticClass();
 }
 
 bool UTcsStateComponentStateTreeFactory::ConfigureProperties()
 {
-	StateTreeSchemaClass = UStateTreeComponentSchema::StaticClass();
+	StateTreeSchemaClass = UTcsStateSchema_StateComponent::StaticClass();
 	return true;
 }
 
@@ -59,7 +59,7 @@ FText UTcsStateComponentStateTreeFactory::GetDisplayName() const
 
 FText UTcsStateComponentStateTreeFactory::GetToolTip() const
 {
-	return LOCTEXT("StateComponentStateTreeToolTip", "Create a StateTree preset for UTcsStateComponent using UStateTreeComponentSchema.");
+	return LOCTEXT("StateComponentStateTreeToolTip", "Create a StateTree preset for UTcsStateComponent using UTcsStateSchema_StateComponent.");
 }
 
 FString UTcsStateComponentStateTreeFactory::GetDefaultNewAssetName() const
@@ -67,93 +67,93 @@ FString UTcsStateComponentStateTreeFactory::GetDefaultNewAssetName() const
 	return TEXT("ST_StateComponent_New");
 }
 
-UTcsStateInstanceStateTreeFactory::UTcsStateInstanceStateTreeFactory()
+UTcsBuffStateTreeFactory::UTcsBuffStateTreeFactory()
 {
-	StateTreeSchemaClass = UTcsStateTreeSchema_StateInstance::StaticClass();
+	StateTreeSchemaClass = UTcsStateSchema_Buff::StaticClass();
 }
 
-bool UTcsStateInstanceStateTreeFactory::ConfigureProperties()
+bool UTcsBuffStateTreeFactory::ConfigureProperties()
 {
-	StateTreeSchemaClass = UTcsStateTreeSchema_StateInstance::StaticClass();
+	StateTreeSchemaClass = UTcsStateSchema_Buff::StaticClass();
 	return true;
 }
 
-bool UTcsStateInstanceStateTreeFactory::ShouldShowInNewMenu() const
+bool UTcsBuffStateTreeFactory::ShouldShowInNewMenu() const
 {
 	return true;
 }
 
-uint32 UTcsStateInstanceStateTreeFactory::GetMenuCategories() const
+uint32 UTcsBuffStateTreeFactory::GetMenuCategories() const
 {
 	return TcsRuntimeAssetFactories::GetTcsMenuCategory();
 }
 
-const TArray<FText>& UTcsStateInstanceStateTreeFactory::GetMenuCategorySubMenus() const
+const TArray<FText>& UTcsBuffStateTreeFactory::GetMenuCategorySubMenus() const
 {
 	return FTireflyCombatSystemEditorModule::GetGameplayRuntimeCategorySubMenus();
 }
 
-FText UTcsStateInstanceStateTreeFactory::GetDisplayName() const
+FText UTcsBuffStateTreeFactory::GetDisplayName() const
 {
-	return LOCTEXT("StateInstanceStateTreeDisplayName", "State Instance StateTree");
+	return LOCTEXT("BuffStateTreeDisplayName", "Buff StateTree");
 }
 
-FText UTcsStateInstanceStateTreeFactory::GetToolTip() const
+FText UTcsBuffStateTreeFactory::GetToolTip() const
 {
-	return LOCTEXT("StateInstanceStateTreeToolTip", "Create a StateTree preset for UTcsStateInstance using UTcsStateTreeSchema_StateInstance.");
+	return LOCTEXT("BuffStateTreeToolTip", "Create a StateTree preset for UTcsBuffInstance using UTcsStateSchema_Buff.");
 }
 
-FString UTcsStateInstanceStateTreeFactory::GetDefaultNewAssetName() const
+FString UTcsBuffStateTreeFactory::GetDefaultNewAssetName() const
 {
-	return TEXT("ST_StateInstance_New");
+	return TEXT("ST_Buff_New");
 }
 
-UTcsSkillInstanceBlueprintFactory::UTcsSkillInstanceBlueprintFactory()
+UTcsSkillEntryBlueprintFactory::UTcsSkillEntryBlueprintFactory()
 {
 	bCreateNew = true;
 	bEditAfterNew = true;
 	bSkipClassPicker = true;
 	BlueprintType = BPTYPE_Normal;
 	SupportedClass = UBlueprint::StaticClass();
-	ParentClass = UTcsSkillInstance::StaticClass();
+	ParentClass = UTcsSkillEntry::StaticClass();
 }
 
-bool UTcsSkillInstanceBlueprintFactory::ConfigureProperties()
+bool UTcsSkillEntryBlueprintFactory::ConfigureProperties()
 {
 	bSkipClassPicker = true;
 	BlueprintType = BPTYPE_Normal;
-	ParentClass = UTcsSkillInstance::StaticClass();
+	ParentClass = UTcsSkillEntry::StaticClass();
 	return ParentClass != nullptr;
 }
 
-bool UTcsSkillInstanceBlueprintFactory::ShouldShowInNewMenu() const
+bool UTcsSkillEntryBlueprintFactory::ShouldShowInNewMenu() const
 {
 	return true;
 }
 
-uint32 UTcsSkillInstanceBlueprintFactory::GetMenuCategories() const
+uint32 UTcsSkillEntryBlueprintFactory::GetMenuCategories() const
 {
 	return TcsRuntimeAssetFactories::GetTcsMenuCategory();
 }
 
-const TArray<FText>& UTcsSkillInstanceBlueprintFactory::GetMenuCategorySubMenus() const
+const TArray<FText>& UTcsSkillEntryBlueprintFactory::GetMenuCategorySubMenus() const
 {
 	return FTireflyCombatSystemEditorModule::GetGameplayRuntimeCategorySubMenus();
 }
 
-FText UTcsSkillInstanceBlueprintFactory::GetDisplayName() const
+FText UTcsSkillEntryBlueprintFactory::GetDisplayName() const
 {
-	return LOCTEXT("SkillInstanceBlueprintDisplayName", "Skill Instance Blueprint");
+	return LOCTEXT("SkillEntryBlueprintDisplayName", "Skill Entry Blueprint");
 }
 
-FText UTcsSkillInstanceBlueprintFactory::GetToolTip() const
+FText UTcsSkillEntryBlueprintFactory::GetToolTip() const
 {
-	return LOCTEXT("SkillInstanceBlueprintToolTip", "Create a Blueprint subclass of UTcsSkillInstance.");
+	return LOCTEXT("SkillEntryBlueprintToolTip", "Create a Blueprint subclass of UTcsSkillEntry.");
 }
 
-FString UTcsSkillInstanceBlueprintFactory::GetDefaultNewAssetName() const
+FString UTcsSkillEntryBlueprintFactory::GetDefaultNewAssetName() const
 {
-	return TEXT("BP_SkillInstance_New");
+	return TEXT("BP_SkillEntry_New");
 }
 
 #undef LOCTEXT_NAMESPACE

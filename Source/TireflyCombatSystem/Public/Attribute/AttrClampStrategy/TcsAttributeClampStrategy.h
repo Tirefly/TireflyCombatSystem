@@ -10,6 +10,9 @@
 
 
 
+class UTcsAttributeDefinition;
+
+
 /**
  * 属性 Clamp 策略抽象基类
  *
@@ -86,4 +89,30 @@ public:
 		// 默认实现：简单的线性 Clamp
 		return FMath::Clamp(Value, MinValue, MaxValue);
 	}
+
+	/**
+	 * 收集当前 Clamp 策略声明式依赖的其他属性。
+	 *
+	 * 这里声明的是“当前 Attribute 的 Clamp 结果依赖哪些其他属性”。
+	 * AttributeComponent 会据此反向构建依赖图，用于脏属性驱动的局部传播。
+	 *
+	 * @param AttributeName 当前正在被 Clamp 的属性名
+	 * @param AttributeDef 当前属性定义
+	 * @param Config 当前策略配置
+	 * @param OutAttributeNames 输出的依赖属性集合
+	 * 返回 false 表示该策略没有声明可用于局部传播的完整依赖信息，调用方应回退到保守的全局传播路径。
+	 * @return 是否提供了完整的声明式依赖信息
+	 */
+	UFUNCTION(BlueprintNativeEvent, Category = "TireflyCombatSystem|Attribute")
+	bool CollectDependentAttributes(
+		FName AttributeName,
+		const UTcsAttributeDefinition* AttributeDef,
+		UPARAM(ref) const FInstancedStruct& Config,
+		UPARAM(ref) TArray<FName>& OutAttributeNames) const;
+
+	virtual bool CollectDependentAttributes_Implementation(
+		FName AttributeName,
+		const UTcsAttributeDefinition* AttributeDef,
+		const FInstancedStruct& Config,
+		TArray<FName>& OutAttributeNames) const;
 };

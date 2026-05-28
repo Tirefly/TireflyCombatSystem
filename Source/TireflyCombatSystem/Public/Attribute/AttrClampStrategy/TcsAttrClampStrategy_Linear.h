@@ -33,4 +33,10 @@ public:
 		float MaxValue,
 		const FTcsAttributeClampContextBase& Context,
 		const FInstancedStruct& Config) override;
+
+	virtual bool CollectDependentAttributes_Implementation(
+		FName AttributeName,
+		const UTcsAttributeDefinition* AttributeDef,
+		const FInstancedStruct& Config,
+		TArray<FName>& OutAttributeNames) const override;
 };

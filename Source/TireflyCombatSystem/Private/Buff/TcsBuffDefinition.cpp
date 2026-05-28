@@ -11,7 +11,7 @@
 
 UClass* UTcsBuffDefinition::ResolveStateInstanceClass() const
 {
-	return UTcsBuffInstance::StaticClass();
+	return BuffInstanceClass ? BuffInstanceClass.Get() : UTcsBuffInstance::StaticClass();
 }
 
 

@@ -64,30 +64,74 @@ TCS 编辑器集成 SHALL 为 TCS 开发者需要直接 authoring 的那一小�
 #### Scenario: 为 TcsStateComponent 创建 StateTree
 - **WHEN** 开发者从 `Tirefly Combat System -> Gameplay Runtime` 创建一个 StateTree
 - **THEN** 插件应暴露一个面向组件的 StateTree 入口
-- **AND** 创建出的资产应使用 `UStateTreeComponentSchema`
+- **AND** 创建出的资产应使用 `UTcsStateSchema_StateComponent`
 - **AND** 整个流程不需要 schema picker
 
-#### Scenario: 为 TcsStateInstance 创建 StateTree
+#### Scenario: 为 Buff 创建 StateTree
 - **WHEN** 开发者从 `Tirefly Combat System -> Gameplay Runtime` 创建一个 StateTree
-- **THEN** 插件应暴露一个面向 StateInstance 的 StateTree 入口
-- **AND** 创建出的资产应使用 `UTcsStateTreeSchema_StateInstance`
+- **THEN** 插件应暴露一个面向 `UTcsBuffInstance` 的 Buff StateTree 入口
+- **AND** 创建出的资产应使用 `UTcsStateSchema_Buff`
 - **AND** 整个流程不需要 schema picker
 
-#### Scenario: 创建 SkillInstance Blueprint
+#### Scenario: 不再暴露 generic StateInstance StateTree
+- **WHEN** `UTcsStateInstance` 被确认为抽象共享执行态基类，且 generic `StateInstance` schema 已删除
+- **THEN** 插件不应继续把 generic `StateInstance StateTree` 当作 gameplay runtime authoring 入口
+- **AND** 当前运行时树入口应收敛到 concrete runtime owner
+- **AND** 受支持的 concrete runtime 入口仍不应要求 schema picker
+
+#### Scenario: 创建 learned-skill data Blueprint
 - **WHEN** 开发者从 `Tirefly Combat System -> Gameplay Runtime` 创建一个 Blueprint
-- **THEN** 插件应暴露一个 SkillInstance Blueprint 入口
-- **AND** 创建出的资产应是 `UTcsSkillInstance` 的 Blueprint 子类
+- **THEN** 插件应暴露一个 learned-skill data Blueprint 入口
+- **AND** 创建出的资产应为 `UTcsSkillEntry` 的 Blueprint 子类
 - **AND** 整个流程不需要 parent-class picker
 
 ### Requirement: 为未来 TCS Authoring 保留稳定扩展路径
 TCS 编辑器 authoring capability SHALL 为后续的 StateComponent schema 和 Skill authoring 扩展保留稳定升级点，而不是把它们分裂成互不相关的菜单路径。
 
-#### Scenario: State Component StateTree 入口是未来的升级点
-- **WHEN** 当前阶段尚未提供专用的 `UTcsStateTreeSchema_StateComponent`
-- **THEN** `Tirefly Combat System -> Gameplay Runtime -> State Component StateTree` 入口可以临时创建基于 `UStateTreeComponentSchema` 的资产
-- **AND** 如果未来新增专用 TCS 组件 schema，这个同一入口仍应是预期的迁移目标
+#### Scenario: State Component StateTree 入口沿用专用 schema 升级
+- **WHEN** 当前阶段已经提供专用的 `UTcsStateSchema_StateComponent`
+- **THEN** `Tirefly Combat System -> Gameplay Runtime -> State Component StateTree` 入口应创建基于该 schema 的资产
+- **AND** 如果未来继续扩展组件树 authoring，这个同一入口仍应是预期的升级目标
+
+#### Scenario: 过渡性的 generic StateTree 入口需要迁移
+- **WHEN** `refactor-state-runtime-access-contract` 删除 generic `StateInstance` schema
+- **THEN** 现有 `Gameplay Runtime` 中的过渡性 generic StateTree 入口应被移除或改造成 concrete runtime owner 入口
+- **AND** editor authoring 面不应继续把抽象共享运行时类型暴露成稳定创建目标
 
 #### Scenario: Skill authoring 沿用同一 capability 扩展
 - **WHEN** `SkillDef` 将来变为可直接资产化的类型时
 - **THEN** TCS 编辑器创作面应沿用同一个插件自有能力与菜单结构继续扩展
 - **AND** Skill 创作流程不应被拆成另一条无关的编辑器创作路径
+
+### Requirement: 编辑器阶段 AssetManagerSettings 覆盖勘误
+TCS 编辑器 authoring 集成 SHALL 在编辑器阶段检测 `AssetManagerSettings` 对 TCS DefinitionAsset 的覆盖完整性，并在漏配时提供明确勘误提示。
+
+#### Scenario: 检测到 Definition 类型或扫描路径漏配
+- **WHEN** `PrimaryAssetTypesToScan` 未正确覆盖 `UTcsAttributeDefinition`、`UTcsAttributeModifierDefinition`、`UTcsStateDefinition`、`UTcsStateSlotDefinition` 对应的类型或扫描目录
+- **THEN** 编辑器应输出可读勘误信息，明确缺失的 PrimaryAssetType 与扫描路径
+- **AND** 勘误信息应可用于直接指导开发者修正工程配置
+
+#### Scenario: 类型与路径漏配必须分别可见
+- **WHEN** 某个 TCS DefAsset 类型已存在于 `PrimaryAssetTypesToScan`，但其扫描目录配置错误或缺失
+- **THEN** 编辑器仍应报错，且该错误不得被“类型已存在”判定掩盖
+- **AND** 报错信息应明确这是路径覆盖问题
+
+#### Scenario: DevSettings 忽略列表可以抑制指定类型报错
+- **WHEN** 某个 TCS DefAsset 类型被加入 `UTcsDeveloperSettings` 的勘误忽略列表
+- **THEN** 该类型的类型漏配或路径漏配不应再产生勘误报错
+- **AND** 其他未被忽略类型的漏配检测继续生效
+
+#### Scenario: 勘误校验不改写工程配置
+- **WHEN** 编辑器执行 `AssetManagerSettings` 覆盖勘误检查
+- **THEN** 该检查应只报告配置问题，不自动改写项目 `AssetManagerSettings`
+
+#### Scenario: 修复漏配后勘误消失
+- **WHEN** 开发者按提示补齐 `AssetManagerSettings` 的缺失类型与扫描目录
+- **THEN** 后续勘误检查不应再报告同一漏配项
+- **AND** 既有 Definition 资产同步与加载行为保持有效
+
+#### Scenario: 未修复漏配在每次 Save 后重复提示
+- **WHEN** 编辑器中仍存在未忽略且未修复的 DefAsset 漏配项
+- **AND** 开发者执行一次 Save 操作
+- **THEN** 编辑器应再次输出对应勘误提示
+- **AND** 该重复提示行为持续到漏配被修复或该类型被加入忽略列表

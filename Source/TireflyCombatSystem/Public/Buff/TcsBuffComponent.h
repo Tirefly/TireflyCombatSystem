@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
 #include "Buff/BuffMerger/TcsBuffMergeRuntime.h"
+#include "Buff/TcsBuffChangeEventPayload.h"
 #include "Buff/TcsBuffTypes.h"
 #include "TcsSourceHandle.h"
 #include "TcsBuffComponent.generated.h"
@@ -21,40 +22,15 @@ struct FTcsStateSlot;
 
 #pragma region BuffDelegate
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams(
-	FTcsOnBuffStackChangedSignature,
-	UTcsStateComponent*, StateComponent,
-	UTcsBuffInstance*, BuffInstance,
-	int32, OldStackCount,
-	int32, NewStackCount);
+// Buff 运行时变化批量事件委托声明
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(
+	FTcsBuffRuntimeDeltaBatchDelegate,
+	const TArray<FTcsBuffRuntimeDeltaEventPayload>&, Payloads);
 
-// Buff 最大叠层数变化事件。
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams(
-	FTcsOnBuffMaxStackCountChangedSignature,
-	UTcsStateComponent*, StateComponent,
-	UTcsBuffInstance*, BuffInstance,
-	int32, OldMaxStackCount,
-	int32, NewMaxStackCount);
-
-// Buff 周期变化事件。
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams(
-	FTcsOnBuffPeriodChangedSignature,
-	UTcsStateComponent*, StateComponent,
-	UTcsBuffInstance*, BuffInstance,
-	float, OldPeriod,
-	float, NewPeriod);
-
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(
-	FTcsOnBuffDurationRefreshedSignature,
-	UTcsStateComponent*, StateComponent,
-	UTcsBuffInstance*, BuffInstance,
-	float, NewDuration);
-
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(
-	FTcsOnBuffRemovedSignature,
-	UTcsStateComponent*, StateComponent,
-	UTcsBuffInstance*, BuffInstance,
-	FName, RemovalReason);
+// Buff 移除批量事件委托声明
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(
+	FTcsBuffRemovedBatchDelegate,
+	const TArray<FTcsBuffRemovedEventPayload>&, Payloads);
 
 #pragma endregion
 
@@ -90,6 +66,7 @@ UCLASS(ClassGroup = (TireflyCombatSystem), Meta = (BlueprintSpawnableComponent, 
 class TIREFLYCOMBATSYSTEM_API UTcsBuffComponent : public UActorComponent
 {
 	GENERATED_BODY()
+	friend class UTcsBuffInstance;
 
 
 #pragma region ActorComponent
@@ -345,23 +322,28 @@ public:
 #pragma region Event
 
 public:
-	UPROPERTY(BlueprintAssignable, Category = "Buff|Events")
-	FTcsOnBuffStackChangedSignature OnBuffStackChanged;
-
-	UPROPERTY(BlueprintAssignable, Category = "Buff|Events")
-	FTcsOnBuffMaxStackCountChangedSignature OnBuffMaxStackCountChanged;
-
-	UPROPERTY(BlueprintAssignable, Category = "Buff|Events")
-	FTcsOnBuffPeriodChangedSignature OnBuffPeriodChanged;
-
-	UPROPERTY(BlueprintAssignable, Category = "Buff|Events")
-	FTcsOnBuffDurationRefreshedSignature OnBuffDurationRefreshed;
-
-	UPROPERTY(BlueprintAssignable, Category = "Buff|Events")
-	FTcsOnBuffRemovedSignature OnBuffRemoved;
+	/**
+	 * 广播 Buff 运行时变化批量事件。
+	 *
+	 * @param Payloads 本次批量收敛后的运行时变化载荷
+	 */
+	void BroadcastBuffRuntimeDeltaBatchEvent(const TArray<FTcsBuffRuntimeDeltaEventPayload>& Payloads) const;
 
 	/**
-	 * 广播 Buff 叠层变化事件。
+	 * 广播 Buff 移除批量事件。
+	 *
+	 * @param Payloads 本次批量收敛后的移除载荷
+	 */
+	void BroadcastBuffRemovedBatchEvent(const TArray<FTcsBuffRemovedEventPayload>& Payloads) const;
+
+	UPROPERTY(BlueprintAssignable, Category = "Buff|Events")
+	FTcsBuffRuntimeDeltaBatchDelegate OnBuffRuntimeDelta;
+
+	UPROPERTY(BlueprintAssignable, Category = "Buff|Events")
+	FTcsBuffRemovedBatchDelegate OnBuffRemoved;
+
+	/**
+	 * 记录 Buff 叠层变化事件。
 	 *
 	 * @param BuffInstance 目标 Buff 实例
 	 * @param OldStackCount 旧叠层数
@@ -370,7 +352,7 @@ public:
 	void NotifyBuffStackChanged(UTcsBuffInstance* BuffInstance, int32 OldStackCount, int32 NewStackCount);
 
 	/**
-	 * 广播 Buff 最大叠层数变化事件。
+	 * 记录 Buff 最大叠层数变化事件。
 	 *
 	 * @param BuffInstance 目标 Buff 实例
 	 * @param OldMaxStackCount 旧最大叠层数
@@ -379,7 +361,7 @@ public:
 	void NotifyBuffMaxStackCountChanged(UTcsBuffInstance* BuffInstance, int32 OldMaxStackCount, int32 NewMaxStackCount);
 
 	/**
-	 * 广播 Buff 周期变化事件。
+	 * 记录 Buff 周期变化事件。
 	 *
 	 * @param BuffInstance 目标 Buff 实例
 	 * @param OldPeriod 旧周期
@@ -388,7 +370,7 @@ public:
 	void NotifyBuffPeriodChanged(UTcsBuffInstance* BuffInstance, float OldPeriod, float NewPeriod);
 
 	/**
-	 * 广播 Buff 持续时间刷新事件。
+	 * 记录 Buff 持续时间刷新事件。
 	 *
 	 * @param BuffInstance 目标 Buff 实例
 	 * @param NewDuration 新的剩余持续时间
@@ -396,7 +378,7 @@ public:
 	void NotifyBuffDurationRefreshed(UTcsBuffInstance* BuffInstance, float NewDuration);
 
 	/**
-	 * 广播 Buff 移除事件。
+	 * 记录 Buff 移除事件。
 	 *
 	 * @param BuffInstance 被移除的 Buff 实例
 	 * @param RemovalReason Buff 移除原因
@@ -561,9 +543,113 @@ private:
 	/** @return 当前组件缓存或解析到的共享 State 宿主组件。 */
 	UTcsStateComponent* ResolveOwnerStateComponent() const;
 
+	/**
+	 * 进入 Buff 公共事件批处理作用域。
+	 *
+	 * 用途：把同一条运行时链路里的多个公开结果暂存起来，等最外层作用域结束后再统一广播。
+	 */
+	void BeginPublicEventBatch();
+
+	/**
+	 * 退出 Buff 公共事件批处理作用域。
+	 *
+	 * 用途：只有最外层批次结束时才会真正触发挂起事件的统一排空。
+	 */
+	void EndPublicEventBatch();
+
+	/**
+	 * 立即广播当前挂起的 Buff 公共事件。
+	 *
+	 * 用途：把已经折叠完成的 RuntimeDelta / Removed 结果提交给外部监听者。
+	 */
+	void FlushPendingPublicEvents();
+
+	/**
+	 * 查找指定 Buff 的挂起运行时变化载荷。
+	 *
+	 * @param BuffInstance 目标 Buff 实例
+	 * @return 如果当前批次里已存在对应载荷则返回其指针，否则返回 nullptr
+	 */
+	FTcsBuffRuntimeDeltaEventPayload* FindPendingBuffRuntimeDeltaEvent(UTcsBuffInstance* BuffInstance);
+
+	/**
+	 * 查找指定 Buff 的挂起移除载荷。
+	 *
+	 * @param BuffInstance 目标 Buff 实例
+	 * @return 如果当前批次里已存在对应移除载荷则返回其指针，否则返回 nullptr
+	 */
+	FTcsBuffRemovedEventPayload* FindPendingBuffRemovedEvent(UTcsBuffInstance* BuffInstance);
+
+	/**
+	 * 检查指定 Buff 是否已经进入本批次的移除结果集合。
+	 *
+	 * @param BuffInstance 目标 Buff 实例
+	 * @return 已经挂起移除事件则返回 true，否则返回 false
+	 */
+	bool HasPendingBuffRemovedEvent(UTcsBuffInstance* BuffInstance) const;
+
+	/**
+	 * 丢弃指定 Buff 当前批次里已记录的运行时变化载荷。
+	 *
+	 * @param BuffInstance 目标 Buff 实例
+	 */
+	void DiscardPendingBuffRuntimeDeltaEvent(UTcsBuffInstance* BuffInstance);
+
+	/**
+	 * 把 Buff 叠层变化折叠进当前批次的 RuntimeDelta 载荷。
+	 *
+	 * @param BuffInstance 目标 Buff 实例
+	 * @param OldStackCount 本批次首次观察到的旧叠层数
+	 * @param NewStackCount 本次更新后的最新叠层数
+	 */
+	void QueueBuffStackChangedEvent(UTcsBuffInstance* BuffInstance, int32 OldStackCount, int32 NewStackCount);
+
+	/**
+	 * 把 Buff 最大叠层变化折叠进当前批次的 RuntimeDelta 载荷。
+	 *
+	 * @param BuffInstance 目标 Buff 实例
+	 * @param OldMaxStackCount 本批次首次观察到的旧最大叠层数
+	 * @param NewMaxStackCount 本次更新后的最新最大叠层数
+	 */
+	void QueueBuffMaxStackCountChangedEvent(UTcsBuffInstance* BuffInstance, int32 OldMaxStackCount, int32 NewMaxStackCount);
+
+	/**
+	 * 把 Buff 周期变化折叠进当前批次的 RuntimeDelta 载荷。
+	 *
+	 * @param BuffInstance 目标 Buff 实例
+	 * @param OldPeriod 本批次首次观察到的旧周期
+	 * @param NewPeriod 本次更新后的最新周期
+	 */
+	void QueueBuffPeriodChangedEvent(UTcsBuffInstance* BuffInstance, float OldPeriod, float NewPeriod);
+
+	/**
+	 * 把 Buff 持续时间刷新结果写入当前批次的 RuntimeDelta 载荷。
+	 *
+	 * @param BuffInstance 目标 Buff 实例
+	 * @param NewDuration 本批次结束时应对外可见的最终剩余时长
+	 */
+	void QueueBuffDurationRefreshedEvent(UTcsBuffInstance* BuffInstance, float NewDuration);
+
+	/**
+	 * 把 Buff 移除结果写入当前批次的 Removed 载荷。
+	 *
+	 * @param BuffInstance 被移除的 Buff 实例
+	 * @param RemovalReason 本次移除原因
+	 */
+	void QueueBuffRemovedEvent(UTcsBuffInstance* BuffInstance, FName RemovalReason);
+
 	// 共享 State 宿主组件缓存；Buff 侧的移除、定义查询等流程仍需回到它的统一主链。
 	UPROPERTY(Transient)
 	TWeakObjectPtr<UTcsStateComponent> OwnerStateComponent;
+
+	// 公共 Buff 事件的本地批处理深度。
+	int32 PublicEventBatchDepth = 0;
+
+	// 待统一广播的 Buff 运行时变化事件。
+	TArray<FTcsBuffRuntimeDeltaEventPayload> PendingBuffRuntimeDeltaEvents;
+
+	// 待统一广播的 Buff 移除事件。
+	TArray<FTcsBuffRemovedEventPayload> PendingBuffRemovedEvents;
 
 	// 槽位激活刷新扩展点绑定句柄。
 	FDelegateHandle OwnerStateSlotActivationHandle;

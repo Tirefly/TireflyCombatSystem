@@ -8,10 +8,10 @@ TCS SHALL 在编辑器会话期间维护一份权威的实时 Def 快照，使 D
 - **THEN** 权威 TCS Def 快照会在同一编辑器会话内刷新
 - **AND** 新的 AttributeDef 会在无需重启编辑器的前提下，对编辑器期 TCS 加载路径可见
 
-#### Scenario: 已有 StateDef 的更新在同一编辑器会话内可见
-- **WHEN** 开发者在编辑器中修改并保存一个现有 StateDef 资产
+#### Scenario: 具体 state-side Definition 的更新在同一编辑器会话内可见
+- **WHEN** 开发者在编辑器中修改并保存一个具体的 state-side DefinitionAsset（例如 `UTcsBuffDefinition`，或任意派生自 `UTcsStateDefinition` 的资产）
 - **THEN** 权威 TCS Def 快照会在同一编辑器会话内刷新
-- **AND** 更新后的 StateDef 会在无需重启编辑器的前提下，对编辑器期 TCS 加载路径可见
+- **AND** 更新后的 state-side DefinitionAsset 会在无需重启编辑器的前提下，对编辑器期 TCS 加载路径可见
 
 ### Requirement: Subsystem 实时同步
 TCS 管理子系统在编辑器期 Def registry 刷新时 SHALL 从最新的权威 Def 快照中重建。
@@ -22,7 +22,7 @@ TCS 管理子系统在编辑器期 Def registry 刷新时 SHALL 从最新的权�
 
 #### Scenario: State 管理子系统响应 Def 刷新
 - **WHEN** 权威 TCS Def 快照在编辑器中刷新时
-- **THEN** `UTcsStateManagerSubsystem` 会从刷新后的快照中重建其 slot/state 查询状态
+- **THEN** `UTcsStateManagerSubsystem` 会从刷新后的快照中重建其 slot / state-side definition 查询状态
 - **AND** 该重建会保留已配置的 State 加载策略语义
 
 ### Requirement: DeveloperSettings 兼容视图
@@ -36,10 +36,10 @@ TCS 管理子系统在编辑器期 Def registry 刷新时 SHALL 从最新的权�
 ### Requirement: 派生 Def 兼容性
 TCS SHALL 按基类契约发现 Def 资产，而不是按精确类相等进行匹配。
 
-#### Scenario: 派生 StateDef 能建立索引
-- **WHEN** 某个项目定义了一个派生自 `UTcsStateDefinition` 的资产类
+#### Scenario: 派生自 `UTcsStateDefinition` 的具体定义资产能建立索引
+- **WHEN** 某个项目定义了一个派生自 `UTcsStateDefinition` 的具体资产类（例如项目自定义 BuffDefinition）
 - **AND** 该派生类的某个资产存在于被扫描的 Def 根路径下
-- **THEN** 实时 TCS Def registry 会将其索引为有效 StateDef 资产
+- **THEN** 实时 TCS Def registry 会将其索引为有效的 state-side DefinitionAsset
 - **AND** State 管理子系统能通过基类 Def 契约从中完成重建
 
 #### Scenario: 派生 AttributeDef 能建立索引

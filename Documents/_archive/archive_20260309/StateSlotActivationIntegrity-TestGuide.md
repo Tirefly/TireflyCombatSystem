@@ -25,7 +25,7 @@
 
 ### 1.1 前置条件
 
-- ✅ UE 5.6 编辑器已安装
+- ✅ UE 5.7 编辑器已安装
 - ✅ TireflyCombatSystem 插件已编译成功
 - ✅ 项目已正确配置 GameplayTags
 - ✅ 已创建测试关卡

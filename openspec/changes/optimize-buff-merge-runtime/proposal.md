@@ -43,10 +43,9 @@
   - `Plugins/TireflyCombatSystem/Source/TireflyCombatSystem/Private/Buff/TcsBuffComponent.cpp`
   - `Plugins/TireflyCombatSystem/Source/TireflyCombatSystem/Public/Buff/BuffMerger/TcsBuffMerger.h`
   - `Plugins/TireflyCombatSystem/Source/TireflyCombatSystem/Private/Buff/BuffMerger/**` 下的内建 merger 实现
-  - `Plugins/TireflyCombatSystem/Source/TireflyCombatSystemTests/**` 下相关 Buff / State 运行时测试
 - 受影响文档：
   - `Plugins/TireflyCombatSystem/Documents/文档：BuffMerger流程优化方案对比（最小增量方案与完整方案）.md`
-  - 描述 Buff merge 行为的实现说明 / 验证说明
+  - 描述 Buff merge 行为的实现说明 / 等待开发者手动执行的编辑器测试说明
 - 明确不在本提案范围内：
   - 编辑器 authoring 相关改动
   - Skill 重复激活策略

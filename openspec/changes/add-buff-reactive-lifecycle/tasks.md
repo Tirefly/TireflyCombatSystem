@@ -27,5 +27,5 @@
 ## 5. 验证
 
 - [x] 5.1 编译 `TireflyGameplayUtilsEditor Win64 Development`。
-- [ ] 5.2 完成最小范围验证：单层 Buff 忽略新增配置并在持续时间耗尽时直接整 Buff 移除、叠层刷新时长、持续时间耗尽掉层、最后一层因持续时间耗尽离场时不误报为 `StackDepleted`、`PeriodDriverTask` 的自然周期触发与停止推进语义。
+- [ ] 5.2 等待开发者手动执行编辑器测试，覆盖单层 Buff 忽略新增配置并在持续时间耗尽时直接整 Buff 移除、叠层刷新时长、持续时间耗尽掉层、最后一层因持续时间耗尽离场时不误报为 `StackDepleted`、`PeriodDriverTask` 的自然周期触发与停止推进语义。
 - [x] 5.3 运行 `openspec validate add-buff-reactive-lifecycle --strict --no-interactive`。

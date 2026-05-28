@@ -204,9 +204,9 @@ Phase 2 再接剩余脏源和可解释性观察面。
 - 保守的默认依赖声明有利于正确性，但在内建合并器精确覆盖之前，优化收益会略打折。
 - Phase 1 会故意带着一部分供 Phase 2 使用的休眠能力，这是一种有意识的取舍，用来避免把运行时模型重建两遍。
 
-## 验证策略
+## 手动编辑器测试策略
 
-- 新增聚焦 membership-driven merge processing 和 merged-out removal 行为的运行时测试。
-- 新增 rebuild-safety 测试，证明 forced rebuild 能把 group runtime 和当前 slot state 重新同步。
-- 在 Phase 2 中，再新增针对 stack / stage / gate dirty signal 与 merger dependency flags 交互关系的测试。
+- 等待开发者手动执行编辑器测试，覆盖 membership-driven merge processing 与 merged-out removal 行为。
+- 等待开发者手动执行编辑器测试，确认 forced rebuild 能把 group runtime 和当前 slot state 重新同步。
+- 在 Phase 2 中，等待开发者手动执行编辑器测试，覆盖 stack / stage / gate dirty signal 与 merger dependency flags 的交互关系。
 - 每个阶段完成后，都用 `TireflyGameplayUtilsEditor Win64 Development` 编译验证一次。

@@ -27,15 +27,15 @@
 ## 4. Skill 兼容冻结
 
 - [x] 4.1 盘点当前 `State` 结构中的 Skill 组件引用与 Schema 接入点，标记为后续独立 Skill change 的迁移债务
-- [x] 4.2 记录并确认当前 Skill 语义基线：`UTcsSkillInstance` 只表示已学会技能；技能释放仍通过 `UTcsStateComponent` 申请 `StateInstance`
-- [x] 4.3 确认本阶段不新增 `UTcsSkillDefinition`，不扩展 `UTcsSkillInstance` / `UTcsSkillComponent` 的现有职责
+- [x] 4.2 记录并确认当前代码事实：learned-skill 持有态当前仍使用 `UTcsSkillInstance` 命名，且技能释放仍通过 `UTcsStateComponent` 申请运行态；但这不是长期命名契约
+- [x] 4.3 确认本提案自身不实现 `UTcsSkillDefinition`、`UTcsSkillEntry`、新的 `UTcsSkillInstance` 或 Skill 专用 schema；这些 follow-up 由独立 change 推进
 - [x] 4.4 把“同 Def 技能重复激活”记录为后续独立 Skill 议题，要求按技能类型做完整调研，不在本提案中统一定默认规则
-- [ ] 4.5 为现有 Skill 模块补最小兼容回归，确保 State/Buff 重构不会破坏当前 Skill 骨架与已有调用路径
+- [ ] 4.5 等待开发者手动执行编辑器测试，确认 State / Buff 重构不会破坏当前 Skill 骨架与已有调用路径
 
 ## 5. 验证与迁移
 
 - [x] 5.1 提供现有 `UTcsStateDefinition` 资产的迁移策略或转换工具
 - [x] 5.2 更新架构文档、手工测试指南、作者文档，统一采用 `State Core / Buff / Skill` 术语
-- [ ] 5.3 新增回归测试：Buff 的 Duration / Stack / Merge / Period，并补最小兼容回归确认当前 Skill 模块未被本阶段改坏
-- [ ] 5.4 `TireflyGameplayUtilsEditor Win64 Development` 编译通过，并跑过聚焦 TCS 的自动化测试
+- [ ] 5.3 等待开发者手动执行编辑器测试，覆盖 Buff 的 Duration / Stack / Merge / Period，并确认当前 Skill 模块最小兼容场景未被本阶段改坏
+- [ ] 5.4 `TireflyGameplayUtilsEditor Win64 Development` 编译通过，并等待开发者手动执行聚焦 TCS 的编辑器测试
 - [x] 5.5 `openspec validate refactor-tcs-state-buff-skill-split --strict --no-interactive` 通过

@@ -9,6 +9,10 @@
 
 
 
+class UTcsBuffInstance;
+
+
+
 /**
  * Buff 叠层上涨后的持续时间刷新策略。
  */
@@ -149,6 +153,10 @@ public:
 #pragma region Runtime
 
 public:
+	/** Buff 激活时创建的运行时实例类。 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Runtime")
+	TSubclassOf<UTcsBuffInstance> BuffInstanceClass;
+
 	/** @return Buff 定义对应的运行时实例类。 */
 	virtual UClass* ResolveStateInstanceClass() const override;
 

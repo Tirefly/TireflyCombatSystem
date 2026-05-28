@@ -5,6 +5,7 @@
 #include "TcsDeveloperSettings.h"
 #include "TcsEntityInterface.h"
 #include "Attribute/TcsAttributeComponent.h"
+#include "Buff/TcsBuffComponent.h"
 #include "State/TcsStateComponent.h"
 #include "Skill/TcsSkillComponent.h"
 
@@ -84,6 +85,15 @@ UTcsStateComponent* UTcsGenericLibrary::GetStateComponent(AActor *Actor)
     if (IsValid(Actor) && Actor->Implements<UTcsEntityInterface>())
 	{
 		return ITcsEntityInterface::Execute_GetStateComponent(Actor);
+	}
+	return nullptr;
+}
+
+UTcsBuffComponent* UTcsGenericLibrary::GetBuffComponent(AActor* Actor)
+{
+	if (IsValid(Actor) && Actor->Implements<UTcsEntityInterface>())
+	{
+		return ITcsEntityInterface::Execute_GetBuffComponent(Actor);
 	}
 	return nullptr;
 }

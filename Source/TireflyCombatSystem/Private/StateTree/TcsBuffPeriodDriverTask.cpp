@@ -4,7 +4,6 @@
 
 #include "StructUtils/InstancedStruct.h"
 #include "Buff/TcsBuffInstance.h"
-#include "State/TcsStateInstance.h"
 #include "StateTreeExecutionContext.h"
 #include "StateTreeLinker.h"
 #include "TcsGameplayTags.h"
@@ -20,7 +19,7 @@ FTcsBuffPeriodDriverTask::FTcsBuffPeriodDriverTask()
 bool FTcsBuffPeriodDriverTask::Link(FStateTreeLinker& Linker)
 {
 	const bool bResult = Super::Link(Linker);
-	Linker.LinkExternalData(StateInstanceHandle);
+	Linker.LinkExternalData(BuffInstanceHandle);
 	return bResult;
 }
 
@@ -42,17 +41,12 @@ EStateTreeRunStatus FTcsBuffPeriodDriverTask::Tick(
 		return EStateTreeRunStatus::Running;
 	}
 
-	UTcsStateInstance* StateInstance = &Context.GetExternalData(StateInstanceHandle);
-	UTcsBuffInstance* BuffInstance = Cast<UTcsBuffInstance>(StateInstance);
-	if (!BuffInstance)
-	{
-		return EStateTreeRunStatus::Running;
-	}
+	UTcsBuffInstance& BuffInstance = Context.GetExternalData(BuffInstanceHandle);
 
 	FInstanceDataType& InstanceData = Context.GetInstanceData(*this);
 	const float ResolvedPeriod = InstanceData.PeriodOverride > 0.f
 		? InstanceData.PeriodOverride
-		: BuffInstance->GetPeriod();
+		: BuffInstance.GetPeriod();
     if (ResolvedPeriod <= 0.f)
 	{
 		return EStateTreeRunStatus::Running;
@@ -67,7 +61,7 @@ EStateTreeRunStatus FTcsBuffPeriodDriverTask::Tick(
 	while (InstanceData.ElapsedTime >= ResolvedPeriod)
 	{
 		InstanceData.ElapsedTime -= ResolvedPeriod;
-		BuffInstance->SendStateTreeEvent(TcsGameplayTags::Event_Buff_PeriodTick, EventPayload);
+		BuffInstance.SendStateTreeEvent(TcsGameplayTags::Event_Buff_PeriodTick, EventPayload);
 	}
 
 	return EStateTreeRunStatus::Running;

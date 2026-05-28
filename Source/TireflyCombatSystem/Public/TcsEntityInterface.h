@@ -25,6 +25,10 @@ public:
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "TireflyCombatSystem")
 	class UTcsStateComponent* GetStateComponent() const;
 
+	// 获取战斗实体的 Buff 组件
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "TireflyCombatSystem")
+	class UTcsBuffComponent* GetBuffComponent() const;
+
 	// 获取战斗实体的技能组件
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "TireflyCombatSystem")
 	class UTcsSkillComponent* GetSkillComponent() const;

@@ -24,33 +24,17 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(
 	FTcsAttributeChangeDelegate,
 	const TArray<FTcsAttributeChangeEventPayload>&, Payloads);
 
-// 属性修改器添加事件委托声明
-// (修改器实例)
+// 属性修改器批量事件委托声明
+// (事件载荷列表)
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(
-	FTcsOnAttributeModifierAddedSignature,
-	const FTcsAttributeModifierInstance&, ModifierInstance);
+	FTcsAttributeModifierBatchDelegate,
+	const TArray<FTcsAttributeModifierEventPayload>&, Payloads);
 
-// 属性修改器移除事件委托声明
-// (修改器实例)
+// 属性边界批量事件委托声明
+// (事件载荷列表)
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(
-	FTcsOnAttributeModifierRemovedSignature,
-	const FTcsAttributeModifierInstance&, ModifierInstance);
-
-// 属性修改器更新事件委托声明
-// (修改器实例)
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(
-	FTcsOnAttributeModifierUpdatedSignature,
-	const FTcsAttributeModifierInstance&, ModifierInstance);
-
-// 属性达到边界值事件委托声明
-// (属性名称, 边界类型: true=最大值, false=最小值, 旧值, 新值, 边界值)
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_FiveParams(
-	FTcsOnAttributeReachedBoundarySignature,
-	FName, AttributeName,
-	bool, bIsMaxBoundary,
-	float, OldValue,
-	float, NewValue,
-	float, BoundaryValue);
+	FTcsAttributeBoundaryBatchDelegate,
+	const TArray<FTcsAttributeBoundaryEventPayload>&, Payloads);
 
 
 
@@ -94,11 +78,40 @@ public:
 		UPARAM(Meta = (GetParamOptions = "TcsGenericLibrary.GetAttributeNames"))FName AttributeName,
 		float& OutValue) const;
 
-	// 获取特定属性的当前值
+	/**
+	 * 通过 GameplayTag 检查属性是否存在。
+	 *
+	 * @param AttributeTag 属性的 GameplayTag 标识
+	 * @return 如果 Tag 能解析且组件中已存在该属性则返回 true，否则返回 false
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Attribute", Meta = (Categories = "TCS.Attribute"))
+	bool HasAttributeByTag(const FGameplayTag& AttributeTag) const;
+
+	/**
+	 * 通过 GameplayTag 获取特定属性的当前值。
+	 *
+	 * @param AttributeTag 属性的 GameplayTag 标识
+	 * @param OutValue 输出属性当前值
+	 * @return 如果 Tag 能解析且属性存在则返回 true，否则返回 false
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Attribute", Meta = (Categories = "TCS.Attribute"))
+	bool GetAttributeValueByTag(const FGameplayTag& AttributeTag, float& OutValue) const;
+
+	// 获取特定属性的基础值
 	UFUNCTION(BlueprintCallable, Category = "Attribute")
 	bool GetAttributeBaseValue(
 		UPARAM(Meta = (GetParamOptions = "TcsGenericLibrary.GetAttributeNames"))FName AttributeName,
 		float& OutValue) const;
+
+	/**
+	 * 通过 GameplayTag 获取特定属性的基础值。
+	 *
+	 * @param AttributeTag 属性的 GameplayTag 标识
+	 * @param OutValue 输出属性基础值
+	 * @return 如果 Tag 能解析且属性存在则返回 true，否则返回 false
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Attribute", Meta = (Categories = "TCS.Attribute"))
+	bool GetAttributeBaseValueByTag(const FGameplayTag& AttributeTag, float& OutValue) const;
 
 	// 获取所有属性的当前值
 	TMap<FName, float> GetAttributeValues() const;
@@ -109,19 +122,14 @@ public:
 	void BroadcastAttributeValueChangeEvent(const TArray<FTcsAttributeChangeEventPayload>& Payloads) const;
 	// 广播属性基础值改变事件
 	void BroadcastAttributeBaseValueChangeEvent(const TArray<FTcsAttributeChangeEventPayload>& Payloads) const;
-	// 广播属性修改器添加事件
-	void BroadcastAttributeModifierAddedEvent(const FTcsAttributeModifierInstance& ModifierInstance) const;
-	// 广播属性修改器移除事件
-	void BroadcastAttributeModifierRemovedEvent(const FTcsAttributeModifierInstance& ModifierInstance) const;
-	// 广播属性修改器更新事件
-	void BroadcastAttributeModifierUpdatedEvent(const FTcsAttributeModifierInstance& ModifierInstance) const;
-	// 广播属性达到边界值事件
-	void BroadcastAttributeReachedBoundaryEvent(
-		FName AttributeName,
-		bool bIsMaxBoundary,
-		float OldValue,
-		float NewValue,
-		float BoundaryValue) const;
+	// 广播属性修改器批量添加事件
+	void BroadcastAttributeModifierAddedBatchEvent(const TArray<FTcsAttributeModifierEventPayload>& Payloads) const;
+	// 广播属性修改器批量移除事件
+	void BroadcastAttributeModifierRemovedBatchEvent(const TArray<FTcsAttributeModifierEventPayload>& Payloads) const;
+	// 广播属性修改器批量更新事件
+	void BroadcastAttributeModifierUpdatedBatchEvent(const TArray<FTcsAttributeModifierEventPayload>& Payloads) const;
+	// 广播属性达到边界值批量事件
+	void BroadcastAttributeReachedBoundaryBatchEvent(const TArray<FTcsAttributeBoundaryEventPayload>& Payloads) const;
 
 public:
 	// 战斗实体的所有属性实例
@@ -141,13 +149,8 @@ public:
 	//   3. 本地缓存，无需网络复制 (每个客户端独立维护)
 	//   4. 内部实现细节，无需暴露给蓝图或编辑器
 	//   5. 生命周期跟随组件，C++ 析构函数自动释放内存
-	// TODO(Perf): Value 当前为 TArray<int32>，`Remove(InstId)` 为 O(bucket)。
-	//   批量移除同一 SourceHandle 下 K 个 Modifier 时整体退化为 O(K^2)。
-	//   优化方向:
-	//     1) 改为 TSet<int32>，单次删除 O(1)，桶内元素量通常较小，内存开销可接受；
-	//     2) 保持 TArray 但在 RemoveModifiersBySourceHandle 路径直接整桶丢弃，跳过逐个 Remove；
-	//     3) 批量移除 API 引入 "延迟紧凑化"：先标记后重建，避免 O(K^2)。
-	TMap<int32, TArray<int32>> SourceHandleIdToModifierInstIds;
+	// Value 使用 TSet<int32>，避免批量按 SourceHandle 移除时在桶内做线性删除。
+	TMap<int32, TSet<int32>> SourceHandleIdToModifierInstIds;
 
 	// Modifier 实例 ID 到当前数组下标的映射 (性能优化 - 快速定位)
 	// Key: ModifierInstId, Value: AttributeModifiers 数组中的当前索引
@@ -165,25 +168,21 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "Attribute|Events")
 	FTcsAttributeChangeDelegate OnAttributeBaseValueChanged;
 
-	// 属性修改器添加事件
+	// 属性修改器批量添加事件
 	UPROPERTY(BlueprintAssignable, Category = "Attribute|Events")
-	FTcsOnAttributeModifierAddedSignature OnAttributeModifierAdded;
+	FTcsAttributeModifierBatchDelegate OnAttributeModifiersAdded;
 
-	// 属性修改器移除事件
+	// 属性修改器批量移除事件
 	UPROPERTY(BlueprintAssignable, Category = "Attribute|Events")
-	FTcsOnAttributeModifierRemovedSignature OnAttributeModifierRemoved;
+	FTcsAttributeModifierBatchDelegate OnAttributeModifiersRemoved;
 
-	// 属性修改器更新事件
+	// 属性修改器批量更新事件
 	UPROPERTY(BlueprintAssignable, Category = "Attribute|Events")
-	FTcsOnAttributeModifierUpdatedSignature OnAttributeModifierUpdated;
+	FTcsAttributeModifierBatchDelegate OnAttributeModifiersUpdated;
 
-	/**
-	 * 属性达到边界值事件
-	 * 当属性值达到最大值或最小值时广播
-	 * bIsMaxBoundary: true表示达到最大值，false表示达到最小值（如HP归零）
-	 */
+	// 属性达到边界值批量事件
 	UPROPERTY(BlueprintAssignable, Category = "Attribute|Events")
-	FTcsOnAttributeReachedBoundarySignature OnAttributeReachedBoundary;
+	FTcsAttributeBoundaryBatchDelegate OnAttributesReachedBoundary;
 
 #pragma endregion
 
@@ -296,8 +295,6 @@ public:
 		const TMap<FName, float>& Operands,
 		FTcsAttributeModifierInstance& OutModifierInst);
 
-	// TODO(Perf): 批量移除同一 SourceHandle 下 K 个 Modifier 时，桶维护退化为 O(K^2)。
-	//   优化方向见 RemoveModifiersBySourceHandle 实现注释，以及 SourceHandleIdToModifierInstIds 成员注释。
 	// 应用多个属性修改器
 	UFUNCTION(BlueprintCallable, Category = "Attribute|Modifier")
 	virtual void ApplyModifier(UPARAM(ref) TArray<FTcsAttributeModifierInstance>& Modifiers);
@@ -316,17 +313,12 @@ public:
 		const TArray<FName>& ModifierIds,
 		TArray<FTcsAttributeModifierInstance>& OutModifiers);
 
-	// TODO(Perf): 批量移除同一 SourceHandle 下 K 个 Modifier 时，桶维护退化为 O(K^2)。
-	//   优化方向见 RemoveModifiersBySourceHandle 实现注释，以及 SourceHandleIdToModifierInstIds 成员注释。
 	// 从战斗实体移除多个属性修改器
 	UFUNCTION(BlueprintCallable, Category = "Attribute|Modifier")
 	virtual void RemoveModifier(UPARAM(ref) TArray<FTcsAttributeModifierInstance>& Modifiers);
 
 	/**
 	 * 按 SourceHandle 移除属性修改器
-	 * TODO(Perf): 当前实现逐个委托给 RemoveModifier，桶内 Remove 导致 O(K^2)。
-	 *   优化优先级：1) 将 SourceHandleIdToModifierInstIds 桶类型改为 TSet<int32>；
-	 *              2) 或提取 RemoveModifierInternal(无桶维护)，在末尾一次性整桶丢弃。
 	 *
 	 * @param SourceHandle 来源句柄
 	 * @return 是否成功移除
@@ -356,23 +348,98 @@ public:
 #pragma region AttributeCalculation
 
 protected:
+	/**
+	 * 从当前持久化修改器集合中批量移除指定实例 ID，并在末尾一次性重建运行时缓存。
+	 *
+	 * @param ModifierInstIdsToRemove 要移除的 ModifierInstId 集合
+	 * @param ChangeBatchId 本次变更批次号
+	 * @return 是否实际移除了任意修改器
+	 */
+	bool RemoveStoredModifiersByInstIds(const TSet<int32>& ModifierInstIdsToRemove, int64 ChangeBatchId);
+
+	/**
+	 * 按当前 AttributeModifiers 内容重建 Modifier 运行时缓存。
+	 */
+	void RebuildModifierRuntimeCaches();
+
+	/**
+	 * 基于 ClampStrategy 的声明式依赖，构建“源属性 -> 受其范围约束影响的属性”映射。
+	 *
+	 * 这里只有在所有策略都声明了完整依赖时才返回 true；
+	 * 只要混入一个未知策略，调用方就必须回退到保守的全局传播。
+	 *
+	 * @param OutDependents 输出的依赖映射，Key 为依赖源属性，Value 为受其影响的属性集合
+	 * 返回 false 表示当前至少有一个策略未声明完整依赖，调用方应回退到全局传播路径。
+	 */
+	bool TryBuildDeclaredRangeConstraintDependents(TMap<FName, TSet<FName>>& OutDependents) const;
+
+	/**
+	 * 仅针对给定脏属性集合执行范围约束传播。
+	 *
+	 * 这个入口只决定传播起点，真正的传播策略仍由
+	 * EnforceAttributeRangeConstraintsInternal 统一处理。
+	 *
+	 * @param DirtyAttributes 本轮已确认发生变化的属性集合
+	 * 如果当前策略集合没有声明完整依赖，或局部传播未在上限轮次内收敛，则会自动回退到全局传播。
+	 */
+	void EnforceAttributeRangeConstraints(const TSet<FName>& DirtyAttributes, bool bBroadcastEvents = true);
+
+	/**
+	 * 属性范围约束传播内部实现。
+	 * DirtyAttributes 为空时执行保守的全局传播；否则优先尝试局部传播。
+	 *
+	 * @param DirtyAttributes 可选的脏属性种子；为 nullptr 时直接执行全局 fixpoint
+	 */
+	void EnforceAttributeRangeConstraintsInternal(const TSet<FName>* DirtyAttributes, bool bBroadcastEvents);
+
+	/**
+	 * 对比前后快照，统一补发 Base/Current/Boundary 三类公共事件。
+	 *
+	 * @param PreviousBaseValues 广播前的 BaseValue 快照
+	 * @param PreviousCurrentValues 广播前的 CurrentValue 快照
+	 */
+	void BroadcastAttributeStateDiffs(
+		const TMap<FName, float>& PreviousBaseValues,
+		const TMap<FName, float>& PreviousCurrentValues);
+
 	// 属性夹值计算：所有动态范围依赖（ART_Dynamic）仅在本 Component 上解析。
 	// 不支持跨 Actor 属性引用。自定义 ClampStrategy 接收的 Context 也绑定到本 Component。
 	// 若未来需要跨 Actor 依赖，应扩展 FTcsAttributeClampContextBase 或引入跨 Component Resolver。
 
-	// 重新计算属性基础值
-	virtual void RecalculateAttributeBaseValues(const TArray<FTcsAttributeModifierInstance>& Modifiers);
+	/**
+	 * 重新计算所有属性的 BaseValue。
+	 *
+	 * 执行器如果声明了 touched 集，只会为这些属性记录旧值并生成差异事件；
+	 * 未声明时会回退到原来的全表快照路径，以保持行为完全一致。
+	 *
+	 * @param Modifiers 参与本次基础值重算的修改器集合
+	 */
+	virtual void RecalculateAttributeBaseValues(const TArray<FTcsAttributeModifierInstance>& Modifiers, bool bBroadcastEvents = true);
 
-	// 重新计算属性当前值
-	virtual void RecalculateAttributeCurrentValues(int64 ChangeBatchId = -1);
+	/**
+	 * 重新计算所有属性的 CurrentValue。
+	 *
+	 * 该流程与 BaseValue 重算共用 touched-report 机制；如果提供有效的 ChangeBatchId，
+	 * 则会把本轮真实变更过的属性作为范围传播种子，尽量缩小后续 Clamp 传播的处理面。
+	 *
+	 * @param ChangeBatchId 本次增量变更批次号，< 0 表示保守的全量重算路径
+	 */
+	virtual void RecalculateAttributeCurrentValues(int64 ChangeBatchId = -1, bool bBroadcastEvents = true);
 
 	// 属性修改器合并
 	virtual void MergeAttributeModifiers(
 		const TArray<FTcsAttributeModifierInstance>& Modifiers,
 		TArray<FTcsAttributeModifierInstance>& MergedModifiers);
 
-	// 将属性的给定值限制在指定范围内
-	// WorkingValues: 可选的工作集，用于从工作集读取动态范围属性值（两段式 Clamp）
+	/**
+	 * 将指定属性值约束到其定义的范围内。
+	 *
+	 * @param AttributeName 要执行约束的属性名
+	 * @param NewValue 输入时为待约束值，输出时为约束后的结果
+	 * @param OutMinValue 可选输出，返回本次解析得到的最小边界
+	 * @param OutMaxValue 可选输出，返回本次解析得到的最大边界
+	 * @param WorkingValues 可选工作集，用于在传播过程中读取尚未提交到组件的动态范围值
+	 */
 	virtual void ClampAttributeValueInRange(
 		const FName& AttributeName,
 		float& NewValue,
@@ -380,10 +447,13 @@ protected:
 		float* OutMaxValue = nullptr,
 		const TMap<FName, float>* WorkingValues = nullptr);
 
-	// 执行属性范围约束传播
-	// 确保所有属性的 BaseValue 和 CurrentValue 都在其定义的范围内
-	// 支持多跳依赖（如 HP <= MaxHP，MaxHP 依赖 Level）
-	virtual void EnforceAttributeRangeConstraints();
+	/**
+	 * 执行保守的全局范围约束传播。
+	 *
+	 * 确保所有属性的 BaseValue 和 CurrentValue 都在其定义范围内，
+	 * 并支持多跳依赖场景（例如 HP <= MaxHP，MaxHP 又依赖 Level）。
+	 */
+	virtual void EnforceAttributeRangeConstraints(bool bBroadcastEvents = true);
 
 #pragma endregion
 };

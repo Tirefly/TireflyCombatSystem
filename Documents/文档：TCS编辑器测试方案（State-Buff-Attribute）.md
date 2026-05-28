@@ -90,6 +90,25 @@
 
 在 `Project Settings -> Game -> Tirefly Combat System` 中，把 `StateLoadingStrategy` 临时设为 `PreloadAll`，用于测试阶段减少首次加载干扰。
 
+### 2.6 AssetManagerSettings 勘误与忽略列表
+
+当前 TCS 会在编辑器阶段检查以下四类 DefinitionAsset 的 `PrimaryAssetTypesToScan` 覆盖是否完整：
+
+1. `UTcsAttributeDefinition`
+2. `UTcsAttributeModifierDefinition`
+3. `UTcsStateDefinition`
+4. `UTcsStateSlotDefinition`
+
+检查内容包括：
+
+1. 对应 `PrimaryAssetType` 是否存在。
+2. `AssetBaseClass` 是否仍然指向正确的 DefAsset 类型。
+3. 现有 DefinitionAsset 所在目录是否真的被扫描路径或 `SpecificAssets` 覆盖。
+
+如果存在未修复的漏配，编辑器日志会输出明确勘误，并附带需要补齐的 `PrimaryAssetType` 或扫描目录。只要问题还存在，之后每次成功执行一次 Save，日志都会再提示一次；这是刻意保留的强提醒，不会自动改写项目配置。
+
+如果某一类 DefAsset 在当前项目里确实暂时不打算接入 AssetManager，可在 `Project Settings -> Game -> Tirefly Combat System` 中把该类型加入 `Ignored Definition Asset Types`。被加入忽略列表的类型不再参与这套勘误报错；移出忽略列表后，检查会立即恢复。
+
 ## 3. 创建测试资产的顺序
 
 按下面顺序创建：
@@ -294,19 +313,17 @@ Attribute 条件联动场景直接复用 `ST_TCS_StateInstance_Minimal`，不再
 	- 订阅 `OnSlotGateStateChanged`
 	- 记录 `GetSlotDebugSnapshot()` 与 `GetStateDebugSnapshot()`
 2. `UTestTcsBuffProbeComponent.cs`
-	- 订阅 `OnBuffStackChanged`
-	- 订阅 `OnBuffMaxStackCountChanged`
-	- 订阅 `OnBuffPeriodChanged`
-	- 订阅 `OnBuffDurationRefreshed`
+	- 订阅 `OnBuffRuntimeDelta`
+	- 校验单个 payload 内的 `bStackCountChanged` / `bMaxStackCountChanged` / `bPeriodChanged` / `bDurationRefreshed` 以及对应最终值
 	- 订阅 `OnBuffRemoved`
 	- 记录 `GetBuffMergeDebugLines()`
 3. `UTestTcsAttributeProbeComponent.cs`
 	- 订阅 `OnAttributeValueChanged`
 	- 订阅 `OnAttributeBaseValueChanged`
-	- 订阅 `OnAttributeModifierAdded`
-	- 订阅 `OnAttributeModifierRemoved`
-	- 订阅 `OnAttributeModifierUpdated`
-	- 订阅 `OnAttributeReachedBoundary`
+	- 订阅 `OnAttributeModifiersAdded`
+	- 订阅 `OnAttributeModifiersRemoved`
+	- 订阅 `OnAttributeModifiersUpdated`
+	- 订阅 `OnAttributesReachedBoundary`
 	- 记录属性当前值、基础值、Modifier 列表
 
 ### 6.4 Services

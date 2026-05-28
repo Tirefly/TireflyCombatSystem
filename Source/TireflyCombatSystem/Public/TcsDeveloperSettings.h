@@ -18,6 +18,7 @@ class UTcsAttributeDefinition;
 class UTcsStateDefinition;
 class UTcsStateSlotDefinition;
 class UTcsAttributeModifierDefinition;
+class UPrimaryDataAsset;
 
 
 // State 加载策略
@@ -66,6 +67,20 @@ public:
 	virtual EDataValidationResult IsDataValid(FDataValidationContext& Context) const override;
 
 #endif
+
+#pragma endregion
+
+
+#pragma region EditorValidation
+
+public:
+	/**
+	 * 编辑器勘误忽略列表
+	 * 列表中的 DefAsset 类型不会参与 AssetManagerSettings 覆盖检查
+	 */
+	UPROPERTY(Config, EditAnywhere, Category = "Editor Validation",
+		meta = (ToolTip = "DefAsset 类型勘误忽略列表"))
+	TArray<TSubclassOf<UPrimaryDataAsset>> IgnoredDefinitionAssetTypes;
 
 #pragma endregion
 

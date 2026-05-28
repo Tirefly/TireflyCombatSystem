@@ -11,7 +11,7 @@
 /**
  * State Component StateTree 资产创建工厂。
  *
- * 负责创建预设为 `UStateTreeComponentSchema` 的 StateTree 资产。
+	* 负责创建预设为 `UTcsStateSchema_StateComponent` 的 StateTree 资产。
  */
 UCLASS()
 class TIREFLYCOMBATSYSTEMEDITOR_API UTcsStateComponentStateTreeFactory : public UStateTreeFactory
@@ -45,18 +45,18 @@ public:
 };
 
 /**
- * State Instance StateTree 资产创建工厂。
+ * Buff StateTree 资产创建工厂。
  *
- * 负责创建预设为 `UTcsStateTreeSchema_StateInstance` 的 StateTree 资产。
+	* 负责创建预设为 `UTcsStateSchema_Buff` 的 StateTree 资产。
  */
 UCLASS()
-class TIREFLYCOMBATSYSTEMEDITOR_API UTcsStateInstanceStateTreeFactory : public UStateTreeFactory
+class TIREFLYCOMBATSYSTEMEDITOR_API UTcsBuffStateTreeFactory : public UStateTreeFactory
 {
 	GENERATED_BODY()
 
 public:
-	/** 初始化 State Instance StateTree 工厂。 */
-	UTcsStateInstanceStateTreeFactory();
+	/** 初始化 Buff StateTree 工厂。 */
+	UTcsBuffStateTreeFactory();
 
 	/** @return 固定使用 StateInstance Schema 并跳过额外配置。 */
 	virtual bool ConfigureProperties() override;
@@ -81,20 +81,20 @@ public:
 };
 
 /**
- * Skill Instance 蓝图资产创建工厂。
+ * Skill Entry 蓝图资产创建工厂。
  *
- * 负责创建以 `UTcsSkillInstance` 为父类的 Blueprint 资产。
+	* 负责创建以 `UTcsSkillEntry` 为父类的 Blueprint 资产。
  */
 UCLASS()
-class TIREFLYCOMBATSYSTEMEDITOR_API UTcsSkillInstanceBlueprintFactory : public UBlueprintFactory
+class TIREFLYCOMBATSYSTEMEDITOR_API UTcsSkillEntryBlueprintFactory : public UBlueprintFactory
 {
 	GENERATED_BODY()
 
 public:
-	/** 初始化 Skill Instance 蓝图工厂。 */
-	UTcsSkillInstanceBlueprintFactory();
+	/** 初始化 Skill Entry 蓝图工厂。 */
+	UTcsSkillEntryBlueprintFactory();
 
-	/** @return 固定父类为 `UTcsSkillInstance` 并跳过父类选择器。 */
+	/** @return 固定父类为 `UTcsSkillEntry` 并跳过父类选择器。 */
 	virtual bool ConfigureProperties() override;
 
 	/** @return 工厂是否显示在新建资产菜单中。 */

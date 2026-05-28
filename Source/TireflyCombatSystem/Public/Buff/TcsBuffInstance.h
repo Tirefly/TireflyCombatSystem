@@ -173,6 +173,17 @@ protected:
 #pragma region Runtime
 
 protected:
+	/** 为 BuffStateTree 写入 BuffInstance 根上下文。 */
+	virtual bool SetContextRequirements(FStateTreeExecutionContext& Context) override;
+
+	/** 为 BuffStateTree 收集外部数据。 */
+	virtual bool CollectExternalData(
+		const FStateTreeExecutionContext& Context,
+		const UStateTree* StateTree,
+		TArrayView<const FStateTreeExternalDataDesc> ExternalDataDescs,
+		TArrayView<FStateTreeDataView> OutDataViews) override;
+
+	/** 初始化 Buff 运行时参数缓存。 */
 	virtual void InitializeRuntimeParameters() override;
 
 #pragma endregion

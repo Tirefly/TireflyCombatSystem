@@ -1,4 +1,4 @@
-# 变更：重构 TCS State Core 与 Buff 边界，并在当前阶段保持 Skill 不变
+# 变更：重构 TCS State Core 与 Buff 边界，并为后续 Skill 收敛预留接口
 
 ## 背景
 
@@ -15,7 +15,7 @@ TCS 当前的 `State` 体系已经同时承载了三类职责：
 
 本轮架构结论已经确认：TCS 的长期方向仍然是按 `State Core`、`Buff`、`Skill` 三个职责模块拆分；仅 `UTcsStateDefinition` 适合抽象化；`Duration` 与 `DurationType` 应视为 Buff 专属并从当前 `State` 模块剥离。
 
-但当前阶段先不进一步实现 `Skill` 模块，保持 `UTcsSkillComponent` / `UTcsSkillInstance` / `UTcsSkillManagerSubsystem` 现状。本提案只处理 `State Core` 与 `Buff` 的边界收敛，并为后续独立的 Skill 议题预留干净接口。
+但本提案自身不直接展开 `Skill` 模块实现，只要求当前代码骨架继续可兼容运作，并为后续独立的 Skill/runtime change 预留干净接口。Skill 侧命名与运行时分层以后续 change 为准，而不是在这里把当前代码事实误写成长期契约。
 
 ## 变更内容
 
@@ -24,8 +24,8 @@ TCS 当前的 `State` 体系已经同时承载了三类职责：
 - 当前 `UTcsStateMerger` 与 `MergerType` 不再继续挂在抽象 `StateDefinition` 上；本阶段把它们与 Buff 的叠层/同 Def 合并语义一起迁到 Buff 侧，并把真正的共享重复态冲突策略留作后续再决定是否抽出独立 `State Core` 抽象。
 - 移除 `ETcsStateType` / `StateType` 这类通过共享基类枚举区分子类型的做法，改由具体定义类型本身表达语义。
 - 保留 `UTcsStateComponent` 为具体类，继续作为 Actor 侧统一运行态宿主；State Core 只保留 Apply / Remove / Query / Slot / StateTree 等共享框架职责。
-- 明确当前 Skill 语义基线：`UTcsSkillInstance` 只表示“已学会的技能”，不表示一次技能执行实例；技能释放仍由 Skill 侧发起，再向 `UTcsStateComponent` 申请 `StateInstance` 进入运行态。
-- 明确当前阶段的 Skill 边界：不新增 `UTcsSkillDefinition`，不扩展 `UTcsSkillInstance` / `UTcsSkillComponent` 的职责，不实现新的 Skill 运行时能力；仅要求本次 `State Core` / `Buff` 重构不要继续向共享基类增加新的 Skill 泄漏。
+- 冻结当前代码事实：现有 Skill 骨架仍由 Skill 侧发起，再向 `UTcsStateComponent` 申请运行态进入主链；但这不是长期命名契约。
+- 明确当前阶段的 Skill 边界：本提案自身不实现 `UTcsSkillDefinition`、`UTcsSkillEntry`、新的 `UTcsSkillInstance` 或 Skill 专用 schema；仅要求本次 `State Core` / `Buff` 重构不要继续向共享基类增加新的 Skill 泄漏，并为后续独立 change 预留接口。
 - 对现有 `State` 体系中的 Skill 引用接入点做盘点和冻结，留待后续独立 Skill change 处理，而不是在本提案里继续扩大范围。
 - 同 Def 的 Skill 重复激活策略在当前阶段不统一定型；后续需要按具体技能类型做完整调研，再决定是否引入 Skill 自己的冲突策略抽象。
 - 把 `FTcsStateParameter` 中的快照语义重新定位为共享参数评估策略，而不是继续视为 Skill-only 功能。
@@ -43,14 +43,13 @@ TCS 当前的 `State` 体系已经同时承载了三类职责：
   - `Plugins/TireflyCombatSystem/Source/TireflyCombatSystem/Public/State/TcsStateInstance.h`
   - `Plugins/TireflyCombatSystem/Source/TireflyCombatSystem/Public/State/TcsStateComponent.h`
   - `Plugins/TireflyCombatSystem/Source/TireflyCombatSystem/Public/State/**`
-  - `Plugins/TireflyCombatSystem/Source/TireflyCombatSystemTests/**`
 - 受影响文档：
   - `Plugins/TireflyCombatSystem/Documents/调研：TCS状态体系下Buff与Skill区分方案对比.md`
   - TCS 手工测试 / 作者指南 / 架构文档
 - 对使用方的影响：
   - 现有直接创建 `UTcsStateDefinition` 的资产与流程需要迁移到新的具体定义类型；本阶段主要面向 Buff authoring 路径
   - 现有依赖 `Duration` / `DurationType` / `MaxStackCount` / `MergerType` 的代码和脚本需要跟随 Buff 新模型调整
-  - 现有 Skill 模块 API 与骨架在本阶段保持现状，不要求调用方迁移到新的 Skill 运行时契约
-  - `UTcsSkillInstance` 在当前与后续方向里都只表示“已学会技能”；真正的技能执行仍通过 `UTcsStateComponent` 申请 `StateInstance`
+  - 现有 Skill 模块 API 与骨架在本提案实施阶段保持现状；后续命名与运行时分层以独立 Skill/runtime change 为准
+  - 当前代码中的 `UTcsSkillInstance` 仍表示已学会技能，但后续独立 change 可以将其更名为 `UTcsSkillEntry`，并引入新的技能执行态 `UTcsSkillInstance`
   - 同 Def 技能重复激活的处理规则当前仍未定型，后续需要按技能类型单独调研
   - 若需要补 `UTcsBuffDefinition` 的编辑器创建入口，应在 `add-tcs-def-editor-authoring` 中补充，不在本提案内实现

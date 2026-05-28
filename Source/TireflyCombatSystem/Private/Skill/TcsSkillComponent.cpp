@@ -6,12 +6,16 @@
 #include "GameFramework/Actor.h"
 #include "Engine/World.h"
 
+#include "Skill/TcsSkillDefinition.h"
+#include "Skill/TcsSkillEntry.h"
+#include "TcsLogChannels.h"
+
 
 
 UTcsSkillComponent::UTcsSkillComponent()
 {
 	PrimaryComponentTick.bCanEverTick = true;
-	PrimaryComponentTick.TickInterval = 0.1f; // 每0.1秒更新一次冷却
+	PrimaryComponentTick.TickInterval = 0.1f; // 预留 Skill 自有更新入口
 }
 
 void UTcsSkillComponent::BeginPlay()

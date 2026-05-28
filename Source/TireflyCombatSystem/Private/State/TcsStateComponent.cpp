@@ -319,6 +319,32 @@ UTcsStateInstance* UTcsStateComponent::CreateStateInstance(
 	}
 
 	UClass* StateInstanceClass = StateDef->ResolveStateInstanceClass();
+	if (!StateInstanceClass)
+	{
+		return ReturnCreateStateFailure(
+			ETcsStateApplyFailReason::CreateInstanceFailed,
+			FString::Printf(TEXT("State definition '%s' did not provide a runtime class."), *StateDefRowId.ToString()));
+	}
+
+	if (!StateInstanceClass->IsChildOf(UTcsStateInstance::StaticClass()))
+	{
+		return ReturnCreateStateFailure(
+			ETcsStateApplyFailReason::CreateInstanceFailed,
+			FString::Printf(
+				TEXT("State definition '%s' resolved invalid runtime class '%s' that does not derive from UTcsStateInstance."),
+				*StateDefRowId.ToString(),
+				*GetNameSafe(StateInstanceClass)));
+	}
+
+	if (StateInstanceClass->HasAnyClassFlags(CLASS_Abstract))
+	{
+		return ReturnCreateStateFailure(
+			ETcsStateApplyFailReason::CreateInstanceFailed,
+			FString::Printf(
+				TEXT("State definition '%s' resolved abstract runtime class '%s'. Provide a concrete runtime subclass instead."),
+				*StateDefRowId.ToString(),
+				*GetNameSafe(StateInstanceClass)));
+	}
 
 	UTcsStateInstance* TempStateInstance = NewObject<UTcsStateInstance>(OwnerActor, StateInstanceClass);
 	if (!IsValid(TempStateInstance))
@@ -792,6 +818,7 @@ void UTcsStateComponent::RebuildStateTreeSlotBindings()
 	// 绑定表只负责 StateSlot 与 StateTree 状态名的桥接，不持有任何槽位运行时数据，
 	// 因此每次都从当前 StateTree 重新扫描并完整重建。
 	Mapping_StateSlotToStateTreeStateName.Empty();
+	Mapping_StateTreeStateNameToStateSlotTags.Empty();
 
 	const UStateTree* StateTree = GetStateTree();
 	if (!IsValid(StateTree))
@@ -843,6 +870,7 @@ void UTcsStateComponent::RebuildStateTreeSlotBindings()
 		if (bMapped)
 		{
 			Mapping_StateSlotToStateTreeStateName.Add(StateSlotTag, StateTreeStateName);
+			Mapping_StateTreeStateNameToStateSlotTags.Add(StateTreeStateName, StateSlotTag);
 		}
 
 		UE_LOG(LogTcsState, Verbose, TEXT("[%s] No StateTree assigned on StateComponent of %s"),
@@ -855,6 +883,71 @@ void UTcsStateComponent::RebuildStateTreeSlotBindings()
 			*StateTreeStateName.ToString(),
 			bMapped ? TEXT("mapped") : TEXT("not found"),
 			*GetNameSafe(OwnerActor));
+	}
+}
+
+void UTcsStateComponent::DiffStateTreeStateNames(
+	const TArray<FName>& NewStates,
+	const TArray<FName>& OldStates,
+	TSet<FName>& AddedStates,
+	TSet<FName>& RemovedStates) const
+{
+	TSet<FName> NewStateSet(NewStates);
+	NewStateSet.Remove(NAME_None);
+	TSet<FName> OldStateSet(OldStates);
+	OldStateSet.Remove(NAME_None);
+
+	AddedStates = NewStateSet;
+	for (const FName OldState : OldStateSet)
+	{
+		AddedStates.Remove(OldState);
+	}
+
+	RemovedStates = OldStateSet;
+	for (const FName NewState : NewStateSet)
+	{
+		RemovedStates.Remove(NewState);
+	}
+}
+
+void UTcsStateComponent::CollectAffectedSlotTagsForStateChanges(
+	const TSet<FName>& AddedStates,
+	const TSet<FName>& RemovedStates,
+	TSet<FGameplayTag>& OutAffectedSlotTags) const
+{
+	OutAffectedSlotTags.Reset();
+
+	auto CollectFromReverseBindings = [this, &OutAffectedSlotTags](const TSet<FName>& StateNames)
+	{
+		TArray<FGameplayTag> SlotTags;
+		for (const FName StateName : StateNames)
+		{
+			SlotTags.Reset();
+			Mapping_StateTreeStateNameToStateSlotTags.MultiFind(StateName, SlotTags);
+			for (const FGameplayTag SlotTag : SlotTags)
+			{
+				if (SlotTag.IsValid())
+				{
+					OutAffectedSlotTags.Add(SlotTag);
+				}
+			}
+		}
+	};
+
+	if (!Mapping_StateTreeStateNameToStateSlotTags.IsEmpty())
+	{
+		CollectFromReverseBindings(AddedStates);
+		CollectFromReverseBindings(RemovedStates);
+		return;
+	}
+
+	// 反向缓存不可用时，保守回退到正向绑定表扫描，保持语义正确。
+	for (const TPair<FGameplayTag, FName>& Pair : Mapping_StateSlotToStateTreeStateName)
+	{
+		if (AddedStates.Contains(Pair.Value) || RemovedStates.Contains(Pair.Value))
+		{
+			OutAffectedSlotTags.Add(Pair.Key);
+		}
 	}
 }
 
@@ -1027,35 +1120,34 @@ bool UTcsStateComponent::TryAssignStateToStateSlot(UTcsStateInstance* StateInsta
 
 void UTcsStateComponent::RefreshSlotsForStateChange(const TArray<FName>& NewStates, const TArray<FName>& OldStates)
 {
-	TSet<FName> AddedStates(NewStates);
-	for (const FName& OldState : OldStates)
+	TSet<FName> AddedStates;
+	TSet<FName> RemovedStates;
+	DiffStateTreeStateNames(NewStates, OldStates, AddedStates, RemovedStates);
+	if (AddedStates.IsEmpty() && RemovedStates.IsEmpty())
 	{
-		AddedStates.Remove(OldState);
+		return;
 	}
 
-	TSet<FName> RemovedStates(OldStates);
-	for (const FName& NewState : NewStates)
+	TSet<FName> NewStateSet(NewStates);
+	NewStateSet.Remove(NAME_None);
+
+	TSet<FGameplayTag> AffectedSlotTags;
+	CollectAffectedSlotTagsForStateChanges(AddedStates, RemovedStates, AffectedSlotTags);
+	if (AffectedSlotTags.IsEmpty())
 	{
-		RemovedStates.Remove(NewState);
+		return;
 	}
 
-	for (const auto& Pair : Mapping_StateSlotToStateTreeStateName)
+	BeginStateSlotActivationBatch();
+	for (const FGameplayTag SlotTag : AffectedSlotTags)
 	{
-		const FGameplayTag SlotTag = Pair.Key;
-		const FName& MappedStateName = Pair.Value;
-		bool bShouldOpen = false;
-		if (AddedStates.Contains(MappedStateName))
+		const FName* MappedStateName = Mapping_StateSlotToStateTreeStateName.Find(SlotTag);
+		if (!MappedStateName)
 		{
-			bShouldOpen = true;
+			continue;
 		}
-		else if (RemovedStates.Contains(MappedStateName))
-		{
-			bShouldOpen = false;
-		}
-		else
-		{
-			bShouldOpen = NewStates.Contains(MappedStateName);
-		}
+
+		const bool bShouldOpen = NewStateSet.Contains(*MappedStateName);
 
 		const bool bWasOpen = IsSlotGateOpen(SlotTag);
 		if (bShouldOpen != bWasOpen)
@@ -1065,20 +1157,31 @@ void UTcsStateComponent::RefreshSlotsForStateChange(const TArray<FName>& NewStat
 				TEXT("[StateTree Event] Slot [%s] gate %s due to StateTree state '%s'"),
 				*SlotTag.ToString(),
 				bShouldOpen ? TEXT("opened") : TEXT("closed"),
-				*MappedStateName.ToString());
+				*MappedStateName->ToString());
 		}
 	}
+	EndStateSlotActivationBatch();
 }
 
 void UTcsStateComponent::RequestUpdateStateSlotActivation(FGameplayTag SlotTag)
 {
+	// 先做最便宜的输入校验。
+	// 这条入口会被 Gate 变化、状态移除、显式刷新请求等多条路径复用，
+	// 因此无效槽位要在这里统一拦下，避免把脏请求继续传播到批处理队列。
 	if (!SlotTag.IsValid())
 	{
 		UE_LOG(LogTcsState, Warning, TEXT("[%s] Invalid StateSlotTag"), *FString(__FUNCTION__));
 		return;
 	}
 
-	if (bIsUpdatingSlotActivation)
+	// 只要当前已经在执行槽位刷新，或者调用方显式进入了批处理作用域，
+	// 本次请求就不能立刻重跑 `UpdateStateSlotActivation()`：
+	// 1. 正在刷新时立刻重入，会把同一轮收敛拆成多次嵌套执行；
+	// 2. 批处理期间立刻执行，会把“同批次多次语义变化”重新放大成多次完整结算。
+	//
+	// 因此这里统一改为“按槽位去重入队”。这样同一槽位在同一批次里无论被请求多少次，
+	// 最终都只会在批次末或外层刷新结束后结算一次最终结果。
+	if (bIsUpdatingSlotActivation || StateSlotActivationBatchDepth > 0)
 	{
 		PendingSlotActivationUpdates.Add(SlotTag);
 		UE_LOG(LogTcsState, Verbose, TEXT("[%s] Deferred slot activation update: Component=%s Slot=%s"),
@@ -1088,7 +1191,36 @@ void UTcsStateComponent::RequestUpdateStateSlotActivation(FGameplayTag SlotTag)
 		return;
 	}
 
+	// 只有在“不重入、也不批处理”的普通路径下，才立即同步刷新槽位。
+	// 这样单次变更依然保持当前帧、当前调用链内完成收敛，不会被无谓地延迟。
 	UpdateStateSlotActivation(SlotTag);
+}
+
+void UTcsStateComponent::BeginStateSlotActivationBatch()
+{
+	++StateSlotActivationBatchDepth;
+}
+
+void UTcsStateComponent::EndStateSlotActivationBatch()
+{
+	check(StateSlotActivationBatchDepth > 0);
+	--StateSlotActivationBatchDepth;
+
+	// 如果批处理尾声组件自身或 Owner 已经进入销毁流程，再去排空待处理槽位只会在 teardown 阶段
+	// 额外重跑一次收敛逻辑，既没有收益，也更容易撞上对象清理顺序。
+	// 这里直接丢弃积压请求，让批处理以“安全结束”为第一目标。
+	if (StateSlotActivationBatchDepth == 0 && (IsBeingDestroyed() || !IsValid(GetOwner())))
+	{
+		PendingSlotActivationUpdates.Empty();
+		return;
+	}
+
+	// 只有最外层批处理结束、组件仍处于可结算状态、且当前不在刷新重入中时，
+	// 才统一排空请求。这样既保留当前帧内完成最终收敛的语义，也避免嵌套批处理提前触发结算。
+	if (StateSlotActivationBatchDepth == 0 && !bIsUpdatingSlotActivation && !PendingSlotActivationUpdates.IsEmpty())
+	{
+		DrainPendingSlotActivationUpdates();
+	}
 }
 
 void UTcsStateComponent::DrainPendingSlotActivationUpdates()
@@ -1167,7 +1299,10 @@ void UTcsStateComponent::UpdateStateSlotActivation(FGameplayTag StateSlotTag)
 		}
 	}
 
-	DrainPendingSlotActivationUpdates();
+	if (StateSlotActivationBatchDepth == 0)
+	{
+		DrainPendingSlotActivationUpdates();
+	}
 }
 
 void UTcsStateComponent::EnforceSlotGateConsistency(FGameplayTag StateSlotTag)
@@ -1283,6 +1418,12 @@ void UTcsStateComponent::ClearStateSlotExpiredStates(FTcsStateSlot* StateSlot)
 
 void UTcsStateComponent::SortStatesByPriority(TArray<UTcsStateInstance*>& States)
 {
+	// 槽位内没有状态，或只有一个状态时，排序不会改变结果，直接短路即可。
+	if (States.Num() < 2)
+	{
+		return;
+	}
+
 	States.Sort([](const UTcsStateInstance& A, const UTcsStateInstance& B)
 	{
 		const UTcsStateDefinition* AStateDef = A.GetStateDef();
@@ -1631,29 +1772,59 @@ int32 UTcsStateComponent::RemoveStatesByDefId(FName StateDefId, bool bRemoveAll)
 		return 0;
 	}
 
-	int32 RemovedCount = 0;
-
-	for (auto& Pair : RuntimeStateSlots)
+	// 先通过定义名索引直接命中候选实例，避免为了移除同一种状态而扫描所有槽位。
+	TArray<UTcsStateInstance*> IndexedStates;
+	if (!StateInstanceIndex.GetInstancesByName(StateDefId, IndexedStates))
 	{
-		FTcsStateSlot& StateSlot = Pair.Value;
+		return 0;
+	}
 
-		TArray<UTcsStateInstance*> StatesToRemove;
-		for (UTcsStateInstance* State : StateSlot.States)
+	// 再按槽位分组，保持“同槽位状态集中回收”的执行节奏，
+	// 同时配合批处理，把每个受影响槽位压成一次最终刷新。
+	TMap<FGameplayTag, TArray<UTcsStateInstance*>> StatesBySlot;
+	TArray<FGameplayTag> SlotOrder;
+	for (UTcsStateInstance* State : IndexedStates)
+	{
+		if (!IsValid(State))
 		{
-			if (IsValid(State) && State->GetStateDefId() == StateDefId)
-			{
-				StatesToRemove.Add(State);
-				if (!bRemoveAll)
-				{
-					break;
-				}
-			}
+			continue;
 		}
 
-		for (UTcsStateInstance* State : StatesToRemove)
+		const UTcsStateDefinition* StateDef = State->GetStateDef();
+		if (!StateDef || !StateDef->StateSlotType.IsValid())
 		{
-			RequestStateRemoval(State, TcsStateRemovalReasons::Removed);
-			RemovedCount++;
+			continue;
+		}
+
+		TArray<UTcsStateInstance*>& SlotStates = StatesBySlot.FindOrAdd(StateDef->StateSlotType);
+		if (SlotStates.IsEmpty())
+		{
+			SlotOrder.Add(StateDef->StateSlotType);
+		}
+
+		SlotStates.Add(State);
+		if (!bRemoveAll)
+		{
+			break;
+		}
+	}
+
+	int32 RemovedCount = 0;
+	BeginStateSlotActivationBatch();
+	for (const FGameplayTag& SlotTag : SlotOrder)
+	{
+		const TArray<UTcsStateInstance*>* StatesToRemove = StatesBySlot.Find(SlotTag);
+		if (!StatesToRemove)
+		{
+			continue;
+		}
+
+		for (UTcsStateInstance* State : *StatesToRemove)
+		{
+			if (RequestStateRemoval(State, TcsStateRemovalReasons::Removed))
+			{
+				RemovedCount++;
+			}
 		}
 
 		if (!bRemoveAll && RemovedCount > 0)
@@ -1661,6 +1832,8 @@ int32 UTcsStateComponent::RemoveStatesByDefId(FName StateDefId, bool bRemoveAll)
 			break;
 		}
 	}
+
+	EndStateSlotActivationBatch();
 
 	return RemovedCount;
 }
@@ -1680,6 +1853,7 @@ int32 UTcsStateComponent::RemoveAllStatesInSlot(FGameplayTag SlotTag)
 
 	int32 RemovedCount = 0;
 	const TArray<UTcsStateInstance*> StatesToRemove = StateSlot->States;
+	BeginStateSlotActivationBatch();
 
 	for (UTcsStateInstance* State : StatesToRemove)
 	{
@@ -1689,6 +1863,8 @@ int32 UTcsStateComponent::RemoveAllStatesInSlot(FGameplayTag SlotTag)
 			RemovedCount++;
 		}
 	}
+
+	EndStateSlotActivationBatch();
 
 	return RemovedCount;
 }
@@ -1712,6 +1888,7 @@ int32 UTcsStateComponent::RemoveAllStates()
 	}
 
 	int32 TotalRemoved = 0;
+	BeginStateSlotActivationBatch();
 	for (UTcsStateInstance* State : StatesToRemove)
 	{
 		if (RequestStateRemoval(State, TcsStateRemovalReasons::Removed))
@@ -1719,6 +1896,7 @@ int32 UTcsStateComponent::RemoveAllStates()
 			TotalRemoved++;
 		}
 	}
+	EndStateSlotActivationBatch();
 
 	return TotalRemoved;
 }
@@ -2069,6 +2247,11 @@ void UTcsStateComponent::NotifyStateStageChanged(UTcsStateInstance* StateInstanc
 		return;
 	}
 
+	if (InternalStateStageChangedEvent.IsBound())
+	{
+		InternalStateStageChangedEvent.Broadcast(this, StateInstance, PreviousStage, NewStage);
+	}
+
 	if (OnStateStageChanged.IsBound())
 	{
 		OnStateStageChanged.Broadcast(this, StateInstance, PreviousStage, NewStage);
@@ -2098,6 +2281,11 @@ void UTcsStateComponent::NotifyStateRemoved(UTcsStateInstance* StateInstance, FN
 		return;
 	}
 
+	if (InternalStateRemovedEvent.IsBound())
+	{
+		InternalStateRemovedEvent.Broadcast(this, StateInstance, RemovalReason);
+	}
+
 	if (OnStateRemoved.IsBound())
 	{
 		OnStateRemoved.Broadcast(this, StateInstance, RemovalReason);
@@ -2122,6 +2310,11 @@ void UTcsStateComponent::NotifySlotGateStateChanged(FGameplayTag SlotTag, bool b
 	if (!SlotTag.IsValid())
 	{
 		return;
+	}
+
+	if (InternalSlotGateStateChangedEvent.IsBound())
+	{
+		InternalSlotGateStateChangedEvent.Broadcast(this, SlotTag, bIsOpen);
 	}
 
 	if (OnSlotGateStateChanged.IsBound())
@@ -2155,6 +2348,11 @@ void UTcsStateComponent::NotifyStateApplySuccess(
 	FGameplayTag TargetSlot,
 	ETcsStateStage AppliedStage)
 {
+	if (InternalStateApplySuccessEvent.IsBound())
+	{
+		InternalStateApplySuccessEvent.Broadcast(TargetActor, StateDefId, CreatedStateInstance, TargetSlot, AppliedStage);
+	}
+
 	if (OnStateApplySuccess.IsBound())
 	{
 		OnStateApplySuccess.Broadcast(TargetActor, StateDefId, CreatedStateInstance, TargetSlot, AppliedStage);
@@ -2167,6 +2365,11 @@ void UTcsStateComponent::NotifyStateApplyFailed(
 	ETcsStateApplyFailReason FailureReason,
 	const FString& FailureMessage)
 {
+	if (InternalStateApplyFailedEvent.IsBound())
+	{
+		InternalStateApplyFailedEvent.Broadcast(TargetActor, StateDefId, FailureReason, FailureMessage);
+	}
+
 	if (OnStateApplyFailed.IsBound())
 	{
 		OnStateApplyFailed.Broadcast(TargetActor, StateDefId, FailureReason, FailureMessage);
@@ -2576,19 +2779,34 @@ bool UTcsStateComponent::AreStateNamesEqual(const TArray<FName>& A, const TArray
 		return false;
 	}
 
-	// Treat arrays as sets to avoid false positives due to unstable ordering from StateTree.
-	TArray<FName> SortedA = A;
-	TArray<FName> SortedB = B;
-	SortedA.Sort([](const FName& L, const FName& R) { return L.LexicalLess(R); });
-	SortedB.Sort([](const FName& L, const FName& R) { return L.LexicalLess(R); });
-
-	for (int32 i = 0; i < SortedA.Num(); ++i)
+	// StateTree 的激活状态顺序不稳定，但这里仍需保留“同一名称出现次数”这一层语义。
+	// 因此不再复制+排序，而是直接比较名称计数表。
+	TMap<FName, int32> StateNameCounts;
+	StateNameCounts.Reserve(A.Num());
+	for (const FName StateName : A)
 	{
-		if (SortedA[i] != SortedB[i])
+		++StateNameCounts.FindOrAdd(StateName);
+	}
+
+	for (const FName StateName : B)
+	{
+		int32* Count = StateNameCounts.Find(StateName);
+		if (!Count)
 		{
 			return false;
 		}
+
+		--(*Count);
+		if (*Count < 0)
+		{
+			return false;
+		}
+
+		if (*Count == 0)
+		{
+			StateNameCounts.Remove(StateName);
+		}
 	}
 
-	return true;
+	return StateNameCounts.IsEmpty();
 }

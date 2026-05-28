@@ -49,7 +49,6 @@
   - `Plugins/TireflyCombatSystem/Source/TireflyCombatSystem/Private/Buff/TcsBuffComponent.cpp`
   - `Plugins/TireflyCombatSystem/Source/TireflyCombatSystem/Public/StateTree/**`
   - `Plugins/TireflyCombatSystem/Source/TireflyCombatSystem/Private/StateTree/**`
-  - `Plugins/TireflyCombatSystem/Source/TireflyCombatSystemTests/**`
 - 受影响文档：
   - `Plugins/TireflyCombatSystem/Documents/文档：Buff增量反应语义扩展方案（叠层、时长、Period）.md`
   - Buff / StateTree 相关实现说明与验证记录
@@ -61,4 +60,4 @@
   - 在 `UTcsBuffComponent` 上新增组件侧 `PeriodTracker` 或统一 `TickBuffPeriods()` 调度器
   - 新增通用 `PeriodPolicy` / `PeriodReactionPolicy`
   - 引入新的 Buff CDO reactive-strategy 抽象
-  - 统一自动化测试体系的全面补齐；当前阶段先以编译和最小场景验证为主
+  - AI 侧新增或执行专门测试代码；当前阶段相关行为验证统一等待开发者手动执行编辑器测试

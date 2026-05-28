@@ -66,7 +66,7 @@
 
 ### D-3. StateTree 在 Tick 中停机时不引入额外兜底 Flag
 
-**选定方案**：依赖 UE 5.6 引擎自带的 `FStateTreeExecutionContext::Stop()` 延迟机制（`Exec.CurrentPhase != Unset → Exec.RequestedStop`），TCS 仅增加 `ensureMsgf` 诊断。
+**选定方案**：依赖 UE 5.7 引擎自带的 `FStateTreeExecutionContext::Stop()` 延迟机制（`Exec.CurrentPhase != Unset → Exec.RequestedStop`），TCS 仅增加 `ensureMsgf` 诊断。
 
 **理由**（经引擎源码审计，`StateTreeExecutionContext.cpp:1263`）：
 - 引擎已对"Tick / EnterState / Start 中同步调用 Stop"做了原生保护：`RequestedStop` 记账，当前 Phase 结束后由 Tick 循环真正收敛 `ExitState`。
@@ -127,11 +127,11 @@
 | 迁移期 deprecated 包装器被"临时 → 永久" | Manager 与 Component 双实现长期共存，违背完成定义 | 在 G 阶段做"grep + 空文件断言"验收：`git grep DeprecatedFunction Plugins/TireflyCombatSystem` 必须空 |
 | Phase C 未合入前 Phase D 阻塞 | 研发并行度下降 | 接受。mock `RemoveModifiersBySourceHandle` 的代价（测试失真 + 二次替换）比串行开销更大 |
 | 子类覆写 `FinalizeStateRemoval` 跳过 `StateInstanceIndex` 维护 | 查询 API 返回过期状态 | 在基类方法的文档注释中强制要求"若覆写必须调用 Super 或自行维护索引"；查询 API 保持 non-virtual 避免一错双错 |
-| `TGuardValue` 例外路径下 Flag 还原后 `PendingSlotActivationUpdates` 残留 | 下一次 `UpdateStateSlotActivation` 处理已过期的 SlotTag | 在 `DrainPendingSlotActivationUpdates` 入口过滤无效 Slot；测试用例 `FTcs_SameFrameMultiApplySpec` 覆盖 |
-| S1 `IsBeingDestroyed()` 检查漏掉某条回调路径 | Owner 已死但 loop 继续触发 crash | 统一在 `ExpireState` **之后**检查，不在 Step 5/6 内部零散检查；`FTcs_DurationExpireDestroyOwnerSpec` 覆盖典型路径 |
+| `TGuardValue` 例外路径下 Flag 还原后 `PendingSlotActivationUpdates` 残留 | 下一次 `UpdateStateSlotActivation` 处理已过期的 SlotTag | 在 `DrainPendingSlotActivationUpdates` 入口过滤无效 Slot；并等待开发者手动执行编辑器测试覆盖同帧多次 Apply 合批场景 |
+| S1 `IsBeingDestroyed()` 检查漏掉某条回调路径 | Owner 已死但 loop 继续触发 crash | 统一在 `ExpireState` **之后**检查，不在 Step 5/6 内部零散检查；并等待开发者手动执行编辑器测试覆盖 DestroyOwner 典型路径 |
 | 外部 C++ 调用者未及时迁移 | 项目编译阶段大量 deprecation warning | 接受。TCS 当前无外部消费者；deprecation warning 本就是预期信号 |
 
-注：文中提及的 Phase D 临时验证用例（如 `FTcs_DurationExpireDestroyOwnerSpec` / `FTcs_RemoveAllDuringStateTreeTickSpec` / `FTcs_PoolReclaimSpec`）已在本轮局部验证通过后从仓库删除；这里保留其名称，仅用于记录当时的验证依据，不表示当前仓库仍保留这些测试源码。`FTcs_SameFrameMultiApplySpec` 仍是 Phase E 计划补齐的正式覆盖项。
+注：本提案不再要求新增或保留专门测试源码；Phase D / Phase E 的关键场景统一改为等待开发者手动执行编辑器测试。
 
 ## 迁移计划
 
@@ -153,18 +153,17 @@
 - Phase C-E 每个阶段的 PR 独立，任何一步失败可回滚到上一步而不影响已合入阶段。
 - Phase G 之前整套 deprecated 包装器仍可用；Phase G 合入后若发现外部调用遗漏，只能前向补迁移（不回滚 G）。
 
-**验收命令**：
+**验收命令与人工步骤**：
 ```
 # 编译
-"E:\UnrealEngine\UE_5.6\Engine\Build\BatchFiles\Build.bat" TireflyGameplayUtilsEditor Win64 Development -Project="%CD%\TireflyGameplayUtils.uproject" -WaitMutex
-
-# 自动化测试
-"E:\UnrealEngine\UE_5.6\Engine\Binaries\Win64\UnrealEditor-Cmd.exe" "%CD%\TireflyGameplayUtils.uproject" -unattended -NullRHI -nop4 -nosplash -ExecCmds="Automation RunAll; Quit" -ReportExportPath="Saved\Automation"
+"E:\UnrealEngine\UE_5.7\Engine\Build\BatchFiles\Build.bat" TireflyGameplayUtilsEditor Win64 Development -Project="%CD%\TireflyGameplayUtils.uproject" -WaitMutex
 
 # Phase G 完成度验收（两条均须空输出）
 git grep "Deprecated_MigrationOnly" -- "Plugins/TireflyCombatSystem/Source/**/*.h" "Plugins/TireflyCombatSystem/Source/**/*.cpp"
 git grep "friend class UTcsStateManagerSubsystem" -- "Plugins/TireflyCombatSystem/Source/**/*.h"
 ```
+
+并等待开发者在编辑器中手动覆盖 S1 / S2 / S3 场景、StateRemoval / Attribute Modifier / Slot Activation 主路径，以及子类覆写扩展点。
 
 ## 开放问题
 

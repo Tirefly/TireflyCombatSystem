@@ -6,6 +6,7 @@
 #include "Buff/BuffMerger/TcsBuffMerger.h"
 #include "Buff/TcsBuffDefinition.h"
 #include "Buff/TcsBuffInstance.h"
+#include "Misc/ScopeExit.h"
 #include "State/TcsStateComponent.h"
 #include "State/TcsStateDefinition.h"
 #include "State/TcsStateManagerSubsystem.h"
@@ -114,8 +115,13 @@ UTcsStateComponent* UTcsBuffComponent::GetOwnerStateComponent() const
 void UTcsBuffComponent::InitializeOwnerStateComponent(UTcsStateComponent* InStateComponent)
 {
 	UTcsStateComponent* PreviousStateComponent = OwnerStateComponent.Get();
-	if (IsValid(PreviousStateComponent) && PreviousStateComponent != InStateComponent)
+	if (IsValid(PreviousStateComponent))
 	{
+		if (PreviousStateComponent == InStateComponent)
+		{
+			return;
+		}
+
 		UnbindOwnerStateEvents(PreviousStateComponent);
 	}
 
@@ -151,6 +157,12 @@ void UTcsBuffComponent::RefreshBuffRemainingDuration(UTcsBuffInstance* BuffInsta
 		return;
 	}
 
+	BeginPublicEventBatch();
+	ON_SCOPE_EXIT
+	{
+		EndPublicEventBatch();
+	};
+
 	const float NewRemaining = BuffInstance->GetTotalDuration();
 	BuffInstance->RemainingDuration = NewRemaining;
 	DurationTracker.Add(BuffInstance);
@@ -170,6 +182,12 @@ void UTcsBuffComponent::SetBuffRemainingDuration(UTcsBuffInstance* BuffInstance,
 	{
 		return;
 	}
+
+	BeginPublicEventBatch();
+	ON_SCOPE_EXIT
+	{
+		EndPublicEventBatch();
+	};
 
 	BuffInstance->RemainingDuration = FMath::Max(0.0f, InDurationRemaining);
 	DurationTracker.Add(BuffInstance);
@@ -270,6 +288,265 @@ bool UTcsBuffComponent::HasActiveBuffInSlot(FGameplayTag SlotTag) const
 	return GetBuffsInSlot(SlotTag, Buffs);
 }
 
+void UTcsBuffComponent::BroadcastBuffRuntimeDeltaBatchEvent(
+	const TArray<FTcsBuffRuntimeDeltaEventPayload>& Payloads) const
+{
+	if (!Payloads.IsEmpty() && OnBuffRuntimeDelta.IsBound())
+	{
+		OnBuffRuntimeDelta.Broadcast(Payloads);
+	}
+}
+
+void UTcsBuffComponent::BroadcastBuffRemovedBatchEvent(
+	const TArray<FTcsBuffRemovedEventPayload>& Payloads) const
+{
+	if (!Payloads.IsEmpty() && OnBuffRemoved.IsBound())
+	{
+		OnBuffRemoved.Broadcast(Payloads);
+	}
+}
+
+void UTcsBuffComponent::BeginPublicEventBatch()
+{
+	// 嵌套链路只累计深度，真正的提交动作留给最外层批次统一收口。
+	++PublicEventBatchDepth;
+}
+
+void UTcsBuffComponent::EndPublicEventBatch()
+{
+	// 防守式收尾：如果外部成对调用失衡，直接清空挂起结果，避免脏事件跨帧残留。
+	if (PublicEventBatchDepth <= 0)
+	{
+		PendingBuffRuntimeDeltaEvents.Reset();
+		PendingBuffRemovedEvents.Reset();
+		PublicEventBatchDepth = 0;
+		return;
+	}
+
+	--PublicEventBatchDepth;
+	if (PublicEventBatchDepth == 0)
+	{
+		// 销毁路径不再对外广播，避免在宿主回收阶段触发不稳定的重入访问。
+		if (IsBeingDestroyed())
+		{
+			PendingBuffRuntimeDeltaEvents.Reset();
+			PendingBuffRemovedEvents.Reset();
+			return;
+		}
+
+		FlushPendingPublicEvents();
+	}
+}
+
+void UTcsBuffComponent::FlushPendingPublicEvents()
+{
+	if (PendingBuffRuntimeDeltaEvents.IsEmpty() && PendingBuffRemovedEvents.IsEmpty())
+	{
+		return;
+	}
+
+	TArray<FTcsBuffRuntimeDeltaEventPayload> RuntimePayloads = MoveTemp(PendingBuffRuntimeDeltaEvents);
+	TArray<FTcsBuffRemovedEventPayload> RemovedPayloads = MoveTemp(PendingBuffRemovedEvents);
+	PendingBuffRuntimeDeltaEvents.Reset();
+	PendingBuffRemovedEvents.Reset();
+
+	// 过滤掉已经失效的 Buff，或者虽然占了一个槽位但最终没有留下任何可见变化的空载荷。
+	RuntimePayloads.RemoveAll([](const FTcsBuffRuntimeDeltaEventPayload& Payload)
+	{
+		return !IsValid(Payload.BuffInstance.Get())
+			|| (!Payload.bStackCountChanged
+				&& !Payload.bMaxStackCountChanged
+				&& !Payload.bPeriodChanged
+				&& !Payload.bDurationRefreshed);
+	});
+
+	RemovedPayloads.RemoveAll([](const FTcsBuffRemovedEventPayload& Payload)
+	{
+		return !IsValid(Payload.BuffInstance.Get());
+	});
+
+	// 保持先 RuntimeDelta、后 Removed 的公共顺序，便于外部观察同批最终态。
+	BroadcastBuffRuntimeDeltaBatchEvent(RuntimePayloads);
+	BroadcastBuffRemovedBatchEvent(RemovedPayloads);
+}
+
+FTcsBuffRuntimeDeltaEventPayload* UTcsBuffComponent::FindPendingBuffRuntimeDeltaEvent(UTcsBuffInstance* BuffInstance)
+{
+	if (!IsValid(BuffInstance))
+	{
+		return nullptr;
+	}
+
+	return PendingBuffRuntimeDeltaEvents.FindByPredicate([BuffInstance](const FTcsBuffRuntimeDeltaEventPayload& Payload)
+	{
+		return Payload.BuffInstance.Get() == BuffInstance;
+	});
+}
+
+FTcsBuffRemovedEventPayload* UTcsBuffComponent::FindPendingBuffRemovedEvent(UTcsBuffInstance* BuffInstance)
+{
+	if (!IsValid(BuffInstance))
+	{
+		return nullptr;
+	}
+
+	return PendingBuffRemovedEvents.FindByPredicate([BuffInstance](const FTcsBuffRemovedEventPayload& Payload)
+	{
+		return Payload.BuffInstance.Get() == BuffInstance;
+	});
+}
+
+bool UTcsBuffComponent::HasPendingBuffRemovedEvent(UTcsBuffInstance* BuffInstance) const
+{
+	if (!IsValid(BuffInstance))
+	{
+		return false;
+	}
+
+	return PendingBuffRemovedEvents.ContainsByPredicate([BuffInstance](const FTcsBuffRemovedEventPayload& Payload)
+	{
+		return Payload.BuffInstance.Get() == BuffInstance;
+	});
+}
+
+void UTcsBuffComponent::DiscardPendingBuffRuntimeDeltaEvent(UTcsBuffInstance* BuffInstance)
+{
+	if (!IsValid(BuffInstance))
+	{
+		return;
+	}
+
+	PendingBuffRuntimeDeltaEvents.RemoveAll([BuffInstance](const FTcsBuffRuntimeDeltaEventPayload& Payload)
+	{
+		return Payload.BuffInstance.Get() == BuffInstance;
+	});
+}
+
+void UTcsBuffComponent::QueueBuffStackChangedEvent(
+	UTcsBuffInstance* BuffInstance,
+	int32 OldStackCount,
+	int32 NewStackCount)
+{
+	// 一旦同批次已经确定移除，这个 Buff 的运行时变化对外就不再有意义。
+	if (!IsValid(BuffInstance) || OldStackCount == NewStackCount || HasPendingBuffRemovedEvent(BuffInstance))
+	{
+		return;
+	}
+
+	FTcsBuffRuntimeDeltaEventPayload* PendingPayload = FindPendingBuffRuntimeDeltaEvent(BuffInstance);
+	if (!PendingPayload)
+	{
+		PendingPayload = &PendingBuffRuntimeDeltaEvents.Add_GetRef(FTcsBuffRuntimeDeltaEventPayload(BuffInstance));
+	}
+
+	if (!PendingPayload->bStackCountChanged)
+	{
+		// 只保留本批次第一次看到的旧值，后续更新继续覆盖 New 值即可形成 Old -> Final。
+		PendingPayload->bStackCountChanged = true;
+		PendingPayload->OldStackCount = OldStackCount;
+	}
+
+	PendingPayload->NewStackCount = NewStackCount;
+}
+
+void UTcsBuffComponent::QueueBuffMaxStackCountChangedEvent(
+	UTcsBuffInstance* BuffInstance,
+	int32 OldMaxStackCount,
+	int32 NewMaxStackCount)
+{
+	// 同批移除优先级高于运行时变化，避免对外暴露已失效的中间态。
+	if (!IsValid(BuffInstance) || OldMaxStackCount == NewMaxStackCount || HasPendingBuffRemovedEvent(BuffInstance))
+	{
+		return;
+	}
+
+	FTcsBuffRuntimeDeltaEventPayload* PendingPayload = FindPendingBuffRuntimeDeltaEvent(BuffInstance);
+	if (!PendingPayload)
+	{
+		PendingPayload = &PendingBuffRuntimeDeltaEvents.Add_GetRef(FTcsBuffRuntimeDeltaEventPayload(BuffInstance));
+	}
+
+	if (!PendingPayload->bMaxStackCountChanged)
+	{
+		// 最大叠层同样只记录第一次旧值，最后一次新值由后续写入覆盖。
+		PendingPayload->bMaxStackCountChanged = true;
+		PendingPayload->OldMaxStackCount = OldMaxStackCount;
+	}
+
+	PendingPayload->NewMaxStackCount = NewMaxStackCount;
+}
+
+void UTcsBuffComponent::QueueBuffPeriodChangedEvent(
+	UTcsBuffInstance* BuffInstance,
+	float OldPeriod,
+	float NewPeriod)
+{
+	// Removed 已经挂起时，不再为该 Buff 累积周期变化结果。
+	if (!IsValid(BuffInstance) || OldPeriod == NewPeriod || HasPendingBuffRemovedEvent(BuffInstance))
+	{
+		return;
+	}
+
+	FTcsBuffRuntimeDeltaEventPayload* PendingPayload = FindPendingBuffRuntimeDeltaEvent(BuffInstance);
+	if (!PendingPayload)
+	{
+		PendingPayload = &PendingBuffRuntimeDeltaEvents.Add_GetRef(FTcsBuffRuntimeDeltaEventPayload(BuffInstance));
+	}
+
+	if (!PendingPayload->bPeriodChanged)
+	{
+		// 周期变化也按 Old -> Final 收敛，外部无需感知中间多次改写。
+		PendingPayload->bPeriodChanged = true;
+		PendingPayload->OldPeriod = OldPeriod;
+	}
+
+	PendingPayload->NewPeriod = NewPeriod;
+}
+
+void UTcsBuffComponent::QueueBuffDurationRefreshedEvent(
+	UTcsBuffInstance* BuffInstance,
+	float NewDuration)
+{
+	// 持续时间只关心本批次对外可见的最终剩余值，因此每次直接覆盖即可。
+	if (!IsValid(BuffInstance) || HasPendingBuffRemovedEvent(BuffInstance))
+	{
+		return;
+	}
+
+	FTcsBuffRuntimeDeltaEventPayload* PendingPayload = FindPendingBuffRuntimeDeltaEvent(BuffInstance);
+	if (!PendingPayload)
+	{
+		PendingPayload = &PendingBuffRuntimeDeltaEvents.Add_GetRef(FTcsBuffRuntimeDeltaEventPayload(BuffInstance));
+	}
+
+	PendingPayload->bDurationRefreshed = true;
+	PendingPayload->NewDuration = NewDuration;
+}
+
+void UTcsBuffComponent::QueueBuffRemovedEvent(UTcsBuffInstance* BuffInstance, FName RemovalReason)
+{
+	if (!IsValid(BuffInstance))
+	{
+		return;
+	}
+
+	// Removed 是该 Buff 在本批次里的终态结果，之前累计的 RuntimeDelta 全部失效。
+	DiscardPendingBuffRuntimeDeltaEvent(BuffInstance);
+
+	FTcsBuffRemovedEventPayload* PendingPayload = FindPendingBuffRemovedEvent(BuffInstance);
+	if (!PendingPayload)
+	{
+		PendingPayload = &PendingBuffRemovedEvents.Add_GetRef(FTcsBuffRemovedEventPayload(BuffInstance, RemovalReason));
+		return;
+	}
+
+	if (PendingPayload->RemovalReason.IsNone() || !RemovalReason.IsNone())
+	{
+		// 后续补来的有效 RemovalReason 可以覆盖之前的空原因，保留更完整的终态语义。
+		PendingPayload->RemovalReason = RemovalReason;
+	}
+}
+
 bool UTcsBuffComponent::ApplyBuff(
 	FName BuffDefId,
 	AActor* Instigator,
@@ -357,6 +634,12 @@ bool UTcsBuffComponent::RemoveBuff(UTcsBuffInstance* BuffInstance, FName Removal
 		RemovalReason = TcsStateRemovalReasons::Removed;
 	}
 
+	BeginPublicEventBatch();
+	ON_SCOPE_EXIT
+	{
+		EndPublicEventBatch();
+	};
+
 	return StateComponent->RequestStateRemoval(BuffInstance, RemovalReason);
 }
 
@@ -386,6 +669,12 @@ void UTcsBuffComponent::RemoveBuffInstance(UTcsStateInstance* StateInstance, FNa
 {
 	if (UTcsStateComponent* StateComponent = ResolveOwnerStateComponent())
 	{
+		BeginPublicEventBatch();
+		ON_SCOPE_EXIT
+		{
+			EndPublicEventBatch();
+		};
+
 		StateComponent->RequestStateRemoval(StateInstance, RemovalReason);
 	}
 }
@@ -442,6 +731,25 @@ void UTcsBuffComponent::TickBuffLifecycles(float DeltaTime)
 		}
 	}
 
+	// 同一轮生命周期 Tick 里可能会命中多个到期 Buff，而且它们可能共享同一个槽位。
+	// 如果逐个直接移除，每次移除都会在状态侧请求一次槽位刷新，最终把同一槽位的收敛逻辑重复跑多次。
+	// 这里先进入一次槽位刷新批处理，把这一轮到期移除压缩成批次末的一次最终结算。
+	const bool bBatchExpiredRemovals = ExpiredStates.Num() > 1;
+	const bool bBatchExpiredPublicEvents = ExpiredStates.Num() > 1;
+	if (bBatchExpiredPublicEvents)
+	{
+		BeginPublicEventBatch();
+	}
+
+	if (bBatchExpiredRemovals)
+	{
+		StateComponent->BeginStateSlotActivationBatch();
+	}
+
+	// 到期处理过程中可能级联触发状态移除、Buff 注销，甚至把宿主组件或 Owner 一起带进销毁流程。
+	// 这里不能在检测到销毁后直接 return，否则前面已经打开的批处理作用域无法对称关闭，
+	// 最终会把批处理深度和待排空请求都留在不一致状态。
+	bool bAbortExpiredProcessing = false;
 	for (UTcsStateInstance* ExpiredState : ExpiredStates)
 	{
 		if (UTcsBuffInstance* ExpiredBuff = ResolveBuffInstance(ExpiredState))
@@ -449,13 +757,31 @@ void UTcsBuffComponent::TickBuffLifecycles(float DeltaTime)
 			HandleBuffDurationExpired(ExpiredBuff);
 			if (StateComponent->IsBeingDestroyed() || !IsValid(StateComponent->GetOwner()))
 			{
-				return;
+				bAbortExpiredProcessing = true;
+				break;
 			}
 		}
 		else
 		{
 			InvalidStates.Add(ExpiredState);
 		}
+	}
+
+	// 只要前面进入过批处理，这里就必须对称结束。
+	// 正常情况下会在最外层统一排空待处理槽位；销毁路径则交给状态组件内部做安全收尾。
+	if (bBatchExpiredRemovals)
+	{
+		StateComponent->EndStateSlotActivationBatch();
+	}
+
+	if (bBatchExpiredPublicEvents)
+	{
+		EndPublicEventBatch();
+	}
+
+	if (bAbortExpiredProcessing)
+	{
+		return;
 	}
 
 	for (UTcsStateInstance* InvalidState : InvalidStates)
@@ -498,6 +824,12 @@ void UTcsBuffComponent::HandleBuffDurationExpired(UTcsBuffInstance* BuffInstance
 	{
 		return;
 	}
+
+	BeginPublicEventBatch();
+	ON_SCOPE_EXIT
+	{
+		EndPublicEventBatch();
+	};
 
 	const UTcsBuffDefinition* BuffDef = BuffInstance->GetBuffDef();
 	const bool bUsesReactiveExpiration = BuffDef
@@ -755,14 +1087,42 @@ void UTcsBuffComponent::RemoveMergedOutBuffs(
 		return;
 	}
 
+	// 一次合并可能会把同槽位里的多个旧 Buff 一起淘汰。
+	// 这些 Buff 的移除最终都会汇聚到同一个槽位刷新链路里，因此先包一层批处理，
+	// 避免每淘汰一个 Buff 就对同一个槽位重跑一次完整结算。
+	const bool bBatchMergedOutRemovals = MergedOutBuffs.Num() > 1;
+	const bool bBatchMergedOutPublicEvents = MergedOutBuffs.Num() > 1;
+	if (bBatchMergedOutPublicEvents)
+	{
+		BeginPublicEventBatch();
+	}
+
+	if (bBatchMergedOutRemovals)
+	{
+		StateComponent->BeginStateSlotActivationBatch();
+	}
+
 	for (UTcsBuffInstance* BuffInstance : MergedOutBuffs)
 	{
+		// 这里只处理当前仍然挂在这个槽位上的实例。
+		// 如果某个 Buff 已经在前面的链路里被回收，再次进入移除主链只会制造重复工作。
 		if (!IsValid(BuffInstance) || !StateSlot->States.Contains(BuffInstance))
 		{
 			continue;
 		}
 
 		StateComponent->RequestStateRemoval(BuffInstance, TcsBuffRemovalReasons::MergedOut);
+	}
+
+	// 统一在批次尾部结束，让状态组件按槽位去重后再做最终刷新。
+	if (bBatchMergedOutRemovals)
+	{
+		StateComponent->EndStateSlotActivationBatch();
+	}
+
+	if (bBatchMergedOutPublicEvents)
+	{
+		EndPublicEventBatch();
 	}
 }
 
@@ -868,12 +1228,14 @@ void UTcsBuffComponent::NotifyBuffStackChanged(UTcsBuffInstance* BuffInstance, i
 		return;
 	}
 
-	if (OnBuffStackChanged.IsBound())
-	{
-		OnBuffStackChanged.Broadcast(StateComponent, BuffInstance, OldStackCount, NewStackCount);
-	}
-
+	QueueBuffStackChangedEvent(BuffInstance, OldStackCount, NewStackCount);
 	MarkBuffMergeGroupDirty(BuffInstance, ETcsBuffMergeDirtyReason::RuntimeValueChanged);
+
+	// 没有显式批次时，沿用“本次调用立即可见”的旧行为，直接提交当前结果。
+	if (PublicEventBatchDepth == 0)
+	{
+		FlushPendingPublicEvents();
+	}
 }
 
 void UTcsBuffComponent::NotifyBuffMaxStackCountChanged(UTcsBuffInstance* BuffInstance, int32 OldMaxStackCount, int32 NewMaxStackCount)
@@ -884,12 +1246,14 @@ void UTcsBuffComponent::NotifyBuffMaxStackCountChanged(UTcsBuffInstance* BuffIns
 		return;
 	}
 
-	if (OnBuffMaxStackCountChanged.IsBound())
-	{
-		OnBuffMaxStackCountChanged.Broadcast(StateComponent, BuffInstance, OldMaxStackCount, NewMaxStackCount);
-	}
-
+	QueueBuffMaxStackCountChangedEvent(BuffInstance, OldMaxStackCount, NewMaxStackCount);
 	MarkBuffMergeGroupDirty(BuffInstance, ETcsBuffMergeDirtyReason::RuntimeValueChanged);
+
+	// 外层没有批处理包裹时，立刻把这一次变化对外提交出去。
+	if (PublicEventBatchDepth == 0)
+	{
+		FlushPendingPublicEvents();
+	}
 }
 
 void UTcsBuffComponent::NotifyBuffPeriodChanged(UTcsBuffInstance* BuffInstance, float OldPeriod, float NewPeriod)
@@ -900,9 +1264,11 @@ void UTcsBuffComponent::NotifyBuffPeriodChanged(UTcsBuffInstance* BuffInstance, 
 		return;
 	}
 
-	if (OnBuffPeriodChanged.IsBound())
+	QueueBuffPeriodChangedEvent(BuffInstance, OldPeriod, NewPeriod);
+	// 周期变化本身不影响 merge group，但仍要在非批处理路径里立即提交公共结果。
+	if (PublicEventBatchDepth == 0)
 	{
-		OnBuffPeriodChanged.Broadcast(StateComponent, BuffInstance, OldPeriod, NewPeriod);
+		FlushPendingPublicEvents();
 	}
 }
 
@@ -914,9 +1280,11 @@ void UTcsBuffComponent::NotifyBuffDurationRefreshed(UTcsBuffInstance* BuffInstan
 		return;
 	}
 
-	if (OnBuffDurationRefreshed.IsBound())
+	QueueBuffDurationRefreshedEvent(BuffInstance, NewDuration);
+	// 持续时间刷新同样允许在无批次时直接向外暴露最终结果。
+	if (PublicEventBatchDepth == 0)
 	{
-		OnBuffDurationRefreshed.Broadcast(StateComponent, BuffInstance, NewDuration);
+		FlushPendingPublicEvents();
 	}
 }
 
@@ -928,9 +1296,11 @@ void UTcsBuffComponent::NotifyBuffRemoved(UTcsBuffInstance* BuffInstance, FName 
 		return;
 	}
 
-	if (OnBuffRemoved.IsBound())
+	QueueBuffRemovedEvent(BuffInstance, RemovalReason);
+	// Removed 没有外层批次时也要立即提交，保持移除回调的现有时效性。
+	if (PublicEventBatchDepth == 0)
 	{
-		OnBuffRemoved.Broadcast(StateComponent, BuffInstance, RemovalReason);
+		FlushPendingPublicEvents();
 	}
 }
 
@@ -941,10 +1311,10 @@ void UTcsBuffComponent::BindOwnerStateEvents(UTcsStateComponent* InStateComponen
 		return;
 	}
 
-	InStateComponent->OnStateApplySuccess.AddUniqueDynamic(this, &UTcsBuffComponent::HandleOwnerStateApplySuccess);
-	InStateComponent->OnStateRemoved.AddUniqueDynamic(this, &UTcsBuffComponent::HandleOwnerStateRemoved);
-	InStateComponent->OnStateStageChanged.AddUniqueDynamic(this, &UTcsBuffComponent::HandleOwnerStateStageChanged);
-	InStateComponent->OnSlotGateStateChanged.AddUniqueDynamic(this, &UTcsBuffComponent::HandleOwnerSlotGateStateChanged);
+	InStateComponent->OnInternalStateApplySuccess().AddUObject(this, &UTcsBuffComponent::HandleOwnerStateApplySuccess);
+	InStateComponent->OnInternalStateRemoved().AddUObject(this, &UTcsBuffComponent::HandleOwnerStateRemoved);
+	InStateComponent->OnInternalStateStageChanged().AddUObject(this, &UTcsBuffComponent::HandleOwnerStateStageChanged);
+	InStateComponent->OnInternalSlotGateStateChanged().AddUObject(this, &UTcsBuffComponent::HandleOwnerSlotGateStateChanged);
 	if (!OwnerStateSlotActivationHandle.IsValid())
 	{
 		OwnerStateSlotActivationHandle = InStateComponent->OnPrepareStateSlotActivation().AddUObject(
@@ -966,10 +1336,10 @@ void UTcsBuffComponent::UnbindOwnerStateEvents(UTcsStateComponent* InStateCompon
 		return;
 	}
 
-	InStateComponent->OnStateApplySuccess.RemoveDynamic(this, &UTcsBuffComponent::HandleOwnerStateApplySuccess);
-	InStateComponent->OnStateRemoved.RemoveDynamic(this, &UTcsBuffComponent::HandleOwnerStateRemoved);
-	InStateComponent->OnStateStageChanged.RemoveDynamic(this, &UTcsBuffComponent::HandleOwnerStateStageChanged);
-	InStateComponent->OnSlotGateStateChanged.RemoveDynamic(this, &UTcsBuffComponent::HandleOwnerSlotGateStateChanged);
+	InStateComponent->OnInternalStateApplySuccess().RemoveAll(this);
+	InStateComponent->OnInternalStateRemoved().RemoveAll(this);
+	InStateComponent->OnInternalStateStageChanged().RemoveAll(this);
+	InStateComponent->OnInternalSlotGateStateChanged().RemoveAll(this);
 	if (OwnerStateSlotActivationHandle.IsValid())
 	{
 		InStateComponent->OnPrepareStateSlotActivation().Remove(OwnerStateSlotActivationHandle);

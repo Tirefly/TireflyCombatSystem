@@ -18,7 +18,7 @@ FTcsStateChangeNotifyTask::FTcsStateChangeNotifyTask()
 bool FTcsStateChangeNotifyTask::Link(FStateTreeLinker& Linker)
 {
 	const bool bResult = Super::Link(Linker);
-	Linker.LinkExternalData(StateComponentHandle);
+	Linker.LinkExternalData(StateInstanceHandle);
 	return bResult;
 }
 
@@ -32,15 +32,7 @@ EStateTreeRunStatus FTcsStateChangeNotifyTask::EnterState(
 	UTcsStateComponent* StateComponent = InstanceData.StateComponent;
 	if (!StateComponent)
 	{
-		StateComponent = &Context.GetExternalData(StateComponentHandle);
-	}
-
-	if (!StateComponent)
-	{
-		if (const UTcsStateInstance* StateInstance = Cast<UTcsStateInstance>(Context.GetOwner()))
-		{
-			StateComponent = StateInstance->GetOwnerStateComponent();
-		}
+		StateComponent = Context.GetExternalData(StateInstanceHandle).GetOwnerStateComponent();
 	}
 
 	if (StateComponent)
@@ -61,15 +53,7 @@ void FTcsStateChangeNotifyTask::ExitState(
 	UTcsStateComponent* StateComponent = InstanceData.StateComponent;
 	if (!StateComponent)
 	{
-		StateComponent = &Context.GetExternalData(StateComponentHandle);
-	}
-
-	if (!StateComponent)
-	{
-		if (const UTcsStateInstance* StateInstance = Cast<UTcsStateInstance>(Context.GetOwner()))
-		{
-			StateComponent = StateInstance->GetOwnerStateComponent();
-		}
+		StateComponent = Context.GetExternalData(StateInstanceHandle).GetOwnerStateComponent();
 	}
 
 	if (StateComponent)

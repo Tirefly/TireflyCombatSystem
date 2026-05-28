@@ -33,18 +33,18 @@ TCS SHALL 保持 `UTcsStateComponent` 作为面向 Actor 的具体宿主，用�
 - **WHEN** 一个 Buff 运行时状态或由 Skill 触发的运行时状态进入激活态
 - **THEN** 共享的 slot 分配、生命周期编排与 StateTree 驱动 SHALL 继续由 `State Core` 提供
 
-### Requirement: 当前阶段保持 Skill 模块兼容
-TCS SHALL 在 State Core / Buff 重构阶段保持当前 Skill 模块契约不变。
+### Requirement: 当前阶段不要求在同一 change 中完成 Skill 收敛
+TCS SHALL 在 State Core / Buff 重构阶段保持当前 Skill 模块可兼容运作，但不把当前代码里的 Skill 命名与运行时分层冻结成长期契约。
 
-#### Scenario: State/Buff 重构不要求新的 Skill 侧运行时 API
+#### Scenario: State/Buff 重构不要求在同一 change 中完成新的 Skill 侧运行时模型
 - **WHEN** 实施本阶段重构时
-- **THEN** 本阶段 SHALL NOT 要求新增 `UTcsSkillDefinition`
-- **AND** 本阶段 SHALL NOT 要求通过新 learned/cooldown/activation 契约扩展 `UTcsSkillInstance` 或 `UTcsSkillComponent`
+- **THEN** 本阶段 SHALL NOT 要求在同一 change 内完成 `UTcsSkillDefinition`、`UTcsSkillEntry`、新的 `UTcsSkillInstance` 或 Skill 专用 schema
+- **AND** 这些 follow-up MAY 由后续独立 change 推进
 
 #### Scenario: 现有 Skill 骨架保持兼容
 - **WHEN** 本阶段重构 `State Core` 与 Buff 边界时
 - **THEN** 现有 Skill 模块骨架及其当前调用路径 SHALL 保持可编译兼容
-- **AND** 本阶段 SHALL 聚焦于阻止 Skill 继续泄漏进共享 State Core，而不是完整重做 Skill 运行时归属模型
+- **AND** 本阶段 SHALL 聚焦于阻止 Skill 继续泄漏进共享 State Core，而不是把当前旧命名直接宣告为长期最终模型
 
 ### Requirement: 共享参数策略默认不视为 Skill 专属
 TCS SHALL 将快照这类参数求值时机策略视为共享参数系统关注点，除非已被证明只属于 Skill。

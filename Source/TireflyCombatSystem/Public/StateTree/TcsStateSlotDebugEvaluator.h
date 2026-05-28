@@ -10,6 +10,7 @@
 
 
 class UTcsStateComponent;
+class UTcsStateInstance;
 
 
 
@@ -52,5 +53,5 @@ struct TIREFLYCOMBATSYSTEM_API FTcsStateSlotDebugEvaluator : public FStateTreeEv
 	FGameplayTag SlotFilter;
 
 protected:
-	TStateTreeExternalDataHandle<UTcsStateComponent> StateComponentHandle;
+	TStateTreeExternalDataHandle<UTcsStateInstance> StateInstanceHandle;
 };

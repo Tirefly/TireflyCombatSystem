@@ -11,11 +11,14 @@ TCS 已经具备 `UTcsAttributeDefinition`、`UTcsStateDefinition`、`UTcsBuffDe
   - 移除常见 TCS 流程中的额外 `Data Asset -> 选择父类` 步骤。
   - 保持运行时 Def 资产继续基于 `UPrimaryDataAsset`，确保 `AssetManager` 与既有 `PrimaryAssetId` 语义不变。
   - 让编辑器创作路径兼容未来的 `Def + Fragment[]` 组合模型。
+  - 在编辑器阶段对 `AssetManagerSettings` 做 TCS DefinitionAsset 覆盖校验，并对漏配提供可读勘误提示。
+  - 在 `UTcsDeveloperSettings` 提供可配置的勘误忽略列表，允许团队按 DefAsset 类型临时忽略检查。
 - 非目标：
   - 本次不实现 Def 片段。
   - 本次不做运行时加载或热刷新重构。
   - 本次不做自定义独立资产编辑器工具。
   - 本次不尝试让任意下游 Def 子类自动变成一等创建入口。
+  - 本次不改变 Runtime 的加载时机与策略（例如 `PreloadAll` / `OnDemand` / `Hybrid`）。
 
 ## 决策
 
@@ -23,7 +26,7 @@ TCS 已经具备 `UTcsAttributeDefinition`、`UTcsStateDefinition`、`UTcsBuffDe
   - 原因：工厂与资产定义属于编辑器专属关注点，不应污染运行时模块。
 
 - 决策：使用 `UFactory` + `UAssetDefinitionDefault`。
-  - 原因：UE 5.6 在 Content Browser 行为层更偏向 `UAssetDefinitionDefault`，而 `UFactory` 仍然是创建新资产的正确路径。
+  - 原因：UE 5.7 在 Content Browser 行为层更偏向 `UAssetDefinitionDefault`，而 `UFactory` 仍然是创建新资产的正确路径。
 
 - 决策：内建编辑器入口应覆盖 TCS 当前交付的全部规范、可直接创作的定义资产类型。
   - 原因：插件自有创作流程必须匹配插件真实的定义资产面，而不能停留在一个早于 `UTcsBuffDefinition` 等新具体类型出现之前的旧子集上。
@@ -33,6 +36,21 @@ TCS 已经具备 `UTcsAttributeDefinition`、`UTcsStateDefinition`、`UTcsBuffDe
 
 - 决策：保持 Def 子类化兼容，但不把它当成主要方向。
   - 原因：组合式扩展仍然是更推荐的方向，尤其是在 TCS 未来引入 Def 片段的前提下；但基础系统也不应硬性破坏那些仅为了狭义编辑器校验或默认值而派生 Def 类的团队。
+
+- 决策：在编辑器阶段新增 `AssetManagerSettings` 覆盖校验与勘误提示。
+  - 原因：当前 TCS 的 Definition 发现链路仍依赖 `PrimaryAssetTypesToScan`。一旦类型或路径漏配，编辑器实时同步与运行时加载都可能失效；应在编辑器内尽早提示配置问题，而不是等到运行时才暴露。
+
+- 决策：勘误校验不自动改写工程配置，只输出可执行的修复建议。
+  - 原因：自动改写 `AssetManagerSettings` 风险较高，容易覆盖团队已有规则；当前阶段应优先提供确定性诊断与人工修复引导。
+
+- 决策：勘误检查以“DefAsset 类型”为最小忽略粒度，由 `UTcsDeveloperSettings` 提供忽略列表。
+  - 原因：团队在迁移阶段可能希望临时豁免个别类型；忽略列表需要明确且可审计，不应散落在临时代码开关中。
+
+- 决策：勘误检查必须分别覆盖“PrimaryAssetType 漏配”和“扫描路径漏配”。
+  - 原因：只校验类型存在会漏掉最常见的路径配置错误；两类错误都应独立输出，避免误判“已配置”。
+
+- 决策：在编辑器每次 Save 操作后，若仍存在未忽略漏配项，重复给出勘误提示。
+  - 原因：需要把漏配反馈绑定到高频工作流动作，避免一次性提示被忽略后长期失效。
 
 ## 风险 / 取舍
 
@@ -45,6 +63,12 @@ TCS 已经具备 `UTcsAttributeDefinition`、`UTcsStateDefinition`、`UTcsBuffDe
 - 风险：重新引入编辑器模块源码后，可能与过时的中间生成物出现偏差。
   - 缓解：将现有中间生成物视为非权威来源，并以仓库中提交的源码为准重建编辑器层。
 
+- 风险：新增勘误提示后，若提示噪声过高会影响编辑器使用体验。
+  - 缓解：只在确认 TCS DefinitionAsset 类型/目录漏配时报错；提示内容使用可定位到类型与目录的精确信息。
+
+- 风险：每次 Save 都提示可能打断工作流。
+  - 缓解：提供 DevSettings 忽略列表；仅对“未忽略且未修复”的漏配项重复提示。
+
 ## 迁移计划
 
 1. 在插件描述文件中加入 `TireflyCombatSystemEditor`。
@@ -52,8 +76,14 @@ TCS 已经具备 `UTcsAttributeDefinition`、`UTcsStateDefinition`、`UTcsBuffDe
 3. 为所有可直接创作的定义资产类型补充或更新工厂，包括 `UTcsBuffDefinition`。
 4. 调整抽象 `UTcsStateDefinition` 的入口，确保编辑器不会再指向不可实例化类。
 5. 补上对应的资产定义和分类注册。
-6. 更新创作文档。
+6. 新增 `AssetManagerSettings` 覆盖校验与勘误提示逻辑，并明确提示内容。
+7. 在 `UTcsDeveloperSettings` 增加勘误忽略列表配置项，并接入勘误检查过滤逻辑。
+8. 接入编辑器 Save 事件，在每次 Save 后对未忽略漏配项重复提示。
+9. 更新创作文档。
 
 ## 开放问题
 
 - 是否需要在第一版就为每个 Def 资产提供专门的缩略图/图标，还是先用默认的颜色与分类元数据就足够。
+- 勘误校验结果是否需要同时接入 CI（例如 editor commandlet），还是先仅作为编辑器内提示。
+- 忽略列表是否需要区分“临时忽略（带到期）”与“长期忽略（常驻配置）”。
+- 若后续需要系统评估 Save 重复提示是否已经过于吵闹，可参考 5 日窗口内的提示频率、重复密度、修复转化率、忽略膨胀率和主观干扰反馈；本次不把这些指标做进实现。

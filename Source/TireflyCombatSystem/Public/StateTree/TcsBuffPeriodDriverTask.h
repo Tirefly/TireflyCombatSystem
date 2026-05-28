@@ -8,7 +8,7 @@
 
 
 
-class UTcsStateInstance;
+class UTcsBuffInstance;
 struct FStateTreeLinker;
 
 
@@ -116,6 +116,6 @@ struct TIREFLYCOMBATSYSTEM_API FTcsBuffPeriodDriverTask : public FStateTreeTaskC
 #endif
 
 protected:
-	/** 共享的 StateInstance 外部数据句柄。 */
-	TStateTreeExternalDataHandle<UTcsStateInstance> StateInstanceHandle;
+	/** BuffStateTree 使用的 BuffInstance 外部数据句柄。 */
+	TStateTreeExternalDataHandle<UTcsBuffInstance> BuffInstanceHandle;
 };

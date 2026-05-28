@@ -219,11 +219,11 @@ OpenSpec 工作流程**仅作用于 TireflyCombatSystem (TCS) 插件**，其他�
 ## 重要约束
 
 **技术约束**：
-- 必须与 UE 5.6+ 兼容，禁止使用更低版本引擎私有 API
+- 必须与 UE 5.7 兼容，禁止使用更低版本引擎私有 API
 - 禁止修改引擎源码；所有扩展通过插件 / 策略类 / 子类完成
 - UnrealSharp 托管开发遵循插件锁定的 .NET SDK；不要脱离 `Plugins/UnrealSharp/Managed/global.json` 自行漂移 SDK 版本
 - 跨 Actor 效果施加必须经由 "施加独立 State" 路径，禁止直接对其他 Actor 调用 `ApplyModifierWithSourceHandle`
-- StateTree 执行期间的副作用必须考虑可重入 Stop：UE 5.6 引擎本身通过 `RequestedStop` 延迟机制自保护；TCS 代码不应再引入并行 Flag 绕过该机制
+- StateTree 执行期间的副作用必须考虑可重入 Stop：UE 5.7 引擎本身通过 `RequestedStop` 延迟机制自保护；TCS 代码不应再引入并行 Flag 绕过该机制
 - 性能敏感路径应考虑对象池（`TireflyObjectPool` / `TireflyActorPool`）集成
 - 禁止手工修改 UnrealSharp 生成物，包括 `*.Glue` 工程和 `obj/UHT/**/*.generated.cs`
 - 对于 C# 不可见 API，先验证反射暴露与声明合法性，不要直接把问题归因到生成器

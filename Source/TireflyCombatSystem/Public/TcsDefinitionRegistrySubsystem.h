@@ -11,7 +11,10 @@ class UTcsAttributeDefinition;
 class UTcsAttributeModifierDefinition;
 class UTcsStateDefinition;
 class UTcsStateSlotDefinition;
+class IAssetRegistry;
+class FObjectPostSaveContext;
 class UObject;
+class UPackage;
 struct FAssetData;
 struct FPrimaryAssetTypeInfo;
 struct FPropertyChangedEvent;
@@ -74,6 +77,12 @@ private:
 	bool HandleDeferredRefresh(float DeltaTime);
 	void RebuildSnapshot();
 	void MirrorSnapshotToDeveloperSettings() const;
+	/** 重建当前 AssetManagerSettings 覆盖勘误结果。 */
+	void RefreshAssetManagerCoverageIssues(IAssetRegistry& AssetRegistry);
+	/** 输出当前尚未修复的 AssetManagerSettings 勘误。 */
+	void ReportAssetManagerCoverageIssues(bool bTriggeredBySave, const FString& PackageFileName = FString()) const;
+	/** 判断指定 DefAsset 类型是否被开发者显式忽略。 */
+	bool IsDefinitionAssetTypeIgnored(const UClass* DefinitionClass) const;
 	void ScanPrimaryAssetType(const FPrimaryAssetTypeInfo& TypeInfo, class IAssetRegistry& AssetRegistry);
 	void ScanAttributeDefinitions(const TArray<FAssetData>& AssetDataList);
 	void ScanAttributeModifierDefinitions(const TArray<FAssetData>& AssetDataList);
@@ -88,6 +97,8 @@ private:
 	void OnInMemoryAssetCreated(UObject* AssetObject);
 	void OnInMemoryAssetDeleted(UObject* AssetObject);
 	void OnAssetManagerSettingsChanged(UObject* SettingsObject, FPropertyChangedEvent& PropertyChangedEvent);
+	/** 在每次 Save 成功后重复输出尚未修复的勘误。 */
+	void OnPackageSaved(const FString& PackageFileName, UPackage* Package, FObjectPostSaveContext ObjectSaveContext);
 	void ClearQueuedRefresh();
 
 	bool bHasRegisteredEditorCallbacks = false;
@@ -104,6 +115,10 @@ private:
 	FDelegateHandle InMemoryAssetCreatedHandle;
 	FDelegateHandle InMemoryAssetDeletedHandle;
 	FDelegateHandle AssetManagerSettingsChangedHandle;
+	/** 编辑器 Save 完成后的重复提示委托句柄。 */
+	FDelegateHandle PackageSavedHandle;
+	/** 当前未忽略的 AssetManagerSettings 勘误缓存。 */
+	TArray<FString> AssetManagerCoverageIssues;
 #else
 	bool bHasCompletedInitialRefresh = true;
 	int32 RefreshRevision = 0;

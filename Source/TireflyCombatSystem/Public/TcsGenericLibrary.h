@@ -45,6 +45,16 @@ public:
 
 #pragma endregion
 
+
+#pragma region BuffHelper
+
+public:
+	// 获取 Buff 组件
+	UFUNCTION(BlueprintCallable, Category = "TireflyCombatSystem|Buff")
+	static class UTcsBuffComponent* GetBuffComponent(AActor* Actor);
+
+#pragma endregion
+
 	
 #pragma region SkillHelper
 

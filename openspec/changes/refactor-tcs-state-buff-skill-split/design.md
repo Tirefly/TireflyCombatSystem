@@ -14,10 +14,10 @@ TCS 当前的 `State` 运行时已经是完整主链路，但它并不是一个�
 - `Buff` 拿回持续时间与效果运行语义
 - `Skill` 在当前阶段保持现状，不在本提案里继续扩面实现
 
-并且当前已经可以先固定两条 Skill 语义基线：
+并且当前可以先固定的，不是最终 Skill 命名，而只是两条阶段性实现事实：
 
-- `UTcsSkillInstance` 只表示“已学会技能”，不表示一次技能执行实例
-- 技能释放时，仍由 Skill 侧向 `UTcsStateComponent` 申请 `StateInstance` 进入运行态
+- 当前代码中的 learned-skill 数据对象仍使用 `UTcsSkillInstance` 命名，但这不是长期命名结论
+- 技能释放时，当前仍由 Skill 侧向 `UTcsStateComponent` 申请运行态进入主链；后续 Skill-specific runtime 收敛由独立 change 处理
 
 ## 目标 / 非目标
 
@@ -29,7 +29,7 @@ TCS 当前的 `State` 运行时已经是完整主链路，但它并不是一个�
 - 非目标：
   - 本提案不要求第一阶段立即把 TCS 物理拆成多个 `.Build.cs` 运行时模块；这里的“模块”首先指职责边界和代码组织边界
   - 本提案不覆盖对外玩法功能扩面，只聚焦已有状态/技能/Buff 语义的重新归位
-  - 本提案不新增 `UTcsSkillDefinition`，不补齐 `UTcsSkillInstance` / `UTcsSkillComponent` 的运行时能力，不改变 Skill 模块现状
+  - 本提案不在同一 change 中实现 `UTcsSkillDefinition`、`UTcsSkillEntry`、新的 `UTcsSkillInstance` 或 Skill 专用 schema；这些 follow-up 由独立 change 推进
   - 本提案不直接实现编辑器资产创建流程、`UFactory`、`UAssetDefinition` 或编辑器侧注册表调整；这些改动应留在 `add-tcs-def-editor-authoring`
   - 本提案不替代 `migrate-manager-api-to-component`；两者需要顺序衔接，而不是并行各改一半
 
@@ -71,15 +71,16 @@ TCS 当前的 `State` 运行时已经是完整主链路，但它并不是一个�
   - 备选方案：
     - 未来让 Skill 直接复用 `UTcsStateMerger`：拒绝，因为这会把 Buff 的叠层/合并语义错误套用到 Skill 的激活冲突语义上。
 
-- 决策：当前阶段冻结 Skill 模块实现范围
+- 决策：当前阶段冻结本提案内部的 Skill 实现范围
   - 原因：现阶段的首要目标是先把状态核心与 Buff 的边界收敛；若同时补齐 Skill 定义、实例、冷却和激活模型，会把 change 重新扩大成第二个系统重做。
   - 备选方案：
     - 同步推进 Skill 收敛：拒绝，因为这会把当前 change 从“先清理共享基类和 Buff 语义”扩大成“同时重写 Skill 系统”，回归范围过大。
 
-- 决策：`UTcsSkillInstance` 在当前和后续方向里只表示已学会技能
-  - 原因：这能把“我学会了这个技能”和“这一次技能正在执行”严格分离；执行态继续复用 `StateInstance` 主链，避免 `SkillInstance` 和 `StateInstance` 职责重叠。
+- 决策：本提案不把当前 `UTcsSkillInstance` 命名冻结成长期契约
+  - 原因：本提案的职责是收敛 `State Core` / `Buff` 边界，而不是在同一阶段把 Skill 的 owned-data 对象名与 activation runtime 名最终定型。
+  - 原因：真正需要冻结的是“已学会技能持有态”和“技能执行态”必须分离，而不是强行把当前代码里的旧名字声明成永久结论。
   - 备选方案：
-    - 让 `UTcsSkillInstance` 同时表示已学会技能和执行实例：拒绝，因为这会重新把 Skill 拥有态和运行态混成一个对象。
+    - 继续把当前 `UTcsSkillInstance` 旧名写成“当前与后续方向都成立”：拒绝，因为这会和后续独立 Skill/runtime 收敛 change 正面冲突。
 
 - 决策：同 Def Skill 重复激活规则延后到按技能类型调研后再定
   - 原因：不同技能对重复激活的合理处理方式可能完全不同，例如拒绝、刷新、覆盖、排队、并行；当前没有足够证据用一条统一规则覆盖全部技能类型。
@@ -113,7 +114,7 @@ TCS 当前的 `State` 运行时已经是完整主链路，但它并不是一个�
 - Skill 侧处理“同一个已学会技能能不能再次激活，以及再次激活后怎么处理”
 - Buff 侧处理“技能再次激活后产出的运行中效果如何合并、叠层、保留或淘汰”
 
-这里还有一个当前已经确认的前提：`UTcsSkillInstance` 只表示已学会技能，因此重复激活策略面对的对象不是“两个 SkillInstance 互相 merge”，而是“同一个已学会技能在运行期再次收到激活请求时该如何处理”。
+这里真正应该固定的前提，是“重复激活策略面对的是 learned-skill 持有态，而不是两个执行态实例互相 merge”。在本 change 实施时，当前代码里的该对象名仍是 `UTcsSkillInstance`；后续如果独立 change 把它翻名为 `UTcsSkillEntry` 并引入新的执行态 `UTcsSkillInstance`，这条边界依然成立。
 
 ### 命名草案
 
@@ -134,7 +135,7 @@ TCS 当前的 `State` 运行时已经是完整主链路，但它并不是一个�
 
 | 维度 | Skill 重复应用策略 | Buff merge 策略 |
 |---|---|---|
-| 处理对象 | 已学会 `UTcsSkillInstance` 对应的技能激活请求 | 已经存在的 Buff / State 运行态实例 |
+| 处理对象 | 已学会技能持有对象对应的技能激活请求 | 已经存在的 Buff / State 运行态实例 |
 | 关心的问题 | 能否重复激活、重复激活后如何处理 | 已存在效果如何叠层、刷新、保留、淘汰 |
 | 典型结果 | 拒绝、刷新执行、覆盖旧执行、排队、允许并行、是否重置冷却 | `UseNewest`、`UseOldest`、`NoMerge`、叠层累加、按施法者分组叠层 |
 | 所属模块 | Skill | Buff |
@@ -163,16 +164,14 @@ TCS 当前的 `State` 运行时已经是完整主链路，但它并不是一个�
 3. 删除 `ETcsStateType` / `StateType`，不再依赖共享基类枚举做类型表达。
 4. 把 `MergerType` 与当前 `UTcsStateMerger` 链路一起迁到 Buff 侧，先作为 Buff 的同 Def 合并/叠层策略处理。
 5. 从 `State` 侧剥离 Buff 运行时数据与逻辑：Duration、Stack、Merge、Period、Refresh、Expire、Buff 专属事件。
-6. 对现有 Skill 引用接入点做清单化记录和兼容冻结，本阶段不扩展 Skill 模块实现。
+6. 对现有 Skill 引用接入点做清单化记录和兼容冻结，本阶段不扩展本 change 内的 Skill 模块实现。
 7. 重新定义共享参数系统与 `StateInstance -> StateTreeSchema` 的最小暴露面，把快照视为共享参数策略，并把实验性质的上下文字段与正式契约拆开。
 8. 记录对编辑器创作的影响说明；若 `UTcsBuffDefinition` 需要新的资产创建入口，由 `add-tcs-def-editor-authoring` 补充处理，而不是在本提案中直接改 Factory/注册表。
-9. 在后续独立议题中，再决定 Skill 模块的定义、桥接和潜在运行时派生类型，以及是否需要从 Buff 中再抽出通用重复态冲突策略抽象。
+9. 在后续独立议题中，再决定 Skill 模块的 `UTcsSkillDefinition`、`UTcsSkillEntry`、新的 `UTcsSkillInstance`、Skill schema 与桥接细节，以及是否需要从 Buff 中再抽出通用重复态冲突策略抽象。
 10. 对“同 Def 技能重复激活”的处理规则按技能类型做单独调研，再决定 Skill 是否需要独立冲突策略抽象及其默认策略集合。
 
 ## 开放问题
 
-- `UTcsSkillStateDefinition` 是否需要作为单独资产类型存在，还是仅由 `UTcsSkillDefinition` 引用一个或多个 State/Buff 定义组合来表达执行态。
-- `UTcsStateInstance` 是否应保留为共享基类，还是需要引入 `UTcsBuffInstance` / `UTcsSkillStateInstance` 等更明确的派生运行态类型。
-- `UTcsStateInstance` 最终应该向 `StateTreeSchema` 暴露哪些上下文对象，哪些只是当前实验实现中的暂存字段。
 - 当前 `UseNewest` / `UseOldest` / `NoMerge` 是否值得在未来从 Buff 合并体系中再抽成共享状态核心的冲突策略抽象。
 - 同 Def 技能重复激活时，哪些技能类型应拒绝、刷新、覆盖、排队或允许并行，需要在后续 Skill 议题中如何分类调研。
+- `UTcsSkillDefinition` 最终是直接引用单一执行态定义，还是组合一个或多个 State/Buff 定义来表达技能执行结果，仍需后续独立议题细化。

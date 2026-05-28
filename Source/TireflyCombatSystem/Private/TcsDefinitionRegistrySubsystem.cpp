@@ -11,13 +11,23 @@
 
 #if WITH_EDITOR
 #include "AssetRegistry/AssetData.h"
+#include "AssetRegistry/IAssetRegistry.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Containers/Ticker.h"
 #include "Engine/AssetManagerSettings.h"
+#include "UObject/ObjectSaveContext.h"
+#include "UObject/Package.h"
 #endif
 
 namespace TcsDefinitionRegistryPrivate
 {
+	struct FTcsTrackedDefinitionType
+	{
+		UClass* AssetClass = nullptr;
+		FName PrimaryAssetType;
+		const TCHAR* DefinitionLabel = TEXT("Unknown");
+	};
+
 	template <typename AssetType>
 	void AddDefinition(
 		TMap<FName, TSoftObjectPtr<AssetType>>& Cache,
@@ -50,6 +60,146 @@ namespace TcsDefinitionRegistryPrivate
 
 		Cache.Add(DefinitionId, AssetPtr);
 	}
+
+	const TArray<FTcsTrackedDefinitionType>& GetTrackedDefinitionTypes()
+	{
+		static const TArray<FTcsTrackedDefinitionType> TrackedTypes = {
+			{ UTcsAttributeDefinition::StaticClass(), UTcsAttributeDefinition::PrimaryAssetType, TEXT("UTcsAttributeDefinition") },
+			{ UTcsAttributeModifierDefinition::StaticClass(), UTcsAttributeModifierDefinition::PrimaryAssetType, TEXT("UTcsAttributeModifierDefinition") },
+			{ UTcsStateDefinition::StaticClass(), UTcsStateDefinition::PrimaryAssetType, TEXT("UTcsStateDefinition") },
+			{ UTcsStateSlotDefinition::StaticClass(), UTcsStateSlotDefinition::PrimaryAssetType, TEXT("UTcsStateSlotDefinition") },
+		};
+
+		return TrackedTypes;
+	}
+
+	FString NormalizePackagePath(const FString& InPath)
+	{
+		FString Normalized = InPath;
+		Normalized.TrimStartAndEndInline();
+		while (Normalized.EndsWith(TEXT("/")))
+		{
+			Normalized.LeftChopInline(1, EAllowShrinking::No);
+		}
+
+		return Normalized;
+	}
+
+	bool IsPackagePathCoveredByDirectory(const FString& PackagePath, const FString& DirectoryPath)
+	{
+		if (DirectoryPath.IsEmpty())
+		{
+			return false;
+		}
+
+		if (PackagePath == DirectoryPath)
+		{
+			return true;
+		}
+
+		return PackagePath.StartsWith(DirectoryPath + TEXT("/"));
+	}
+
+	bool IsAssetCoveredByDirectories(const FAssetData& AssetData, const TArray<FDirectoryPath>& Directories)
+	{
+		const FString PackagePath = NormalizePackagePath(AssetData.PackagePath.ToString());
+		for (const FDirectoryPath& Directory : Directories)
+		{
+			if (IsPackagePathCoveredByDirectory(PackagePath, NormalizePackagePath(Directory.Path)))
+			{
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	bool IsAssetCoveredBySpecificAssets(const FAssetData& AssetData, const TArray<FSoftObjectPath>& SpecificAssets)
+	{
+		const FSoftObjectPath AssetPath = AssetData.ToSoftObjectPath();
+		for (const FSoftObjectPath& SpecificAsset : SpecificAssets)
+		{
+			if (SpecificAsset == AssetPath)
+			{
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	FString JoinSortedValues(const TSet<FString>& Values)
+	{
+		TArray<FString> SortedValues;
+		SortedValues.Reserve(Values.Num());
+		for (const FString& Value : Values)
+		{
+			SortedValues.Add(Value);
+		}
+
+		SortedValues.Sort();
+		return SortedValues.Num() > 0 ? FString::Join(SortedValues, TEXT(", ")) : TEXT("<none>");
+	}
+
+	FString DescribeConfiguredDirectories(const TArray<const FPrimaryAssetTypeInfo*>& MatchingTypeInfos)
+	{
+		TSet<FString> Paths;
+		for (const FPrimaryAssetTypeInfo* TypeInfo : MatchingTypeInfos)
+		{
+			if (!TypeInfo)
+			{
+				continue;
+			}
+
+			for (const FDirectoryPath& Directory : TypeInfo->GetDirectories())
+			{
+				Paths.Add(NormalizePackagePath(Directory.Path));
+			}
+		}
+
+		return JoinSortedValues(Paths);
+	}
+
+	FString DescribeConfiguredBaseClasses(const TArray<const FPrimaryAssetTypeInfo*>& MatchingTypeInfos)
+	{
+		TSet<FString> BaseClasses;
+		for (const FPrimaryAssetTypeInfo* TypeInfo : MatchingTypeInfos)
+		{
+			if (!TypeInfo)
+			{
+				continue;
+			}
+
+			if (TypeInfo->AssetBaseClassLoaded)
+			{
+				BaseClasses.Add(TypeInfo->AssetBaseClassLoaded->GetPathName());
+			}
+			else
+			{
+				BaseClasses.Add(TypeInfo->GetAssetBaseClass().ToString());
+			}
+		}
+
+		return JoinSortedValues(BaseClasses);
+	}
+
+	bool HasAnyScanLocation(const TArray<const FPrimaryAssetTypeInfo*>& MatchingTypeInfos)
+	{
+		for (const FPrimaryAssetTypeInfo* TypeInfo : MatchingTypeInfos)
+		{
+			if (!TypeInfo)
+			{
+				continue;
+			}
+
+			if (!TypeInfo->GetDirectories().IsEmpty() || !TypeInfo->GetSpecificAssets().IsEmpty())
+			{
+				return true;
+			}
+		}
+
+		return false;
+	}
 }
 
 void UTcsDefinitionRegistrySubsystem::Initialize(FSubsystemCollectionBase& Collection)
@@ -61,6 +211,7 @@ void UTcsDefinitionRegistrySubsystem::Initialize(FSubsystemCollectionBase& Colle
 	{
 		RegisterEditorCallbacks();
 		RefreshDefinitionsNow();
+		ReportAssetManagerCoverageIssues(false);
 	}
 #endif
 }
@@ -159,6 +310,10 @@ void UTcsDefinitionRegistrySubsystem::RegisterEditorCallbacks()
 			&UTcsDefinitionRegistrySubsystem::OnAssetManagerSettingsChanged);
 	}
 
+	PackageSavedHandle = UPackage::PackageSavedWithContextEvent.AddUObject(
+		this,
+		&UTcsDefinitionRegistrySubsystem::OnPackageSaved);
+
 	bHasRegisteredEditorCallbacks = true;
 }
 
@@ -213,6 +368,11 @@ void UTcsDefinitionRegistrySubsystem::UnregisterEditorCallbacks()
 		}
 	}
 
+	if (PackageSavedHandle.IsValid())
+	{
+		UPackage::PackageSavedWithContextEvent.Remove(PackageSavedHandle);
+	}
+
 	AssetAddedHandle.Reset();
 	AssetUpdatedHandle.Reset();
 	AssetRemovedHandle.Reset();
@@ -220,6 +380,7 @@ void UTcsDefinitionRegistrySubsystem::UnregisterEditorCallbacks()
 	InMemoryAssetCreatedHandle.Reset();
 	InMemoryAssetDeletedHandle.Reset();
 	AssetManagerSettingsChangedHandle.Reset();
+	PackageSavedHandle.Reset();
 	bHasRegisteredEditorCallbacks = false;
 }
 
@@ -253,6 +414,8 @@ void UTcsDefinitionRegistrySubsystem::RebuildSnapshot()
 		ScanPrimaryAssetType(TypeInfo, AssetRegistry);
 	}
 
+	RefreshAssetManagerCoverageIssues(AssetRegistry);
+
 	UE_LOG(LogTcs, Log,
 		TEXT("[UTcsDefinitionRegistrySubsystem] Rebuilt snapshot: %d Attributes, %d Modifiers, %d States, %d StateSlots"),
 		AttributeDefinitions.Num(),
@@ -277,6 +440,163 @@ void UTcsDefinitionRegistrySubsystem::MirrorSnapshotToDeveloperSettings() const
 	Settings->SetCachedStateSlotDefinitions(StateSlotDefinitions);
 }
 
+void UTcsDefinitionRegistrySubsystem::RefreshAssetManagerCoverageIssues(IAssetRegistry& AssetRegistry)
+{
+	AssetManagerCoverageIssues.Reset();
+
+	const UAssetManagerSettings* AssetManagerSettings = GetDefault<UAssetManagerSettings>();
+	if (!AssetManagerSettings)
+	{
+		AssetManagerCoverageIssues.Add(TEXT("无法读取 AssetManagerSettings，TCS DefinitionAsset 覆盖检查未执行。"));
+		return;
+	}
+
+	for (const TcsDefinitionRegistryPrivate::FTcsTrackedDefinitionType& TrackedType : TcsDefinitionRegistryPrivate::GetTrackedDefinitionTypes())
+	{
+		if (!TrackedType.AssetClass || IsDefinitionAssetTypeIgnored(TrackedType.AssetClass))
+		{
+			continue;
+		}
+
+		TArray<const FPrimaryAssetTypeInfo*> MatchingTypeInfos;
+		for (const FPrimaryAssetTypeInfo& TypeInfo : AssetManagerSettings->PrimaryAssetTypesToScan)
+		{
+			if (TypeInfo.PrimaryAssetType == TrackedType.PrimaryAssetType)
+			{
+				MatchingTypeInfos.Add(&TypeInfo);
+			}
+		}
+
+		TArray<FAssetData> AssetDataList;
+		AssetRegistry.GetAssetsByClass(TrackedType.AssetClass->GetClassPathName(), AssetDataList, true);
+
+		TSet<FString> ObservedPackagePaths;
+		for (const FAssetData& AssetData : AssetDataList)
+		{
+			ObservedPackagePaths.Add(TcsDefinitionRegistryPrivate::NormalizePackagePath(AssetData.PackagePath.ToString()));
+		}
+
+		if (MatchingTypeInfos.IsEmpty())
+		{
+			AssetManagerCoverageIssues.Add(FString::Printf(
+				TEXT("缺少 PrimaryAssetType '%s' 对 %s 的配置。当前发现的资产目录：%s。请在 Project Settings -> Asset Manager 中新增该类型并补齐扫描目录。"),
+				*TrackedType.PrimaryAssetType.ToString(),
+				TrackedType.DefinitionLabel,
+				*TcsDefinitionRegistryPrivate::JoinSortedValues(ObservedPackagePaths)));
+			continue;
+		}
+
+		const bool bHasExpectedBaseClass = MatchingTypeInfos.ContainsByPredicate(
+			[&TrackedType](const FPrimaryAssetTypeInfo* TypeInfo)
+			{
+				return TypeInfo && TypeInfo->AssetBaseClassLoaded == TrackedType.AssetClass;
+			});
+
+		if (!bHasExpectedBaseClass)
+		{
+			AssetManagerCoverageIssues.Add(FString::Printf(
+				TEXT("PrimaryAssetType '%s' 对 %s 的规则失配：当前基类为 %s，期望基类为 %s。请修正 AssetBaseClass，避免定义资产被错误归类或漏扫。"),
+				*TrackedType.PrimaryAssetType.ToString(),
+				TrackedType.DefinitionLabel,
+				*TcsDefinitionRegistryPrivate::DescribeConfiguredBaseClasses(MatchingTypeInfos),
+				*TrackedType.AssetClass->GetPathName()));
+		}
+
+		if (AssetDataList.IsEmpty())
+		{
+			if (!TcsDefinitionRegistryPrivate::HasAnyScanLocation(MatchingTypeInfos))
+			{
+				AssetManagerCoverageIssues.Add(FString::Printf(
+					TEXT("PrimaryAssetType '%s' 已存在，但 %s 没有配置任何扫描目录或 SpecificAssets。请至少补齐一个可用扫描路径。"),
+					*TrackedType.PrimaryAssetType.ToString(),
+					TrackedType.DefinitionLabel));
+			}
+
+			continue;
+		}
+
+		TSet<FString> MissingPackagePaths;
+		for (const FAssetData& AssetData : AssetDataList)
+		{
+			bool bIsCovered = false;
+			for (const FPrimaryAssetTypeInfo* TypeInfo : MatchingTypeInfos)
+			{
+				if (!TypeInfo)
+				{
+					continue;
+				}
+
+				if (TcsDefinitionRegistryPrivate::IsAssetCoveredByDirectories(AssetData, TypeInfo->GetDirectories()) ||
+					TcsDefinitionRegistryPrivate::IsAssetCoveredBySpecificAssets(AssetData, TypeInfo->GetSpecificAssets()))
+				{
+					bIsCovered = true;
+					break;
+				}
+			}
+
+			if (!bIsCovered)
+			{
+				MissingPackagePaths.Add(TcsDefinitionRegistryPrivate::NormalizePackagePath(AssetData.PackagePath.ToString()));
+			}
+		}
+
+		if (!MissingPackagePaths.IsEmpty())
+		{
+			AssetManagerCoverageIssues.Add(FString::Printf(
+				TEXT("PrimaryAssetType '%s' 对 %s 的扫描路径漏配。未覆盖目录：%s。当前已配置目录：%s。请把缺失目录加入扫描路径，或显式加入 SpecificAssets。"),
+				*TrackedType.PrimaryAssetType.ToString(),
+				TrackedType.DefinitionLabel,
+				*TcsDefinitionRegistryPrivate::JoinSortedValues(MissingPackagePaths),
+				*TcsDefinitionRegistryPrivate::DescribeConfiguredDirectories(MatchingTypeInfos)));
+		}
+	}
+}
+
+void UTcsDefinitionRegistrySubsystem::ReportAssetManagerCoverageIssues(bool bTriggeredBySave, const FString& PackageFileName) const
+{
+	if (AssetManagerCoverageIssues.IsEmpty())
+	{
+		return;
+	}
+
+	if (bTriggeredBySave)
+	{
+		UE_LOG(LogTcs, Error,
+			TEXT("[UTcsDefinitionRegistrySubsystem] TCS DefinitionAsset 的 AssetManagerSettings 勘误仍未修复；本次 Save 后再次提示。Package: %s"),
+			PackageFileName.IsEmpty() ? TEXT("<unknown>") : *PackageFileName);
+	}
+	else
+	{
+		UE_LOG(LogTcs, Error,
+			TEXT("[UTcsDefinitionRegistrySubsystem] 检测到 TCS DefinitionAsset 的 AssetManagerSettings 勘误，请按下列提示修正。"));
+	}
+
+	for (const FString& Issue : AssetManagerCoverageIssues)
+	{
+		UE_LOG(LogTcs, Error, TEXT("  - %s"), *Issue);
+	}
+}
+
+bool UTcsDefinitionRegistrySubsystem::IsDefinitionAssetTypeIgnored(const UClass* DefinitionClass) const
+{
+	const UTcsDeveloperSettings* Settings = GetDefault<UTcsDeveloperSettings>();
+	if (!Settings || !DefinitionClass)
+	{
+		return false;
+	}
+
+	for (const TSubclassOf<UPrimaryDataAsset>& IgnoredType : Settings->IgnoredDefinitionAssetTypes)
+	{
+		const UClass* IgnoredClass = IgnoredType.Get();
+		if (IgnoredClass && (IgnoredClass == DefinitionClass || IgnoredClass->IsChildOf(DefinitionClass)))
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
 void UTcsDefinitionRegistrySubsystem::ScanPrimaryAssetType(const FPrimaryAssetTypeInfo& TypeInfo, IAssetRegistry& AssetRegistry)
 {
 	if (TypeInfo.PrimaryAssetType != UTcsAttributeDefinition::PrimaryAssetType &&
@@ -292,6 +612,29 @@ void UTcsDefinitionRegistrySubsystem::ScanPrimaryAssetType(const FPrimaryAssetTy
 	{
 		TArray<FAssetData> AssetDataList;
 		AssetRegistry.GetAssetsByPath(FName(*Directory.Path), AssetDataList, true);
+
+		if (TypeInfo.PrimaryAssetType == UTcsAttributeDefinition::PrimaryAssetType)
+		{
+			ScanAttributeDefinitions(AssetDataList);
+		}
+		else if (TypeInfo.PrimaryAssetType == UTcsAttributeModifierDefinition::PrimaryAssetType)
+		{
+			ScanAttributeModifierDefinitions(AssetDataList);
+		}
+		else if (TypeInfo.PrimaryAssetType == UTcsStateDefinition::PrimaryAssetType)
+		{
+			ScanStateDefinitions(AssetDataList);
+		}
+		else if (TypeInfo.PrimaryAssetType == UTcsStateSlotDefinition::PrimaryAssetType)
+		{
+			ScanStateSlotDefinitions(AssetDataList);
+		}
+	}
+
+	for (const FSoftObjectPath& SpecificAsset : TypeInfo.GetSpecificAssets())
+	{
+		TArray<FAssetData> AssetDataList;
+		AssetRegistry.GetAssetsByPackageName(SpecificAsset.GetLongPackageFName(), AssetDataList);
 
 		if (TypeInfo.PrimaryAssetType == UTcsAttributeDefinition::PrimaryAssetType)
 		{
@@ -463,6 +806,19 @@ void UTcsDefinitionRegistrySubsystem::OnAssetManagerSettingsChanged(UObject* Set
 	RequestRefresh();
 }
 
+void UTcsDefinitionRegistrySubsystem::OnPackageSaved(const FString& PackageFileName, UPackage* Package, FObjectPostSaveContext ObjectSaveContext)
+{
+	if (!GIsEditor || !FModuleManager::Get().IsModuleLoaded("AssetRegistry"))
+	{
+		return;
+	}
+
+	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
+	IAssetRegistry& AssetRegistry = AssetRegistryModule.Get();
+	RefreshAssetManagerCoverageIssues(AssetRegistry);
+	ReportAssetManagerCoverageIssues(true, PackageFileName);
+}
+
 void UTcsDefinitionRegistrySubsystem::ClearQueuedRefresh()
 {
 	bIsRefreshQueued = false;
@@ -471,5 +827,5 @@ void UTcsDefinitionRegistrySubsystem::ClearQueuedRefresh()
 		FTSTicker::GetCoreTicker().RemoveTicker(DeferredRefreshHandle);
 		DeferredRefreshHandle.Reset();
 	}
-	}
+}
 #endif

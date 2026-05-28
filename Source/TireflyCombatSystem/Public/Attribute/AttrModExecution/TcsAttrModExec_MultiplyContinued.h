@@ -19,4 +19,8 @@ public:
 		const FTcsAttributeModifierInstance& ModInst,
 		UPARAM(ref) TMap<FName, float>& BaseValues,
 		UPARAM(ref) TMap<FName, float>& CurrentValues) override;
+
+	virtual bool CollectTouchedAttributes_Implementation(
+		const FTcsAttributeModifierInstance& ModInst,
+		UPARAM(ref) TArray<FName>& OutAttributeNames) const override;
 };

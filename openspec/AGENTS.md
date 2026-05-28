@@ -78,12 +78,20 @@
 - 对于只涉及工具链的变更，可使用 `openspec archive <change-id> --skip-specs --yes`（务必显式传入 change ID）
 - 执行 `openspec validate --strict --no-interactive`，确认归档后的变更仍然通过校验
 
+### Archive 使用规则
+
+- `changes/archive/` 下的内容是历史快照，不是当前事实声明。
+- 如果归档文本与 `openspec/specs/` 或活动 change 冲突，优先级始终是：当前 `specs/` > 活动 `changes/` > `changes/archive/`。
+- 归档 change 的价值主要是解释“当时为什么这样做”，而不是替代当前 capability spec 或当前设计决策。
+- 对近期仍在快速收敛的主题，尤其是 `State Core / Buff / Skill` 分层、`StateTree schema` 命名、`UTcsSkillInstance` / `UTcsSkillEntry` 语义边界，不要从 archive 单独推断当前契约；必须先检查当前 spec 和活动 change。
+
 ## 开始任何任务前
 
 **上下文检查清单：**
 - [ ] 确认当前工作目录为 `Plugins/TireflyCombatSystem`
 - [ ] 阅读相关 spec：`specs/[capability]/spec.md`
 - [ ] 检查 `changes/` 中是否有潜在冲突的进行中变更
+- [ ] 如果需要查看 archive，先把它视为历史背景而不是当前契约，并用当前 `specs/` / 活动 `changes/` 交叉验证
 - [ ] 阅读 `openspec/project.md` 了解仓库约定
 - [ ] 执行 `openspec list` 查看活动变更
 - [ ] 执行 `openspec list --specs` 查看已有 capability

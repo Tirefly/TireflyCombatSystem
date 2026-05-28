@@ -5,13 +5,13 @@ TCS SHALL 在 Skill 自有的定义、实例和组件中建模 learned skill、c
 
 #### Scenario: 已学会技能在没有活动运行时状态时仍然持久存在
 - **WHEN** 一个实体学会了技能但当前并未执行它
-- **THEN** learned/cooldown 状态 SHALL 仍然存在于 `UTcsSkillInstance` 与 `UTcsSkillComponent` 中
+- **THEN** learned/cooldown 状态 SHALL 仍然存在于 Skill 侧自有的 learned-skill 数据对象与 `UTcsSkillComponent` 中
 - **AND** 仅为了记住该技能存在，不应要求额外依赖通用 `State Core` 对象
 
-#### Scenario: Skill snapshot 配置留在 Skill 领域内
-- **WHEN** 一个技能需要激活时快照行为
-- **THEN** 该 snapshot 配置 SHALL 由 Skill 自有数据结构 authoring 并消费
-- **AND** 通用 state 参数 SHALL NOT 承载 skill-only 的 snapshot 开关
+#### Scenario: learned-skill 数据对象命名可以在后续独立 change 中收敛
+- **WHEN** TCS 后续独立 change 重命名当前 learned-skill 数据对象
+- **THEN** 该对象 MAY 从当前代码中的 `UTcsSkillInstance` 收敛为更明确的 `UTcsSkillEntry`
+- **AND** 这种命名调整 SHALL NOT 把 learned skill 持有态重新塞回共享 `State Core` 基类
 
 ### Requirement: Skill 激活桥接到 State Runtime
 TCS SHALL 让 Skill 自有激活逻辑在通过 Skill 侧校验后，再向 `UTcsStateComponent` 请求运行时状态。
@@ -32,3 +32,8 @@ TCS SHALL 让 Skill-only 的归属引用和激活元数据停留在共享 State 
 - **WHEN** 定义共享运行时状态实例数据时
 - **THEN** skill-only 的 owner 引用、learned-state 元数据和 cooldown 元数据 SHALL NOT 仅为 Skill 方便而存放到通用 state 基类上
 - **AND** 激活时所需的任何桥接数据，都 SHALL 通过显式的 Skill 自有接口或 Skill 自有运行时类型传递
+
+#### Scenario: 共享参数时机策略不被误写成 Skill-only
+- **WHEN** Buff 与 Skill 都可能复用参数快照或实时重算这类求值时机策略
+- **THEN** 这些共享参数策略 SHALL 保留在共享参数系统中
+- **AND** Skill 侧文档不应把它们重新写成 Skill-only 配置

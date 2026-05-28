@@ -25,7 +25,7 @@
   - 在 `UTcsBuffComponent` 上新增组件侧 `PeriodTracker`、`RemainingTime` 或统一 `TickBuffPeriods()`
   - 引入新的 `UTcsBuffReactivePolicy` CDO 抽象
   - 把所有特殊 Period 行为都抽成通用配置
-  - 在本提案中一次性补齐统一自动化测试体系
+  - 在本提案中新增或执行专门测试代码；相关行为验证统一等待开发者手动执行编辑器测试
 
 ## 决策
 
@@ -49,7 +49,7 @@
     - 为每种增量反应引入独立 CDO 策略对象：当前拒绝，因为问题空间还没有复杂到需要第二层策略抽象。
 
 - 决策：`Period` 由 BuffStateTree 通过 `FTcsBuffPeriodDriverTask` 自己驱动
-  - 原因：当前 `UTcsStateInstance` 已经具备 `TickStateTree()` 与 `SendStateTreeEvent()` 能力，`UTcsStateTreeSchema_StateInstance` 也已经能让树内节点访问 BuffInstance。Period 缺的不是底层设施，而是一个可复用的 StateTree 节拍驱动节点。
+  - 原因：当前 `UTcsStateInstance` 已经具备 `TickStateTree()` 与 `SendStateTreeEvent()` 能力，而 Buff 专用 schema 收敛正在由独立的 runtime-access change 推进。Period 缺的不是底层设施，而是一个可复用的 StateTree 节拍驱动节点。
   - 备选方案：
     - 在 `UTcsBuffComponent` 上维护 `PeriodTracker`：拒绝，因为会在树外复制一份 Period 相位状态，形成双状态源。
     - 在 `UTcsBuffInstance` 上新增公开 `PeriodRemaining` 字段：拒绝，因为这是调度现场，不是 Buff 持久定义语义。
@@ -62,10 +62,10 @@
 ## 风险 / 取舍
 
 - 风险：`PeriodDriverTask` 引入后，PeriodTick 与 Duration 到期的同帧顺序需要明确，否则行为容易被误读。
-  - 缓解：在实现阶段明确“先 Tick BuffStateTree，再处理 Duration 生命周期”的推荐顺序，并在最小场景验证中覆盖该场景。
+  - 缓解：在实现阶段明确“先 Tick BuffStateTree，再处理 Duration 生命周期”的推荐顺序，并在开发者手动执行的最小范围编辑器测试中覆盖该场景。
 
-- 风险：当前阶段不追求统一自动化测试全覆盖，可能导致回归信心不足。
-  - 缓解：本提案先要求编译验证与最小范围场景验证；更完整的统一自动化测试作为 Buff / State 模块稳定后的后续工作。
+- 风险：当前阶段的行为验证需要依赖开发者后续手动执行编辑器测试，验证节奏更依赖人工安排。
+  - 缓解：本提案先要求编译验证，并把最小范围场景清单显式列出，等待开发者手动执行编辑器测试；更完整的覆盖体系作为 Buff / State 模块稳定后的后续工作。
 
 - 风险：现有 periodic Buff 作者可能会本能地期待一个通用 `PeriodPolicy`。
   - 缓解：在文档和 proposal 中明确说明：通用配置只覆盖 `Stack / Duration`，特殊 Period 语义需要通过 BuffStateTree 专用节点表达。

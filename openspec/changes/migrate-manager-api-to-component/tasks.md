@@ -33,7 +33,7 @@
 - [x] 2.3 `UTcsStateComponent` 新增 `TObjectPtr<UTcsStateManagerSubsystem> StateMgr` + `protected UTcsStateManagerSubsystem* ResolveStateManager()`（空时 `ensureMsgf` 诊断后补拉取）
 - [x] 2.4 `UTcsAttributeComponent` 新增 `TObjectPtr<UTcsAttributeManagerSubsystem> AttrMgr` + `protected UTcsAttributeManagerSubsystem* ResolveAttributeManager()`
 - [x] 2.5 两个 Component 的 `BeginPlay` 中预热 Manager 缓存，末尾加 `#if !UE_BUILD_SHIPPING` 块包裹的 `checkf(StateMgr, ...)` / `checkf(AttrMgr, ...)` 自测断言
-- [x] 2.6 编译验证 + 手工关卡 PIE 启动一次，确认 `checkf` 不触发
+- [ ] 2.6 等待开发者手动执行编辑器测试：关卡 PIE 启动一次，确认 `checkf` 不触发
 
 ## 3. Phase C — Attribute 业务下沉
 
@@ -43,7 +43,7 @@
 - [x] 3.4 保留原有行为顺序不变：`BatchId`/`ApplyTimestamp`/`UpdateTimestamp` 写入顺序、`SourceHandleIdToModifierInstIds` 与 `ModifierInstIdToIndex` 维护、事件广播顺序、`EnforceAttributeRangeConstraints()` 终点调用
 - [x] 3.5 `TcsAttributeManagerSubsystem` 旧 API 改为薄转发包装器，集中放入 `#pragma region Deprecated_MigrationOnly`，每个加 `UFUNCTION(... meta=(DeprecatedFunction, DeprecationMessage="Use AttributeComponent::XXX"))` 或 `UE_DEPRECATED`
 - [x] 3.6 `TireflyCombatSystem` 内部所有调用点改走 Component（`grep` 验收不再出现 `AttrMgr->AddAttribute` / `AttrMgr->CreateAttributeModifier` 等业务调用）
-- [x] 3.7 回归既有 Attribute/Modifier 测试；编译验证
+- [ ] 3.7 等待开发者手动执行编辑器测试，覆盖既有 Attribute / Modifier 主路径；编译验证保持为前置完成项
 
 ## 4. Phase D — StateRemoval 与生命周期下沉
 
@@ -56,9 +56,8 @@
 - [x] 4.7 `UTcsStateComponent::UpdateActiveStateDurations()` 中 `StateMgr->ExpireState(...)` 改为本地 `ExpireState(...)` 调用
 - [x] 4.8 **S1 防护**：`UpdateActiveStateDurations` 二阶段循环中每次 `ExpireState` 返回后加 `if (IsBeingDestroyed() || !IsValid(GetOwner())) return;`
 - [x] 4.9 **S3 诊断**：`RemoveAllStates` 入口加 `ensureMsgf(!IsInStateTreeUpdateContext(), ...)`；为此可选引入 1 个 `bIsInStateTreeCallback` 成员，仅在 `OnStateTreeStateChanged`/StateTree Tick 入口用 `TGuardValue` 置位，**仅服务于 `ensure`，不影响控制流**
-- [x] 4.10 新增测试：`FTcs_DurationExpireDestroyOwnerSpec`（S1 崩溃防护）、`FTcs_RemoveAllDuringStateTreeTickSpec` / `FTcs_PoolReclaimSpec`（S3 时序）
-	注：上述 Phase D 自动化测试已用于本轮局部验证并通过；验证完成后，相关临时测试文件已从仓库删除，因此当前工作区不再保留这些测试源码。
-- [ ] 4.11 编译 + 全量自动化测试通过
+- [ ] 4.10 等待开发者手动执行编辑器测试，覆盖 S1 DestroyOwner 崩溃防护以及 S3 RemoveAllDuringStateTreeTick / PoolReclaim 时序场景
+- [ ] 4.11 `TireflyGameplayUtilsEditor Win64 Development` 编译通过，并等待开发者手动执行编辑器测试，补充确认 Phase D 生命周期迁移后的整体行为稳定性
 
 ## 5. Phase E — 状态应用、槽位链路与查询下沉
 
@@ -72,8 +71,8 @@
 - [x] 5.7 E-3：`BeginPlay` 改为直接调用本地 `InitStateSlotMappings()`；`SetSlotGateOpen` 改为直接调用本地 `RequestUpdateStateSlotActivation(SlotTag)`；`OnStateTreeStateChanged` 改为直接调用本地 `RefreshSlotsForStateChange(...)`
 - [x] 5.8 E-4：迁移查询 API 到 `UTcsStateComponent`（**non-virtual**）：`GetStatesInSlot` / `GetStatesByDefId` / `GetAllActiveStates` / `HasStateWithDefId` / `HasActiveStateInSlot`；优先走 `StateInstanceIndex`，不再遍历 `StateSlotsX`
 - [x] 5.9 E-4：清理任何查询路径中"惰性 `RefreshInstances()`"之类的副作用调用
-- [ ] 5.10 新增测试：`FTcs_SameFrameMultiApplySpec`（S2 同帧多次 Apply 合批）
-- [ ] 5.11 编译 + 全量自动化测试通过 + 手工覆盖整合版 §9.2 的全部行为场景
+- [ ] 5.10 等待开发者手动执行编辑器测试，覆盖 S2 同帧多次 Apply 合批场景
+- [ ] 5.11 `TireflyGameplayUtilsEditor Win64 Development` 编译通过，并等待开发者手动执行编辑器测试，覆盖整合版 §9.2 的全部行为场景
 
 ## 6. Phase F — 临时 deprecated 兼容层（若采用）
 
@@ -93,9 +92,9 @@
 ## 8. Final — 完成定义验证
 
 - [x] 8.1 `TireflyGameplayUtilsEditor Win64 Development` 编译通过（0 error / 0 warning 来自 TCS 新增代码）
-- [ ] 8.2 自动化测试全量通过（含 S1/S2/S3 四个新增 Spec + 既有回归）
-- [ ] 8.3 手工验证子类扩展：派生 `UMyCustomStateComponent : public UTcsStateComponent` 覆写 `FinalizeStateRemoval`，确认覆写确实被调用（不再被 Manager 绕过）
-- [ ] 8.4 手工验证子类扩展：派生 `UMyCustomAttributeComponent : public UTcsAttributeComponent` 覆写 `ClampAttributeValueInRange`，确认覆写确实被调用
+- [ ] 8.2 等待开发者手动执行编辑器测试，覆盖 S1 / S2 / S3 关键场景与既有回归场景
+- [ ] 8.3 等待开发者手动执行编辑器测试：派生 `UMyCustomStateComponent : public UTcsStateComponent` 覆写 `FinalizeStateRemoval`，确认覆写确实被调用（不再被 Manager 绕过）
+- [ ] 8.4 等待开发者手动执行编辑器测试：派生 `UMyCustomAttributeComponent : public UTcsAttributeComponent` 覆写 `ClampAttributeValueInRange`，确认覆写确实被调用
 - [ ] 8.5 完成定义勾选清单（整合版 §10 六条）全部满足
 - [x] 8.6 `openspec validate migrate-manager-api-to-component --strict --no-interactive` 通过
 - [ ] 8.7 运行 `openspec archive migrate-manager-api-to-component --yes`，把变更归档到 `changes/archive/<date>-migrate-manager-api-to-component/`

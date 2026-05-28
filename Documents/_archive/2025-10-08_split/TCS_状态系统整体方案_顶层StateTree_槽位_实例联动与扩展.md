@@ -2,7 +2,7 @@
 
 文档目的：整合并取代“仅限映射联动”的旧范围，将顶层 StateTree、状态槽（StateSlot）、状态实例（StateInstance）联动的现状与规划统一在一份文档中，便于设计与实现对齐。旧文档保留以供对比。
 
-- 适用版本：UE 5.6（StateTree 外部/上下文数据句柄已适配）
+- 适用版本：UE 5.7（StateTree 外部/上下文数据句柄已适配）
 - 面向读者：系统/玩法程序、技术策划
 - 关联代码：Plugins/TireflyCombatSystem/Source/TireflyCombatSystem
 

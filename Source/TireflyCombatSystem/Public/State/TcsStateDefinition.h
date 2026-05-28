@@ -148,7 +148,7 @@ public:
 #pragma region Runtime
 
 public:
-	/** @return 当前定义对应的运行时实例类；默认返回共享的 StateInstance。 */
+	/** @return 当前定义对应的运行时实例类；默认返回抽象共享的 StateInstance 基类。 */
 	virtual UClass* ResolveStateInstanceClass() const;
 
 #pragma endregion

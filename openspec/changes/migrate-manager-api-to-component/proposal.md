@@ -8,7 +8,7 @@ TCS 当前把 `State` / `Attribute` 的核心业务逻辑（创建、应用、�
 2. **耦合过深**：Manager 直接操作 Component 内部状态（含 `friend class` 放行），两边职责重叠、内部调用路径不统一（`StackDepleted → StateMgr->RequestStateRemoval`、`Duration 到期 → StateMgr->ExpireState`、Modifier 清理绕道 `AttrMgr` 再回 Owner）。
 3. **全局锁粒度错误**：`bIsUpdatingSlotActivation` / `PendingSlotActivationUpdates` 挂在 Subsystem 上，导致 Actor A 的槽位激活阻塞无关的 Actor B ——这是原有设计缺陷，不是迁移引入的问题，但迁移是修复它的最佳窗口。
 
-整合版执行文档 `Plugins/TireflyCombatSystem/Documents/执行文档：Manager API迁移到Component（整合版）.md` 已沉淀完整方案（阶段、API 去向、边缘场景 S1/S2/S3、单 Component 夹值边界、UE 5.6 引擎自保护机制审计），并由 `Plugins/TireflyCombatSystem/Documents/细化执行方案_ManagerAPI迁移到Component/` 目录下的五份文档（00 总览 / 01 PhaseAB / 02 PhaseC / 03 PhaseD / 04 PhaseE / 05 PhaseFG）精确到**文件路径 + 行号**。本提案把上述方案转写为 OpenSpec 规格。
+整合版执行文档 `Plugins/TireflyCombatSystem/Documents/执行文档：Manager API迁移到Component（整合版）.md` 已沉淀完整方案（阶段、API 去向、边缘场景 S1/S2/S3、单 Component 夹值边界、UE 5.7 引擎自保护机制审计），并由 `Plugins/TireflyCombatSystem/Documents/细化执行方案_ManagerAPI迁移到Component/` 目录下的五份文档（00 总览 / 01 PhaseAB / 02 PhaseC / 03 PhaseD / 04 PhaseE / 05 PhaseFG）精确到**文件路径 + 行号**。本提案把上述方案转写为 OpenSpec 规格。
 
 > **权威执行依据**
 >
@@ -51,7 +51,6 @@ TCS 当前把 `State` / `Attribute` 的核心业务逻辑（创建、应用、�
   - `Plugins/TireflyCombatSystem/Source/TireflyCombatSystem/Private/Attribute/TcsAttributeComponent.cpp`
   - `Plugins/TireflyCombatSystem/Source/TireflyCombatSystem/Public/Attribute/TcsAttributeManagerSubsystem.h`
   - `Plugins/TireflyCombatSystem/Source/TireflyCombatSystem/Private/Attribute/TcsAttributeManagerSubsystem.cpp`
-- **受影响测试**：新增 `FTcs_DurationExpireDestroyOwnerSpec` / `FTcs_SameFrameMultiApplySpec` / `FTcs_RemoveAllDuringStateTreeTickSpec` / `FTcs_PoolReclaimSpec`；既有覆盖 StateRemoval、属性 Modifier、槽位激活的测试必须回归通过。
-  注：其中 Phase D 的 `FTcs_DurationExpireDestroyOwnerSpec` / `FTcs_RemoveAllDuringStateTreeTickSpec` / `FTcs_PoolReclaimSpec` 曾作为本轮局部验证用的临时自动化测试并已通过；验证完成后，对应测试源码已从仓库删除，因此当前工作区不再保留这些临时测试文件。
+ - **受影响验证**：不再要求 AI 侧新增或执行专门测试代码；相关行为验证统一等待开发者手动执行编辑器测试，重点覆盖 StateRemoval、属性 Modifier、槽位激活，以及 S1 / S2 / S3 关键场景。
 - **受影响文档**：非 `_archive` 活跃文档若仍描述 `PendingRemoval` 两阶段模型，本次一并修正或移入 archive。
 - **对使用方的影响**：仓库内当前**无蓝图引用**旧 Manager API，因此不涉及 redirector / 蓝图节点迁移；外部 C++ 调用方在迁移期可通过 deprecated 包装器过渡一段时间，但**最终必须**迁移到 Component 入口。
