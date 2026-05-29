@@ -8,7 +8,14 @@
 2. `Buff` 生命周期、叠层、周期、合并。
 3. `Attribute` 属性、Modifier、Clamp、Boundary、条件联动。
 
-本教程只使用现有编辑器资产入口和 `C#` 测试驱动，不引入新的 `C++` 测试代码。
+本教程以现有编辑器资产入口为基础，并要求你自行补齐 `C#` 测试驱动，不引入新的 `C++` 测试代码。
+
+### 1.1 当前阶段说明
+
+1. 这份文档是“测试环境搭建教程”，不是仓库当前已经内置完成的现成测试套件。
+2. 当前仓库已经提供 `Definition Asset` 与 `Gameplay Runtime` 的编辑器 authoring 入口，但并没有现成的 `TestTCS/**` C# 测试类、导演蓝图或三张测试图。
+3. 当前 `Gameplay Runtime` 的运行时树入口已经收敛为 `State Component StateTree` 与 `Buff StateTree`；generic `State Instance StateTree` 和 `UTcsStateTreeSchema_StateInstance` 不再是当前契约。
+4. 如果要从 C# 跑 `State` 用例，当前应优先使用 `UTcsStateManagerSubsystem.TryApplyStateToTarget()` 或你自己额外封装的可反射桥接入口，而不是直接依赖 `UTcsStateComponent.TryApplyState()`。
 
 ## 2. 前置准备
 
@@ -21,7 +28,7 @@
 	- `Tirefly Combat System -> Definition Asset -> Buff Definition`
 	- `Tirefly Combat System -> Definition Asset -> State Slot Definition`
 	- `Tirefly Combat System -> Gameplay Runtime -> State Component StateTree`
-	- `Tirefly Combat System -> Gameplay Runtime -> State Instance StateTree`
+	- `Tirefly Combat System -> Gameplay Runtime -> Buff StateTree`
 
 ### 2.2 测试目录
 
@@ -38,7 +45,7 @@
 5. `Definitions/StateLikeBuffs/`
 6. `Definitions/Buffs/`
 7. `StateTrees/Component/`
-8. `StateTrees/Instance/`
+8. `StateTrees/Buff/`
 9. `Blueprints/Actors/`
 
 ### 2.3 C# 目录
@@ -56,6 +63,8 @@
 5. `Services/`
 
 当前 `ManagedTireflyGameplayUtils.csproj` 使用 SDK 默认包含规则，因此只要把 `.cs` 文件放进该目录树，不需要额外修改 `.csproj`。
+
+当前仓库里的 `ManagedTireflyGameplayUtils` 还只有模块引导文件，`TestTCS/**` 目录树和下面第 6 节提到的类型都需要你自行创建。
 
 ### 2.4 Gameplay Tags
 
@@ -105,7 +114,7 @@
 2. `AssetBaseClass` 是否仍然指向正确的 DefAsset 类型。
 3. 现有 DefinitionAsset 所在目录是否真的被扫描路径或 `SpecificAssets` 覆盖。
 
-如果存在未修复的漏配，编辑器日志会输出明确勘误，并附带需要补齐的 `PrimaryAssetType` 或扫描目录。只要问题还存在，之后每次成功执行一次 Save，日志都会再提示一次；这是刻意保留的强提醒，不会自动改写项目配置。
+如果存在未修复的漏配，编辑器日志会在 `AssetManager` 设置变更后的下一次刷新时输出明确勘误，并附带需要补齐的 `PrimaryAssetType` 或扫描目录。只要问题还存在，之后每次成功执行一次 Save，日志都会再提示一次；这是刻意保留的强提醒，不会自动改写项目配置。
 
 如果某一类 DefAsset 在当前项目里确实暂时不打算接入 AssetManager，可在 `Project Settings -> Game -> Tirefly Combat System` 中把该类型加入 `Ignored Definition Asset Types`。被加入忽略列表的类型不再参与这套勘误报错；移出忽略列表后，检查会立即恢复。
 
@@ -117,7 +126,7 @@
 2. `AttributeDefinition`
 3. `AttributeModifierDefinition`
 4. 组件级 `StateTree`
-5. 实例级 `StateTree`
+5. `Buff` 运行时 `StateTree`
 6. `State` 共享主链测试资产（使用最小 `BuffDefinition` 作为具体状态载体）
 7. `Buff` 专属测试资产
 8. `C#` 测试驱动类
@@ -174,7 +183,7 @@
 2. `Period = 0`
 3. `MaxStackCount = 1`
 4. `MergerType = UTcsBuffMerger_NoMerge`
-5. `StateTreeRef = ST_TCS_StateInstance_Minimal`
+5. `StateTreeRef = ST_TCS_Buff_Minimal`
 
 然后分别创建：
 
@@ -187,7 +196,7 @@
 | `DA_Buff_Test_State_Control` | `Buff_Test_State_Control` | `StateTag.Test.Control` | `StateSlotTag.Test.Control` | `10` | 无 |
 | `DA_Buff_Test_State_AttrGate` | `Buff_Test_State_AttrGate` | `StateTag.Test.AttrGate` | `StateSlotTag.Test.Action` | `15` | 添加 `UTcsStateCondition_AttributeComparison`，`AttributeTag = TCS.Attribute.Test.AttackPower`，`CheckTarget = Owner`，`ComparisonType = 大于等于（Greater Than Or Equal）`，`CompareValue = 10` |
 
-这些资产在 `State` 测试图中统一通过 `UTcsStateComponent.TryApplyState()` 入口调用，不走 `ApplyBuff()`。
+这些资产在 `State` 测试图中统一通过 `UTcsStateManagerSubsystem.TryApplyStateToTarget()`，或你自己额外封装的可反射桥接入口调用，不走 `ApplyBuff()`。当前不应把 C# 直连 `UTcsStateComponent.TryApplyState()` 当作前提，因为它不是稳定的反射入口。
 
 ### 4.5 Buff 专属测试资产
 
@@ -195,15 +204,15 @@
 
 | 资产名 | StateDefId | Slot | DurationType / Duration | Period | MaxStackCount | MergerType | 额外配置 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| `DA_Buff_Test_Finite` | `Buff_Test_Finite` | `StateSlotTag.Test.Buff` | `Duration / 5` | `0` | `1` | `UTcsBuffMerger_NoMerge` | `StateTreeRef = ST_TCS_StateInstance_Minimal` |
-| `DA_Buff_Test_Infinite` | `Buff_Test_Infinite` | `StateSlotTag.Test.Buff` | `Infinite` | `0` | `1` | `UTcsBuffMerger_NoMerge` | `StateTreeRef = ST_TCS_StateInstance_Minimal` |
+| `DA_Buff_Test_Finite` | `Buff_Test_Finite` | `StateSlotTag.Test.Buff` | `Duration / 5` | `0` | `1` | `UTcsBuffMerger_NoMerge` | `StateTreeRef = ST_TCS_Buff_Minimal` |
+| `DA_Buff_Test_Infinite` | `Buff_Test_Infinite` | `StateSlotTag.Test.Buff` | `Infinite` | `0` | `1` | `UTcsBuffMerger_NoMerge` | `StateTreeRef = ST_TCS_Buff_Minimal` |
 | `DA_Buff_Test_Periodic` | `Buff_Test_Periodic` | `StateSlotTag.Test.Buff` | `Duration / 6` | `1` | `1` | `UTcsBuffMerger_NoMerge` | `StateTreeRef = ST_TCS_Buff_PeriodObserve` |
 | `DA_Buff_Test_StackRefresh` | `Buff_Test_StackRefresh` | `StateSlotTag.Test.Buff` | `Duration / 5` | `0` | `3` | `UTcsBuffMerger_StackByInstigator` | `OnStackIncrease.DurationPolicy = RefreshRemainingToTotal` |
 | `DA_Buff_Test_StackExpireOne` | `Buff_Test_StackExpireOne` | `StateSlotTag.Test.Buff` | `Duration / 3` | `0` | `3` | `UTcsBuffMerger_StackByInstigator` | `OnDurationExpired.ExpirationPolicy = RemoveSingleStack` |
 | `DA_Buff_Test_StackExpireOneRefresh` | `Buff_Test_StackExpireOneRefresh` | `StateSlotTag.Test.Buff` | `Duration / 3` | `0` | `3` | `UTcsBuffMerger_StackByInstigator` | `OnDurationExpired.ExpirationPolicy = RemoveSingleStackAndRefreshDuration` |
-| `DA_Buff_Test_MergeOldest` | `Buff_Test_MergeOldest` | `StateSlotTag.Test.Buff` | `Duration / 5` | `0` | `1` | `UTcsBuffMerger_UseOldest` | `StateTreeRef = ST_TCS_StateInstance_Minimal` |
-| `DA_Buff_Test_MergeNewest` | `Buff_Test_MergeNewest` | `StateSlotTag.Test.Buff` | `Duration / 5` | `0` | `1` | `UTcsBuffMerger_UseNewest` | `StateTreeRef = ST_TCS_StateInstance_Minimal` |
-| `DA_Buff_Test_StackByInstigator` | `Buff_Test_StackByInstigator` | `StateSlotTag.Test.Buff` | `Duration / 5` | `0` | `3` | `UTcsBuffMerger_StackByInstigator` | `StateTreeRef = ST_TCS_StateInstance_Minimal` |
+| `DA_Buff_Test_MergeOldest` | `Buff_Test_MergeOldest` | `StateSlotTag.Test.Buff` | `Duration / 5` | `0` | `1` | `UTcsBuffMerger_UseOldest` | `StateTreeRef = ST_TCS_Buff_Minimal` |
+| `DA_Buff_Test_MergeNewest` | `Buff_Test_MergeNewest` | `StateSlotTag.Test.Buff` | `Duration / 5` | `0` | `1` | `UTcsBuffMerger_UseNewest` | `StateTreeRef = ST_TCS_Buff_Minimal` |
+| `DA_Buff_Test_StackByInstigator` | `Buff_Test_StackByInstigator` | `StateSlotTag.Test.Buff` | `Duration / 5` | `0` | `3` | `UTcsBuffMerger_StackByInstigator` | `StateTreeRef = ST_TCS_Buff_Minimal` |
 
 ## 5. 创建 StateTree 资产
 
@@ -213,7 +222,7 @@
 
 `ST_TCS_StateSlots_Orchestration`
 
-这个入口会自动使用 `UStateTreeComponentSchema`。
+这个入口会自动使用 `UTcsStateSchema_StateComponent`。
 
 树内容按下面配置：
 
@@ -236,29 +245,29 @@
 
 这个组件级 `StateTree` 用来驱动 `StateSlots` 的 Gate 与可视化，不承担实例逻辑。
 
-### 5.2 最小实例 StateTree
+### 5.2 最小 Buff Runtime StateTree
 
-在 `StateTrees/Instance/` 下通过菜单 `Tirefly Combat System -> Gameplay Runtime -> State Instance StateTree` 创建：
+在 `StateTrees/Buff/` 下通过菜单 `Tirefly Combat System -> Gameplay Runtime -> Buff StateTree` 创建：
 
-`ST_TCS_StateInstance_Minimal`
+`ST_TCS_Buff_Minimal`
 
 配置：
 
-1. 自动使用 `UTcsStateTreeSchema_StateInstance`
+1. 自动使用 `UTcsStateSchema_Buff`
 2. 根下创建一个状态：`Observe`
 3. 在 `Observe` 状态上挂 `FTcsStateChangeNotifyTask`
 
-这个树用于共享 `State` 主链和普通 Buff 实例的最小观测。
+这个树用于普通 Buff 实例，以及第 4.4 节里那批“以 `UTcsBuffDefinition` 作为具体状态载体”的 `State` 共享主链测试资产的最小观测。
 
 ### 5.3 Buff 周期实例 StateTree
 
-在 `StateTrees/Instance/` 下创建：
+在 `StateTrees/Buff/` 下创建：
 
 `ST_TCS_Buff_PeriodObserve`
 
 配置：
 
-1. 自动使用 `UTcsStateTreeSchema_StateInstance`
+1. 自动使用 `UTcsStateSchema_Buff`
 2. 根下创建状态：`PeriodLoop`
 3. 在 `PeriodLoop` 状态上挂：
 	- `FTcsStateChangeNotifyTask`
@@ -271,9 +280,11 @@
 
 ### 5.4 Attribute 条件联动实例 StateTree
 
-Attribute 条件联动场景直接复用 `ST_TCS_StateInstance_Minimal`，不再额外创建新树。
+Attribute 条件联动场景直接复用 `ST_TCS_Buff_Minimal`，不再额外创建新树。
 
 ## 6. 在 C# 方案中创建测试驱动
+
+下面这些类和按钮当前仓库还没有提供；本节是在现有 UnrealSharp 能力下，你需要补齐的测试基建清单。只有完成本节和第 7 节后，第 8-9 节里的导演蓝图、CallInEditor 按钮和测试图流程才会真正存在。
 
 ### 6.1 Core
 
@@ -343,9 +354,9 @@ Attribute 条件联动场景直接复用 `ST_TCS_StateInstance_Minimal`，不再
 
 1. `ATestTcsDirectorBase.cs`
 	- 持有 Fixture、Instigator、Probe 和资产引用
-	- 提供 `[UFunction(CallInEditor = true)]` 按钮：`Reset`、`RunSelectedCase`、`RunAllCases`、`DumpEvidence`
+	- 需要自行实现 `[UFunction(CallInEditor = true)]` 按钮：`Reset`、`RunSelectedCase`、`RunAllCases`、`DumpEvidence`
 2. `ATestTcsStateDirector.cs`
-	- 使用 `UTcsStateComponent.TryApplyState()` 跑 State 图用例
+	- 使用 `UTcsStateManagerSubsystem.TryApplyStateToTarget()`，或你自己补的可反射桥接入口，跑 State 图用例
 	- 负责驱动组件级槽位编排 `StateTree`
 	- 负责 Priority、Gate、Remove、Condition 用例
 3. `ATestTcsBuffDirector.cs`
@@ -353,7 +364,7 @@ Attribute 条件联动场景直接复用 `ST_TCS_StateInstance_Minimal`，不再
 	- 负责 Duration、Stack、Period、Merge、MergedOut 用例
 4. `ATestTcsAttributeDirector.cs`
 	- 负责 Add/Set/Reset/Remove Attribute
-	- 负责 Create/Apply/Update/Remove Modifier
+	- 负责 Create/Apply/HandleModifierUpdated/Remove Modifier
 	- 负责 Clamp、Boundary、State 条件联动用例
 
 ## 7. 创建蓝图子类
@@ -448,6 +459,8 @@ Attribute 条件联动场景直接复用 `ST_TCS_StateInstance_Minimal`，不再
 5. 条件联动状态资产：`DA_Buff_Test_State_AttrGate`
 
 ## 9. 执行步骤
+
+以下步骤默认你已经完成第 6-8 节里的 C# 基建、蓝图子类和测试图摆放。当前仓库并不自带这些测试导演与地图资产；如果你还没先把它们搭起来，就不能直接从这一节开始执行。
 
 ### 9.1 首次检查
 

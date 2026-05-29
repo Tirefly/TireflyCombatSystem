@@ -8,10 +8,10 @@ TCS SHALL 在 Skill 自有的定义、实例和组件中建模 learned skill、c
 - **THEN** learned/cooldown 状态 SHALL 仍然存在于 Skill 侧自有的 learned-skill 数据对象与 `UTcsSkillComponent` 中
 - **AND** 仅为了记住该技能存在，不应要求额外依赖通用 `State Core` 对象
 
-#### Scenario: learned-skill 数据对象命名可以在后续独立 change 中收敛
-- **WHEN** TCS 后续独立 change 重命名当前 learned-skill 数据对象
-- **THEN** 该对象 MAY 从当前代码中的 `UTcsSkillInstance` 收敛为更明确的 `UTcsSkillEntry`
-- **AND** 这种命名调整 SHALL NOT 把 learned skill 持有态重新塞回共享 `State Core` 基类
+#### Scenario: learned-skill 数据对象保持独立持有态命名
+- **WHEN** TCS 为 learned-skill 持有态定义 Skill 自有数据对象
+- **THEN** 该对象 SHALL 使用与技能执行态分离的独立持有态类型，例如当前契约中的 `UTcsSkillEntry`
+- **AND** 这种命名收敛 SHALL NOT 把 learned skill 持有态重新塞回共享 `State Core` 基类
 
 ### Requirement: Skill 激活桥接到 State Runtime
 TCS SHALL 让 Skill 自有激活逻辑在通过 Skill 侧校验后，再向 `UTcsStateComponent` 请求运行时状态。

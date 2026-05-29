@@ -37,7 +37,9 @@ TCS 已经定义了专用的 DefinitionAsset 类，但当前在编辑器中创�
 - 勘误校验只用于编辑器阶段的配置完整性检查，不修改运行时加载时机与加载策略。
 - 在 `UTcsDeveloperSettings` 中新增 TCS DefinitionAsset 勘误忽略列表；忽略列表中的 DefAsset 类型不参与漏配报错。
 - 勘误检查对“类型漏配”和“扫描路径漏配”都必须单独报错，不允许仅检查类型是否存在。
-- 只要存在未忽略且未修复的漏配项，开发者每次在编辑器执行 Save 操作都应收到一次勘误提示，直到配置被修复或被加入忽略列表。
+- 只要存在未忽略且未修复的漏配项，开发者每次通过常用保存入口执行 Save 操作都应再次收到一次明显的勘误提示，直到配置被修复或被加入忽略列表。
+- 这些保存入口至少包括：普通单资产/单包保存、主窗口菜单或快捷键触发的 `Save All`，以及 Content Browser 顶部工具栏的 `Save All`。
+- 每次重复提示都应同时输出 `UE_LOG(LogTcs, Error, ...)` 与编辑器右下角 toast，避免提示只停留在某一条保存路径上。
 
 ## 后续参考口径
 
@@ -61,6 +63,7 @@ TCS 已经定义了专用的 DefinitionAsset 类，但当前在编辑器中创�
   - editor-only factories and asset definitions for all supported TCS DefinitionAsset types
   - editor-only runtime asset factories for TCS-owned gameplay authoring entries
   - editor-only validation path for `AssetManagerSettings` coverage of TCS DefinitionAsset types/directories
+  - editor-only repeated-report path for package save、主窗口/快捷键 `Save All` 与 Content Browser 顶部 `Save All`
   - `UTcsDeveloperSettings` 中新增用于勘误过滤的忽略列表配置项
 - 受影响文档：
   - TCS authoring/setup 文档应把用户引导到插件自有的资产创建路径，而不是通用 `Data Asset` 流程

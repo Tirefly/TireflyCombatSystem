@@ -44,12 +44,26 @@ struct FTcsBuffDurationTracker
 	GENERATED_BODY()
 
 public:
+	/** 当前需要参与有限时长 Tick 的 Buff 实例集合。 */
 	UPROPERTY()
 	TSet<TObjectPtr<UTcsBuffInstance>> TrackedInstances;
 
 public:
+	/**
+	 * 把一个 Buff 实例加入持续时间跟踪集合。
+	 *
+	 * @param BuffInstance 目标 Buff 实例
+	 */
 	void Add(UTcsBuffInstance* BuffInstance);
+
+	/**
+	 * 把一个 Buff 实例移出持续时间跟踪集合。
+	 *
+	 * @param BuffInstance 目标 Buff 实例
+	 */
 	void Remove(UTcsBuffInstance* BuffInstance);
+
+	/** 清理当前跟踪集合中的失效或已过期 Buff 实例。 */
 	void RefreshInstances();
 };
 
@@ -110,7 +124,7 @@ public:
 #pragma endregion
 
 
-#pragma region Duration
+#pragma region DurationAndQuery
 
 public:
 	/**
@@ -278,18 +292,24 @@ public:
 	void HandleBuffDurationExpired(UTcsBuffInstance* BuffInstance);
 
 	/**
-	 * 对指定槽位中的 Buff 执行合并编排。
-	 *
-	 * @param StateSlot 目标槽位运行时数据
-	 */
-	void ProcessBuffMerging(FTcsStateSlot* StateSlot);
-
-	/**
 	 * 刷新持续时间跟踪器中的失效实例。
 	 *
 	 * 用途：在共享宿主完成槽位清理后，同步剔除已失效的 Buff 跟踪项。
 	 */
 	void RefreshTrackedBuffs();
+
+#pragma endregion
+
+
+#pragma region MergeRuntime
+
+public:
+	/**
+	 * 对指定槽位中的 Buff 执行合并编排。
+	 *
+	 * @param StateSlot 目标槽位运行时数据
+	 */
+	void ProcessBuffMerging(FTcsStateSlot* StateSlot);
 
 #pragma endregion
 
@@ -319,7 +339,7 @@ public:
 #pragma endregion
 
 
-#pragma region Event
+#pragma region EventSurface
 
 public:
 	/**
@@ -336,9 +356,11 @@ public:
 	 */
 	void BroadcastBuffRemovedBatchEvent(const TArray<FTcsBuffRemovedEventPayload>& Payloads) const;
 
+	/** Buff 运行时变化批量事件。 */
 	UPROPERTY(BlueprintAssignable, Category = "Buff|Events")
 	FTcsBuffRuntimeDeltaBatchDelegate OnBuffRuntimeDelta;
 
+	/** Buff 移除批量事件。 */
 	UPROPERTY(BlueprintAssignable, Category = "Buff|Events")
 	FTcsBuffRemovedBatchDelegate OnBuffRemoved;
 
@@ -388,7 +410,7 @@ public:
 #pragma endregion
 
 
-#pragma region Internal
+#pragma region OwnerStateBridge
 
 private:
 	/**
@@ -489,7 +511,27 @@ private:
 		int32& OutStackCount,
 		FString& OutDurationText);
 
+#pragma endregion
+
+
+#pragma region InternalHelpers
+
+private:
+
+	/**
+	 * 把共享状态实例安全解析为 Buff 实例。
+	 *
+	 * @param StateInstance 目标共享状态实例
+	 * @return 解析成功时返回 Buff 实例，否则返回 nullptr
+	 */
 	UTcsBuffInstance* ResolveBuffInstance(UTcsStateInstance* StateInstance) const;
+
+	/**
+	 * 把共享状态实例安全解析为只读 Buff 实例。
+	 *
+	 * @param StateInstance 目标共享状态实例
+	 * @return 解析成功时返回只读 Buff 实例，否则返回 nullptr
+	 */
 	const UTcsBuffInstance* ResolveBuffInstance(const UTcsStateInstance* StateInstance) const;
 
 	/**
@@ -637,6 +679,13 @@ private:
 	 * @param RemovalReason 本次移除原因
 	 */
 	void QueueBuffRemovedEvent(UTcsBuffInstance* BuffInstance, FName RemovalReason);
+
+#pragma endregion
+
+
+#pragma region RuntimeState
+
+private:
 
 	// 共享 State 宿主组件缓存；Buff 侧的移除、定义查询等流程仍需回到它的统一主链。
 	UPROPERTY(Transient)

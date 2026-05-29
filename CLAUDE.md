@@ -87,7 +87,7 @@ openspec archive <change-id> --yes
 > **TireflyCombatSystem** 是为 UE5 设计的高度模块化战斗系统框架。
 > 核心理念："一切皆状态"，提供统一的属性、状态、技能管理方案。
 
-**版本**: 1.0 (UE5.6) | **状态**: Beta
+**版本**: 1.0 (UE5.7) | **状态**: Beta
 
 ## 📊 完成度速览
 
@@ -95,9 +95,9 @@ openspec archive <change-id> --yes
 |------|--------|------|
 | 属性系统 (Attribute) | 95% | 核心功能完备，Clamp 策略已集成 |
 | 状态系统 (State) | 90% | 核心架构完成，StateTree 集成进行中 |
-| 技能系统 (Skill) | 95% | 基本功能完整，缺少少量高级特性 |
-| StateTree 集成 | 85% | 基础集成完成，专用节点开发中 |
-| SourceHandle 机制 | 100% | P0 全部实施完成，支持��果链追踪和自动生命周期管理 |
+| 技能系统 (Skill) | 35% | 已完成 SkillEntry/SkillInstance/SkillSchema 基础骨架，完整 learned skill 与激活主链仍待扩面 |
+| StateTree 集成 | 85% | StateComponent/Buff/Skill 专用 schema 已落地，部分专用节点仍在持续补齐 |
+| SourceHandle 机制 | 100% | P0 全部实施完成，支持因果链追踪和自动生命周期管理 |
 
 ---
 
@@ -300,7 +300,7 @@ Layer 2: 动态状态实例 (动态)
 
 **状态移除流程**:
 ```
-RequestStateRemoval → FinalizePendingRemovalRequest → FinalizeStateRemoval
+RequestStateRemoval → FinalizeStateRemoval
   Step 1: Stop StateTree
   Step 2: Mark Expired
   Step 3: Remove from containers
@@ -312,45 +312,34 @@ RequestStateRemoval → FinalizePendingRemovalRequest → FinalizeStateRemoval
 
 ---
 
-### 3️⃣ 技能系统 (Skill System) - 95%
+### 3️⃣ 技能系统 (Skill System) - 35%
 
 **职责**: 管理角色学习和释放的技能
 
 **核心类**:
-- `UTcsSkillComponent` - 技能管理组件
-- `UTcsSkillInstance` - 技能实例（已学会的技能）
-- `UTcsSkillManagerSubsystem` - 全局技能管理
+- `UTcsSkillComponent` - 技能入口组件（当前仍是轻骨架）
+- `UTcsSkillEntry` - learned skill 拥有态 / 数据对象
+- `UTcsSkillInstance` - 一次技能激活的执行态（继承 `UTcsStateInstance`）
+- `UTcsSkillDefinition` - 同时配置 `SkillEntryClass` 与 `SkillInstanceClass`
+- `UTcsSkillManagerSubsystem` - 全局技能管理子系统骨架
 
-**技能修正系统**:
+**当前实现状态**:
 
-修正条件 (`Modifiers/Conditions/`):
-- `UTcsSkillModCond_AlwaysTrue` - 总是真
-- `UTcsSkillModCond_SkillHasTags` - 拥有标签
-- `UTcsSkillModCond_SkillLevelInRange` - 等级在范围
-
-修正执行 (`Modifiers/Executions/`):
-- `UTcsSkillModExec_AdditiveParam` - 参数加法
-- `UTcsSkillModExec_MultiplicativeParam` - 参数乘法
-- `UTcsSkillModExec_CooldownMultiplier` - 冷却修正
-- `UTcsSkillModExec_CostMultiplier` - 消耗修正
-
-修正过滤器 (`Modifiers/Filters/`):
-- `UTcsSkillFilter_ByDefIds` - 按ID过滤
-- `UTcsSkillFilter_ByQuery` - 按查询过滤
-
-修正合并 (`Modifiers/Mergers/`):
-- `UTcsSkillModMerger_NoMerge` - 不合并
-- `UTcsSkillModMerger_CombineByParam` - 按参数合并
+- Skill 代码层已经显式拆分 learned skill 拥有态与单次激活执行态。
+- `UTcsStateSchema_Skill` 会同时向 SkillStateTree 暴露 `SkillEntry` 与 `SkillInstance` 两个上下文。
+- `UTcsSkillComponent` 内完整的 learned skill 容器、SkillModifier、激活 / 取消 / 查询主链目前尚未继续扩面。
 
 ---
 
 ### 4️⃣ StateTree 集成 - 85%
 
 **专用节点**:
-- `UTcsStateTreeSchema_StateInstance` - StateInstance 专用 Schema
+- `UTcsStateSchema_StateComponent` - StateComponent 专用 Schema
+- `UTcsStateSchema_Buff` - Buff 执行态专用 Schema
+- `UTcsStateSchema_Skill` - Skill 执行态与 learned skill 双上下文 Schema
+- `FTcsBuffPeriodDriverTask` - Buff 周期驱动 Task
 - `FTcsStateChangeNotifyTask` - 状态变化通知 Task
 - `FTcsStateSlotDebugEvaluator` - 状态槽调试 Evaluator
-- `FTcsStateRemovalConfirmTask` - 状态移除确认 Task
 
 ---
 
@@ -427,20 +416,19 @@ TireflyCombatSystem/
 │   │   │   └── TcsStateSlotDefinition.h
 │   │   │
 │   │   ├── Skill/                       # 技能系统
-│   │   │   ├── Modifiers/
-│   │   │   │   ├── Conditions/          # 修正条件
-│   │   │   │   ├── Executions/          # 修正执行
-│   │   │   │   ├── Filters/             # 过滤器
-│   │   │   │   └── Mergers/             # 修正合并
 │   │   │   ├── TcsSkillComponent.h
+│   │   │   ├── TcsSkillDefinition.h
+│   │   │   ├── TcsSkillEntry.h
 │   │   │   ├── TcsSkillInstance.h
 │   │   │   └── TcsSkillManagerSubsystem.h
 │   │   │
 │   │   ├── StateTree/                   # StateTree 集成
+│   │   │   ├── TcsBuffPeriodDriverTask.h
 │   │   │   ├── TcsStateChangeNotifyTask.h
-│   │   │   ├── TcsStateSlotDebugEvaluator.h
-│   │   │   ├── TcsStateRemovalConfirmTask.h
-│   │   │   └── TcsStateTreeSchema_StateInstance.h
+│   │   │   ├── TcsStateSchema_Buff.h
+│   │   │   ├── TcsStateSchema_Skill.h
+│   │   │   ├── TcsStateSchema_StateComponent.h
+│   │   │   └── TcsStateSlotDebugEvaluator.h
 │   │   │
 │   │   ├── TcsEntityInterface.h          # 战斗实体接口
 │   │   ├── TcsSourceHandle.h             # SourceHandle 结构体
@@ -519,10 +507,10 @@ StateTree 既管理槽位，又执行逻辑。
 
 ### 3. 为什么分离 SkillInstance 和 StateInstance？
 
-技能实例和状态实例分开管理。
-- 职责清晰：学会状态 vs 执行状态
-- 性能优化：学会的技能持久，运行的状态动态
-- 数据完整：技能等级、冷却与执行状态解耦
+当前 Skill 侧已经进一步拆成 `SkillEntry + SkillInstance + State 主链`。
+- 职责清晰：`UTcsSkillEntry` 表示 learned skill 拥有态，`UTcsSkillInstance` 表示单次激活执行态
+- 结构对齐：技能执行态直接继承 `UTcsStateInstance`，自然接入统一 State 主链
+- 上下文明确：SkillStateTree 同时读取 `SkillEntry` 与 `SkillInstance`，避免旧的“一个对象既是拥有态又是执行态”语义混杂
 
 ### 4. 为什么采用策略模式？
 

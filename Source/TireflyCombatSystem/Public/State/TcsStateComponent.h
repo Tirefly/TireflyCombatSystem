@@ -164,14 +164,14 @@ class TIREFLYCOMBATSYSTEM_API UTcsStateComponent : public UStateTreeComponent
 #pragma region ActorComponent
 
 public:
-	// Sets default values for this component's properties
+	/** 构造状态组件并初始化基础 StateTree 组件参数。 */
 	UTcsStateComponent(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 protected:
-	// Called when the game starts
+	/** 在 BeginPlay 时预热依赖子系统并初始化槽位映射。 */
 	virtual void BeginPlay() override;
 
-	// Called every frame
+	/** 在 Tick 中推进运行中的 StateTree 实例。 */
 	virtual void TickComponent(
 		float DeltaTime,
 		ELevelTick TickType,
@@ -181,23 +181,10 @@ public:
 	friend class UTcsStateInstance;
 	friend class UTcsBuffComponent;
 
-public:
-	// 供状态实例调用的接口，移除状态实例到状态树 Tick 调度器
-	void AddToStateTreeTickScheduler(UTcsStateInstance* StateInstance) { StateTreeTickScheduler.Add(StateInstance); }
-	// 供状态实例调用的接口，移除状态实例到状态树 Tick 调度器
-	void RemoveFromStateTreeTickScheduler(UTcsStateInstance* StateInstance) { StateTreeTickScheduler.Remove(StateInstance); }
-
-	/**
-	 * 获取共享 StateManager。
-	 *
-	 * @return 共享 StateManager 子系统；失败时返回 nullptr
-	 */
-	UTcsStateManagerSubsystem* GetStateManager() const { return const_cast<UTcsStateComponent*>(this)->ResolveStateManager(); }
-
 #pragma endregion
 
 
-#pragma region StateEvents
+#pragma region EventSurface
 
 public:
 	// 通知阶段发生变化（内部与外部均可触发）
@@ -352,7 +339,7 @@ protected:
 #pragma endregion
 
 
-#pragma region StateExtensibility
+#pragma region ExtensibilityHooks
 
 public:
 	/**
@@ -388,7 +375,15 @@ protected:
 #pragma endregion
 
 
-#pragma region StateReferences
+#pragma region ManagerReferences
+
+public:
+	/**
+	 * 获取共享 StateManager。
+	 *
+	 * @return 共享 StateManager 子系统；失败时返回 nullptr
+	 */
+	UTcsStateManagerSubsystem* GetStateManager() const { return const_cast<UTcsStateComponent*>(this)->ResolveStateManager(); }
 
 protected:
 	// 状态管理器子系统
@@ -417,7 +412,7 @@ protected:
 #pragma endregion
 
 
-#pragma region StateInstance
+#pragma region ApplyAndCreation
 
 public:
 	/**
@@ -487,6 +482,11 @@ protected:
 	 * @return 如果满足应用条件则返回 true，否则返回 false
 	 */
 	virtual bool CheckStateApplyConditions(UTcsStateInstance* StateInstance);
+
+#pragma endregion
+
+
+#pragma region LifecycleAndRemoval
 
 public:
 
@@ -560,18 +560,14 @@ protected:
 	virtual void FinalizeStateRemoval(UTcsStateInstance* StateInstance, FName RemovalReason);
 
 protected:
-	// 状态实例索引：按Id/DefId/Slot查询
+	/** 状态实例索引：按 Id / DefId / Slot 查询。 */
 	UPROPERTY()
 	FTcsStateInstanceIndex StateInstanceIndex;
-
-	// StateTree Tick调度器：只保存正在Running的实例
-	UPROPERTY()
-	FTcsStateTreeTickScheduler StateTreeTickScheduler;
 
 #pragma endregion
 
 
-#pragma region StateSlot_References
+#pragma region SlotRuntimeData
 
 protected:
 	// 映射集合：StateSlot 到当前 StateTree 中成功绑定的状态名
@@ -589,7 +585,7 @@ protected:
 #pragma endregion
 
 
-#pragma region StateSlot_Gate
+#pragma region QueryAndDebug
 
 public:
 	/**
@@ -635,20 +631,46 @@ public:
 	bool HasActiveStateInSlot(FGameplayTag SlotTag) const;
 
 public:
-	// 调试输出
+	/**
+	 * 获取槽位调试快照。
+	 *
+	 * @param SlotFilter 可选槽位过滤条件
+	 * @return 当前槽位运行时的调试文本
+	 */
 	UFUNCTION(BlueprintPure, Category = "State Slot|Debug", meta = (AutoCreateRefTerm = "SlotFilter"))
 	FString GetSlotDebugSnapshot(FGameplayTag SlotFilter = FGameplayTag()) const;
 
-	// 状态实例调试输出（按实例枚举，便于定位 Duration/Tick 等字段）
+	/**
+	 * 获取状态实例调试快照。
+	 *
+	 * @param StateDefIdFilter 可选状态定义过滤条件
+	 * @return 当前状态实例运行时的调试文本
+	 */
 	UFUNCTION(BlueprintPure, Category = "State|Debug")
 	FString GetStateDebugSnapshot(FName StateDefIdFilter = NAME_None) const;
 
-	// 槽位Gate开关
-    void SetSlotGateOpen(FGameplayTag SlotTag, bool bOpen);
+#pragma endregion
 
-	// 槽位Gate开关状态
-    UFUNCTION(BlueprintPure, Category = "StateTree Integration")
-    bool IsSlotGateOpen(FGameplayTag SlotTag) const;
+
+#pragma region SlotActivation
+
+	public:
+	/**
+	 * 设置槽位 Gate 开关状态。
+	 *
+	 * @param SlotTag 目标槽位标签
+	 * @param bOpen 新的 Gate 开关状态
+	 */
+	void SetSlotGateOpen(FGameplayTag SlotTag, bool bOpen);
+
+	/**
+	 * 查询槽位 Gate 当前是否打开。
+	 *
+	 * @param SlotTag 目标槽位标签
+	 * @return 如果 Gate 打开则返回 true，否则返回 false
+	 */
+	UFUNCTION(BlueprintPure, Category = "StateTree Integration")
+	bool IsSlotGateOpen(FGameplayTag SlotTag) const;
 
 protected:
 	// 重建当前组件的 StateSlot 运行时容器，并建立与当前 StateTree 的绑定关系。
@@ -752,84 +774,114 @@ protected:
 	// Gate 一致性：当槽位关闭时，强制收敛阶段。
 	virtual void EnforceSlotGateConsistency(FGameplayTag SlotTag);
 
-	// 清理槽位中已经过期的状态实例。
+	/** 清理槽位中已经过期的状态实例。 */
 	void ClearStateSlotExpiredStates(FTcsStateSlot* StateSlot);
 
-	// 按优先级排序槽位中的状态。
+	/** 按优先级排序槽位中的状态。 */
 	virtual void SortStatesByPriority(TArray<UTcsStateInstance*>& States);
 
-	// 按槽位激活模式处理状态。
+	/** 按槽位激活模式处理状态。 */
 	virtual void ProcessStateSlotByActivationMode(FTcsStateSlot* StateSlot, FGameplayTag SlotTag);
 
-	// 优先级模式：只保留最高优先级状态激活。
+	/** 优先级模式：只保留最高优先级状态激活。 */
 	void ProcessPriorityOnlyMode(FTcsStateSlot* StateSlot, const UTcsStateSlotDefinition* SlotDef);
 
-	// 全激活模式：槽位中所有状态都保持激活。
+	/** 全激活模式：槽位中所有状态都保持激活。 */
 	void ProcessAllActiveMode(FTcsStateSlot* StateSlot);
 
-	// 按抢占策略处理低优先级状态。
+	/** 按抢占策略处理低优先级状态。 */
 	virtual void ApplyPreemptionPolicyToState(UTcsStateInstance* State, ETcsStatePreemptionPolicy Policy);
 
-	// 清理槽位中的无效实例。
+	/** 清理槽位中的无效实例。 */
 	void CleanupInvalidStates(FTcsStateSlot* StateSlot);
 
 	// 从槽位中移除指定状态实例。
 	void RemoveStateFromSlot(FTcsStateSlot* StateSlot, UTcsStateInstance* State, bool bDeactivateIfNeeded = true);
 
-    // 获取当前激活的StateTree状态名列表
-    TArray<FName> GetCurrentActiveStateTreeStates() const;
+	/** @return 当前激活的 StateTree 状态名列表。 */
+	TArray<FName> GetCurrentActiveStateTreeStates() const;
 
-    // 缓存上一帧的StateTree激活状态名,用于检测变化
-    TArray<FName> CachedActiveStateNames;
+	/** 缓存上一帧的 StateTree 激活状态名，用于检测变化。 */
+	TArray<FName> CachedActiveStateNames;
 
-	// 当前组件是否正在执行槽位激活刷新；用于同帧防重入。
+	/** 当前组件是否正在执行槽位激活刷新；用于同帧防重入。 */
 	bool bIsUpdatingSlotActivation = false;
 
-	// 当前组件待排空的槽位激活请求集合；按槽位去重，保证同批次同槽位最多只结算一次。
+	/** 当前组件待排空的槽位激活请求集合；按槽位去重，保证同批次同槽位最多只结算一次。 */
 	TSet<FGameplayTag> PendingSlotActivationUpdates;
 
-	// 当前嵌套的槽位刷新批处理深度；大于 0 时 RequestUpdateStateSlotActivation 只入队不立即执行。
-	// 这样可以把同批次内的多次语义变化压缩到批次尾部统一收敛，但仍保持当前帧内完成最终结算。
+	/** 当前嵌套的槽位刷新批处理深度。 */
 	int32 StateSlotActivationBatchDepth = 0;
 
-	// 当前是否处于 StateTree Tick/回调上下文；仅用于移除链路的 ensure 诊断。
-	bool bIsInStateTreeCallback = false;
-
-	// 判断当前是否处于 StateTree 更新上下文。
-	bool IsInStateTreeUpdateContext() const { return bIsInStateTreeCallback; }
-
 #pragma endregion
 
 
-#pragma region StateTree_Reference
+#pragma region StateTreeIntegration
 
 public:
+	/** @return 当前组件持有的 StateTree 引用包装。 */
 	FStateTreeReference GetStateTreeReference() const;
 
+	/** @return 当前组件绑定的底层 StateTree 资产。 */
 	const UStateTree* GetStateTree() const;
 
-#pragma endregion
-
-
-#pragma region StateTree_State
-
-public:
 	/**
-	 * 由TcsStateChangeNotifyTask调用，通知StateTree状态变更
+	 * 由 TcsStateChangeNotifyTask 调用，通知 StateTree 状态变更。
+	 *
 	 * @param Context 执行上下文，包含当前激活状态信息
 	 */
 	void OnStateTreeStateChanged(const FStateTreeExecutionContext& Context);
 
 protected:
-	// 比较两个状态列表是否相等
+	/**
+	 * 比较两组状态名列表是否相等。
+	 *
+	 * @param A 第一组状态名列表
+	 * @param B 第二组状态名列表
+	 * @return 如果两组状态名完全相等则返回 true，否则返回 false
+	 */
 	bool AreStateNamesEqual(const TArray<FName>& A, const TArray<FName>& B) const;
 
-	// 状态槽变化事件处理
+	/**
+	 * 响应单个槽位变化后的后续联动处理。
+	 *
+	 * @param SlotTag 发生变化的槽位标签
+	 */
 	virtual void OnStateSlotChanged(FGameplayTag SlotTag);
 
 #pragma endregion
 
+
+#pragma region RuntimeFlagsAndScheduler
+
+public:
+	/**
+	 * 将状态实例加入 StateTree Tick 调度器。
+	 *
+	 * @param StateInstance 要加入调度的状态实例
+	 */
+	void AddToStateTreeTickScheduler(UTcsStateInstance* StateInstance) { StateTreeTickScheduler.Add(StateInstance); }
+
+	/**
+	 * 将状态实例移出 StateTree Tick 调度器。
+	 *
+	 * @param StateInstance 要移出调度的状态实例
+	 */
+	void RemoveFromStateTreeTickScheduler(UTcsStateInstance* StateInstance) { StateTreeTickScheduler.Remove(StateInstance); }
+
 protected:
-	// Tick 所有运行中的 StateTree（调度、执行、清理停止的实例）
+	/** Tick 所有运行中的 StateTree（调度、执行、清理停止的实例）。 */
 	void TickStateTrees(float DeltaTime);
+
+	/** StateTree Tick 调度器：只保存正在 Running 的实例。 */
+	UPROPERTY()
+	FTcsStateTreeTickScheduler StateTreeTickScheduler;
+
+	/** 当前是否处于 StateTree Tick/回调上下文；仅用于移除链路的 ensure 诊断。 */
+	bool bIsInStateTreeCallback = false;
+
+	/** @return 当前是否处于 StateTree 更新上下文。 */
+	bool IsInStateTreeUpdateContext() const { return bIsInStateTreeCallback; }
+
+#pragma endregion
 };

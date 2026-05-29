@@ -16,7 +16,7 @@ TCS 当前的 `State` 运行时已经是完整主链路，但它并不是一个�
 
 并且当前可以先固定的，不是最终 Skill 命名，而只是两条阶段性实现事实：
 
-- 当前代码中的 learned-skill 数据对象仍使用 `UTcsSkillInstance` 命名，但这不是长期命名结论
+- 本提案冻结时，learned-skill 数据对象仍使用旧名 `UTcsSkillInstance`，但这里不把该旧名写成长期命名结论
 - 技能释放时，当前仍由 Skill 侧向 `UTcsStateComponent` 申请运行态进入主链；后续 Skill-specific runtime 收敛由独立 change 处理
 
 ## 目标 / 非目标
@@ -114,7 +114,7 @@ TCS 当前的 `State` 运行时已经是完整主链路，但它并不是一个�
 - Skill 侧处理“同一个已学会技能能不能再次激活，以及再次激活后怎么处理”
 - Buff 侧处理“技能再次激活后产出的运行中效果如何合并、叠层、保留或淘汰”
 
-这里真正应该固定的前提，是“重复激活策略面对的是 learned-skill 持有态，而不是两个执行态实例互相 merge”。在本 change 实施时，当前代码里的该对象名仍是 `UTcsSkillInstance`；后续如果独立 change 把它翻名为 `UTcsSkillEntry` 并引入新的执行态 `UTcsSkillInstance`，这条边界依然成立。
+这里真正应该固定的前提，是“重复激活策略面对的是 learned-skill 持有态，而不是两个执行态实例互相 merge”。本 change 在设计冻结时，learned-skill 持有态仍使用旧名 `UTcsSkillInstance`；后续独立 change 已将其收敛为 `UTcsSkillEntry` 并引入执行态 `UTcsSkillInstance`，但这条边界依然成立。
 
 ### 命名草案
 

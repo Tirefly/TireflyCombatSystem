@@ -15,18 +15,51 @@
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Containers/Ticker.h"
 #include "Engine/AssetManagerSettings.h"
+#include "FileHelpers.h"
+#include "Framework/Notifications/NotificationManager.h"
+#include "Framework/Commands/InputBindingManager.h"
+#include "Framework/Commands/UIAction.h"
+#include "Framework/Commands/UICommandInfo.h"
+#include "Framework/Commands/UICommandList.h"
+#include "Interfaces/IMainFrameModule.h"
+#include "Misc/Paths.h"
+#include "Styling/AppStyle.h"
+#include "ToolMenu.h"
+#include "ToolMenuSection.h"
+#include "ToolMenus.h"
 #include "UObject/ObjectSaveContext.h"
 #include "UObject/Package.h"
+#include "Widgets/Images/SImage.h"
+#include "Widgets/Input/SButton.h"
+#include "Widgets/SBoxPanel.h"
+#include "Widgets/Text/STextBlock.h"
+#include "Widgets/Notifications/SNotificationList.h"
 #endif
+
+struct FTcsSaveAllCommandHookState
+{
+	TSharedPtr<const FUICommandInfo> CommandInfo;
+	FUIAction OriginalAction;
+	bool bIsInstalled = false;
+};
 
 namespace TcsDefinitionRegistryPrivate
 {
+	constexpr TCHAR MainFrameCommandContextName[] = TEXT("MainFrame");
+	constexpr TCHAR SaveAllCommandName[] = TEXT("SaveAll");
+	constexpr TCHAR SaveAllCoverageLabel[] = TEXT("Save All");
+	constexpr TCHAR ContentBrowserToolBarMenuName[] = TEXT("ContentBrowser.ToolBar");
+	constexpr TCHAR ContentBrowserSaveSectionName[] = TEXT("Save");
+	constexpr TCHAR ContentBrowserSaveButtonEntryName[] = TEXT("SaveButton");
+
 	struct FTcsTrackedDefinitionType
 	{
 		UClass* AssetClass = nullptr;
 		FName PrimaryAssetType;
 		const TCHAR* DefinitionLabel = TEXT("Unknown");
 	};
+
+	UClass* ResolveConfiguredBaseClass(const FPrimaryAssetTypeInfo& TypeInfo);
 
 	template <typename AssetType>
 	void AddDefinition(
@@ -170,9 +203,9 @@ namespace TcsDefinitionRegistryPrivate
 				continue;
 			}
 
-			if (TypeInfo->AssetBaseClassLoaded)
+			if (UClass* ResolvedBaseClass = ResolveConfiguredBaseClass(*TypeInfo))
 			{
-				BaseClasses.Add(TypeInfo->AssetBaseClassLoaded->GetPathName());
+				BaseClasses.Add(ResolvedBaseClass->GetPathName());
 			}
 			else
 			{
@@ -200,6 +233,105 @@ namespace TcsDefinitionRegistryPrivate
 
 		return false;
 	}
+
+	UClass* ResolveConfiguredBaseClass(const FPrimaryAssetTypeInfo& TypeInfo)
+	{
+		const TSoftClassPtr<UObject>& AssetBaseClass = TypeInfo.GetAssetBaseClass();
+		if (!AssetBaseClass.IsNull())
+		{
+			if (UClass* LoadedClass = AssetBaseClass.Get())
+			{
+				return LoadedClass;
+			}
+
+			if (UClass* SynchronousClass = AssetBaseClass.LoadSynchronous())
+			{
+				return SynchronousClass;
+			}
+		}
+
+		return TypeInfo.AssetBaseClassLoaded;
+	}
+
+	FText BuildCoverageIssueNotificationText(const bool bTriggeredBySave, const FString& PackageFileName, const TArray<FString>& Issues)
+	{
+		check(!Issues.IsEmpty());
+
+		FString Summary;
+		if (bTriggeredBySave)
+		{
+			const FString SavedLabel = PackageFileName.IsEmpty()
+				? TEXT("本次保存")
+				: FString::Printf(TEXT("保存 %s"), *FPaths::GetCleanFilename(PackageFileName));
+			Summary = FString::Printf(
+				TEXT("%s 后仍检测到 %d 项 TCS AssetManager 覆盖勘误。"),
+				*SavedLabel,
+				Issues.Num());
+		}
+		else
+		{
+			Summary = FString::Printf(
+				TEXT("检测到 %d 项 TCS AssetManager 覆盖勘误。"),
+				Issues.Num());
+		}
+
+		Summary += FString::Printf(TEXT("\n%s"), *Issues[0]);
+		if (Issues.Num() > 1)
+		{
+			Summary += FString::Printf(TEXT("\n另有 %d 项，详见 Output Log。"), Issues.Num() - 1);
+		}
+		else
+		{
+			Summary += TEXT("\n详见 Output Log。");
+		}
+
+		return FText::FromString(Summary);
+	}
+
+	void ShowCoverageIssueNotification(const bool bTriggeredBySave, const FString& PackageFileName, const TArray<FString>& Issues)
+	{
+		static TWeakPtr<SNotificationItem> ActiveCoverageNotification;
+
+		if (const TSharedPtr<SNotificationItem> ExistingNotification = ActiveCoverageNotification.Pin())
+		{
+			ExistingNotification->ExpireAndFadeout();
+		}
+
+		FNotificationInfo NotificationInfo(BuildCoverageIssueNotificationText(bTriggeredBySave, PackageFileName, Issues));
+		NotificationInfo.bFireAndForget = true;
+		NotificationInfo.bUseLargeFont = false;
+		NotificationInfo.bUseSuccessFailIcons = true;
+		NotificationInfo.FadeOutDuration = 0.2f;
+		NotificationInfo.ExpireDuration = bTriggeredBySave ? 6.0f : 5.0f;
+		NotificationInfo.WidthOverride = FOptionalSize(720.0f);
+
+		const TSharedPtr<SNotificationItem> NotificationItem = FSlateNotificationManager::Get().AddNotification(NotificationInfo);
+		if (NotificationItem.IsValid())
+		{
+			NotificationItem->SetCompletionState(SNotificationItem::CS_Fail);
+			ActiveCoverageNotification = NotificationItem;
+		}
+	}
+
+	FString BuildCoverageIssueSaveLabel(const int32 SaveCount, const FString& FirstPackageFileName, const bool bTriggeredBySaveAll)
+	{
+		if (bTriggeredBySaveAll)
+		{
+			return SaveAllCoverageLabel;
+		}
+
+		if (SaveCount > 1)
+		{
+			return FString::Printf(TEXT("Save All（共 %d 个包）"), SaveCount);
+		}
+
+		if (!FirstPackageFileName.IsEmpty())
+		{
+			return FirstPackageFileName;
+		}
+
+		return FString();
+	}
 }
 
 void UTcsDefinitionRegistrySubsystem::Initialize(FSubsystemCollectionBase& Collection)
@@ -210,6 +342,8 @@ void UTcsDefinitionRegistrySubsystem::Initialize(FSubsystemCollectionBase& Colle
 	if (GIsEditor)
 	{
 		RegisterEditorCallbacks();
+		RegisterContentBrowserSaveButtonHook();
+		RegisterSaveAllCommandHook();
 		RefreshDefinitionsNow();
 		ReportAssetManagerCoverageIssues(false);
 	}
@@ -219,6 +353,8 @@ void UTcsDefinitionRegistrySubsystem::Initialize(FSubsystemCollectionBase& Colle
 void UTcsDefinitionRegistrySubsystem::Deinitialize()
 {
 #if WITH_EDITOR
+	UnregisterContentBrowserSaveButtonHook();
+	UnregisterSaveAllCommandHook();
 	UnregisterEditorCallbacks();
 	ClearQueuedRefresh();
 #endif
@@ -270,6 +406,14 @@ void UTcsDefinitionRegistrySubsystem::RefreshDefinitionsNow()
 	TGuardValue<bool> RefreshGuard(bIsRefreshing, true);
 	RebuildSnapshot();
 	MirrorSnapshotToDeveloperSettings();
+
+	const bool bShouldReportCoverageIssues = bShouldReportCoverageIssuesAfterRefresh;
+	bShouldReportCoverageIssuesAfterRefresh = false;
+	if (bShouldReportCoverageIssues)
+	{
+		ReportAssetManagerCoverageIssues(false);
+	}
+
 	bHasCompletedInitialRefresh = true;
 	++RefreshRevision;
 
@@ -384,6 +528,262 @@ void UTcsDefinitionRegistrySubsystem::UnregisterEditorCallbacks()
 	bHasRegisteredEditorCallbacks = false;
 }
 
+bool UTcsDefinitionRegistrySubsystem::HandleDeferredCoverageIssueNotification(float DeltaTime)
+{
+	DeferredCoverageIssueNotificationHandle.Reset();
+
+	if (!bHasPendingCoverageIssueNotification)
+	{
+		return false;
+	}
+
+	bHasPendingCoverageIssueNotification = false;
+	const FString SaveLabel = TcsDefinitionRegistryPrivate::BuildCoverageIssueSaveLabel(
+		PendingCoverageIssueSaveCount,
+		PendingCoverageIssueFirstPackageFileName,
+		bPendingCoverageIssueTriggeredBySaveAll);
+	PendingCoverageIssueSaveCount = 0;
+	PendingCoverageIssueFirstPackageFileName.Reset();
+	bPendingCoverageIssueTriggeredBySaveAll = false;
+
+	ReportAssetManagerCoverageIssues(true, SaveLabel);
+	return false;
+}
+
+void UTcsDefinitionRegistrySubsystem::RegisterContentBrowserSaveButtonHook()
+{
+	auto RegisterHook = [this]()
+	{
+		if (!UToolMenus::IsToolMenuUIEnabled())
+		{
+			return;
+		}
+
+		FToolMenuOwnerScoped OwnerScoped(this);
+		UToolMenu* const ToolBarMenu = UToolMenus::Get()->ExtendMenu(TcsDefinitionRegistryPrivate::ContentBrowserToolBarMenuName);
+		if (!ToolBarMenu)
+		{
+			return;
+		}
+
+		UToolMenus::Get()->RemoveEntry(
+			TcsDefinitionRegistryPrivate::ContentBrowserToolBarMenuName,
+			TcsDefinitionRegistryPrivate::ContentBrowserSaveSectionName,
+			TcsDefinitionRegistryPrivate::ContentBrowserSaveButtonEntryName);
+
+		FToolMenuSection& SaveSection = ToolBarMenu->FindOrAddSection(TcsDefinitionRegistryPrivate::ContentBrowserSaveSectionName);
+		SaveSection.AddDynamicEntry(
+			TcsDefinitionRegistryPrivate::ContentBrowserSaveButtonEntryName,
+			FNewToolMenuSectionDelegate::CreateLambda([](FToolMenuSection& InSection)
+			{
+				if (!GEngine)
+				{
+					return;
+				}
+
+				const TSharedRef<SWidget> SaveButton =
+					SNew(SButton)
+					.ButtonStyle(FAppStyle::Get(), "SimpleButton")
+					.ToolTipText(FText::FromString(TEXT("Save all modified assets.")))
+					.ContentPadding(2.f)
+					.OnClicked_Lambda([]()
+					{
+						if (UTcsDefinitionRegistrySubsystem* const Registry = GEngine ? GEngine->GetEngineSubsystem<UTcsDefinitionRegistrySubsystem>() : nullptr)
+						{
+							Registry->HandleContentBrowserSaveButton();
+						}
+						return FReply::Handled();
+					})
+					[
+						SNew(SHorizontalBox)
+						+ SHorizontalBox::Slot()
+						.AutoWidth()
+						.HAlign(HAlign_Center)
+						.VAlign(VAlign_Center)
+						[
+							SNew(SImage)
+							.Image(FAppStyle::Get().GetBrush("MainFrame.SaveAll"))
+							.ColorAndOpacity(FSlateColor::UseForeground())
+						]
+						+ SHorizontalBox::Slot()
+						.Padding(FMargin(3, 0, 0, 0))
+						.VAlign(VAlign_Center)
+						.AutoWidth()
+						[
+							SNew(STextBlock)
+							.TextStyle(FAppStyle::Get(), "NormalText")
+							.Text(FText::FromString(TEXT("Save All")))
+						]
+					];
+
+				InSection.AddEntry(
+					FToolMenuEntry::InitWidget(
+						TcsDefinitionRegistryPrivate::ContentBrowserSaveButtonEntryName,
+						SaveButton,
+						FText::GetEmpty(),
+						true,
+						false));
+			}));
+
+		UToolMenus::Get()->RefreshMenuWidget(TcsDefinitionRegistryPrivate::ContentBrowserToolBarMenuName);
+	};
+
+	if (UToolMenus::TryGet() && UToolMenus::IsToolMenuUIEnabled())
+	{
+		RegisterHook();
+	}
+	else if (!ContentBrowserSaveButtonStartupCallbackHandle.IsValid())
+	{
+		ContentBrowserSaveButtonStartupCallbackHandle = UToolMenus::RegisterStartupCallback(
+			FSimpleMulticastDelegate::FDelegate::CreateLambda(RegisterHook));
+	}
+}
+
+void UTcsDefinitionRegistrySubsystem::UnregisterContentBrowserSaveButtonHook()
+{
+	if (ContentBrowserSaveButtonStartupCallbackHandle.IsValid())
+	{
+		UToolMenus::UnRegisterStartupCallback(ContentBrowserSaveButtonStartupCallbackHandle);
+		ContentBrowserSaveButtonStartupCallbackHandle.Reset();
+	}
+
+	UToolMenus::UnregisterOwner(this);
+	if (UToolMenus* const ToolMenus = UToolMenus::TryGet())
+	{
+		ToolMenus->RefreshMenuWidget(TcsDefinitionRegistryPrivate::ContentBrowserToolBarMenuName);
+	}
+}
+
+void UTcsDefinitionRegistrySubsystem::RegisterSaveAllCommandHook()
+{
+	if (SaveAllCommandHookState.IsValid() && SaveAllCommandHookState->bIsInstalled)
+	{
+		return;
+	}
+
+	if (!FModuleManager::Get().IsModuleLoaded("MainFrame"))
+	{
+		FModuleManager::LoadModuleChecked<IMainFrameModule>("MainFrame");
+	}
+
+	IMainFrameModule& MainFrameModule = FModuleManager::LoadModuleChecked<IMainFrameModule>("MainFrame");
+	TSharedRef<FUICommandList>& MainFrameCommandBindings = MainFrameModule.GetMainFrameCommandBindings();
+	const TSharedPtr<const FUICommandInfo> SaveAllCommandInfo = FInputBindingManager::Get().FindCommandInContext(
+		TcsDefinitionRegistryPrivate::MainFrameCommandContextName,
+		TcsDefinitionRegistryPrivate::SaveAllCommandName);
+	if (!SaveAllCommandInfo.IsValid())
+	{
+		UE_LOG(LogTcs, Warning,
+			TEXT("[UTcsDefinitionRegistrySubsystem] Failed to locate MainFrame.SaveAll command; Save All coverage hook is disabled."));
+		return;
+	}
+
+	const FUIAction* ExistingAction = MainFrameCommandBindings->GetActionForCommand(SaveAllCommandInfo);
+	if (!ExistingAction || !ExistingAction->IsBound())
+	{
+		UE_LOG(LogTcs, Warning,
+			TEXT("[UTcsDefinitionRegistrySubsystem] Failed to capture existing Save All action; Save All coverage hook is disabled."));
+		return;
+	}
+
+	if (!SaveAllCommandHookState.IsValid())
+	{
+		SaveAllCommandHookState = MakeShared<FTcsSaveAllCommandHookState>();
+	}
+
+	SaveAllCommandHookState->CommandInfo = SaveAllCommandInfo;
+	SaveAllCommandHookState->OriginalAction = *ExistingAction;
+	MainFrameCommandBindings->MapAction(
+		SaveAllCommandInfo,
+		FUIAction(
+			FExecuteAction::CreateUObject(this, &UTcsDefinitionRegistrySubsystem::HandleSaveAllCommand),
+			SaveAllCommandHookState->OriginalAction.CanExecuteAction,
+			SaveAllCommandHookState->OriginalAction.GetActionCheckState,
+			SaveAllCommandHookState->OriginalAction.IsActionVisibleDelegate,
+			SaveAllCommandHookState->OriginalAction.RepeatMode));
+	SaveAllCommandHookState->bIsInstalled = true;
+}
+
+void UTcsDefinitionRegistrySubsystem::UnregisterSaveAllCommandHook()
+{
+	if (!SaveAllCommandHookState.IsValid() || !SaveAllCommandHookState->bIsInstalled || !SaveAllCommandHookState->CommandInfo.IsValid())
+	{
+		return;
+	}
+
+	if (!FModuleManager::Get().IsModuleLoaded("MainFrame"))
+	{
+		SaveAllCommandHookState.Reset();
+		return;
+	}
+
+	IMainFrameModule& MainFrameModule = FModuleManager::LoadModuleChecked<IMainFrameModule>("MainFrame");
+	TSharedRef<FUICommandList>& MainFrameCommandBindings = MainFrameModule.GetMainFrameCommandBindings();
+	MainFrameCommandBindings->MapAction(SaveAllCommandHookState->CommandInfo, SaveAllCommandHookState->OriginalAction);
+	SaveAllCommandHookState.Reset();
+}
+
+void UTcsDefinitionRegistrySubsystem::HandleSaveAllCommand()
+{
+	if (!SaveAllCommandHookState.IsValid())
+	{
+		return;
+	}
+
+	PendingCoverageIssueSaveCount = 0;
+	PendingCoverageIssueFirstPackageFileName.Reset();
+	bPendingCoverageIssueTriggeredBySaveAll = false;
+
+	TGuardValue<bool> SaveAllGuard(bIsExecutingSaveAllCommand, true);
+	SaveAllCommandHookState->OriginalAction.Execute();
+
+	if (bHasPendingCoverageIssueNotification)
+	{
+		return;
+	}
+
+	if (!FModuleManager::Get().IsModuleLoaded("AssetRegistry"))
+	{
+		return;
+	}
+
+	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
+	IAssetRegistry& AssetRegistry = AssetRegistryModule.Get();
+	RefreshAssetManagerCoverageIssues(AssetRegistry);
+	if (!AssetManagerCoverageIssues.IsEmpty())
+	{
+		ReportAssetManagerCoverageIssues(true, TcsDefinitionRegistryPrivate::SaveAllCoverageLabel);
+	}
+}
+
+void UTcsDefinitionRegistrySubsystem::HandleContentBrowserSaveButton()
+{
+	PendingCoverageIssueSaveCount = 0;
+	PendingCoverageIssueFirstPackageFileName.Reset();
+	bPendingCoverageIssueTriggeredBySaveAll = false;
+
+	TGuardValue<bool> SaveAllGuard(bIsExecutingSaveAllCommand, true);
+	UEditorLoadingAndSavingUtils::SaveDirtyPackages(false, true);
+
+	if (bHasPendingCoverageIssueNotification)
+	{
+		return;
+	}
+
+	if (!FModuleManager::Get().IsModuleLoaded("AssetRegistry"))
+	{
+		return;
+	}
+
+	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
+	IAssetRegistry& AssetRegistry = AssetRegistryModule.Get();
+	RefreshAssetManagerCoverageIssues(AssetRegistry);
+	if (!AssetManagerCoverageIssues.IsEmpty())
+	{
+		ReportAssetManagerCoverageIssues(true, TcsDefinitionRegistryPrivate::SaveAllCoverageLabel);
+	}
+}
+
 bool UTcsDefinitionRegistrySubsystem::HandleDeferredRefresh(float DeltaTime)
 {
 	ClearQueuedRefresh();
@@ -489,7 +889,8 @@ void UTcsDefinitionRegistrySubsystem::RefreshAssetManagerCoverageIssues(IAssetRe
 		const bool bHasExpectedBaseClass = MatchingTypeInfos.ContainsByPredicate(
 			[&TrackedType](const FPrimaryAssetTypeInfo* TypeInfo)
 			{
-				return TypeInfo && TypeInfo->AssetBaseClassLoaded == TrackedType.AssetClass;
+				const UClass* ConfiguredBaseClass = TypeInfo ? TcsDefinitionRegistryPrivate::ResolveConfiguredBaseClass(*TypeInfo) : nullptr;
+				return ConfiguredBaseClass && ConfiguredBaseClass->IsChildOf(TrackedType.AssetClass);
 			});
 
 		if (!bHasExpectedBaseClass)
@@ -558,6 +959,8 @@ void UTcsDefinitionRegistrySubsystem::ReportAssetManagerCoverageIssues(bool bTri
 	{
 		return;
 	}
+
+	TcsDefinitionRegistryPrivate::ShowCoverageIssueNotification(bTriggeredBySave, PackageFileName, AssetManagerCoverageIssues);
 
 	if (bTriggeredBySave)
 	{
@@ -803,6 +1206,7 @@ void UTcsDefinitionRegistrySubsystem::OnInMemoryAssetDeleted(UObject* AssetObjec
 
 void UTcsDefinitionRegistrySubsystem::OnAssetManagerSettingsChanged(UObject* SettingsObject, FPropertyChangedEvent& PropertyChangedEvent)
 {
+	bShouldReportCoverageIssuesAfterRefresh = true;
 	RequestRefresh();
 }
 
@@ -816,7 +1220,36 @@ void UTcsDefinitionRegistrySubsystem::OnPackageSaved(const FString& PackageFileN
 	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
 	IAssetRegistry& AssetRegistry = AssetRegistryModule.Get();
 	RefreshAssetManagerCoverageIssues(AssetRegistry);
-	ReportAssetManagerCoverageIssues(true, PackageFileName);
+	QueueCoverageIssueReportAfterSave(PackageFileName);
+}
+
+void UTcsDefinitionRegistrySubsystem::QueueCoverageIssueReportAfterSave(const FString& PackageFileName)
+{
+	if (DeferredCoverageIssueNotificationHandle.IsValid())
+	{
+		FTSTicker::GetCoreTicker().RemoveTicker(DeferredCoverageIssueNotificationHandle);
+		DeferredCoverageIssueNotificationHandle.Reset();
+	}
+
+	if (AssetManagerCoverageIssues.IsEmpty())
+	{
+		bHasPendingCoverageIssueNotification = false;
+		PendingCoverageIssueSaveCount = 0;
+		PendingCoverageIssueFirstPackageFileName.Reset();
+		return;
+	}
+
+	bHasPendingCoverageIssueNotification = true;
+	++PendingCoverageIssueSaveCount;
+	bPendingCoverageIssueTriggeredBySaveAll = bPendingCoverageIssueTriggeredBySaveAll || bIsExecutingSaveAllCommand;
+	if (PendingCoverageIssueFirstPackageFileName.IsEmpty())
+	{
+		PendingCoverageIssueFirstPackageFileName = PackageFileName;
+	}
+
+	DeferredCoverageIssueNotificationHandle = FTSTicker::GetCoreTicker().AddTicker(
+		FTickerDelegate::CreateUObject(this, &UTcsDefinitionRegistrySubsystem::HandleDeferredCoverageIssueNotification),
+		0.25f);
 }
 
 void UTcsDefinitionRegistrySubsystem::ClearQueuedRefresh()
@@ -826,6 +1259,12 @@ void UTcsDefinitionRegistrySubsystem::ClearQueuedRefresh()
 	{
 		FTSTicker::GetCoreTicker().RemoveTicker(DeferredRefreshHandle);
 		DeferredRefreshHandle.Reset();
+	}
+
+	if (DeferredCoverageIssueNotificationHandle.IsValid())
+	{
+		FTSTicker::GetCoreTicker().RemoveTicker(DeferredCoverageIssueNotificationHandle);
+		DeferredCoverageIssueNotificationHandle.Reset();
 	}
 }
 #endif

@@ -50,6 +50,6 @@ TCS 当前的 `State` 体系已经同时承载了三类职责：
   - 现有直接创建 `UTcsStateDefinition` 的资产与流程需要迁移到新的具体定义类型；本阶段主要面向 Buff authoring 路径
   - 现有依赖 `Duration` / `DurationType` / `MaxStackCount` / `MergerType` 的代码和脚本需要跟随 Buff 新模型调整
   - 现有 Skill 模块 API 与骨架在本提案实施阶段保持现状；后续命名与运行时分层以独立 Skill/runtime change 为准
-  - 当前代码中的 `UTcsSkillInstance` 仍表示已学会技能，但后续独立 change 可以将其更名为 `UTcsSkillEntry`，并引入新的技能执行态 `UTcsSkillInstance`
+  - 本提案只冻结“learned-skill 持有态与技能执行态必须分离”的边界；在本提案提出时，learned-skill 持有态仍使用旧名 `UTcsSkillInstance`，后续独立 change 已将其收敛为 `UTcsSkillEntry` 与执行态 `UTcsSkillInstance`
   - 同 Def 技能重复激活的处理规则当前仍未定型，后续需要按技能类型单独调研
   - 若需要补 `UTcsBuffDefinition` 的编辑器创建入口，应在 `add-tcs-def-editor-authoring` 中补充，不在本提案内实现

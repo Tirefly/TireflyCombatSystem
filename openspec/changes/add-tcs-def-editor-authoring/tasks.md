@@ -40,7 +40,7 @@
 - [x] 4.2 在 `UTcsDeveloperSettings` 新增“DefAsset 勘误忽略列表”配置项；忽略列表中的 DefAsset 类型不参与漏配报错。
 - [x] 4.3 当检测到未忽略的类型漏配、路径漏配或规则失配时，输出可读勘误信息，明确“缺少哪个 PrimaryAssetType 与哪个扫描路径”。
 - [x] 4.4 勘误校验仅做提示，不自动改写 `AssetManagerSettings`；提示中附带建议修复步骤。
-- [x] 4.5 接入编辑器 Save 事件，只要仍存在未忽略漏配项，每次 Save 后都重复提示一次。
+- [x] 4.5 接入编辑器常用 Save 路径，只要仍存在未忽略漏配项，就在普通单资产/单包保存、主窗口/快捷键 `Save All` 与 Content Browser 顶部 `Save All` 后重复提示一次，并保持 `UE_LOG(LogTcs, Error, ...)` 与右下角 toast 同步输出。
 - [x] 4.6 更新 TCS authoring/setup 文档，增加“AssetManagerSettings 漏配诊断与忽略列表”章节。
 
 ## 5. 勘误能力验证（新增）
@@ -48,5 +48,5 @@
 - [ ] 5.1 等待开发者手动执行编辑器测试：构造至少一条 `TcsDefinitionAsset` 漏配场景，确认编辑器能给出准确勘误提示。
 - [ ] 5.2 等待开发者手动执行编辑器测试：补齐漏配后，确认勘误提示清除，且现有 Definition 资产同步与加载路径不受破坏。
 - [ ] 5.3 等待开发者手动执行编辑器测试：将某 DefAsset 类型加入忽略列表后，确认该类型不再报错；移除忽略后恢复报错。
-- [ ] 5.4 等待开发者手动执行编辑器测试：在漏配未修复且未忽略时，连续执行两次 Save，确认两次都收到勘误提示。
+- [ ] 5.4 等待开发者手动执行编辑器测试：在漏配未修复且未忽略时，分别执行普通单资产/单包保存、主窗口/快捷键 `Save All` 与 Content Browser 顶部 `Save All`，确认每条路径都会再次收到 toast/log 勘误提示。
 - [x] 5.5 运行 `openspec validate add-tcs-def-editor-authoring --strict --no-interactive`，确认新增任务与规范一致。

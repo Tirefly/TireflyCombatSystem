@@ -10,8 +10,8 @@ TCS 当前版本不再把“技能、Buff、普通状态”简单当成同一种
 
 1. `State Core` 负责共享运行态宿主、Apply / Remove / Query / Slot / StateTree 生命周期主链。
 2. `Buff` 负责 Duration / Stack / Merge / Period 等 Buff 专属语义，但仍挂接在共享 `UTcsStateComponent` 主链上执行。
-3. `Skill` 当前仍保持轻量骨架；`UTcsSkillInstance` 表示 learned skill，不表示一次执行中的技能实例。
-4. 技能执行态仍通过 `UTcsStateComponent` 申请 `StateInstance` 进入运行期，而不是让 Skill 自己复制一套平行宿主框架。
+3. `Skill` 当前仍保持轻量骨架；`UTcsSkillEntry` 表示 learned skill 拥有态，`UTcsSkillInstance` 表示一次技能激活执行态。
+4. 技能执行态仍通过 `UTcsStateComponent` 进入共享运行主链，而不是让 Skill 自己复制一套平行宿主框架。
 
 ## 当前可直接 Author 的 DefinitionAsset
 
@@ -37,11 +37,11 @@ TCS 当前版本不再把“技能、Buff、普通状态”简单当成同一种
 `Tirefly Combat System -> Gameplay Runtime` 当前提供三类快捷创建入口：
 
 1. `State Component StateTree`
-   - 创建后直接预设为 `UStateTreeComponentSchema`，用于 `UTcsStateComponent` 挂载的 StateTree 资产。
-2. `State Instance StateTree`
-   - 创建后直接预设为 `UTcsStateTreeSchema_StateInstance`，用于 `UTcsStateInstance` 独立运行的 StateTree 资产。
-3. `Skill Instance Blueprint`
-   - 创建后直接以 `UTcsSkillInstance` 为父类，不再弹出通用父类选择器。
+   - 创建后直接预设为 `UTcsStateSchema_StateComponent`，用于 `UTcsStateComponent` 挂载的 StateTree 资产。
+2. `Buff StateTree`
+   - 创建后直接预设为 `UTcsStateSchema_Buff`，用于 `UTcsBuffInstance` 执行的 StateTree 资产。
+3. `Skill Entry Blueprint`
+   - 创建后直接以 `UTcsSkillEntry` 为父类，不再弹出通用父类选择器。
 
 ## 文档入口
 

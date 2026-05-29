@@ -49,18 +49,28 @@ class TIREFLYCOMBATSYSTEM_API UTcsAttributeComponent : public UActorComponent
 #pragma region ActorComponent
 
 public:
+	/** 构造属性组件并初始化默认 Tick 策略。 */
 	UTcsAttributeComponent();
 
 protected:
+	/** 在 BeginPlay 时预热 AttributeManager 缓存。 */
 	virtual void BeginPlay() override;
 
-	// 缓存的 AttributeManager 指针（迁移期供 Phase C 下沉的业务方法直接访问）
+#pragma endregion
+
+
+#pragma region ManagerReference
+
+protected:
+
+	/** 缓存的 AttributeManager 指针。 */
 	UPROPERTY()
 	TObjectPtr<UTcsAttributeManagerSubsystem> AttrMgr;
 
 	/**
-	 * 懒加载获取 AttributeManager
-	 * BeginPlay 已预热；业务方法中若首访为空，会在此补拉取并 ensureMsgf 诊断
+	 * 懒加载获取 AttributeManager。
+	 *
+	 * BeginPlay 已预热；业务方法中若首访为空，会在此补拉取并 ensureMsgf 诊断。
 	 *
 	 * @return AttributeManager 指针；失败时返回 nullptr 并触发 ensureMsgf
 	 */
@@ -69,10 +79,16 @@ protected:
 #pragma endregion
 
 
-#pragma region Attribute
+#pragma region QueryAndSnapshot
 
 public:
-	// 获取特定属性的当前值
+	/**
+	 * 获取特定属性的当前值。
+	 *
+	 * @param AttributeName 属性名称
+	 * @param OutValue 输出属性当前值
+	 * @return 如果属性存在则返回 true，否则返回 false
+	 */
 	UFUNCTION(BlueprintCallable, Category = "Attribute")
 	bool GetAttributeValue(
 		UPARAM(Meta = (GetParamOptions = "TcsGenericLibrary.GetAttributeNames"))FName AttributeName,
@@ -97,7 +113,13 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Attribute", Meta = (Categories = "TCS.Attribute"))
 	bool GetAttributeValueByTag(const FGameplayTag& AttributeTag, float& OutValue) const;
 
-	// 获取特定属性的基础值
+	/**
+	 * 获取特定属性的基础值。
+	 *
+	 * @param AttributeName 属性名称
+	 * @param OutValue 输出属性基础值
+	 * @return 如果属性存在则返回 true，否则返回 false
+	 */
 	UFUNCTION(BlueprintCallable, Category = "Attribute")
 	bool GetAttributeBaseValue(
 		UPARAM(Meta = (GetParamOptions = "TcsGenericLibrary.GetAttributeNames"))FName AttributeName,
@@ -113,90 +135,108 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Attribute", Meta = (Categories = "TCS.Attribute"))
 	bool GetAttributeBaseValueByTag(const FGameplayTag& AttributeTag, float& OutValue) const;
 
-	// 获取所有属性的当前值
+	/** @return 当前组件中全部属性的 CurrentValue 快照。 */
 	TMap<FName, float> GetAttributeValues() const;
-	// 获取所有属性的基础值
+
+	/** @return 当前组件中全部属性的 BaseValue 快照。 */
 	TMap<FName, float> GetAttributeBaseValues() const;
 
-	// 广播属性当前值改变事件
-	void BroadcastAttributeValueChangeEvent(const TArray<FTcsAttributeChangeEventPayload>& Payloads) const;
-	// 广播属性基础值改变事件
-	void BroadcastAttributeBaseValueChangeEvent(const TArray<FTcsAttributeChangeEventPayload>& Payloads) const;
-	// 广播属性修改器批量添加事件
-	void BroadcastAttributeModifierAddedBatchEvent(const TArray<FTcsAttributeModifierEventPayload>& Payloads) const;
-	// 广播属性修改器批量移除事件
-	void BroadcastAttributeModifierRemovedBatchEvent(const TArray<FTcsAttributeModifierEventPayload>& Payloads) const;
-	// 广播属性修改器批量更新事件
-	void BroadcastAttributeModifierUpdatedBatchEvent(const TArray<FTcsAttributeModifierEventPayload>& Payloads) const;
-	// 广播属性达到边界值批量事件
-	void BroadcastAttributeReachedBoundaryBatchEvent(const TArray<FTcsAttributeBoundaryEventPayload>& Payloads) const;
+#pragma endregion
+
+
+#pragma region EventBroadcast
 
 public:
-	// 战斗实体的所有属性实例
-	UPROPERTY(BlueprintReadOnly, Category = "Attribute")
-	TMap<FName, FTcsAttributeInstance> Attributes;
 
-	// 战斗实体的所有属性修改器实例
-	UPROPERTY(BlueprintReadOnly, Category = "Attribute")
-	TArray<FTcsAttributeModifierInstance> AttributeModifiers;
+	/**
+	 * 广播属性当前值变化事件。
+	 *
+	 * @param Payloads 本次变化事件载荷列表
+	 */
+	void BroadcastAttributeValueChangeEvent(const TArray<FTcsAttributeChangeEventPayload>& Payloads) const;
 
-	// SourceHandle ID 到 Modifier 实例 ID 的映射 (性能优化 - 稳定索引)
-	// Key: SourceHandle.Id, Value: ModifierInstId 列表
-	// 注: 使用稳定的 ModifierInstId 而非数组下标，避免删除操作导致的索引漂移问题
-	// 不使用 UPROPERTY 的原因:
-	//   1. 仅存储值类型 (int32)，不涉及 UObject 指针，无需 GC 追踪
-	//   2. 运行时优化数据，可从 AttributeModifiers 重建，无需序列化
-	//   3. 本地缓存，无需网络复制 (每个客户端独立维护)
-	//   4. 内部实现细节，无需暴露给蓝图或编辑器
-	//   5. 生命周期跟随组件，C++ 析构函数自动释放内存
-	// Value 使用 TSet<int32>，避免批量按 SourceHandle 移除时在桶内做线性删除。
-	TMap<int32, TSet<int32>> SourceHandleIdToModifierInstIds;
+	/**
+	 * 广播属性基础值变化事件。
+	 *
+	 * @param Payloads 本次变化事件载荷列表
+	 */
+	void BroadcastAttributeBaseValueChangeEvent(const TArray<FTcsAttributeChangeEventPayload>& Payloads) const;
 
-	// Modifier 实例 ID 到当前数组下标的映射 (性能优化 - 快速定位)
-	// Key: ModifierInstId, Value: AttributeModifiers 数组中的当前索引
-	// 注: 此映射在每次数组变更时更新，提供 O(1) 的 ID->Index 查询
-	// TODO(Perf): 当前 RemoveAtSwap 路径已是 O(1) 维护；若未来新增 "多元素批量移除" 场景，
-	//   避免对每个元素独立 Swap+Map 更新，可改为 "先收集所有待删索引 → 一次性重排 → 整体重建 Index Map"，
-	//   将 K 次移除的总成本从 O(K) 次 Map 写入降为一次性 O(N) 扫描（当 K 接近 N 时更优）。
-	TMap<int32, int32> ModifierInstIdToIndex;
+	/**
+	 * 广播属性修改器批量添加事件。
+	 *
+	 * @param Payloads 本次修改器添加事件载荷列表
+	 */
+	void BroadcastAttributeModifierAddedBatchEvent(const TArray<FTcsAttributeModifierEventPayload>& Payloads) const;
 
-	// 属性当前值改变事件
+	/**
+	 * 广播属性修改器批量移除事件。
+	 *
+	 * @param Payloads 本次修改器移除事件载荷列表
+	 */
+	void BroadcastAttributeModifierRemovedBatchEvent(const TArray<FTcsAttributeModifierEventPayload>& Payloads) const;
+
+	/**
+	 * 广播属性修改器批量更新事件。
+	 *
+	 * @param Payloads 本次修改器更新事件载荷列表
+	 */
+	void BroadcastAttributeModifierUpdatedBatchEvent(const TArray<FTcsAttributeModifierEventPayload>& Payloads) const;
+
+	/**
+	 * 广播属性达到边界值事件。
+	 *
+	 * @param Payloads 本次边界事件载荷列表
+	 */
+	void BroadcastAttributeReachedBoundaryBatchEvent(const TArray<FTcsAttributeBoundaryEventPayload>& Payloads) const;
+
+	/** 属性当前值改变事件。 */
 	UPROPERTY(BlueprintAssignable, Category = "Attribute|Events")
 	FTcsAttributeChangeDelegate OnAttributeValueChanged;
 
-	// 属性基础值改变事件
+	/** 属性基础值改变事件。 */
 	UPROPERTY(BlueprintAssignable, Category = "Attribute|Events")
 	FTcsAttributeChangeDelegate OnAttributeBaseValueChanged;
 
-	// 属性修改器批量添加事件
+	/** 属性修改器批量添加事件。 */
 	UPROPERTY(BlueprintAssignable, Category = "Attribute|Events")
 	FTcsAttributeModifierBatchDelegate OnAttributeModifiersAdded;
 
-	// 属性修改器批量移除事件
+	/** 属性修改器批量移除事件。 */
 	UPROPERTY(BlueprintAssignable, Category = "Attribute|Events")
 	FTcsAttributeModifierBatchDelegate OnAttributeModifiersRemoved;
 
-	// 属性修改器批量更新事件
+	/** 属性修改器批量更新事件。 */
 	UPROPERTY(BlueprintAssignable, Category = "Attribute|Events")
 	FTcsAttributeModifierBatchDelegate OnAttributeModifiersUpdated;
 
-	// 属性达到边界值批量事件
+	/** 属性达到边界值批量事件。 */
 	UPROPERTY(BlueprintAssignable, Category = "Attribute|Events")
 	FTcsAttributeBoundaryBatchDelegate OnAttributesReachedBoundary;
 
 #pragma endregion
 
 
-#pragma region AttributeInstance
+#pragma region AttributeInstanceLifecycle
 
 public:
-	// 给战斗实体添加属性
+	/**
+	 * 给当前战斗实体添加属性。
+	 *
+	 * @param AttributeName 属性名称
+	 * @param InitValue 初始值
+	 * @return 是否成功添加
+	 */
 	UFUNCTION(BlueprintCallable, Category = "Attribute")
 	virtual bool AddAttribute(
 		UPARAM(Meta = (GetParamOptions = "TcsGenericLibrary.GetAttributeNames"))FName AttributeName,
 		float InitValue = 0.f);
 
-	// 批量给战斗实体添加属性
+	/**
+	 * 批量给当前战斗实体添加属性。
+	 *
+	 * @param AttributeNames 要添加的属性名称列表
+	 */
 	UFUNCTION(BlueprintCallable, Category = "Attribute")
 	void AddAttributes(const TArray<FName>& AttributeNames);
 
@@ -261,7 +301,7 @@ public:
 #pragma endregion
 
 
-#pragma region AttributeModifier
+#pragma region ModifierLifecycle
 
 public:
 	/**
@@ -295,7 +335,11 @@ public:
 		const TMap<FName, float>& Operands,
 		FTcsAttributeModifierInstance& OutModifierInst);
 
-	// 应用多个属性修改器
+	/**
+	 * 应用多个属性修改器实例。
+	 *
+	 * @param Modifiers 要应用的修改器实例列表
+	 */
 	UFUNCTION(BlueprintCallable, Category = "Attribute|Modifier")
 	virtual void ApplyModifier(UPARAM(ref) TArray<FTcsAttributeModifierInstance>& Modifiers);
 
@@ -313,7 +357,11 @@ public:
 		const TArray<FName>& ModifierIds,
 		TArray<FTcsAttributeModifierInstance>& OutModifiers);
 
-	// 从战斗实体移除多个属性修改器
+	/**
+	 * 从当前战斗实体移除多个属性修改器。
+	 *
+	 * @param Modifiers 要移除的修改器实例列表
+	 */
 	UFUNCTION(BlueprintCallable, Category = "Attribute|Modifier")
 	virtual void RemoveModifier(UPARAM(ref) TArray<FTcsAttributeModifierInstance>& Modifiers);
 
@@ -338,7 +386,11 @@ public:
 		const FTcsSourceHandle& SourceHandle,
 		TArray<FTcsAttributeModifierInstance>& OutModifiers) const;
 
-	// 处理属性修改器更新时的逻辑
+	/**
+	 * 处理属性修改器更新后的重算与事件广播逻辑。
+	 *
+	 * @param Modifiers 已更新的修改器实例列表
+	 */
 	UFUNCTION(BlueprintCallable, Category = "Attribute|Modifier")
 	virtual void HandleModifierUpdated(UPARAM(ref) TArray<FTcsAttributeModifierInstance>& Modifiers);
 
@@ -454,6 +506,40 @@ protected:
 	 * 并支持多跳依赖场景（例如 HP <= MaxHP，MaxHP 又依赖 Level）。
 	 */
 	virtual void EnforceAttributeRangeConstraints(bool bBroadcastEvents = true);
+
+#pragma endregion
+
+
+#pragma region RuntimeStorage
+
+public:
+	/** 当前战斗实体持有的全部属性实例。 */
+	UPROPERTY(BlueprintReadOnly, Category = "Attribute")
+	TMap<FName, FTcsAttributeInstance> Attributes;
+
+	/** 当前战斗实体持有的全部属性修改器实例。 */
+	UPROPERTY(BlueprintReadOnly, Category = "Attribute")
+	TArray<FTcsAttributeModifierInstance> AttributeModifiers;
+
+	// SourceHandle ID 到 Modifier 实例 ID 的映射 (性能优化 - 稳定索引)
+	// Key: SourceHandle.Id, Value: ModifierInstId 列表
+	// 注: 使用稳定的 ModifierInstId 而非数组下标，避免删除操作导致的索引漂移问题
+	// 不使用 UPROPERTY 的原因:
+	//   1. 仅存储值类型 (int32)，不涉及 UObject 指针，无需 GC 追踪
+	//   2. 运行时优化数据，可从 AttributeModifiers 重建，无需序列化
+	//   3. 本地缓存，无需网络复制 (每个客户端独立维护)
+	//   4. 内部实现细节，无需暴露给蓝图或编辑器
+	//   5. 生命周期跟随组件，C++ 析构函数自动释放内存
+	// Value 使用 TSet<int32>，避免批量按 SourceHandle 移除时在桶内做线性删除。
+	TMap<int32, TSet<int32>> SourceHandleIdToModifierInstIds;
+
+	// Modifier 实例 ID 到当前数组下标的映射 (性能优化 - 快速定位)
+	// Key: ModifierInstId, Value: AttributeModifiers 数组中的当前索引
+	// 注: 此映射在每次数组变更时更新，提供 O(1) 的 ID->Index 查询
+	// TODO(Perf): 当前 RemoveAtSwap 路径已是 O(1) 维护；若未来新增 "多元素批量移除" 场景，
+	//   避免对每个元素独立 Swap+Map 更新，可改为 "先收集所有待删索引 → 一次性重排 → 整体重建 Index Map"，
+	//   将 K 次移除的总成本从 O(K) 次 Map 写入降为一次性 O(N) 扫描（当 K 接近 N 时更优）。
+	TMap<int32, int32> ModifierInstIdToIndex;
 
 #pragma endregion
 };

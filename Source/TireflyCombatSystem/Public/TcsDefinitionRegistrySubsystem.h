@@ -15,6 +15,8 @@ class IAssetRegistry;
 class FObjectPostSaveContext;
 class UObject;
 class UPackage;
+struct FTcsSaveAllCommandHookState;
+struct FToolMenuOwner;
 struct FAssetData;
 struct FPrimaryAssetTypeInfo;
 struct FPropertyChangedEvent;
@@ -88,6 +90,14 @@ private:
 	void ScanAttributeModifierDefinitions(const TArray<FAssetData>& AssetDataList);
 	void ScanStateDefinitions(const TArray<FAssetData>& AssetDataList);
 	void ScanStateSlotDefinitions(const TArray<FAssetData>& AssetDataList);
+	void RegisterContentBrowserSaveButtonHook();
+	void UnregisterContentBrowserSaveButtonHook();
+	void RegisterSaveAllCommandHook();
+	void UnregisterSaveAllCommandHook();
+	void HandleContentBrowserSaveButton();
+	void HandleSaveAllCommand();
+	bool HandleDeferredCoverageIssueNotification(float DeltaTime);
+	void QueueCoverageIssueReportAfterSave(const FString& PackageFileName);
 	bool IsTrackedDefinitionClass(const FAssetData& AssetData) const;
 	bool IsTrackedDefinitionObject(const UObject* AssetObject) const;
 	void OnAssetAdded(const FAssetData& AssetData);
@@ -106,8 +116,14 @@ private:
 	bool bIsRefreshQueued = false;
 	bool bIsRefreshing = false;
 	bool bRefreshRequestedWhileRefreshing = false;
+	bool bShouldReportCoverageIssuesAfterRefresh = false;
+	bool bHasPendingCoverageIssueNotification = false;
+	bool bIsExecutingSaveAllCommand = false;
+	bool bPendingCoverageIssueTriggeredBySaveAll = false;
 	int32 RefreshRevision = 0;
 	FTSTicker::FDelegateHandle DeferredRefreshHandle;
+	FTSTicker::FDelegateHandle DeferredCoverageIssueNotificationHandle;
+	FDelegateHandle ContentBrowserSaveButtonStartupCallbackHandle;
 	FDelegateHandle AssetAddedHandle;
 	FDelegateHandle AssetUpdatedHandle;
 	FDelegateHandle AssetRemovedHandle;
@@ -117,6 +133,9 @@ private:
 	FDelegateHandle AssetManagerSettingsChangedHandle;
 	/** 编辑器 Save 完成后的重复提示委托句柄。 */
 	FDelegateHandle PackageSavedHandle;
+	int32 PendingCoverageIssueSaveCount = 0;
+	FString PendingCoverageIssueFirstPackageFileName;
+	TSharedPtr<FTcsSaveAllCommandHookState> SaveAllCommandHookState;
 	/** 当前未忽略的 AssetManagerSettings 勘误缓存。 */
 	TArray<FString> AssetManagerCoverageIssues;
 #else

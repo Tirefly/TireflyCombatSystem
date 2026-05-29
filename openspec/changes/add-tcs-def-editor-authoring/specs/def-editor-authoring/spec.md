@@ -104,11 +104,12 @@ TCS 编辑器 authoring capability SHALL 为后续的 StateComponent schema 和 
 - **AND** Skill 创作流程不应被拆成另一条无关的编辑器创作路径
 
 ### Requirement: 编辑器阶段 AssetManagerSettings 覆盖勘误
-TCS 编辑器 authoring 集成 SHALL 在编辑器阶段检测 `AssetManagerSettings` 对 TCS DefinitionAsset 的覆盖完整性，并在漏配时提供明确勘误提示。
+TCS 编辑器 authoring 集成 SHALL 在编辑器阶段检测 `AssetManagerSettings` 对 TCS DefinitionAsset 的覆盖完整性，并在漏配时通过错误日志与编辑器通知提供明确勘误提示。
 
 #### Scenario: 检测到 Definition 类型或扫描路径漏配
 - **WHEN** `PrimaryAssetTypesToScan` 未正确覆盖 `UTcsAttributeDefinition`、`UTcsAttributeModifierDefinition`、`UTcsStateDefinition`、`UTcsStateSlotDefinition` 对应的类型或扫描目录
 - **THEN** 编辑器应输出可读勘误信息，明确缺失的 PrimaryAssetType 与扫描路径
+- **AND** 该勘误信息至少应同时出现在错误日志与编辑器通知中
 - **AND** 勘误信息应可用于直接指导开发者修正工程配置
 
 #### Scenario: 类型与路径漏配必须分别可见
@@ -130,8 +131,9 @@ TCS 编辑器 authoring 集成 SHALL 在编辑器阶段检测 `AssetManagerSetti
 - **THEN** 后续勘误检查不应再报告同一漏配项
 - **AND** 既有 Definition 资产同步与加载行为保持有效
 
-#### Scenario: 未修复漏配在每次 Save 后重复提示
+#### Scenario: 未修复漏配在常用 Save 入口重复提示
 - **WHEN** 编辑器中仍存在未忽略且未修复的 DefAsset 漏配项
-- **AND** 开发者执行一次 Save 操作
+- **AND** 开发者执行普通单资产/单包保存、主窗口/快捷键 `Save All` 或 Content Browser 顶部工具栏 `Save All`
 - **THEN** 编辑器应再次输出对应勘误提示
+- **AND** 该重复提示应继续同时使用错误日志与编辑器通知两条通道
 - **AND** 该重复提示行为持续到漏配被修复或该类型被加入忽略列表

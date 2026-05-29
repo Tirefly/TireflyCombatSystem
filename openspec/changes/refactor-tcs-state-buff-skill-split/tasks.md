@@ -27,7 +27,7 @@
 ## 4. Skill 兼容冻结
 
 - [x] 4.1 盘点当前 `State` 结构中的 Skill 组件引用与 Schema 接入点，标记为后续独立 Skill change 的迁移债务
-- [x] 4.2 记录并确认当前代码事实：learned-skill 持有态当前仍使用 `UTcsSkillInstance` 命名，且技能释放仍通过 `UTcsStateComponent` 申请运行态；但这不是长期命名契约
+- [x] 4.2 记录并确认本提案冻结时的代码事实：learned-skill 持有态在当时基线中仍使用旧名 `UTcsSkillInstance`，且技能释放仍通过 `UTcsStateComponent` 申请运行态；但这不是长期命名契约
 - [x] 4.3 确认本提案自身不实现 `UTcsSkillDefinition`、`UTcsSkillEntry`、新的 `UTcsSkillInstance` 或 Skill 专用 schema；这些 follow-up 由独立 change 推进
 - [x] 4.4 把“同 Def 技能重复激活”记录为后续独立 Skill 议题，要求按技能类型做完整调研，不在本提案中统一定默认规则
 - [ ] 4.5 等待开发者手动执行编辑器测试，确认 State / Buff 重构不会破坏当前 Skill 骨架与已有调用路径

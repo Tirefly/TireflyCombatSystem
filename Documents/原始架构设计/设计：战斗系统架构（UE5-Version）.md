@@ -97,18 +97,18 @@ Skill 也不应该成为第二套执行宿主。
 
 Skill 在当前版本中的定位是：
 
-1. SkillComponent 负责宿主级技能数据中心。
-2. SkillInstance 表示 learned skill 的持久数据载体。
-3. 具体技能可以通过派生 SkillInstance 声明自己的持久变量、复制规则和 `OnRep`。
-4. 如果某个技能需要使用特定的 SkillInstance 派生类，配置入口应放在 SkillDef 上，而不是散落在组件侧或执行态侧。
-5. SkillStateTree 负责消费和写入这些数据，但 SkillInstance 自身不承担玩法执行逻辑。
-6. 每次技能激活时，仍然创建独立 StateInstance 进入 StateComponent 执行。
+1. SkillComponent 仍然是宿主级技能入口与未来数据中心的方向，但当前代码本体仍是轻骨架。
+2. `UTcsSkillEntry` 表示 learned skill 的拥有态 / 持久数据对象。
+3. `UTcsSkillInstance` 表示一次技能激活进入 State 主链后的执行态，而不再承担 learned skill 拥有态。
+4. `UTcsSkillDefinition` 当前同时提供 `SkillEntryClass` 与 `SkillInstanceClass` 两个静态配置入口。
+5. 当前已经落地的 SkillStateTree schema 会同时暴露 `SkillEntry` 与 `SkillInstance` 两个上下文，而不是只暴露单一 Skill 数据对象。
+6. 每次技能激活时，执行态仍然统一借道 `UTcsStateComponent` 进入共享状态主链。
 
 也就是说：
 
 - Skill 拥有态是持久的。
 - Skill 执行态是一次性的。
-- Skill 的数据面可以因技能而异，但执行主链仍然统一走 StateComponent。
+- Skill 当前已经显式拆成 `SkillEntry` 与 `SkillInstance` 两层，而执行主链仍然统一走 StateComponent。
 
 ## 三、战斗实体与组件拓扑
 
@@ -126,7 +126,7 @@ Skill 在当前版本中的定位是：
 1. AttributeComponent 负责属性与属性修改器。
 2. StateComponent 负责统一运行态主链。
 3. BuffComponent 挂接到 StateComponent 的扩展点上，处理 Buff 专属语义。
-4. SkillComponent 持有 learned skill、技能修改器和技能实例集合，并在需要时向 StateComponent 发起技能执行请求。
+4. SkillComponent 仍然是技能入口与未来数据中心的预留宿主，但当前代码还没有完整落地 learned skill 集合、SkillModifier 容器和技能激活请求主链。
 
 ## 四、State Core 架构方向
 
@@ -265,149 +265,118 @@ Buff 的语义层组件是：
 
 Skill 是当前最容易重新混乱的地方，所以这里需要写得最明确。
 
-### 6.1 SkillInstance 的定位
+### 6.1 SkillEntry 与 SkillInstance 的定位
 
-`UTcsSkillInstance` 当前版本表示：
+当前代码已经不再采用“`UTcsSkillInstance` 同时承担 learned skill 拥有态与执行态”的旧方案。
 
-- 某个 learned skill 的持久数据载体。
+当前的最小落地骨架是：
 
-它可以作为具体技能的数据扩展点被继续派生，用来声明：
+1. `UTcsSkillEntry`
+  - 表示 learned skill 的拥有态 / 数据对象。
+  - 当前最小实现只记录其绑定的 `UTcsSkillDefinition`。
+  - 当前阶段不承载一次技能激活的运行时执行态。
+2. `UTcsSkillInstance : UTcsStateInstance`
+  - 表示一次技能激活进入 State 主链后的执行态。
+  - 当前通过成员引用回指 `UTcsSkillEntry`。
+  - 当前已经作为 `UTcsSkillDefinition::ResolveStateInstanceClass()` 的技能执行态配置结果参与状态实例创建。
 
-1. 技能自己的跨 Activation 持久变量。
-2. 技能自己的参数结果与状态字段。
-3. 技能自己的网络复制变量与复制策略。
-4. 技能自己的 `OnRep` 事件分发表面。
+这意味着当前架构里已经冻结的一点是：
 
-这里还需要补一个配置落点约束：
+- learned skill 拥有态与单次技能执行态是两个不同对象，不应再混回同一类型里。
 
-- 如果框架需要允许每个技能指定不同的 SkillInstance 派生类，这个配置位置应放在 SkillDef 上。
+关于“单技能持久字段、复制字段最终由哪一层承载”，当前代码还没有扩面到足以冻结最终答案。至少在现阶段，旧文档里把这些能力默认压到 `UTcsSkillInstance` 上，已经属于陈旧表述。
 
-原因是：
+### 6.2 SkillDefinition 的配置职责
 
-1. SkillDef 天然就是“这个技能该生成什么运行时数据载体”的静态配置入口。
-2. 这类配置不应该放在 SkillComponent 上，否则会把技能定义期信息混进宿主级实例容器。
-3. 这类配置也不应该放在 State 执行态侧，否则会把 learned skill 的拥有态配置错误下沉到一次 activation 的执行现场。
+`UTcsSkillDefinition` 当前已经同时提供两类运行时类型配置：
 
-它不表示：
+1. `SkillEntryClass`
+  - 用来决定 learned skill 拥有态对象的类型。
+2. `SkillInstanceClass`
+  - 用来决定一次技能激活进入 State 主链后的执行态类型。
 
-1. 一次技能执行实例。
-2. 一个常驻运行中的 StateTree 容器。
-3. 一次施法期间的临时执行态。
-4. 真正执行业务逻辑的对象。
+因此当前版本里，SkillDef 的职责不再只是“选择一个 SkillInstance 派生类”，而是：
 
-### 6.2 SkillComponent 的定位
+1. 决定 learned skill 应生成什么 `UTcsSkillEntry` 派生类。
+2. 决定技能激活时应生成什么 `UTcsSkillInstance` 派生类。
 
-`UTcsSkillComponent` 是宿主级技能数据中心。
+### 6.3 SkillComponent 的定位
 
-它应该持久化持有：
+`UTcsSkillComponent` 仍然应被视为宿主级技能入口和未来数据中心的方向。
 
-1. 全部 learned skill 实例。
-2. 宿主级 SkillModifiers。
-3. 面向技能筛选、批量修改、装备/养成影响的统一缓存与入口。
+但必须直说的是：
 
-SkillModifier 应归 SkillComponent 持有，而不是只绑定到单个 SkillInstance 上。
+1. 当前代码中的 `UTcsSkillComponent` 仍然只有基础生命周期骨架。
+2. learned skill 集合、SkillModifier 容器、完整激活 / 取消 / 查询 API 目前都还没有在组件内落地成稳定实现。
+3. 因此旧文档里把这些能力写成“当前版本已经由 SkillComponent 承担”的表述，已经过时。
 
-原因是：
+更准确的说法应当是：
 
-1. 某些 SkillModifier 可能先于技能学习而存在。
-2. 技能修改器往往需要按标签、等级段、技能槽、技能类型批量筛选目标技能。
-3. 这些行为天然更适合放在技能数据中心，而不是散在每个技能对象内部。
+1. SkillComponent 是后续继续承接这些能力的预留宿主。
+2. 当前代码只完成了 Skill 类型拆分与 StateTree 上下文骨架，没有完成完整技能子系统。
 
-当未来某个具体 SkillInstance 派生类需要网络复制时，SkillComponent 也应是更自然的实例宿主和复制挂载点，而不是把复制责任反向压回 State 执行态。
+### 6.4 SkillStateTree 的当前边界
 
-同时，SkillComponent 不应成为“选择 SkillInstance 派生类”的配置位置。更合理的职责划分是：
+当前 Skill 侧已经落地的一条关键实现事实是：
 
-1. SkillDef 负责声明这个技能应使用哪种 SkillInstanceClass。
-2. SkillComponent 负责实例化并持有这个 SkillInstance。
-3. SkillStateTree 负责消费和写回这个 SkillInstance 上的数据。
+- `UTcsStateSchema_Skill` 会同时向 SkillStateTree 暴露 `UTcsSkillInstance` 和 `UTcsSkillEntry` 两个上下文。
 
-### 6.3 Skill 数据面与复制面的归属
+这意味着当前 SkillStateTree 的最小边界已经从旧文档里的“只围绕单一 SkillInstance 数据对象运转”，更新为：
 
-Skill 的单技能数据应归 SkillInstance 持有，但要继续区分“数据”和“逻辑”：
+1. 读取本次激活执行态：`UTcsSkillInstance`
+2. 读取 learned skill 拥有态数据：`UTcsSkillEntry`
+3. 必要时继续把 `UTcsSkillInstance` 当作 `UTcsStateInstance` 使用，复用共享 State 主链
 
-1. 数据字段放在 SkillInstance 派生类上。
-2. 逐变量复制策略也定义在 SkillInstance 派生类上。
-3. `OnRep` 最多用于事件分发、表现刷新、本地缓存失效通知等轻量处理。
-4. 真正的玩法消费、读写与决策仍然交给 SkillStateTree、SkillComponent 或专用函数执行。
-5. SkillInstance 派生类的选择来自 SkillDef，而不是由运行时链路临时决定。
+因此旧文档里这类说法都已经不准确：
 
-这里可以借鉴 GAS 的地方，不是整套系统形态，而是：
+1. “SkillStateTree 只消费单一 SkillInstance 持久数据对象”
+2. “SkillInstance 本身不是执行态”
 
-- 真正需要逐字段复制控制的数据，应该被定义成真实反射属性，而不是强行塞进统一泛型容器后再试图让网络系统猜它的内部结构。
+### 6.5 技能执行态的定位
 
-这意味着：
+技能真正开始施放时，当前已经与代码对齐的描述应当是：
 
-1. `FInstancedStruct`、`TMap` 或其他通用容器可以作为技能内部实现细节存在。
-2. 但当某个技能需要 `RepNotify`、复制条件、PushModel 或其他逐字段网络策略时，主扩展面应该是 SkillInstance 派生类自己的真实属性。
+1. 最终进入 `UTcsStateComponent` 共享执行主链的，是某个 `UTcsSkillInstance`（或其派生类）。
+2. 这个对象本质上仍然是 `UTcsStateInstance` 的技能特化执行态。
+3. 它在运行时持有对 `UTcsSkillEntry` 的引用，从而把一次激活和 learned skill 拥有态连接起来。
 
-### 6.4 技能执行态的定位
+所以这里必须修正文档里的旧说法：
 
-技能真正开始施放时，不是让 SkillInstance 自己进入执行态，而是：
+- 旧说法“技能激活时创建一个独立 `StateInstance`，而 `SkillInstance` 只做 learned skill 数据载体”已经不再符合当前代码。
 
-1. SkillComponent 选定要激活的 SkillInstance。
-2. 读取该 SkillInstance 当前的持久字段、参数结果和技能状态。
-3. 创建本次执行对应的 StateInstance。
-4. 把这次激活需要的输入、等级、快照值和临时参数写入 StateInstance。
-5. 由 StateComponent 把该 StateInstance 放入运行态主链。
-
-因此当前版本模型是：
+更贴近当前代码的模型是：
 
 ```text
-SkillComponent
-  -> 按 SkillDef 配置创建并持有 SkillInstance (learned skill / persistent data)
-  -> 激活时读取 SkillInstance 字段
-  -> 创建独立 StateInstance
-  -> StateInstance 进入 StateComponent 执行
+SkillComponent（当前仍是轻骨架，后续承接技能入口）
+  -> learned skill 对象：UTcsSkillEntry / SkillEntryClass
+  -> 技能激活执行态：UTcsSkillInstance / SkillInstanceClass
+  -> UTcsSkillInstance 进入 UTcsStateComponent 共享主链执行
 ```
 
-### 6.5 跨 Activation 数据如何处理
+### 6.6 跨 Activation 数据如何处理
 
-需要跨 Activation 持久化的数据，不应该放在常驻 SkillStateTree runtime 中。
+需要跨 Activation 持久化的数据，当前至少不应再写成“默认由 `UTcsSkillInstance` 承担”。
 
-正确归属应是：
+当前代码已经说明：
 
-1. 宿主级公共数据 -> SkillComponent。
-2. 单技能级持久数据、复制字段 -> SkillInstance 派生类（由 SkillDef 配置）。
-3. 单次激活局部数据 -> 本次 StateInstance。
+1. `UTcsSkillInstance` 已经是单次技能激活执行态。
+2. `UTcsSkillEntry` 才是当前 learned skill 拥有态骨架。
 
-所以“技能需要跨 Activation 收集的数据”不是一个让 SkillInstance 继承 StateInstance 的理由。
+因此更稳妥的当前结论是：
 
-真正应持久化的是：
-
-- 技能自己的持久数据与复制字段。
-
-而不是：
-
-- 一次 activation 的 StateTree 执行现场。
-
-### 6.6 SkillStateTree 与 SkillInstance 的协作边界
-
-SkillStateTree 仍然是技能逻辑的主要消费端，但它和 SkillInstance 的边界需要保持清楚：
-
-1. SkillStateTree 可以读取 SkillInstance 的持久字段。
-2. SkillStateTree 可以在明确接口约束下写回 SkillInstance 的持久字段。
-3. SkillInstance 自身不在 `OnRep`、Setter 或普通成员函数里执行业务效果。
-4. 复制回调最多发出通知，再由 SkillStateTree、组件或上层系统决定如何消费。
-
-这样做的目的是：
-
-- 让 SkillInstance 继续保持“数据载体”职责。
-- 让 SkillStateTree 保持“逻辑执行者”职责。
-- 不把执行逻辑重新散落回数据对象本身。
+1. 跨 Activation 的 learned skill 数据不应继续写进 `UTcsSkillInstance` 这类执行态对象。
+2. learned skill 侧更细的数据承载方案，应围绕 `UTcsSkillEntry` 或其同层对象继续收敛。
+3. 这部分还没有在当前代码里继续扩面实现，不应在本文里把未来方案写成既成事实。
 
 ### 6.7 Skill 网络同步策略
 
-如果未来要支持联机，当前版本更推荐的 Skill 数据同步方向是：
+这一节在旧文档里默认把“单技能持久字段、复制字段、`OnRep` 扩展面”归到 `UTcsSkillInstance` 上，这已经与当前代码的对象拆分相冲突。
 
-1. 需要细粒度复制控制的字段，声明在 SkillInstance 派生类上。
-2. 需要 `RepNotify`、复制条件、PushModel 的字段，也声明在 SkillInstance 派生类上。
-3. `OnRep` 只做事件分发、状态通知、表现同步，不直接执行业务效果。
-4. 真正的玩法状态流转，仍由服务器侧 SkillStateTree / State 主链决定。
+当前更准确的说法只能收敛到下面这一级：
 
-这条策略的核心不是“让 SkillInstance 去执行业务逻辑”，而是：
-
-- 把 Skill 的持久数据面与复制策略面，收敛到一个用户可派生、可强类型声明的对象上。
-- 把“具体技能应该使用哪个 SkillInstance 派生类”的决定，收敛到 SkillDef 这个静态定义层上。
+1. learned skill 级持久字段与网络复制策略，不应继续默认绑定到 `UTcsSkillInstance`。
+2. 这类能力未来若要继续扩面，必须先明确 `UTcsSkillEntry`、`UTcsSkillComponent` 与复制宿主之间的关系。
+3. 在这件事正式冻结之前，本文不再把任何一条具体复制方案写死成“当前版本既定架构”。
 
 ## 七、参数与快照边界
 
@@ -421,14 +390,14 @@ SkillStateTree 仍然是技能逻辑的主要消费端，但它和 SkillInstance
 
 因此它既可以用于 Skill，也可以用于 Buff。
 
-在 Skill 侧，推荐的参数流转关系是：
+在 Skill 侧，当前更稳妥的参数流转关系应写成：
 
 ```text
-SkillModifier
-  -> 作用于 SkillComponent / SkillInstance
-  -> 生成 SkillInstance 当前参数结果或持久字段
-  -> 激活时按 snapshot 或非 snapshot 规则写入 StateInstance
-  -> StateTree 执行消费 StateInstance 参数
+SkillModifier（后续议题）
+  -> 作用于 SkillComponent / SkillEntry 侧数据
+  -> 生成 learned skill 侧参数结果或持久字段
+  -> 激活时按 snapshot 或非 snapshot 规则写入本次 SkillInstance
+  -> StateTree 执行消费 SkillInstance / StateInstance 参数
 ```
 
 ## 八、重复应用与冲突策略边界
@@ -442,7 +411,7 @@ TCS 当前版本必须明确区分两种完全不同的问题：
 
 Skill 侧关心的是：
 
-1. 同一个 learned skill 能不能再次激活。
+1. 同一个 learned skill 记录（当前可理解为同一个 `UTcsSkillEntry`）能不能再次激活。
 2. 再次激活后是拒绝、刷新、覆盖、排队还是允许并行。
 3. 是否重置冷却、是否生成新的执行态。
 
@@ -469,9 +438,10 @@ Buff 侧关心的是：
 | `UTcsBuffInstance` | Buff 运行时实例 | learned skill 持久数据 |
 | `UTcsStateComponent` | 统一执行态宿主 | Buff 专属语义、Skill 拥有态 |
 | `UTcsBuffComponent` | Buff 语义扩展层 | 第二套状态宿主 |
-| `UTcsSkillInstance` | learned skill、单技能持久数据、用户可派生的数据/复制扩展面 | 一次技能执行态、直接玩法执行逻辑、常驻 StateTree runtime |
-| `SkillDef` | 声明技能静态配置，包括 SkillInstanceClass 选择 | 宿主级实例容器、一次 activation 的执行现场 |
-| `UTcsSkillComponent` | 宿主级技能数据中心与技能实例集合宿主 | 单次 activation 的 StateTree runtime |
+| `UTcsSkillEntry` | learned skill 拥有态 / 数据对象骨架 | 单次技能执行态 |
+| `UTcsSkillInstance` | 一次技能激活的执行态，且通过 `SkillEntry` 连接拥有态数据 | learned skill 持久数据宿主 |
+| `SkillDef` | 声明技能静态配置，包括 `SkillEntryClass` 与 `SkillInstanceClass` | 宿主级实例容器、一次 activation 的执行现场 |
+| `UTcsSkillComponent` | 技能入口与未来数据中心的预留宿主；当前仍是轻骨架 | 被误写成已经完整落地的 learned skill / SkillModifier 管理器 |
 
 ## 十、当前落地状态
 
@@ -487,11 +457,11 @@ Buff 侧关心的是：
 ### 已经冻结方向、但尚未继续扩面实现的部分
 
 1. Skill 仍保持轻骨架。
-2. Skill 的主扩展面收敛为“可派生 SkillInstance”。
-3. SkillDef 被收敛为 SkillInstance 派生类的配置入口。
-4. 具体技能可以在 SkillInstance 派生类中声明持久字段、复制字段与 `OnRep`。
-5. 技能执行仍通过独立 StateInstance 进入 `StateComponent`。
-6. Skill 更细的复制宿主、接口规范、Task / Evaluator 适配仍留待后续独立议题。
+2. Skill 代码层已经显式拆出 `UTcsSkillEntry`（learned skill 拥有态）与 `UTcsSkillInstance`（单次激活执行态）。
+3. `UTcsSkillDefinition` 已经提供 `SkillEntryClass` 与 `SkillInstanceClass` 两个配置入口。
+4. `UTcsStateSchema_Skill` 已经同时向 SkillStateTree 暴露 `SkillEntry` 和 `SkillInstance` 双上下文。
+5. `UTcsSkillComponent` 的 learned skill 容器、SkillModifier、完整激活 / 取消 / 查询主链仍未继续扩面。
+6. Skill 更细的持久字段宿主、复制宿主、接口规范与任务节点适配仍留待后续独立议题。
 
 ## 十一、当前结论
 
@@ -505,11 +475,11 @@ TCS 当前版本架构可以用一句话概括：
 
 1. State 是唯一执行主链。
 2. Buff 是挂在 State 上的语义扩展层。
-3. SkillInstance 是 learned skill 的数据载体和可派生扩展面，不是执行态。
-4. SkillDef 负责配置这个技能应使用的 SkillInstance 派生类。
-5. SkillModifiers 归 SkillComponent。
-6. 技能自己的持久字段、参数结果和复制策略，归 SkillInstance 派生类。
-7. SkillStateTree 消费和写回 Skill 数据，但 SkillInstance 自身不承担玩法逻辑。
-8. 技能每次 Activate 时，仍然创建独立 StateInstance 进入 StateComponent 执行。
+3. `UTcsSkillEntry` 是当前 learned skill 的拥有态 / 数据对象骨架。
+4. `UTcsSkillInstance` 是一次技能激活执行态，并通过 `UTcsStateComponent` 进入共享状态主链。
+5. SkillDef 当前负责同时配置 `SkillEntryClass` 与 `SkillInstanceClass`。
+6. SkillStateTree 当前通过双上下文同时消费 `SkillEntry` 与 `SkillInstance`。
+7. `UTcsSkillComponent` 仍是后续技能数据中心方向，但当前实现还没有完整扩面到 learned skill / SkillModifier 主链。
+8. 更细的持久字段宿主与网络复制策略，仍需围绕 `SkillEntry` / `SkillComponent` 关系继续单独冻结，本文不再把旧方案写成当前事实。
 
 如果后续设计不偏离这八条，TCS 的 State / Buff / Skill 三者边界仍然可以保持清晰，同时也为未来网络同步和技能自定义数据面预留出合理扩展点。

@@ -27,23 +27,50 @@ class TIREFLYCOMBATSYSTEM_API UTcsStateManagerSubsystem : public UGameInstanceSu
 #pragma region GameInstanceSubsystem
 
 public:
+	/** 初始化状态定义缓存与编辑器联动入口。 */
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
+
+	/** 释放编辑器联动句柄并清理子系统生命周期资源。 */
 	virtual void Deinitialize() override;
 
 #pragma endregion
 
 
-#pragma region StateDefinitions
+#pragma region DefinitionCaches
 
 protected:
-	// 缓存的状态定义（从 DeveloperSettings 加载）
+	/** 缓存的状态定义集合。 */
 	TMap<FName, const UTcsStateDefinition*> StateDefinitions;
 
-	// StateTag -> StateDefId 映射（运行时构建，用于 Tag 入口 API）
+	/** StateTag 到 StateDefId 的运行时映射表。 */
 	TMap<FGameplayTag, FName> StateTagToDefId;
 
-	// 缓存的状态槽定义（从 DeveloperSettings 加载）
+	/** 缓存的状态槽定义集合。 */
 	TMap<FName, const UTcsStateSlotDefinition*> StateSlotDefinitions;
+
+#if WITH_EDITOR
+	/** 获取编辑器阶段的 DefinitionRegistry 子系统。 */
+	UTcsDefinitionRegistrySubsystem* GetDefinitionRegistry() const;
+
+	/** 响应 DefinitionRegistry 刷新并重建本地缓存。 */
+	void HandleDefinitionRegistryRefreshed(const UTcsDefinitionRegistrySubsystem* Registry);
+
+	/** 获取状态定义的编辑器侧来源缓存。 */
+	const TMap<FName, TSoftObjectPtr<UTcsStateDefinition>>* GetStateDefinitionSourceCache() const;
+
+	/** 获取状态槽定义的编辑器侧来源缓存。 */
+	const TMap<FName, TSoftObjectPtr<UTcsStateSlotDefinition>>* GetStateSlotDefinitionSourceCache() const;
+
+	/** DefinitionRegistry 刷新事件句柄。 */
+	FDelegateHandle DefinitionRegistryRefreshedHandle;
+#endif
+
+#pragma endregion
+
+
+#pragma region DefinitionLoading
+
+protected:
 
 	/**
 	 * 从 DeveloperSettings 缓存加载定义（编辑器模式）
@@ -81,13 +108,10 @@ protected:
 	 */
 	void PreloadCommonStates();
 
-#if WITH_EDITOR
-	UTcsDefinitionRegistrySubsystem* GetDefinitionRegistry() const;
-	void HandleDefinitionRegistryRefreshed(const UTcsDefinitionRegistrySubsystem* Registry);
-	const TMap<FName, TSoftObjectPtr<UTcsStateDefinition>>* GetStateDefinitionSourceCache() const;
-	const TMap<FName, TSoftObjectPtr<UTcsStateSlotDefinition>>* GetStateSlotDefinitionSourceCache() const;
-	FDelegateHandle DefinitionRegistryRefreshedHandle;
-#endif
+#pragma endregion
+
+
+#pragma region DefinitionQueries
 
 public:
 	/**
@@ -139,21 +163,21 @@ public:
 #pragma endregion
 	
 
-#pragma region MetaData
+#pragma region RuntimeIds
 
 public:
 	/** 分配全局唯一的状态实例 ID（迁移期供 Component 调用的 ID 工厂入口） */
 	int32 AllocateStateInstanceId() { return ++GlobalStateInstanceIdMgr; }
 
 protected:
-	// 全局状态实例ID管理器
+	/** 全局状态实例 ID 计数器。 */
 	UPROPERTY()
 	int32 GlobalStateInstanceIdMgr = 0;
 
 #pragma endregion
 
 
-#pragma region StateApplying
+#pragma region CrossActorApplyFacade
 
 public:
 	/**

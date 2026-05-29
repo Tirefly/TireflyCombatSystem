@@ -55,7 +55,7 @@ OpenSpec 工作流程**仅作用于 TireflyCombatSystem (TCS) 插件**，其他�
 | definition registry / registry | 定义注册表 | 指权威 Def 快照与查询来源 |
 | manager subsystem | 管理子系统 | 对应 `UTcs*ManagerSubsystem` 这类全局宿主 |
 | merger / merge policy | 合并器 / 合并策略 | 用于描述 Buff 或状态冲突收敛逻辑 |
-| learned skill | 已学会技能 | 专指 `UTcsSkillInstance` 记录的拥有态 |
+| learned skill | 已学会技能 | 专指 `UTcsSkillEntry` 记录的拥有态 |
 | dirty reason / dependency flags | 脏原因 / 依赖标记 | 用于运行时失效与重新处理判断 |
 | slot-local | 槽位内 | 表示某个 `FTcsStateSlot` 作用域内的数据 |
 | hot-refresh | 热刷新 | 指编辑器内无需重启的刷新能力 |
@@ -141,13 +141,13 @@ OpenSpec 工作流程**仅作用于 TireflyCombatSystem (TCS) 插件**，其他�
 - 状态条件：`UTcsStateCondition`
 - 状态合并：`UTcsStateMerger`
 - 同优先级策略：`UTcsStateSamePriorityPolicy`
-- 技能修正：`UTcsSkillModifierExecution` 系列
+- 技能修正：当前仍处独立议题阶段，不应假定已存在完整稳定的 `UTcsSkillModifierExecution` 系列
 - 扩展新算法 = 新建子类，无需改动引擎代码
 
 **StateTree 双层架构**：
 - 第 1 层（静态）：StateTree 管理状态槽位、转换规则，在编辑器可视化配置
-- 第 2 层（动态）：每个 `UTcsStateInstance` 运行独立 StateTree 执行具体逻辑
-- 技能 / Buff / 普通状态共用 `UTcsStateDefinition` + `UTcsStateInstance`
+- 第 2 层（动态）：每个 `UTcsStateInstance` 或其派生执行态运行独立 StateTree 执行具体逻辑
+- 共享执行主链以 `UTcsStateDefinition` + `UTcsStateInstance` 抽象层为核心，Buff / Skill 当前分别通过 `UTcsBuffDefinition` / `UTcsBuffInstance` 与 `UTcsSkillDefinition` / `UTcsSkillInstance` 等派生类型挂接进去
 
 **SourceHandle 因果追踪**：
 - `FTcsSourceHandle`（Id + CausalityChain + Instigator + SourceTags）贯穿所有效果施加路径
@@ -202,7 +202,7 @@ OpenSpec 工作流程**仅作用于 TireflyCombatSystem (TCS) 插件**，其他�
   - 生命周期：`Inactive → Active → HangUp/Pause → Expired`
   - 移除流程六步：停止 StateTree → 标记 Expired → 从容器移除 → 清理 SourceHandle Modifier → 广播事件 → 清理槽位 → `MarkPendingGC`
 - **状态槽 (State Slot)**：由 `UTcsStateSlotDefinition` 定义，StateTree 静态结构中的占位
-- **技能 (Skill)**：作为 `ETcsStateType::Skill` 的特化状态；`UTcsSkillInstance` 仅记录“已学会”信息，运行态仍走 `StateInstance`
+- **技能 (Skill)**：作为 `ETcsStateType::Skill` 的特化状态；当前代码已拆分 `UTcsSkillEntry`（已学会技能拥有态）与 `UTcsSkillInstance : UTcsStateInstance`（单次技能激活执行态）
 - **Buff**：作为 `ETcsStateType::Buff` 的特化状态
 - **SourceHandle**：效果来源的唯一 ID + 因果链，贯穿 Modifier / State / 事件归因
 - **CDO 策略**：通过 `GetDefaultObject()` 使用 `UClass*` 字段引用的策略对象，避免运行时分配
@@ -212,7 +212,7 @@ OpenSpec 工作流程**仅作用于 TireflyCombatSystem (TCS) 插件**，其他�
 |------|--------|
 | 属性系统 | 95% |
 | 状态系统 | 90% |
-| 技能系统 | 95% |
+| 技能系统 | 35% |
 | StateTree 集成 | 85% |
 | SourceHandle 机制 | 100% |
 
