@@ -34,7 +34,7 @@
   - Duration 归零后的整 Buff 移除 / 掉层 / 掉层并刷新 Duration 反应
 - 明确持续时间耗尽导致的最终离场仍应以 `Expired` 等真实移除原因收敛，而不是错误折叠成 `StackDepleted`。
 - 明确 `UTcsBuffMerger` 与 merge runtime 不承担这批反应执行；它们只决定 survivor / merged-out / final stack 收敛。
-- 为 BuffStateTree 增加一个可复用的 `FTcsBuffPeriodDriverTask`，负责根据 `UTcsBuffDefinition::Period` 或 override 值产出 `Event.Buff.PeriodTick`。
+- 为 BuffStateTree 增加一个可复用的 `FTcsSTTask_BuffPeriodDriver`，负责根据 `UTcsBuffDefinition::Period` 或 override 值产出 `Event.Buff.PeriodTick`。
 - 明确“叠层时重置 Period”“叠层时立刻补一次 Period”这类 Period-special 语义不再进入通用 BuffDef 配置，而由具体 Buff 的 StateTree 自己实现。
 - 当前不引入第二套 `UTcsBuffReactivePolicy` CDO 策略类，也不引入 `ExtendDuration` 之类额外枚举分支。
 

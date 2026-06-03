@@ -9,6 +9,7 @@
 #endif
 
 
+
 UClass* UTcsBuffDefinition::ResolveStateInstanceClass() const
 {
 	return BuffInstanceClass ? BuffInstanceClass.Get() : UTcsBuffInstance::StaticClass();

@@ -46,6 +46,7 @@ class TIREFLYCOMBATSYSTEM_API UTcsAttributeComponent : public UActorComponent
 
 	friend class UTcsAttributeManagerSubsystem;
 
+
 #pragma region ActorComponent
 
 public:
@@ -100,7 +101,7 @@ public:
 	 * @param AttributeTag 属性的 GameplayTag 标识
 	 * @return 如果 Tag 能解析且组件中已存在该属性则返回 true，否则返回 false
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Attribute", Meta = (Categories = "TCS.Attribute"))
+	UFUNCTION(BlueprintCallable, Category = "Attribute", Meta = (Categories = "AttributeTag"))
 	bool HasAttributeByTag(const FGameplayTag& AttributeTag) const;
 
 	/**
@@ -110,7 +111,7 @@ public:
 	 * @param OutValue 输出属性当前值
 	 * @return 如果 Tag 能解析且属性存在则返回 true，否则返回 false
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Attribute", Meta = (Categories = "TCS.Attribute"))
+	UFUNCTION(BlueprintCallable, Category = "Attribute", Meta = (Categories = "AttributeTag"))
 	bool GetAttributeValueByTag(const FGameplayTag& AttributeTag, float& OutValue) const;
 
 	/**
@@ -132,7 +133,7 @@ public:
 	 * @param OutValue 输出属性基础值
 	 * @return 如果 Tag 能解析且属性存在则返回 true，否则返回 false
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Attribute", Meta = (Categories = "TCS.Attribute"))
+	UFUNCTION(BlueprintCallable, Category = "Attribute", Meta = (Categories = "AttributeTag"))
 	bool GetAttributeBaseValueByTag(const FGameplayTag& AttributeTag, float& OutValue) const;
 
 	/** @return 当前组件中全部属性的 CurrentValue 快照。 */
@@ -247,7 +248,7 @@ public:
 	 * @param InitValue 初始值
 	 * @return 是否成功添加（Tag 有效、在映射中注册、且属性不存在时返回 true）
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Attribute", Meta = (Categories = "TCS.Attribute"))
+	UFUNCTION(BlueprintCallable, Category = "Attribute", Meta = (Categories = "AttributeTag"))
 	bool AddAttributeByTag(const FGameplayTag& AttributeTag, float InitValue = 0.f);
 
 	/**

@@ -110,7 +110,7 @@ public:
 	 * StateTree Tick 策略
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "State Tree")
-	ETcsStateTreeTickPolicy TickPolicy = ETcsStateTreeTickPolicy::WhileActive;
+	ETcsStateTreeTickPolicy TickPolicy = ETcsStateTreeTickPolicy::ManualOnly;
 
 #pragma endregion
 

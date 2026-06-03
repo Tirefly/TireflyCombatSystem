@@ -11,7 +11,7 @@
 /**
  * State Component StateTree 资产创建工厂。
  *
-	* 负责创建预设为 `UTcsStateSchema_StateComponent` 的 StateTree 资产。
+	* 负责创建预设为 `UTcsSTSchema_StateComponent` 的 StateTree 资产。
  */
 UCLASS()
 class TIREFLYCOMBATSYSTEMEDITOR_API UTcsStateComponentStateTreeFactory : public UStateTreeFactory
@@ -47,7 +47,7 @@ public:
 /**
  * Buff StateTree 资产创建工厂。
  *
-	* 负责创建预设为 `UTcsStateSchema_Buff` 的 StateTree 资产。
+	* 负责创建预设为 `UTcsSTSchema_Buff` 的 StateTree 资产。
  */
 UCLASS()
 class TIREFLYCOMBATSYSTEMEDITOR_API UTcsBuffStateTreeFactory : public UStateTreeFactory
@@ -58,7 +58,7 @@ public:
 	/** 初始化 Buff StateTree 工厂。 */
 	UTcsBuffStateTreeFactory();
 
-	/** @return 固定使用 StateInstance Schema 并跳过额外配置。 */
+	/** @return 固定使用 Buff StateTree Schema 并跳过额外配置。 */
 	virtual bool ConfigureProperties() override;
 
 	/** @return 工厂是否显示在新建资产菜单中。 */

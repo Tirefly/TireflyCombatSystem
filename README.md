@@ -37,9 +37,10 @@ TCS 当前版本不再把“技能、Buff、普通状态”简单当成同一种
 `Tirefly Combat System -> Gameplay Runtime` 当前提供三类快捷创建入口：
 
 1. `State Component StateTree`
-   - 创建后直接预设为 `UTcsStateSchema_StateComponent`，用于 `UTcsStateComponent` 挂载的 StateTree 资产。
+   - 创建后直接预设为 `UTcsSTSchema_StateComponent`，用于 `UTcsStateComponent` 挂载的 StateTree 资产。
 2. `Buff StateTree`
-   - 创建后直接预设为 `UTcsStateSchema_Buff`，用于 `UTcsBuffInstance` 执行的 StateTree 资产。
+   - 创建后直接预设为 `UTcsSTSchema_Buff`，用于 `UTcsBuffInstance` 执行的 StateTree 资产。
+   - 若需要在 BuffStateTree 中给 Task / Evaluator / Condition 绑定 `Owner`、`Instigator` 及其组件引用，可添加 `FTcsSTEvaluator_ObjectRef`，再从其 `Output` 输出做常规 StateTree 绑定。
 3. `Skill Entry Blueprint`
    - 创建后直接以 `UTcsSkillEntry` 为父类，不再弹出通用父类选择器。
 

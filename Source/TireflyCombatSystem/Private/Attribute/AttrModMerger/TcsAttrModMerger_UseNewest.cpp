@@ -1,7 +1,8 @@
 // Copyright Tirefly. All Rights Reserved.
 
-
 #include "Attribute/AttrModMerger/TcsAttrModMerger_UseNewest.h"
+
+
 
 void UTcsAttrModMerger_UseNewest::Merge_Implementation(
 	TArray<FTcsAttributeModifierInstance>& ModifiersToMerge,

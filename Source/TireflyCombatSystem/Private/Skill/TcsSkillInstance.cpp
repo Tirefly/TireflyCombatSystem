@@ -3,7 +3,7 @@
 #include "Skill/TcsSkillInstance.h"
 
 #include "Skill/TcsSkillEntry.h"
-#include "StateTree/TcsStateSchema_Skill.h"
+#include "StateTree/Schema/TcsSTSchema_Skill.h"
 #include "TcsLogChannels.h"
 
 
@@ -41,7 +41,7 @@ bool UTcsSkillInstance::SetContextRequirements(FStateTreeExecutionContext& Conte
 		)
 	);
 
-	return UTcsStateSchema_Skill::SetContextRequirements(*this, *SkillEntry, Context);
+	return UTcsSTSchema_Skill::SetContextRequirements(*this, *SkillEntry, Context);
 }
 
 bool UTcsSkillInstance::CollectExternalData(
@@ -50,7 +50,7 @@ bool UTcsSkillInstance::CollectExternalData(
 	TArrayView<const FStateTreeExternalDataDesc> ExternalDataDescs,
 	TArrayView<FStateTreeDataView> OutDataViews)
 {
-	return UTcsStateSchema_Skill::CollectExternalData(
+	return UTcsSTSchema_Skill::CollectExternalData(
 		Context,
 		StateTree,
 		this,

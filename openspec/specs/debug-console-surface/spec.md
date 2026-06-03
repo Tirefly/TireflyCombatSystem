@@ -1,7 +1,7 @@
 # debug-console-surface Specification
 
 ## Purpose
-定义 TCS 如何通过 `TcsConsoleCommands` / `TcsConsoleCommandRuntime` 提供统一的控制台命令命名面，并要求像 `FTcsStateSlotDebugEvaluator` 这类常驻调试路径只能在显式控制台开关开启后才允许构造高成本状态快照字符串。
+定义 TCS 如何通过 `TcsConsoleCommands` / `TcsConsoleCommandRuntime` 提供统一的控制台命令命名面，并要求像 `FTcsSTEvaluator_SlotDebug` 这类常驻调试路径只能在显式控制台开关开启后才允许构造高成本状态快照字符串。
 ## Requirements
 ### Requirement: Centralized TCS console command definitions
 TCS SHALL provide a centralized module-level console command definition surface for TCS-owned console commands.
@@ -24,11 +24,11 @@ TCS SHALL require an explicit console-controlled switch before recurring runtime
 
 #### Scenario: Recurring debug evaluator is disabled
 - **WHEN** the recurring state snapshot debug switch is disabled
-- **THEN** `FTcsStateSlotDebugEvaluator` SHALL NOT call `GetSlotDebugSnapshot()` during its recurring evaluation path
+- **THEN** `FTcsSTEvaluator_SlotDebug` SHALL NOT call `GetSlotDebugSnapshot()` during its recurring evaluation path
 
 #### Scenario: Recurring debug evaluator is enabled
 - **WHEN** the recurring state snapshot debug switch is enabled
-- **THEN** `FTcsStateSlotDebugEvaluator` MAY call `GetSlotDebugSnapshot()` during its recurring evaluation path
+- **THEN** `FTcsSTEvaluator_SlotDebug` MAY call `GetSlotDebugSnapshot()` during its recurring evaluation path
 - **AND** that behavior SHALL remain explicitly opt-in instead of default-on
 
 ### Requirement: Stable key-value argument convention

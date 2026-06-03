@@ -27,7 +27,7 @@ public:
 	// 如果有效，则优先使用此字段解析为 AttributeName
 	// 推荐使用 Tag 以获得更好的层级语义和重构支持
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Attribute Comparison",
-		Meta = (Categories = "TCS.Attribute"))
+		Meta = (Categories = "AttributeTag"))
 	FGameplayTag AttributeTag;
 
 	// 检查目标（Owner或Instigator）

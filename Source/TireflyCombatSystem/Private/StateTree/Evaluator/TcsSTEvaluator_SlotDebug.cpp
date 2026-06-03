@@ -1,6 +1,6 @@
 // Copyright Tirefly. All Rights Reserved.
 
-#include "StateTree/TcsStateSlotDebugEvaluator.h"
+#include "StateTree/Evaluator/TcsSTEvaluator_SlotDebug.h"
 
 #include "TcsConsoleCommands.h"
 #include "State/TcsStateInstance.h"
@@ -10,19 +10,19 @@
 
 
 
-FTcsStateSlotDebugEvaluator::FTcsStateSlotDebugEvaluator()
+FTcsSTEvaluator_SlotDebug::FTcsSTEvaluator_SlotDebug()
 	: UpdateInterval(0.25f)
 {
 }
 
-bool FTcsStateSlotDebugEvaluator::Link(FStateTreeLinker& Linker)
+bool FTcsSTEvaluator_SlotDebug::Link(FStateTreeLinker& Linker)
 {
 	const bool bResult = Super::Link(Linker);
 	Linker.LinkExternalData(StateInstanceHandle);
 	return bResult;
 }
 
-void FTcsStateSlotDebugEvaluator::Tick(FStateTreeExecutionContext& Context, const float DeltaTime) const
+void FTcsSTEvaluator_SlotDebug::Tick(FStateTreeExecutionContext& Context, const float DeltaTime) const
 {
 	FInstanceDataType& InstanceData = Context.GetInstanceData<FInstanceDataType>(*this);
 

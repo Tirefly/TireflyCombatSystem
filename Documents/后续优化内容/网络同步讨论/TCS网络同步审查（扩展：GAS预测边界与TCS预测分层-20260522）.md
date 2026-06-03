@@ -460,8 +460,8 @@
 | 真正修改 `Buff / Attribute / Stack` 真值的 Task | S0 | 否 | 不建议直接进入客户端预测主链 |
 | 依赖持续时间、等待、到期的 Task | S0 | 否 | 长生命周期语义不适合当前预测模型 |
 | 真实 projectile / summon / gameplay actor 生成 Task | S0 | 否 | 表现分身可本地做，真值生成仍建议服务器做 |
-| `FTcsBuffPeriodDriverTask` | S0 | 否 | 周期 Buff 语义应视为服务器真值 |
-| `FTcsStateSlotDebugEvaluator` | C0 / 调试 | 是 | 只应视为本地调试路径，不应参与网络真值 |
+| `FTcsSTTask_BuffPeriodDriver` | S0 | 否 | 周期 Buff 语义应视为服务器真值 |
+| `FTcsSTEvaluator_SlotDebug` | C0 / 调试 | 是 | 只应视为本地调试路径，不应参与网络真值 |
 
 ## 7.2 Buff 路径
 
@@ -600,8 +600,8 @@
 
 | Task | 当前职责 | 建议分类 | 原因 / 备注 |
 | --- | --- | --- | --- |
-| `FTcsStateChangeNotifyTask` | 在 `EnterState / ExitState` 时回调 `UTcsStateComponent::OnStateTreeStateChanged()`，驱动状态槽位与阶段联动 | 默认 `AuthorityOnly` | 它已经碰到 `StateComponent` 级状态联动，不像纯表现任务。除非后续把其中的“本地可预测通知”与“权威状态联动”进一步拆开，否则不应默认放进客户端预测分支 |
-| `FTcsBuffPeriodDriverTask` | 按周期累计时间并发出 `Event.Buff.PeriodTick` | `AuthorityOnly` | Buff 周期、到期、移除当前已明确排除出预测层；该任务本身又是跨帧周期驱动，因此不应进入客户端预测分支 |
+| `FTcsSTTask_StateChangeNotify` | 在 `EnterState / ExitState` 时回调 `UTcsStateComponent::OnStateTreeStateChanged()`，驱动状态槽位与阶段联动 | 默认 `AuthorityOnly` | 它已经碰到 `StateComponent` 级状态联动，不像纯表现任务。除非后续把其中的“本地可预测通知”与“权威状态联动”进一步拆开，否则不应默认放进客户端预测分支 |
+| `FTcsSTTask_BuffPeriodDriver` | 按周期累计时间并发出 `Event.Buff.PeriodTick` | `AuthorityOnly` | Buff 周期、到期、移除当前已明确排除出预测层；该任务本身又是跨帧周期驱动，因此不应进入客户端预测分支 |
 
 这张表当前的意义主要是两点：
 
@@ -646,7 +646,7 @@
 10. 技能 `CD` 归 `SkillInstance` 自己管理，不归通用 `Buff / StateDuration` 管。
 11. 连招窗口后续更适合作为独立机制，或者放入动作游戏扩展插件中专项实现。
 12. 高频技能链路里的 `StateTreeTask` 行为，大概率需要支持受控批处理机制，但要结合具体实现再定范围。
-13. 当前仓库里已存在的 `FTcsStateChangeNotifyTask` 与 `FTcsBuffPeriodDriverTask`，都更适合先按保守口径视为 `AuthorityOnly`，而不是默认纳入客户端预测分支。
+13. 当前仓库里已存在的 `FTcsSTTask_StateChangeNotify` 与 `FTcsSTTask_BuffPeriodDriver`，都更适合先按保守口径视为 `AuthorityOnly`，而不是默认纳入客户端预测分支。
 
 ## 9.2 当前剩余的核心问题
 

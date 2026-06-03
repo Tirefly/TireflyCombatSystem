@@ -21,11 +21,11 @@ TCS SHALL require an explicit console-controlled switch before recurring runtime
 
 #### Scenario: Recurring debug evaluator is disabled
 - **WHEN** the recurring state snapshot debug switch is disabled
-- **THEN** `FTcsStateSlotDebugEvaluator` SHALL NOT call `GetSlotDebugSnapshot()` during its recurring evaluation path
+- **THEN** `FTcsSTEvaluator_SlotDebug` SHALL NOT call `GetSlotDebugSnapshot()` during its recurring evaluation path
 
 #### Scenario: Recurring debug evaluator is enabled
 - **WHEN** the recurring state snapshot debug switch is enabled
-- **THEN** `FTcsStateSlotDebugEvaluator` MAY call `GetSlotDebugSnapshot()` during its recurring evaluation path
+- **THEN** `FTcsSTEvaluator_SlotDebug` MAY call `GetSlotDebugSnapshot()` during its recurring evaluation path
 - **AND** that behavior SHALL remain explicitly opt-in instead of default-on
 
 ### Requirement: Stable key-value argument convention

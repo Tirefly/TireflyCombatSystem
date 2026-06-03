@@ -48,7 +48,7 @@
     - 让 `UTcsBuffComponent` 取代共享 State 宿主：拒绝，因为 Buff 仍是 State，不应该复制一套平行的 apply/remove/lifecycle 宿主框架。
     - 为每种增量反应引入独立 CDO 策略对象：当前拒绝，因为问题空间还没有复杂到需要第二层策略抽象。
 
-- 决策：`Period` 由 BuffStateTree 通过 `FTcsBuffPeriodDriverTask` 自己驱动
+- 决策：`Period` 由 BuffStateTree 通过 `FTcsSTTask_BuffPeriodDriver` 自己驱动
   - 原因：当前 `UTcsStateInstance` 已经具备 `TickStateTree()` 与 `SendStateTreeEvent()` 能力，而 Buff 专用 schema 收敛正在由独立的 runtime-access change 推进。Period 缺的不是底层设施，而是一个可复用的 StateTree 节拍驱动节点。
   - 备选方案：
     - 在 `UTcsBuffComponent` 上维护 `PeriodTracker`：拒绝，因为会在树外复制一份 Period 相位状态，形成双状态源。
@@ -74,5 +74,5 @@
 
 1. 在 `UTcsBuffDefinition` 上增加新的增量反应策略字段，但用编辑器可见性和运行时忽略规则确保旧的单层 Buff 不受影响。
 2. 把现有叠层上涨和持续时间耗尽路径收口到统一处理入口，避免 merger / Buff 专属组件 / 业务调用路径各自实现一套反应，同时保持 `UTcsStateComponent` 继续作为共享宿主。
-3. 为周期 Buff 提供 `FTcsBuffPeriodDriverTask`，并把 Period 的自然节拍驱动收回 BuffStateTree。
+3. 为周期 Buff 提供 `FTcsSTTask_BuffPeriodDriver`，并把 Period 的自然节拍驱动收回 BuffStateTree。
 4. 如果某些现有 Buff 需要“叠层即补一次 tick”之类特殊 Period 行为，则在对应 BuffStateTree 内新增专用节点，而不是扩定义层配置。

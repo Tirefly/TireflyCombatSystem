@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "StateTreeExecutionContext.h"
 #include "StateTreeSchema.h"
-#include "TcsStateSchema_Skill.generated.h"
+#include "TcsSTSchema_Skill.generated.h"
 
 
 
@@ -28,14 +28,14 @@ namespace TcsSkillStateContextName
  *
  * 该 schema 明确区分本次技能激活执行态与 learned-skill 数据对象。
  */
-UCLASS(BlueprintType, EditInlineNew, CollapseCategories)
-class TIREFLYCOMBATSYSTEM_API UTcsStateSchema_Skill : public UStateTreeSchema
+UCLASS(BlueprintType, EditInlineNew, CollapseCategories, meta = (DisplayName = "TcsSTSchema_Skill"))
+class TIREFLYCOMBATSYSTEM_API UTcsSTSchema_Skill : public UStateTreeSchema
 {
 	GENERATED_BODY()
 
 public:
 	/** 构造默认的 Skill 双上下文描述。 */
-	UTcsStateSchema_Skill();
+	UTcsSTSchema_Skill();
 
 	virtual TConstArrayView<FStateTreeExternalDataDesc> GetContextDataDescs() const override;
 	virtual bool IsStructAllowed(const UScriptStruct* InScriptStruct) const override;
@@ -97,7 +97,7 @@ protected:
 		}
 
 		TNotNull<const UStateTree*> GetStateTree() const;
-		TNotNull<const UTcsStateSchema_Skill*> GetSchema() const;
+		TNotNull<const UTcsSTSchema_Skill*> GetSchema() const;
 
 		bool SetContextDataByName(FName Name, FStateTreeDataView DataView);
 

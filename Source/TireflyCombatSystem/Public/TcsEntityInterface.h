@@ -8,12 +8,14 @@
 #include "TcsEntityInterface.generated.h"
 
 
+
 // This class does not need to be modified.
 UINTERFACE(Blueprintable)
 class UTcsEntityInterface : public UInterface
 {
 	GENERATED_BODY()
 };
+
 
 
 class TIREFLYCOMBATSYSTEM_API ITcsEntityInterface

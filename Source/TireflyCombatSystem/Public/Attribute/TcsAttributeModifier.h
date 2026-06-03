@@ -11,6 +11,7 @@
 class UTcsAttributeModifierDefinition;
 
 
+
 // 修改器修改属性的方式
 UENUM(BlueprintType)
 enum class ETcsAttributeModifierMode : uint8
@@ -18,9 +19,6 @@ enum class ETcsAttributeModifierMode : uint8
 	AMM_BaseValue			UMETA(ToolTip = "The base value of the attribute."),
 	AMM_CurrentValue		UMETA(ToolTip = "The current value, modified by skill or buff, of the attribute."),
 };
-
-
-
 
 
 
@@ -82,7 +80,7 @@ public:
 #pragma region Constructors
 
 public:
-	FTcsAttributeModifierInstance(){}
+	FTcsAttributeModifierInstance() {}
 
 #pragma endregion
 

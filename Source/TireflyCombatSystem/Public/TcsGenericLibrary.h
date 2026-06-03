@@ -55,7 +55,7 @@ public:
 
 #pragma endregion
 
-	
+
 #pragma region SkillHelper
 
 public:

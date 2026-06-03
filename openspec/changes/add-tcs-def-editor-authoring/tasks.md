@@ -29,7 +29,7 @@
 
 暂时不要归档这条 change。应继续保持打开状态，直到 Skill 侧 authoring 面成熟到足以把这项能力重新视作一条完整的 editor-authoring 主线；至少要等到 `SkillDef` 能作为稳定的资产化入口暴露出来。
 
-- [x] 3.1 将现有 `Tirefly Combat System -> Gameplay Runtime -> State Component StateTree` 入口切换为指向 `UTcsStateSchema_StateComponent`，不再保留临时的 `UStateTreeComponentSchema` 预设。
+- [x] 3.1 将现有 `Tirefly Combat System -> Gameplay Runtime -> State Component StateTree` 入口切换为指向 `UTcsSTSchema_StateComponent`，不再保留临时的 `UStateTreeComponentSchema` 预设。
 - [x] 3.2 在 `refactor-state-runtime-access-contract` 删除 generic `StateInstance` schema 后，将现有过渡性的 `StateInstance StateTree` 入口迁移为 concrete runtime owner 入口，不再继续暴露抽象共享运行时。
 - [x] 3.3 将 learned-skill data Blueprint 入口从当前旧名对齐到 `UTcsSkillEntry`，并同步更新等待开发者手动执行的编辑器测试清单。
 - [ ] 3.4 一旦 `SkillDef` 变成可稳定资产化的类型，就把同一套 TCS 编辑器 authoring capability 扩展到对应 Skill authoring 入口及等待开发者手动执行的编辑器测试清单上。

@@ -9,14 +9,17 @@
 #endif
 
 
+
 // 定义 PrimaryAssetType 静态变量
 const FPrimaryAssetType UTcsAttributeModifierDefinition::PrimaryAssetType = FPrimaryAssetType("TcsAttributeModifierDef");
+
 
 UTcsAttributeModifierDefinition::UTcsAttributeModifierDefinition()
 {
 	// 设置默认操作数
 	Operands.Add(FName("Magnitude"), 0.f);
 }
+
 FPrimaryAssetId UTcsAttributeModifierDefinition::GetPrimaryAssetId() const
 {
 	// 使用 AttributeModifierDefId 作为 PrimaryAssetName

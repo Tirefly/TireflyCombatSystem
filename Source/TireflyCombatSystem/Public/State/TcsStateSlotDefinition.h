@@ -99,7 +99,7 @@ public:
 	 * 在 PriorityOnly 模式下，多个状态具有相同优先级时的排序策略
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Slot Configuration",
-		meta = (EditCondition = "PreemptionPolicy == ETcsStatePreemptionPolicy::SPP_PriorityOnly", EditConditionHides = true, 
+		meta = (EditCondition = "ActivationMode == ETcsStateSlotActivationMode::SSAM_PriorityOnly", EditConditionHides = true,
 			ToolTip = "在 PriorityOnly 模式下，多个状态具有相同优先级时的排序策略"))
 	TSubclassOf<class UTcsStateSamePriorityPolicy> SamePriorityPolicy;
 

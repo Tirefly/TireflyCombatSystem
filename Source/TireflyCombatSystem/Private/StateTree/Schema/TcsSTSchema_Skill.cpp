@@ -1,6 +1,6 @@
 // Copyright Tirefly. All Rights Reserved.
 
-#include "StateTree/TcsStateSchema_Buff.h"
+#include "StateTree/Schema/TcsSTSchema_Skill.h"
 
 #include "StateTreeConditionBase.h"
 #include "StateTreeConsiderationBase.h"
@@ -8,29 +8,33 @@
 #include "StateTreePropertyFunctionBase.h"
 #include "StateTreeTaskBase.h"
 #include "Blueprint/StateTreeNodeBlueprintBase.h"
-#include "Buff/TcsBuffInstance.h"
 #include "Engine/GameInstance.h"
+#include "Skill/TcsSkillEntry.h"
+#include "Skill/TcsSkillInstance.h"
 #include "State/TcsStateInstance.h"
 #include "Subsystems/WorldSubsystem.h"
 #include "TcsLogChannels.h"
 
 
 
-UTcsStateSchema_Buff::UTcsStateSchema_Buff()
+UTcsSTSchema_Skill::UTcsSTSchema_Skill()
 {
 	ContextDataDescs.Add(FStateTreeExternalDataDesc(
-		TcsBuffStateContextName::BuffInstance,
-		UTcsBuffInstance::StaticClass(),
-		FGuid::NewGuid()
-	));
+		TcsSkillStateContextName::SkillInstance,
+		UTcsSkillInstance::StaticClass(),
+		FGuid::NewGuid()));
+	ContextDataDescs.Add(FStateTreeExternalDataDesc(
+		TcsSkillStateContextName::SkillEntry,
+		UTcsSkillEntry::StaticClass(),
+		FGuid::NewGuid()));
 }
 
-TConstArrayView<FStateTreeExternalDataDesc> UTcsStateSchema_Buff::GetContextDataDescs() const
+TConstArrayView<FStateTreeExternalDataDesc> UTcsSTSchema_Skill::GetContextDataDescs() const
 {
 	return ContextDataDescs;
 }
 
-bool UTcsStateSchema_Buff::IsStructAllowed(const UScriptStruct* InScriptStruct) const
+bool UTcsSTSchema_Skill::IsStructAllowed(const UScriptStruct* InScriptStruct) const
 {
 	return InScriptStruct->IsChildOf(FStateTreeConditionCommonBase::StaticStruct())
 		|| InScriptStruct->IsChildOf(FStateTreeEvaluatorCommonBase::StaticStruct())
@@ -39,21 +43,23 @@ bool UTcsStateSchema_Buff::IsStructAllowed(const UScriptStruct* InScriptStruct) 
 		|| InScriptStruct->IsChildOf(FStateTreePropertyFunctionCommonBase::StaticStruct());
 }
 
-bool UTcsStateSchema_Buff::IsClassAllowed(const UClass* InClass) const
+bool UTcsSTSchema_Skill::IsClassAllowed(const UClass* InClass) const
 {
 	return InClass && InClass->IsChildOf<UStateTreeNodeBlueprintBase>();
 }
 
-bool UTcsStateSchema_Buff::IsExternalItemAllowed(const UStruct& InStruct) const
+bool UTcsSTSchema_Skill::IsExternalItemAllowed(const UStruct& InStruct) const
 {
 	return InStruct.IsChildOf(UWorldSubsystem::StaticClass())
 		|| InStruct.IsChildOf(UGameInstance::StaticClass())
 		|| InStruct.IsChildOf(UTcsStateInstance::StaticClass())
-		|| InStruct.IsChildOf(UTcsBuffInstance::StaticClass());
+		|| InStruct.IsChildOf(UTcsSkillInstance::StaticClass())
+		|| InStruct.IsChildOf(UTcsSkillEntry::StaticClass());
 }
 
-bool UTcsStateSchema_Buff::SetContextRequirements(
-	UTcsBuffInstance& BuffInstance,
+bool UTcsSTSchema_Skill::SetContextRequirements(
+	UTcsSkillInstance& SkillInstance,
+	UTcsSkillEntry& SkillEntry,
 	FStateTreeExecutionContext& Context,
 	bool bLogErrors)
 {
@@ -62,7 +68,7 @@ bool UTcsStateSchema_Buff::SetContextRequirements(
 		return false;
 	}
 
-	FTcsContextDataSetter ContextDataSetter = FTcsContextDataSetter(&BuffInstance, Context);
+	FTcsContextDataSetter ContextDataSetter = FTcsContextDataSetter(&SkillInstance, &SkillEntry, Context);
 	ContextDataSetter.GetSchema()->SetContextData(ContextDataSetter, bLogErrors);
 
 	const bool bResult = Context.AreContextDataViewsValid();
@@ -74,18 +80,20 @@ bool UTcsStateSchema_Buff::SetContextRequirements(
 	return bResult;
 }
 
-bool UTcsStateSchema_Buff::CollectExternalData(
+bool UTcsSTSchema_Skill::CollectExternalData(
 	const FStateTreeExecutionContext& Context,
 	const UStateTree* StateTree,
-	UTcsBuffInstance* BuffInstance,
+	UTcsSkillInstance* SkillInstance,
+	UTcsSkillEntry* SkillEntry,
 	TArrayView<const FStateTreeExternalDataDesc> ExternalDataDescs,
 	TArrayView<FStateTreeDataView> OutDataViews)
 {
 	checkf(ExternalDataDescs.Num() == OutDataViews.Num(), TEXT("The execution context failed to fill OutDataViews with empty values."));
 
-	if (!BuffInstance || !StateTree)
+	if (!SkillInstance || !SkillEntry || !StateTree)
 	{
-		UE_LOG(LogTcsStateTree, Error, TEXT("[%s] Failed to get BuffInstance or StateTree for StateTree external data"),
+		UE_LOG(LogTcsStateTree, Error,
+			TEXT("[%s] Failed to get SkillInstance, SkillEntry or StateTree for StateTree external data"),
 			*FString(__FUNCTION__));
 		return false;
 	}
@@ -99,17 +107,21 @@ bool UTcsStateSchema_Buff::CollectExternalData(
 			continue;
 		}
 
-		if (DataDesc.Struct->IsChildOf(UTcsBuffInstance::StaticClass())
+		if (DataDesc.Struct->IsChildOf(UTcsSkillEntry::StaticClass()))
+		{
+			OutDataViews[Index] = FStateTreeDataView(SkillEntry);
+		}
+		else if (DataDesc.Struct->IsChildOf(UTcsSkillInstance::StaticClass())
 			|| DataDesc.Struct->IsChildOf(UTcsStateInstance::StaticClass()))
 		{
-			OutDataViews[Index] = FStateTreeDataView(BuffInstance);
+			OutDataViews[Index] = FStateTreeDataView(SkillInstance);
 		}
 		else if (DataDesc.Struct->IsChildOf(UWorldSubsystem::StaticClass()))
 		{
 			UWorld* World = Context.GetWorld();
 			UWorldSubsystem* Subsystem = World->GetSubsystemBase(Cast<UClass>(const_cast<UStruct*>(DataDesc.Struct.Get())));
 			OutDataViews[Index] = FStateTreeDataView(Subsystem);
-			UE_CVLOG(Subsystem == nullptr, BuffInstance, LogTcsStateTree, Error,
+			UE_CVLOG(Subsystem == nullptr, SkillInstance, LogTcsStateTree, Error,
 				TEXT("[%s] StateTree %s: Could not find required subsystem %s"),
 				*FString(__FUNCTION__),
 				*GetNameSafe(Context.GetStateTree()),
@@ -121,7 +133,7 @@ bool UTcsStateSchema_Buff::CollectExternalData(
 			UWorld* World = Context.GetWorld();
 			UGameInstance* GameInstance = World->GetGameInstance();
 			OutDataViews[Index] = FStateTreeDataView(GameInstance);
-			UE_CVLOG(GameInstance == nullptr, BuffInstance, LogTcsStateTree, Error,
+			UE_CVLOG(GameInstance == nullptr, SkillInstance, LogTcsStateTree, Error,
 				TEXT("[%s] StateTree %s: Could not find required game instance"),
 				*FString(__FUNCTION__),
 				*GetNameSafe(Context.GetStateTree()));
@@ -129,7 +141,7 @@ bool UTcsStateSchema_Buff::CollectExternalData(
 		}
 		else
 		{
-			UE_CVLOG(true, BuffInstance, LogTcsStateTree, Error,
+			UE_CVLOG(true, SkillInstance, LogTcsStateTree, Error,
 				TEXT("[%s] StateTree %s: Unsupported external data request %s"),
 				*FString(__FUNCTION__),
 				*GetNameSafe(Context.GetStateTree()),
@@ -141,50 +153,56 @@ bool UTcsStateSchema_Buff::CollectExternalData(
 	return IssuesFoundCounter == 0;
 }
 
-UTcsStateSchema_Buff::FTcsContextDataSetter::FTcsContextDataSetter(
-	TNotNull<const UTcsBuffInstance*> InBuffInstance,
+UTcsSTSchema_Skill::FTcsContextDataSetter::FTcsContextDataSetter(
+	TNotNull<const UTcsSkillInstance*> InSkillInstance,
+	TNotNull<const UTcsSkillEntry*> InSkillEntry,
 	FStateTreeExecutionContext& Context)
-	: BuffInstance(InBuffInstance)
+	: SkillInstance(InSkillInstance)
+	, SkillEntry(InSkillEntry)
 	, ExecutionContext(Context)
 {
 }
 
-TNotNull<const UStateTree*> UTcsStateSchema_Buff::FTcsContextDataSetter::GetStateTree() const
+TNotNull<const UStateTree*> UTcsSTSchema_Skill::FTcsContextDataSetter::GetStateTree() const
 {
 	return ExecutionContext.GetStateTree();
 }
 
-TNotNull<const UTcsStateSchema_Buff*> UTcsStateSchema_Buff::FTcsContextDataSetter::GetSchema() const
+TNotNull<const UTcsSTSchema_Skill*> UTcsSTSchema_Skill::FTcsContextDataSetter::GetSchema() const
 {
-	return Cast<UTcsStateSchema_Buff>(ExecutionContext.GetStateTree()->GetSchema());
+	return Cast<UTcsSTSchema_Skill>(ExecutionContext.GetStateTree()->GetSchema());
 }
 
-bool UTcsStateSchema_Buff::FTcsContextDataSetter::SetContextDataByName(
+bool UTcsSTSchema_Skill::FTcsContextDataSetter::SetContextDataByName(
 	FName Name,
 	FStateTreeDataView DataView)
 {
 	return ExecutionContext.IsValid() ? ExecutionContext.SetContextDataByName(Name, DataView) : false;
 }
 
-void UTcsStateSchema_Buff::SetContextData(
+void UTcsSTSchema_Skill::SetContextData(
 	FTcsContextDataSetter& ContextDataSetter,
 	bool bLogErrors) const
 {
-	const UTcsStateSchema_Buff* Schema = ContextDataSetter.GetSchema();
-	const UTcsBuffInstance* BuffInstance = ContextDataSetter.GetBuffInstance();
+	const UTcsSTSchema_Skill* Schema = ContextDataSetter.GetSchema();
+	const UTcsSkillInstance* SkillInstance = ContextDataSetter.GetSkillInstance();
+	const UTcsSkillEntry* SkillEntry = ContextDataSetter.GetSkillEntry();
 
-	if (!Schema || !BuffInstance)
+	if (!Schema || !SkillInstance || !SkillEntry)
 	{
 		if (bLogErrors)
 		{
 			UE_LOG(LogTcsStateTree, Error,
-				TEXT("%s Expected StateTree asset to contain Buff schema and BuffInstance. StateTree will not update."),
+				TEXT("%s Expected StateTree asset to contain UTcsSTSchema_Skill, UTcsSkillInstance and UTcsSkillEntry. StateTree will not update."),
 				*FString(__FUNCTION__));
 		}
 		return;
 	}
 
 	ContextDataSetter.SetContextDataByName(
-		TcsBuffStateContextName::BuffInstance,
-		FStateTreeDataView(const_cast<UTcsBuffInstance*>(BuffInstance)));
+		TcsSkillStateContextName::SkillInstance,
+		FStateTreeDataView(const_cast<UTcsSkillInstance*>(SkillInstance)));
+	ContextDataSetter.SetContextDataByName(
+		TcsSkillStateContextName::SkillEntry,
+		FStateTreeDataView(const_cast<UTcsSkillEntry*>(SkillEntry)));
 }

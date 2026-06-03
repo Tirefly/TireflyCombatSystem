@@ -326,7 +326,7 @@ RequestStateRemoval → FinalizeStateRemoval
 **当前实现状态**:
 
 - Skill 代码层已经显式拆分 learned skill 拥有态与单次激活执行态。
-- `UTcsStateSchema_Skill` 会同时向 SkillStateTree 暴露 `SkillEntry` 与 `SkillInstance` 两个上下文。
+- `UTcsSTSchema_Skill` 会同时向 SkillStateTree 暴露 `SkillEntry` 与 `SkillInstance` 两个上下文。
 - `UTcsSkillComponent` 内完整的 learned skill 容器、SkillModifier、激活 / 取消 / 查询主链目前尚未继续扩面。
 
 ---
@@ -334,12 +334,13 @@ RequestStateRemoval → FinalizeStateRemoval
 ### 4️⃣ StateTree 集成 - 85%
 
 **专用节点**:
-- `UTcsStateSchema_StateComponent` - StateComponent 专用 Schema
-- `UTcsStateSchema_Buff` - Buff 执行态专用 Schema
-- `UTcsStateSchema_Skill` - Skill 执行态与 learned skill 双上下文 Schema
-- `FTcsBuffPeriodDriverTask` - Buff 周期驱动 Task
-- `FTcsStateChangeNotifyTask` - 状态变化通知 Task
-- `FTcsStateSlotDebugEvaluator` - 状态槽调试 Evaluator
+- `UTcsSTSchema_StateComponent` - StateComponent 专用 Schema
+- `UTcsSTSchema_Buff` - Buff 执行态专用 Schema
+- `UTcsSTSchema_Skill` - Skill 执行态与 learned skill 双上下文 Schema
+- `FTcsSTEvaluator_ObjectRef` - ObjectRef 桥接 Evaluator
+- `FTcsSTTask_BuffPeriodDriver` - Buff 周期驱动 Task
+- `FTcsSTTask_StateChangeNotify` - 状态变化通知 Task
+- `FTcsSTEvaluator_SlotDebug` - 状态槽调试 Evaluator
 
 ---
 
@@ -423,12 +424,16 @@ TireflyCombatSystem/
 │   │   │   └── TcsSkillManagerSubsystem.h
 │   │   │
 │   │   ├── StateTree/                   # StateTree 集成
-│   │   │   ├── TcsBuffPeriodDriverTask.h
-│   │   │   ├── TcsStateChangeNotifyTask.h
-│   │   │   ├── TcsStateSchema_Buff.h
-│   │   │   ├── TcsStateSchema_Skill.h
-│   │   │   ├── TcsStateSchema_StateComponent.h
-│   │   │   └── TcsStateSlotDebugEvaluator.h
+│   │   │   ├── Evaluator/
+│   │   │   │   ├── TcsSTEvaluator_ObjectRef.h
+│   │   │   │   └── TcsSTEvaluator_SlotDebug.h
+│   │   │   ├── Schema/
+│   │   │   │   ├── TcsSTSchema_Buff.h
+│   │   │   │   ├── TcsSTSchema_Skill.h
+│   │   │   │   └── TcsSTSchema_StateComponent.h
+│   │   │   └── Task/
+│   │   │       ├── TcsSTTask_BuffPeriodDriver.h
+│   │   │       └── TcsSTTask_StateChangeNotify.h
 │   │   │
 │   │   ├── TcsEntityInterface.h          # 战斗实体接口
 │   │   ├── TcsSourceHandle.h             # SourceHandle 结构体

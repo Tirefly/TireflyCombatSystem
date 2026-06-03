@@ -56,7 +56,7 @@
 
 ### 2.3 `StateTreeSchema` 仍直接把 Skill 组件写入上下文面
 
-`UTcsStateTreeSchema_StateInstance` 当前仍会：
+`UTcsSTSchema_StateInstance` 当前仍会：
 
 1. 解析 `OwnerSkillCmp`
 2. 解析 `InstigatorSkillCmp`
@@ -87,7 +87,7 @@
 后续 Skill change 至少需要处理下面几类问题：
 
 1. `UTcsStateInstance` 是否还要继续持有 `OwnerSkillCmp` / `InstigatorSkillCmp`。
-2. `UTcsStateTreeSchema_StateInstance` 中的 Skill context name 是否全部保留。
+2. `UTcsSTSchema_StateInstance` 中的 Skill context name 是否全部保留。
 3. 哪些 Skill 上下文属于“共享运行态都可见”，哪些只该由 Skill 自己的执行/拥有态暴露。
 4. Skill 的重复激活冲突策略是否需要独立抽象，而不是继续借用 Buff merge 概念。
 5. `UTcsSkillInstance`、`UTcsSkillComponent` 与未来 Skill 定义资产之间的边界如何正式落地。

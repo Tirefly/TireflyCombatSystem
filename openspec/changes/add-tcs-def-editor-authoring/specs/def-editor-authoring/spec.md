@@ -64,13 +64,13 @@ TCS 编辑器集成 SHALL 为 TCS 开发者需要直接 authoring 的那一小�
 #### Scenario: 为 TcsStateComponent 创建 StateTree
 - **WHEN** 开发者从 `Tirefly Combat System -> Gameplay Runtime` 创建一个 StateTree
 - **THEN** 插件应暴露一个面向组件的 StateTree 入口
-- **AND** 创建出的资产应使用 `UTcsStateSchema_StateComponent`
+- **AND** 创建出的资产应使用 `UTcsSTSchema_StateComponent`
 - **AND** 整个流程不需要 schema picker
 
 #### Scenario: 为 Buff 创建 StateTree
 - **WHEN** 开发者从 `Tirefly Combat System -> Gameplay Runtime` 创建一个 StateTree
 - **THEN** 插件应暴露一个面向 `UTcsBuffInstance` 的 Buff StateTree 入口
-- **AND** 创建出的资产应使用 `UTcsStateSchema_Buff`
+- **AND** 创建出的资产应使用 `UTcsSTSchema_Buff`
 - **AND** 整个流程不需要 schema picker
 
 #### Scenario: 不再暴露 generic StateInstance StateTree
@@ -89,7 +89,7 @@ TCS 编辑器集成 SHALL 为 TCS 开发者需要直接 authoring 的那一小�
 TCS 编辑器 authoring capability SHALL 为后续的 StateComponent schema 和 Skill authoring 扩展保留稳定升级点，而不是把它们分裂成互不相关的菜单路径。
 
 #### Scenario: State Component StateTree 入口沿用专用 schema 升级
-- **WHEN** 当前阶段已经提供专用的 `UTcsStateSchema_StateComponent`
+- **WHEN** 当前阶段已经提供专用的 `UTcsSTSchema_StateComponent`
 - **THEN** `Tirefly Combat System -> Gameplay Runtime -> State Component StateTree` 入口应创建基于该 schema 的资产
 - **AND** 如果未来继续扩展组件树 authoring，这个同一入口仍应是预期的升级目标
 

@@ -14,7 +14,7 @@ namespace
 	// 当前模块注册过的控制台对象句柄；模块关闭时统一注销。
 	TArray<IConsoleObject*> RegisteredConsoleObjects;
 
-	// 控制 `FTcsStateSlotDebugEvaluator` 是否允许构造周期性槽位快照。
+	// 控制 `FTcsSTEvaluator_SlotDebug` 是否允许构造周期性槽位快照。
 	bool bStateDebugEvaluatorSnapshotsEnabled = false;
 
 	// 解析后的命令参数映射表。

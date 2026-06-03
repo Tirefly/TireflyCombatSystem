@@ -54,7 +54,7 @@ Exit State (ExitState)
 1. **创建 StateTree Asset**
    - 右键 Content Browser → Miscellaneous → State Tree
    - 命名为 `ST_TestBuff_MergeRemoval`
-   - Schema 选择 `TcsStateTreeSchema_StateInstance`
+    - Schema 选择 `TcsSTSchema_StateInstance`
 
 2. **配置 Root State**
 

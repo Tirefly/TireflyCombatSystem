@@ -10,11 +10,11 @@ TCS SHALL 将 `UTcsStateInstance` 固化为抽象共享执行态基类，而不�
 
 #### Scenario: generic StateInstance concrete schema 被移除
 - **WHEN** TCS 评估 concrete editor-facing schema 列表
-- **THEN** 系统不应继续保留 `UTcsStateTreeSchema_StateInstance`
+- **THEN** 系统不应继续保留 `UTcsSTSchema_StateInstance`
 - **AND** 也不应再引入任何新的 concrete `StateInstance` schema 作为长期兜底入口
 
 ### Requirement: BuffInstance StateTree 应使用独立的 Buff schema
-TCS SHALL 为 `UTcsBuffInstance` 提供专用的 `UTcsStateSchema_Buff`，并将 BuffStateTree 的根上下文收敛到单一 `BuffInstance`。
+TCS SHALL 为 `UTcsBuffInstance` 提供专用的 `UTcsSTSchema_Buff`，并将 BuffStateTree 的根上下文收敛到单一 `BuffInstance`。
 
 #### Scenario: BuffInstance schema 只暴露 BuffInstance 根上下文
 - **WHEN** 一个 BuffStateTree 运行在 `UTcsBuffInstance` 上
@@ -27,7 +27,7 @@ TCS SHALL 为 `UTcsBuffInstance` 提供专用的 `UTcsStateSchema_Buff`，并将
 - **AND** BuffStateTree 不应同时暴露抽象 `StateInstance` 与 concrete `BuffInstance` 这组双根上下文
 
 ### Requirement: StateComponent StateTree 应使用专用的组件 schema
-TCS SHALL 为 `UTcsStateComponent` 提供专用的 `UTcsStateSchema_StateComponent`，并把组件树的根上下文收敛到单一 `UTcsStateComponent`。
+TCS SHALL 为 `UTcsStateComponent` 提供专用的 `UTcsSTSchema_StateComponent`，并把组件树的根上下文收敛到单一 `UTcsStateComponent`。
 
 #### Scenario: StateComponent schema 只暴露 TcsStateComponent 根上下文
 - **WHEN** 一个面向 `UTcsStateComponent` 的 StateTree 被创建或执行
@@ -36,7 +36,7 @@ TCS SHALL 为 `UTcsStateComponent` 提供专用的 `UTcsStateSchema_StateCompone
 
 #### Scenario: StateComponent schema 需要支持 LinkSubTree
 - **WHEN** 开发者在 `UTcsStateComponent` 对应的树中使用 `LinkSubTree`
-- **THEN** 专用的 `UTcsStateSchema_StateComponent` 不应破坏该能力
+- **THEN** 专用的 `UTcsSTSchema_StateComponent` 不应破坏该能力
 - **AND** 组件 schema 的设计必须以保留 `LinkSubTree` 兼容性为前提
 
 ### Requirement: Skill 数据对象与 Skill 执行态应显式分离
@@ -53,7 +53,7 @@ TCS SHALL 将当前 learned skill 数据对象命名为 `UTcsSkillEntry`，并�
 - **AND** 它应作为 concrete 业务执行态类型进入 SkillStateTree
 
 ### Requirement: SkillStateTree 应使用独立的 Skill schema
-TCS SHALL 为技能相关运行时树提供专用的 `UTcsStateSchema_Skill`，并以 `SkillInstance + SkillEntry` 两个根上下文表达执行态与 learned skill 数据对象的分工。
+TCS SHALL 为技能相关运行时树提供专用的 `UTcsSTSchema_Skill`，并以 `SkillInstance + SkillEntry` 两个根上下文表达执行态与 learned skill 数据对象的分工。
 
 #### Scenario: Skill schema 使用 SkillInstance 与 SkillEntry 作为根上下文名
 - **WHEN** 一个技能相关运行时树需要同时读取执行态与 learned skill 数据对象

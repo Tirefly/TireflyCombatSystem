@@ -8,32 +8,38 @@
 #include "Misc/DataValidation.h"
 #endif
 
-namespace
-{
-void SanitizeSelfReferencedRange(FTcsAttributeRange& AttributeRange, const FName SelfAttributeDefId)
-{
-	if (SelfAttributeDefId.IsNone())
-	{
-		return;
-	}
-
-	if (AttributeRange.MinValueType == ETcsAttributeRangeType::ART_Dynamic &&
-		AttributeRange.MinValueAttribute == SelfAttributeDefId)
-	{
-		AttributeRange.MinValueAttribute = NAME_None;
-	}
-
-	if (AttributeRange.MaxValueType == ETcsAttributeRangeType::ART_Dynamic &&
-		AttributeRange.MaxValueAttribute == SelfAttributeDefId)
-	{
-		AttributeRange.MaxValueAttribute = NAME_None;
-	}
-}
-}
 
 
 // 定义 PrimaryAssetType 静态变量
 const FPrimaryAssetType UTcsAttributeDefinition::PrimaryAssetType = FPrimaryAssetType("TcsAttributeDef");
+
+
+
+// 内部函数：如果 SelfAttributeDefId 不为空，则检查 AttributeRange 是否有 SelfAttributeDefId 的引用，如果有，则清空引用
+namespace
+{
+	void SanitizeSelfReferencedRange(FTcsAttributeRange& AttributeRange, const FName SelfAttributeDefId)
+	{
+		if (SelfAttributeDefId.IsNone())
+		{
+			return;
+		}
+
+		if (AttributeRange.MinValueType == ETcsAttributeRangeType::ART_Dynamic &&
+			AttributeRange.MinValueAttribute == SelfAttributeDefId)
+		{
+			AttributeRange.MinValueAttribute = NAME_None;
+		}
+
+		if (AttributeRange.MaxValueType == ETcsAttributeRangeType::ART_Dynamic &&
+			AttributeRange.MaxValueAttribute == SelfAttributeDefId)
+		{
+			AttributeRange.MaxValueAttribute = NAME_None;
+		}
+	}
+}
+
+
 
 UTcsAttributeDefinition::UTcsAttributeDefinition()
 {

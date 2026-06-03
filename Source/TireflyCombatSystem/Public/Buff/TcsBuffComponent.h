@@ -80,6 +80,7 @@ UCLASS(ClassGroup = (TireflyCombatSystem), Meta = (BlueprintSpawnableComponent, 
 class TIREFLYCOMBATSYSTEM_API UTcsBuffComponent : public UActorComponent
 {
 	GENERATED_BODY()
+
 	friend class UTcsBuffInstance;
 
 
@@ -517,7 +518,6 @@ private:
 #pragma region InternalHelpers
 
 private:
-
 	/**
 	 * 把共享状态实例安全解析为 Buff 实例。
 	 *
@@ -686,7 +686,6 @@ private:
 #pragma region RuntimeState
 
 private:
-
 	// 共享 State 宿主组件缓存；Buff 侧的移除、定义查询等流程仍需回到它的统一主链。
 	UPROPERTY(Transient)
 	TWeakObjectPtr<UTcsStateComponent> OwnerStateComponent;

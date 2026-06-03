@@ -1,11 +1,11 @@
 // Copyright Tirefly. All Rights Reserved.
 
-
 #include "State/TcsStateContainer.h"
 
 #include "TcsLogChannels.h"
 #include "State/TcsStateDefinition.h"
 #include "State/TcsStateInstance.h"
+
 
 
 static void RemoveInvalidAndExpired(TArray<TObjectPtr<UTcsStateInstance>>& Instances)

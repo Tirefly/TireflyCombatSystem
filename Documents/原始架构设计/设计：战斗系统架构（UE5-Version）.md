@@ -319,7 +319,7 @@ Skill 是当前最容易重新混乱的地方，所以这里需要写得最明�
 
 当前 Skill 侧已经落地的一条关键实现事实是：
 
-- `UTcsStateSchema_Skill` 会同时向 SkillStateTree 暴露 `UTcsSkillInstance` 和 `UTcsSkillEntry` 两个上下文。
+- `UTcsSTSchema_Skill` 会同时向 SkillStateTree 暴露 `UTcsSkillInstance` 和 `UTcsSkillEntry` 两个上下文。
 
 这意味着当前 SkillStateTree 的最小边界已经从旧文档里的“只围绕单一 SkillInstance 数据对象运转”，更新为：
 
@@ -459,7 +459,7 @@ Buff 侧关心的是：
 1. Skill 仍保持轻骨架。
 2. Skill 代码层已经显式拆出 `UTcsSkillEntry`（learned skill 拥有态）与 `UTcsSkillInstance`（单次激活执行态）。
 3. `UTcsSkillDefinition` 已经提供 `SkillEntryClass` 与 `SkillInstanceClass` 两个配置入口。
-4. `UTcsStateSchema_Skill` 已经同时向 SkillStateTree 暴露 `SkillEntry` 和 `SkillInstance` 双上下文。
+4. `UTcsSTSchema_Skill` 已经同时向 SkillStateTree 暴露 `SkillEntry` 和 `SkillInstance` 双上下文。
 5. `UTcsSkillComponent` 的 learned skill 容器、SkillModifier、完整激活 / 取消 / 查询主链仍未继续扩面。
 6. Skill 更细的持久字段宿主、复制宿主、接口规范与任务节点适配仍留待后续独立议题。
 

@@ -89,8 +89,8 @@ void CancelState(UTcsStateInstance* StateInstance)
 
 **FTcsStateRemovalConfirmTask** — 删除整个 Task（两个文件）：
 
-- `Public/StateTree/TcsStateRemovalConfirmTask.h`
-- `Private/StateTree/TcsStateRemovalConfirmTask.cpp`
+- `Public/StateTree/Task/TcsSTTask_StateRemovalConfirm.h`
+- `Private/StateTree/Task/TcsSTTask_StateRemovalConfirm.cpp`
 
 原因：该 Task 的唯一职责是在退场分支末尾调用 `Context.Stop()`，且内部直接引用了 `HasPendingRemovalRequest()` 和 `GetPendingRemovalRequest()`（将被删除的 API）。两阶段机制移除后此 Task 无存在意义。
 
@@ -630,9 +630,9 @@ UE_DEFINE_GAMEPLAY_TAG(Event_RemovalRequested, "Tcs.Event.RemovalRequested");
 
 ---
 
-## 文件 9: `Public/StateTree/TcsStateRemovalConfirmTask.h` — 整个文件删除
+## 文件 9: `Public/StateTree/Task/TcsSTTask_StateRemovalConfirm.h` — 整个文件删除
 
-## 文件 10: `Private/StateTree/TcsStateRemovalConfirmTask.cpp` — 整个文件删除
+## 文件 10: `Private/StateTree/Task/TcsSTTask_StateRemovalConfirm.cpp` — 整个文件删除
 
 同时需要从 `.Build.cs` 或模块的 `PublicDependencyModuleNames` 中检查是否有对应注册（UE 的 StateTree Task 通过 USTRUCT 自动注册，无需手动注册，所以只需删除文件）。
 
@@ -754,8 +754,8 @@ void CancelState(UTcsStateInstance* StateInstance)
 
 **FTcsStateRemovalConfirmTask** — 删除整个 Task（两个文件）：
 
-- `Public/StateTree/TcsStateRemovalConfirmTask.h`
-- `Private/StateTree/TcsStateRemovalConfirmTask.cpp`
+- `Public/StateTree/Task/TcsSTTask_StateRemovalConfirm.h`
+- `Private/StateTree/Task/TcsSTTask_StateRemovalConfirm.cpp`
 
 原因：该 Task 的唯一职责是在退场分支末尾调用 `Context.Stop()`，且内部直接引用了 `HasPendingRemovalRequest()` 和 `GetPendingRemovalRequest()`（将被删除的 API）。两阶段机制移除后此 Task 无存在意义。
 
@@ -1295,9 +1295,9 @@ UE_DEFINE_GAMEPLAY_TAG(Event_RemovalRequested, "Tcs.Event.RemovalRequested");
 
 ---
 
-## 文件 9: `Public/StateTree/TcsStateRemovalConfirmTask.h` — 整个文件删除
+## 文件 9: `Public/StateTree/Task/TcsSTTask_StateRemovalConfirm.h` — 整个文件删除
 
-## 文件 10: `Private/StateTree/TcsStateRemovalConfirmTask.cpp` — 整个文件删除
+## 文件 10: `Private/StateTree/Task/TcsSTTask_StateRemovalConfirm.cpp` — 整个文件删除
 
 同时需要从 `.Build.cs` 或模块的 `PublicDependencyModuleNames` 中检查是否有对应注册（UE 的 StateTree Task 通过 USTRUCT 自动注册，无需手动注册，所以只需删除文件）。
 

@@ -146,7 +146,7 @@ LogTcsState=Verbose
 
 1. 右键 Content Browser → Miscellaneous → State Tree
 2. 命名为对应的 StateTree 名称
-3. Schema 选择 `TcsStateTreeSchema_StateInstance`
+3. Schema 选择 `TcsSTSchema_StateInstance`
 4. 按照 `StateTree-TestConfiguration.md` 文档配置 Tasks 和 Transitions
 5. 保存 Asset
 
@@ -469,7 +469,7 @@ Root State
 创建每个 StateTree 时，确保：
 
 **基础配置**:
-- [ ] Schema 设置为 `TcsStateTreeSchema_StateInstance`
+- [ ] Schema 设置为 `TcsSTSchema_StateInstance`
 - [ ] Root State 已创建
 - [ ] 至少有一个 Enter Task
 - [ ] 至少有一个 Exit Task
@@ -526,7 +526,7 @@ Root State
 **错误 1: StateTree Schema 不正确**
 ```
 ❌ 错误: 使用了默认的 StateTreeSchema
-✅ 正确: 使用 TcsStateTreeSchema_StateInstance
+✅ 正确: 使用 TcsSTSchema_StateInstance
 ```
 
 **错误 2: 缺少事件处理**

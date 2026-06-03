@@ -27,6 +27,6 @@
   - `Source/TireflyCombatSystem/TireflyCombatSystemModule.cpp`
   - `Source/TireflyCombatSystem/Public/State/TcsStateComponent.h`
   - `Source/TireflyCombatSystem/Private/State/TcsStateComponent.cpp`
-  - `Source/TireflyCombatSystem/Public/StateTree/TcsStateSlotDebugEvaluator.h`
-  - `Source/TireflyCombatSystem/Private/StateTree/TcsStateSlotDebugEvaluator.cpp`
+  - `Source/TireflyCombatSystem/Public/StateTree/Evaluator/TcsSTEvaluator_SlotDebug.h`
+  - `Source/TireflyCombatSystem/Private/StateTree/Evaluator/TcsSTEvaluator_SlotDebug.cpp`
   - `Documents/后续优化内容/网络同步讨论/TCS网络同步审查（讨论基线-20260521）.md`

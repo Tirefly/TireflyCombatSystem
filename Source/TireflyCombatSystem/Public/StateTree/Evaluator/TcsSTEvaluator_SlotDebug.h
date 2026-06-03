@@ -5,7 +5,7 @@
 #include "StateTreeNodeBase.h"
 #include "StateTreeExecutionTypes.h"
 #include "GameplayTagContainer.h"
-#include "TcsStateSlotDebugEvaluator.generated.h"
+#include "TcsSTEvaluator_SlotDebug.generated.h"
 
 
 
@@ -18,7 +18,7 @@ class UTcsStateInstance;
  * 调试槽位信息的Evaluator实例数据
  */
 USTRUCT()
-struct FTcsStateSlotDebugEvaluatorInstanceData
+struct FTcsSTEvaluator_SlotDebugInstanceData
 {
 	GENERATED_BODY()
 
@@ -32,14 +32,14 @@ struct FTcsStateSlotDebugEvaluatorInstanceData
 /**
  * 将 UTcsStateComponent 槽位状态输出为字符串，便于在StateTree调试器中查看
  */
-USTRUCT()
-struct TIREFLYCOMBATSYSTEM_API FTcsStateSlotDebugEvaluator : public FStateTreeEvaluatorCommonBase
+USTRUCT(meta = (DisplayName = "TcsSTEvaluator_SlotDebug"))
+struct TIREFLYCOMBATSYSTEM_API FTcsSTEvaluator_SlotDebug : public FStateTreeEvaluatorCommonBase
 {
 	GENERATED_BODY()
 
-	using FInstanceDataType = FTcsStateSlotDebugEvaluatorInstanceData;
+	using FInstanceDataType = FTcsSTEvaluator_SlotDebugInstanceData;
 
-	FTcsStateSlotDebugEvaluator();
+	FTcsSTEvaluator_SlotDebug();
 
 	virtual bool Link(FStateTreeLinker& Linker) override;
 	virtual void Tick(FStateTreeExecutionContext& Context, const float DeltaTime) const override;

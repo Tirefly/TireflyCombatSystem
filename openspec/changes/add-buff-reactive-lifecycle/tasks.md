@@ -19,7 +19,7 @@
 
 ## 4. BuffStateTree 周期驱动能力
 
-- [x] 4.1 新增可复用的 `FTcsBuffPeriodDriverTask` 与对应实例数据，至少覆盖 `PeriodOverride` 和 `ElapsedTime`。
+- [x] 4.1 新增可复用的 `FTcsSTTask_BuffPeriodDriver` 与对应实例数据，至少覆盖 `PeriodOverride` 和 `ElapsedTime`。
 - [x] 4.2 约定统一的 `Event.Buff.PeriodTick` 事件契约，并让 `PeriodDriverTask` 只产出中性节拍事件。
 - [x] 4.3 明确 `PeriodDriverTask` 只负责“到点了”，具体伤害 / 治疗 / 掉层 / 特效逻辑继续由 BuffStateTree 其他节点执行。
 - [x] 4.4 明确“叠层时重置周期 / 叠层时立刻补一次”这类语义由具体 BuffStateTree 的专用节点实现，而不是回填到通用 BuffDef 配置。

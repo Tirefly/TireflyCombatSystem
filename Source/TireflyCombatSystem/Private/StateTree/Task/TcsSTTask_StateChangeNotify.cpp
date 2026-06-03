@@ -1,12 +1,12 @@
 // Copyright Tirefly. All Rights Reserved.
 
-#include "StateTree/TcsStateChangeNotifyTask.h"
+#include "StateTree/Task/TcsSTTask_StateChangeNotify.h"
 #include "State/TcsStateComponent.h"
 #include "State/TcsStateInstance.h"
 #include "StateTreeExecutionContext.h"
 #include "StateTreeLinker.h"
 
-FTcsStateChangeNotifyTask::FTcsStateChangeNotifyTask()
+FTcsSTTask_StateChangeNotify::FTcsSTTask_StateChangeNotify()
 {
 	// 禁用Tick，该Task不需要Tick
 	bShouldCallTick = false;
@@ -15,14 +15,14 @@ FTcsStateChangeNotifyTask::FTcsStateChangeNotifyTask()
 	bShouldStateChangeOnReselect = true;
 }
 
-bool FTcsStateChangeNotifyTask::Link(FStateTreeLinker& Linker)
+bool FTcsSTTask_StateChangeNotify::Link(FStateTreeLinker& Linker)
 {
 	const bool bResult = Super::Link(Linker);
 	Linker.LinkExternalData(StateInstanceHandle);
 	return bResult;
 }
 
-EStateTreeRunStatus FTcsStateChangeNotifyTask::EnterState(
+EStateTreeRunStatus FTcsSTTask_StateChangeNotify::EnterState(
 	FStateTreeExecutionContext& Context,
 	const FStateTreeTransitionResult& Transition) const
 {
@@ -44,7 +44,7 @@ EStateTreeRunStatus FTcsStateChangeNotifyTask::EnterState(
 	return EStateTreeRunStatus::Running;
 }
 
-void FTcsStateChangeNotifyTask::ExitState(
+void FTcsSTTask_StateChangeNotify::ExitState(
 	FStateTreeExecutionContext& Context,
 	const FStateTreeTransitionResult& Transition) const
 {
@@ -64,7 +64,7 @@ void FTcsStateChangeNotifyTask::ExitState(
 }
 
 #if WITH_EDITOR
-FText FTcsStateChangeNotifyTask::GetDescription(
+FText FTcsSTTask_StateChangeNotify::GetDescription(
 	const FGuid& ID,
 	FStateTreeDataView InstanceDataView,
 	const IStateTreeBindingLookup& BindingLookup,

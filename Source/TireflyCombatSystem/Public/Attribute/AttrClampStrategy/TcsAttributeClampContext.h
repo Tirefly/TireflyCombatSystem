@@ -5,10 +5,13 @@
 #include "CoreMinimal.h"
 #include "TcsAttributeClampContext.generated.h"
 
+
+
 class UTcsAttributeComponent;
 class UTcsAttributeManagerSubsystem;
 class UTcsAttributeDefinition;
 struct FTcsAttributeInstance;
+
 
 
 /**

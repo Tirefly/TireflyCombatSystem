@@ -9,7 +9,7 @@
 ## 3. 第一阶段命令注册与调试路径收敛
 - [x] 3.1 在 TCS 私有实现侧注册第一阶段最小 `State` 调试开关命令
 - [x] 3.2 将 `GetSlotDebugSnapshot()` / `GetStateDebugSnapshot()` 的高成本调用点收敛到显式开关路径，并删除第一阶段 `dump / list` 查询命令
-- [x] 3.3 首先处理 `TcsStateSlotDebugEvaluator` 的常驻快照构造路径
+- [x] 3.3 首先处理 `TcsSTEvaluator_SlotDebug` 的常驻快照构造路径
 
 ## 4. 验证与文档
 - [x] 4.1 重新编译 `TireflyGameplayUtilsEditor Win64 Development`

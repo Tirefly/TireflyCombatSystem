@@ -1,6 +1,5 @@
 // Copyright Tirefly. All Rights Reserved.
 
-
 #include "Attribute/TcsAttributeComponent.h"
 
 #include "TcsLogChannels.h"
@@ -8,6 +7,7 @@
 #include "Attribute/AttrClampStrategy/TcsAttributeClampContext.h"
 #include "Attribute/AttrClampStrategy/TcsAttributeClampStrategy.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
+
 
 
 void UTcsAttributeComponent::ClampAttributeValueInRange(

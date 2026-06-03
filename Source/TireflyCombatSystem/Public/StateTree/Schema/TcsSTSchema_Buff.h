@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "StateTreeExecutionContext.h"
 #include "StateTreeSchema.h"
-#include "TcsStateSchema_Buff.generated.h"
+#include "TcsSTSchema_Buff.generated.h"
 
 
 
@@ -25,14 +25,14 @@ namespace TcsBuffStateContextName
  *
  * 只暴露 BuffInstance 根上下文，同时允许共享节点以 `UTcsStateInstance` 基类请求当前 Buff 运行态。
  */
-UCLASS(BlueprintType, EditInlineNew, CollapseCategories)
-class TIREFLYCOMBATSYSTEM_API UTcsStateSchema_Buff : public UStateTreeSchema
+UCLASS(BlueprintType, EditInlineNew, CollapseCategories, meta = (DisplayName = "TcsSTSchema_Buff"))
+class TIREFLYCOMBATSYSTEM_API UTcsSTSchema_Buff : public UStateTreeSchema
 {
 	GENERATED_BODY()
 
 public:
 	/** 构造默认的 BuffStateTree 上下文描述。 */
-	UTcsStateSchema_Buff();
+	UTcsSTSchema_Buff();
 
 	virtual TConstArrayView<FStateTreeExternalDataDesc> GetContextDataDescs() const override;
 	virtual bool IsStructAllowed(const UScriptStruct* InScriptStruct) const override;
@@ -84,7 +84,7 @@ protected:
 		}
 
 		TNotNull<const UStateTree*> GetStateTree() const;
-		TNotNull<const UTcsStateSchema_Buff*> GetSchema() const;
+		TNotNull<const UTcsSTSchema_Buff*> GetSchema() const;
 
 		bool SetContextDataByName(FName Name, FStateTreeDataView DataView);
 

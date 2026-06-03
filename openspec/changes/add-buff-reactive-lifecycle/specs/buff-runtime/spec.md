@@ -61,7 +61,7 @@ TCS SHALL 通过 Buff 自有的统一运行时入口执行叠层上涨和持续�
 TCS SHALL 把 Buff 的 Period 驱动保留在 BuffStateTree 内，而不是把它建模成通用 Buff 增量反应配置或组件侧调度状态。
 
 #### Scenario: 周期型 Buff 可以使用可复用的 StateTree 周期驱动任务
-- **WHEN** 一个 BuffStateTree 使用 `FTcsBuffPeriodDriverTask`
+- **WHEN** 一个 BuffStateTree 使用 `FTcsSTTask_BuffPeriodDriver`
 - **THEN** 该任务应从本地 override 或 Buff 定义上的默认 `Period` 值解析当前周期
 - **AND** 应在时间推进时发出中性的 `Event.Buff.PeriodTick` 事件
 

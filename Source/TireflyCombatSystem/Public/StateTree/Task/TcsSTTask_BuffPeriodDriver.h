@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "StateTreeTaskBase.h"
-#include "TcsBuffPeriodDriverTask.generated.h"
+#include "TcsSTTask_BuffPeriodDriver.generated.h"
 
 
 
@@ -32,7 +32,7 @@ struct FTcsBuffPeriodTickEventPayload
  * Buff 周期驱动任务实例数据。
  */
 USTRUCT()
-struct FTcsBuffPeriodDriverTaskInstanceData
+struct FTcsSTTask_BuffPeriodDriverInstanceData
 {
 	GENERATED_BODY()
 
@@ -52,15 +52,15 @@ struct FTcsBuffPeriodDriverTaskInstanceData
  *
  * 用途：按 Buff 定义上的 Period 或本地 override 值累计时间，到点后发出中性的 PeriodTick 事件。
  */
-USTRUCT(meta = (DisplayName = "Tcs Buff Period Driver Task"))
-struct TIREFLYCOMBATSYSTEM_API FTcsBuffPeriodDriverTask : public FStateTreeTaskCommonBase
+USTRUCT(meta = (DisplayName = "TcsSTTask_BuffPeriodDriver"))
+struct TIREFLYCOMBATSYSTEM_API FTcsSTTask_BuffPeriodDriver : public FStateTreeTaskCommonBase
 {
 	GENERATED_BODY()
 
-	using FInstanceDataType = FTcsBuffPeriodDriverTaskInstanceData;
+	using FInstanceDataType = FTcsSTTask_BuffPeriodDriverInstanceData;
 
 	/** 构造默认 Task 配置。 */
-	FTcsBuffPeriodDriverTask();
+	FTcsSTTask_BuffPeriodDriver();
 
 	/**
 	 * 绑定 StateTree 外部数据。

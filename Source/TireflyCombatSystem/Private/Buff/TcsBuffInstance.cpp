@@ -1,6 +1,5 @@
 // Copyright Tirefly. All Rights Reserved.
 
-
 #include "Buff/TcsBuffInstance.h"
 
 #include "Buff/TcsBuffComponent.h"
@@ -8,7 +7,7 @@
 #include "Buff/TcsBuffDefinition.h"
 #include "Misc/ScopeExit.h"
 #include "State/TcsStateComponent.h"
-#include "StateTree/TcsStateSchema_Buff.h"
+#include "StateTree/Schema/TcsSTSchema_Buff.h"
 #include "TcsLogChannels.h"
 
 
@@ -304,7 +303,7 @@ bool UTcsBuffInstance::SetContextRequirements(FStateTreeExecutionContext& Contex
 		)
 	);
 
-	return UTcsStateSchema_Buff::SetContextRequirements(*this, Context);
+	return UTcsSTSchema_Buff::SetContextRequirements(*this, Context);
 }
 
 bool UTcsBuffInstance::CollectExternalData(
@@ -313,7 +312,7 @@ bool UTcsBuffInstance::CollectExternalData(
 	TArrayView<const FStateTreeExternalDataDesc> ExternalDataDescs,
 	TArrayView<FStateTreeDataView> OutDataViews)
 {
-	return UTcsStateSchema_Buff::CollectExternalData(
+	return UTcsSTSchema_Buff::CollectExternalData(
 		Context,
 		StateTree,
 		this,

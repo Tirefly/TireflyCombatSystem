@@ -169,6 +169,7 @@ public:
 	bool IsInitialized() const { return bInitialized; }
 	
     // 获取状态的定义Id
+    UFUNCTION(BlueprintPure, Category = "TireflyCombatSystem|State")
     FName GetStateDefId() const { return StateDefId; }
 
 	// 获取状态定义 DataAsset 硬引用

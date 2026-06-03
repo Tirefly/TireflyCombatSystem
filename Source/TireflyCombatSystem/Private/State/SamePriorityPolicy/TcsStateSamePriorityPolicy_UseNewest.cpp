@@ -1,8 +1,8 @@
 // Copyright Tirefly. All Rights Reserved.
 
-
 #include "State/SamePriorityPolicy/TcsStateSamePriorityPolicy_UseNewest.h"
 #include "State/TcsStateInstance.h"
+
 
 
 int64 UTcsStateSamePriorityPolicy_UseNewest::GetOrderKey_Implementation(const UTcsStateInstance* State) const

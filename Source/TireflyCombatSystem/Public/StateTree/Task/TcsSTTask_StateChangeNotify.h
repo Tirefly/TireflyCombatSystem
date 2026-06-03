@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "StateTreeTaskBase.h"
-#include "TcsStateChangeNotifyTask.generated.h"
+#include "TcsSTTask_StateChangeNotify.generated.h"
 
 class UTcsStateComponent;
 class UTcsStateInstance;
@@ -14,7 +14,7 @@ struct FStateTreeLinker;
  * 通知TcsStateComponent状态变更的Task实例数据
  */
 USTRUCT()
-struct FTcsStateChangeNotifyTaskInstanceData
+struct FTcsSTTask_StateChangeNotifyInstanceData
 {
 	GENERATED_BODY()
 
@@ -33,14 +33,14 @@ struct FTcsStateChangeNotifyTaskInstanceData
  * - 禁用Tick以实现零开销的通知机制
  * - 如果未配置StateComponent参数，会自动从Owner获取
  */
-USTRUCT(meta = (DisplayName = "Tcs State Change Notify Task"))
-struct TIREFLYCOMBATSYSTEM_API FTcsStateChangeNotifyTask : public FStateTreeTaskCommonBase
+USTRUCT(meta = (DisplayName = "TcsSTTask_StateChangeNotify"))
+struct TIREFLYCOMBATSYSTEM_API FTcsSTTask_StateChangeNotify : public FStateTreeTaskCommonBase
 {
 	GENERATED_BODY()
 
-	using FInstanceDataType = FTcsStateChangeNotifyTaskInstanceData;
+	using FInstanceDataType = FTcsSTTask_StateChangeNotifyInstanceData;
 
-	FTcsStateChangeNotifyTask();
+	FTcsSTTask_StateChangeNotify();
 
 	virtual bool Link(FStateTreeLinker& Linker) override;
 

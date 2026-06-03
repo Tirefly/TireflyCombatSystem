@@ -365,13 +365,13 @@ TryAssignStateToStateSlot
 
 这条链决定了 Layer 1 StateTree 怎样影响 Layer 2 运行时槽位。
 
-但必须先强调一个当前实现前提：这条链不是外层 StateTree 自己天然就会触发的。当前代码是通过在外层树里显式放入 `FTcsStateChangeNotifyTask`，在 `EnterState / ExitState` 中回调 `UTcsStateComponent::OnStateTreeStateChanged()`，再继续后面的 Gate 联动。
+但必须先强调一个当前实现前提：这条链不是外层 StateTree 自己天然就会触发的。当前代码是通过在外层树里显式放入 `FTcsSTTask_StateChangeNotify`，在 `EnterState / ExitState` 中回调 `UTcsStateComponent::OnStateTreeStateChanged()`，再继续后面的 Gate 联动。
 
 调用链：
 
 ```text
-外层 StateTree 中显式配置 FTcsStateChangeNotifyTask
-  -> FTcsStateChangeNotifyTask::EnterState / ExitState
+外层 StateTree 中显式配置 FTcsSTTask_StateChangeNotify
+   -> FTcsSTTask_StateChangeNotify::EnterState / ExitState
      -> UTcsStateComponent::OnStateTreeStateChanged
         -> RefreshSlotsForStateChange
            -> SetSlotGateOpen
@@ -381,7 +381,7 @@ TryAssignStateToStateSlot
 
 ### 2.5.1 `OnStateTreeStateChanged`
 
-当外层 StateTree 中的 `FTcsStateChangeNotifyTask` 在 `EnterState` 或 `ExitState` 里显式回调时，`UTcsStateComponent::OnStateTreeStateChanged()` 会：
+当外层 StateTree 中的 `FTcsSTTask_StateChangeNotify` 在 `EnterState` 或 `ExitState` 里显式回调时，`UTcsStateComponent::OnStateTreeStateChanged()` 会：
 
 1. 从 `FStateTreeExecutionContext` 取当前激活状态名数组。
 2. 与 `CachedActiveStateNames` 比较。

@@ -100,7 +100,7 @@ public:
 	 * 持续时间
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Duration",
-		Meta = (EditConditionHides, EditCondition = "DurationType == SDT_Duration"))
+		Meta = (EditConditionHides, EditCondition = "DurationType == ETcsBuffDurationType::SDT_Duration"))
 	float Duration = 0.f;
 
 #pragma endregion
@@ -112,7 +112,8 @@ public:
 	/**
 	 * 周期触发间隔；0 表示当前 Buff 不声明周期语义。
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Period", Meta = (ClampMin = "0.0"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Period", 
+		Meta = (ClampMin = "0.0", EditConditionHides, EditCondition = "DurationType != ETcsBuffDurationType::SDT_None"))
 	float Period = 0.f;
 
 #pragma endregion
@@ -144,7 +145,7 @@ public:
 	 * 持续时间耗尽时的增量反应配置。
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stack",
-		Meta = (EditConditionHides, EditCondition = "MaxStackCount > 1 && DurationType == SDT_Duration"))
+		Meta = (EditConditionHides, EditCondition = "MaxStackCount > 1 && DurationType == ETcsBuffDurationType::SDT_Duration"))
 	FTcsBuffOnDurationExpiredPolicy OnDurationExpired;
 
 #pragma endregion

@@ -22,8 +22,8 @@ TCS 已经定义了专用的 DefinitionAsset 类，但当前在编辑器中创�
   - `UTcsStateSlotDefinition`
   - `UTcsBuffDefinition`
 - 为 TCS 开发者应直接创建的 runtime 资产新增 `Tirefly Combat System -> Gameplay Runtime` 子菜单：
-  - `UStateTree` preset for `UTcsStateComponent` usage through `UTcsStateSchema_StateComponent`
-  - `UStateTree` preset for `UTcsBuffInstance` usage through `UTcsStateSchema_Buff`
+  - `UStateTree` preset for `UTcsStateComponent` usage through `UTcsSTSchema_StateComponent`
+  - `UStateTree` preset for `UTcsBuffInstance` usage through `UTcsSTSchema_Buff`
   - Blueprint subclasses of `UTcsSkillEntry`
 - 协调当前 `UTcsStateDefinition` 编辑器入口与其抽象运行时状态之间的关系：
   - 如果 `UTcsStateDefinition` 仍保持抽象，就不要把它暴露成一个损坏的直接创建目标
@@ -48,7 +48,7 @@ TCS 已经定义了专用的 DefinitionAsset 类，但当前在编辑器中创�
 
 ## 延后跟进与归档门槛
 
-- 当前 `State Component StateTree` 入口已经切换到 `UTcsStateSchema_StateComponent`；后续如需扩展组件树 authoring 能力，应继续沿用同一条 `Gameplay Runtime` 菜单路径，而不是拆出另一条无关入口。
+- 当前 `State Component StateTree` 入口已经切换到 `UTcsSTSchema_StateComponent`；后续如需扩展组件树 authoring 能力，应继续沿用同一条 `Gameplay Runtime` 菜单路径，而不是拆出另一条无关入口。
 - 当前 gameplay runtime 的运行时树入口已经不再暴露 generic `StateInstance StateTree`，而是收敛为 concrete runtime owner 入口（当前为 `Buff StateTree`）；后续新增其他 concrete runtime 入口时，也应继续沿用同一 capability。
 - 当前 learned-skill data Blueprint 入口已经切换到 `UTcsSkillEntry`，避免 editor authoring 面继续固化旧名。
 - 在 Skill 侧编辑器 authoring 面成熟到足以并入同一 capability 之前，这条 change 不应归档；至少要等到 `SkillDef` 能作为稳定的资产化 authoring 入口暴露出来。

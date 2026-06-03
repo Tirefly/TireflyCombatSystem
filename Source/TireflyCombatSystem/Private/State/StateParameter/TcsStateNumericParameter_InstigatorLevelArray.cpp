@@ -1,6 +1,5 @@
 // Copyright Tirefly. All Rights Reserved.
 
-
 #include "State/StateParameter/TcsStateNumericParameter_InstigatorLevelArray.h"
 #include "TcsEntityInterface.h"
 

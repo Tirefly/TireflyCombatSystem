@@ -1,6 +1,6 @@
 // Copyright Tirefly. All Rights Reserved.
 
-#include "StateTree/TcsStateSchema_StateComponent.h"
+#include "StateTree/Schema/TcsSTSchema_StateComponent.h"
 
 #include "BrainComponent.h"
 #include "State/TcsStateComponent.h"
@@ -9,20 +9,20 @@
 
 
 
-UTcsStateSchema_StateComponent::UTcsStateSchema_StateComponent(const FObjectInitializer& ObjectInitializer)
+UTcsSTSchema_StateComponent::UTcsSTSchema_StateComponent(const FObjectInitializer& ObjectInitializer)
 {
 	RefreshContextDescriptor();
 }
 
-void UTcsStateSchema_StateComponent::PostLoad()
+void UTcsSTSchema_StateComponent::PostLoad()
 {
 	Super::PostLoad();
 	RefreshContextDescriptor();
 }
 
-void UTcsStateSchema_StateComponent::SetContextData(FContextDataSetter& ContextDataSetter, bool bLogErrors) const
+void UTcsSTSchema_StateComponent::SetContextData(FContextDataSetter& ContextDataSetter, bool bLogErrors) const
 {
-	const UTcsStateSchema_StateComponent* Schema = Cast<UTcsStateSchema_StateComponent>(ContextDataSetter.GetStateTree()->GetSchema());
+	const UTcsSTSchema_StateComponent* Schema = Cast<UTcsSTSchema_StateComponent>(ContextDataSetter.GetStateTree()->GetSchema());
 	const UBrainComponent* BrainComponent = ContextDataSetter.GetComponent();
 	const UTcsStateComponent* StateComponent = Cast<UTcsStateComponent>(BrainComponent);
 	if (!Schema || !StateComponent)
@@ -30,7 +30,7 @@ void UTcsStateSchema_StateComponent::SetContextData(FContextDataSetter& ContextD
 		if (bLogErrors)
 		{
 			UE_LOG(LogTcsStateTree, Error,
-				TEXT("%s Expected StateTree asset to contain UTcsStateSchema_StateComponent and UTcsStateComponent. StateTree will not update."),
+				TEXT("%s Expected StateTree asset to contain UTcsSTSchema_StateComponent and UTcsStateComponent. StateTree will not update."),
 				*FString(__FUNCTION__));
 		}
 		return;
@@ -42,14 +42,14 @@ void UTcsStateSchema_StateComponent::SetContextData(FContextDataSetter& ContextD
 }
 
 #if WITH_EDITOR
-void UTcsStateSchema_StateComponent::PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent)
+void UTcsSTSchema_StateComponent::PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeChainProperty(PropertyChangedEvent);
 	RefreshContextDescriptor();
 }
 #endif
 
-void UTcsStateSchema_StateComponent::RefreshContextDescriptor()
+void UTcsSTSchema_StateComponent::RefreshContextDescriptor()
 {
 	if (ContextDataDescs.IsEmpty())
 	{

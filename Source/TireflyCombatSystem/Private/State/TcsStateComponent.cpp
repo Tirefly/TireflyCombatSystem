@@ -1,6 +1,5 @@
 // Copyright Tirefly. All Rights Reserved.
 
-
 #include "State/TcsStateComponent.h"
 
 #include "TcsLogChannels.h"
@@ -17,6 +16,7 @@
 #include "State/StateParameter/TcsStateNumericParameter.h"
 #include "State/StateParameter/TcsStateVectorParameter.h"
 #include "State/SamePriorityPolicy/TcsStateSamePriorityPolicy.h"
+
 
 
 UTcsStateComponent::UTcsStateComponent(const FObjectInitializer& ObjectInitializer)

@@ -1,8 +1,8 @@
 // Copyright Tirefly. All Rights Reserved.
 
-
 #include "Attribute/TcsAttributeModifier.h"
 #include "Attribute/TcsAttributeModifierDefinition.h"
+
 
 
 bool FTcsAttributeModifierInstance::IsValid() const

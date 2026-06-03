@@ -8,7 +8,7 @@
 - Buff 和 Skill 才是当前已经明确存在的 concrete 业务运行时语义面
 - `UTcsStateComponent` 对应的是宿主级编排树，而不是 generic `StateInstance` 的替身
 
-在这个前提下，继续保留 `UTcsStateTreeSchema_StateInstance` 作为 editor-facing concrete schema，会把抽象执行基类再次伪装成具体业务运行时类型。这和新的架构收敛方向冲突。
+在这个前提下，继续保留 `UTcsSTSchema_StateInstance` 作为 editor-facing concrete schema，会把抽象执行基类再次伪装成具体业务运行时类型。这和新的架构收敛方向冲突。
 
 同时，Skill 侧命名也需要一起翻面：
 
@@ -19,24 +19,24 @@
 因此，本提案不再以“保留 `StateInstance` 最小 concrete schema”为目标，而是转向：
 
 - 把 `UTcsStateInstance` 固化为抽象执行态基类
-- 删除 `UTcsStateTreeSchema_StateInstance`
+- 删除 `UTcsSTSchema_StateInstance`
 - 只保留 concrete 业务 owner 明确的三条 schema 线：
-  - `UTcsStateSchema_StateComponent`
-  - `UTcsStateSchema_Buff`
-  - `UTcsStateSchema_Skill`
+  - `UTcsSTSchema_StateComponent`
+  - `UTcsSTSchema_Buff`
+  - `UTcsSTSchema_Skill`
 
 ## 变更内容
 
 - 将 `UTcsStateInstance` 收敛为抽象共享执行态基类，不再让它直接作为 concrete 业务 StateTree 容器进入长期契约。
-- 删除 `UTcsStateTreeSchema_StateInstance`，不再保留 generic `StateInstance` 的 concrete editor-facing schema 入口。
-- 将组件树 schema 命名统一为 `UTcsStateSchema_StateComponent`：
+- 删除 `UTcsSTSchema_StateInstance`，不再保留 generic `StateInstance` 的 concrete editor-facing schema 入口。
+- 将组件树 schema 命名统一为 `UTcsSTSchema_StateComponent`：
   - 根上下文为 `StateComponent`
   - 继续覆盖当前 `State Component StateTree` 的临时用途
   - 保留 `LinkSubTree` / `LinkedSubTree` 兼容方向
-- 将 Buff 树 schema 命名统一为 `UTcsStateSchema_Buff`：
+- 将 Buff 树 schema 命名统一为 `UTcsSTSchema_Buff`：
   - 根上下文只暴露 `BuffInstance`
   - 不复用已被删除的 generic `StateInstance` schema
-- 将 Skill 树 schema 命名统一为 `UTcsStateSchema_Skill`：
+- 将 Skill 树 schema 命名统一为 `UTcsSTSchema_Skill`：
   - 根上下文为 `SkillInstance + SkillEntry`
   - 其中 `SkillInstance` 表示本次技能激活执行态
   - `SkillEntry` 表示 SkillComponent 托管的 learned skill 数据对象

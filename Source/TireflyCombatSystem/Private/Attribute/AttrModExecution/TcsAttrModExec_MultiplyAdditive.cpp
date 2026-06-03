@@ -1,6 +1,5 @@
 // Copyright Tirefly. All Rights Reserved.
 
-
 #include "Attribute/AttrModExecution/TcsAttrModExec_MultiplyAdditive.h"
 
 #include "Attribute/TcsAttributeModifierDefinition.h"

@@ -7,6 +7,8 @@
 #include "StateTreeExecutionTypes.h"
 #include "TcsLogChannels.h"
 
+
+
 FStateTreeReference UTcsStateComponent::GetStateTreeReference() const
 {
 	return StateTreeRef;

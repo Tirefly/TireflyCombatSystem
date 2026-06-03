@@ -4,8 +4,8 @@
 
 #include "AssetTypeCategories.h"
 #include "Skill/TcsSkillEntry.h"
-#include "StateTree/TcsStateSchema_Buff.h"
-#include "StateTree/TcsStateSchema_StateComponent.h"
+#include "StateTree/Schema/TcsSTSchema_Buff.h"
+#include "StateTree/Schema/TcsSTSchema_StateComponent.h"
 #include "TireflyCombatSystemEditor.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(TcsRuntimeAssetFactories)
@@ -28,12 +28,12 @@ namespace TcsRuntimeAssetFactories
 
 UTcsStateComponentStateTreeFactory::UTcsStateComponentStateTreeFactory()
 {
-	StateTreeSchemaClass = UTcsStateSchema_StateComponent::StaticClass();
+	StateTreeSchemaClass = UTcsSTSchema_StateComponent::StaticClass();
 }
 
 bool UTcsStateComponentStateTreeFactory::ConfigureProperties()
 {
-	StateTreeSchemaClass = UTcsStateSchema_StateComponent::StaticClass();
+	StateTreeSchemaClass = UTcsSTSchema_StateComponent::StaticClass();
 	return true;
 }
 
@@ -59,7 +59,7 @@ FText UTcsStateComponentStateTreeFactory::GetDisplayName() const
 
 FText UTcsStateComponentStateTreeFactory::GetToolTip() const
 {
-	return LOCTEXT("StateComponentStateTreeToolTip", "Create a StateTree preset for UTcsStateComponent using UTcsStateSchema_StateComponent.");
+	return LOCTEXT("StateComponentStateTreeToolTip", "Create a StateTree preset for UTcsStateComponent using UTcsSTSchema_StateComponent.");
 }
 
 FString UTcsStateComponentStateTreeFactory::GetDefaultNewAssetName() const
@@ -69,12 +69,12 @@ FString UTcsStateComponentStateTreeFactory::GetDefaultNewAssetName() const
 
 UTcsBuffStateTreeFactory::UTcsBuffStateTreeFactory()
 {
-	StateTreeSchemaClass = UTcsStateSchema_Buff::StaticClass();
+	StateTreeSchemaClass = UTcsSTSchema_Buff::StaticClass();
 }
 
 bool UTcsBuffStateTreeFactory::ConfigureProperties()
 {
-	StateTreeSchemaClass = UTcsStateSchema_Buff::StaticClass();
+	StateTreeSchemaClass = UTcsSTSchema_Buff::StaticClass();
 	return true;
 }
 
@@ -100,7 +100,7 @@ FText UTcsBuffStateTreeFactory::GetDisplayName() const
 
 FText UTcsBuffStateTreeFactory::GetToolTip() const
 {
-	return LOCTEXT("BuffStateTreeToolTip", "Create a StateTree preset for UTcsBuffInstance using UTcsStateSchema_Buff.");
+	return LOCTEXT("BuffStateTreeToolTip", "Create a StateTree preset for UTcsBuffInstance using UTcsSTSchema_Buff.");
 }
 
 FString UTcsBuffStateTreeFactory::GetDefaultNewAssetName() const

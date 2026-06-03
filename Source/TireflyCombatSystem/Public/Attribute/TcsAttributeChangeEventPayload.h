@@ -20,7 +20,7 @@ public:
 	// 属性名
 	UPROPERTY(BlueprintReadOnly)
 	FName AttributeName = NAME_None;
-	
+
 	// 属性新值
 	UPROPERTY(BlueprintReadOnly)
 	float NewValue = 0.f;

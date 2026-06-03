@@ -1,6 +1,6 @@
 // Copyright Tirefly. All Rights Reserved.
 
-#include "StateTree/TcsBuffPeriodDriverTask.h"
+#include "StateTree/Task/TcsSTTask_BuffPeriodDriver.h"
 
 #include "StructUtils/InstancedStruct.h"
 #include "Buff/TcsBuffInstance.h"
@@ -10,20 +10,20 @@
 
 
 
-FTcsBuffPeriodDriverTask::FTcsBuffPeriodDriverTask()
+FTcsSTTask_BuffPeriodDriver::FTcsSTTask_BuffPeriodDriver()
 {
 	bShouldCallTick = true;
 	bShouldStateChangeOnReselect = true;
 }
 
-bool FTcsBuffPeriodDriverTask::Link(FStateTreeLinker& Linker)
+bool FTcsSTTask_BuffPeriodDriver::Link(FStateTreeLinker& Linker)
 {
 	const bool bResult = Super::Link(Linker);
 	Linker.LinkExternalData(BuffInstanceHandle);
 	return bResult;
 }
 
-EStateTreeRunStatus FTcsBuffPeriodDriverTask::EnterState(
+EStateTreeRunStatus FTcsSTTask_BuffPeriodDriver::EnterState(
 	FStateTreeExecutionContext& Context,
 	const FStateTreeTransitionResult& Transition) const
 {
@@ -32,7 +32,7 @@ EStateTreeRunStatus FTcsBuffPeriodDriverTask::EnterState(
 	return EStateTreeRunStatus::Running;
 }
 
-EStateTreeRunStatus FTcsBuffPeriodDriverTask::Tick(
+EStateTreeRunStatus FTcsSTTask_BuffPeriodDriver::Tick(
 	FStateTreeExecutionContext& Context,
 	const float DeltaTime) const
 {
@@ -47,7 +47,7 @@ EStateTreeRunStatus FTcsBuffPeriodDriverTask::Tick(
 	const float ResolvedPeriod = InstanceData.PeriodOverride > 0.f
 		? InstanceData.PeriodOverride
 		: BuffInstance.GetPeriod();
-    if (ResolvedPeriod <= 0.f)
+	if (ResolvedPeriod <= 0.f)
 	{
 		return EStateTreeRunStatus::Running;
 	}
@@ -68,7 +68,7 @@ EStateTreeRunStatus FTcsBuffPeriodDriverTask::Tick(
 }
 
 #if WITH_EDITOR
-FText FTcsBuffPeriodDriverTask::GetDescription(
+FText FTcsSTTask_BuffPeriodDriver::GetDescription(
 	const FGuid& ID,
 	FStateTreeDataView InstanceDataView,
 	const IStateTreeBindingLookup& BindingLookup,

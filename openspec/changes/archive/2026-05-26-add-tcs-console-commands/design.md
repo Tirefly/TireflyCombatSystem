@@ -6,7 +6,7 @@
 - `UTcsStateComponent::GetSlotDebugSnapshot()`
 - `UTcsStateComponent::GetStateDebugSnapshot()`
 
-问题不在于“没有调试能力”，而在于“缺少统一命令入口与开关约束”，因此某些大字符串构造仍可能出现在常驻路径里，例如 `FTcsStateSlotDebugEvaluator::Tick()`。
+问题不在于“没有调试能力”，而在于“缺少统一命令入口与开关约束”，因此某些大字符串构造仍可能出现在常驻路径里，例如 `FTcsSTEvaluator_SlotDebug::Tick()`。
 
 ## 目标 / 非目标
 
@@ -69,7 +69,7 @@
 第一阶段只保留一个最小命令：
 
 - `tcs.state.debug_evaluator.enable`
-  - 作用：控制 `FTcsStateSlotDebugEvaluator` 这类常驻路径是否允许构造快照字符串
+  - 作用：控制 `FTcsSTEvaluator_SlotDebug` 这类常驻路径是否允许构造快照字符串
 
 `GetSlotDebugSnapshot()` / `GetStateDebugSnapshot()` 仍然保留为按需调试 API，
 但不再为它们提供第一阶段控制台 `dump / list` 查询入口；
@@ -98,7 +98,7 @@
 
 - `GetSlotDebugSnapshot()` / `GetStateDebugSnapshot()` 保留为按需调试 API
 - 常驻路径不得默认调用这两个接口构造大字符串
-- `FTcsStateSlotDebugEvaluator` 必须先检查显式调试开关，只有开关开启时才允许构造快照
+- `FTcsSTEvaluator_SlotDebug` 必须先检查显式调试开关，只有开关开启时才允许构造快照
 - 第一阶段不再提供 `dump / list` 控制台查询命令；面向目标的快照浏览留给后续调试 UI
 
 原因：

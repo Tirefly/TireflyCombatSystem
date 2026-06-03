@@ -124,7 +124,7 @@ public:
 	 * 仍然以 AttributeDefId (FName) 作为权威唯一 ID
 	 * 推荐命名约定：TCS.Attribute.<AttributeDefId>
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Meta", Meta = (Categories = "TCS.Attribute"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Meta", Meta = (Categories = "AttributeTag"))
 	FGameplayTag AttributeTag;
 
 #pragma endregion
@@ -199,7 +199,7 @@ public:
 	 * 是否显示为小数
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "UI")
-	bool bAsDecimal = true;
+	bool bAsDecimal = false;
 
 	/**
 	 * 是否显示为百分比

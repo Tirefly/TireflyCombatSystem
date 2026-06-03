@@ -12,6 +12,8 @@
 #include "State/TcsStateInstance.h"
 #include "TcsLogChannels.h"
 
+
+
 bool UTcsBuffComponent::ApplyBuff(
 	FName BuffDefId,
 	AActor* Instigator,
@@ -116,7 +118,12 @@ void UTcsBuffComponent::RegisterBuffInstance(UTcsStateInstance* StateInstance)
 		return;
 	}
 
-	if (BuffInstance->GetDurationType() == ETcsBuffDurationType::SDT_Duration)
+	// SDT_Duration   – 加入 DurationTracker，按剩余时长递减至 0 后过期。
+	// SDT_None       – 加入 DurationTracker（RemainingDuration 已初始化为 0），
+	//                  下一个 Tick 立即被检测为过期，确保 StateTree 至少执行一次。
+	// SDT_Infinite   – 不加入 DurationTracker，永不自动过期。
+	const ETcsBuffDurationType DurationType = BuffInstance->GetDurationType();
+	if (DurationType == ETcsBuffDurationType::SDT_Duration || DurationType == ETcsBuffDurationType::SDT_None)
 	{
 		DurationTracker.Add(BuffInstance);
 	}

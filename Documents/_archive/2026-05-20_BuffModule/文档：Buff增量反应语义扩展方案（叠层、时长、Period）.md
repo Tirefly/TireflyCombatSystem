@@ -281,12 +281,12 @@ struct FTcsBuffOnDurationExpiredPolicy
 
 1. `UTcsBuffInstance` 本身就是 `UTcsStateInstance` 的派生类，每个 Buff 实例天然都有自己的 `FStateTreeInstanceData`。
 2. `UTcsStateInstance` 已经具备 `StartStateTree()` / `RestartStateTree()` / `TickStateTree()` / `PauseStateTree()` / `ResumeStateTree()` 等现成运行时接口。
-3. `UTcsStateTreeSchema_StateInstance` 已经把 `StateInstance`、Owner、Instigator 以及相关组件都暴露成了可读取的 StateTree 外部数据。
+3. `UTcsSTSchema_StateInstance` 已经把 `StateInstance`、Owner、Instigator 以及相关组件都暴露成了可读取的 StateTree 外部数据。
 4. `UTcsStateInstance` 已经有现成的 `SendStateTreeEvent()`，可以把中性事件重新送回当前这棵内层树。
 
 也就是说，Period 缺的不是底层设施，而是一个合适的 StateTree 节拍驱动节点。
 
-### 7.2.2 推荐新增通用节点：`FTcsBuffPeriodDriverTask`
+### 7.2.2 推荐新增通用节点：`FTcsSTTask_BuffPeriodDriver`
 
 推荐不要在组件里做统一 PeriodScheduler，而是提供一个 BuffStateTree 内可复用的通用 Task。
 
@@ -294,7 +294,7 @@ struct FTcsBuffOnDurationExpiredPolicy
 
 ```cpp
 USTRUCT()
-struct FTcsBuffPeriodDriverTaskInstanceData
+struct FTcsSTTask_BuffPeriodDriverInstanceData
 {
     GENERATED_BODY()
 
@@ -319,7 +319,7 @@ struct FTcsBuffPeriodDriverTaskInstanceData
 推荐执行链大致如下：
 
 ```text
-FTcsBuffPeriodDriverTask::Tick
+FTcsSTTask_BuffPeriodDriver::Tick
   -> Resolve BuffInstance
   -> Resolve Period
   -> ElapsedTime += DeltaTime
@@ -332,7 +332,7 @@ FTcsBuffPeriodDriverTask::Tick
 
 这里的边界要刻意收紧：
 
-1. `FTcsBuffPeriodDriverTask` 只负责“到点了”这件事。
+1. `FTcsSTTask_BuffPeriodDriver` 只负责“到点了”这件事。
 2. 它不应该直接把伤害、治疗、叠层变化等玩法效果硬写进去。
 3. 它最合适的输出，就是一个中性的 `Event.Buff.PeriodTick`。
 
@@ -567,7 +567,7 @@ merger 的问题是：
 3. 在 `UTcsBuffDefinition` 上新增 `FTcsBuffOnStackIncreasePolicy`。
 4. 在 `UTcsBuffDefinition` 上新增 `FTcsBuffOnDurationExpiredPolicy`。
 5. 补上与 `MaxStackCount` / `DurationType` 绑定的编辑器可见性与运行时忽略规则。
-6. 新增可复用的 `FTcsBuffPeriodDriverTask`。
+6. 新增可复用的 `FTcsSTTask_BuffPeriodDriver`。
 7. 约定统一的 `Event.Buff.PeriodTick` 事件契约。
 8. 明确 `UTcsBuffDefinition::Period` 作为 BuffStateTree 默认输入字段的用法。
 9. 新增 `HandleBuffStackCountChangedInternal()`。
@@ -579,7 +579,7 @@ merger 的问题是：
 
 1. `TickBuffLifecycles()` 中把直接 `ExpireBuffInstance()` 改成 `HandleBuffDurationExpired()`。
 2. `UTcsBuffInstance::SetStackCount()` 写回后调用 `HandleBuffStackCountChangedInternal()`。
-3. 周期型 Buff 的 BuffStateTree 采用 `WhileActive` TickPolicy，并在常驻 Active 状态中挂入 `FTcsBuffPeriodDriverTask`。
+3. 周期型 Buff 的 BuffStateTree 采用 `WhileActive` TickPolicy，并在常驻 Active 状态中挂入 `FTcsSTTask_BuffPeriodDriver`。
 4. 具体 Buff 如果希望 stack 变化影响 Period，相应逻辑在该 BuffStateTree 的专用节点里完成。
 
 ## 11.3 第三阶段：验证基础组合是否正确
@@ -591,7 +591,7 @@ merger 的问题是：
 3. `UseNewest + 叠层上涨不刷新时长`
 4. `DurationExpired -> ClearEntireBuff`
 5. `DurationExpired -> RemoveSingleStackAndRefreshDuration`
-6. 带 `Period` 的 Buff 在 BuffStateTree 内挂入 `FTcsBuffPeriodDriverTask` 后，是否能稳定发出 `Event.Buff.PeriodTick`
+6. 带 `Period` 的 Buff 在 BuffStateTree 内挂入 `FTcsSTTask_BuffPeriodDriver` 后，是否能稳定发出 `Event.Buff.PeriodTick`
 7. `Pause` / `HangUp` / Gate 关闭导致 BuffStateTree 不 Tick 时，Period 是否自然跟着停止推进
 8. 同一帧 Period 与 Duration 同时到点时，是否先触发最后一次 Period 再 Expire
 9. 如果某个具体 Buff 想在叠层时重置或补发 Period，是否可以只通过 BuffStateTree 专用节点实现，而不依赖新的 BuffDef 通用配置
@@ -612,7 +612,7 @@ merger 的问题是：
 - `MergerType = StackByInstigator`
 - `OnStackIncrease.DurationPolicy = RefreshRemainingToTotal`
 - `OnDurationExpired.ExpirationPolicy = RemoveSingleStackAndRefreshDuration`
-- BuffStateTree 的常驻 Active 状态挂入 `FTcsBuffPeriodDriverTask`
+- BuffStateTree 的常驻 Active 状态挂入 `FTcsSTTask_BuffPeriodDriver`
 - 周期伤害逻辑通过消费 `Event.Buff.PeriodTick` 实现
 - 如果这类毒 Buff 希望“叠层时重置自己的周期相位”，在该 BuffStateTree 的专用节点里处理，不走通用 BuffDef 配置
 
@@ -646,7 +646,7 @@ merger 的问题是：
 - `OnStackIncrease.DurationPolicy = RefreshRemainingToTotal`
 - `OnDurationExpired.ExpirationPolicy = ClearEntireBuff`
 - BuffStateTree 内使用专用的印记 Task / 状态流实现“叠层时立刻额外执行一次”
-- `FTcsBuffPeriodDriverTask` 仍然只负责自然 Period 节拍，不负责这类专用引爆逻辑
+- `FTcsSTTask_BuffPeriodDriver` 仍然只负责自然 Period 节拍，不负责这类专用引爆逻辑
 
 ## 十三、最终推荐
 
@@ -657,7 +657,7 @@ merger 的问题是：
 3. 配置面应参考 GAS 的收紧方式，把枚举类型控制在少数稳定语义轴，不保留原始五类枚举方案。
 4. `Period` 不再进入这批 BuffDef 通用枚举配置；`UTcsBuffDefinition::Period` 只保留为 BuffStateTree 可读取的默认输入。
 5. `UTcsBuffComponent` 只负责 stack / duration 这两类通用生命周期反应，不负责 Period 调度。
-6. BuffStateTree 通过 `FTcsBuffPeriodDriverTask` 或专用 Task 负责 Period 节拍和具体玩法执行。
+6. BuffStateTree 通过 `FTcsSTTask_BuffPeriodDriver` 或专用 Task 负责 Period 节拍和具体玩法执行。
 7. 当前不要把这批需求再做成第二套 CDO 策略，也不要引入 `ExtendDuration`。
 8. 真到以后出现复杂自定义公式，再新增独立 `BuffReactivePolicy`，也不要复用 merger。
 

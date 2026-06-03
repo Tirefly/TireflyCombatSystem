@@ -514,6 +514,7 @@ public:
 	 * @param bRemoveAll 是否移除全部匹配实例
 	 * @return 成功移除的状态数量
 	 */
+	UFUNCTION(BlueprintCallable, Category = "State")
 	virtual int32 RemoveStatesByDefId(FName StateDefId, bool bRemoveAll = true);
 
 	/**
@@ -522,6 +523,7 @@ public:
 	 * @param SlotTag 状态槽标签
 	 * @return 成功移除的状态数量
 	 */
+	UFUNCTION(BlueprintCallable, Category = "State Slot", meta = (AutoCreateRefTerm = "SlotTag"))
 	virtual int32 RemoveAllStatesInSlot(FGameplayTag SlotTag);
 
 	/**
@@ -529,6 +531,7 @@ public:
 	 *
 	 * @return 成功移除的状态数量
 	 */
+	UFUNCTION(BlueprintCallable, Category = "State")
 	virtual int32 RemoveAllStates();
 
 	// 取消状态实例（非 virtual 包装器）
@@ -620,6 +623,7 @@ public:
 	 * @param StateDefId 状态定义 ID
 	 * @return 如果存在则返回 true，否则返回 false
 	 */
+	UFUNCTION(BlueprintPure, Category = "State")
 	bool HasStateWithDefId(FName StateDefId) const;
 
 	/**
@@ -628,6 +632,7 @@ public:
 	 * @param SlotTag 状态槽标签
 	 * @return 如果存在激活状态则返回 true，否则返回 false
 	 */
+	UFUNCTION(BlueprintPure, Category = "State Slot", meta = (AutoCreateRefTerm = "SlotTag"))
 	bool HasActiveStateInSlot(FGameplayTag SlotTag) const;
 
 public:
@@ -661,6 +666,7 @@ public:
 	 * @param SlotTag 目标槽位标签
 	 * @param bOpen 新的 Gate 开关状态
 	 */
+	UFUNCTION(BlueprintCallable, Category = "StateTree Integration", meta = (AutoCreateRefTerm = "SlotTag"))
 	void SetSlotGateOpen(FGameplayTag SlotTag, bool bOpen);
 
 	/**
@@ -826,7 +832,7 @@ public:
 	const UStateTree* GetStateTree() const;
 
 	/**
-	 * 由 TcsStateChangeNotifyTask 调用，通知 StateTree 状态变更。
+	 * 由 TcsSTTask_StateChangeNotify 调用，通知 StateTree 状态变更。
 	 *
 	 * @param Context 执行上下文，包含当前激活状态信息
 	 */

@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Components/StateTreeComponentSchema.h"
-#include "TcsStateSchema_StateComponent.generated.h"
+#include "TcsSTSchema_StateComponent.generated.h"
 
 
 
@@ -20,18 +20,18 @@ namespace TcsStateComponentContextName
 
 
 /**
- * Tcs StateComponent 专用 StateTree schema。
+ * TCS StateComponent 专用 StateTree schema。
  *
  * 基于引擎的组件 schema 链路保留组件执行与 LinkSubTree 兼容性，同时将根上下文收敛为单一 StateComponent。
  */
-UCLASS(BlueprintType, EditInlineNew, CollapseCategories, meta = (DisplayName = "Tcs State Component"))
-class TIREFLYCOMBATSYSTEM_API UTcsStateSchema_StateComponent : public UStateTreeComponentSchema
+UCLASS(BlueprintType, EditInlineNew, CollapseCategories, meta = (DisplayName = "TcsSTSchema_StateComponent"))
+class TIREFLYCOMBATSYSTEM_API UTcsSTSchema_StateComponent : public UStateTreeComponentSchema
 {
 	GENERATED_BODY()
 
 public:
 	/** 构造默认的 StateComponent 根上下文描述。 */
-	UTcsStateSchema_StateComponent(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+	UTcsSTSchema_StateComponent(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 	virtual void PostLoad() override;
 

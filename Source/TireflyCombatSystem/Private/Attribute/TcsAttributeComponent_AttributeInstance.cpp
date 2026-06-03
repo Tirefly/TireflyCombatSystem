@@ -7,6 +7,8 @@
 #include "Attribute/TcsAttributeDefinition.h"
 #include "Attribute/TcsAttributeModifierDefinition.h"
 
+
+
 bool UTcsAttributeComponent::AddAttribute(FName AttributeName, float InitValue)
 {
 	UTcsAttributeManagerSubsystem* Mgr = ResolveAttributeManager();
