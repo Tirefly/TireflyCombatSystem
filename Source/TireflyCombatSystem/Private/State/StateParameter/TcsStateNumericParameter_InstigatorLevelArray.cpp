@@ -29,15 +29,32 @@ bool UTcsStateNumericParamEvaluator_InstigatorLevelArray::Evaluate_Implementatio
 
 		const TArray<float>& LevelValues = InstigatorLevelArrayParam->LevelValues;
 
-		// 检查等级是否在数组范围内（数组下标直接对应等级值，即 LevelValues[0] 对应等级 0）
+		// 数组下标直接对应等级值（LevelValues[0] 对应等级 0）。
 		if (LevelValues.IsValidIndex(InstigatorLevel))
 		{
 			OutValue = LevelValues[InstigatorLevel];
 		}
+		else if (LevelValues.Num() > 0 && InstigatorLevel >= LevelValues.Num())
+		{
+			OutValue = LevelValues.Last();
+		}
 		else
 		{
-			// 等级超出范围，使用默认值
-			OutValue = InstigatorLevelArrayParam->DefaultValue;
+			// 未精确匹配且未超限，查找最近的 LowerKey
+			bool bLocated = false;
+			for (int32 i = 0; i < LevelValues.Num(); ++i)
+			{
+				if (InstigatorLevel > i)
+				{
+					OutValue = LevelValues[i];
+					bLocated = true;
+					break;
+				}
+			}
+			if (!bLocated)
+			{
+				OutValue = InstigatorLevelArrayParam->DefaultValue;
+			}
 		}
 
 		return true;

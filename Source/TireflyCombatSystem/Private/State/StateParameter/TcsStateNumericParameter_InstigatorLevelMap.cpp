@@ -29,15 +29,31 @@ bool UTcsStateNumericParamEvaluator_InstigatorLevelMap::Evaluate_Implementation(
 
 		const TMap<int32, float>& LevelValues = InstigatorLevelMapParam->LevelValues;
 
-		// 检查等级是否在映射表中
+		// 检查等级是否在映射表中精确匹配
 		if (const float* Value = LevelValues.Find(InstigatorLevel))
 		{
 			OutValue = *Value;
 		}
 		else
 		{
-			// 等级不在映射表中，使用默认值
-			OutValue = InstigatorLevelMapParam->DefaultValue;
+			// 未精确匹配，查找最近的小于等于当前等级的 Key，避免跳变到 DefaultValue
+			int32 BestKey = INDEX_NONE;
+			for (const TPair<int32, float>& Pair : LevelValues)
+			{
+				if (Pair.Key <= InstigatorLevel && (BestKey == INDEX_NONE || Pair.Key > BestKey))
+				{
+					BestKey = Pair.Key;
+				}
+			}
+
+			if (BestKey != INDEX_NONE)
+			{
+				OutValue = LevelValues[BestKey];
+			}
+			else
+			{
+				OutValue = InstigatorLevelMapParam->DefaultValue;
+			}
 		}
 
 		return true;

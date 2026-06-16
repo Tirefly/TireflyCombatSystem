@@ -5,6 +5,8 @@
 #include "Attribute/TcsAttributeDefinition.h"
 #include "Attribute/TcsAttributeModifierDefinition.h"
 #include "Buff/TcsBuffDefinition.h"
+#include "Skill/TcsSkillDefinition.h"
+#include "Skill/TcsSkillModifierDefinition.h"
 #include "State/TcsStateSlotDefinition.h"
 #include "TireflyCombatSystemEditor.h"
 
@@ -88,6 +90,46 @@ TSoftClassPtr<UObject> UAssetDefinition_TcsStateSlotDefinition::GetAssetClass() 
 }
 
 TConstArrayView<FAssetCategoryPath> UAssetDefinition_TcsStateSlotDefinition::GetAssetCategories() const
+{
+	return FTireflyCombatSystemEditorModule::GetDefinitionAssetCategoryPaths();
+}
+
+FText UAssetDefinition_TcsSkillModifierDefinition::GetAssetDisplayName() const
+{
+	return LOCTEXT("SkillModifierDefinitionAssetName", "Skill Modifier Definition");
+}
+
+FLinearColor UAssetDefinition_TcsSkillModifierDefinition::GetAssetColor() const
+{
+	return FColor(156, 39, 176);
+}
+
+TSoftClassPtr<UObject> UAssetDefinition_TcsSkillModifierDefinition::GetAssetClass() const
+{
+	return UTcsSkillModifierDefinition::StaticClass();
+}
+
+TConstArrayView<FAssetCategoryPath> UAssetDefinition_TcsSkillModifierDefinition::GetAssetCategories() const
+{
+	return FTireflyCombatSystemEditorModule::GetDefinitionAssetCategoryPaths();
+}
+
+FText UAssetDefinition_TcsSkillDefinition::GetAssetDisplayName() const
+{
+	return LOCTEXT("SkillDefinitionAssetName", "Skill Definition");
+}
+
+FLinearColor UAssetDefinition_TcsSkillDefinition::GetAssetColor() const
+{
+	return FColor(63, 81, 181);
+}
+
+TSoftClassPtr<UObject> UAssetDefinition_TcsSkillDefinition::GetAssetClass() const
+{
+	return UTcsSkillDefinition::StaticClass();
+}
+
+TConstArrayView<FAssetCategoryPath> UAssetDefinition_TcsSkillDefinition::GetAssetCategories() const
 {
 	return FTireflyCombatSystemEditorModule::GetDefinitionAssetCategoryPaths();
 }

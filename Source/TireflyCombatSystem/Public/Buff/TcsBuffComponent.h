@@ -6,6 +6,7 @@
 #include "Components/ActorComponent.h"
 #include "Buff/BuffMerger/TcsBuffMergeRuntime.h"
 #include "Buff/TcsBuffChangeEventPayload.h"
+#include "Buff/TcsBuffDurationTracker.h"
 #include "Buff/TcsBuffTypes.h"
 #include "TcsSourceHandle.h"
 #include "TcsBuffComponent.generated.h"
@@ -31,41 +32,6 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(
 	FTcsBuffRemovedBatchDelegate,
 	const TArray<FTcsBuffRemovedEventPayload>&, Payloads);
-
-#pragma endregion
-
-
-
-#pragma region DurationTracker
-
-USTRUCT()
-struct FTcsBuffDurationTracker
-{
-	GENERATED_BODY()
-
-public:
-	/** 当前需要参与有限时长 Tick 的 Buff 实例集合。 */
-	UPROPERTY()
-	TSet<TObjectPtr<UTcsBuffInstance>> TrackedInstances;
-
-public:
-	/**
-	 * 把一个 Buff 实例加入持续时间跟踪集合。
-	 *
-	 * @param BuffInstance 目标 Buff 实例
-	 */
-	void Add(UTcsBuffInstance* BuffInstance);
-
-	/**
-	 * 把一个 Buff 实例移出持续时间跟踪集合。
-	 *
-	 * @param BuffInstance 目标 Buff 实例
-	 */
-	void Remove(UTcsBuffInstance* BuffInstance);
-
-	/** 清理当前跟踪集合中的失效或已过期 Buff 实例。 */
-	void RefreshInstances();
-};
 
 #pragma endregion
 

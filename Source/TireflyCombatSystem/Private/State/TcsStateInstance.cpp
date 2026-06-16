@@ -111,18 +111,9 @@ void UTcsStateInstance::Initialize(
 	InstigatorAttributeCmp = ITcsEntityInterface::Execute_GetAttributeComponent(InInstigator);
 	InstigatorSkillCmp = ITcsEntityInterface::Execute_GetSkillComponent(InInstigator);
 
-	// 清理参数缓存
-	NumericParameters.Reset();
-	NumericParametersTag.Reset();
-	BoolParameters.Reset();
-	BoolParametersTag.Reset();
-	VectorParameters.Reset();
-	VectorParametersTag.Reset();
-
 	InitializeRuntimeParameters();
 
-	// 参数由 UTcsStateManagerSubsystem::EvaluateAndApplyStateParameters 在创建实例时统一评估并写入，
-	// 此处不再重复调用 InitParameterValues / InitParameterTagValues。
+	// 参数由 CreateStateInstance 初始化 StateParamInstances 统一管理。
 
 	bInitialized = true;
 }

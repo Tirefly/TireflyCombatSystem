@@ -2,11 +2,24 @@
 
 #include "State/TcsStateDefinition.h"
 
+#include "TcsDeveloperSettings.h"
+
 #if WITH_EDITOR
 #include "Misc/DataValidation.h"
 #endif
 
 
+
+UTcsStateDefinition::UTcsStateDefinition()
+{
+	if (const UTcsDeveloperSettings* Settings = GetDefault<UTcsDeveloperSettings>())
+	{
+		if (Settings->DefaultLevelParamTag.IsValid())
+		{
+			LevelParamTag = Settings->DefaultLevelParamTag;
+		}
+	}
+}
 
 // 定义 PrimaryAssetType 静态变量
 const FPrimaryAssetType UTcsStateDefinition::PrimaryAssetType = FPrimaryAssetType("TcsStateDef");

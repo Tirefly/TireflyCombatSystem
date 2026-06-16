@@ -16,9 +16,9 @@ struct FTcsStateConditionPayload_ParameterBased
 	GENERATED_BODY()
 
 public:
-	// 要比较的参数名称
+	// 要比较的参数标签
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Parameter Comparison")
-	FName ParameterName = NAME_None;
+	FGameplayTag ParameterTag;
 
 	// 比较操作
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Parameter Comparison")

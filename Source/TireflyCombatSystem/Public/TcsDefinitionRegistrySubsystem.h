@@ -11,6 +11,7 @@ class UTcsAttributeDefinition;
 class UTcsAttributeModifierDefinition;
 class UTcsStateDefinition;
 class UTcsStateSlotDefinition;
+class UTcsSkillModifierDefinition;
 class IAssetRegistry;
 class FObjectPostSaveContext;
 class UObject;
@@ -40,6 +41,11 @@ public:
 	const TMap<FName, TSoftObjectPtr<UTcsAttributeModifierDefinition>>& GetAttributeModifierDefinitions() const
 	{
 		return AttributeModifierDefinitions;
+	}
+
+	const TMap<FName, TSoftObjectPtr<UTcsSkillModifierDefinition>>& GetSkillModifierDefinitions() const
+	{
+		return SkillModifierDefinitions;
 	}
 
 	const TMap<FName, TSoftObjectPtr<UTcsStateDefinition>>& GetStateDefinitions() const
@@ -88,6 +94,7 @@ private:
 	void ScanPrimaryAssetType(const FPrimaryAssetTypeInfo& TypeInfo, class IAssetRegistry& AssetRegistry);
 	void ScanAttributeDefinitions(const TArray<FAssetData>& AssetDataList);
 	void ScanAttributeModifierDefinitions(const TArray<FAssetData>& AssetDataList);
+	void ScanSkillModifierDefinitions(const TArray<FAssetData>& AssetDataList);
 	void ScanStateDefinitions(const TArray<FAssetData>& AssetDataList);
 	void ScanStateSlotDefinitions(const TArray<FAssetData>& AssetDataList);
 	void RegisterContentBrowserSaveButtonHook();
@@ -145,6 +152,7 @@ private:
 
 	TMap<FName, TSoftObjectPtr<UTcsAttributeDefinition>> AttributeDefinitions;
 	TMap<FName, TSoftObjectPtr<UTcsAttributeModifierDefinition>> AttributeModifierDefinitions;
+	TMap<FName, TSoftObjectPtr<UTcsSkillModifierDefinition>> SkillModifierDefinitions;
 	TMap<FName, TSoftObjectPtr<UTcsStateDefinition>> StateDefinitions;
 	TMap<FName, TSoftObjectPtr<UTcsStateSlotDefinition>> StateSlotDefinitions;
 	FTcsDefinitionRegistryRefreshed DefinitionsRefreshed;

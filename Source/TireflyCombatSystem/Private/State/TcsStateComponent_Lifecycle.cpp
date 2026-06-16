@@ -623,8 +623,6 @@ void UTcsStateComponent::NotifySlotGateStateChanged(FGameplayTag SlotTag, bool b
 
 void UTcsStateComponent::NotifyStateParameterChanged(
 	UTcsStateInstance* StateInstance,
-	ETcsStateParameterKeyType KeyType,
-	FName ParameterName,
 	FGameplayTag ParameterTag,
 	ETcsStateParameterType ParameterType)
 {
@@ -635,7 +633,7 @@ void UTcsStateComponent::NotifyStateParameterChanged(
 
 	if (OnStateParameterChanged.IsBound())
 	{
-		OnStateParameterChanged.Broadcast(StateInstance, KeyType, ParameterName, ParameterTag, ParameterType);
+		OnStateParameterChanged.Broadcast(StateInstance, ParameterTag, ParameterType);
 	}
 }
 

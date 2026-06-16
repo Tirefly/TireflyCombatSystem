@@ -101,7 +101,7 @@ public:
 	 * @param AttributeTag 属性的 GameplayTag 标识
 	 * @return 如果 Tag 能解析且组件中已存在该属性则返回 true，否则返回 false
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Attribute", Meta = (Categories = "AttributeTag"))
+	UFUNCTION(BlueprintCallable, Category = "Attribute")
 	bool HasAttributeByTag(const FGameplayTag& AttributeTag) const;
 
 	/**
@@ -111,7 +111,7 @@ public:
 	 * @param OutValue 输出属性当前值
 	 * @return 如果 Tag 能解析且属性存在则返回 true，否则返回 false
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Attribute", Meta = (Categories = "AttributeTag"))
+	UFUNCTION(BlueprintCallable, Category = "Attribute")
 	bool GetAttributeValueByTag(const FGameplayTag& AttributeTag, float& OutValue) const;
 
 	/**
@@ -133,7 +133,7 @@ public:
 	 * @param OutValue 输出属性基础值
 	 * @return 如果 Tag 能解析且属性存在则返回 true，否则返回 false
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Attribute", Meta = (Categories = "AttributeTag"))
+	UFUNCTION(BlueprintCallable, Category = "Attribute")
 	bool GetAttributeBaseValueByTag(const FGameplayTag& AttributeTag, float& OutValue) const;
 
 	/** @return 当前组件中全部属性的 CurrentValue 快照。 */
@@ -248,7 +248,7 @@ public:
 	 * @param InitValue 初始值
 	 * @return 是否成功添加（Tag 有效、在映射中注册、且属性不存在时返回 true）
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Attribute", Meta = (Categories = "AttributeTag"))
+	UFUNCTION(BlueprintCallable, Category = "Attribute")
 	bool AddAttributeByTag(const FGameplayTag& AttributeTag, float InitValue = 0.f);
 
 	/**
@@ -321,19 +321,21 @@ public:
 		FTcsAttributeModifierInstance& OutModifierInst);
 
 	/**
-	 * 创建属性修改器实例，并设置操作数
+	 * 创建属性修改器实例，并设置 StateParam 绑定。
+	 *
+	 * Operands 从 DefAsset 复制默认值，绑定的操作数在首次 RecalculateAttributeCurrentValues 时刷新。
 	 *
 	 * @param ModifierId 属性修改器 Id
 	 * @param Instigator 修改器发起者
-	 * @param Operands 属性修改器操作数
+	 * @param Bindings   Operand 到 StateParam 的绑定列表
 	 * @param OutModifierInst 输出创建的修改器实例
 	 * @return 是否创建成功
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Attribute|Modifier")
-	virtual bool CreateAttributeModifierWithOperands(
+	virtual bool CreateAttributeModifierWithBindings(
 		UPARAM(Meta = (GetParamOptions = "TcsGenericLibrary.GetAttributeModifierIds"))FName ModifierId,
 		AActor* Instigator,
-		const TMap<FName, float>& Operands,
+		const TArray<FTcsStateParamBinding>& Bindings,
 		FTcsAttributeModifierInstance& OutModifierInst);
 
 	/**
@@ -541,6 +543,20 @@ public:
 	//   避免对每个元素独立 Swap+Map 更新，可改为 "先收集所有待删索引 → 一次性重排 → 整体重建 Index Map"，
 	//   将 K 次移除的总成本从 O(K) 次 Map 写入降为一次性 O(N) 扫描（当 K 接近 N 时更优）。
 	TMap<int32, int32> ModifierInstIdToIndex;
+
+#pragma endregion
+
+
+#pragma region PerfCaches
+
+	// 合并+排序后的修改器缓存，避免每次 RecalculateAttributeCurrentValues 都做 O(N log N)。
+	TArray<FTcsAttributeModifierInstance> CachedMergedModifiers;
+
+	// 当 AttributeModifiers 数组发生增/删/改时置 true，下次重算时重建缓存。
+	bool bMergedModifiersDirty = true;
+
+	// 上次重算时的 BaseValue 快照，用于稳定态快速跳过。
+	TMap<FName, float> CachedBaseValuesSnapshot;
 
 #pragma endregion
 };

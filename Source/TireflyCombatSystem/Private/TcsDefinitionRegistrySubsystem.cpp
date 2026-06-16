@@ -6,6 +6,7 @@
 #include "TcsLogChannels.h"
 #include "Attribute/TcsAttributeDefinition.h"
 #include "Attribute/TcsAttributeModifierDefinition.h"
+#include "Skill/TcsSkillModifierDefinition.h"
 #include "State/TcsStateDefinition.h"
 #include "State/TcsStateSlotDefinition.h"
 
@@ -101,6 +102,7 @@ namespace TcsDefinitionRegistryPrivate
 			{ UTcsAttributeModifierDefinition::StaticClass(), UTcsAttributeModifierDefinition::PrimaryAssetType, TEXT("UTcsAttributeModifierDefinition") },
 			{ UTcsStateDefinition::StaticClass(), UTcsStateDefinition::PrimaryAssetType, TEXT("UTcsStateDefinition") },
 			{ UTcsStateSlotDefinition::StaticClass(), UTcsStateSlotDefinition::PrimaryAssetType, TEXT("UTcsStateSlotDefinition") },
+			{ UTcsSkillModifierDefinition::StaticClass(), UTcsSkillModifierDefinition::PrimaryAssetType, TEXT("UTcsSkillModifierDefinition") },
 		};
 
 		return TrackedTypes;
@@ -1005,7 +1007,8 @@ void UTcsDefinitionRegistrySubsystem::ScanPrimaryAssetType(const FPrimaryAssetTy
 	if (TypeInfo.PrimaryAssetType != UTcsAttributeDefinition::PrimaryAssetType &&
 		TypeInfo.PrimaryAssetType != UTcsAttributeModifierDefinition::PrimaryAssetType &&
 		TypeInfo.PrimaryAssetType != UTcsStateDefinition::PrimaryAssetType &&
-		TypeInfo.PrimaryAssetType != UTcsStateSlotDefinition::PrimaryAssetType)
+		TypeInfo.PrimaryAssetType != UTcsStateSlotDefinition::PrimaryAssetType &&
+		TypeInfo.PrimaryAssetType != UTcsSkillModifierDefinition::PrimaryAssetType)
 	{
 		return;
 	}
@@ -1032,6 +1035,10 @@ void UTcsDefinitionRegistrySubsystem::ScanPrimaryAssetType(const FPrimaryAssetTy
 		{
 			ScanStateSlotDefinitions(AssetDataList);
 		}
+		else if (TypeInfo.PrimaryAssetType == UTcsSkillModifierDefinition::PrimaryAssetType)
+		{
+			ScanSkillModifierDefinitions(AssetDataList);
+		}
 	}
 
 	for (const FSoftObjectPath& SpecificAsset : TypeInfo.GetSpecificAssets())
@@ -1054,6 +1061,10 @@ void UTcsDefinitionRegistrySubsystem::ScanPrimaryAssetType(const FPrimaryAssetTy
 		else if (TypeInfo.PrimaryAssetType == UTcsStateSlotDefinition::PrimaryAssetType)
 		{
 			ScanStateSlotDefinitions(AssetDataList);
+		}
+		else if (TypeInfo.PrimaryAssetType == UTcsSkillModifierDefinition::PrimaryAssetType)
+		{
+			ScanSkillModifierDefinitions(AssetDataList);
 		}
 	}
 }
@@ -1095,6 +1106,25 @@ void UTcsDefinitionRegistrySubsystem::ScanAttributeModifierDefinitions(const TAr
 			TEXT("AttributeModifier"));
 	}
 	}
+
+void UTcsDefinitionRegistrySubsystem::ScanSkillModifierDefinitions(const TArray<FAssetData>& AssetDataList)
+{
+	for (const FAssetData& AssetData : AssetDataList)
+	{
+		TSoftObjectPtr<UTcsSkillModifierDefinition> AssetPtr(AssetData.ToSoftObjectPath());
+		const UTcsSkillModifierDefinition* Asset = AssetPtr.LoadSynchronous();
+		if (!Asset)
+		{
+			continue;
+		}
+
+		TcsDefinitionRegistryPrivate::AddDefinition(
+			SkillModifierDefinitions,
+			Asset->ModifierId,
+			AssetPtr,
+			TEXT("SkillModifier"));
+	}
+}
 
 void UTcsDefinitionRegistrySubsystem::ScanStateDefinitions(const TArray<FAssetData>& AssetDataList)
 {
@@ -1150,7 +1180,8 @@ bool UTcsDefinitionRegistrySubsystem::IsTrackedDefinitionClass(const FAssetData&
 	return AssetClass->IsChildOf(UTcsAttributeDefinition::StaticClass()) ||
 		AssetClass->IsChildOf(UTcsAttributeModifierDefinition::StaticClass()) ||
 		AssetClass->IsChildOf(UTcsStateDefinition::StaticClass()) ||
-		AssetClass->IsChildOf(UTcsStateSlotDefinition::StaticClass());
+		AssetClass->IsChildOf(UTcsStateSlotDefinition::StaticClass()) ||
+		AssetClass->IsChildOf(UTcsSkillModifierDefinition::StaticClass());
 }
 
 bool UTcsDefinitionRegistrySubsystem::IsTrackedDefinitionObject(const UObject* AssetObject) const
@@ -1159,7 +1190,8 @@ bool UTcsDefinitionRegistrySubsystem::IsTrackedDefinitionObject(const UObject* A
 		AssetObject->IsA(UTcsAttributeDefinition::StaticClass()) ||
 		AssetObject->IsA(UTcsAttributeModifierDefinition::StaticClass()) ||
 		AssetObject->IsA(UTcsStateDefinition::StaticClass()) ||
-		AssetObject->IsA(UTcsStateSlotDefinition::StaticClass()));
+		AssetObject->IsA(UTcsStateSlotDefinition::StaticClass()) ||
+		AssetObject->IsA(UTcsSkillModifierDefinition::StaticClass()));
 }
 
 void UTcsDefinitionRegistrySubsystem::OnAssetAdded(const FAssetData& AssetData)

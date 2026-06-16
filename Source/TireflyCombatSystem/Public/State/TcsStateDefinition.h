@@ -24,6 +24,10 @@ class TIREFLYCOMBATSYSTEM_API UTcsStateDefinition : public UPrimaryDataAsset
 {
 	GENERATED_BODY()
 
+public:
+	UTcsStateDefinition();
+	
+
 #pragma region PrimaryAsset
 
 public:
@@ -54,7 +58,7 @@ public:
 	 * 用于父子 Tag 匹配、分类筛选、跨系统对齐
 	 * 命名约定：StateTag.<StateDefId>
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity", Meta = (Categories = "StateTag"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity")
 	FGameplayTag StateTag;
 
 #pragma endregion
@@ -67,7 +71,7 @@ public:
 	 * 状态槽类型
 	 * 命名约定：StateSlotTag.<StateSlotId>
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "State Slot", Meta = (Categories = "StateSlotTag"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "State Slot")
 	FGameplayTag StateSlotType;
 
 	/**
@@ -130,17 +134,19 @@ public:
 #pragma region Parameter
 
 public:
-	/**
-	 * 状态的参数集（FName 键）
-	 */
+	// 状态的参数集（统一使用 GameplayTag Key）
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Parameter")
-	TMap<FName, FTcsStateParameter> Parameters;
+	TMap<FGameplayTag, FTcsStateParameter> Parameters;
 
-	/**
-	 * 状态的参数集（GameplayTag 键）
-	 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Parameter")
-	TMap<FGameplayTag, FTcsStateParameter> TagParameters;
+#pragma endregion
+
+
+#pragma region Level
+
+public:
+	/** Level 参数对应的 GameplayTag（构造函数从 DeveloperSettings 读取默认值）。 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Level")
+	FGameplayTag LevelParamTag;
 
 #pragma endregion
 

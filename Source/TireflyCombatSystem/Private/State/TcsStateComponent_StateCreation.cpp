@@ -144,29 +144,6 @@ UTcsStateInstance* UTcsStateComponent::CreateStateInstance(
 		return ReturnCreateStateFailure(ETcsStateApplyFailReason::CreateInstanceFailed, FailureMessage, true);
 	}
 
-	TArray<FName> FailedParams;
-	if (!EvaluateAndApplyStateParameters(StateDef, Instigator, TempStateInstance, FailedParams))
-	{
-		FString FailedParamNames;
-		for (int32 i = 0; i < FailedParams.Num(); ++i)
-		{
-			FailedParamNames += FailedParams[i].ToString();
-			if (i < FailedParams.Num() - 1)
-			{
-				FailedParamNames += TEXT(", ");
-			}
-		}
-
-		TempStateInstance->MarkPendingGC();
-		return ReturnCreateStateFailure(
-			ETcsStateApplyFailReason::CreateInstanceFailed,
-			FString::Printf(TEXT("Parameter evaluation failed for state '%s'. Failed parameters: [%s]. Owner=%s Instigator=%s"),
-				*StateDefRowId.ToString(),
-				FailedParamNames.IsEmpty() ? TEXT("Unknown") : *FailedParamNames,
-				*OwnerActor->GetName(),
-				*Instigator->GetName()));
-	}
-
 	UTcsStateInstance* StateInstance = TempStateInstance;
 	StateInstance->SetApplyTimestamp(FDateTime::UtcNow().GetTicks());
 
@@ -187,232 +164,28 @@ UTcsStateInstance* UTcsStateComponent::CreateStateInstance(
 			*StateDefRowId.ToString());
 	}
 
+	TArray<FName> FailedParams;
+	if (!StateInstance->PopulateStateParamInstances(StateDef, Instigator, OwnerActor, FailedParams))
+	{
+		FString FailedParamNames;
+		for (int32 i = 0; i < FailedParams.Num(); ++i)
+		{
+			FailedParamNames += FailedParams[i].ToString();
+			if (i < FailedParams.Num() - 1)
+			{
+				FailedParamNames += TEXT(", ");
+			}
+		}
+
+		StateInstance->MarkPendingGC();
+		return ReturnCreateStateFailure(
+			ETcsStateApplyFailReason::CreateInstanceFailed,
+			FString::Printf(TEXT("Parameter evaluation failed for state '%s'. Failed parameters: [%s]. Owner=%s Instigator=%s"),
+				*StateDefRowId.ToString(),
+				FailedParamNames.IsEmpty() ? TEXT("Unknown") : *FailedParamNames,
+				*OwnerActor->GetName(),
+				*Instigator->GetName()));
+	}
+
 	return StateInstance;
-}
-
-bool UTcsStateComponent::EvaluateAndApplyStateParameters(
-	const UTcsStateDefinition* StateDef,
-	AActor* Instigator,
-	UTcsStateInstance* StateInstance,
-	TArray<FName>& OutFailedParams)
-{
-	OutFailedParams.Reset();
-
-	if (!StateDef)
-	{
-		UE_LOG(LogTcsState, Error, TEXT("[%s] StateDef is null during parameter evaluation"), *FString(__FUNCTION__));
-		return false;
-	}
-
-	// 如果没有参数需要评估，直接返回成功
-	if (StateDef->Parameters.IsEmpty() && StateDef->TagParameters.IsEmpty())
-	{
-		return true;
-	}
-
-	AActor* OwnerActor = GetOwner();
-	bool bAllSuccess = true;
-
-	for (const TPair<FName, FTcsStateParameter>& ParamPair : StateDef->Parameters)
-	{
-		const FName& ParamName = ParamPair.Key;
-		const FTcsStateParameter& Param = ParamPair.Value;
-
-		switch (Param.ParameterType)
-		{
-		case ETcsStateParameterType::SPT_Numeric:
-			{
-				if (!Param.NumericParamEvaluator)
-				{
-					UE_LOG(LogTcsState, Error,
-						TEXT("[%s] NumericParamEvaluator for parameter '%s' is null"),
-						*FString(__FUNCTION__),
-						*ParamName.ToString());
-					OutFailedParams.Add(ParamName);
-					bAllSuccess = false;
-					break;
-				}
-
-				float ParamValue;
-				auto ParamEvaluator = Param.NumericParamEvaluator->GetDefaultObject<UTcsStateNumericParamEvaluator>();
-				if (!ParamEvaluator->Evaluate(Instigator, OwnerActor, StateInstance, Param.ParamValueContainer, ParamValue))
-				{
-					UE_LOG(LogTcsState, Error,
-						TEXT("[%s] Failed to evaluate numeric parameter '%s'"),
-						*FString(__FUNCTION__),
-						*ParamName.ToString());
-					OutFailedParams.Add(ParamName);
-					bAllSuccess = false;
-					break;
-				}
-				StateInstance->SetNumericParam(ParamName, ParamValue);
-				break;
-			}
-		case ETcsStateParameterType::SPT_Bool:
-			{
-				if (!Param.BoolParamEvaluator)
-				{
-					UE_LOG(LogTcsState, Error,
-						TEXT("[%s] BoolParamEvaluator for parameter '%s' is null"),
-						*FString(__FUNCTION__),
-						*ParamName.ToString());
-					OutFailedParams.Add(ParamName);
-					bAllSuccess = false;
-					break;
-				}
-
-				bool ParamValue;
-				auto ParamEvaluator = Param.BoolParamEvaluator->GetDefaultObject<UTcsStateBoolParamEvaluator>();
-				if (!ParamEvaluator->Evaluate(Instigator, OwnerActor, StateInstance, Param.ParamValueContainer, ParamValue))
-				{
-					UE_LOG(LogTcsState, Error,
-						TEXT("[%s] Failed to evaluate bool parameter '%s'"),
-						*FString(__FUNCTION__),
-						*ParamName.ToString());
-					OutFailedParams.Add(ParamName);
-					bAllSuccess = false;
-					break;
-				}
-				StateInstance->SetBoolParam(ParamName, ParamValue);
-				break;
-			}
-		case ETcsStateParameterType::SPT_Vector:
-			{
-				if (!Param.VectorParamEvaluator)
-				{
-					UE_LOG(LogTcsState, Error,
-						TEXT("[%s] VectorParamEvaluator for parameter '%s' is null"),
-						*FString(__FUNCTION__),
-						*ParamName.ToString());
-					OutFailedParams.Add(ParamName);
-					bAllSuccess = false;
-					break;
-				}
-
-				FVector ParamValue;
-				auto ParamEvaluator = Param.VectorParamEvaluator->GetDefaultObject<UTcsStateVectorParamEvaluator>();
-				if (!ParamEvaluator->Evaluate(Instigator, OwnerActor, StateInstance, Param.ParamValueContainer, ParamValue))
-				{
-					UE_LOG(LogTcsState, Error,
-						TEXT("[%s] Failed to evaluate vector parameter '%s'"),
-						*FString(__FUNCTION__),
-						*ParamName.ToString());
-					OutFailedParams.Add(ParamName);
-					bAllSuccess = false;
-					break;
-				}
-				StateInstance->SetVectorParam(ParamName, ParamValue);
-				break;
-			}
-		default:
-			UE_LOG(LogTcsState, Warning,
-				TEXT("[%s] Unknown parameter type for parameter '%s'"),
-				*FString(__FUNCTION__),
-				*ParamName.ToString());
-			break;
-		}
-	}
-
-	for (const TPair<FGameplayTag, FTcsStateParameter>& ParamPair : StateDef->TagParameters)
-	{
-		const FGameplayTag& ParamTag = ParamPair.Key;
-		const FTcsStateParameter& Param = ParamPair.Value;
-		const FName ParamName = ParamTag.GetTagName();
-
-		switch (Param.ParameterType)
-		{
-		case ETcsStateParameterType::SPT_Numeric:
-			{
-				if (!Param.NumericParamEvaluator)
-				{
-					UE_LOG(LogTcsState, Error,
-						TEXT("[%s] NumericParamEvaluator for tag parameter '%s' is null"),
-						*FString(__FUNCTION__),
-						*ParamTag.ToString());
-					OutFailedParams.Add(ParamName);
-					bAllSuccess = false;
-					break;
-				}
-
-				float ParamValue;
-				auto ParamEvaluator = Param.NumericParamEvaluator->GetDefaultObject<UTcsStateNumericParamEvaluator>();
-				if (!ParamEvaluator->Evaluate(Instigator, OwnerActor, StateInstance, Param.ParamValueContainer, ParamValue))
-				{
-					UE_LOG(LogTcsState, Error,
-						TEXT("[%s] Failed to evaluate numeric tag parameter '%s'"),
-						*FString(__FUNCTION__),
-						*ParamTag.ToString());
-					OutFailedParams.Add(ParamName);
-					bAllSuccess = false;
-					break;
-				}
-				StateInstance->SetNumericParamByTag(ParamTag, ParamValue);
-				break;
-			}
-		case ETcsStateParameterType::SPT_Bool:
-			{
-				if (!Param.BoolParamEvaluator)
-				{
-					UE_LOG(LogTcsState, Error,
-						TEXT("[%s] BoolParamEvaluator for tag parameter '%s' is null"),
-						*FString(__FUNCTION__),
-						*ParamTag.ToString());
-					OutFailedParams.Add(ParamName);
-					bAllSuccess = false;
-					break;
-				}
-
-				bool ParamValue;
-				auto ParamEvaluator = Param.BoolParamEvaluator->GetDefaultObject<UTcsStateBoolParamEvaluator>();
-				if (!ParamEvaluator->Evaluate(Instigator, OwnerActor, StateInstance, Param.ParamValueContainer, ParamValue))
-				{
-					UE_LOG(LogTcsState, Error,
-						TEXT("[%s] Failed to evaluate bool tag parameter '%s'"),
-						*FString(__FUNCTION__),
-						*ParamTag.ToString());
-					OutFailedParams.Add(ParamName);
-					bAllSuccess = false;
-					break;
-				}
-				StateInstance->SetBoolParamByTag(ParamTag, ParamValue);
-				break;
-			}
-		case ETcsStateParameterType::SPT_Vector:
-			{
-				if (!Param.VectorParamEvaluator)
-				{
-					UE_LOG(LogTcsState, Error,
-						TEXT("[%s] VectorParamEvaluator for tag parameter '%s' is null"),
-						*FString(__FUNCTION__),
-						*ParamTag.ToString());
-					OutFailedParams.Add(ParamName);
-					bAllSuccess = false;
-					break;
-				}
-
-				FVector ParamValue;
-				auto ParamEvaluator = Param.VectorParamEvaluator->GetDefaultObject<UTcsStateVectorParamEvaluator>();
-				if (!ParamEvaluator->Evaluate(Instigator, OwnerActor, StateInstance, Param.ParamValueContainer, ParamValue))
-				{
-					UE_LOG(LogTcsState, Error,
-						TEXT("[%s] Failed to evaluate vector tag parameter '%s'"),
-						*FString(__FUNCTION__),
-						*ParamTag.ToString());
-					OutFailedParams.Add(ParamName);
-					bAllSuccess = false;
-					break;
-				}
-				StateInstance->SetVectorParamByTag(ParamTag, ParamValue);
-				break;
-			}
-		default:
-			UE_LOG(LogTcsState, Warning,
-				TEXT("[%s] Unknown parameter type for tag parameter '%s'"),
-				*FString(__FUNCTION__),
-				*ParamTag.ToString());
-			break;
-		}
-	}
-
-	return bAllSuccess;
 }

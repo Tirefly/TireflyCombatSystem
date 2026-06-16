@@ -21,11 +21,11 @@ bool UTcsStateCondition_ParameterBased::CheckCondition_Implementation(
 
 	// 获取参数值
 	float ParameterValue = 0.0f;
-	if (!StateInstance->GetNumericParam(Config->ParameterName, ParameterValue))
+	if (!StateInstance->GetNumericParamByTag(Config->ParameterTag, ParameterValue))
 	{
 		UE_LOG(LogTcsStateCondition, Warning, TEXT("[%s] Parameter '%s' not found in state '%s'."),
 			*FString(__FUNCTION__),
-			*Config->ParameterName.ToString(),
+			*Config->ParameterTag.ToString(),
 			*StateInstance->GetStateDefId().ToString());
 		return false;
 	}

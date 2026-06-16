@@ -90,15 +90,47 @@ class TIREFLYCOMBATSYSTEMEDITOR_API UAssetDefinition_TcsStateSlotDefinition : pu
 	GENERATED_BODY()
 
 public:
-	/** @return Asset 菜单中显示的名称。 */
 	virtual FText GetAssetDisplayName() const override;
 
-	/** @return Asset 缩略图与标签使用的颜色。 */
 	virtual FLinearColor GetAssetColor() const override;
 
-	/** @return 该资产定义对应的运行时资产类。 */
 	virtual TSoftClassPtr<UObject> GetAssetClass() const override;
 
-	/** @return 该资产在 Content Browser 中的分类路径。 */
+	virtual TConstArrayView<FAssetCategoryPath> GetAssetCategories() const override;
+};
+
+/**
+ * Skill Modifier Def 资产定义。
+ */
+UCLASS()
+class TIREFLYCOMBATSYSTEMEDITOR_API UAssetDefinition_TcsSkillModifierDefinition : public UAssetDefinitionDefault
+{
+	GENERATED_BODY()
+
+public:
+	virtual FText GetAssetDisplayName() const override;
+
+	virtual FLinearColor GetAssetColor() const override;
+
+	virtual TSoftClassPtr<UObject> GetAssetClass() const override;
+
+	virtual TConstArrayView<FAssetCategoryPath> GetAssetCategories() const override;
+};
+
+/**
+ * Skill Def 资产定义。
+ */
+UCLASS()
+class TIREFLYCOMBATSYSTEMEDITOR_API UAssetDefinition_TcsSkillDefinition : public UAssetDefinitionDefault
+{
+	GENERATED_BODY()
+
+public:
+	virtual FText GetAssetDisplayName() const override;
+
+	virtual FLinearColor GetAssetColor() const override;
+
+	virtual TSoftClassPtr<UObject> GetAssetClass() const override;
+
 	virtual TConstArrayView<FAssetCategoryPath> GetAssetCategories() const override;
 };

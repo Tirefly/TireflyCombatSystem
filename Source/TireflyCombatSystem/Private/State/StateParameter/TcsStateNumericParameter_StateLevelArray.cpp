@@ -24,15 +24,32 @@ bool UTcsStateNumericParamEvaluator_StateLevelArray::Evaluate_Implementation(
 		const int32 StateLevel = StateInstance->GetLevel();
 		const TArray<float>& LevelValues = LevelArrayParam->LevelValues;
 
-		// 检查等级是否在数组范围内（数组下标直接对应等级值，即 LevelValues[0] 对应等级 0）
+		// 数组下标直接对应等级值（LevelValues[0] 对应等级 0）。
 		if (LevelValues.IsValidIndex(StateLevel))
 		{
 			OutValue = LevelValues[StateLevel];
 		}
+		else if (LevelValues.Num() > 0 && StateLevel >= LevelValues.Num())
+		{
+			OutValue = LevelValues.Last();
+		}
 		else
 		{
-			// 等级超出范围，使用默认值
-			OutValue = LevelArrayParam->DefaultValue;
+			// 未精确匹配且未超限，查找最近的 LowerKey
+			bool bLocated = false;
+			for (int32 i = 0; i < LevelValues.Num(); ++i)
+			{
+				if (StateLevel > i)
+				{
+					OutValue = LevelValues[i];
+					bLocated = true;
+					break;
+				}
+			}
+			if (!bLocated)
+			{
+				OutValue = LevelArrayParam->DefaultValue;
+			}
 		}
 
 		return true;

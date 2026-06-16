@@ -113,18 +113,12 @@ public:
 	FString AttributeCategory;
 
 	/**
-	 * 属性缩写（用于公式）
-	 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Meta")
-	FString AttributeAbbreviation;
-
-	/**
 	 * 属性的语义标识（可选，但推荐）
 	 * 用于父子 Tag 匹配、分类筛选、跨系统对齐
 	 * 仍然以 AttributeDefId (FName) 作为权威唯一 ID
 	 * 推荐命名约定：TCS.Attribute.<AttributeDefId>
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Meta", Meta = (Categories = "AttributeTag"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Meta")
 	FGameplayTag AttributeTag;
 
 #pragma endregion

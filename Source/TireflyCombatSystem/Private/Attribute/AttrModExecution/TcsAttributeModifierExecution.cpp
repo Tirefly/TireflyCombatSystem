@@ -2,6 +2,8 @@
 
 #include "Attribute/AttrModExecution/TcsAttributeModifierExecution.h"
 
+#include "Attribute/TcsAttributeModifierDefinition.h"
+
 
 
 bool UTcsAttributeModifierExecution::CollectTouchedAttributes_Implementation(
@@ -9,5 +11,18 @@ bool UTcsAttributeModifierExecution::CollectTouchedAttributes_Implementation(
 	TArray<FName>& OutAttributeNames) const
 {
 	OutAttributeNames.Reset();
-	return false;
+
+	if (!ModInst.ModifierDef)
+	{
+		return false;
+	}
+
+	const FName AttributeName = ModInst.ModifierDef->AttributeName;
+	if (AttributeName.IsNone())
+	{
+		return false;
+	}
+
+	OutAttributeNames.Add(AttributeName);
+	return true;
 }

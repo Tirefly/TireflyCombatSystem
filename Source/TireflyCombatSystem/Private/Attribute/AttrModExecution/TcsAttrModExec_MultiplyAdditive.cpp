@@ -50,24 +50,3 @@ void UTcsAttrModExec_MultiplyAdditive::Execute_Implementation(
 		}
 	}
 }
-
-bool UTcsAttrModExec_MultiplyAdditive::CollectTouchedAttributes_Implementation(
-	const FTcsAttributeModifierInstance& ModInst,
-	TArray<FName>& OutAttributeNames) const
-{
-	OutAttributeNames.Reset();
-
-	if (!ModInst.ModifierDef)
-	{
-		return false;
-	}
-
-	const FName AttributeName = ModInst.ModifierDef->AttributeName;
-	if (AttributeName.IsNone())
-	{
-		return false;
-	}
-
-	OutAttributeNames.Add(AttributeName);
-	return true;
-}

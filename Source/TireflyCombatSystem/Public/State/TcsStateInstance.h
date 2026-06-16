@@ -8,6 +8,7 @@
 #include "StateTreeInstanceData.h"
 #include "StateTreeExecutionTypes.h"
 #include "TcsSourceHandle.h"
+#include "State/TcsStateParamInstance.h"
 #include "TcsStateInstance.generated.h"
 
 
@@ -67,16 +68,6 @@ enum class ETcsStateApplyFailReason : uint8
 
 
 
-// 状态参数键类型
-UENUM(BlueprintType)
-enum class ETcsStateParameterKeyType : uint8
-{
-	Name = 0	UMETA(DisplayName = "Name"),
-	Tag			UMETA(DisplayName = "Tag"),
-};
-
-
-
 // StateTree Tick 策略
 UENUM(BlueprintType)
 enum class ETcsStateTreeTickPolicy : uint8
@@ -84,55 +75,6 @@ enum class ETcsStateTreeTickPolicy : uint8
 	WhileActive = 0		UMETA(DisplayName = "While Active", ToolTip = "处于Active阶段时加入TickScheduler，按帧推进StateTree"),
 	RunOnce				UMETA(DisplayName = "Run Once", ToolTip = "激活时启动并Tick一次(DeltaTime=0)，不加入调度器；若仍在运行则强制Stop并警告"),
 	ManualOnly			UMETA(DisplayName = "Manual Only", ToolTip = "只启动，不自动Tick；由外部事件手动Tick推进"),
-};
-
-
-
-// 状态参数类型枚举
-UENUM(BlueprintType)
-enum class ETcsStateParameterType : uint8
-{
-	SPT_Numeric = 0		UMETA(DisplayName = "Numeric", ToolTip = "数值类型参数(Float)，需要使用参数解析器计算"),
-	SPT_Bool			UMETA(DisplayName = "Bool", ToolTip = "布尔类型参数，直接存储使用"),
-	SPT_Vector			UMETA(DisplayName = "Vector", ToolTip = "向量类型参数，直接存储使用"),
-};
-
-
-
-// 状态参数数据
-USTRUCT(BlueprintType)
-struct TIREFLYCOMBATSYSTEM_API FTcsStateParameter
-{
-	GENERATED_BODY()
-
-public:
-	// 参数类型
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Parameter Type")
-	ETcsStateParameterType ParameterType = ETcsStateParameterType::SPT_Numeric;
-
-	// 快照配置（共享参数求值时机策略）
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Parameter Policy",
-	          meta = (ToolTip = "是否为快照参数：快照参数在技能激活时计算一次；非快照参数会实时同步变化"))
-	bool bIsSnapshot = true;
-
-	// 参数值提取类 (仅Numeric类型使用)
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Numeric Parameter", 
-		meta = (EditCondition = "ParameterType == ETcsStateParameterType::SPT_Numeric", EditConditionHides))
-	TSubclassOf<class UTcsStateNumericParamEvaluator> NumericParamEvaluator;
-
-	// 参数值提取类 (仅Bool类型使用)
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Bool Parameter", 
-		meta = (EditCondition = "ParameterType == ETcsStateParameterType::SPT_Bool", EditConditionHides))
-	TSubclassOf<class UTcsStateBoolParamEvaluator> BoolParamEvaluator;
-
-	// 参数值提取类 (仅Vector类型使用)
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Vector Parameter", 
-		meta = (EditCondition = "ParameterType == ETcsStateParameterType::SPT_Vector", EditConditionHides))
-	TSubclassOf<class UTcsStateVectorParamEvaluator> VectorParamEvaluator;
-
-	// 参数值容器
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Parameter Value")
-	FInstancedStruct ParamValueContainer;
 };
 
 
@@ -184,10 +126,86 @@ public:
 	// 设置状态实例的来源句柄（由管理器在 CreateStateInstance 中填充）
 	void SetSourceHandle(const FTcsSourceHandle& InSourceHandle) { SourceHandle = InSourceHandle; }
 
+#pragma endregion
+
+
+#pragma region StateParamInstances
+
+public:
+	// --- 变量 ---
+	// 运行时 StateParam 实例表：数值类
+	UPROPERTY(BlueprintReadOnly, Category = "Meta")
+	TMap<FGameplayTag, FTcsNumericStateParamInstance> NumericParamInstances;
+
+	// 运行时 StateParam 实例表：布尔类
+	UPROPERTY(BlueprintReadOnly, Category = "Meta")
+	TMap<FGameplayTag, FTcsBoolStateParamInstance> BoolParamInstances;
+
+	// 运行时 StateParam 实例表：向量类
+	UPROPERTY(BlueprintReadOnly, Category = "Meta")
+	TMap<FGameplayTag, FTcsVectorStateParamInstance> VectorParamInstances;
+
+#pragma endregion
+
+
+#pragma region StateParamPopulation
+
+public:
+	// --- 函数 ---
+	/**
+	 * 从 StateDef 遍历 Parameters 创建并求值 StateParam 实例。
+	 *
+	 * @param StateDef         状态定义资产
+	 * @param Instigator       状态发起者
+	 * @param Target           状态目标
+	 * @param OutFailedParams  输出失败的参数名列表
+	 * @return true 全部成功
+	 */
+	virtual bool PopulateStateParamInstances(
+		const UTcsStateDefinition* StateDef,
+		AActor* Instigator,
+		AActor* Target,
+		TArray<FName>& OutFailedParams);
+
+	// 获取 Numeric 参数实例指针
+	virtual FTcsNumericStateParamInstance* GetNumericParamInstance(FGameplayTag Tag);
+
+	// 获取 Bool 参数实例指针
+	virtual FTcsBoolStateParamInstance* GetBoolParamInstance(FGameplayTag Tag);
+
+	// 获取 Vector 参数实例指针
+	virtual FTcsVectorStateParamInstance* GetVectorParamInstance(FGameplayTag Tag);
+
+	// 获取 Numeric 参数实例表引用（供 ResolveNumericParamInstances 使用）
+	virtual TMap<FGameplayTag, FTcsNumericStateParamInstance>& GetNumericParamInstances()
+	{
+		return NumericParamInstances;
+	}
+
+	// 获取 Bool 参数实例表引用
+	virtual TMap<FGameplayTag, FTcsBoolStateParamInstance>& GetBoolParamInstances()
+	{
+		return BoolParamInstances;
+	}
+
+	// 获取 Vector 参数实例表引用
+	virtual TMap<FGameplayTag, FTcsVectorStateParamInstance>& GetVectorParamInstances()
+	{
+		return VectorParamInstances;
+	}
+
+#pragma endregion
+
+
+#pragma region MetaProtected
+
 protected:
+	// --- 函数 ---
 	// 初始化派生运行态的专属参数缓存。
 	virtual void InitializeRuntimeParameters();
 
+protected:
+	// --- 变量 ---
 	// 状态定义 DataAsset 硬引用
 	UPROPERTY(BlueprintReadOnly, Category = "Meta")
 	const UTcsStateDefinition* StateDef = nullptr;
@@ -252,7 +270,7 @@ protected:
 public:
 	// 获取状态等级
 	UFUNCTION(BlueprintCallable, Category = "State|Runtime")
-	int32 GetLevel() const { return Level; }
+	virtual int32 GetLevel() const { return Level; }
 
 	// 设置状态等级
 	UFUNCTION(BlueprintCallable, Category = "State|Runtime")
@@ -357,117 +375,32 @@ protected:
 #pragma endregion
 
 
-#pragma region Parameter_Init
-
-protected:
-	void InitParameterValues();
-
-	void InitParameterTagValues();
-
-#pragma endregion
-
-
-#pragma region Parameter_Numeric
+#pragma region Parameter
 
 public:
-	UFUNCTION(BlueprintCallable, Category = "State|Parameters")
-	bool GetNumericParam(FName ParameterName, float& OutValue) const;
-
-	UFUNCTION(BlueprintCallable, Category = "State|Parameters")
-	void SetNumericParam(FName ParameterName, float Value);
-
+	// 获取数值类型参数值
 	UFUNCTION(BlueprintCallable, Category = "State|Parameters")
 	bool GetNumericParamByTag(FGameplayTag ParameterTag, float& OutValue) const;
 
+	// 设置数值类型参数值
 	UFUNCTION(BlueprintCallable, Category = "State|Parameters")
 	void SetNumericParamByTag(FGameplayTag ParameterTag, float Value);
 
-	// 获取所有数值类型参数名称
-	UFUNCTION(BlueprintPure, Category = "State|Parameters")
-	TArray<FName> GetAllNumericParamNames() const;
-
-	// 获取所有数值类型参数标签
-	UFUNCTION(BlueprintPure, Category = "State|Parameters")
-	TArray<FGameplayTag> GetAllNumericParamTags() const;
-
-protected:
-	// 数值类型参数
-	UPROPERTY(BlueprintReadOnly, Category = "State|Parameters")
-	TMap<FName, float> NumericParameters;
-
-	// 数值类型参数（Tag）
-	UPROPERTY(BlueprintReadOnly, Category = "State|Parameters")
-	TMap<FGameplayTag, float> NumericParametersTag;
-
-#pragma endregion
-
-
-#pragma region Parameter_Bool
-
-public:
-	UFUNCTION(BlueprintCallable, Category = "State|Parameters")
-	bool GetBoolParam(FName ParameterName, bool& OutValue) const;
-
-	UFUNCTION(BlueprintCallable, Category = "State|Parameters")
-	void SetBoolParam(FName ParameterName, bool Value);
-
+	// 获取布尔类型参数值
 	UFUNCTION(BlueprintCallable, Category = "State|Parameters")
 	bool GetBoolParamByTag(FGameplayTag ParameterTag, bool& OutValue) const;
 
+	// 设置布尔类型参数值
 	UFUNCTION(BlueprintCallable, Category = "State|Parameters")
 	void SetBoolParamByTag(FGameplayTag ParameterTag, bool Value);
 
-	// 获取所有布尔类型参数名称
-	UFUNCTION(BlueprintPure, Category = "State|Parameters")
-	TArray<FName> GetAllBoolParamNames() const;
-
-	// 获取所有布尔类型参数标签
-	UFUNCTION(BlueprintPure, Category = "State|Parameters")
-	TArray<FGameplayTag> GetAllBoolParamTags() const;
-
-protected:
-	// 布尔类型参数
-	UPROPERTY(BlueprintReadOnly, Category = "State|Parameters")  
-	TMap<FName, bool> BoolParameters;
-
-	// 布尔类型参数（Tag）
-	UPROPERTY(BlueprintReadOnly, Category = "State|Parameters")
-	TMap<FGameplayTag, bool> BoolParametersTag;
-
-#pragma endregion
-
-
-#pragma region Parameter_Vector
-
-public:
-	UFUNCTION(BlueprintCallable, Category = "State|Parameters")
-	bool GetVectorParam(FName ParameterName, FVector& OutValue) const;
-
-	UFUNCTION(BlueprintCallable, Category = "State|Parameters")
-	void SetVectorParam(FName ParameterName, const FVector& Value);
-
+	// 获取向量类型参数值
 	UFUNCTION(BlueprintCallable, Category = "State|Parameters")
 	bool GetVectorParamByTag(FGameplayTag ParameterTag, FVector& OutValue) const;
 
+	// 设置向量类型参数值
 	UFUNCTION(BlueprintCallable, Category = "State|Parameters")
 	void SetVectorParamByTag(FGameplayTag ParameterTag, const FVector& Value);
-
-	// 获取所有向量类型参数名称
-	UFUNCTION(BlueprintPure, Category = "State|Parameters")
-	TArray<FName> GetAllVectorParamNames() const;
-
-	// 获取所有向量类型参数标签
-	UFUNCTION(BlueprintPure, Category = "State|Parameters")
-	TArray<FGameplayTag> GetAllVectorParamTags() const;
-
-protected:
-	// 向量类型参数
-	UPROPERTY(BlueprintReadOnly, Category = "State|Parameters")
-	TMap<FName, FVector> VectorParameters;
-
-	// 向量类型参数（Tag）
-	UPROPERTY(BlueprintReadOnly, Category = "State|Parameters")
-	TMap<FGameplayTag, FVector> VectorParametersTag;
 
 #pragma endregion
 

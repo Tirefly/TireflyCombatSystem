@@ -9,6 +9,8 @@
 
 
 class UTcsAttributeModifierDefinition;
+class UTcsStateInstance;
+class UTcsSkillEntry;
 
 
 
@@ -18,6 +20,24 @@ enum class ETcsAttributeModifierMode : uint8
 {
 	AMM_BaseValue			UMETA(ToolTip = "The base value of the attribute."),
 	AMM_CurrentValue		UMETA(ToolTip = "The current value, modified by skill or buff, of the attribute."),
+};
+
+
+
+// 操作数到 StateParam 的运行时绑定描述
+USTRUCT(BlueprintType)
+struct TIREFLYCOMBATSYSTEM_API FTcsStateParamBinding
+{
+	GENERATED_BODY()
+
+public:
+	// 操作数标识（如 "Magnitude" — ModifierDef 内部约定）
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	FName OperandName;
+
+	// 绑定的 StateParam（GameplayTag 标识）
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	FGameplayTag StateParamTag;
 };
 
 
@@ -58,6 +78,18 @@ public:
 	// 修改器操作数
 	UPROPERTY(BlueprintReadOnly)
 	TMap<FName, float> Operands;
+
+	// 操作数动态绑定：运行时从 StateParam 读取 Operand 值
+	UPROPERTY(BlueprintReadOnly)
+	TArray<FTcsStateParamBinding> OperandBindings;
+
+	// 直接引用——源 StateInstance（O(1) 最快路径）
+	UPROPERTY(BlueprintReadOnly)
+	TWeakObjectPtr<UTcsStateInstance> SourceStateInstance;
+
+	// 源 SkillEntry（AOE/投射物：技能已结束但 Entry 仍存活）
+	UPROPERTY(BlueprintReadOnly)
+	TWeakObjectPtr<UTcsSkillEntry> SourceSkillEntry;
 
 	// 修改器应用时间戳
 	// NOTE: 当前单位为 UTC Ticks (FDateTime::GetTicks, 100ns)。这不是网络同步时间，仅用于排序/调试/本地归因。

@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Engine/DeveloperSettings.h"
+#include "GameplayTagContainer.h"
 #include "State/TcsStateInstance.h"
 
 #if WITH_EDITOR
@@ -123,6 +124,22 @@ public:
 	TArray<TSoftObjectPtr<UTcsStateDefinition>> CommonStateDefinitions;
 
 #pragma endregion
+
+
+
+#pragma region SkillConfig
+
+public:
+	/** Level 参数的默认 GameplayTag（StateDefinition 构造函数中读取）。 */
+	UPROPERTY(EditAnywhere, Config, Category = "State Param Tag")
+	FGameplayTag DefaultLevelParamTag;
+
+	/** 冷却参数的默认 GameplayTag（SkillDef 构造函数中读取）。 */
+	UPROPERTY(EditAnywhere, Config, Category = "State Param Tag")
+	FGameplayTag DefaultSkillCooldownParamTag;
+
+#pragma endregion
+
 
 
 #pragma region InternalCache

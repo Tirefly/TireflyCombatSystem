@@ -84,10 +84,10 @@ bool UTcsAttributeComponent::CreateAttributeModifier(
 	return true;
 }
 
-bool UTcsAttributeComponent::CreateAttributeModifierWithOperands(
+bool UTcsAttributeComponent::CreateAttributeModifierWithBindings(
 	FName ModifierId,
 	AActor* Instigator,
-	const TMap<FName, float>& Operands,
+	const TArray<FTcsStateParamBinding>& Bindings,
 	FTcsAttributeModifierInstance& OutModifierInst)
 {
 	UTcsAttributeManagerSubsystem* Mgr = ResolveAttributeManager();
@@ -119,42 +119,18 @@ bool UTcsAttributeComponent::CreateAttributeModifierWithOperands(
 		return false;
 	}
 
-	// 验证 Operands 是否正确
-	if (ModifierDef->Operands.IsEmpty())
-	{
-		UE_LOG(LogTcsAttribute, Error, TEXT("[%s] ModifierDef does not contain Operands"), *FString(__FUNCTION__));
-		return false;
-	}
-	for (const TPair<FName, float>& Operand : ModifierDef->Operands)
-	{
-		if (!Operands.Contains(Operand.Key))
-		{
-			UE_LOG(LogTcsAttribute, Error, TEXT("[%s] Operand %s is not found in Operands"),
-				*FString(__FUNCTION__),
-				*Operand.Key.ToString());
-			return false;
-		}
-	}
-
 	OutModifierInst = FTcsAttributeModifierInstance();
-
-	// 设置 DataAsset 引用和 ModifierId
 	OutModifierInst.ModifierDef = ModifierDef;
 	OutModifierInst.ModifierId = ModifierId;
-
-	// 验证优先级
-	if (ModifierDef->Priority < 0)
-	{
-		UE_LOG(LogTcsAttribute, Warning, TEXT("[%s] AttrModDef %s has invalid Priority %d, will use raw priority 0."),
-			*FString(__FUNCTION__),
-			*ModifierDef->ModifierName.ToString(),
-			ModifierDef->Priority);
-	}
-
 	OutModifierInst.ModifierInstId = Mgr->AllocateModifierInstanceId();
 	OutModifierInst.Instigator = Instigator;
 	OutModifierInst.Target = GetOwner();
-	OutModifierInst.Operands = Operands;
+
+	// 从 DefAsset 复制默认 Operands
+	OutModifierInst.Operands = ModifierDef->Operands;
+
+	// 设置 StateParam 绑定（首值在首次 RecalculateAttributeCurrentValues 时拉取）
+	OutModifierInst.OperandBindings = Bindings;
 
 	return true;
 }
@@ -317,6 +293,7 @@ void UTcsAttributeComponent::ApplyModifier(TArray<FTcsAttributeModifierInstance>
 		BroadcastAttributeModifierAddedBatchEvent(ModifierEventPayloads);
 	}
 
+	bMergedModifiersDirty = true;
 	RecalculateAttributeCurrentValues(BatchId);
 }
 
@@ -425,6 +402,7 @@ void UTcsAttributeComponent::RemoveModifier(TArray<FTcsAttributeModifierInstance
 
 	if (bModified)
 	{
+		bMergedModifiersDirty = true;
 		RecalculateAttributeCurrentValues(BatchId);
 	}
 }
@@ -581,6 +559,7 @@ void UTcsAttributeComponent::HandleModifierUpdated(TArray<FTcsAttributeModifierI
 
 	if (bModified)
 	{
+		bMergedModifiersDirty = true;
 		RecalculateAttributeCurrentValues(BatchId);
 	}
 }
@@ -633,6 +612,7 @@ bool UTcsAttributeComponent::RemoveStoredModifiersByInstIds(
 	BuildModifierEventPayloads(RemovedModifiers, RemovedPayloads);
 	BroadcastAttributeModifierRemovedBatchEvent(RemovedPayloads);
 
+	bMergedModifiersDirty = true;
 	RecalculateAttributeCurrentValues(ChangeBatchId);
 	return true;
 }

@@ -88,13 +88,10 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(
 	FGameplayTag, SlotTag,
 	bool, bIsOpen);
 
-// 状态参数变化事件签名
-// (状态实例, 参数键类型, 参数名称, 参数Tag, 参数类型)
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_FiveParams(
+// 状态参数变化事件签名（统一为 GameplayTag Key）
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(
 	FTcsOnStateParameterChangedSignature,
 	UTcsStateInstance*, StateInstance,
-	ETcsStateParameterKeyType, KeyType,
-	FName, ParameterName,
 	FGameplayTag, ParameterTag,
 	ETcsStateParameterType, ParameterType);
 
@@ -213,8 +210,6 @@ public:
 	// 通知状态参数变化
 	void NotifyStateParameterChanged(
 		UTcsStateInstance* StateInstance,
-		ETcsStateParameterKeyType KeyType,
-		FName ParameterName,
 		FGameplayTag ParameterTag,
 		ETcsStateParameterType ParameterType);
 
@@ -459,21 +454,6 @@ protected:
 		ETcsStateApplyFailReason* OutFailureReason = nullptr,
 		FString* OutFailureMessage = nullptr,
 		bool* bOutFailureLogged = nullptr);
-
-	/**
-	 * 评估并写入状态参数。
-	 *
-	 * @param StateDef 状态定义资产
-	 * @param Instigator 状态发起者
-	 * @param StateInstance 状态实例
-	 * @param OutFailedParams 输出失败的参数名列表
-	 * @return 如果所有参数评估成功则返回 true，否则返回 false
-	 */
-	virtual bool EvaluateAndApplyStateParameters(
-		const UTcsStateDefinition* StateDef,
-		AActor* Instigator,
-		UTcsStateInstance* StateInstance,
-		TArray<FName>& OutFailedParams);
 
 	/**
 	 * 检查状态实例是否满足应用条件。

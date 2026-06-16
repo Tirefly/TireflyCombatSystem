@@ -167,7 +167,7 @@ void UTcsBuffComponent::TickBuffLifecycles(float DeltaTime)
 	TArray<UTcsStateInstance*> ExpiredStates;
 	TArray<UTcsStateInstance*> InvalidStates;
 
-	for (const TObjectPtr<UTcsBuffInstance>& TrackedBuffInstance : DurationTracker.TrackedInstances)
+	for (const TObjectPtr<UTcsBuffInstance>& TrackedBuffInstance : DurationTracker.GetTrackedInstances())
 	{
 		UTcsBuffInstance* BuffInstance = TrackedBuffInstance.Get();
 		UTcsStateInstance* StateInstance = BuffInstance;

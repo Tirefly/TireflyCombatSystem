@@ -26,8 +26,7 @@ public:
 	// 要比较的属性标签（GameplayTag 版本，可选）
 	// 如果有效，则优先使用此字段解析为 AttributeName
 	// 推荐使用 Tag 以获得更好的层级语义和重构支持
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Attribute Comparison",
-		Meta = (Categories = "AttributeTag"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Attribute Comparison")
 	FGameplayTag AttributeTag;
 
 	// 检查目标（Owner或Instigator）

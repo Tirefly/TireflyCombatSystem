@@ -17,6 +17,61 @@ UWorld* UTcsSkillInstance::GetWorld() const
 	return Super::GetWorld();
 }
 
+
+int32 UTcsSkillInstance::GetLevel() const
+{
+	return SkillEntry ? SkillEntry->GetLevel() : Super::GetLevel();
+}
+
+
+FTcsNumericStateParamInstance* UTcsSkillInstance::GetNumericParamInstance(FGameplayTag Tag)
+{
+	return SkillEntry
+		? SkillEntry->NumericParamInstances.Find(Tag)
+		: Super::GetNumericParamInstance(Tag);
+}
+
+
+FTcsBoolStateParamInstance* UTcsSkillInstance::GetBoolParamInstance(FGameplayTag Tag)
+{
+	return SkillEntry
+		? SkillEntry->BoolParamInstances.Find(Tag)
+		: Super::GetBoolParamInstance(Tag);
+}
+
+
+FTcsVectorStateParamInstance* UTcsSkillInstance::GetVectorParamInstance(FGameplayTag Tag)
+{
+	return SkillEntry
+		? SkillEntry->VectorParamInstances.Find(Tag)
+		: Super::GetVectorParamInstance(Tag);
+}
+
+
+TMap<FGameplayTag, FTcsNumericStateParamInstance>& UTcsSkillInstance::GetNumericParamInstances()
+{
+	return SkillEntry
+		? SkillEntry->NumericParamInstances
+		: Super::GetNumericParamInstances();
+}
+
+
+TMap<FGameplayTag, FTcsBoolStateParamInstance>& UTcsSkillInstance::GetBoolParamInstances()
+{
+	return SkillEntry
+		? SkillEntry->BoolParamInstances
+		: Super::GetBoolParamInstances();
+}
+
+
+TMap<FGameplayTag, FTcsVectorStateParamInstance>& UTcsSkillInstance::GetVectorParamInstances()
+{
+	return SkillEntry
+		? SkillEntry->VectorParamInstances
+		: Super::GetVectorParamInstances();
+}
+
+
 bool UTcsSkillInstance::SetContextRequirements(FStateTreeExecutionContext& Context)
 {
 	if (!Context.IsValid())

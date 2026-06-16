@@ -9,7 +9,56 @@
 #include "Attribute/AttrClampStrategy/TcsAttributeClampStrategy.h"
 #include "Attribute/AttrModExecution/TcsAttributeModifierExecution.h"
 #include "Attribute/AttrModMerger/TcsAttributeModifierMerger.h"
+#include "State/TcsStateComponent.h"
+#include "State/TcsStateInstance.h"
+#include "State/TcsStateParamInstance.h"
+#include "Skill/TcsSkillEntry.h"
+#include "State/StateParameter/TcsStateNumericParameter.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
+
+
+
+static TMap<FGameplayTag, FTcsNumericStateParamInstance>* ResolveNumericParamInstances(
+	const FTcsAttributeModifierInstance& Modifier,
+	AActor* TargetOwner)
+{
+	// 1. SourceStateInstance 直接引用（最快）
+	if (Modifier.SourceStateInstance.IsValid())
+	{
+		return &Modifier.SourceStateInstance->GetNumericParamInstances();
+	}
+
+	// 2. SourceSkillEntry（AOE/投射物：技能已结束但 Entry 仍存活）
+	if (Modifier.SourceSkillEntry.IsValid())
+	{
+		return &Modifier.SourceSkillEntry->NumericParamInstances;
+	}
+
+	// 3. SourceHandle 回溯搜索（兜底）
+	if (!Modifier.SourceHandle.IsValid() || !Modifier.Instigator.IsValid())
+	{
+		return nullptr;
+	}
+
+	AActor* Instigator = Modifier.Instigator.Get();
+	UActorComponent* Comp = Instigator->GetComponentByClass(UTcsStateComponent::StaticClass());
+	UTcsStateComponent* StateCmp = Cast<UTcsStateComponent>(Comp);
+	if (!StateCmp)
+	{
+		return nullptr;
+	}
+
+	TArray<UTcsStateInstance*> ActiveStates;
+	StateCmp->GetAllActiveStates(ActiveStates);
+	for (UTcsStateInstance* SI : ActiveStates)
+	{
+		if (SI && SI->GetSourceHandle() == Modifier.SourceHandle)
+		{
+			return &SI->GetNumericParamInstances();
+		}
+	}
+	return nullptr;
+}
 
 
 
@@ -273,11 +322,32 @@ void UTcsAttributeComponent::RecalculateAttributeCurrentValues(int64 ChangeBatch
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(TcsAttributeComponent_RecalculateAttributeCurrentValues);
 
-	// 按类型整理所有属性修改器，方便后续执行修改器合并
+	// 稳定态快速跳过：合并缓存未脏脏 且 BaseValues 未变化 → 无需重算。
+	if (!bMergedModifiersDirty)
+	{
+		const TMap<FName, float> CurrentBaseValues = GetAttributeBaseValues();
+		if (CachedBaseValuesSnapshot.OrderIndependentCompareEqual(CurrentBaseValues))
+		{
+			UE_LOG(LogTcsAttribute, VeryVerbose,
+				TEXT("[Perf][%s] Skipped – modifiers clean and BaseValues unchanged. BatchId=%lld"),
+				*FString(__FUNCTION__), ChangeBatchId);
+			return;
+		}
+	}
+
+	// 合并修改器列表：仅在缓存脏了时重建，否则直接复用上次的合并结果。
 	TArray<FTcsAttributeModifierInstance> MergedModifiers;
-	MergeAttributeModifiers(AttributeModifiers, MergedModifiers);
-	// 按照优先级对属性修改器进行排序
-	MergedModifiers.Sort();
+	if (bMergedModifiersDirty)
+	{
+		MergeAttributeModifiers(AttributeModifiers, MergedModifiers);
+		MergedModifiers.Sort();
+		CachedMergedModifiers = MergedModifiers;
+		bMergedModifiersDirty = false;
+	}
+	else
+	{
+		MergedModifiers = CachedMergedModifiers;
+	}
 
 	UE_LOG(LogTcsAttribute, VeryVerbose,
 		TEXT("[Perf][%s] Attrs=%d StoredModifiers=%d MergedModifiers=%d BatchId=%lld"),
@@ -286,6 +356,9 @@ void UTcsAttributeComponent::RecalculateAttributeCurrentValues(int64 ChangeBatch
 		AttributeModifiers.Num(),
 		MergedModifiers.Num(),
 		ChangeBatchId);
+
+	// 更新 BaseValues 快照，供下次稳定态检测使用。
+	CachedBaseValuesSnapshot = GetAttributeBaseValues();
 
 	// 属性修改事件记录
 	TMap<FName, FTcsAttributeChangeEventPayload> ChangeEventPayloads;
@@ -304,24 +377,44 @@ void UTcsAttributeComponent::RecalculateAttributeCurrentValues(int64 ChangeBatch
 	TMap<FName, float> FallbackLastModifiedResults;
 
 	// 执行属性修改器的修改计算
-	for (const FTcsAttributeModifierInstance& Modifier : MergedModifiers)
+	for (FTcsAttributeModifierInstance& Modifier : MergedModifiers)
 	{
 		if (!Modifier.ModifierDef)
 		{
-			UE_LOG(LogTcsAttrModExec, Warning, TEXT("[%s] ModifierId %s has null ModifierDef. Entity: %s"),
-				*FString(__FUNCTION__),
-				*Modifier.ModifierId.ToString(),
-				GetOwner() ? *GetOwner()->GetName() : TEXT("Unknown"));
 			continue;
 		}
 		const UTcsAttributeModifierDefinition* ModDef = Modifier.ModifierDef;
 		if (!ModDef->ModifierType)
 		{
-			UE_LOG(LogTcsAttrModExec, Warning, TEXT("[%s] ModifierId %s has no valid AttributeModifierExecution type. Entity: %s"),
-				*FString(__FUNCTION__),
-				*Modifier.ModifierId.ToString(),
-				GetOwner() ? *GetOwner()->GetName() : TEXT("Unknown"));
 			continue;
+		}
+
+		// 刷新动态 Operand：从绑定的 StateParam 拉取最新值
+		if (Modifier.OperandBindings.Num() > 0)
+		{
+			if (auto* ParamMap = ResolveNumericParamInstances(Modifier, GetOwner()))
+			{
+				for (const FTcsStateParamBinding& B : Modifier.OperandBindings)
+				{
+					if (FTcsNumericStateParamInstance* P = ParamMap->Find(B.StateParamTag))
+					{
+						// 非 Snapshot 参数每次 Recalculate 时重新执行 Evaluator
+						if (!P->bIsSnapshot || !P->bHasEvaluated)
+						{
+							float OutValue = 0.0f;
+							if (P->CachedEvaluator.Get()->Evaluate(
+								Modifier.Instigator.Get(), GetOwner(),
+								Modifier.SourceStateInstance.Get(),
+								P->ParamData, OutValue))
+							{
+								P->NumericValue = OutValue;
+								P->bHasEvaluated = P->bIsSnapshot;
+							}
+						}
+						Modifier.Operands.FindOrAdd(B.OperandName) = P->GetValue();
+					}
+				}
+			}
 		}
 
 		// 执行修改器

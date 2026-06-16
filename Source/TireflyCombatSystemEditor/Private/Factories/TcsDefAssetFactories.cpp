@@ -6,6 +6,8 @@
 #include "Attribute/TcsAttributeDefinition.h"
 #include "Attribute/TcsAttributeModifierDefinition.h"
 #include "Buff/TcsBuffDefinition.h"
+#include "Skill/TcsSkillDefinition.h"
+#include "Skill/TcsSkillModifierDefinition.h"
 #include "State/TcsStateSlotDefinition.h"
 #include "TireflyCombatSystemEditor.h"
 
@@ -212,6 +214,92 @@ FText UTcsStateSlotDefinitionFactory::GetToolTip() const
 FString UTcsStateSlotDefinitionFactory::GetDefaultNewAssetName() const
 {
 	return TEXT("DA_StateSlot_New");
+}
+
+UTcsSkillModifierDefinitionFactory::UTcsSkillModifierDefinitionFactory()
+{
+	bCreateNew = true;
+	bEditAfterNew = true;
+	SupportedClass = UTcsSkillModifierDefinition::StaticClass();
+}
+
+UObject* UTcsSkillModifierDefinitionFactory::FactoryCreateNew(UClass* InClass, UObject* InParent,
+	FName InName, EObjectFlags Flags, UObject* Context, FFeedbackContext* Warn, FName CallingContext)
+{
+	return TcsDefAssetFactories::CreateDefinitionAsset<UTcsSkillModifierDefinition>(InParent, InName, Flags);
+}
+
+bool UTcsSkillModifierDefinitionFactory::ShouldShowInNewMenu() const
+{
+	return true;
+}
+
+uint32 UTcsSkillModifierDefinitionFactory::GetMenuCategories() const
+{
+	return TcsDefAssetFactories::GetTcsMenuCategory();
+}
+
+const TArray<FText>& UTcsSkillModifierDefinitionFactory::GetMenuCategorySubMenus() const
+{
+	return FTireflyCombatSystemEditorModule::GetDefinitionAssetCategorySubMenus();
+}
+
+FText UTcsSkillModifierDefinitionFactory::GetDisplayName() const
+{
+	return LOCTEXT("SkillModifierDefinitionDisplayName", "Skill Modifier Definition");
+}
+
+FText UTcsSkillModifierDefinitionFactory::GetToolTip() const
+{
+	return LOCTEXT("SkillModifierDefinitionToolTip", "Create a Tirefly Combat System Skill Modifier Definition asset.");
+}
+
+FString UTcsSkillModifierDefinitionFactory::GetDefaultNewAssetName() const
+{
+	return TEXT("DA_SkillMod_New");
+}
+
+UTcsSkillDefinitionFactory::UTcsSkillDefinitionFactory()
+{
+	bCreateNew = true;
+	bEditAfterNew = true;
+	SupportedClass = UTcsSkillDefinition::StaticClass();
+}
+
+UObject* UTcsSkillDefinitionFactory::FactoryCreateNew(UClass* InClass, UObject* InParent,
+	FName InName, EObjectFlags Flags, UObject* Context, FFeedbackContext* Warn, FName CallingContext)
+{
+	return TcsDefAssetFactories::CreateDefinitionAsset<UTcsSkillDefinition>(InParent, InName, Flags);
+}
+
+bool UTcsSkillDefinitionFactory::ShouldShowInNewMenu() const
+{
+	return true;
+}
+
+uint32 UTcsSkillDefinitionFactory::GetMenuCategories() const
+{
+	return TcsDefAssetFactories::GetTcsMenuCategory();
+}
+
+const TArray<FText>& UTcsSkillDefinitionFactory::GetMenuCategorySubMenus() const
+{
+	return FTireflyCombatSystemEditorModule::GetDefinitionAssetCategorySubMenus();
+}
+
+FText UTcsSkillDefinitionFactory::GetDisplayName() const
+{
+	return LOCTEXT("SkillDefinitionDisplayName", "Skill Definition");
+}
+
+FText UTcsSkillDefinitionFactory::GetToolTip() const
+{
+	return LOCTEXT("SkillDefinitionToolTip", "Create a Tirefly Combat System Skill Definition asset.");
+}
+
+FString UTcsSkillDefinitionFactory::GetDefaultNewAssetName() const
+{
+	return TEXT("DA_Skill_New");
 }
 
 #undef LOCTEXT_NAMESPACE

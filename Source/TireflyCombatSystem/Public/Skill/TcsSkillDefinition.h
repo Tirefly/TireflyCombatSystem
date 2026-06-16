@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "State/TcsStateDefinition.h"
+#include "State/TcsStateParamInstance.h"
 #include "TcsSkillDefinition.generated.h"
 
 
@@ -16,12 +17,15 @@ class UTcsSkillInstance;
 /**
  * Skill 定义资产。
  *
- * 负责统一声明 Skill 的 learned 数据对象类型与激活执行态类型。
+ * 负责统一声明 Skill 的 learned 数据对象类型、激活执行态类型与冷却参数。
  */
 UCLASS(BlueprintType, Const)
 class TIREFLYCOMBATSYSTEM_API UTcsSkillDefinition : public UTcsStateDefinition
 {
 	GENERATED_BODY()
+
+public:
+	UTcsSkillDefinition();
 
 #pragma region Runtime
 
@@ -39,6 +43,28 @@ public:
 
 	/** @return 当前 Skill 定义解析出的激活执行态类。 */
 	virtual UClass* ResolveStateInstanceClass() const override;
+
+#pragma endregion
+
+
+#pragma region Cooldown
+
+public:
+	/**
+	 * 冷却参数的标识 GameplayTag。
+	 * 仅在 Tag 有效时，下方的 CooldownParam 才可编辑。
+	 * 默认值从 UTcsDeveloperSettings::DefaultSkillCooldownParamTag 读取。
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Cooldown")
+	FGameplayTag CooldownParamTag;
+
+	/**
+	 * 冷却参数配置（Numeric 类型，支持 LevelArray 等求值器）。
+	 * 不指定 Evaluator 或求值结果为 0 表示无冷却。
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Cooldown",
+		Meta = (EditCondition = "CooldownParamTag.IsValid()", EditConditionHides))
+	FTcsStateParameter CooldownParam;
 
 #pragma endregion
 };
