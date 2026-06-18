@@ -36,18 +36,18 @@ TCS SHALL 保持 `UTcsStateComponent` 作为面向 Actor 的具体宿主，用�
 - **WHEN** 一个 Buff 运行时状态或由 Skill 触发的运行时状态进入激活态
 - **THEN** 共享的 slot 分配、生命周期编排与 StateTree 驱动 SHALL 继续由 `State Core` 提供
 
-### Requirement: 当前阶段不要求在同一 change 中完成 Skill 收敛
-TCS SHALL 在 State Core / Buff 重构阶段保持当前 Skill 模块可兼容运作，但不把当前代码里的 Skill 命名与运行时分层冻结成长期契约。
+### Requirement: 当前阶段的 Skill 初步规模允许进入作者工作流
+TCS SHALL 继续将 `UTcsSkillDefinition` 与 `UTcsSkillModifierDefinition` 视为仍在演进中的能力，但当前插件进度已经允许它们进入编辑器 authoring、Definition 管理与 DataTable 同步工作流。
 
-#### Scenario: State/Buff 重构不要求在同一 change 中完成新的 Skill 侧运行时模型
-- **WHEN** 实施本阶段重构时
-- **THEN** 本阶段 SHALL NOT 要求在同一 change 内完成 `UTcsSkillDefinition`、`UTcsSkillEntry`、新的 `UTcsSkillInstance` 或 Skill 专用 schema
-- **AND** 这些 follow-up MAY 由后续独立 change 推进
+#### Scenario: Skill Def 可以参与编辑器 authoring 与同步能力
+- **WHEN** 在编辑器中为 TCS 定义资产建立 authoring 或同步工作流时
+- **THEN** `UTcsSkillDefinition` 与 `UTcsSkillModifierDefinition` SHALL 被视为可纳入的具体 DefinitionAsset 类型
+- **AND** 不应再因为历史阶段约束而将其排除在该类工作流之外
 
 #### Scenario: 现有 Skill 骨架保持兼容
-- **WHEN** 本阶段重构 `State Core` 与 Buff 边界时
+- **WHEN** `State Core`、Buff 与 Skill 的共享边界继续演进时
 - **THEN** 现有 Skill 模块骨架及其当前调用路径 SHALL 保持可编译兼容
-- **AND** 本阶段 SHALL 聚焦于阻止 Skill 继续泄漏进共享 State Core，而不是把当前旧命名直接宣告为长期最终模型
+- **AND** Skill 能参与 editor authoring / sync 工作流这一事实，不等于其运行时分层已经被冻结为长期最终模型
 
 ### Requirement: 共享参数策略默认不视为 Skill 专属
 TCS SHALL 将快照这类参数求值时机策略视为共享参数系统关注点，除非已被证明只属于 Skill。

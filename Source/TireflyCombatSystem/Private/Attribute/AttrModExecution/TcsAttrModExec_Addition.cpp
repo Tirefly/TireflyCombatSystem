@@ -22,7 +22,7 @@ void UTcsAttrModExec_Addition::Execute_Implementation(
 	}
 
 	const UTcsAttributeModifierDefinition* ModDef = ModInst.ModifierDef;
-	const FName& AttrToMod = ModDef->AttributeName;
+	const FName& AttrToMod = ModDef->AttributeId;
 	float* BaseValue = BaseValues.Find(AttrToMod);
 	float* CurrentValue = CurrentValues.Find(AttrToMod);
 	if (!BaseValue || !CurrentValue)

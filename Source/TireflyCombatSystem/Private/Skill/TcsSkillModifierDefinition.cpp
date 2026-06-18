@@ -9,5 +9,5 @@ const FPrimaryAssetType UTcsSkillModifierDefinition::PrimaryAssetType = TEXT("Tc
 
 FPrimaryAssetId UTcsSkillModifierDefinition::GetPrimaryAssetId() const
 {
-	return FPrimaryAssetId(PrimaryAssetType, GetFName());
+	return FPrimaryAssetId(PrimaryAssetType, ModifierId);
 }

@@ -2,6 +2,7 @@
 
 #include "State/TcsStateParamInstance.h"
 
+#include "Skill/SkillModExecution/TcsSkillModifierExecution.h"
 #include "Skill/TcsSkillModifierInstance.h"
 #include "Skill/TcsSkillEntry.h"
 #include "State/TcsStateInstance.h"

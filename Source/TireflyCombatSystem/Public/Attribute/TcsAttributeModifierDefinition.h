@@ -70,11 +70,11 @@ public:
 	int32 Priority = 0;
 
 	/**
-	 * 修改器要修改的属性
+	 * 修改器要修改的属性定义 ID
 	 */
 	UPROPERTY(Meta = (GetOptions = "TcsGenericLibrary.GetAttributeNames"),
 		EditAnywhere, BlueprintReadOnly, Category = "Modifier")
-	FName AttributeName = NAME_None;
+	FName AttributeId = NAME_None;
 
 	/**
 	 * 修改器修改属性的方式

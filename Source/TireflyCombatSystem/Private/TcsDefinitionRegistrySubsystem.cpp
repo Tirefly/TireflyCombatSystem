@@ -797,6 +797,7 @@ void UTcsDefinitionRegistrySubsystem::RebuildSnapshot()
 {
 	AttributeDefinitions.Empty();
 	AttributeModifierDefinitions.Empty();
+	SkillModifierDefinitions.Empty();
 	StateDefinitions.Empty();
 	StateSlotDefinitions.Empty();
 
@@ -819,9 +820,10 @@ void UTcsDefinitionRegistrySubsystem::RebuildSnapshot()
 	RefreshAssetManagerCoverageIssues(AssetRegistry);
 
 	UE_LOG(LogTcs, Log,
-		TEXT("[UTcsDefinitionRegistrySubsystem] Rebuilt snapshot: %d Attributes, %d Modifiers, %d States, %d StateSlots"),
+		TEXT("[UTcsDefinitionRegistrySubsystem] Rebuilt snapshot: %d Attributes, %d AttributeModifiers, %d SkillModifiers, %d States, %d StateSlots"),
 		AttributeDefinitions.Num(),
 		AttributeModifierDefinitions.Num(),
+		SkillModifierDefinitions.Num(),
 		StateDefinitions.Num(),
 		StateSlotDefinitions.Num());
 }
@@ -838,6 +840,7 @@ void UTcsDefinitionRegistrySubsystem::MirrorSnapshotToDeveloperSettings() const
 
 	Settings->SetCachedAttributeDefinitions(AttributeDefinitions);
 	Settings->SetCachedAttributeModifierDefinitions(AttributeModifierDefinitions);
+	Settings->SetCachedSkillModifierDefinitions(SkillModifierDefinitions);
 	Settings->SetCachedStateDefinitions(StateDefinitions);
 	Settings->SetCachedStateSlotDefinitions(StateSlotDefinitions);
 }

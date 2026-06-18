@@ -160,15 +160,23 @@ public:
 
 public:
 	/**
-	 * 属性名（最好使用 StringTable）
+	 * 是否在UI中显示
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Display")
+	bool bShowInUI = true;
+
+	/**
+	 * 属性名（最好使用 StringTable）
+	 */
+	UPROPERTY(Meta = (EditCondition = "bShowInUI", EditConditionHides),
+		EditAnywhere, BlueprintReadOnly, Category = "Display")
 	FText AttributeName;
 
 	/**
 	 * 属性描述（最好使用 StringTable）
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Display")
+	UPROPERTY(Meta = (EditCondition = "bShowInUI", EditConditionHides),
+		EditAnywhere, BlueprintReadOnly, Category = "Display")
 	FText AttributeDescription;
 
 #pragma endregion
@@ -178,27 +186,24 @@ public:
 
 public:
 	/**
-	 * 是否在UI中显示
-	 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "UI")
-	bool bShowInUI = true;
-
-	/**
 	 * 属性图标
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "UI")
+	UPROPERTY(Meta = (EditCondition = "bShowInUI", EditConditionHides),
+		EditAnywhere, BlueprintReadOnly, Category = "UI")
 	TSoftObjectPtr<UTexture2D> Icon;
 
 	/**
 	 * 是否显示为小数
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "UI")
+	UPROPERTY(Meta = (EditCondition = "bShowInUI", EditConditionHides),
+		EditAnywhere, BlueprintReadOnly, Category = "UI")
 	bool bAsDecimal = false;
 
 	/**
 	 * 是否显示为百分比
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "UI")
+	UPROPERTY(Meta = (EditCondition = "bShowInUI", EditConditionHides),
+		EditAnywhere, BlueprintReadOnly, Category = "UI")
 	bool bAsPercentage = false;
 
 #pragma endregion

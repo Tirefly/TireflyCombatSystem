@@ -17,12 +17,12 @@ bool UTcsAttributeModifierExecution::CollectTouchedAttributes_Implementation(
 		return false;
 	}
 
-	const FName AttributeName = ModInst.ModifierDef->AttributeName;
-	if (AttributeName.IsNone())
+	const FName AttributeId = ModInst.ModifierDef->AttributeId;
+	if (AttributeId.IsNone())
 	{
 		return false;
 	}
 
-	OutAttributeNames.Add(AttributeName);
+	OutAttributeNames.Add(AttributeId);
 	return true;
 }

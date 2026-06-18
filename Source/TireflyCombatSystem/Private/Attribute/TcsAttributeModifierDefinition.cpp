@@ -54,10 +54,10 @@ EDataValidationResult UTcsAttributeModifierDefinition::IsDataValid(FDataValidati
 		Result = EDataValidationResult::Invalid;
 	}
 
-	// 验证 AttributeName
-	if (AttributeName.IsNone())
+	// 验证 AttributeId
+	if (AttributeId.IsNone())
 	{
-		Context.AddError(FText::FromString(TEXT("AttributeName cannot be empty")));
+		Context.AddError(FText::FromString(TEXT("AttributeId cannot be empty")));
 		Result = EDataValidationResult::Invalid;
 	}
 

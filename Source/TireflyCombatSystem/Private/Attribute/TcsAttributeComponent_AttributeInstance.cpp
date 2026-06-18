@@ -281,7 +281,7 @@ bool UTcsAttributeComponent::ResetAttribute(FName AttributeName)
 			continue;
 		}
 		const UTcsAttributeModifierDefinition* ModDef = Modifier.ModifierDef;
-		if (ModDef && ModDef->AttributeName == AttributeName)
+		if (ModDef && ModDef->AttributeId == AttributeName)
 		{
 			ModifiersToRemove.Add(Modifier);
 		}
@@ -382,7 +382,7 @@ bool UTcsAttributeComponent::RemoveAttribute(FName AttributeName)
 			continue;
 		}
 		const UTcsAttributeModifierDefinition* ModDef = Modifier.ModifierDef;
-		if (ModDef && ModDef->AttributeName == AttributeName)
+		if (ModDef && ModDef->AttributeId == AttributeName)
 		{
 			ModifiersToRemove.Add(Modifier);
 		}

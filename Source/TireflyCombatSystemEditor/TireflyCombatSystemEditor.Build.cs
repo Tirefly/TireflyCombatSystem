@@ -15,6 +15,7 @@ public class TireflyCombatSystemEditor : ModuleRules
 				"CoreUObject",
 				"Engine",
 				"AssetDefinition",
+				"EditorSubsystem",
 				"UnrealEd"
 			}
 		);
@@ -22,6 +23,7 @@ public class TireflyCombatSystemEditor : ModuleRules
 		PrivateDependencyModuleNames.AddRange(
 			new string[]
 			{
+				"AssetRegistry",
 				"AssetTools",
 				"GameplayStateTreeModule",
 				"StateTreeEditorModule",

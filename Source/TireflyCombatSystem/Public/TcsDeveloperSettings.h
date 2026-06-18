@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Engine/DeveloperSettings.h"
+#include "Engine/EngineTypes.h"
 #include "GameplayTagContainer.h"
 #include "State/TcsStateInstance.h"
 
@@ -20,6 +21,8 @@ class UTcsAttributeDefinition;
 class UTcsStateDefinition;
 class UTcsStateSlotDefinition;
 class UTcsAttributeModifierDefinition;
+class UTcsSkillModifierDefinition;
+class UDataTable;
 class UPrimaryDataAsset;
 
 
@@ -36,6 +39,57 @@ enum class ETcsStateLoadingStrategy : uint8
 
 	// 混合策略：预加载常用 State，其他按需加载
 	Hybrid			UMETA(DisplayName = "Hybrid (Preload Common)"),
+};
+
+
+
+/**
+ * DataTable ↔ DefAsset 单条同步配置。
+ *
+ * 约束：一个受管目录严格对应一张显式绑定的 DataTable。
+ */
+USTRUCT(BlueprintType)
+struct TIREFLYCOMBATSYSTEM_API FTcsDataTableSyncConfig
+{
+	GENERATED_BODY()
+
+public:
+	/** 该配置受管的 DefAsset 类型。 */
+	UPROPERTY(Config, EditAnywhere, Category = "DataTable Sync")
+	TSubclassOf<UPrimaryDataAsset> DefAssetClass;
+
+	/** 该配置受管的 DefAsset 目录。 */
+	UPROPERTY(Config, EditAnywhere, Category = "DataTable Sync", Meta = (ContentDir))
+	FDirectoryPath ManagedDefAssetDirectory;
+
+	/** 与该目录显式绑定的目标 DataTable。 */
+	UPROPERTY(Config, EditAnywhere, Category = "DataTable Sync")
+	TSoftObjectPtr<UDataTable> TargetDataTable;
+
+	/** 保存 DefAsset 时是否回写 DataTable。 */
+	UPROPERTY(Config, EditAnywhere, Category = "DataTable Sync")
+	bool bSyncDefAssetToDataTable = true;
+
+	/** 保存 DataTable 时是否删除孤立 DefAsset。 */
+	UPROPERTY(Config, EditAnywhere, Category = "DataTable Sync")
+	bool bAllowDeleteOrphanDefAssets = true;
+};
+
+
+
+/**
+ * 单条同步配置的校验结果。
+ */
+struct TIREFLYCOMBATSYSTEM_API FTcsDataTableSyncConfigValidationResult
+{
+	/** 当前配置是否通过校验。 */
+	bool bValid = false;
+
+	/** 阻止同步执行的错误列表。 */
+	TArray<FText> Errors;
+
+	/** 不阻止同步执行的警告列表。 */
+	TArray<FText> Warnings;
 };
 
 
@@ -84,6 +138,32 @@ public:
 	UPROPERTY(Config, EditAnywhere, Category = "Editor Validation",
 		meta = (ToolTip = "DefAsset 类型勘误忽略列表"))
 	TArray<TSubclassOf<UPrimaryDataAsset>> IgnoredDefinitionAssetTypes;
+
+	/** DataTable ↔ DefAsset 自动同步总开关。 */
+	UPROPERTY(Config, EditAnywhere, Category = "DataTable Sync")
+	bool bEnableDataTableAutoSync = false;
+
+	/** 每种 DefAsset 类型的同步配置列表。 */
+	UPROPERTY(Config, EditAnywhere, Category = "DataTable Sync",
+		meta = (EditCondition = "bEnableDataTableAutoSync", EditConditionHides))
+	TArray<FTcsDataTableSyncConfig> DataTableSyncConfigs;
+
+	/**
+	 * 校验单条 DataTable 同步配置是否合法。
+	 *
+	 * @param Config 待校验的同步配置。
+	 * @return 单条配置的校验结果。
+	 */
+	FTcsDataTableSyncConfigValidationResult ValidateConfig(const FTcsDataTableSyncConfig& Config) const;
+
+	/**
+	 * 校验全部 DataTable 同步配置是否合法。
+	 *
+	 * @param OutErrors 输出的错误列表。
+	 * @param OutWarnings 输出的警告列表。
+	 * @return 全部配置都合法时返回 true。
+	 */
+	bool ValidateAllConfigs(TArray<FText>& OutErrors, TArray<FText>& OutWarnings) const;
 
 #pragma endregion
 
@@ -177,6 +257,14 @@ protected:
 	UPROPERTY(Transient)
 	TMap<FName, TSoftObjectPtr<UTcsAttributeModifierDefinition>> CachedAttributeModifierDefinitions;
 
+	/**
+	 * 内部缓存：技能修改器定义资产映射（Transient，运行时自动填充）
+	 * Key: ModifierId (FName)
+	 * Value: TSoftObjectPtr<UTcsSkillModifierDefinition>
+	 */
+	UPROPERTY(Transient)
+	TMap<FName, TSoftObjectPtr<UTcsSkillModifierDefinition>> CachedSkillModifierDefinitions;
+
 public:
 	/**
 	 * 获取缓存的属性定义资产映射
@@ -211,6 +299,14 @@ public:
 	}
 
 	/**
+	 * 获取缓存的技能修改器定义资产映射。
+	 */
+	const TMap<FName, TSoftObjectPtr<UTcsSkillModifierDefinition>>& GetCachedSkillModifierDefinitions() const
+	{
+		return CachedSkillModifierDefinitions;
+	}
+
+	/**
 	 * 设置缓存的属性定义资产映射（由 Subsystem 调用）
 	 */
 	void SetCachedAttributeDefinitions(const TMap<FName, TSoftObjectPtr<UTcsAttributeDefinition>>& InCache)
@@ -242,18 +338,13 @@ public:
 		CachedAttributeModifierDefinitions = InCache;
 	}
 
+	/**
+	 * 设置缓存的技能修改器定义资产映射（由 Subsystem 调用）。
+	 */
+	void SetCachedSkillModifierDefinitions(const TMap<FName, TSoftObjectPtr<UTcsSkillModifierDefinition>>& InCache)
+	{
+		CachedSkillModifierDefinitions = InCache;
+	}
+
 #pragma endregion
 };
-
-#if WITH_EDITOR
-inline EDataValidationResult UTcsDeveloperSettings::IsDataValid(FDataValidationContext& Context) const
-{
-	const EDataValidationResult SuperResult = Super::IsDataValid(Context);
-	EDataValidationResult Result = SuperResult;
-
-	// 验证 AssetManager 配置
-	// 注意：路径配置已移至 DefaultGame.ini 的 AssetManager 设置中
-
-	return Result;
-}
-#endif
