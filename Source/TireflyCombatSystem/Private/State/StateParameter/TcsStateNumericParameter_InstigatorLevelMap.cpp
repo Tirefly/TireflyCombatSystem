@@ -9,10 +9,10 @@ bool UTcsStateNumericParamEvaluator_InstigatorLevelMap::Evaluate_Implementation(
 	AActor* Instigator,
 	AActor* Target,
 	UTcsStateInstance* StateInstance,
-	const FInstancedStruct& InstancedStruct,
+	const FInstancedStruct& Payload,
 	float& OutValue) const
 {
-	if (auto InstigatorLevelMapParam = InstancedStruct.GetPtr<FTcsStateNumericParam_InstigatorLevelMap>())
+	if (auto InstigatorLevelMapParam = Payload.GetPtr<FTcsStateNumericParam_InstigatorLevelMap>())
 	{
 		if (!Instigator)
 		{

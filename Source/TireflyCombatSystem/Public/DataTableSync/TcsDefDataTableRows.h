@@ -26,6 +26,8 @@ struct TIREFLYCOMBATSYSTEM_API FTcsAttributeDefRow : public FTableRowBase
 	GENERATED_BODY()
 
 public:
+	FTcsAttributeDefRow();
+
 	/** 属性类别。 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Attribute")
 	FString AttributeCategory;
@@ -87,6 +89,8 @@ struct TIREFLYCOMBATSYSTEM_API FTcsAttributeModifierDefRow : public FTableRowBas
 	GENERATED_BODY()
 
 public:
+	FTcsAttributeModifierDefRow();
+
 	/** 修改器名称。 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Attribute Modifier")
 	FName ModifierName = NAME_None;
@@ -131,6 +135,8 @@ struct TIREFLYCOMBATSYSTEM_API FTcsBuffDefRow : public FTableRowBase
 	GENERATED_BODY()
 
 public:
+	FTcsBuffDefRow();
+
 	/** 状态语义标签。 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "State")
 	FGameplayTag StateTag;
@@ -288,6 +294,8 @@ struct TIREFLYCOMBATSYSTEM_API FTcsSkillModifierDefRow : public FTableRowBase
 	GENERATED_BODY()
 
 public:
+	FTcsSkillModifierDefRow();
+
 	/** 目标技能选取策略。 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skill Modifier")
 	TSubclassOf<UTcsSkillEntrySelector> EntrySelectorClass;
@@ -305,14 +313,24 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skill Modifier")
 	ETcsStateParameterType TargetParamType = ETcsStateParameterType::SPT_Numeric;
 
-	/** 参数求值策略类。 */
+	/** Numeric 参数求值策略类。 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skill Modifier",
-		Meta = (EditCondition = "TargetParamTag.IsValid()", EditConditionHides))
-	TSubclassOf<UTcsStateParamNumericModifierExecution> EvaluatorClass;
+		Meta = (EditCondition = "TargetParamTag.IsValid() && TargetParamType == ETcsStateParameterType::SPT_Numeric", EditConditionHides))
+	TSubclassOf<UTcsStateParamNumericModifierExecution> NumericEvaluatorClass;
+
+	/** Bool 参数求值策略类。 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skill Modifier",
+		Meta = (EditCondition = "TargetParamTag.IsValid() && TargetParamType == ETcsStateParameterType::SPT_Bool", EditConditionHides))
+	TSubclassOf<UTcsStateParamBoolModifierExecution> BoolEvaluatorClass;
+
+	/** Vector 参数求值策略类。 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skill Modifier",
+		Meta = (EditCondition = "TargetParamTag.IsValid() && TargetParamType == ETcsStateParameterType::SPT_Vector", EditConditionHides))
+	TSubclassOf<UTcsStateParamVectorModifierExecution> VectorEvaluatorClass;
 
 	/** 参数求值策略配置。 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skill Modifier",
-		Meta = (EditCondition = "EvaluatorClass != nullptr", EditConditionHides))
+		Meta = (EditCondition = "(TargetParamType == ETcsStateParameterType::SPT_Numeric && NumericEvaluatorClass != nullptr) || (TargetParamType == ETcsStateParameterType::SPT_Bool && BoolEvaluatorClass != nullptr) || (TargetParamType == ETcsStateParameterType::SPT_Vector && VectorEvaluatorClass != nullptr)", EditConditionHides))
 	FInstancedStruct EvaluatorConfig;
 
 	/** 执行优先级。 */
@@ -335,6 +353,8 @@ struct TIREFLYCOMBATSYSTEM_API FTcsStateSlotDefRow : public FTableRowBase
 	GENERATED_BODY()
 
 public:
+	FTcsStateSlotDefRow();
+
 	/** 槽位标签。 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "State Slot")
 	FGameplayTag SlotTag;

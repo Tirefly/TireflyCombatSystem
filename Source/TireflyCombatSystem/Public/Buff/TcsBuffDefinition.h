@@ -86,6 +86,10 @@ class TIREFLYCOMBATSYSTEM_API UTcsBuffDefinition : public UTcsStateDefinition
 {
 	GENERATED_BODY()
 
+public:
+	/** 构造默认 Buff 合并策略。 */
+	UTcsBuffDefinition();
+
 
 #pragma region Duration
 

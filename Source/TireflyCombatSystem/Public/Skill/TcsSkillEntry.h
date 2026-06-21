@@ -109,6 +109,15 @@ public:
 	/** 从 Def 初始化技能参数。 */
 	void InitializeFromDef(UTcsSkillDefinition* Def);
 
+	/** @return 命中的 Numeric 参数实例；未命中时返回 nullptr。 */
+	FTcsNumericStateParamInstance* FindNumericParamInstance(FGameplayTag ParamTag);
+
+	/** @return 命中的 Bool 参数实例；未命中时返回 nullptr。 */
+	FTcsBoolStateParamInstance* FindBoolParamInstance(FGameplayTag ParamTag);
+
+	/** @return 命中的 Vector 参数实例；未命中时返回 nullptr。 */
+	FTcsVectorStateParamInstance* FindVectorParamInstance(FGameplayTag ParamTag);
+
 #pragma endregion
 
 

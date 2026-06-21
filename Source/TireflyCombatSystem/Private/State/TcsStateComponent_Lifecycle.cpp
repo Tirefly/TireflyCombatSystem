@@ -506,6 +506,11 @@ void UTcsStateComponent::FinalizeStateRemoval(UTcsStateInstance* StateInstance, 
 	StateTreeTickScheduler.Remove(StateInstance);
 	StateInstanceIndex.RemoveInstance(StateInstance);
 
+	if (InternalStateFinalizeRemovalStartedEvent.IsBound())
+	{
+		InternalStateFinalizeRemovalStartedEvent.Broadcast(this, StateInstance, RemovalReason);
+	}
+
 	if (StateInstance->GetSourceHandle().IsValid())
 	{
 		if (UTcsAttributeComponent* OwnerAttrComp = StateInstance->GetOwnerAttributeComponent())
@@ -518,6 +523,11 @@ void UTcsStateComponent::FinalizeStateRemoval(UTcsStateInstance* StateInstance, 
 			{
 				FallbackAttrComp->RemoveModifiersBySourceHandle(StateInstance->GetSourceHandle());
 			}
+		}
+
+		if (InternalStateFinalizeRemovalSourceCleanupEvent.IsBound())
+		{
+			InternalStateFinalizeRemovalSourceCleanupEvent.Broadcast(this, StateInstance, RemovalReason);
 		}
 	}
 

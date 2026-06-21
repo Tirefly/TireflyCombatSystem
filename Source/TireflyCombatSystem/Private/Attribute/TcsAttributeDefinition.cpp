@@ -18,6 +18,11 @@ const FPrimaryAssetType UTcsAttributeDefinition::PrimaryAssetType = FPrimaryAsse
 // 内部函数：如果 SelfAttributeDefId 不为空，则检查 AttributeRange 是否有 SelfAttributeDefId 的引用，如果有，则清空引用
 namespace
 {
+	bool IsAbstractClampStrategyClass(const UClass* StrategyClass)
+	{
+		return StrategyClass && StrategyClass->HasAnyClassFlags(CLASS_Abstract);
+	}
+
 	void SanitizeSelfReferencedRange(FTcsAttributeRange& AttributeRange, const FName SelfAttributeDefId)
 	{
 		if (SelfAttributeDefId.IsNone())
@@ -148,6 +153,11 @@ EDataValidationResult UTcsAttributeDefinition::IsDataValid(FDataValidationContex
 	if (!ClampStrategyClass)
 	{
 		Context.AddError(FText::FromString(TEXT("ClampStrategyClass cannot be empty")));
+		Result = EDataValidationResult::Invalid;
+	}
+	else if (IsAbstractClampStrategyClass(ClampStrategyClass.Get()))
+	{
+		Context.AddError(FText::FromString(TEXT("ClampStrategyClass cannot reference an abstract class")));
 		Result = EDataValidationResult::Invalid;
 	}
 

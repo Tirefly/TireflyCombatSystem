@@ -44,6 +44,10 @@ public:
 	UPROPERTY()
 	FName ModifierId;
 
+	/** 账本层唯一运行时 ID。 */
+	UPROPERTY()
+	int32 RuntimeModifierId = INDEX_NONE;
+
 #pragma endregion
 
 
@@ -101,6 +105,10 @@ public:
 	UPROPERTY()
 	FName ModifierId;
 
+	/** 账本层唯一运行时 ID。 */
+	UPROPERTY()
+	int32 RuntimeModifierId = INDEX_NONE;
+
 #pragma endregion
 
 
@@ -157,6 +165,10 @@ struct TIREFLYCOMBATSYSTEM_API FStateParamVectorModifierInstance
 public:
 	UPROPERTY()
 	FName ModifierId;
+
+	/** 账本层唯一运行时 ID。 */
+	UPROPERTY()
+	int32 RuntimeModifierId = INDEX_NONE;
 
 #pragma endregion
 

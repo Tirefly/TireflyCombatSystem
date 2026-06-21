@@ -30,7 +30,9 @@ public:
 
 
 // 状态布尔类参数值解析器
-UCLASS(Abstract, DisplayName = "Bool Evaluator：Constant")
+UCLASS(BlueprintType, Blueprintable,
+	ClassGroup = (TireflyCombatSystem),
+	DisplayName = "Bool Evaluator：Constant")
 class TIREFLYCOMBATSYSTEM_API UTcsStateBoolParamEvaluator : public UObject
 {
 	GENERATED_BODY()
@@ -50,12 +52,12 @@ public:
 		AActor* Instigator,
 		AActor* Target,
 		UTcsStateInstance* StateInstance,
-		const FInstancedStruct& InstancedStruct,
+		const FInstancedStruct& Payload,
 		bool& OutValue) const;
 	virtual bool Evaluate_Implementation(
 		AActor* Instigator,
 		AActor* Target,
 		UTcsStateInstance* StateInstance,
-		const FInstancedStruct& InstancedStruct,
+		const FInstancedStruct& Payload,
 		bool& OutValue) const;
 };

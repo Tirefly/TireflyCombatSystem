@@ -10,10 +10,10 @@ bool UTcsStateNumericParamEvaluator_InstigatorLevelTable::Evaluate_Implementatio
 	AActor* Instigator,
 	AActor* Target,
 	UTcsStateInstance* StateInstance,
-	const FInstancedStruct& InstancedStruct,
+	const FInstancedStruct& Payload,
 	float& OutValue) const
 {
-	if (auto InstigatorLevelTableParam = InstancedStruct.GetPtr<FTcsStateNumericParam_InstigatorLevelTable>())
+	if (auto InstigatorLevelTableParam = Payload.GetPtr<FTcsStateNumericParam_InstigatorLevelTable>())
 	{
 		if (!Instigator || !InstigatorLevelTableParam->CurveTableRowHandle.IsValid(__FUNCTION__))
 		{

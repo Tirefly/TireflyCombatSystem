@@ -67,4 +67,22 @@ public:
 	FTcsStateParameter CooldownParam;
 
 #pragma endregion
+
+
+#if WITH_EDITOR
+	/**
+	 * 编辑器属性变更后的默认值归一化。
+	 *
+	 * @param PropertyChangedEvent 变更事件。
+	 */
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+
+	/**
+	 * 编辑器数据有效性检查。
+	 *
+	 * @param Context 验证上下文。
+	 * @return 数据验证结果。
+	 */
+	virtual EDataValidationResult IsDataValid(FDataValidationContext& Context) const override;
+#endif
 };

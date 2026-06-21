@@ -1,6 +1,7 @@
 // Copyright Tirefly. All Rights Reserved.
 
 #include "Attribute/TcsAttributeModifierDefinition.h"
+#include "Attribute/AttrModMerger/TcsAttrModMerger_NoMerge.h"
 #include "Attribute/TcsAttributeModifier.h"
 #include "Attribute/AttrModExecution/TcsAttributeModifierExecution.h"
 
@@ -18,6 +19,7 @@ UTcsAttributeModifierDefinition::UTcsAttributeModifierDefinition()
 {
 	// 设置默认操作数
 	Operands.Add(FName("Magnitude"), 0.f);
+	MergerType = UTcsAttrModMerger_NoMerge::StaticClass();
 }
 
 FPrimaryAssetId UTcsAttributeModifierDefinition::GetPrimaryAssetId() const
@@ -40,6 +42,11 @@ void UTcsAttributeModifierDefinition::PostEditChangeProperty(FPropertyChangedEve
 		{
 			Operands.Add(FName("Magnitude"), 0.f);
 		}
+	}
+
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(UTcsAttributeModifierDefinition, MergerType) && !MergerType)
+	{
+		MergerType = UTcsAttrModMerger_NoMerge::StaticClass();
 	}
 }
 
@@ -65,6 +72,22 @@ EDataValidationResult UTcsAttributeModifierDefinition::IsDataValid(FDataValidati
 	if (!ModifierType)
 	{
 		Context.AddError(FText::FromString(TEXT("ModifierType cannot be empty")));
+		Result = EDataValidationResult::Invalid;
+	}
+	else if (ModifierType->HasAnyClassFlags(CLASS_Abstract))
+	{
+		Context.AddError(FText::FromString(TEXT("ModifierType cannot reference an abstract class")));
+		Result = EDataValidationResult::Invalid;
+	}
+
+	if (!MergerType)
+	{
+		Context.AddError(FText::FromString(TEXT("MergerType cannot be empty")));
+		Result = EDataValidationResult::Invalid;
+	}
+	else if (MergerType->HasAnyClassFlags(CLASS_Abstract))
+	{
+		Context.AddError(FText::FromString(TEXT("MergerType cannot reference an abstract class")));
 		Result = EDataValidationResult::Invalid;
 	}
 

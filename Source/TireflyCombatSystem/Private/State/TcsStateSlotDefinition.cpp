@@ -68,6 +68,11 @@ EDataValidationResult UTcsStateSlotDefinition::IsDataValid(FDataValidationContex
 		Context.AddError(FText::FromString(TEXT("ActivationMode is PriorityOnly, but SamePriorityPolicy is empty")));
 		Result = EDataValidationResult::Invalid;
 	}
+	else if (SamePriorityPolicy && SamePriorityPolicy->HasAnyClassFlags(CLASS_Abstract))
+	{
+		Context.AddError(FText::FromString(TEXT("SamePriorityPolicy cannot reference an abstract class")));
+		Result = EDataValidationResult::Invalid;
+	}
 
 	return Result;
 }

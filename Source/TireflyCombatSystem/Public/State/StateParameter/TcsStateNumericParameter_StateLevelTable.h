@@ -38,6 +38,6 @@ public:
 		AActor* Instigator,
 		AActor* Target,
 		UTcsStateInstance* StateInstance,
-		const FInstancedStruct& InstancedStruct,
+		const FInstancedStruct& Payload,
 		float& OutValue) const override;
 }; 

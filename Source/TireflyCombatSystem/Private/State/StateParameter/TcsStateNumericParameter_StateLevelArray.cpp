@@ -10,10 +10,10 @@ bool UTcsStateNumericParamEvaluator_StateLevelArray::Evaluate_Implementation(
 	AActor* Instigator,
 	AActor* Target,
 	UTcsStateInstance* StateInstance,
-	const FInstancedStruct& InstancedStruct,
+	const FInstancedStruct& Payload,
 	float& OutValue) const
 {
-	if (auto LevelArrayParam = InstancedStruct.GetPtr<FTcsStateNumericParam_StateLevelArray>())
+	if (auto LevelArrayParam = Payload.GetPtr<FTcsStateNumericParam_StateLevelArray>())
 	{
 		if (!StateInstance)
 		{

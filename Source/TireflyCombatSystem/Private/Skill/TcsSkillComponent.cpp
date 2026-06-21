@@ -19,9 +19,25 @@ UTcsSkillComponent::UTcsSkillComponent()
 	PrimaryComponentTick.TickInterval = 0.1f;
 }
 
-void UTcsSkillComponent::BeginPlay()
+void UTcsSkillComponent::OnRegister()
 {
-	Super::BeginPlay();
+	Super::OnRegister();
+
+	if (UTcsStateComponent* OwnerStateComponent = GetOwnerStateComponent())
+	{
+		BindOwnerStateLifecycleEvents(OwnerStateComponent);
+	}
+}
+
+
+void UTcsSkillComponent::OnUnregister()
+{
+	if (UTcsStateComponent* OwnerStateComponent = GetOwnerStateComponent())
+	{
+		UnbindOwnerStateLifecycleEvents(OwnerStateComponent);
+	}
+
+	Super::OnUnregister();
 }
 
 void UTcsSkillComponent::TickComponent(
@@ -31,6 +47,13 @@ void UTcsSkillComponent::TickComponent(
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 	CooldownTracker.Tick(DeltaTime);
+}
+
+
+int32 UTcsSkillComponent::AllocateSkillModifierRuntimeId()
+{
+	++NextSkillModifierRuntimeId;
+	return NextSkillModifierRuntimeId;
 }
 
 
@@ -89,6 +112,8 @@ void UTcsSkillComponent::ForgetSkill(FName SkillDefId)
 		}
 		Entry->ActiveInstance.Reset();
 	}
+
+	RemoveSkillModifiersForSkillEntry(Entry);
 
 	CooldownTracker.Remove(Entry);
 	LearnedSkills.Remove(SkillDefId);

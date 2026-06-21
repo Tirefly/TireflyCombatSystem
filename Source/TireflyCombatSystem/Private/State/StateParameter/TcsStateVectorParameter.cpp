@@ -8,10 +8,10 @@ bool UTcsStateVectorParamEvaluator::Evaluate_Implementation(
 	AActor* Instigator,
 	AActor* Target,
 	UTcsStateInstance* StateInstance,
-	const FInstancedStruct& InstancedStruct,
+	const FInstancedStruct& Payload,
 	FVector& OutValue) const
 {
-	if (auto ConstVectorParam = InstancedStruct.GetPtr<FTcsStateVectorParam_Constant>())
+	if (auto ConstVectorParam = Payload.GetPtr<FTcsStateVectorParam_Constant>())
 	{
 		OutValue = ConstVectorParam->VectorValue;
 		return true;

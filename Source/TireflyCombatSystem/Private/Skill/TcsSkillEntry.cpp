@@ -112,6 +112,24 @@ void UTcsSkillEntry::InitializeFromDef(UTcsSkillDefinition* Def)
 }
 
 
+FTcsNumericStateParamInstance* UTcsSkillEntry::FindNumericParamInstance(FGameplayTag ParamTag)
+{
+	return NumericParamInstances.Find(ParamTag);
+}
+
+
+FTcsBoolStateParamInstance* UTcsSkillEntry::FindBoolParamInstance(FGameplayTag ParamTag)
+{
+	return BoolParamInstances.Find(ParamTag);
+}
+
+
+FTcsVectorStateParamInstance* UTcsSkillEntry::FindVectorParamInstance(FGameplayTag ParamTag)
+{
+	return VectorParamInstances.Find(ParamTag);
+}
+
+
 bool UTcsSkillEntry::StartCooldown(UTcsSkillInstance* SkillInstance)
 {
 	if (!SkillInstance)

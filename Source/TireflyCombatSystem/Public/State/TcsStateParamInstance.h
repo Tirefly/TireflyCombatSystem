@@ -35,6 +35,9 @@ struct TIREFLYCOMBATSYSTEM_API FTcsStateParameter
 	GENERATED_BODY()
 
 public:
+	/** 构造时补齐当前参数类型对应的默认 evaluator。 */
+	FTcsStateParameter();
+
 	// 参数类型
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Parameter Type")
 	ETcsStateParameterType ParameterType = ETcsStateParameterType::SPT_Numeric;
@@ -63,6 +66,13 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Parameter Value")
 	FInstancedStruct ParamValueContainer;
 };
+
+/**
+ * 为共享 StateParam 的 evaluator 字段补齐默认 concrete 类。
+ *
+ * @param StateParameter 待归一化的参数定义。
+ */
+TIREFLYCOMBATSYSTEM_API void NormalizeStateParameterStrategyDefaults(FTcsStateParameter& StateParameter);
 
 
 /**
@@ -126,6 +136,12 @@ public:
 	// StateModifier 实例列表
 	UPROPERTY()
 	TArray<struct FStateParamNumericModifierInstance> ModifierInstances;
+
+	/** 按 runtime id 精确移除一个 SkillModifier。 */
+	bool RemoveModifierByRuntimeId(int32 RuntimeModifierId, FName& OutModifierId, bool& bOutRemovedActiveInstance);
+
+	/** 重新激活指定 ModifierId 组内最高优先级的 inactive 候选。 */
+	bool ReactivateHighestInactiveExclusive(FName ModifierId);
 
 	void AssignModifier(const struct FStateParamNumericModifierInstance& Instance);
 
@@ -207,6 +223,12 @@ public:
 	UPROPERTY()
 	TArray<struct FStateParamBoolModifierInstance> ModifierInstances;
 
+	/** 按 runtime id 精确移除一个 SkillModifier。 */
+	bool RemoveModifierByRuntimeId(int32 RuntimeModifierId, FName& OutModifierId, bool& bOutRemovedActiveInstance);
+
+	/** 重新激活指定 ModifierId 组内最高优先级的 inactive 候选。 */
+	bool ReactivateHighestInactiveExclusive(FName ModifierId);
+
 	void AssignModifier(const struct FStateParamBoolModifierInstance& Instance);
 
 	void RemoveModifiersBySourceHandle(const struct FTcsSourceHandle& SourceHandle);
@@ -286,6 +308,12 @@ public:
 public:
 	UPROPERTY()
 	TArray<struct FStateParamVectorModifierInstance> ModifierInstances;
+
+	/** 按 runtime id 精确移除一个 SkillModifier。 */
+	bool RemoveModifierByRuntimeId(int32 RuntimeModifierId, FName& OutModifierId, bool& bOutRemovedActiveInstance);
+
+	/** 重新激活指定 ModifierId 组内最高优先级的 inactive 候选。 */
+	bool ReactivateHighestInactiveExclusive(FName ModifierId);
 
 	void AssignModifier(const struct FStateParamVectorModifierInstance& Instance);
 

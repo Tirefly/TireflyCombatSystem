@@ -2,12 +2,20 @@
 
 #include "Buff/TcsBuffDefinition.h"
 
+#include "Buff/BuffMerger/TcsBuffMerger_NoMerge.h"
 #include "Buff/TcsBuffInstance.h"
 
 #if WITH_EDITOR
 #include "Misc/DataValidation.h"
 #endif
 
+
+
+
+UTcsBuffDefinition::UTcsBuffDefinition()
+{
+	MergerType = UTcsBuffMerger_NoMerge::StaticClass();
+}
 
 
 UClass* UTcsBuffDefinition::ResolveStateInstanceClass() const
@@ -46,6 +54,11 @@ void UTcsBuffDefinition::PostEditChangeProperty(FPropertyChangedEvent& PropertyC
 			MaxStackCount = 1;
 		}
 	}
+
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(UTcsBuffDefinition, MergerType) && !MergerType)
+	{
+		MergerType = UTcsBuffMerger_NoMerge::StaticClass();
+	}
 }
 
 EDataValidationResult UTcsBuffDefinition::IsDataValid(FDataValidationContext& Context) const
@@ -76,6 +89,17 @@ EDataValidationResult UTcsBuffDefinition::IsDataValid(FDataValidationContext& Co
 		Context.AddError(FText::FromString(FString::Printf(
 			TEXT("MaxStackCount (%d) must be >= 1"),
 			MaxStackCount)));
+		Result = EDataValidationResult::Invalid;
+	}
+
+	if (!MergerType)
+	{
+		Context.AddError(FText::FromString(TEXT("MergerType cannot be empty")));
+		Result = EDataValidationResult::Invalid;
+	}
+	else if (MergerType->HasAnyClassFlags(CLASS_Abstract))
+	{
+		Context.AddError(FText::FromString(TEXT("MergerType cannot reference an abstract class")));
 		Result = EDataValidationResult::Invalid;
 	}
 

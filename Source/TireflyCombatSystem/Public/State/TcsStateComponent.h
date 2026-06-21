@@ -127,6 +127,20 @@ DECLARE_MULTICAST_DELEGATE_ThreeParams(
 	UTcsStateInstance*,
 	FName);
 
+// 状态模块内部使用的 FinalizeRemoval 前段桥接事件。
+DECLARE_MULTICAST_DELEGATE_ThreeParams(
+	FTcsOnInternalStateFinalizeRemovalStartedSignature,
+	UTcsStateComponent*,
+	UTcsStateInstance*,
+	FName);
+
+// 状态模块内部使用的 FinalizeRemoval 来源清理阶段桥接事件。
+DECLARE_MULTICAST_DELEGATE_ThreeParams(
+	FTcsOnInternalStateFinalizeRemovalSourceCleanupSignature,
+	UTcsStateComponent*,
+	UTcsStateInstance*,
+	FName);
+
 // 状态模块内部联动使用的原生槽位 Gate 事件签名。
 DECLARE_MULTICAST_DELEGATE_ThreeParams(
 	FTcsOnInternalSlotGateStateChangedSignature,
@@ -315,6 +329,20 @@ public:
 	 */
 	FTcsOnInternalSlotGateStateChangedSignature& OnInternalSlotGateStateChanged() { return InternalSlotGateStateChangedEvent; }
 
+	/**
+	 * 获取供模块内部联动使用的 FinalizeRemoval 前段桥接事件。
+	 *
+	 * @return 原生 FinalizeRemoval 前段事件引用；供 Skill 等运行时模块绑定。
+	 */
+	FTcsOnInternalStateFinalizeRemovalStartedSignature& OnInternalStateFinalizeRemovalStarted() { return InternalStateFinalizeRemovalStartedEvent; }
+
+	/**
+	 * 获取供模块内部联动使用的 FinalizeRemoval 来源清理阶段桥接事件。
+	 *
+	 * @return 原生 FinalizeRemoval 来源清理阶段事件引用；供 Skill 等运行时模块绑定。
+	 */
+	FTcsOnInternalStateFinalizeRemovalSourceCleanupSignature& OnInternalStateFinalizeRemovalSourceCleanup() { return InternalStateFinalizeRemovalSourceCleanupEvent; }
+
 protected:
 	// 供模块内部联动使用的原生阶段变更事件。
 	FTcsOnInternalStateStageChangedSignature InternalStateStageChangedEvent;
@@ -327,6 +355,12 @@ protected:
 
 	// 供模块内部联动使用的原生状态移除事件。
 	FTcsOnInternalStateRemovedSignature InternalStateRemovedEvent;
+
+	// 供模块内部联动使用的 FinalizeRemoval 前段桥接事件。
+	FTcsOnInternalStateFinalizeRemovalStartedSignature InternalStateFinalizeRemovalStartedEvent;
+
+	// 供模块内部联动使用的 FinalizeRemoval 来源清理阶段桥接事件。
+	FTcsOnInternalStateFinalizeRemovalSourceCleanupSignature InternalStateFinalizeRemovalSourceCleanupEvent;
 
 	// 供模块内部联动使用的原生槽位 Gate 事件。
 	FTcsOnInternalSlotGateStateChangedSignature InternalSlotGateStateChangedEvent;

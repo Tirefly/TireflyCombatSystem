@@ -8,10 +8,10 @@ bool UTcsStateBoolParamEvaluator::Evaluate_Implementation(
 	AActor* Instigator,
 	AActor* Target,
 	UTcsStateInstance* StateInstance,
-	const FInstancedStruct& InstancedStruct,
+	const FInstancedStruct& Payload,
 	bool& OutValue) const
 {
-	if (auto ConstBoolParam = InstancedStruct.GetPtr<FTcsStateBoolParam_Constant>())
+	if (auto ConstBoolParam = Payload.GetPtr<FTcsStateBoolParam_Constant>())
 	{
 		OutValue = ConstBoolParam->bBoolValue;
 		return true;

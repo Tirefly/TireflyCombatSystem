@@ -10,10 +10,10 @@ bool UTcsStateNumericParamEvaluator_StateLevelTable::Evaluate_Implementation(
 	AActor* Instigator,
 	AActor* Target,
 	UTcsStateInstance* StateInstance,
-	const FInstancedStruct& InstancedStruct,
+	const FInstancedStruct& Payload,
 	float& OutValue) const
 {
-	if (auto StateLevelTableParam = InstancedStruct.GetPtr<FTcsStateNumericParam_StateLevelTable>())
+	if (auto StateLevelTableParam = Payload.GetPtr<FTcsStateNumericParam_StateLevelTable>())
 	{
 		if (!StateInstance || !StateLevelTableParam->CurveTableRowHandle.IsValid(__FUNCTION__))
 		{

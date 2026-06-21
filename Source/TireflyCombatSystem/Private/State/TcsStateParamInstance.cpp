@@ -12,6 +12,99 @@
 #include "TcsLogChannels.h"
 
 
+namespace
+{
+	template <typename ModifierInstanceType>
+	bool ReactivateHighestInactiveModifier(TArray<ModifierInstanceType>& ModifierInstances, FName ModifierId)
+	{
+		ModifierInstanceType* HighestInactive = nullptr;
+
+		for (ModifierInstanceType& Instance : ModifierInstances)
+		{
+			if (Instance.ModifierId != ModifierId || Instance.bActive)
+			{
+				continue;
+			}
+
+			if (!HighestInactive || Instance.Priority > HighestInactive->Priority)
+			{
+				HighestInactive = &Instance;
+			}
+		}
+
+		if (!HighestInactive)
+		{
+			return false;
+		}
+
+		HighestInactive->bActive = true;
+		return true;
+	}
+
+
+	template <typename ModifierInstanceType>
+	bool RemoveModifierByRuntimeIdInternal(
+		TArray<ModifierInstanceType>& ModifierInstances,
+		int32 RuntimeModifierId,
+		FName& OutModifierId,
+		bool& bOutRemovedActiveInstance)
+	{
+		for (int32 Index = 0; Index < ModifierInstances.Num(); ++Index)
+		{
+			const ModifierInstanceType RemovedInstance = ModifierInstances[Index];
+			if (RemovedInstance.RuntimeModifierId != RuntimeModifierId)
+			{
+				continue;
+			}
+
+			OutModifierId = RemovedInstance.ModifierId;
+			bOutRemovedActiveInstance = RemovedInstance.bActive;
+			ModifierInstances.RemoveAt(Index);
+			return true;
+		}
+
+		return false;
+	}
+}
+
+
+
+FTcsStateParameter::FTcsStateParameter()
+{
+	NormalizeStateParameterStrategyDefaults(*this);
+}
+
+
+void NormalizeStateParameterStrategyDefaults(FTcsStateParameter& StateParameter)
+{
+	switch (StateParameter.ParameterType)
+	{
+	case ETcsStateParameterType::SPT_Numeric:
+		if (!StateParameter.NumericParamEvaluator)
+		{
+			StateParameter.NumericParamEvaluator = UTcsStateNumericParamEvaluator::StaticClass();
+		}
+		break;
+
+	case ETcsStateParameterType::SPT_Bool:
+		if (!StateParameter.BoolParamEvaluator)
+		{
+			StateParameter.BoolParamEvaluator = UTcsStateBoolParamEvaluator::StaticClass();
+		}
+		break;
+
+	case ETcsStateParameterType::SPT_Vector:
+		if (!StateParameter.VectorParamEvaluator)
+		{
+			StateParameter.VectorParamEvaluator = UTcsStateVectorParamEvaluator::StaticClass();
+		}
+		break;
+
+	default:
+		break;
+	}
+}
+
 
 bool FTcsNumericStateParamInstance::Initialize(const FGameplayTag& InTag, const FTcsStateParameter& ParamDef, FString& OutError)
 {
@@ -113,36 +206,43 @@ void FTcsNumericStateParamInstance::AssignModifier(const FStateParamNumericModif
 }
 
 
+bool FTcsNumericStateParamInstance::RemoveModifierByRuntimeId(
+	int32 RuntimeModifierId,
+	FName& OutModifierId,
+	bool& bOutRemovedActiveInstance)
+{
+	OutModifierId = NAME_None;
+	bOutRemovedActiveInstance = false;
+	return RemoveModifierByRuntimeIdInternal(ModifierInstances, RuntimeModifierId, OutModifierId, bOutRemovedActiveInstance);
+}
+
+
+bool FTcsNumericStateParamInstance::ReactivateHighestInactiveExclusive(FName ModifierId)
+{
+	return ReactivateHighestInactiveModifier(ModifierInstances, ModifierId);
+}
+
+
 void FTcsNumericStateParamInstance::RemoveModifiersBySourceHandle(const struct FTcsSourceHandle& SourceHandle)
 {
-	TArray<FName> RemovedIds;
+	TArray<int32> RuntimeIdsToRemove;
+	RuntimeIdsToRemove.Reserve(ModifierInstances.Num());
 
-	ModifierInstances.RemoveAll([&](const FStateParamNumericModifierInstance& Inst)
+	for (const FStateParamNumericModifierInstance& Instance : ModifierInstances)
 	{
-		if (Inst.SourceHandle == SourceHandle)
+		if (Instance.SourceHandle == SourceHandle)
 		{
-			RemovedIds.AddUnique(Inst.ModifierId);
-			return true;
+			RuntimeIdsToRemove.Add(Instance.RuntimeModifierId);
 		}
-		return false;
-	});
+	}
 
-	for (const FName& Id : RemovedIds)
+	for (const int32 RuntimeModifierId : RuntimeIdsToRemove)
 	{
-		FStateParamNumericModifierInstance* HighestInactive = nullptr;
-		for (FStateParamNumericModifierInstance& Inst : ModifierInstances)
+		FName RemovedModifierId;
+		bool bRemovedActiveInstance = false;
+		if (RemoveModifierByRuntimeId(RuntimeModifierId, RemovedModifierId, bRemovedActiveInstance) && bRemovedActiveInstance)
 		{
-			if (Inst.ModifierId == Id && !Inst.bActive)
-			{
-				if (!HighestInactive || Inst.Priority > HighestInactive->Priority)
-				{
-					HighestInactive = &Inst;
-				}
-			}
-		}
-		if (HighestInactive)
-		{
-			HighestInactive->bActive = true;
+			ReactivateHighestInactiveExclusive(RemovedModifierId);
 		}
 	}
 }
@@ -194,36 +294,43 @@ void FTcsBoolStateParamInstance::AssignModifier(const FStateParamBoolModifierIns
 }
 
 
+bool FTcsBoolStateParamInstance::RemoveModifierByRuntimeId(
+	int32 RuntimeModifierId,
+	FName& OutModifierId,
+	bool& bOutRemovedActiveInstance)
+{
+	OutModifierId = NAME_None;
+	bOutRemovedActiveInstance = false;
+	return RemoveModifierByRuntimeIdInternal(ModifierInstances, RuntimeModifierId, OutModifierId, bOutRemovedActiveInstance);
+}
+
+
+bool FTcsBoolStateParamInstance::ReactivateHighestInactiveExclusive(FName ModifierId)
+{
+	return ReactivateHighestInactiveModifier(ModifierInstances, ModifierId);
+}
+
+
 void FTcsBoolStateParamInstance::RemoveModifiersBySourceHandle(const struct FTcsSourceHandle& SourceHandle)
 {
-	TArray<FName> RemovedIds;
+	TArray<int32> RuntimeIdsToRemove;
+	RuntimeIdsToRemove.Reserve(ModifierInstances.Num());
 
-	ModifierInstances.RemoveAll([&](const FStateParamBoolModifierInstance& Inst)
+	for (const FStateParamBoolModifierInstance& Instance : ModifierInstances)
 	{
-		if (Inst.SourceHandle == SourceHandle)
+		if (Instance.SourceHandle == SourceHandle)
 		{
-			RemovedIds.AddUnique(Inst.ModifierId);
-			return true;
+			RuntimeIdsToRemove.Add(Instance.RuntimeModifierId);
 		}
-		return false;
-	});
+	}
 
-	for (const FName& Id : RemovedIds)
+	for (const int32 RuntimeModifierId : RuntimeIdsToRemove)
 	{
-		FStateParamBoolModifierInstance* HighestInactive = nullptr;
-		for (FStateParamBoolModifierInstance& Inst : ModifierInstances)
+		FName RemovedModifierId;
+		bool bRemovedActiveInstance = false;
+		if (RemoveModifierByRuntimeId(RuntimeModifierId, RemovedModifierId, bRemovedActiveInstance) && bRemovedActiveInstance)
 		{
-			if (Inst.ModifierId == Id && !Inst.bActive)
-			{
-				if (!HighestInactive || Inst.Priority > HighestInactive->Priority)
-				{
-					HighestInactive = &Inst;
-				}
-			}
-		}
-		if (HighestInactive)
-		{
-			HighestInactive->bActive = true;
+			ReactivateHighestInactiveExclusive(RemovedModifierId);
 		}
 	}
 }
@@ -275,36 +382,43 @@ void FTcsVectorStateParamInstance::AssignModifier(const FStateParamVectorModifie
 }
 
 
+bool FTcsVectorStateParamInstance::RemoveModifierByRuntimeId(
+	int32 RuntimeModifierId,
+	FName& OutModifierId,
+	bool& bOutRemovedActiveInstance)
+{
+	OutModifierId = NAME_None;
+	bOutRemovedActiveInstance = false;
+	return RemoveModifierByRuntimeIdInternal(ModifierInstances, RuntimeModifierId, OutModifierId, bOutRemovedActiveInstance);
+}
+
+
+bool FTcsVectorStateParamInstance::ReactivateHighestInactiveExclusive(FName ModifierId)
+{
+	return ReactivateHighestInactiveModifier(ModifierInstances, ModifierId);
+}
+
+
 void FTcsVectorStateParamInstance::RemoveModifiersBySourceHandle(const struct FTcsSourceHandle& SourceHandle)
 {
-	TArray<FName> RemovedIds;
+	TArray<int32> RuntimeIdsToRemove;
+	RuntimeIdsToRemove.Reserve(ModifierInstances.Num());
 
-	ModifierInstances.RemoveAll([&](const FStateParamVectorModifierInstance& Inst)
+	for (const FStateParamVectorModifierInstance& Instance : ModifierInstances)
 	{
-		if (Inst.SourceHandle == SourceHandle)
+		if (Instance.SourceHandle == SourceHandle)
 		{
-			RemovedIds.AddUnique(Inst.ModifierId);
-			return true;
+			RuntimeIdsToRemove.Add(Instance.RuntimeModifierId);
 		}
-		return false;
-	});
+	}
 
-	for (const FName& Id : RemovedIds)
+	for (const int32 RuntimeModifierId : RuntimeIdsToRemove)
 	{
-		FStateParamVectorModifierInstance* HighestInactive = nullptr;
-		for (FStateParamVectorModifierInstance& Inst : ModifierInstances)
+		FName RemovedModifierId;
+		bool bRemovedActiveInstance = false;
+		if (RemoveModifierByRuntimeId(RuntimeModifierId, RemovedModifierId, bRemovedActiveInstance) && bRemovedActiveInstance)
 		{
-			if (Inst.ModifierId == Id && !Inst.bActive)
-			{
-				if (!HighestInactive || Inst.Priority > HighestInactive->Priority)
-				{
-					HighestInactive = &Inst;
-				}
-			}
-		}
-		if (HighestInactive)
-		{
-			HighestInactive->bActive = true;
+			ReactivateHighestInactiveExclusive(RemovedModifierId);
 		}
 	}
 }

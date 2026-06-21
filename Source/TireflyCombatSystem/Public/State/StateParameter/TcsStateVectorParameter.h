@@ -30,7 +30,9 @@ public:
 
 
 // 状态向量类参数值解析器
-UCLASS(Abstract, DisplayName = "Vector Evaluator：Constant")
+UCLASS(BlueprintType, Blueprintable,
+	ClassGroup = (TireflyCombatSystem),
+	DisplayName = "Vector Evaluator：Constant")
 class TIREFLYCOMBATSYSTEM_API UTcsStateVectorParamEvaluator : public UObject
 {
 	GENERATED_BODY()
@@ -50,12 +52,12 @@ public:
 		AActor* Instigator,
 		AActor* Target,
 		UTcsStateInstance* StateInstance,
-		const FInstancedStruct& InstancedStruct,
+		const FInstancedStruct& Payload,
 		FVector& OutValue) const;
 	virtual bool Evaluate_Implementation(
 		AActor* Instigator,
 		AActor* Target,
 		UTcsStateInstance* StateInstance,
-		const FInstancedStruct& InstancedStruct,
+		const FInstancedStruct& Payload,
 		FVector& OutValue) const;
 };

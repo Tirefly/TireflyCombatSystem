@@ -2,11 +2,18 @@
 
 #include "DataTableSync/TcsDefDataTableRows.h"
 
+#include "Attribute/AttrClampStrategy/TcsAttrClampStrategy_Linear.h"
+#include "Attribute/AttrModMerger/TcsAttrModMerger_NoMerge.h"
 #include "Attribute/TcsAttributeDefinition.h"
 #include "Attribute/TcsAttributeModifierDefinition.h"
+#include "Buff/BuffMerger/TcsBuffMerger_NoMerge.h"
 #include "Buff/TcsBuffDefinition.h"
+#include "Skill/SkillModExecution/TcsSkillModExec_Addition.h"
+#include "Skill/SkillModExecution/TcsSkillModExec_SetBool.h"
+#include "Skill/SkillModExecution/TcsSkillModExec_SetVector.h"
 #include "Skill/TcsSkillDefinition.h"
 #include "Skill/TcsSkillModifierDefinition.h"
+#include "State/SamePriorityPolicy/TcsStateSamePriorityPolicy_UseNewest.h"
 #include "State/TcsStateSlotDefinition.h"
 
 namespace
@@ -29,6 +36,89 @@ namespace
 		FName TypeAlias;
 	};
 
+	void NormalizeAttributeDefRowDefaults(FTcsAttributeDefRow& Row)
+	{
+		if (!Row.ClampStrategyClass)
+		{
+			Row.ClampStrategyClass = UTcsAttrClampStrategy_Linear::StaticClass();
+		}
+	}
+
+	void NormalizeAttributeModifierDefRowDefaults(FTcsAttributeModifierDefRow& Row)
+	{
+		if (!Row.MergerType)
+		{
+			Row.MergerType = UTcsAttrModMerger_NoMerge::StaticClass();
+		}
+	}
+
+	template <typename TRow>
+	void NormalizeStateDefinitionRowDefaults(TRow& Row)
+	{
+		for (TPair<FGameplayTag, FTcsStateParameter>& Pair : Row.Parameters)
+		{
+			NormalizeStateParameterStrategyDefaults(Pair.Value);
+		}
+	}
+
+	void NormalizeStateDefinitionAssetDefaults(UTcsStateDefinition& StateDefinition)
+	{
+		for (TPair<FGameplayTag, FTcsStateParameter>& Pair : StateDefinition.Parameters)
+		{
+			NormalizeStateParameterStrategyDefaults(Pair.Value);
+		}
+	}
+
+	void NormalizeBuffDefRowDefaults(FTcsBuffDefRow& Row)
+	{
+		NormalizeStateDefinitionRowDefaults(Row);
+
+		if (!Row.MergerType)
+		{
+			Row.MergerType = UTcsBuffMerger_NoMerge::StaticClass();
+		}
+	}
+
+	void NormalizeSkillDefRowDefaults(FTcsSkillDefRow& Row)
+	{
+		NormalizeStateDefinitionRowDefaults(Row);
+		Row.CooldownParam.ParameterType = ETcsStateParameterType::SPT_Numeric;
+		NormalizeStateParameterStrategyDefaults(Row.CooldownParam);
+	}
+
+	void NormalizeSkillDefinitionAssetDefaults(UTcsSkillDefinition& SkillDefinition)
+	{
+		NormalizeStateDefinitionAssetDefaults(SkillDefinition);
+		SkillDefinition.CooldownParam.ParameterType = ETcsStateParameterType::SPT_Numeric;
+		NormalizeStateParameterStrategyDefaults(SkillDefinition.CooldownParam);
+	}
+
+	void NormalizeSkillModifierDefRowDefaults(FTcsSkillModifierDefRow& Row)
+	{
+		if (!Row.NumericEvaluatorClass)
+		{
+			Row.NumericEvaluatorClass = UTcsSkillModExec_Addition::StaticClass();
+		}
+
+		if (!Row.BoolEvaluatorClass)
+		{
+			Row.BoolEvaluatorClass = UTcsSkillModExec_SetBool::StaticClass();
+		}
+
+		if (!Row.VectorEvaluatorClass)
+		{
+			Row.VectorEvaluatorClass = UTcsSkillModExec_SetVector::StaticClass();
+		}
+	}
+
+	void NormalizeStateSlotDefRowDefaults(FTcsStateSlotDefRow& Row)
+	{
+		if (!Row.SamePriorityPolicy)
+		{
+			Row.SamePriorityPolicy = UTcsStateSamePriorityPolicy_UseNewest::StaticClass();
+		}
+	}
+
 	template <typename TRow>
 	void CopyStateDefinitionToRow(const UTcsStateDefinition& StateDefinition, TRow& Row)
 	{
@@ -42,6 +132,7 @@ namespace
 		Row.ActiveConditions = StateDefinition.ActiveConditions;
 		Row.Parameters = StateDefinition.Parameters;
 		Row.LevelParamTag = StateDefinition.LevelParamTag;
+		NormalizeStateDefinitionRowDefaults(Row);
 	}
 
 	template <typename TRow>
@@ -58,6 +149,7 @@ namespace
 		StateDefinition.ActiveConditions = Row.ActiveConditions;
 		StateDefinition.Parameters = Row.Parameters;
 		StateDefinition.LevelParamTag = Row.LevelParamTag;
+		NormalizeStateDefinitionAssetDefaults(StateDefinition);
 	}
 
 	/**
@@ -96,6 +188,36 @@ namespace
 
 		return nullptr;
 	}
+}
+
+
+FTcsAttributeDefRow::FTcsAttributeDefRow()
+{
+	NormalizeAttributeDefRowDefaults(*this);
+}
+
+
+FTcsAttributeModifierDefRow::FTcsAttributeModifierDefRow()
+{
+	NormalizeAttributeModifierDefRowDefaults(*this);
+}
+
+
+FTcsBuffDefRow::FTcsBuffDefRow()
+{
+	NormalizeBuffDefRowDefaults(*this);
+}
+
+
+FTcsSkillModifierDefRow::FTcsSkillModifierDefRow()
+{
+	NormalizeSkillModifierDefRowDefaults(*this);
+}
+
+
+FTcsStateSlotDefRow::FTcsStateSlotDefRow()
+{
+	NormalizeStateSlotDefRowDefaults(*this);
 }
 
 UScriptStruct* ResolveExpectedDefDataTableRowStruct(const UClass* DefAssetClass)
@@ -226,6 +348,7 @@ bool TryBuildDefAssetDataTableRow(const UPrimaryDataAsset* DefAsset, FName& OutR
 		Row.Icon = AttributeDefinition->Icon;
 		Row.bAsDecimal = AttributeDefinition->bAsDecimal;
 		Row.bAsPercentage = AttributeDefinition->bAsPercentage;
+		NormalizeAttributeDefRowDefaults(Row);
 		OutRowData = FInstancedStruct::Make(Row);
 		return true;
 	}
@@ -241,6 +364,7 @@ bool TryBuildDefAssetDataTableRow(const UPrimaryDataAsset* DefAsset, FName& OutR
 		Row.Operands = AttributeModifierDefinition->Operands;
 		Row.ModifierType = AttributeModifierDefinition->ModifierType;
 		Row.MergerType = AttributeModifierDefinition->MergerType;
+		NormalizeAttributeModifierDefRowDefaults(Row);
 		OutRowData = FInstancedStruct::Make(Row);
 		return true;
 	}
@@ -257,6 +381,7 @@ bool TryBuildDefAssetDataTableRow(const UPrimaryDataAsset* DefAsset, FName& OutR
 		Row.OnStackIncrease = BuffDefinition->OnStackIncrease;
 		Row.OnDurationExpired = BuffDefinition->OnDurationExpired;
 		Row.BuffInstanceClass = BuffDefinition->BuffInstanceClass;
+		NormalizeBuffDefRowDefaults(Row);
 		OutRowData = FInstancedStruct::Make(Row);
 		return true;
 	}
@@ -269,6 +394,7 @@ bool TryBuildDefAssetDataTableRow(const UPrimaryDataAsset* DefAsset, FName& OutR
 		Row.SkillEntryClass = SkillDefinition->SkillEntryClass;
 		Row.CooldownParamTag = SkillDefinition->CooldownParamTag;
 		Row.CooldownParam = SkillDefinition->CooldownParam;
+		NormalizeSkillDefRowDefaults(Row);
 		OutRowData = FInstancedStruct::Make(Row);
 		return true;
 	}
@@ -280,10 +406,13 @@ bool TryBuildDefAssetDataTableRow(const UPrimaryDataAsset* DefAsset, FName& OutR
 		Row.EntrySelectorConfig = SkillModifierDefinition->EntrySelectorConfig;
 		Row.TargetParamTag = SkillModifierDefinition->TargetParamTag;
 		Row.TargetParamType = SkillModifierDefinition->TargetParamType;
-		Row.EvaluatorClass = SkillModifierDefinition->EvaluatorClass;
+		Row.NumericEvaluatorClass = SkillModifierDefinition->NumericEvaluatorClass;
+		Row.BoolEvaluatorClass = SkillModifierDefinition->BoolEvaluatorClass;
+		Row.VectorEvaluatorClass = SkillModifierDefinition->VectorEvaluatorClass;
 		Row.EvaluatorConfig = SkillModifierDefinition->EvaluatorConfig;
 		Row.Priority = SkillModifierDefinition->Priority;
 		Row.MergePolicy = SkillModifierDefinition->MergePolicy;
+		NormalizeSkillModifierDefRowDefaults(Row);
 		OutRowData = FInstancedStruct::Make(Row);
 		return true;
 	}
@@ -297,6 +426,7 @@ bool TryBuildDefAssetDataTableRow(const UPrimaryDataAsset* DefAsset, FName& OutR
 		Row.GateCloseBehavior = StateSlotDefinition->GateCloseBehavior;
 		Row.PreemptionPolicy = StateSlotDefinition->PreemptionPolicy;
 		Row.SamePriorityPolicy = StateSlotDefinition->SamePriorityPolicy;
+		NormalizeStateSlotDefRowDefaults(Row);
 		OutRowData = FInstancedStruct::Make(Row);
 		return true;
 	}
@@ -332,6 +462,10 @@ bool TryApplyDefAssetDataTableRow(const FName RowName, const FInstancedStruct& R
 		AttributeDefinition->Icon = Row->Icon;
 		AttributeDefinition->bAsDecimal = Row->bAsDecimal;
 		AttributeDefinition->bAsPercentage = Row->bAsPercentage;
+		if (!AttributeDefinition->ClampStrategyClass)
+		{
+			AttributeDefinition->ClampStrategyClass = UTcsAttrClampStrategy_Linear::StaticClass();
+		}
 		return true;
 	}
 
@@ -352,6 +486,10 @@ bool TryApplyDefAssetDataTableRow(const FName RowName, const FInstancedStruct& R
 		AttributeModifierDefinition->Operands = Row->Operands;
 		AttributeModifierDefinition->ModifierType = Row->ModifierType;
 		AttributeModifierDefinition->MergerType = Row->MergerType;
+		if (!AttributeModifierDefinition->MergerType)
+		{
+			AttributeModifierDefinition->MergerType = UTcsAttrModMerger_NoMerge::StaticClass();
+		}
 		return true;
 	}
 
@@ -372,6 +510,10 @@ bool TryApplyDefAssetDataTableRow(const FName RowName, const FInstancedStruct& R
 		BuffDefinition->OnStackIncrease = Row->OnStackIncrease;
 		BuffDefinition->OnDurationExpired = Row->OnDurationExpired;
 		BuffDefinition->BuffInstanceClass = Row->BuffInstanceClass;
+		if (!BuffDefinition->MergerType)
+		{
+			BuffDefinition->MergerType = UTcsBuffMerger_NoMerge::StaticClass();
+		}
 		return true;
 	}
 
@@ -388,6 +530,7 @@ bool TryApplyDefAssetDataTableRow(const FName RowName, const FInstancedStruct& R
 		SkillDefinition->SkillEntryClass = Row->SkillEntryClass;
 		SkillDefinition->CooldownParamTag = Row->CooldownParamTag;
 		SkillDefinition->CooldownParam = Row->CooldownParam;
+		NormalizeSkillDefinitionAssetDefaults(*SkillDefinition);
 		return true;
 	}
 
@@ -404,10 +547,13 @@ bool TryApplyDefAssetDataTableRow(const FName RowName, const FInstancedStruct& R
 		SkillModifierDefinition->EntrySelectorConfig = Row->EntrySelectorConfig;
 		SkillModifierDefinition->TargetParamTag = Row->TargetParamTag;
 		SkillModifierDefinition->TargetParamType = Row->TargetParamType;
-		SkillModifierDefinition->EvaluatorClass = Row->EvaluatorClass;
+		SkillModifierDefinition->NumericEvaluatorClass = Row->NumericEvaluatorClass;
+		SkillModifierDefinition->BoolEvaluatorClass = Row->BoolEvaluatorClass;
+		SkillModifierDefinition->VectorEvaluatorClass = Row->VectorEvaluatorClass;
 		SkillModifierDefinition->EvaluatorConfig = Row->EvaluatorConfig;
 		SkillModifierDefinition->Priority = Row->Priority;
 		SkillModifierDefinition->MergePolicy = Row->MergePolicy;
+		NormalizeSkillModifierStrategyDefaults(*SkillModifierDefinition);
 		return true;
 	}
 
@@ -426,6 +572,10 @@ bool TryApplyDefAssetDataTableRow(const FName RowName, const FInstancedStruct& R
 		StateSlotDefinition->GateCloseBehavior = Row->GateCloseBehavior;
 		StateSlotDefinition->PreemptionPolicy = Row->PreemptionPolicy;
 		StateSlotDefinition->SamePriorityPolicy = Row->SamePriorityPolicy;
+		if (!StateSlotDefinition->SamePriorityPolicy)
+		{
+			StateSlotDefinition->SamePriorityPolicy = UTcsStateSamePriorityPolicy_UseNewest::StaticClass();
+		}
 		return true;
 	}
 

@@ -28,7 +28,7 @@ public:
 
 
 // 状态数值类参数值解析器
-UCLASS(Abstract, BlueprintType, Blueprintable, 
+UCLASS(BlueprintType, Blueprintable, 
 	ClassGroup = (TireflyCombatSystem),
 	DisplayName="Numeric Evaluator: Constant")
 class TIREFLYCOMBATSYSTEM_API UTcsStateNumericParamEvaluator : public UObject
@@ -50,12 +50,12 @@ public:
 		AActor* Instigator,
 		AActor* Target,
 		UTcsStateInstance* StateInstance,
-		const FInstancedStruct& InstancedStruct,
+		const FInstancedStruct& Payload,
 		float& OutValue) const;
 	virtual bool Evaluate_Implementation(
 		AActor* Instigator,
 		AActor* Target,
 		UTcsStateInstance* StateInstance,
-		const FInstancedStruct& InstancedStruct,
+		const FInstancedStruct& Payload,
 		float& OutValue) const;
 };
