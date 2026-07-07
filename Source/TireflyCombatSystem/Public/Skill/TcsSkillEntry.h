@@ -97,13 +97,26 @@ protected:
 #pragma region Parameters
 
 public:
-	/** 运行时 Numeric 参数实例表（权威持有者）。 */
+	/**
+	 * 运行时 Numeric 参数实例表（权威持有者）。
+	 *
+	 * SkillModifier 在来源存活期间会直接写入这里，因此所有通过 SkillEntry / SkillInstance
+	 * 读取该参数的调用方都会共享看到同一条 modifier 链结果。
+	 */
 	TMap<FGameplayTag, FTcsNumericStateParamInstance> NumericParamInstances;
 
-	/** 运行时 Bool 参数实例表。 */
+	/**
+	 * 运行时 Bool 参数实例表。
+	 *
+	 * SkillModifier 的共享可见性与 Numeric 参数相同：写入此容器后，所有读取者立即可见。
+	 */
 	TMap<FGameplayTag, FTcsBoolStateParamInstance> BoolParamInstances;
 
-	/** 运行时 Vector 参数实例表。 */
+	/**
+	 * 运行时 Vector 参数实例表。
+	 *
+	 * SkillModifier 不会为 SkillInstance 复制第二套目标容器，而是统一落在该共享参数链上。
+	 */
 	TMap<FGameplayTag, FTcsVectorStateParamInstance> VectorParamInstances;
 
 	/** 从 Def 初始化技能参数。 */

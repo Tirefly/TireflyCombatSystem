@@ -20,6 +20,7 @@
 void UTcsAttributeManagerSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);
+	bIsRuntimeReady = false;
 
 #if WITH_EDITOR
 	LoadFromDefinitionRegistry();
@@ -33,10 +34,14 @@ void UTcsAttributeManagerSubsystem::Initialize(FSubsystemCollectionBase& Collect
 #else
 	LoadFromAssetManager();
 #endif
+
+	bIsRuntimeReady = true;
 }
 
 void UTcsAttributeManagerSubsystem::Deinitialize()
 {
+	bIsRuntimeReady = false;
+
 #if WITH_EDITOR
 	if (DefinitionRegistryRefreshedHandle.IsValid())
 	{

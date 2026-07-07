@@ -5,14 +5,30 @@
 #include "GameFramework/Actor.h"
 #include "State/TcsStateDefinition.h"
 #include "State/TcsStateSlotDefinition.h"
+#include "TcsLogChannels.h"
+
+
+namespace
+{
+	bool LogStateRuntimeNotReady_Query(const UTcsStateComponent* Component, const TCHAR* FunctionName)
+	{
+		UE_LOG(LogTcsState, Warning, TEXT("[%s] State runtime is not ready for %s"), FunctionName, *GetPathNameSafe(Component));
+		return false;
+	}
+}
 
 
 
 bool UTcsStateComponent::GetStatesInSlot(FGameplayTag SlotTag, TArray<UTcsStateInstance*>& OutStates) const
 {
+	OutStates.Empty();
+	if (!IsRuntimeReady())
+	{
+		return LogStateRuntimeNotReady_Query(this, TEXT(__FUNCTION__));
+	}
+
 	if (!SlotTag.IsValid())
 	{
-		OutStates.Empty();
 		return false;
 	}
 
@@ -21,9 +37,14 @@ bool UTcsStateComponent::GetStatesInSlot(FGameplayTag SlotTag, TArray<UTcsStateI
 
 bool UTcsStateComponent::GetStatesByDefId(FName StateDefId, TArray<UTcsStateInstance*>& OutStates) const
 {
+	OutStates.Empty();
+	if (!IsRuntimeReady())
+	{
+		return LogStateRuntimeNotReady_Query(this, TEXT(__FUNCTION__));
+	}
+
 	if (StateDefId.IsNone())
 	{
-		OutStates.Empty();
 		return false;
 	}
 
@@ -33,6 +54,11 @@ bool UTcsStateComponent::GetStatesByDefId(FName StateDefId, TArray<UTcsStateInst
 bool UTcsStateComponent::GetAllActiveStates(TArray<UTcsStateInstance*>& OutStates) const
 {
 	OutStates.Empty();
+	if (!IsRuntimeReady())
+	{
+		return LogStateRuntimeNotReady_Query(this, TEXT(__FUNCTION__));
+	}
+
 	for (UTcsStateInstance* State : StateInstanceIndex.Instances)
 	{
 		if (IsValid(State) && State->GetCurrentStage() == ETcsStateStage::SS_Active)
@@ -45,12 +71,22 @@ bool UTcsStateComponent::GetAllActiveStates(TArray<UTcsStateInstance*>& OutState
 
 bool UTcsStateComponent::HasStateWithDefId(FName StateDefId) const
 {
+	if (!IsRuntimeReady())
+	{
+		return LogStateRuntimeNotReady_Query(this, TEXT(__FUNCTION__));
+	}
+
 	TArray<UTcsStateInstance*> States;
 	return GetStatesByDefId(StateDefId, States);
 }
 
 bool UTcsStateComponent::HasActiveStateInSlot(FGameplayTag SlotTag) const
 {
+	if (!IsRuntimeReady())
+	{
+		return LogStateRuntimeNotReady_Query(this, TEXT(__FUNCTION__));
+	}
+
 	TArray<UTcsStateInstance*> States;
 	if (!GetStatesInSlot(SlotTag, States))
 	{
@@ -90,6 +126,12 @@ const FTcsStateSlot* UTcsStateComponent::FindRuntimeStateSlot(FGameplayTag SlotT
 
 FString UTcsStateComponent::GetSlotDebugSnapshot(FGameplayTag SlotFilter) const
 {
+	if (!IsRuntimeReady())
+	{
+		UE_LOG(LogTcsState, Warning, TEXT("[%s] State runtime is not ready for %s"), TEXT(__FUNCTION__), *GetPathNameSafe(this));
+		return TEXT("<state runtime not ready>");
+	}
+
 	auto BuildLine = [this](const FGameplayTag& SlotTag, const FTcsStateSlot& Slot) -> FString
 	{
 		FString Line = FString::Printf(TEXT("[%s] Gate=%s"),
@@ -294,6 +336,12 @@ FString UTcsStateComponent::GetSlotDebugSnapshot(FGameplayTag SlotFilter) const
 
 FString UTcsStateComponent::GetStateDebugSnapshot(FName StateDefIdFilter) const
 {
+	if (!IsRuntimeReady())
+	{
+		UE_LOG(LogTcsState, Warning, TEXT("[%s] State runtime is not ready for %s"), TEXT(__FUNCTION__), *GetPathNameSafe(this));
+		return TEXT("<state runtime not ready>");
+	}
+
 	auto FormatStateLine = [this](const UTcsStateInstance* State) -> FString
 	{
 		if (!IsValid(State))

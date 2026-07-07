@@ -85,10 +85,12 @@ bool UTcsBuffComponent::GetBuffMergeDebugLines(FGameplayTag SlotTag, TArray<FStr
 
 void UTcsBuffComponent::BindOwnerStateEvents(UTcsStateComponent* InStateComponent)
 {
-	if (!IsValid(InStateComponent))
+	if (!IsValid(InStateComponent) || !InStateComponent->IsRuntimeReady())
 	{
 		return;
 	}
+
+	UnbindOwnerStateEvents(InStateComponent);
 
 	InStateComponent->OnInternalStateApplySuccess().AddUObject(this, &UTcsBuffComponent::HandleOwnerStateApplySuccess);
 	InStateComponent->OnInternalStateRemoved().AddUObject(this, &UTcsBuffComponent::HandleOwnerStateRemoved);
@@ -257,7 +259,6 @@ UTcsStateComponent* UTcsBuffComponent::ResolveOwnerStateComponent() const
 		{
 			UTcsBuffComponent* MutableThis = const_cast<UTcsBuffComponent*>(this);
 			MutableThis->OwnerStateComponent = StateComponent;
-			MutableThis->BindOwnerStateEvents(StateComponent);
 		}
 	}
 

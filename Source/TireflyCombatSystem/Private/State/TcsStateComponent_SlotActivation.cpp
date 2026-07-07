@@ -12,6 +12,21 @@
 #include "TcsLogChannels.h"
 
 
+namespace
+{
+	void LogStateRuntimeNotReadyVoid_SlotActivation(const UTcsStateComponent* Component, const TCHAR* FunctionName)
+	{
+		UE_LOG(LogTcsState, Warning, TEXT("[%s] State runtime is not ready for %s"), FunctionName, *GetPathNameSafe(Component));
+	}
+
+	bool LogStateRuntimeNotReady_SlotActivation(const UTcsStateComponent* Component, const TCHAR* FunctionName)
+	{
+		UE_LOG(LogTcsState, Warning, TEXT("[%s] State runtime is not ready for %s"), FunctionName, *GetPathNameSafe(Component));
+		return false;
+	}
+}
+
+
 
 void UTcsStateComponent::RequestUpdateStateSlotActivation(FGameplayTag SlotTag)
 {
@@ -483,6 +498,12 @@ void UTcsStateComponent::RequestStateSlotRefresh(FGameplayTag SlotTag)
 
 void UTcsStateComponent::SetSlotGateOpen(FGameplayTag SlotTag, bool bOpen)
 {
+	if (!IsRuntimeReady())
+	{
+		LogStateRuntimeNotReadyVoid_SlotActivation(this, TEXT(__FUNCTION__));
+		return;
+	}
+
 	FTcsStateSlot* Slot = RuntimeStateSlots.Find(SlotTag);
 	if (!Slot)
 	{
@@ -507,6 +528,11 @@ void UTcsStateComponent::SetSlotGateOpen(FGameplayTag SlotTag, bool bOpen)
 
 bool UTcsStateComponent::IsSlotGateOpen(FGameplayTag SlotTag) const
 {
+	if (!IsRuntimeReady())
+	{
+		return LogStateRuntimeNotReady_SlotActivation(this, TEXT(__FUNCTION__));
+	}
+
 	if (const FTcsStateSlot* Slot = RuntimeStateSlots.Find(SlotTag))
 	{
 		return Slot->bIsGateOpen;

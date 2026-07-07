@@ -8,6 +8,22 @@
 #include "State/TcsStateDefinition.h"
 
 
+namespace
+{
+	bool LogStateRuntimeNotReady_Lifecycle(const UTcsStateComponent* Component, const TCHAR* FunctionName)
+	{
+		UE_LOG(LogTcsState, Warning, TEXT("[%s] State runtime is not ready for %s"), FunctionName, *GetPathNameSafe(Component));
+		return false;
+	}
+
+	int32 LogStateRuntimeNotReadyCount_Lifecycle(const UTcsStateComponent* Component, const TCHAR* FunctionName)
+	{
+		UE_LOG(LogTcsState, Warning, TEXT("[%s] State runtime is not ready for %s"), FunctionName, *GetPathNameSafe(Component));
+		return 0;
+	}
+}
+
+
 
 bool UTcsStateComponent::RequestStateRemoval(UTcsStateInstance* StateInstance, FName RemovalReason)
 {
@@ -27,6 +43,11 @@ bool UTcsStateComponent::RequestStateRemoval(UTcsStateInstance* StateInstance, F
 
 bool UTcsStateComponent::RemoveState(UTcsStateInstance* StateInstance)
 {
+	if (!IsRuntimeReady())
+	{
+		return LogStateRuntimeNotReady_Lifecycle(this, TEXT(__FUNCTION__));
+	}
+
 	if (!IsValid(StateInstance))
 	{
 		UE_LOG(LogTcsState, Warning, TEXT("[%s] StateInstance is invalid"), *FString(__FUNCTION__));
@@ -65,6 +86,11 @@ bool UTcsStateComponent::RemoveState(UTcsStateInstance* StateInstance)
 
 int32 UTcsStateComponent::RemoveStatesByDefId(FName StateDefId, bool bRemoveAll)
 {
+	if (!IsRuntimeReady())
+	{
+		return LogStateRuntimeNotReadyCount_Lifecycle(this, TEXT(__FUNCTION__));
+	}
+
 	if (StateDefId.IsNone())
 	{
 		return 0;
@@ -138,6 +164,11 @@ int32 UTcsStateComponent::RemoveStatesByDefId(FName StateDefId, bool bRemoveAll)
 
 int32 UTcsStateComponent::RemoveAllStatesInSlot(FGameplayTag SlotTag)
 {
+	if (!IsRuntimeReady())
+	{
+		return LogStateRuntimeNotReadyCount_Lifecycle(this, TEXT(__FUNCTION__));
+	}
+
 	if (!SlotTag.IsValid())
 	{
 		return 0;
@@ -169,6 +200,11 @@ int32 UTcsStateComponent::RemoveAllStatesInSlot(FGameplayTag SlotTag)
 
 int32 UTcsStateComponent::RemoveAllStates()
 {
+	if (!IsRuntimeReady())
+	{
+		return LogStateRuntimeNotReadyCount_Lifecycle(this, TEXT(__FUNCTION__));
+	}
+
 	ensureMsgf(!IsInStateTreeUpdateContext(), TEXT("[%s] RemoveAllStates called during StateTree update on %s. Prefer frame-boundary reclaim to avoid overlapping callback teardown."),
 		*FString(__FUNCTION__),
 		*GetPathName());

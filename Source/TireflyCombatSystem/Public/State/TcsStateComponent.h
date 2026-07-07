@@ -19,6 +19,7 @@ class UTcsStateInstance;
 class UTcsStateManagerSubsystem;
 class UTcsAttributeManagerSubsystem;
 class UTcsBuffComponent;
+class UTcsRuntimeBootstrapSubsystem;
 class UTcsStateDefinition;
 class UTcsStateSlotDefinition;
 
@@ -172,6 +173,8 @@ class TIREFLYCOMBATSYSTEM_API UTcsStateComponent : public UStateTreeComponent
 {
     GENERATED_BODY()
 
+	friend class UTcsRuntimeBootstrapSubsystem;
+
 #pragma region ActorComponent
 
 public:
@@ -179,6 +182,12 @@ public:
 	UTcsStateComponent(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 protected:
+	/** 在组件初始化时接入 runtime bootstrap。 */
+	virtual void InitializeComponent() override;
+
+	/** 在组件反初始化时退出 runtime bootstrap。 */
+	virtual void UninitializeComponent() override;
+
 	/** 在 BeginPlay 时预热依赖子系统并初始化槽位映射。 */
 	virtual void BeginPlay() override;
 
@@ -188,9 +197,89 @@ protected:
 		ELevelTick TickType,
 		FActorComponentTickFunction* ThisTickFunction) override;
 
+	/** 封锁继承自 UStateTreeComponent 的直接启动路径，避免绕过 runtime bootstrap。 */
+	virtual void StartLogic() override;
+
+	/** 将继承的停止入口重定向到 TCS runtime stop 流程。 */
+	virtual void StopLogic(const FString& Reason) override;
+
+	/** 将继承的重启入口重定向到 TCS runtime restart 流程。 */
+	virtual void RestartLogic() override;
+
+	/** 在 ready 且 running 时暂停 StateTree 运行。 */
+	virtual void PauseLogic(const FString& Reason) override;
+
+	/** 在 ready 且 paused 时恢复 StateTree 运行。 */
+	virtual EAILogicResuming::Type ResumeLogic(const FString& Reason) override;
+
 public:
 	friend class UTcsStateInstance;
 	friend class UTcsBuffComponent;
+
+#pragma endregion
+
+
+#pragma region RuntimeBootstrap
+
+public:
+	/**
+	 * 查询当前 StateComponent 是否已满足完整 runtime-ready 条件。
+	 *
+	 * @return 若当前组件已满足完整 runtime-ready 条件，则返回 true
+	 */
+	UFUNCTION(BlueprintPure, Category = "State|Runtime")
+	bool IsRuntimeReady() const;
+
+	/**
+	 * 启动 StateComponent 的真实 runtime。
+	 *
+	 * @return 若成功进入真实 runtime，则返回 true
+	 */
+	UFUNCTION(BlueprintCallable, Category = "State|Runtime")
+	bool StartStateRuntime();
+
+	/** 停止 StateComponent 的真实 runtime。 */
+	UFUNCTION(BlueprintCallable, Category = "State|Runtime")
+	void StopStateRuntime();
+
+protected:
+	/** 缓存的 RuntimeBootstrapSubsystem 指针。 */
+	UPROPERTY(Transient)
+	TObjectPtr<UTcsRuntimeBootstrapSubsystem> RuntimeBootstrapSubsystem;
+
+	/** 当前 StateComponent 是否已完成 runtime prepare。 */
+	UPROPERTY(Transient)
+	bool bRuntimePrepared = false;
+
+	/** 当前 StateSlot 运行时数据与 StateTree 映射是否已通过验证。 */
+	UPROPERTY(Transient)
+	bool bStateSlotMappingsReady = false;
+
+	/** 当前 StateComponent 是否已进入真实 runtime。 */
+	UPROPERTY(Transient)
+	bool bStateRuntimeActive = false;
+
+	/** 当前是否正由 `StartStateRuntime()` 授权启动底层 StateTree。 */
+	UPROPERTY(Transient)
+	bool bIsStartingStateRuntime = false;
+
+	/** 当前是否正由 `StopStateRuntime()` 授权停止底层 StateTree。 */
+	UPROPERTY(Transient)
+	bool bIsStoppingStateRuntime = false;
+
+	/**
+	 * 显式执行 State runtime prepare。
+	 *
+	 * @return 若 prepare 成功，则返回 true
+	 */
+	bool PrepareStateRuntime();
+
+	/**
+	 * 懒加载获取 RuntimeBootstrapSubsystem。
+	 *
+	 * @return RuntimeBootstrapSubsystem 指针；失败时返回 nullptr
+	 */
+	UTcsRuntimeBootstrapSubsystem* ResolveRuntimeBootstrapSubsystem();
 
 #pragma endregion
 
@@ -587,15 +676,14 @@ protected:
 #pragma region SlotRuntimeData
 
 protected:
-	// 映射集合：StateSlot 到当前 StateTree 中成功绑定的状态名
+	/** 映射集合：StateSlot 到当前 StateTree 中成功绑定的状态名。 */
 	UPROPERTY()
 	TMap<FGameplayTag, FName> Mapping_StateSlotToStateTreeStateName;
 
-	// 反向映射缓存：StateTree 状态名到所有受其驱动的槽位。
-	// 这是从正向绑定表派生出来的本地索引，只服务于差量刷新路径。
+	/** 反向映射缓存：StateTree 状态名到所有受其驱动的槽位。 */
 	TMultiMap<FName, FGameplayTag> Mapping_StateTreeStateNameToStateSlotTags;
 
-	// StateSlot 运行时状态数据容器
+	/** StateSlot 运行时状态数据容器。 */
 	UPROPERTY()
 	TMap<FGameplayTag, FTcsStateSlot> RuntimeStateSlots;
 
@@ -693,23 +781,32 @@ public:
 	bool IsSlotGateOpen(FGameplayTag SlotTag) const;
 
 protected:
-	// 重建当前组件的 StateSlot 运行时容器，并建立与当前 StateTree 的绑定关系。
-	virtual void InitStateSlotMappings();
+	/**
+	 * 重建当前组件的 StateSlot 运行时容器，并建立与当前 StateTree 的绑定关系。
+	 *
+	 * @return 若槽位数据与 StateTree 映射均构建成功，则返回 true
+	 */
+	virtual bool InitStateSlotMappings();
 
 	/**
-	 * 根据当前 StateSlotDefinition 重建运行时槽位容器。
+	 * 根据当前顶层 StateTree 命中的 StateSlotDefinition 重建运行时槽位容器。
 	 *
-	 * 该步骤会重建 RuntimeStateSlots，并在可复用时保留已有槽位的运行时数据。
+	 * 该步骤会先读取当前 StateTree 的真实状态名，再从全局 StateSlotDefinition 中筛出命中的槽位，
+	 * 重建 RuntimeStateSlots，并在可复用时保留已有槽位的运行时数据。
+	 *
+	 * @return 若至少从当前 StateTree 反推出一个有效槽位且未发现命中定义无效，则返回 true
 	 */
-	void RebuildStateSlotRuntimeData();
+	bool RebuildStateSlotRuntimeData();
 
 	/**
 	 * 根据当前 StateTree 重建槽位到状态名的绑定表。
 	 *
 	 * 该步骤只重建 Mapping_StateSlotToStateTreeStateName，
 	 * 不修改 RuntimeStateSlots 中已经建立的运行时槽位数据。
+	 *
+	 * @return 若所有运行时槽位均成功绑定到真实 StateTree 状态名，则返回 true
 	 */
-	void RebuildStateTreeSlotBindings();
+	bool RebuildStateTreeSlotBindings();
 
 	// 尝试把状态实例放入目标槽位并驱动后续激活流程。
 	virtual bool TryAssignStateToStateSlot(UTcsStateInstance* StateInstance);

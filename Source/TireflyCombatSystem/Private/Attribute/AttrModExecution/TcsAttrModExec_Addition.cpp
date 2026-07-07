@@ -9,8 +9,8 @@
 
 void UTcsAttrModExec_Addition::Execute_Implementation(
 	const FTcsAttributeModifierInstance& ModInst,
-	UPARAM(ref) TMap<FName, float>& BaseValues,
-	UPARAM(ref) TMap<FName, float>& CurrentValues)
+	TMap<FName, float>& BaseValues,
+	TMap<FName, float>& CurrentValues)
 {
 	// 检查修改器定义 DataAsset
 	if (!ModInst.ModifierDef)

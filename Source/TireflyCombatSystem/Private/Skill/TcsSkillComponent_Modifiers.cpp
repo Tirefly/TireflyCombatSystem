@@ -17,6 +17,12 @@
 
 namespace
 {
+	bool LogSkillRuntimeNotReady_Modifiers(const UTcsSkillComponent* Component, const TCHAR* FunctionName)
+	{
+		UE_LOG(LogTcsState, Warning, TEXT("[%s] Skill runtime is not ready for %s"), FunctionName, *GetPathNameSafe(Component));
+		return false;
+	}
+
 	template <typename ModifierInstanceType>
 	void SyncRuntimeEntriesActiveStatesFromModifierInstances(
 		FTcsSkillModifierRuntimeIndex& RuntimeIndex,
@@ -77,10 +83,12 @@ namespace
 
 void UTcsSkillComponent::BindOwnerStateLifecycleEvents(UTcsStateComponent* StateComponent)
 {
-	if (!IsValid(StateComponent))
+	if (!IsValid(StateComponent) || !StateComponent->IsRuntimeReady())
 	{
 		return;
 	}
+
+	UnbindOwnerStateLifecycleEvents(StateComponent);
 
 	StateComponent->OnInternalStateFinalizeRemovalStarted().AddUObject(this, &UTcsSkillComponent::HandleOwnerStateFinalizeRemovalStarted);
 	StateComponent->OnInternalStateFinalizeRemovalSourceCleanup().AddUObject(this, &UTcsSkillComponent::HandleOwnerStateFinalizeRemovalSourceCleanup);
@@ -138,6 +146,10 @@ bool UTcsSkillComponent::ApplySkillModifiersWithSourceHandle(
 	TArray<FTcsSkillModifierRuntimeEntry>& OutRuntimeEntries)
 {
 	OutRuntimeEntries.Reset();
+	if (!IsRuntimeReady())
+	{
+		return LogSkillRuntimeNotReady_Modifiers(this, TEXT(__FUNCTION__));
+	}
 
 	if (!SourceHandle.IsValid())
 	{
@@ -181,6 +193,11 @@ bool UTcsSkillComponent::ApplySkillModifiersWithSourceHandle(
 
 bool UTcsSkillComponent::RemoveSkillModifiersBySourceHandle(const FTcsSourceHandle& SourceHandle)
 {
+	if (!IsRuntimeReady())
+	{
+		return LogSkillRuntimeNotReady_Modifiers(this, TEXT(__FUNCTION__));
+	}
+
 	TArray<const FTcsSkillModifierRuntimeEntry*> FoundEntries;
 	if (!SkillModifierRuntimeIndex.FindBySourceHandle(SourceHandle, FoundEntries))
 	{
@@ -213,10 +230,15 @@ bool UTcsSkillComponent::GetSkillModifiersBySourceHandle(
 	const FTcsSourceHandle& SourceHandle,
 	TArray<FTcsSkillModifierRuntimeEntry>& OutRuntimeEntries) const
 {
+	OutRuntimeEntries.Reset();
+	if (!IsRuntimeReady())
+	{
+		return LogSkillRuntimeNotReady_Modifiers(this, TEXT(__FUNCTION__));
+	}
+
 	TArray<const FTcsSkillModifierRuntimeEntry*> FoundEntries;
 	if (!SkillModifierRuntimeIndex.FindBySourceHandle(SourceHandle, FoundEntries))
 	{
-		OutRuntimeEntries.Reset();
 		return false;
 	}
 
@@ -228,10 +250,15 @@ bool UTcsSkillComponent::GetSkillModifiersBySkillEntry(
 	UTcsSkillEntry* SkillEntry,
 	TArray<FTcsSkillModifierRuntimeEntry>& OutRuntimeEntries) const
 {
+	OutRuntimeEntries.Reset();
+	if (!IsRuntimeReady())
+	{
+		return LogSkillRuntimeNotReady_Modifiers(this, TEXT(__FUNCTION__));
+	}
+
 	TArray<const FTcsSkillModifierRuntimeEntry*> FoundEntries;
 	if (!SkillModifierRuntimeIndex.FindBySkillEntry(SkillEntry, FoundEntries))
 	{
-		OutRuntimeEntries.Reset();
 		return false;
 	}
 

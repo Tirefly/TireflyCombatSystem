@@ -8,9 +8,29 @@
 #include "Attribute/TcsAttributeModifierDefinition.h"
 
 
+namespace
+{
+	bool LogAttributeRuntimeNotReady_AttrInstance(const UTcsAttributeComponent* Component, const TCHAR* FunctionName)
+	{
+		UE_LOG(LogTcsAttribute, Warning, TEXT("[%s] Attribute runtime is not ready for %s"), FunctionName, *GetPathNameSafe(Component));
+		return false;
+	}
+
+	void LogAttributeRuntimeNotReadyVoid_AttrInstance(const UTcsAttributeComponent* Component, const TCHAR* FunctionName)
+	{
+		UE_LOG(LogTcsAttribute, Warning, TEXT("[%s] Attribute runtime is not ready for %s"), FunctionName, *GetPathNameSafe(Component));
+	}
+}
+
+
 
 bool UTcsAttributeComponent::AddAttribute(FName AttributeName, float InitValue)
 {
+	if (!IsRuntimePrepared())
+	{
+		return LogAttributeRuntimeNotReady_AttrInstance(this, TEXT(__FUNCTION__));
+	}
+
 	UTcsAttributeManagerSubsystem* Mgr = ResolveAttributeManager();
 	if (!Mgr)
 	{
@@ -57,6 +77,12 @@ bool UTcsAttributeComponent::AddAttribute(FName AttributeName, float InitValue)
 
 void UTcsAttributeComponent::AddAttributes(const TArray<FName>& AttributeNames)
 {
+	if (!IsRuntimePrepared())
+	{
+		LogAttributeRuntimeNotReadyVoid_AttrInstance(this, TEXT(__FUNCTION__));
+		return;
+	}
+
 	UTcsAttributeManagerSubsystem* Mgr = ResolveAttributeManager();
 	if (!Mgr)
 	{
@@ -109,6 +135,11 @@ void UTcsAttributeComponent::AddAttributes(const TArray<FName>& AttributeNames)
 
 bool UTcsAttributeComponent::AddAttributeByTag(const FGameplayTag& AttributeTag, float InitValue)
 {
+	if (!IsRuntimePrepared())
+	{
+		return LogAttributeRuntimeNotReady_AttrInstance(this, TEXT(__FUNCTION__));
+	}
+
 	UTcsAttributeManagerSubsystem* Mgr = ResolveAttributeManager();
 	if (!Mgr)
 	{
@@ -144,6 +175,11 @@ bool UTcsAttributeComponent::AddAttributeByTag(const FGameplayTag& AttributeTag,
 
 bool UTcsAttributeComponent::SetAttributeBaseValue(FName AttributeName, float NewValue, bool bTriggerEvents)
 {
+	if (!IsRuntimePrepared())
+	{
+		return LogAttributeRuntimeNotReady_AttrInstance(this, TEXT(__FUNCTION__));
+	}
+
 	if (AttributeName.IsNone())
 	{
 		UE_LOG(LogTcsAttribute, Error, TEXT("[%s] Invalid AttributeName"), *FString(__FUNCTION__));
@@ -197,6 +233,11 @@ bool UTcsAttributeComponent::SetAttributeBaseValue(FName AttributeName, float Ne
 
 bool UTcsAttributeComponent::SetAttributeCurrentValue(FName AttributeName, float NewValue, bool bTriggerEvents)
 {
+	if (!IsRuntimePrepared())
+	{
+		return LogAttributeRuntimeNotReady_AttrInstance(this, TEXT(__FUNCTION__));
+	}
+
 	if (AttributeName.IsNone())
 	{
 		UE_LOG(LogTcsAttribute, Error, TEXT("[%s] Invalid AttributeName"), *FString(__FUNCTION__));
@@ -252,6 +293,11 @@ bool UTcsAttributeComponent::SetAttributeCurrentValue(FName AttributeName, float
 
 bool UTcsAttributeComponent::ResetAttribute(FName AttributeName)
 {
+	if (!IsRuntimePrepared())
+	{
+		return LogAttributeRuntimeNotReady_AttrInstance(this, TEXT(__FUNCTION__));
+	}
+
 	if (AttributeName.IsNone())
 	{
 		UE_LOG(LogTcsAttribute, Error, TEXT("[%s] Invalid AttributeName"), *FString(__FUNCTION__));
@@ -324,6 +370,11 @@ bool UTcsAttributeComponent::ResetAttribute(FName AttributeName)
 
 bool UTcsAttributeComponent::RemoveAttribute(FName AttributeName)
 {
+	if (!IsRuntimePrepared())
+	{
+		return LogAttributeRuntimeNotReady_AttrInstance(this, TEXT(__FUNCTION__));
+	}
+
 	if (AttributeName.IsNone())
 	{
 		UE_LOG(LogTcsAttribute, Error, TEXT("[%s] Invalid AttributeName"), *FString(__FUNCTION__));

@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "GameplayTagContainer.h"
 #include "State/StateCondition/TcsStateCondition.h"
 #include "TcsGenericEnum.h"
 #include "TcsStateCondition_ParameterBased.generated.h"

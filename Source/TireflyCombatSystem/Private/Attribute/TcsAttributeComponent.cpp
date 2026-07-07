@@ -5,6 +5,18 @@
 #include "Attribute/TcsAttributeManagerSubsystem.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
+#include "Runtime/TcsRuntimeBootstrapSubsystem.h"
+#include "TcsLogChannels.h"
+
+
+namespace
+{
+	bool LogAttributeRuntimeNotReady_Query(const UTcsAttributeComponent* Component, const TCHAR* FunctionName)
+	{
+		UE_LOG(LogTcsAttribute, Warning, TEXT("[%s] Attribute runtime is not ready for %s"), FunctionName, *GetPathNameSafe(Component));
+		return false;
+	}
+}
 
 
 UTcsAttributeComponent::UTcsAttributeComponent()
@@ -12,15 +24,46 @@ UTcsAttributeComponent::UTcsAttributeComponent()
 	PrimaryComponentTick.bCanEverTick = false;
 }
 
+void UTcsAttributeComponent::InitializeComponent()
+{
+	Super::InitializeComponent();
+
+	bRuntimePrepared = false;
+	RuntimeBootstrapSubsystem = ResolveRuntimeBootstrapSubsystem();
+	if (RuntimeBootstrapSubsystem)
+	{
+		RuntimeBootstrapSubsystem->NotifyComponentRegistered(this);
+	}
+
+	if (PrepareAttributeRuntime() && RuntimeBootstrapSubsystem)
+	{
+		RuntimeBootstrapSubsystem->NotifyComponentRuntimeStateChanged(this);
+	}
+}
+
+void UTcsAttributeComponent::UninitializeComponent()
+{
+	if (UTcsRuntimeBootstrapSubsystem* BootstrapSubsystem = ResolveRuntimeBootstrapSubsystem())
+	{
+		BootstrapSubsystem->NotifyComponentUnregistered(this);
+	}
+
+	bRuntimePrepared = false;
+	AttrMgr = nullptr;
+	RuntimeBootstrapSubsystem = nullptr;
+
+	Super::UninitializeComponent();
+}
+
 void UTcsAttributeComponent::BeginPlay()
 {
 	Super::BeginPlay();
 
-	if (UWorld* World = GetWorld())
+	if (PrepareAttributeRuntime())
 	{
-		if (UGameInstance* GI = World->GetGameInstance())
+		if (UTcsRuntimeBootstrapSubsystem* BootstrapSubsystem = ResolveRuntimeBootstrapSubsystem())
 		{
-			AttrMgr = GI->GetSubsystem<UTcsAttributeManagerSubsystem>();
+			BootstrapSubsystem->NotifyComponentRuntimeStateChanged(this);
 		}
 	}
 
@@ -48,8 +91,37 @@ UTcsAttributeManagerSubsystem* UTcsAttributeComponent::ResolveAttributeManager()
 	return AttrMgr;
 }
 
+bool UTcsAttributeComponent::PrepareAttributeRuntime()
+{
+	UTcsAttributeManagerSubsystem* LocalAttributeManager = ResolveAttributeManager();
+	bRuntimePrepared = (LocalAttributeManager != nullptr) && LocalAttributeManager->IsRuntimeReady();
+	return bRuntimePrepared;
+}
+
+UTcsRuntimeBootstrapSubsystem* UTcsAttributeComponent::ResolveRuntimeBootstrapSubsystem()
+{
+	if (!RuntimeBootstrapSubsystem)
+	{
+		if (UWorld* World = GetWorld())
+		{
+			if (UGameInstance* GameInstance = World->GetGameInstance())
+			{
+				RuntimeBootstrapSubsystem = GameInstance->GetSubsystem<UTcsRuntimeBootstrapSubsystem>();
+			}
+		}
+	}
+
+	return RuntimeBootstrapSubsystem;
+}
+
 bool UTcsAttributeComponent::GetAttributeValue(FName AttributeName, float& OutValue) const
 {
+	OutValue = 0.0f;
+	if (!IsRuntimePrepared())
+	{
+		return LogAttributeRuntimeNotReady_Query(this, TEXT(__FUNCTION__));
+	}
+
 	if (const FTcsAttributeInstance* AttrInst = Attributes.Find(AttributeName))
 	{
 		OutValue = AttrInst->CurrentValue;
@@ -61,6 +133,11 @@ bool UTcsAttributeComponent::GetAttributeValue(FName AttributeName, float& OutVa
 
 bool UTcsAttributeComponent::HasAttributeByTag(const FGameplayTag& AttributeTag) const
 {
+	if (!IsRuntimePrepared())
+	{
+		return LogAttributeRuntimeNotReady_Query(this, TEXT(__FUNCTION__));
+	}
+
 	UTcsAttributeManagerSubsystem* Mgr = const_cast<UTcsAttributeComponent*>(this)->ResolveAttributeManager();
 	if (!Mgr)
 	{
@@ -78,6 +155,12 @@ bool UTcsAttributeComponent::HasAttributeByTag(const FGameplayTag& AttributeTag)
 
 bool UTcsAttributeComponent::GetAttributeValueByTag(const FGameplayTag& AttributeTag, float& OutValue) const
 {
+	OutValue = 0.0f;
+	if (!IsRuntimePrepared())
+	{
+		return LogAttributeRuntimeNotReady_Query(this, TEXT(__FUNCTION__));
+	}
+
 	UTcsAttributeManagerSubsystem* Mgr = const_cast<UTcsAttributeComponent*>(this)->ResolveAttributeManager();
 	if (!Mgr)
 	{
@@ -95,6 +178,12 @@ bool UTcsAttributeComponent::GetAttributeValueByTag(const FGameplayTag& Attribut
 
 bool UTcsAttributeComponent::GetAttributeBaseValue(FName AttributeName, float& OutValue) const
 {
+	OutValue = 0.0f;
+	if (!IsRuntimePrepared())
+	{
+		return LogAttributeRuntimeNotReady_Query(this, TEXT(__FUNCTION__));
+	}
+
 	if (const FTcsAttributeInstance* AttrInst = Attributes.Find(AttributeName))
 	{
 		OutValue = AttrInst->BaseValue;
@@ -106,6 +195,12 @@ bool UTcsAttributeComponent::GetAttributeBaseValue(FName AttributeName, float& O
 
 bool UTcsAttributeComponent::GetAttributeBaseValueByTag(const FGameplayTag& AttributeTag, float& OutValue) const
 {
+	OutValue = 0.0f;
+	if (!IsRuntimePrepared())
+	{
+		return LogAttributeRuntimeNotReady_Query(this, TEXT(__FUNCTION__));
+	}
+
 	UTcsAttributeManagerSubsystem* Mgr = const_cast<UTcsAttributeComponent*>(this)->ResolveAttributeManager();
 	if (!Mgr)
 	{

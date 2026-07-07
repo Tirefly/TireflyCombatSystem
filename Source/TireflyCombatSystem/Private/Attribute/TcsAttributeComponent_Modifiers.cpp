@@ -12,6 +12,17 @@
 
 namespace
 {
+	bool LogAttributeRuntimeNotReady_Modifiers(const UTcsAttributeComponent* Component, const TCHAR* FunctionName)
+	{
+		UE_LOG(LogTcsAttribute, Warning, TEXT("[%s] Attribute runtime is not ready for %s"), FunctionName, *GetPathNameSafe(Component));
+		return false;
+	}
+
+	void LogAttributeRuntimeNotReadyVoid_Modifiers(const UTcsAttributeComponent* Component, const TCHAR* FunctionName)
+	{
+		UE_LOG(LogTcsAttribute, Warning, TEXT("[%s] Attribute runtime is not ready for %s"), FunctionName, *GetPathNameSafe(Component));
+	}
+
 	void BuildModifierEventPayloads(
 		const TArray<FTcsAttributeModifierInstance>& Modifiers,
 		TArray<FTcsAttributeModifierEventPayload>& OutPayloads)
@@ -31,6 +42,12 @@ bool UTcsAttributeComponent::CreateAttributeModifier(
 	AActor* Instigator,
 	FTcsAttributeModifierInstance& OutModifierInst)
 {
+	if (!IsRuntimePrepared())
+	{
+		OutModifierInst = FTcsAttributeModifierInstance();
+		return LogAttributeRuntimeNotReady_Modifiers(this, TEXT(__FUNCTION__));
+	}
+
 	UTcsAttributeManagerSubsystem* Mgr = ResolveAttributeManager();
 	if (!Mgr)
 	{
@@ -90,6 +107,12 @@ bool UTcsAttributeComponent::CreateAttributeModifierWithBindings(
 	const TArray<FTcsStateParamBinding>& Bindings,
 	FTcsAttributeModifierInstance& OutModifierInst)
 {
+	if (!IsRuntimePrepared())
+	{
+		OutModifierInst = FTcsAttributeModifierInstance();
+		return LogAttributeRuntimeNotReady_Modifiers(this, TEXT(__FUNCTION__));
+	}
+
 	UTcsAttributeManagerSubsystem* Mgr = ResolveAttributeManager();
 	if (!Mgr)
 	{
@@ -138,6 +161,11 @@ bool UTcsAttributeComponent::CreateAttributeModifierWithBindings(
 void UTcsAttributeComponent::ApplyModifier(TArray<FTcsAttributeModifierInstance>& Modifiers)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(TcsAttributeComponent_ApplyModifier);
+	if (!IsRuntimePrepared())
+	{
+		LogAttributeRuntimeNotReadyVoid_Modifiers(this, TEXT(__FUNCTION__));
+		return;
+	}
 
 	if (Modifiers.IsEmpty())
 	{
@@ -302,13 +330,17 @@ bool UTcsAttributeComponent::ApplyModifierWithSourceHandle(
 	const TArray<FName>& ModifierIds,
 	TArray<FTcsAttributeModifierInstance>& OutModifiers)
 {
+	OutModifiers.Empty();
+	if (!IsRuntimePrepared())
+	{
+		return LogAttributeRuntimeNotReady_Modifiers(this, TEXT(__FUNCTION__));
+	}
+
 	if (!SourceHandle.IsValid())
 	{
 		UE_LOG(LogTcsAttribute, Warning, TEXT("[%s] SourceHandle is invalid"), *FString(__FUNCTION__));
 		return false;
 	}
-
-	OutModifiers.Empty();
 
 	for (const FName& ModifierId : ModifierIds)
 	{
@@ -331,6 +363,12 @@ bool UTcsAttributeComponent::ApplyModifierWithSourceHandle(
 
 void UTcsAttributeComponent::RemoveModifier(TArray<FTcsAttributeModifierInstance>& Modifiers)
 {
+	if (!IsRuntimePrepared())
+	{
+		LogAttributeRuntimeNotReadyVoid_Modifiers(this, TEXT(__FUNCTION__));
+		return;
+	}
+
 	UTcsAttributeManagerSubsystem* Mgr = ResolveAttributeManager();
 	if (!Mgr)
 	{
@@ -410,6 +448,10 @@ void UTcsAttributeComponent::RemoveModifier(TArray<FTcsAttributeModifierInstance
 bool UTcsAttributeComponent::RemoveModifiersBySourceHandle(const FTcsSourceHandle& SourceHandle)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(TcsAttributeComponent_RemoveModifiersBySourceHandle);
+	if (!IsRuntimePrepared())
+	{
+		return LogAttributeRuntimeNotReady_Modifiers(this, TEXT(__FUNCTION__));
+	}
 
 	if (!SourceHandle.IsValid())
 	{
@@ -443,6 +485,12 @@ bool UTcsAttributeComponent::GetModifiersBySourceHandle(
 	const FTcsSourceHandle& SourceHandle,
 	TArray<FTcsAttributeModifierInstance>& OutModifiers) const
 {
+	OutModifiers.Empty();
+	if (!IsRuntimePrepared())
+	{
+		return LogAttributeRuntimeNotReady_Modifiers(this, TEXT(__FUNCTION__));
+	}
+
 	if (!SourceHandle.IsValid())
 	{
 		UE_LOG(LogTcsAttribute, Warning, TEXT("[%s] SourceHandle is invalid"), *FString(__FUNCTION__));
@@ -455,7 +503,6 @@ bool UTcsAttributeComponent::GetModifiersBySourceHandle(
 		return false;
 	}
 
-	OutModifiers.Empty();
 	OutModifiers.Reserve(InstIdsPtr->Num());
 	for (int32 ModifierInstId : *InstIdsPtr)
 	{
@@ -479,6 +526,12 @@ bool UTcsAttributeComponent::GetModifiersBySourceHandle(
 
 void UTcsAttributeComponent::HandleModifierUpdated(TArray<FTcsAttributeModifierInstance>& Modifiers)
 {
+	if (!IsRuntimePrepared())
+	{
+		LogAttributeRuntimeNotReadyVoid_Modifiers(this, TEXT(__FUNCTION__));
+		return;
+	}
+
 	UTcsAttributeManagerSubsystem* Mgr = ResolveAttributeManager();
 	if (!Mgr)
 	{

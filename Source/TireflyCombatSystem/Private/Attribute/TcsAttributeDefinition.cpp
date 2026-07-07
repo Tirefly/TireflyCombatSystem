@@ -18,12 +18,15 @@ const FPrimaryAssetType UTcsAttributeDefinition::PrimaryAssetType = FPrimaryAsse
 // 内部函数：如果 SelfAttributeDefId 不为空，则检查 AttributeRange 是否有 SelfAttributeDefId 的引用，如果有，则清空引用
 namespace
 {
-	bool IsAbstractClampStrategyClass(const UClass* StrategyClass)
+	bool IsAbstractClampStrategyClass(
+		const UClass* StrategyClass)
 	{
 		return StrategyClass && StrategyClass->HasAnyClassFlags(CLASS_Abstract);
 	}
 
-	void SanitizeSelfReferencedRange(FTcsAttributeRange& AttributeRange, const FName SelfAttributeDefId)
+	void SanitizeSelfReferencedRange(
+		FTcsAttributeRange& AttributeRange, 
+		const FName SelfAttributeDefId)
 	{
 		if (SelfAttributeDefId.IsNone())
 		{
@@ -71,7 +74,8 @@ FPrimaryAssetId UTcsAttributeDefinition::GetPrimaryAssetId() const
 }
 
 #if WITH_EDITOR
-void UTcsAttributeDefinition::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+void UTcsAttributeDefinition::PostEditChangeProperty(
+	FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
@@ -109,7 +113,8 @@ void UTcsAttributeDefinition::PostEditChangeProperty(FPropertyChangedEvent& Prop
 	}
 }
 
-EDataValidationResult UTcsAttributeDefinition::IsDataValid(FDataValidationContext& Context) const
+EDataValidationResult UTcsAttributeDefinition::IsDataValid(
+	FDataValidationContext& Context) const
 {
 	EDataValidationResult Result = Super::IsDataValid(Context);
 

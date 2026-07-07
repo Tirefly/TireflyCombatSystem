@@ -16,6 +16,7 @@
 class UTcsAttributeManagerSubsystem;
 class UTcsAttributeDefinition;
 class UTcsAttributeModifierDefinition;
+class UTcsRuntimeBootstrapSubsystem;
 
 
 
@@ -44,7 +45,12 @@ class TIREFLYCOMBATSYSTEM_API UTcsAttributeComponent : public UActorComponent
 {
 	GENERATED_BODY()
 
+#pragma region FriendClasses
+
 	friend class UTcsAttributeManagerSubsystem;
+	friend class UTcsRuntimeBootstrapSubsystem;
+
+#pragma endregion
 
 
 #pragma region ActorComponent
@@ -54,8 +60,51 @@ public:
 	UTcsAttributeComponent();
 
 protected:
+	/** 在组件初始化时接入 runtime bootstrap。 */
+	virtual void InitializeComponent() override;
+
+	/** 在组件反初始化时退出 runtime bootstrap。 */
+	virtual void UninitializeComponent() override;
+
 	/** 在 BeginPlay 时预热 AttributeManager 缓存。 */
 	virtual void BeginPlay() override;
+
+#pragma endregion
+
+
+#pragma region RuntimeBootstrap
+
+public:
+	/**
+	 * 查询当前 AttributeComponent 是否已完成 runtime prepare。
+	 *
+	 * @return 若当前组件已完成 runtime prepare，则返回 true
+	 */
+	UFUNCTION(BlueprintPure, Category = "Attribute|Runtime")
+	bool IsRuntimePrepared() const { return bRuntimePrepared; }
+
+protected:
+	/** 缓存的 RuntimeBootstrapSubsystem 指针。 */
+	UPROPERTY(Transient)
+	TObjectPtr<UTcsRuntimeBootstrapSubsystem> RuntimeBootstrapSubsystem;
+
+	/** 当前 AttributeComponent 是否已完成 runtime prepare。 */
+	UPROPERTY(Transient)
+	bool bRuntimePrepared = false;
+
+	/**
+	 * 显式执行 Attribute runtime prepare。
+	 *
+	 * @return 若 prepare 成功，则返回 true
+	 */
+	bool PrepareAttributeRuntime();
+
+	/**
+	 * 懒加载获取 RuntimeBootstrapSubsystem。
+	 *
+	 * @return RuntimeBootstrapSubsystem 指针；失败时返回 nullptr
+	 */
+	UTcsRuntimeBootstrapSubsystem* ResolveRuntimeBootstrapSubsystem();
 
 #pragma endregion
 

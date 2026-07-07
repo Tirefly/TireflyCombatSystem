@@ -12,62 +12,140 @@
 
 
 
-void UTcsStateComponent::InitStateSlotMappings()
+bool UTcsStateComponent::InitStateSlotMappings()
 {
 	AActor* OwnerActor = GetOwner();
 	if (!IsValid(OwnerActor))
 	{
 		UE_LOG(LogTcsState, Warning, TEXT("[%s] OwnerActor is invalid"), *FString(__FUNCTION__));
-		return;
+		return false;
 	}
 
 	UTcsStateManagerSubsystem* LocalStateMgr = ResolveStateManager();
 	if (!LocalStateMgr)
 	{
-		return;
+		UE_LOG(LogTcsState, Warning, TEXT("[%s] StateManagerSubsystem is invalid for %s"),
+			*FString(__FUNCTION__), *GetPathName());
+		return false;
+	}
+
+	const UStateTree* StateTree = GetStateTree();
+	if (!IsValid(StateTree))
+	{
+		UE_LOG(LogTcsState, Warning, TEXT("[%s] StateTree is required before State runtime can be prepared: %s"),
+			*FString(__FUNCTION__), *GetPathName());
+		return false;
+	}
+
+	const TValueOrError<void, FString> StateTreeValidation = HasValidStateTreeReference();
+	if (StateTreeValidation.HasError())
+	{
+		UE_LOG(LogTcsState, Warning, TEXT("[%s] StateTree reference is invalid for %s: %s"),
+			*FString(__FUNCTION__), *GetPathName(), *StateTreeValidation.GetError());
+		return false;
 	}
 
 	// StateSlot 初始化分两步：
-	// 1. 先按 StateSlotDefinition 重建 RuntimeStateSlots，确保组件自身持有完整的槽位运行时容器；
+	// 1. 先按当前顶层 StateTree 自动反推出要参与运行时的槽位集合，并重建 RuntimeStateSlots；
 	// 2. 再按当前 StateTree 建立可成功绑定的槽位 <-> 状态名关系。
-	RebuildStateSlotRuntimeData();
-	RebuildStateTreeSlotBindings();
+	const bool bRuntimeSlotsReady = RebuildStateSlotRuntimeData();
+	if (!bRuntimeSlotsReady)
+	{
+		Mapping_StateSlotToStateTreeStateName.Empty();
+		Mapping_StateTreeStateNameToStateSlotTags.Empty();
+		return false;
+	}
+
+	const bool bStateTreeBindingsReady = bRuntimeSlotsReady && RebuildStateTreeSlotBindings();
 
 	UE_LOG(LogTcsState, Log,
-		TEXT("[%s] Initialized %d state slots and %d StateTree bindings for %s"),
+		TEXT("[%s] Initialized %d state slots and %d StateTree bindings for %s. Ready=%s"),
 		*FString(__FUNCTION__),
 		RuntimeStateSlots.Num(),
 		Mapping_StateSlotToStateTreeStateName.Num(),
-		*OwnerActor->GetName());
+		*OwnerActor->GetName(),
+		bStateTreeBindingsReady ? TEXT("true") : TEXT("false"));
+
+	return bRuntimeSlotsReady && bStateTreeBindingsReady;
 }
 
-void UTcsStateComponent::RebuildStateSlotRuntimeData()
+bool UTcsStateComponent::RebuildStateSlotRuntimeData()
 {
 	UTcsStateManagerSubsystem* LocalStateMgr = ResolveStateManager();
 	if (!LocalStateMgr)
 	{
-		return;
+		UE_LOG(LogTcsState, Warning, TEXT("[%s] StateManagerSubsystem is invalid for %s"),
+			*FString(__FUNCTION__), *GetPathName());
+		return false;
 	}
 
-	// 先搬走旧容器，再按最新的定义表重新生成 RuntimeStateSlots。
-	// 这样可以在定义发生变动时剔除无效槽位，同时尽量保留仍然存在槽位的运行时状态。
+	const UStateTree* StateTree = GetStateTree();
+	if (!IsValid(StateTree))
+	{
+		UE_LOG(LogTcsState, Warning, TEXT("[%s] StateTree is required before StateSlot runtime data can be rebuilt for %s"),
+			*FString(__FUNCTION__), *GetPathName());
+		return false;
+	}
+
+	TSet<FName> AvailableStateNames;
+	const TArrayView<const FCompactStateTreeState> States = StateTree->GetStates();
+	for (const FCompactStateTreeState& State : States)
+	{
+		if (!State.Name.IsNone())
+		{
+			AvailableStateNames.Add(State.Name);
+		}
+	}
+
+	if (AvailableStateNames.IsEmpty())
+	{
+		UE_LOG(LogTcsState, Warning, TEXT("[%s] StateTree %s has no named states for runtime slot derivation on %s"),
+			*FString(__FUNCTION__), *GetNameSafe(StateTree), *GetPathName());
+		return false;
+	}
+
+	// 先搬走旧容器，再按当前顶层 StateTree 自动反推出的槽位子集重新生成 RuntimeStateSlots。
+	// 这样可以在定义发生变动时剔除不再被当前树使用的槽位，同时尽量保留仍然存在槽位的运行时状态。
 	TMap<FGameplayTag, FTcsStateSlot> ExistingStateSlots = MoveTemp(RuntimeStateSlots);
 	RuntimeStateSlots.Empty();
+	bool bHasInvalidSlotDefinition = false;
+	TSet<FGameplayTag> SeenSlotTags;
+	bool bHasMatchedSlotDefinition = false;
 
-	const TArray<FName> SlotDefIds = LocalStateMgr->GetAllStateSlotDefNames();
-	for (const FName& SlotDefId : SlotDefIds)
+	for (const FName& StateSlotDefName : LocalStateMgr->GetAllStateSlotDefNames())
 	{
-		const UTcsStateSlotDefinition* SlotDefAsset = LocalStateMgr->GetStateSlotDefinition(SlotDefId);
-		if (!SlotDefAsset || !SlotDefAsset->SlotTag.IsValid())
+		const UTcsStateSlotDefinition* SlotDefAsset = LocalStateMgr->GetStateSlotDefinition(StateSlotDefName);
+		if (!SlotDefAsset)
+		{
+			UE_LOG(LogTcsState, Warning, TEXT("[%s] StateSlotDefinition %s could not be loaded for %s"),
+				*FString(__FUNCTION__), *StateSlotDefName.ToString(), *GetPathName());
+			continue;
+		}
+
+		const FName& StateTreeStateName = SlotDefAsset->StateTreeStateName;
+		if (!AvailableStateNames.Contains(StateTreeStateName))
 		{
 			continue;
 		}
 
-		// 同一个 SlotTag 只保留一个运行时槽位，避免重复定义把容器污染成多份状态副本。
-		if (RuntimeStateSlots.Contains(SlotDefAsset->SlotTag))
+		bHasMatchedSlotDefinition = true;
+
+		if (!SlotDefAsset->SlotTag.IsValid())
 		{
+			bHasInvalidSlotDefinition = true;
+			UE_LOG(LogTcsState, Warning, TEXT("[%s] Matched StateSlotDefinition %s has invalid SlotTag on %s"),
+				*FString(__FUNCTION__), *StateSlotDefName.ToString(), *GetPathName());
 			continue;
 		}
+
+		if (SeenSlotTags.Contains(SlotDefAsset->SlotTag))
+		{
+			bHasInvalidSlotDefinition = true;
+			UE_LOG(LogTcsState, Warning, TEXT("[%s] Duplicate matched StateSlot tag %s on %s"),
+				*FString(__FUNCTION__), *SlotDefAsset->SlotTag.ToString(), *GetPathName());
+			continue;
+		}
+		SeenSlotTags.Add(SlotDefAsset->SlotTag);
 
 		// 默认先创建一个空槽位；如果旧容器里有同名槽位，则把原有运行时数据迁移过来。
 		// 这里迁移的是 FTcsStateSlot 本身，因此其中的 States 和 Gate 状态都会被保留。
@@ -83,9 +161,35 @@ void UTcsStateComponent::RebuildStateSlotRuntimeData()
 
 		RuntimeStateSlots.Add(SlotDefAsset->SlotTag, MoveTemp(RuntimeSlot));
 	}
+
+	if (!bHasMatchedSlotDefinition)
+	{
+		UE_LOG(LogTcsState, Warning, TEXT("[%s] StateTree %s could not derive any runtime StateSlots for %s"),
+			*FString(__FUNCTION__), *GetNameSafe(StateTree), *GetPathName());
+		RuntimeStateSlots.Empty();
+		return false;
+	}
+
+	if (RuntimeStateSlots.IsEmpty())
+	{
+		UE_LOG(LogTcsState, Warning, TEXT("[%s] No valid StateSlot runtime data was built for %s"),
+			*FString(__FUNCTION__), *GetPathName());
+		RuntimeStateSlots.Empty();
+		return false;
+	}
+
+	if (bHasInvalidSlotDefinition)
+	{
+		UE_LOG(LogTcsState, Warning, TEXT("[%s] StateSlot runtime data build failed because one or more definitions are invalid for %s"),
+			*FString(__FUNCTION__), *GetPathName());
+		RuntimeStateSlots.Empty();
+		return false;
+	}
+
+	return true;
 }
 
-void UTcsStateComponent::RebuildStateTreeSlotBindings()
+bool UTcsStateComponent::RebuildStateTreeSlotBindings()
 {
 	// 绑定表只负责 StateSlot 与 StateTree 状态名的桥接，不持有任何槽位运行时数据，
 	// 因此每次都从当前 StateTree 重新扫描并完整重建。
@@ -95,15 +199,9 @@ void UTcsStateComponent::RebuildStateTreeSlotBindings()
 	const UStateTree* StateTree = GetStateTree();
 	if (!IsValid(StateTree))
 	{
-		if (AActor* OwnerActor = GetOwner())
-		{
-			UE_LOG(LogTcsState, Verbose,
-				TEXT("[%s] No StateTree assigned on StateComponent of %s; runtime slots initialized without bindings"),
-				*FString(__FUNCTION__),
-				*OwnerActor->GetName());
-		}
-
-		return;
+		UE_LOG(LogTcsState, Warning, TEXT("[%s] StateTree is required before StateSlotMapping can be built for %s"),
+			*FString(__FUNCTION__), *GetPathName());
+		return false;
 	}
 
 	// 先把当前 StateTree 中真实存在的状态名收集出来，后面只接受能在树里找到的绑定。
@@ -117,7 +215,24 @@ void UTcsStateComponent::RebuildStateTreeSlotBindings()
 		}
 	}
 
+	if (AvailableStateNames.IsEmpty())
+	{
+		UE_LOG(LogTcsState, Warning, TEXT("[%s] StateTree %s has no named states for StateSlotMapping on %s"),
+			*FString(__FUNCTION__), *GetNameSafe(StateTree), *GetPathName());
+		return false;
+	}
+
+	if (RuntimeStateSlots.IsEmpty())
+	{
+		UE_LOG(LogTcsState, Warning, TEXT("[%s] RuntimeStateSlots is empty before StateSlotMapping on %s"),
+			*FString(__FUNCTION__), *GetPathName());
+		return false;
+	}
+
 	AActor* OwnerActor = GetOwner();
+	TMap<FGameplayTag, FName> NewMapping_StateSlotToStateTreeStateName;
+	TMultiMap<FName, FGameplayTag> NewMapping_StateTreeStateNameToStateSlotTags;
+	bool bAllBindingsValid = true;
 	for (const TPair<FGameplayTag, FTcsStateSlot>& Pair : RuntimeStateSlots)
 	{
 		const FGameplayTag StateSlotTag = Pair.Key;
@@ -125,14 +240,18 @@ void UTcsStateComponent::RebuildStateTreeSlotBindings()
 		const UTcsStateSlotDefinition* StateSlotDef = RuntimeSlot.GetStateSlotDef();
 		if (!IsValid(StateSlotDef) || !StateSlotTag.IsValid())
 		{
+			bAllBindingsValid = false;
+			UE_LOG(LogTcsState, Warning, TEXT("[%s] Invalid runtime StateSlot %s on %s"),
+				*FString(__FUNCTION__), *StateSlotTag.ToString(), *GetPathName());
 			continue;
 		}
 
 		const FName& StateTreeStateName = StateSlotDef->StateTreeStateName;
 		if (StateTreeStateName.IsNone())
 		{
-			// 没配置 StateTreeStateName 的槽位依然存在于 RuntimeStateSlots 中，
-			// 只是不会参与 StateTree 驱动的 Gate 开关联动。
+			bAllBindingsValid = false;
+			UE_LOG(LogTcsState, Warning, TEXT("[%s] StateSlot %s has no StateTreeStateName on %s"),
+				*FString(__FUNCTION__), *StateSlotTag.ToString(), *GetPathName());
 			continue;
 		}
 
@@ -141,13 +260,13 @@ void UTcsStateComponent::RebuildStateTreeSlotBindings()
 		const bool bMapped = AvailableStateNames.Contains(StateTreeStateName);
 		if (bMapped)
 		{
-			Mapping_StateSlotToStateTreeStateName.Add(StateSlotTag, StateTreeStateName);
-			Mapping_StateTreeStateNameToStateSlotTags.Add(StateTreeStateName, StateSlotTag);
+			NewMapping_StateSlotToStateTreeStateName.Add(StateSlotTag, StateTreeStateName);
+			NewMapping_StateTreeStateNameToStateSlotTags.Add(StateTreeStateName, StateSlotTag);
 		}
-
-		UE_LOG(LogTcsState, Verbose, TEXT("[%s] No StateTree assigned on StateComponent of %s"),
-			*FString(__FUNCTION__),
-			TEXT(""));
+		else
+		{
+			bAllBindingsValid = false;
+		}
 
 		UE_LOG(LogTcsState, Log, TEXT("[%s] State Slot [%s] -> StateTree State [%s] %s of %s"),
 			*FString(__FUNCTION__),
@@ -156,6 +275,28 @@ void UTcsStateComponent::RebuildStateTreeSlotBindings()
 			bMapped ? TEXT("mapped") : TEXT("not found"),
 			*GetNameSafe(OwnerActor));
 	}
+
+	if (NewMapping_StateSlotToStateTreeStateName.IsEmpty())
+	{
+		UE_LOG(LogTcsState, Warning, TEXT("[%s] No StateSlotMapping was built for %s"),
+			*FString(__FUNCTION__), *GetPathName());
+		Mapping_StateSlotToStateTreeStateName.Empty();
+		Mapping_StateTreeStateNameToStateSlotTags.Empty();
+		return false;
+	}
+
+	if (!bAllBindingsValid)
+	{
+		UE_LOG(LogTcsState, Warning, TEXT("[%s] StateSlotMapping build failed because one or more slots could not bind to StateTree %s on %s"),
+			*FString(__FUNCTION__), *GetNameSafe(StateTree), *GetPathName());
+		Mapping_StateSlotToStateTreeStateName.Empty();
+		Mapping_StateTreeStateNameToStateSlotTags.Empty();
+		return false;
+	}
+
+	Mapping_StateSlotToStateTreeStateName = MoveTemp(NewMapping_StateSlotToStateTreeStateName);
+	Mapping_StateTreeStateNameToStateSlotTags = MoveTemp(NewMapping_StateTreeStateNameToStateSlotTags);
+	return true;
 }
 
 void UTcsStateComponent::DiffStateTreeStateNames(

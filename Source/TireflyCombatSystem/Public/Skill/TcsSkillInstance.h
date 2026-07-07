@@ -19,6 +19,7 @@ class UStateTree;
  *
  * 负责表达一次技能激活进入 State 主链后的运行时对象，不承载 learned-skill 持有态。
  * 覆写 GetLevel / GetStateParamInstance / PopulateStateParamInstances 指向 SkillEntry。
+ * 因此来源存活期间写入 `SkillEntry` 的临时 SkillModifier，会被当前 SkillInstance 与其他读取者共享看到。
  */
 UCLASS(BlueprintType, Blueprintable)
 class TIREFLYCOMBATSYSTEM_API UTcsSkillInstance : public UTcsStateInstance
@@ -62,13 +63,13 @@ protected:
 	// 返回 SkillEntry->GetLevel()
 	virtual int32 GetLevel() const override;
 
-	// 指向 Entry->NumericParamInstances
+	// 指向 Entry->NumericParamInstances，共享读取 SkillEntry 上的同一条 SkillModifier 参数链。
 	virtual FTcsNumericStateParamInstance* GetNumericParamInstance(FGameplayTag Tag) override;
 
-	// 指向 Entry->BoolParamInstances
+	// 指向 Entry->BoolParamInstances，共享读取 SkillEntry 上的同一条 SkillModifier 参数链。
 	virtual FTcsBoolStateParamInstance* GetBoolParamInstance(FGameplayTag Tag) override;
 
-	// 指向 Entry->VectorParamInstances
+	// 指向 Entry->VectorParamInstances，共享读取 SkillEntry 上的同一条 SkillModifier 参数链。
 	virtual FTcsVectorStateParamInstance* GetVectorParamInstance(FGameplayTag Tag) override;
 
 	// 返回 Entry->NumericParamInstances（供 ResolveNumericParamInstances 使用）

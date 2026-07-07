@@ -359,7 +359,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "State Slot")
 	FGameplayTag SlotTag;
 
-	/** 对应的 StateTree 状态名。 */
+	/** 对应的 StateTree 状态名；运行时 StateSlotMapping 要求该值非空。 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "State Slot")
 	FName StateTreeStateName = NAME_None;
 

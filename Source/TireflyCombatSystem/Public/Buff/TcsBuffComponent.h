@@ -14,6 +14,7 @@
 
 
 class UTcsBuffInstance;
+class UTcsRuntimeBootstrapSubsystem;
 class UTcsStateComponent;
 class UTcsStateDefinition;
 class UTcsStateInstance;
@@ -56,12 +57,63 @@ public:
 	UTcsBuffComponent(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 protected:
+	/** 在组件初始化时接入 runtime bootstrap。 */
+	virtual void InitializeComponent() override;
+
+	/** 在组件反初始化时退出 runtime bootstrap。 */
+	virtual void UninitializeComponent() override;
+
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual void TickComponent(
 		float DeltaTime,
 		ELevelTick TickType,
 		FActorComponentTickFunction* ThisTickFunction) override;
+
+#pragma endregion
+
+
+#pragma region RuntimeBootstrap
+
+public:
+	/**
+	 * 查询当前 BuffComponent 是否已完成 runtime prepare。
+	 *
+	 * @return 若当前组件已完成 runtime prepare，则返回 true
+	 */
+	UFUNCTION(BlueprintPure, Category = "Buff|Runtime")
+	bool IsRuntimePrepared() const { return bRuntimePrepared; }
+
+	/**
+	 * 查询当前 BuffComponent 是否已满足完整 runtime-ready 条件。
+	 *
+	 * @return 若当前组件已满足完整 runtime-ready 条件，则返回 true
+	 */
+	UFUNCTION(BlueprintPure, Category = "Buff|Runtime")
+	bool IsRuntimeReady() const;
+
+	/**
+	 * 显式执行 Buff runtime prepare。
+	 *
+	 * @return 若 prepare 成功，则返回 true
+	 */
+	bool PrepareBuffRuntime();
+
+protected:
+	/** 缓存的 RuntimeBootstrapSubsystem 指针。 */
+	UPROPERTY(Transient)
+	TObjectPtr<UTcsRuntimeBootstrapSubsystem> RuntimeBootstrapSubsystem;
+
+	/** 当前 BuffComponent 是否已完成 runtime prepare。 */
+	UPROPERTY(Transient)
+	bool bRuntimePrepared = false;
+
+	/**
+	 * 懒加载获取 RuntimeBootstrapSubsystem。
+	 *
+	 * @return RuntimeBootstrapSubsystem 指针；失败时返回 nullptr
+	 */
+	UTcsRuntimeBootstrapSubsystem* ResolveRuntimeBootstrapSubsystem();
 
 #pragma endregion
 

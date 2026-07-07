@@ -7,7 +7,8 @@
 
 
 
-AActor* UTcsAttributeClampContextLibrary::GetOwnerActor(const FTcsAttributeClampContextBase& Context)
+AActor* UTcsAttributeClampContextLibrary::GetOwnerActor(
+	const FTcsAttributeClampContextBase& Context)
 {
 	return Context.AttributeComponent ? Context.AttributeComponent->GetOwner() : nullptr;
 }
@@ -55,7 +56,8 @@ bool UTcsAttributeClampContextLibrary::OwnerHasTag(
 	return false;
 }
 
-FName UTcsAttributeClampContextLibrary::GetAttributeName(const FTcsAttributeClampContextBase& Context)
+FName UTcsAttributeClampContextLibrary::GetAttributeName(
+	const FTcsAttributeClampContextBase& Context)
 {
 	return Context.AttributeName;
 }

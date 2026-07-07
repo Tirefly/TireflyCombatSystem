@@ -13,6 +13,16 @@
 #include "TcsLogChannels.h"
 
 
+namespace
+{
+	bool LogBuffRuntimeNotReady_Lifecycle(const UTcsBuffComponent* Component, const TCHAR* FunctionName)
+	{
+		UE_LOG(LogTcsState, Warning, TEXT("[%s] Buff runtime is not ready for %s"), FunctionName, *GetPathNameSafe(Component));
+		return false;
+	}
+}
+
+
 
 bool UTcsBuffComponent::ApplyBuff(
 	FName BuffDefId,
@@ -37,6 +47,13 @@ bool UTcsBuffComponent::ApplyBuff(
 	if (!IsValid(StateComponent))
 	{
 		return false;
+	}
+
+	if (!IsRuntimeReady())
+	{
+		return ReportApplyFailure(
+			ETcsStateApplyFailReason::InvalidInput,
+			TEXT("Buff runtime is not ready yet."));
 	}
 
 	if (BuffDefId.IsNone())
@@ -85,6 +102,11 @@ bool UTcsBuffComponent::ApplyBuff(
 
 bool UTcsBuffComponent::RemoveBuff(UTcsBuffInstance* BuffInstance, FName RemovalReason)
 {
+	if (!IsRuntimeReady())
+	{
+		return LogBuffRuntimeNotReady_Lifecycle(this, TEXT(__FUNCTION__));
+	}
+
 	if (!IsValid(BuffInstance))
 	{
 		return false;

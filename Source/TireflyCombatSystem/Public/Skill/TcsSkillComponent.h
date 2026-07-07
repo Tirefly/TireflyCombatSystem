@@ -14,6 +14,7 @@ class UTcsSkillDefinition;
 class UTcsSkillEntry;
 class UTcsSkillModifierDefinition;
 class UTcsSkillInstance;
+class UTcsRuntimeBootstrapSubsystem;
 class UTcsStateInstance;
 class UTcsStateComponent;
 
@@ -23,6 +24,7 @@ UENUM(BlueprintType)
 enum class ETcsSkillActivateResult : uint8
 {
 	Success				UMETA(DisplayName = "Success", ToolTip = "技能成功激活"),
+	NotReady			UMETA(DisplayName = "Not Ready", ToolTip = "Skill runtime 尚未 ready"),
 	NotLearned			UMETA(DisplayName = "Not Learned", ToolTip = "技能未学会"),
 	OnCooldown			UMETA(DisplayName = "On Cooldown", ToolTip = "技能处于冷却中"),
 	InvalidDefinition	UMETA(DisplayName = "Invalid Definition", ToolTip = "技能定义无效"),
@@ -42,12 +44,62 @@ public:
 	UTcsSkillComponent();
 
 protected:
-	virtual void OnRegister() override;
+	/** 在组件初始化时接入 runtime bootstrap。 */
+	virtual void InitializeComponent() override;
+
+	/** 在组件反初始化时退出 runtime bootstrap。 */
+	virtual void UninitializeComponent() override;
+
 	virtual void OnUnregister() override;
 	virtual void TickComponent(
 		float DeltaTime,
 		ELevelTick TickType,
 		FActorComponentTickFunction* ThisTickFunction) override;
+
+#pragma endregion
+
+
+#pragma region RuntimeBootstrap
+
+public:
+	/**
+	 * 查询当前 SkillComponent 是否已完成 runtime prepare。
+	 *
+	 * @return 若当前组件已完成 runtime prepare，则返回 true
+	 */
+	UFUNCTION(BlueprintPure, Category = "Skill|Runtime")
+	bool IsRuntimePrepared() const { return bRuntimePrepared; }
+
+	/**
+	 * 查询当前 SkillComponent 是否已满足完整 runtime-ready 条件。
+	 *
+	 * @return 若当前组件已满足完整 runtime-ready 条件，则返回 true
+	 */
+	UFUNCTION(BlueprintPure, Category = "Skill|Runtime")
+	bool IsRuntimeReady() const;
+
+	/**
+	 * 显式执行 Skill runtime prepare。
+	 *
+	 * @return 若 prepare 成功，则返回 true
+	 */
+	bool PrepareSkillRuntime();
+
+protected:
+	/** 缓存的 RuntimeBootstrapSubsystem 指针。 */
+	UPROPERTY(Transient)
+	TObjectPtr<UTcsRuntimeBootstrapSubsystem> RuntimeBootstrapSubsystem;
+
+	/** 当前 SkillComponent 是否已完成 runtime prepare。 */
+	UPROPERTY(Transient)
+	bool bRuntimePrepared = false;
+
+	/**
+	 * 懒加载获取 RuntimeBootstrapSubsystem。
+	 *
+	 * @return RuntimeBootstrapSubsystem 指针；失败时返回 nullptr
+	 */
+	UTcsRuntimeBootstrapSubsystem* ResolveRuntimeBootstrapSubsystem();
 
 #pragma endregion
 
@@ -148,7 +200,12 @@ private:
 		const FTcsSourceHandle& SourceHandle,
 		TArray<FTcsSkillModifierRuntimeEntry>& OutRuntimeEntries);
 
-	/** 将 runtime records 真正写入账本和 SkillEntry 参数实例链。 */
+	/**
+	 * 将 runtime records 真正写入账本和 SkillEntry 参数实例链。
+	 *
+	 * 注意：这里写入的是 SkillEntry 的共享参数容器，而不是 SkillInstance 私有副本；
+	 * 因此来源存活期间新增的 SkillModifier 会立即对全部读取该 SkillEntry 的调用方可见。
+	 */
 	bool ApplySkillModifierRuntimeEntries(TArray<FTcsSkillModifierRuntimeEntry>& RuntimeEntries);
 
 	/** 将单条 runtime record 写入目标 SkillEntry 的参数实例链。 */

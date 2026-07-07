@@ -2,8 +2,11 @@
 
 #include "Skill/TcsSkillComponent.h"
 
+#include "Engine/GameInstance.h"
+#include "Engine/World.h"
 #include "GameFramework/Actor.h"
 
+#include "Runtime/TcsRuntimeBootstrapSubsystem.h"
 #include "Skill/TcsSkillDefinition.h"
 #include "Skill/TcsSkillEntry.h"
 #include "Skill/TcsSkillInstance.h"
@@ -19,16 +22,35 @@ UTcsSkillComponent::UTcsSkillComponent()
 	PrimaryComponentTick.TickInterval = 0.1f;
 }
 
-void UTcsSkillComponent::OnRegister()
+void UTcsSkillComponent::InitializeComponent()
 {
-	Super::OnRegister();
+	Super::InitializeComponent();
 
-	if (UTcsStateComponent* OwnerStateComponent = GetOwnerStateComponent())
+	bRuntimePrepared = false;
+	RuntimeBootstrapSubsystem = ResolveRuntimeBootstrapSubsystem();
+	if (RuntimeBootstrapSubsystem)
 	{
-		BindOwnerStateLifecycleEvents(OwnerStateComponent);
+		RuntimeBootstrapSubsystem->NotifyComponentRegistered(this);
+	}
+
+	if (PrepareSkillRuntime() && RuntimeBootstrapSubsystem)
+	{
+		RuntimeBootstrapSubsystem->NotifyComponentRuntimeStateChanged(this);
 	}
 }
 
+void UTcsSkillComponent::UninitializeComponent()
+{
+	if (UTcsRuntimeBootstrapSubsystem* BootstrapSubsystem = ResolveRuntimeBootstrapSubsystem())
+	{
+		BootstrapSubsystem->NotifyComponentUnregistered(this);
+	}
+
+	bRuntimePrepared = false;
+	RuntimeBootstrapSubsystem = nullptr;
+
+	Super::UninitializeComponent();
+}
 
 void UTcsSkillComponent::OnUnregister()
 {
@@ -46,7 +68,50 @@ void UTcsSkillComponent::TickComponent(
 	FActorComponentTickFunction* ThisTickFunction)
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
+	if (!IsRuntimeReady())
+	{
+		return;
+	}
+
 	CooldownTracker.Tick(DeltaTime);
+}
+
+bool UTcsSkillComponent::IsRuntimeReady() const
+{
+	const UTcsStateComponent* StateComponent = GetOwnerStateComponent();
+	return bRuntimePrepared && IsValid(StateComponent) && StateComponent->IsRuntimeReady();
+}
+
+bool UTcsSkillComponent::PrepareSkillRuntime()
+{
+	UTcsStateComponent* StateComponent = GetOwnerStateComponent();
+	bRuntimePrepared = IsValid(StateComponent) && StateComponent->IsRuntimeReady();
+	if (bRuntimePrepared)
+	{
+		BindOwnerStateLifecycleEvents(StateComponent);
+	}
+	else if (IsValid(StateComponent))
+	{
+		UnbindOwnerStateLifecycleEvents(StateComponent);
+	}
+
+	return bRuntimePrepared;
+}
+
+UTcsRuntimeBootstrapSubsystem* UTcsSkillComponent::ResolveRuntimeBootstrapSubsystem()
+{
+	if (!RuntimeBootstrapSubsystem)
+	{
+		if (UWorld* World = GetWorld())
+		{
+			if (UGameInstance* GameInstance = World->GetGameInstance())
+			{
+				RuntimeBootstrapSubsystem = GameInstance->GetSubsystem<UTcsRuntimeBootstrapSubsystem>();
+			}
+		}
+	}
+
+	return RuntimeBootstrapSubsystem;
 }
 
 
@@ -156,6 +221,12 @@ TArray<UTcsSkillEntry*> UTcsSkillComponent::GetAllSkillEntries() const
 
 ETcsSkillActivateResult UTcsSkillComponent::ActivateSkill(FName SkillDefId, AActor* Instigator)
 {
+	if (!IsRuntimeReady())
+	{
+		UE_LOG(LogTcsState, Warning, TEXT("[SkillComp::ActivateSkill] Skill runtime is not ready for %s"), *GetPathName());
+		return ETcsSkillActivateResult::NotReady;
+	}
+
 	UTcsSkillEntry* Entry = GetSkillEntry(SkillDefId);
 	if (!Entry)
 	{

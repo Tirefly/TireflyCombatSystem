@@ -6,7 +6,7 @@
 
 ## 2. SkillComponent 统一入口面
 - [x] 2.1 为 `UTcsSkillComponent` 新增 SkillModifier 的创建 / 应用 / 查询 / 按 SourceHandle 移除入口
-- [ ] 2.2 要求 C++ / Blueprint / StateTree 全部复用同一套组件核心逻辑，禁止手写 `SkillEntry` 参数容器
+- [x] 2.2 要求 C++ / Blueprint / StateTree 全部复用同一套组件核心逻辑，禁止手写 `SkillEntry` 参数容器
 - [x] 2.3 让 `EntrySelector` 在应用阶段解析目标 `SkillEntry`，并统一处理空目标、无效 Def 与类型不匹配错误
 - [x] 2.4 将单次 apply 调用做成接近事务语义的流程：任一目标写入失败时 rollback 本次调用已成功写入的 runtime entry
 
@@ -23,10 +23,10 @@
 - [x] 4.4 技能实例结束走 `SourceHandle` 清理包装器，不单独复制另一套移除算法
 
 ## 5. Snapshot 与共享可见性语义
-- [ ] 5.1 固化 `Snapshot` 只冻结 Evaluator 重求值，不冻结 Modifier 链
-- [ ] 5.2 接受来源存活期间写入 `SkillEntry` 后对所有读取者共享可见的行为，并把该语义写进规范与注释
+- [x] 5.1 固化 `Snapshot` 只冻结 Evaluator 重求值，不冻结 Modifier 链
+- [x] 5.2 接受来源存活期间写入 `SkillEntry` 后对所有读取者共享可见的行为，并把该语义写进规范与注释
 
 ## 6. 外部入口面与验证
-- [ ] 6.1 新增 SkillModifier 对应的 StateTree 任务 / Blueprint 入口 / 调试查询入口
+- [x] 6.1 新增 SkillModifier 对应的 StateTree 任务 / Blueprint 入口 / 调试查询入口
 - [ ] 6.2 增加运行时验证，覆盖 Apply、按来源移除、ForgetSkill 清理、Exclusive 恢复、Snapshot 后写链等关键场景
-- [ ] 6.3 执行 `openspec validate add-skill-modifier-runtime-management --strict --no-interactive`
+- [x] 6.3 执行 `openspec validate add-skill-modifier-runtime-management --strict --no-interactive`

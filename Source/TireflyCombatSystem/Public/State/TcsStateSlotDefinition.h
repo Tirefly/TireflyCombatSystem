@@ -57,7 +57,7 @@ public:
 	FGameplayTag SlotTag;
 
 	/**
-	 * 对应的StateTree状态名（可选，用于槽位 <-> 状态映射）
+	 * 对应的 StateTree 状态名，用于槽位 <-> 状态映射。
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "State Slot")
 	FName StateTreeStateName = NAME_None;

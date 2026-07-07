@@ -62,6 +62,13 @@ EDataValidationResult UTcsStateSlotDefinition::IsDataValid(FDataValidationContex
 		Result = EDataValidationResult::Invalid;
 	}
 
+	// 验证 StateTreeStateName
+	if (StateTreeStateName.IsNone())
+	{
+		Context.AddError(FText::FromString(TEXT("StateTreeStateName cannot be empty because StateSlotMapping is required at runtime")));
+		Result = EDataValidationResult::Invalid;
+	}
+
 	// 验证 SamePriorityPolicy（如果 ActivationMode 为 PriorityOnly）
 	if (ActivationMode == ETcsStateSlotActivationMode::SSAM_PriorityOnly && !SamePriorityPolicy)
 	{

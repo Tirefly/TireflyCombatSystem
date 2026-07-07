@@ -9,6 +9,7 @@
 #include "TcsAttributeDefinition.generated.h"
 
 
+
 // 属性范围类型
 UENUM(BlueprintType)
 enum class ETcsAttributeRangeType : uint8
@@ -26,6 +27,7 @@ struct TIREFLYCOMBATSYSTEM_API FTcsAttributeRange
 {
 	GENERATED_BODY()
 
+// 属性的最小值范围设置
 #pragma region MinValue
 	
 public:
@@ -34,19 +36,20 @@ public:
 	ETcsAttributeRangeType MinValueType = ETcsAttributeRangeType::ART_None;
 
 	// 最小值（静态：常数）
-	UPROPERTY(Meta = (EditCondition = "MinValueType == ETcsAttributeRangeType::ART_Static",  EditConditionHides),
-		EditAnywhere, BlueprintReadOnly, Category = "Min Value")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Min Value", 
+		Meta = (EditCondition = "MinValueType == ETcsAttributeRangeType::ART_Static",  EditConditionHides))
 	float MinValue = 0.f;
 
 	// 最小值（动态：属性）
-	UPROPERTY(Meta = (EditCondition = "MinValueType == ETcsAttributeRangeType::ART_Dynamic",  EditConditionHides,
-		GetOptions = "GetOtherAttributeDefIds"),
-		EditAnywhere, BlueprintReadOnly, Category = "Min Value")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Min Value", 
+		Meta = (EditCondition = "MinValueType == ETcsAttributeRangeType::ART_Dynamic", EditConditionHides, 
+			GetOptions = "GetOtherAttributeDefIds"))
 	FName MinValueAttribute = NAME_None;
 
 #pragma endregion
 
 
+// 属性的最大值范围设置
 #pragma region MaxValue
 	
 public:
@@ -55,14 +58,14 @@ public:
 	ETcsAttributeRangeType MaxValueType = ETcsAttributeRangeType::ART_None;
 
 	// 最大值（静态：常数）
-	UPROPERTY(Meta = (EditCondition = "MaxValueType == ETcsAttributeRangeType::ART_Static",  EditConditionHides),
-		EditAnywhere, BlueprintReadOnly, Category = "Max Value")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Max Value", 
+		Meta = (EditCondition = "MaxValueType == ETcsAttributeRangeType::ART_Static",  EditConditionHides))
 	float MaxValue = 0.f;
 
 	// 最大值（动态：属性）
-	UPROPERTY(Meta = (EditCondition = "MaxValueType == ETcsAttributeRangeType::ART_Dynamic",  EditConditionHides,
-		GetOptions = "GetOtherAttributeDefIds"),
-		EditAnywhere, BlueprintReadOnly, Category = "Max Value")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Max Value", 
+		Meta = (EditCondition = "MaxValueType == ETcsAttributeRangeType::ART_Dynamic", EditConditionHides, 
+			GetOptions = "GetOtherAttributeDefIds"))
 	FName MaxValueAttribute = NAME_None;
 
 #pragma endregion
@@ -82,6 +85,16 @@ class TIREFLYCOMBATSYSTEM_API UTcsAttributeDefinition : public UPrimaryDataAsset
 {
 	GENERATED_BODY()
 
+// PrimaryDataAsset 相关内容
+#pragma region PrimaryDataAsset
+
+public:
+	// 构造函数：设置默认 Clamp 策略
+	UTcsAttributeDefinition();
+
+	// 覆写 GetPrimaryAssetId
+	virtual FPrimaryAssetId GetPrimaryAssetId() const override;
+
 public:
 	/**
 	 * PrimaryAssetType 标识符
@@ -89,7 +102,10 @@ public:
 	 */
 	static const FPrimaryAssetType PrimaryAssetType;
 
+#pragma endregion
 
+
+// 属性定义的核心内容
 #pragma region Identity
 
 public:
@@ -103,13 +119,14 @@ public:
 #pragma endregion
 
 
+// 属性定义的标签设置
 #pragma region Meta
 
 public:
 	/**
 	 * 属性类别
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Meta")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gameplay Tags")
 	FString AttributeCategory;
 
 	/**
@@ -118,15 +135,16 @@ public:
 	 * 仍然以 AttributeDefId (FName) 作为权威唯一 ID
 	 * 推荐命名约定：TCS.Attribute.<AttributeDefId>
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Meta")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gameplay Tags")
 	FGameplayTag AttributeTag;
 
 #pragma endregion
 
 
+// 属性定义的数值范围与约束设置
 #pragma region Range
 
-  public:
+public:
 	/**
 	 * 属性数值范围
 	 */
@@ -140,7 +158,7 @@ public:
 	 * 示例：可以实现循环 Clamp（角度）、阶梯 Clamp（整数等级）等自定义策略
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Range",
-	          Meta = (ToolTip = "属性值的约束策略。默认使用线性约束（FMath::Clamp）。可以选择其他内置策略或自定义策略（C++ 或蓝图）。"))
+	    Meta = (ToolTip = "属性值的约束策略。默认使用线性约束（FMath::Clamp）。可以选择其他内置策略或自定义策略（C++ 或蓝图）。"))
 	TSubclassOf<class UTcsAttributeClampStrategy> ClampStrategyClass;
 
 	/**
@@ -150,69 +168,64 @@ public:
 	 * 示例：条件 Clamp 可以配置触发条件，阶梯 Clamp 可以配置阶梯值列表
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Range",
-	          Meta = (ToolTip = "Clamp 策略的配置（可选）。可以是任意用户定义的结构体，不需要继承父类。"))
+	    Meta = (ToolTip = "Clamp 策略的配置（可选）。可以是任意用户定义的结构体，不需要继承父类。"))
 	FInstancedStruct ClampStrategyConfig;
 
 #pragma endregion
 
 
-#pragma region Display
+// 属性定义的 UI 显示设置
+#pragma region UI_Display
 
 public:
 	/**
 	 * 是否在UI中显示
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Display")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "UI Display")
 	bool bShowInUI = true;
 
 	/**
 	 * 属性名（最好使用 StringTable）
 	 */
-	UPROPERTY(Meta = (EditCondition = "bShowInUI", EditConditionHides),
-		EditAnywhere, BlueprintReadOnly, Category = "Display")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "UI Display", 
+		Meta = (EditCondition = "bShowInUI", EditConditionHides))
 	FText AttributeName;
 
 	/**
 	 * 属性描述（最好使用 StringTable）
 	 */
-	UPROPERTY(Meta = (EditCondition = "bShowInUI", EditConditionHides),
-		EditAnywhere, BlueprintReadOnly, Category = "Display")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "UI Display", 
+		Meta = (EditCondition = "bShowInUI", EditConditionHides))
 	FText AttributeDescription;
 
-#pragma endregion
-
-
-#pragma region UI
-
-public:
 	/**
 	 * 属性图标
 	 */
-	UPROPERTY(Meta = (EditCondition = "bShowInUI", EditConditionHides),
-		EditAnywhere, BlueprintReadOnly, Category = "UI")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "UI Display", 
+		Meta = (EditCondition = "bShowInUI", EditConditionHides))
 	TSoftObjectPtr<UTexture2D> Icon;
 
 	/**
 	 * 是否显示为小数
 	 */
-	UPROPERTY(Meta = (EditCondition = "bShowInUI", EditConditionHides),
-		EditAnywhere, BlueprintReadOnly, Category = "UI")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "UI Display", 
+		Meta = (EditCondition = "bShowInUI", EditConditionHides))
 	bool bAsDecimal = false;
 
 	/**
 	 * 是否显示为百分比
 	 */
-	UPROPERTY(Meta = (EditCondition = "bShowInUI", EditConditionHides),
-		EditAnywhere, BlueprintReadOnly, Category = "UI")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "UI Display", 
+		Meta = (EditCondition = "bShowInUI", EditConditionHides))
 	bool bAsPercentage = false;
 
 #pragma endregion
 
 
-public:
-	// 构造函数：设置默认 Clamp 策略
-	UTcsAttributeDefinition();
+// 编辑器相关内容
+#pragma region Editor
 
+public:
 	/**
 	 * 获取可供动态范围引用的其他属性 ID 列表。
 	 *
@@ -221,9 +234,6 @@ public:
 	UFUNCTION(BlueprintCallable, CallInEditor, Category = "TireflyCombatSystem|Attribute|Editor")
 	TArray<FName> GetOtherAttributeDefIds() const;
 
-	// 覆写 GetPrimaryAssetId
-	virtual FPrimaryAssetId GetPrimaryAssetId() const override;
-
 #if WITH_EDITOR
 	// 编辑器验证：属性值变更时的验证
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
@@ -231,4 +241,6 @@ public:
 	// 编辑器验证：数据有效性检查
 	virtual EDataValidationResult IsDataValid(FDataValidationContext& Context) const override;
 #endif
+
+#pragma endregion
 };

@@ -36,6 +36,25 @@ public:
 #pragma endregion
 
 
+#pragma region RuntimeState
+
+public:
+	/**
+	 * 查询当前 StateManager 是否已进入 runtime-ready。
+	 *
+	 * @return 若当前子系统已完成初始化并可供 runtime bootstrap 使用，则返回 true
+	 */
+	UFUNCTION(BlueprintCallable, Category = "State Manager")
+	bool IsRuntimeReady() const { return bIsRuntimeReady; }
+
+protected:
+	/** 当前 StateManager 是否已完成 runtime-ready 初始化。 */
+	UPROPERTY(Transient)
+	bool bIsRuntimeReady = false;
+
+#pragma endregion
+
+
 #pragma region DefinitionCaches
 
 protected:

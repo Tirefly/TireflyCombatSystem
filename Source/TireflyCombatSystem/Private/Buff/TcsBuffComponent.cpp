@@ -2,16 +2,40 @@
 
 #include "Buff/TcsBuffComponent.h"
 
+#include "Engine/GameInstance.h"
 #include "GameFramework/Actor.h"
 #include "Buff/BuffMerger/TcsBuffMerger.h"
+#include "Engine/World.h"
 #include "Buff/TcsBuffDefinition.h"
 #include "Buff/TcsBuffInstance.h"
 #include "Misc/ScopeExit.h"
+#include "Runtime/TcsRuntimeBootstrapSubsystem.h"
 #include "State/TcsStateComponent.h"
 #include "State/TcsStateDefinition.h"
 #include "State/TcsStateManagerSubsystem.h"
 #include "State/TcsStateInstance.h"
 #include "TcsLogChannels.h"
+
+
+namespace
+{
+	bool LogBuffRuntimeNotReady_Component(const UTcsBuffComponent* Component, const TCHAR* FunctionName)
+	{
+		UE_LOG(LogTcsState, Warning, TEXT("[%s] Buff runtime is not ready for %s"), FunctionName, *GetPathNameSafe(Component));
+		return false;
+	}
+
+	void LogBuffRuntimeNotReadyVoid_Component(const UTcsBuffComponent* Component, const TCHAR* FunctionName)
+	{
+		UE_LOG(LogTcsState, Warning, TEXT("[%s] Buff runtime is not ready for %s"), FunctionName, *GetPathNameSafe(Component));
+	}
+
+	float LogBuffRuntimeNotReadyFloat_Component(const UTcsBuffComponent* Component, const TCHAR* FunctionName)
+	{
+		UE_LOG(LogTcsState, Warning, TEXT("[%s] Buff runtime is not ready for %s"), FunctionName, *GetPathNameSafe(Component));
+		return 0.0f;
+	}
+}
 
 
 
@@ -21,10 +45,48 @@ UTcsBuffComponent::UTcsBuffComponent(const FObjectInitializer& ObjectInitializer
 	PrimaryComponentTick.bCanEverTick = true;
 }
 
+void UTcsBuffComponent::InitializeComponent()
+{
+	Super::InitializeComponent();
+
+	bRuntimePrepared = false;
+	RuntimeBootstrapSubsystem = ResolveRuntimeBootstrapSubsystem();
+	if (RuntimeBootstrapSubsystem)
+	{
+		RuntimeBootstrapSubsystem->NotifyComponentRegistered(this);
+	}
+
+	if (PrepareBuffRuntime() && RuntimeBootstrapSubsystem)
+	{
+		RuntimeBootstrapSubsystem->NotifyComponentRuntimeStateChanged(this);
+	}
+}
+
+void UTcsBuffComponent::UninitializeComponent()
+{
+	if (UTcsRuntimeBootstrapSubsystem* BootstrapSubsystem = ResolveRuntimeBootstrapSubsystem())
+	{
+		BootstrapSubsystem->NotifyComponentUnregistered(this);
+	}
+
+	bRuntimePrepared = false;
+	RuntimeBootstrapSubsystem = nullptr;
+	OwnerStateComponent.Reset();
+
+	Super::UninitializeComponent();
+}
+
 void UTcsBuffComponent::BeginPlay()
 {
 	Super::BeginPlay();
 	ResolveOwnerStateComponent();
+	if (PrepareBuffRuntime())
+	{
+		if (UTcsRuntimeBootstrapSubsystem* BootstrapSubsystem = ResolveRuntimeBootstrapSubsystem())
+		{
+			BootstrapSubsystem->NotifyComponentRuntimeStateChanged(this);
+		}
+	}
 }
 
 void UTcsBuffComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
@@ -40,7 +102,50 @@ void UTcsBuffComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 void UTcsBuffComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
+	if (!IsRuntimeReady())
+	{
+		return;
+	}
+
 	TickBuffLifecycles(DeltaTime);
+}
+
+bool UTcsBuffComponent::IsRuntimeReady() const
+{
+	const UTcsStateComponent* StateComponent = ResolveOwnerStateComponent();
+	return bRuntimePrepared && IsValid(StateComponent) && StateComponent->IsRuntimeReady();
+}
+
+bool UTcsBuffComponent::PrepareBuffRuntime()
+{
+	UTcsStateComponent* StateComponent = ResolveOwnerStateComponent();
+	bRuntimePrepared = IsValid(StateComponent) && StateComponent->IsRuntimeReady();
+	if (bRuntimePrepared)
+	{
+		BindOwnerStateEvents(StateComponent);
+	}
+	else if (IsValid(StateComponent))
+	{
+		UnbindOwnerStateEvents(StateComponent);
+	}
+
+	return bRuntimePrepared;
+}
+
+UTcsRuntimeBootstrapSubsystem* UTcsBuffComponent::ResolveRuntimeBootstrapSubsystem()
+{
+	if (!RuntimeBootstrapSubsystem)
+	{
+		if (UWorld* World = GetWorld())
+		{
+			if (UGameInstance* GameInstance = World->GetGameInstance())
+			{
+				RuntimeBootstrapSubsystem = GameInstance->GetSubsystem<UTcsRuntimeBootstrapSubsystem>();
+			}
+		}
+	}
+
+	return RuntimeBootstrapSubsystem;
 }
 
 UTcsBuffComponent* UTcsBuffComponent::GetOrCreateForActor(AActor* OwnerActor)
@@ -91,11 +196,19 @@ void UTcsBuffComponent::InitializeOwnerStateComponent(UTcsStateComponent* InStat
 	}
 
 	OwnerStateComponent = InStateComponent;
-	BindOwnerStateEvents(InStateComponent);
+	if (bRuntimePrepared && IsValid(InStateComponent) && InStateComponent->IsRuntimeReady())
+	{
+		BindOwnerStateEvents(InStateComponent);
+	}
 }
 
 float UTcsBuffComponent::GetBuffRemainingDuration(const UTcsBuffInstance* BuffInstance) const
 {
+	if (!IsRuntimeReady())
+	{
+		return LogBuffRuntimeNotReadyFloat_Component(this, TEXT(__FUNCTION__));
+	}
+
 	if (IsValid(BuffInstance) && BuffInstance->HasInfiniteDuration())
 	{
 		return -1.0f;
@@ -111,6 +224,12 @@ float UTcsBuffComponent::GetBuffRemainingDuration(const UTcsBuffInstance* BuffIn
 
 void UTcsBuffComponent::RefreshBuffRemainingDuration(UTcsBuffInstance* BuffInstance)
 {
+	if (!IsRuntimeReady())
+	{
+		LogBuffRuntimeNotReadyVoid_Component(this, TEXT(__FUNCTION__));
+		return;
+	}
+
 	if (!IsValid(BuffInstance))
 	{
 		UE_LOG(LogTcsState, Warning, TEXT("[%s] BuffInstance is invalid."), *FString(__FUNCTION__));
@@ -137,6 +256,12 @@ void UTcsBuffComponent::RefreshBuffRemainingDuration(UTcsBuffInstance* BuffInsta
 
 void UTcsBuffComponent::SetBuffRemainingDuration(UTcsBuffInstance* BuffInstance, float InDurationRemaining)
 {
+	if (!IsRuntimeReady())
+	{
+		LogBuffRuntimeNotReadyVoid_Component(this, TEXT(__FUNCTION__));
+		return;
+	}
+
 	if (!IsValid(BuffInstance))
 	{
 		UE_LOG(LogTcsState, Warning, TEXT("[%s] BuffInstance is invalid."), *FString(__FUNCTION__));
@@ -163,6 +288,10 @@ void UTcsBuffComponent::SetBuffRemainingDuration(UTcsBuffInstance* BuffInstance,
 bool UTcsBuffComponent::GetBuffsInSlot(FGameplayTag SlotTag, TArray<UTcsBuffInstance*>& OutBuffs) const
 {
 	OutBuffs.Reset();
+	if (!IsRuntimeReady())
+	{
+		return LogBuffRuntimeNotReady_Component(this, TEXT(__FUNCTION__));
+	}
 
 	UTcsStateComponent* StateComponent = ResolveOwnerStateComponent();
 	if (!IsValid(StateComponent))
@@ -190,6 +319,10 @@ bool UTcsBuffComponent::GetBuffsInSlot(FGameplayTag SlotTag, TArray<UTcsBuffInst
 bool UTcsBuffComponent::GetBuffsByDefId(FName BuffDefId, TArray<UTcsBuffInstance*>& OutBuffs) const
 {
 	OutBuffs.Reset();
+	if (!IsRuntimeReady())
+	{
+		return LogBuffRuntimeNotReady_Component(this, TEXT(__FUNCTION__));
+	}
 
 	UTcsStateComponent* StateComponent = ResolveOwnerStateComponent();
 	if (!IsValid(StateComponent))
@@ -217,6 +350,10 @@ bool UTcsBuffComponent::GetBuffsByDefId(FName BuffDefId, TArray<UTcsBuffInstance
 bool UTcsBuffComponent::GetAllActiveBuffs(TArray<UTcsBuffInstance*>& OutBuffs) const
 {
 	OutBuffs.Reset();
+	if (!IsRuntimeReady())
+	{
+		return LogBuffRuntimeNotReady_Component(this, TEXT(__FUNCTION__));
+	}
 
 	UTcsStateComponent* StateComponent = ResolveOwnerStateComponent();
 	if (!IsValid(StateComponent))
@@ -243,12 +380,22 @@ bool UTcsBuffComponent::GetAllActiveBuffs(TArray<UTcsBuffInstance*>& OutBuffs) c
 
 bool UTcsBuffComponent::HasBuffWithDefId(FName BuffDefId) const
 {
+	if (!IsRuntimeReady())
+	{
+		return LogBuffRuntimeNotReady_Component(this, TEXT(__FUNCTION__));
+	}
+
 	TArray<UTcsBuffInstance*> Buffs;
 	return GetBuffsByDefId(BuffDefId, Buffs);
 }
 
 bool UTcsBuffComponent::HasActiveBuffInSlot(FGameplayTag SlotTag) const
 {
+	if (!IsRuntimeReady())
+	{
+		return LogBuffRuntimeNotReady_Component(this, TEXT(__FUNCTION__));
+	}
+
 	TArray<UTcsBuffInstance*> Buffs;
 	return GetBuffsInSlot(SlotTag, Buffs);
 }

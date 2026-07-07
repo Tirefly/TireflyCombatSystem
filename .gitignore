@@ -88,3 +88,6 @@ Script/**/Properties/launchSettings.json
 # Generated glue projects and sources
 !Script/*.Glue/
 !Script/*.RuntimeGlue/
+
+# Git worktrees created inside the TCS submodule
+.worktrees/
