@@ -28,21 +28,6 @@ public:
 	UTcsStateDefinition();
 	
 
-#pragma region PrimaryAsset
-
-public:
-	/**
-	 * PrimaryAssetType 标识符
-	 */
-	static const FPrimaryAssetType PrimaryAssetType;
-
-public:
-	// 覆写 GetPrimaryAssetId
-	virtual FPrimaryAssetId GetPrimaryAssetId() const override;
-
-#pragma endregion
-
-
 #pragma region Identity
 
 public:

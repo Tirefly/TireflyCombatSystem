@@ -47,6 +47,10 @@ namespace
 
 
 
+const FPrimaryAssetType UTcsSkillDefinition::PrimaryAssetType = FPrimaryAssetType("TcsSkillDef");
+
+
+
 UTcsSkillDefinition::UTcsSkillDefinition()
 {
 	// 从 DeveloperSettings 读取冷却参数默认 Tag
@@ -59,6 +63,12 @@ UTcsSkillDefinition::UTcsSkillDefinition()
 	}
 
 	NormalizeSkillCooldownParameter(CooldownParam);
+}
+
+
+FPrimaryAssetId UTcsSkillDefinition::GetPrimaryAssetId() const
+{
+	return FPrimaryAssetId(PrimaryAssetType, StateDefId);
 }
 
 

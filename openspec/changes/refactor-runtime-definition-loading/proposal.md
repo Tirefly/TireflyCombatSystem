@@ -42,6 +42,7 @@
 ## 影响范围
 - 受影响规范：
   - `combat-manager-subsystems`
+  - `attribute-management`
   - `state-management`
   - `definition-live-registry`
   - `skill-runtime`

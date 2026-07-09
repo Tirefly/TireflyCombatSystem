@@ -4,7 +4,7 @@
 迁移完成后，`UTcsStateManagerSubsystem` SHALL 只暴露全局 state instance ID 工厂，以及跨 Actor 门面。Definition cache/load、Definition 查询与运行时 Definition source cache 归口 SHALL 不再留在 `UTcsStateManagerSubsystem` 中。
 
 #### Scenario: Definition 查询不再由 StateManager 提供
-- **WHEN** 任意调用方需要通过 `FName` 或 `FGameplayTag` 解析 `UTcsStateDefinition` 或 `UTcsStateSlotDefinition` 时
+- **WHEN** 任意调用方需要通过 `FName` 或 `FGameplayTag` 解析具体 State-like Definition 或 `UTcsStateSlotDefinition` 时
 - **THEN** 该查询 MUST 通过统一的运行时 Definition 加载归口完成
 - **AND** `UTcsStateManagerSubsystem` MUST NOT 再暴露 `GetStateDefinition` / `GetStateDefinitionByTag` / `GetStateSlotDefinition` / `GetStateSlotDefinitionByTag` / `GetAllStateDefNames`
 

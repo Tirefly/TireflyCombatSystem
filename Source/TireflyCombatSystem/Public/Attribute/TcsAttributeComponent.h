@@ -14,6 +14,7 @@
 
 
 class UTcsAttributeManagerSubsystem;
+class UTcsDefinitionManagerSubsystem;
 class UTcsAttributeDefinition;
 class UTcsAttributeModifierDefinition;
 class UTcsRuntimeBootstrapSubsystem;
@@ -117,6 +118,10 @@ protected:
 	UPROPERTY()
 	TObjectPtr<UTcsAttributeManagerSubsystem> AttrMgr;
 
+	/** 缓存的 DefinitionManager 指针。 */
+	UPROPERTY()
+	TObjectPtr<UTcsDefinitionManagerSubsystem> DefinitionMgr;
+
 	/**
 	 * 懒加载获取 AttributeManager。
 	 *
@@ -125,6 +130,13 @@ protected:
 	 * @return AttributeManager 指针；失败时返回 nullptr 并触发 ensureMsgf
 	 */
 	UTcsAttributeManagerSubsystem* ResolveAttributeManager();
+
+	/**
+	 * 懒加载获取 DefinitionManager。
+	 *
+	 * @return DefinitionManager 指针；失败时返回 nullptr 并触发 ensureMsgf。
+	 */
+	UTcsDefinitionManagerSubsystem* ResolveDefinitionManager();
 
 #pragma endregion
 

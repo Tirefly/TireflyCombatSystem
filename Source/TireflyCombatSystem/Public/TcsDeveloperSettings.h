@@ -27,22 +27,6 @@ class UPrimaryDataAsset;
 
 
 
-// State 加载策略
-UENUM(BlueprintType)
-enum class ETcsStateLoadingStrategy : uint8
-{
-	// 预加载所有 State 定义（启动时全部加载）
-	PreloadAll		UMETA(DisplayName = "Preload All"),
-
-	// 按需加载 State 定义（首次使用时加载）
-	OnDemand		UMETA(DisplayName = "On Demand"),
-
-	// 混合策略：预加载常用 State，其他按需加载
-	Hybrid			UMETA(DisplayName = "Hybrid (Preload Common)"),
-};
-
-
-
 /**
  * DataTable ↔ DefAsset 单条同步配置。
  *
@@ -168,183 +152,16 @@ public:
 #pragma endregion
 
 
-#pragma region DataAssetPaths
-
-public:
-	/**
-	 * State 加载策略
-	 * - PreloadAll: 启动时加载所有 State 定义（适合小型项目）
-	 * - OnDemand: 完全按需加载，启动时不加载任何 State（适合大型项目）
-	 * - Hybrid: 启动时只加载常用 State，其他按需加载（平衡性能和内存）
-	 */
-	UPROPERTY(Config, EditAnywhere, Category = "DataAsset Paths",
-		meta = (ToolTip = "State 定义的加载策略"))
-	ETcsStateLoadingStrategy StateLoadingStrategy = ETcsStateLoadingStrategy::PreloadAll;
-
-	/**
-	 * 常用 State 定义路径列表（仅在 Hybrid 策略下使用）
-	 * 这些路径下的 State 会在启动时预加载，其他 State 按需加载
-	 */
-	UPROPERTY(Config, EditAnywhere, Category = "DataAsset Paths",
-		meta = (ToolTip = "常用 State 定义路径列表，仅在 Hybrid 策略下使用",
-			EditCondition = "StateLoadingStrategy == ETcsStateLoadingStrategy::Hybrid",
-			EditConditionHides))
-	TArray<FDirectoryPath> CommonStateDefinitionPaths;
-
-	/**
-	 * 常用 State 定义资产列表（仅在 Hybrid 策略下使用）
-	 * 这些 State 会在启动时预加载，优先级高于路径配置
-	 * 使用软引用避免编辑器启动时加载所有资产
-	 */
-	UPROPERTY(Config, EditAnywhere, Category = "DataAsset Paths",
-		meta = (ToolTip = "常用 State 定义资产列表，仅在 Hybrid 策略下使用，优先级高于路径配置",
-			EditCondition = "StateLoadingStrategy == ETcsStateLoadingStrategy::Hybrid",
-			EditConditionHides,
-			AllowedClasses = "/Script/TireflyCombatSystem.TcsStateDefinition"))
-	TArray<TSoftObjectPtr<UTcsStateDefinition>> CommonStateDefinitions;
-
-#pragma endregion
-
-
-
 #pragma region SkillConfig
 
 public:
-	/** Level 参数的默认 GameplayTag（StateDefinition 构造函数中读取）。 */
+	/** StateInstance 等级（Level）参数的默认 GameplayTag（StateDefinition 构造函数中读取）。 */
 	UPROPERTY(EditAnywhere, Config, Category = "State Param Tag")
-	FGameplayTag DefaultLevelParamTag;
+	FGameplayTag DefaultStateInstanceLevelParamTag;
 
 	/** 冷却参数的默认 GameplayTag（SkillDef 构造函数中读取）。 */
 	UPROPERTY(EditAnywhere, Config, Category = "State Param Tag")
 	FGameplayTag DefaultSkillCooldownParamTag;
-
-#pragma endregion
-
-
-
-#pragma region InternalCache
-
-protected:
-	/**
-	 * 内部缓存：属性定义资产映射（Transient，运行时自动填充）
-	 * Key: AttributeDefId (FName)
-	 * Value: TSoftObjectPtr<UTcsAttributeDefinition>
-	 */
-	UPROPERTY(Transient)
-	TMap<FName, TSoftObjectPtr<UTcsAttributeDefinition>> CachedAttributeDefinitions;
-
-	/**
-	 * 内部缓存：状态定义资产映射（Transient，运行时自动填充）
-	 * Key: StateDefId (FName)
-	 * Value: TSoftObjectPtr<UTcsStateDefinition>
-	 */
-	UPROPERTY(Transient)
-	TMap<FName, TSoftObjectPtr<UTcsStateDefinition>> CachedStateDefinitions;
-
-	/**
-	 * 内部缓存：状态槽定义资产映射（Transient，运行时自动填充）
-	 * Key: StateSlotDefId (FName)
-	 * Value: TSoftObjectPtr<UTcsStateSlotDefinition>
-	 */
-	UPROPERTY(Transient)
-	TMap<FName, TSoftObjectPtr<UTcsStateSlotDefinition>> CachedStateSlotDefinitions;
-
-	/**
-	 * 内部缓存：属性修改器定义资产映射（Transient，运行时自动填充）
-	 * Key: AttributeModifierDefId (FName)
-	 * Value: TSoftObjectPtr<UTcsAttributeModifierDefinition>
-	 */
-	UPROPERTY(Transient)
-	TMap<FName, TSoftObjectPtr<UTcsAttributeModifierDefinition>> CachedAttributeModifierDefinitions;
-
-	/**
-	 * 内部缓存：技能修改器定义资产映射（Transient，运行时自动填充）
-	 * Key: ModifierId (FName)
-	 * Value: TSoftObjectPtr<UTcsSkillModifierDefinition>
-	 */
-	UPROPERTY(Transient)
-	TMap<FName, TSoftObjectPtr<UTcsSkillModifierDefinition>> CachedSkillModifierDefinitions;
-
-public:
-	/**
-	 * 获取缓存的属性定义资产映射
-	 */
-	const TMap<FName, TSoftObjectPtr<UTcsAttributeDefinition>>& GetCachedAttributeDefinitions() const
-	{
-		return CachedAttributeDefinitions;
-	}
-
-	/**
-	 * 获取缓存的状态定义资产映射
-	 */
-	const TMap<FName, TSoftObjectPtr<UTcsStateDefinition>>& GetCachedStateDefinitions() const
-	{
-		return CachedStateDefinitions;
-	}
-
-	/**
-	 * 获取缓存的状态槽定义资产映射
-	 */
-	const TMap<FName, TSoftObjectPtr<UTcsStateSlotDefinition>>& GetCachedStateSlotDefinitions() const
-	{
-		return CachedStateSlotDefinitions;
-	}
-
-	/**
-	 * 获取缓存的属性修改器定义资产映射
-	 */
-	const TMap<FName, TSoftObjectPtr<UTcsAttributeModifierDefinition>>& GetCachedAttributeModifierDefinitions() const
-	{
-		return CachedAttributeModifierDefinitions;
-	}
-
-	/**
-	 * 获取缓存的技能修改器定义资产映射。
-	 */
-	const TMap<FName, TSoftObjectPtr<UTcsSkillModifierDefinition>>& GetCachedSkillModifierDefinitions() const
-	{
-		return CachedSkillModifierDefinitions;
-	}
-
-	/**
-	 * 设置缓存的属性定义资产映射（由 Subsystem 调用）
-	 */
-	void SetCachedAttributeDefinitions(const TMap<FName, TSoftObjectPtr<UTcsAttributeDefinition>>& InCache)
-	{
-		CachedAttributeDefinitions = InCache;
-	}
-
-	/**
-	 * 设置缓存的状态定义资产映射（由 Subsystem 调用）
-	 */
-	void SetCachedStateDefinitions(const TMap<FName, TSoftObjectPtr<UTcsStateDefinition>>& InCache)
-	{
-		CachedStateDefinitions = InCache;
-	}
-
-	/**
-	 * 设置缓存的状态槽定义资产映射（由 Subsystem 调用）
-	 */
-	void SetCachedStateSlotDefinitions(const TMap<FName, TSoftObjectPtr<UTcsStateSlotDefinition>>& InCache)
-	{
-		CachedStateSlotDefinitions = InCache;
-	}
-
-	/**
-	 * 设置缓存的属性修改器定义资产映射（由 Subsystem 调用）
-	 */
-	void SetCachedAttributeModifierDefinitions(const TMap<FName, TSoftObjectPtr<UTcsAttributeModifierDefinition>>& InCache)
-	{
-		CachedAttributeModifierDefinitions = InCache;
-	}
-
-	/**
-	 * 设置缓存的技能修改器定义资产映射（由 Subsystem 调用）。
-	 */
-	void SetCachedSkillModifierDefinitions(const TMap<FName, TSoftObjectPtr<UTcsSkillModifierDefinition>>& InCache)
-	{
-		CachedSkillModifierDefinitions = InCache;
-	}
 
 #pragma endregion
 };

@@ -167,7 +167,7 @@ TCS SHALL 让 Skill-only 的归属引用和激活元数据停留在共享 State 
 
 ### Requirement: Level 迁移到 NumericParamInstances
 
-`UTcsStateDefinition` 基类 SHALL 新增 `LevelParamTag`（构造函数从 `UTcsDeveloperSettings::DefaultLevelParamTag` 读取默认值）。`UTcsSkillEntry::Level` (int32) SHALL 删除。Level 值 SHALL 在 LearnSkill / ApplyState 时通过 `StateParam_ConstantNumeric` Evaluator 注入到 `NumericParamInstances[LevelParamTag]`。
+`UTcsStateDefinition` 基类 SHALL 新增 `LevelParamTag`（构造函数从 `UTcsDeveloperSettings::DefaultLevelParamTag` <!-- RENAMED to DefaultStateInstanceLevelParamTag; 待通过 change proposal 正式更新本 spec --> 读取默认值）。`UTcsSkillEntry::Level` (int32) SHALL 删除。Level 值 SHALL 在 LearnSkill / ApplyState 时通过 `StateParam_ConstantNumeric` Evaluator 注入到 `NumericParamInstances[LevelParamTag]`。
 
 #### Scenario: LearnSkill 时注入 Level
 - **WHEN** LearnSkill(Def="SKILL_A", Level=3)

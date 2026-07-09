@@ -2,6 +2,7 @@
 
 #include "Attribute/TcsAttributeComponent.h"
 
+#include "TcsDefinitionManagerSubsystem.h"
 #include "TcsEntityInterface.h"
 #include "TcsLogChannels.h"
 #include "Attribute/TcsAttributeManagerSubsystem.h"
@@ -68,7 +69,13 @@ bool UTcsAttributeComponent::CreateAttributeModifier(
 		return false;
 	}
 
-	const UTcsAttributeModifierDefinition* ModifierDef = Mgr->GetModifierDefinition(ModifierId);
+	UTcsDefinitionManagerSubsystem* DefinitionManager = ResolveDefinitionManager();
+	if (!DefinitionManager)
+	{
+		return false;
+	}
+
+	const UTcsAttributeModifierDefinition* ModifierDef = DefinitionManager->GetAttributeModifierDefinition(ModifierId);
 	if (!ModifierDef)
 	{
 		UE_LOG(LogTcsAttribute, Error, TEXT("[%s] AttributeModifierDefinition '%s' not found"),
@@ -133,7 +140,13 @@ bool UTcsAttributeComponent::CreateAttributeModifierWithBindings(
 		return false;
 	}
 
-	const UTcsAttributeModifierDefinition* ModifierDef = Mgr->GetModifierDefinition(ModifierId);
+	UTcsDefinitionManagerSubsystem* DefinitionManager = ResolveDefinitionManager();
+	if (!DefinitionManager)
+	{
+		return false;
+	}
+
+	const UTcsAttributeModifierDefinition* ModifierDef = DefinitionManager->GetAttributeModifierDefinition(ModifierId);
 	if (!ModifierDef)
 	{
 		UE_LOG(LogTcsAttribute, Error, TEXT("[%s] AttributeModifierDefinition '%s' not found"),

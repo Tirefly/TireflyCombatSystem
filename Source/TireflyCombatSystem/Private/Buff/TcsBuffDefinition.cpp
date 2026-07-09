@@ -11,10 +11,20 @@
 
 
 
+const FPrimaryAssetType UTcsBuffDefinition::PrimaryAssetType = FPrimaryAssetType("TcsBuffDef");
+
+
+
 
 UTcsBuffDefinition::UTcsBuffDefinition()
 {
 	MergerType = UTcsBuffMerger_NoMerge::StaticClass();
+}
+
+
+FPrimaryAssetId UTcsBuffDefinition::GetPrimaryAssetId() const
+{
+	return FPrimaryAssetId(PrimaryAssetType, StateDefId);
 }
 
 

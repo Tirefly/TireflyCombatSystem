@@ -2,6 +2,7 @@
 
 #include "Buff/TcsBuffComponent.h"
 
+#include "TcsDefinitionManagerSubsystem.h"
 #include "GameFramework/Actor.h"
 #include "Buff/TcsBuffDefinition.h"
 #include "Buff/TcsBuffInstance.h"
@@ -70,31 +71,22 @@ bool UTcsBuffComponent::ApplyBuff(
 			TEXT("Instigator is invalid."));
 	}
 
-	UTcsStateManagerSubsystem* StateManager = StateComponent->GetStateManager();
-	if (!StateManager)
+	UTcsDefinitionManagerSubsystem* DefinitionManager = GetWorld() && GetWorld()->GetGameInstance()
+		? GetWorld()->GetGameInstance()->GetSubsystem<UTcsDefinitionManagerSubsystem>()
+		: nullptr;
+	if (!DefinitionManager)
 	{
 		return ReportApplyFailure(
 			ETcsStateApplyFailReason::InvalidInput,
-			TEXT("Failed to resolve StateManagerSubsystem."));
+			TEXT("Failed to resolve DefinitionManagerSubsystem."));
 	}
 
-	const UTcsStateDefinition* StateDef = StateManager->GetStateDefinition(BuffDefId);
-	if (!StateDef)
+	const UTcsBuffDefinition* BuffDef = DefinitionManager->GetBuffDefinition(BuffDefId);
+	if (!BuffDef)
 	{
 		return ReportApplyFailure(
 			ETcsStateApplyFailReason::InvalidStateDefinition,
 			TEXT("Invalid buff definition."));
-	}
-
-	if (!StateDef->IsA<UTcsBuffDefinition>())
-	{
-		UE_LOG(LogTcsState, Warning, TEXT("[%s] State definition %s is not a BuffDefinition."),
-			*FString(__FUNCTION__),
-			*BuffDefId.ToString());
-
-		return ReportApplyFailure(
-			ETcsStateApplyFailReason::InvalidStateDefinition,
-			TEXT("Target definition is not a BuffDefinition."));
 	}
 
 	return StateComponent->TryApplyState(BuffDefId, Instigator, BuffLevel, ParentSourceHandle);

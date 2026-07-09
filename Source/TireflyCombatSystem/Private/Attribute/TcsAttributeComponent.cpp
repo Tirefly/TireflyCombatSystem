@@ -2,6 +2,7 @@
 
 #include "Attribute/TcsAttributeComponent.h"
 
+#include "TcsDefinitionManagerSubsystem.h"
 #include "Attribute/TcsAttributeManagerSubsystem.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
@@ -89,6 +90,23 @@ UTcsAttributeManagerSubsystem* UTcsAttributeComponent::ResolveAttributeManager()
 			*FString(__FUNCTION__), *GetPathName());
 	}
 	return AttrMgr;
+}
+
+UTcsDefinitionManagerSubsystem* UTcsAttributeComponent::ResolveDefinitionManager()
+{
+	if (!DefinitionMgr)
+	{
+		if (UWorld* World = GetWorld())
+		{
+			if (UGameInstance* GameInstance = World->GetGameInstance())
+			{
+				DefinitionMgr = GameInstance->GetSubsystem<UTcsDefinitionManagerSubsystem>();
+			}
+		}
+		ensureMsgf(DefinitionMgr, TEXT("[%s] Failed to resolve DefinitionManagerSubsystem for %s"),
+			*FString(__FUNCTION__), *GetPathName());
+	}
+	return DefinitionMgr;
 }
 
 bool UTcsAttributeComponent::PrepareAttributeRuntime()

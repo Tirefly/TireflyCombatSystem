@@ -2,6 +2,7 @@
 
 #include "Attribute/TcsAttributeComponent.h"
 
+#include "TcsDefinitionManagerSubsystem.h"
 #include "TcsLogChannels.h"
 #include "Attribute/TcsAttributeManagerSubsystem.h"
 #include "Attribute/TcsAttributeDefinition.h"
@@ -37,7 +38,13 @@ bool UTcsAttributeComponent::AddAttribute(FName AttributeName, float InitValue)
 		return false;
 	}
 
-	const UTcsAttributeDefinition* AttrDef = Mgr->GetAttributeDefinition(AttributeName);
+	UTcsDefinitionManagerSubsystem* DefinitionManager = ResolveDefinitionManager();
+	if (!DefinitionManager)
+	{
+		return false;
+	}
+
+	const UTcsAttributeDefinition* AttrDef = DefinitionManager->GetAttributeDefinition(AttributeName);
 	if (!AttrDef)
 	{
 		UE_LOG(LogTcsAttribute, Error, TEXT("[%s] AttributeDefinition '%s' not found"),
@@ -103,7 +110,13 @@ void UTcsAttributeComponent::AddAttributes(const TArray<FName>& AttributeNames)
 			continue;
 		}
 
-		const UTcsAttributeDefinition* AttrDef = Mgr->GetAttributeDefinition(AttributeName);
+		UTcsDefinitionManagerSubsystem* DefinitionManager = ResolveDefinitionManager();
+		if (!DefinitionManager)
+		{
+			return;
+		}
+
+		const UTcsAttributeDefinition* AttrDef = DefinitionManager->GetAttributeDefinition(AttributeName);
 		if (!AttrDef)
 		{
 			UE_LOG(LogTcsAttribute, Error, TEXT("[%s] AttributeDefinition '%s' not found"),

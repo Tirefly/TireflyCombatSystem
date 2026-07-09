@@ -14,7 +14,7 @@
 class UTcsAttributeComponent;
 class UTcsAttributeDefinition;
 class UTcsAttributeModifierDefinition;
-class UTcsDefinitionRegistrySubsystem;
+class UTcsDefinitionManagerSubsystem;
 
 
 
@@ -55,57 +55,17 @@ protected:
 #pragma region AttributeDefinitions
 
 protected:
-	// 缓存的属性定义（从 DeveloperSettings 加载）
-	TMap<FName, const UTcsAttributeDefinition*> AttributeDefinitions;
-
-	// 缓存的属性修改器定义（从 DeveloperSettings 加载）
-	TMap<FName, const UTcsAttributeModifierDefinition*> AttributeModifierDefinitions;
-
 	// AttributeTag -> AttributeName 映射（运行时构建，用于 Tag 入口 API）
 	TMap<FGameplayTag, FName> AttributeTagToName;
 
 	// AttributeName -> AttributeTag 映射（可选，用于反查和调试）
 	TMap<FName, FGameplayTag> AttributeNameToTag;
 
-	/**
-	 * 从 DeveloperSettings 缓存加载定义（编辑器模式）
-	 */
-	void LoadFromDeveloperSettings();
-
-	/**
-	 * 从 DefinitionRegistry 快照加载定义（编辑器模式）
-	 */
-	void LoadFromDefinitionRegistry();
-
-	/**
-	 * 从 AssetManager 加载定义（Runtime 模式）
-	 */
-	void LoadFromAssetManager();
-
+	/** 从 DefinitionManager 重建 AttributeTag 查询映射。 */
 	void RebuildAttributeTagMappings();
 
-#if WITH_EDITOR
-	UTcsDefinitionRegistrySubsystem* GetDefinitionRegistry() const;
-	void HandleDefinitionRegistryRefreshed(const UTcsDefinitionRegistrySubsystem* Registry);
-	FDelegateHandle DefinitionRegistryRefreshedHandle;
-#endif
-
-public:
-	/**
-	 * 获取属性定义资产（迁移期供 Component 查询的 public 入口）
-	 *
-	 * @param AttributeName 属性名
-	 * @return 属性定义资产指针；未找到返回 nullptr
-	 */
-	const UTcsAttributeDefinition* GetAttributeDefinition(FName AttributeName) const;
-
-	/**
-	 * 获取属性修改器定义资产（迁移期供 Component 查询的 public 入口）
-	 *
-	 * @param ModifierId 修改器定义 ID
-	 * @return 修改器定义资产指针；未找到返回 nullptr
-	 */
-	const UTcsAttributeModifierDefinition* GetModifierDefinition(FName ModifierId) const;
+	/** @return 当前 GameInstance 上的 DefinitionManager。 */
+	UTcsDefinitionManagerSubsystem* ResolveDefinitionManager() const;
 
 #pragma endregion
 

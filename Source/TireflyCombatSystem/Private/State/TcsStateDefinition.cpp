@@ -89,23 +89,13 @@ UTcsStateDefinition::UTcsStateDefinition()
 {
 	if (const UTcsDeveloperSettings* Settings = GetDefault<UTcsDeveloperSettings>())
 	{
-		if (Settings->DefaultLevelParamTag.IsValid())
+		if (Settings->DefaultStateInstanceLevelParamTag.IsValid())
 		{
-			LevelParamTag = Settings->DefaultLevelParamTag;
+			LevelParamTag = Settings->DefaultStateInstanceLevelParamTag;
 		}
 	}
 }
 
-// 定义 PrimaryAssetType 静态变量
-const FPrimaryAssetType UTcsStateDefinition::PrimaryAssetType = FPrimaryAssetType("TcsStateDef");
-
-
-
-FPrimaryAssetId UTcsStateDefinition::GetPrimaryAssetId() const
-{
-	// 使用 StateDefId 作为 PrimaryAssetName
-	return FPrimaryAssetId(PrimaryAssetType, StateDefId);
-}
 
 UClass* UTcsStateDefinition::ResolveStateInstanceClass() const
 {

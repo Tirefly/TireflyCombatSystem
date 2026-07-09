@@ -46,10 +46,16 @@ TCS SHALL 新增 `UTcsDefinitionManagerSubsystem` 作为统一的运行时 Defin
 - **THEN** 它 MUST 至少覆盖 `BuffDef`、`SkillDef`、`StateSlotDef`、`AttributeDef`、`AttributeModifierDef`、`SkillModifierDef` 这些当前非抽象 DefAsset 类型
 - **AND** 它 MUST NOT 只围绕抽象 `UTcsStateDefinition` 建立加载配置中心
 
-#### Scenario: 抽象 StateDefinition 不再作为独立加载族或直接查询面
+#### Scenario: 抽象 StateDefinition 不再作为独立加载族
 - **WHEN** `UTcsStateDefinition` 已经是抽象基类
 - **THEN** 系统 MUST NOT 再把它建模为独立的加载配置族、独立的 runtime source cache 或独立的 AssetManager 扫描中心
-- **AND** 系统 MUST NOT 继续暴露直接查询抽象 `UTcsStateDefinition` 的 public runtime 接口
+- **AND** 系统 MUST NOT 围绕它建立独立的 `PrimaryAssetType` 或独立扫描目录
+
+#### Scenario: DefinitionManager 可提供 State 模块内部桥接查询
+- **WHEN** State 模块运行时需要按 `StateDefId` 解析一个 state-like Definition，但不关心它是 BuffDef 还是 SkillDef
+- **THEN** `UTcsDefinitionManagerSubsystem` MAY 提供一个返回抽象 `UTcsStateDefinition*` 的便捷查询入口
+- **AND** 该查询 MUST 仅作为具体 `BuffDef` / `SkillDef` 的内部 dispatch 实现，MUST NOT 重建独立的抽象 StateDef source cache 或独立加载族
+- **AND** 该查询不得被用于绕过具体类型化查询面对外暴露弱类型总入口
 
 #### Scenario: AssetManager 粒度必须与加载配置粒度一致
 - **WHEN** 运行时加载实现继续依赖 `AssetManager`
@@ -60,9 +66,9 @@ TCS SHALL 新增 `UTcsDefinitionManagerSubsystem` 作为统一的运行时 Defin
 
 `UTcsDefinitionManagerSubsystem` SHALL 为进入统一归口的 Definition 类型提供清晰的类型化查询入口，而不是要求调用方通过单一弱类型接口手工分发。
 
-#### Scenario: State / Skill / Modifier 查询面可区分
-- **WHEN** 调用方分别需要解析 `UTcsStateDefinition`、`UTcsSkillDefinition` 或 `UTcsSkillModifierDefinition`
-- **THEN** 子系统 MUST 提供对应的类型化查询入口
+#### Scenario: 具体 Definition 查询面可区分
+- **WHEN** 调用方分别需要解析 `BuffDef`、`SkillDef`、`StateSlotDef`、`AttributeDef`、`AttributeModifierDef` 或 `SkillModifierDef`
+- **THEN** 子系统 MUST 提供对应具体非抽象 DefAsset 类型的类型化查询入口
 - **AND** 调用方 MUST NOT 被迫先拿到通用 `UPrimaryDataAsset*` 再手工 Cast 才能完成主执行路径
 
 #### Scenario: 第一阶段至少提供按 DefId 的显式查询面

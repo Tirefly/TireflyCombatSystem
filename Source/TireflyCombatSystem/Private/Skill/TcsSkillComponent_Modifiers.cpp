@@ -3,14 +3,13 @@
 #include "Skill/TcsSkillComponent.h"
 
 #include "Engine/Engine.h"
+#include "TcsDefinitionManagerSubsystem.h"
 #include "Skill/TcsSkillEntry.h"
 #include "Skill/TcsSkillModifierDefinition.h"
 #include "Skill/TcsSkillInstance.h"
 #include "Skill/SkillEntrySelector/TcsSkillEntrySelector.h"
 #include "Skill/SkillModExecution/TcsSkillModifierExecution.h"
 #include "State/TcsStateInstance.h"
-#include "TcsDefinitionRegistrySubsystem.h"
-#include "TcsDeveloperSettings.h"
 #include "TcsLogChannels.h"
 
 
@@ -268,22 +267,15 @@ bool UTcsSkillComponent::GetSkillModifiersBySkillEntry(
 
 const UTcsSkillModifierDefinition* UTcsSkillComponent::ResolveSkillModifierDefinition(FName ModifierId) const
 {
-#if WITH_EDITOR
-	if (UTcsDefinitionRegistrySubsystem* Registry = GEngine ? GEngine->GetEngineSubsystem<UTcsDefinitionRegistrySubsystem>() : nullptr)
+	const UWorld* World = GetWorld();
+	const UGameInstance* GameInstance = World ? World->GetGameInstance() : nullptr;
+	UTcsDefinitionManagerSubsystem* DefinitionManager = GameInstance ? GameInstance->GetSubsystem<UTcsDefinitionManagerSubsystem>() : nullptr;
+	if (!DefinitionManager)
 	{
-		if (const TSoftObjectPtr<UTcsSkillModifierDefinition>* Found = Registry->GetSkillModifierDefinitions().Find(ModifierId))
-		{
-			return Found->LoadSynchronous();
-		}
-	}
-#endif
-
-	if (const TSoftObjectPtr<UTcsSkillModifierDefinition>* Found = GetDefault<UTcsDeveloperSettings>()->GetCachedSkillModifierDefinitions().Find(ModifierId))
-	{
-		return Found->LoadSynchronous();
+		return nullptr;
 	}
 
-	return nullptr;
+	return DefinitionManager->GetSkillModifierDefinition(ModifierId);
 }
 
 

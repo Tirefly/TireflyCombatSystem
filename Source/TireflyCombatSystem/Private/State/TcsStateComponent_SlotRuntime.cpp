@@ -2,6 +2,7 @@
 
 #include "State/TcsStateComponent.h"
 
+#include "TcsDefinitionManagerSubsystem.h"
 #include "GameFramework/Actor.h"
 #include "State/TcsStateDefinition.h"
 #include "State/TcsStateManagerSubsystem.h"
@@ -112,13 +113,23 @@ bool UTcsStateComponent::RebuildStateSlotRuntimeData()
 	TSet<FGameplayTag> SeenSlotTags;
 	bool bHasMatchedSlotDefinition = false;
 
-	for (const FName& StateSlotDefName : LocalStateMgr->GetAllStateSlotDefNames())
+	UTcsDefinitionManagerSubsystem* DefinitionManager = GetWorld() && GetWorld()->GetGameInstance()
+		? GetWorld()->GetGameInstance()->GetSubsystem<UTcsDefinitionManagerSubsystem>()
+		: nullptr;
+	if (!DefinitionManager)
 	{
-		const UTcsStateSlotDefinition* SlotDefAsset = LocalStateMgr->GetStateSlotDefinition(StateSlotDefName);
+		UE_LOG(LogTcsState, Warning, TEXT("[%s] Failed to resolve DefinitionManagerSubsystem for %s"),
+			*FString(__FUNCTION__), *GetPathName());
+		return false;
+	}
+
+	for (const FName& StateSlotDefId : DefinitionManager->GetAllStateSlotDefIds())
+	{
+		const UTcsStateSlotDefinition* SlotDefAsset = DefinitionManager->GetStateSlotDefinition(StateSlotDefId);
 		if (!SlotDefAsset)
 		{
 			UE_LOG(LogTcsState, Warning, TEXT("[%s] StateSlotDefinition %s could not be loaded for %s"),
-				*FString(__FUNCTION__), *StateSlotDefName.ToString(), *GetPathName());
+				*FString(__FUNCTION__), *StateSlotDefId.ToString(), *GetPathName());
 			continue;
 		}
 
@@ -134,7 +145,7 @@ bool UTcsStateComponent::RebuildStateSlotRuntimeData()
 		{
 			bHasInvalidSlotDefinition = true;
 			UE_LOG(LogTcsState, Warning, TEXT("[%s] Matched StateSlotDefinition %s has invalid SlotTag on %s"),
-				*FString(__FUNCTION__), *StateSlotDefName.ToString(), *GetPathName());
+				*FString(__FUNCTION__), *StateSlotDefId.ToString(), *GetPathName());
 			continue;
 		}
 

@@ -4,26 +4,26 @@
 > - `[协作]`：我先改代码或给步骤，你再在编辑器里验证并反馈结果
 
 ## 1. 规格与设计收敛
-- [ ] [AI] 1.1 明确统一运行时 Definition 归口 `UTcsDefinitionManagerSubsystem` 的职责边界、命名与作用域。
-- [ ] [AI] 1.2 锁死所有 DefAsset 都统一遵循 `UTcsDeveloperSettings` 的三种加载策略：全部预加载、只预加载特定资产、完全不预加载；并明确预加载固定异步、运行时加载推荐异步并提供同步补充。
-- [ ] [AI] 1.3 明确运行时加载配置、source cache 与 AssetManager 建模都以具体非抽象 DefAsset 类型为基本单位，而不是以抽象 `UTcsStateDefinition` 为基本单位。
-- [ ] [AI] 1.4 明确 `UTcsStateDefinition` 在新架构下只保留抽象语义基类与共享行为契约，不再承担独立加载配置族、缓存中心或 AssetManager 扫描中心职责，也不再提供直接 public 查询接口。
-- [ ] [AI] 1.5 明确哪些 Definition 类型进入统一运行时归口；本次 change 虽不扩展到所有 authoring 表面，但必须覆盖当前全部非抽象 DefAsset 的按配置加载，并同步覆盖 `Attribute`、`Buff` 模块相关路径。
-- [ ] [AI] 1.6 明确 `UTcsDefinitionEditorManagerSubsystem` 的命名、文件路径、职责边界与非职责边界，并确认它由现有 `UTcsDefAssetDataTableSyncSubsystem` 演进而来，而不是新增并列 EditorSubsystem。
-- [ ] [AI] 1.7 明确 `UTcsDeveloperSettings` 仅保留设置读取职责，不再承担 runtime cached defs、editor 缓存快照或 Def 缓存基站角色；现有 `StateLoadingStrategy` 语义要收敛为统一 Def 加载配置模型。
-- [ ] [AI] 1.8 明确 `UTcsStateManagerSubsystem` / `UTcsAttributeManagerSubsystem` 在新架构下的最终职责。
-- [ ] [AI] 1.9 明确 Skill 侧“对外由 `SkillDefId` 驱动、实例内部由已校验 `UTcsSkillDefinition*` 作为权威运行时缓存”的双层约束，以及 Entry 生命周期、Definition 解析时机与失败语义。
-- [ ] [AI] 1.10 明确 `ApplyBuff` / `ApplySkillModifier` 的 DefId 主路径、包装入口与失败语义。
-- [ ] [AI] 1.11 明确统一 Definition 查询失败语义、日志责任层级，以及 editor registry / editor manager / runtime manager 的强解耦边界。
+- [x] [AI] 1.1 明确统一运行时 Definition 归口 `UTcsDefinitionManagerSubsystem` 的职责边界、命名与作用域。
+- [x] [AI] 1.2 锁死所有 DefAsset 都统一遵循 `UTcsDeveloperSettings` 的三种加载策略：全部预加载、只预加载特定资产、完全不预加载；并明确预加载固定异步、运行时加载推荐异步并提供同步补充。
+- [x] [AI] 1.3 明确运行时加载配置、source cache 与 AssetManager 建模都以具体非抽象 DefAsset 类型为基本单位，而不是以抽象 `UTcsStateDefinition` 为基本单位。
+- [x] [AI] 1.4 明确 `UTcsStateDefinition` 在新架构下只保留抽象语义基类与共享行为契约，不再承担独立加载配置族、缓存中心或 AssetManager 扫描中心职责，也不再提供直接 public 查询接口。
+- [x] [AI] 1.5 明确哪些 Definition 类型进入统一运行时归口；本次 change 虽不扩展到所有 authoring 表面，但必须覆盖当前全部非抽象 DefAsset 的按配置加载，并同步覆盖 `Attribute`、`Buff` 模块相关路径。
+- [x] [AI] 1.6 明确 `UTcsDefinitionEditorManagerSubsystem` 的命名、文件路径、职责边界与非职责边界，并确认它由现有 `UTcsDefAssetDataTableSyncSubsystem` 演进而来，而不是新增并列 EditorSubsystem。
+- [x] [AI] 1.7 明确 `UTcsDeveloperSettings` 仅保留设置读取职责，不再承担 runtime cached defs、editor 缓存快照或 Def 缓存基站角色；现有 `StateLoadingStrategy` 语义要收敛为统一 Def 加载配置模型。
+- [x] [AI] 1.8 明确 `UTcsStateManagerSubsystem` / `UTcsAttributeManagerSubsystem` 在新架构下的最终职责。
+- [x] [AI] 1.9 明确 Skill 侧“对外由 `SkillDefId` 驱动、实例内部由已校验 `UTcsSkillDefinition*` 作为权威运行时缓存”的双层约束，以及 Entry 生命周期、Definition 解析时机与失败语义。
+- [x] [AI] 1.10 明确 `ApplyBuff` / `ApplySkillModifier` 的 DefId 主路径、包装入口与失败语义。
+- [x] [AI] 1.11 明确统一 Definition 查询失败语义、日志责任层级，以及 editor registry / editor manager / runtime manager 的强解耦边界。
 
 ## 2. 旧逻辑清理前置
-- [ ] [AI] 2.1 清理 `UTcsDeveloperSettings` 中把 cached defs 当作 runtime/bootstrap 基站的旧逻辑与旧注释，不允许继续通过 `DeveloperSettings` 承载 Definition 会话态缓存。
-- [ ] [AI] 2.2 清理 `UTcsDefinitionManagerSubsystem` 读取 `DeveloperSettings` cached defs 作为 runtime authoritative source 的旧路径。
-- [ ] [AI] 2.3 清理“editor subsystem / editor registry 可以给 runtime manager 提供桥接快照”的残留假设，明确 runtime 不依赖 editor 侧缓存结果启动。
-- [ ] [AI] 2.4 清理现有 `UTcsDefAssetDataTableSyncSubsystem` 的狭义命名与接口假设，为升级为 `UTcsDefinitionEditorManagerSubsystem` 腾位。
-- [ ] [AI] 2.5 清理遗留在 `UTcsStateManagerSubsystem` / `UTcsAttributeManagerSubsystem` / `Buff` 相关路径上的 Definition cache/load/query 归口职责与相关旧假设。
-- [ ] [AI] 2.6 清理“抽象 `StateDef` 是独立加载配置族 / 独立缓存中心 / 独立 AssetManager 扫描中心 / 可直接 public 查询对象”的旧假设。
-- [ ] [AI] 2.7 清理 `AssetManagerSettings` 中把 `BuffDef` / `SkillDef` 共同挂在抽象 `TcsStateDef` 扫描路径下的旧配置与旧校验假设。
+- [x] [AI] 2.1 清理 `UTcsDeveloperSettings` 中把 cached defs 当作 runtime/bootstrap 基站的旧逻辑与旧注释，不允许继续通过 `DeveloperSettings` 承载 Definition 会话态缓存。
+- [x] [AI] 2.2 清理 `UTcsDefinitionManagerSubsystem` 读取 `DeveloperSettings` cached defs 作为 runtime authoritative source 的旧路径。
+- [x] [AI] 2.3 清理“editor subsystem / editor registry 可以给 runtime manager 提供桥接快照”的残留假设，明确 runtime 不依赖 editor 侧缓存结果启动。
+- [x] [AI] 2.4 清理现有 `UTcsDefAssetDataTableSyncSubsystem` 的狭义命名与接口假设，为升级为 `UTcsDefinitionEditorManagerSubsystem` 腾位。
+- [x] [AI] 2.5 清理遗留在 `UTcsStateManagerSubsystem` / `UTcsAttributeManagerSubsystem` / `Buff` 相关路径上的 Definition cache/load/query 归口职责与相关旧假设。
+- [x] [AI] 2.6 清理“抽象 `StateDef` 是独立加载配置族 / 独立缓存中心 / 独立 AssetManager 扫描中心 / 可直接 public 查询对象”的旧假设。
+- [x] [AI] 2.7 清理 `AssetManagerSettings` 中把 `BuffDef` / `SkillDef` 共同挂在抽象 `TcsStateDef` 扫描路径下的旧配置与旧校验假设。
 
 ## 3. 编辑器期 Definition 管理中枢
 - [ ] [AI] 3.1 将现有 `UTcsDefAssetDataTableSyncSubsystem` 升级并重命名为 `UTcsDefinitionEditorManagerSubsystem`。
@@ -31,7 +31,8 @@
 - [ ] [AI] 3.3 为 `UTcsDefinitionEditorManagerSubsystem` 补齐受管 Def 的缓存、索引、脏标记、更新队列。
 - [ ] [AI] 3.4 让 `UTcsDefinitionEditorManagerSubsystem` 统一处理编辑器期资产事件监听与调度。
 - [ ] [AI] 3.5 明确并实现防递归回写策略，避免 DefAsset ↔ DataTable 互相影响时出现循环同步。
-- [ ] [协作] 3.6 验证 `UTcsDefinitionEditorManagerSubsystem` 不承担 runtime authoritative cache、runtime lifecycle 或通用 authoring 校验中枢职责。
+- [ ] [AI] 3.6 将 `UTcsDefinitionRegistrySubsystem` 的源文件从 Runtime 模块（`Source/TireflyCombatSystem/`）迁移到 Editor 模块（`Source/TireflyCombatSystemEditor/`），因为第二阶段重构后运行时代码已不再引用该子系统，其实现几乎全部包裹在 `#if WITH_EDITOR` 中。
+- [ ] [协作] 3.7 验证 `UTcsDefinitionEditorManagerSubsystem` 不承担 runtime authoritative cache、runtime lifecycle 或通用 authoring 校验中枢职责。
 
 ## 4. 运行时 Definition 加载层
 - [ ] [AI] 4.1 新增统一的运行时 Definition 管理子系统 `UTcsDefinitionManagerSubsystem`。

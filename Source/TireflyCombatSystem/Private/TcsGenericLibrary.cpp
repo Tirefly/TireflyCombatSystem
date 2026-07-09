@@ -2,11 +2,15 @@
 
 #include "TcsGenericLibrary.h"
 
-#include "TcsDeveloperSettings.h"
 #include "TcsEntityInterface.h"
+#include "Attribute/TcsAttributeDefinition.h"
+#include "Attribute/TcsAttributeModifierDefinition.h"
 #include "Attribute/TcsAttributeComponent.h"
 #include "Buff/TcsBuffComponent.h"
+#include "Buff/TcsBuffDefinition.h"
+#include "Engine/AssetManager.h"
 #include "State/TcsStateComponent.h"
+#include "Skill/TcsSkillDefinition.h"
 #include "Skill/TcsSkillComponent.h"
 
 
@@ -25,6 +29,16 @@ void NormalizeEditorOptionNames(TArray<FName>& Names)
 		return Left.LexicalLess(Right);
 	});
 }
+
+void AppendPrimaryAssetNames(const FPrimaryAssetType& PrimaryAssetType, TArray<FName>& Names)
+{
+	TArray<FPrimaryAssetId> PrimaryAssetIds;
+	UAssetManager::Get().GetPrimaryAssetIdList(PrimaryAssetType, PrimaryAssetIds);
+	for (const FPrimaryAssetId& PrimaryAssetId : PrimaryAssetIds)
+	{
+		Names.Add(PrimaryAssetId.PrimaryAssetName);
+	}
+}
 }
 
 
@@ -33,11 +47,7 @@ TArray<FName> UTcsGenericLibrary::GetAttributeNames()
 {
 	TArray<FName> AttributeNames;
 
-	// 从 DeveloperSettings 缓存获取（编辑器环境下已通过 Asset Registry 扫描）
-	if (const UTcsDeveloperSettings* Settings = GetDefault<UTcsDeveloperSettings>())
-	{
-		Settings->GetCachedAttributeDefinitions().GetKeys(AttributeNames);
-	}
+	AppendPrimaryAssetNames(UTcsAttributeDefinition::PrimaryAssetType, AttributeNames);
 
 	NormalizeEditorOptionNames(AttributeNames);
 
@@ -48,11 +58,7 @@ TArray<FName> UTcsGenericLibrary::GetAttributeModifierIds()
 {
 	TArray<FName> ModifierIds;
 
-	// 从 DeveloperSettings 缓存获取（编辑器环境下已通过 Asset Registry 扫描）
-	if (const UTcsDeveloperSettings* Settings = GetDefault<UTcsDeveloperSettings>())
-	{
-		Settings->GetCachedAttributeModifierDefinitions().GetKeys(ModifierIds);
-	}
+	AppendPrimaryAssetNames(UTcsAttributeModifierDefinition::PrimaryAssetType, ModifierIds);
 
 	NormalizeEditorOptionNames(ModifierIds);
 
@@ -71,11 +77,8 @@ TArray<FName> UTcsGenericLibrary::GetStateDefNames()
 {
 	TArray<FName> StateDefNames;
 
-	// 从 DeveloperSettings 缓存获取（编辑器环境下已通过 Asset Registry 扫描）
-	if (const UTcsDeveloperSettings* Settings = GetDefault<UTcsDeveloperSettings>())
-	{
-		Settings->GetCachedStateDefinitions().GetKeys(StateDefNames);
-	}
+	AppendPrimaryAssetNames(UTcsBuffDefinition::PrimaryAssetType, StateDefNames);
+	AppendPrimaryAssetNames(UTcsSkillDefinition::PrimaryAssetType, StateDefNames);
 
 	NormalizeEditorOptionNames(StateDefNames);
 

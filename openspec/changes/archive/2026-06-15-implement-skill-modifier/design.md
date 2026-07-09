@@ -223,7 +223,7 @@ FGameplayTag LevelParamTag;
 
 ```cpp
 UPROPERTY(EditAnywhere, Config, Category = "State", Meta = (Categories = "StateParam"))
-FGameplayTag DefaultLevelParamTag;
+FGameplayTag DefaultLevelParamTag; // RENAMED to DefaultStateInstanceLevelParamTag
 ```
 
 ### 运行时注入

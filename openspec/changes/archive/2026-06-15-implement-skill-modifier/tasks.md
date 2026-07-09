@@ -38,8 +38,8 @@
 
 ## 6. Level 迁移到 NumericParamInstances
 
-- [x] 6.1 `UTcsDeveloperSettings` 新增 `DefaultLevelParamTag`
-- [x] 6.2 `UTcsStateDefinition` 基类新增 `LevelParamTag`（构造函数读取 DefaultLevelParamTag）
+- [x] 6.1 `UTcsDeveloperSettings` 新增 `DefaultLevelParamTag` <!-- RENAMED to DefaultStateInstanceLevelParamTag -->
+- [x] 6.2 `UTcsStateDefinition` 基类新增 `LevelParamTag`（构造函数读取 DefaultLevelParamTag） <!-- RENAMED to DefaultStateInstanceLevelParamTag -->
 - [x] 6.3 LearnSkill 时注入 Level 常量到 `NumericParamInstances[LevelParamTag]`
 - [x] 6.4 `UTcsSkillEntry::GetLevel()` 改为读取 `NumericParamInstances[LevelTag].GetModifiedValue()`
 - [x] 6.5 `UTcsSkillEntry::SetLevel()` 改为写入 `NumericParamInstances[LevelTag].NumericValue`

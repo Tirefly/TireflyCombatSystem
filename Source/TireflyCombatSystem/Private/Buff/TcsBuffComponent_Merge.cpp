@@ -2,7 +2,9 @@
 
 #include "Buff/TcsBuffComponent.h"
 
+#include "TcsDefinitionManagerSubsystem.h"
 #include "Buff/BuffMerger/TcsBuffMerger.h"
+#include "Buff/TcsBuffDefinition.h"
 #include "Buff/TcsBuffInstance.h"
 #include "State/TcsStateComponent.h"
 #include "State/TcsStateDefinition.h"
@@ -176,18 +178,20 @@ void UTcsBuffComponent::MergeBuffStateGroup(
 		return;
 	}
 
-	UTcsStateManagerSubsystem* LocalStateMgr = StateComponent->GetStateManager();
-	if (!LocalStateMgr)
+	UTcsDefinitionManagerSubsystem* DefinitionManager = GetWorld() && GetWorld()->GetGameInstance()
+		? GetWorld()->GetGameInstance()->GetSubsystem<UTcsDefinitionManagerSubsystem>()
+		: nullptr;
+	if (!DefinitionManager)
 	{
 		OutMergedBuffs = BuffsToMerge;
 		OutMergedOutBuffs.Reset();
 		return;
 	}
 
-	const UTcsStateDefinition* StateDef = LocalStateMgr->GetStateDefinition(BuffsToMerge[0]->GetStateDefId());
-	if (!StateDef)
+	const UTcsBuffDefinition* BuffDef = DefinitionManager->GetBuffDefinition(BuffsToMerge[0]->GetStateDefId());
+	if (!BuffDef)
 	{
-		UE_LOG(LogTcsState, Warning, TEXT("[%s] Failed to get state definition for %s"),
+		UE_LOG(LogTcsState, Warning, TEXT("[%s] Failed to get buff definition for %s"),
 			*FString(__FUNCTION__),
 			*BuffsToMerge[0]->GetStateDefId().ToString());
 		OutMergedBuffs = BuffsToMerge;

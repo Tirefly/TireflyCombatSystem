@@ -27,6 +27,12 @@ class TIREFLYCOMBATSYSTEM_API UTcsSkillDefinition : public UTcsStateDefinition
 public:
 	UTcsSkillDefinition();
 
+	/** Skill Definition 的 PrimaryAssetType 标识符。 */
+	static const FPrimaryAssetType PrimaryAssetType;
+
+	/** @return Skill Definition 的 PrimaryAssetId。 */
+	virtual FPrimaryAssetId GetPrimaryAssetId() const override;
+
 #pragma region Runtime
 
 public:

@@ -6,8 +6,9 @@
 #include "TcsLogChannels.h"
 #include "Attribute/TcsAttributeDefinition.h"
 #include "Attribute/TcsAttributeModifierDefinition.h"
+#include "Buff/TcsBuffDefinition.h"
+#include "Skill/TcsSkillDefinition.h"
 #include "Skill/TcsSkillModifierDefinition.h"
-#include "State/TcsStateDefinition.h"
 #include "State/TcsStateSlotDefinition.h"
 
 #if WITH_EDITOR
@@ -100,7 +101,8 @@ namespace TcsDefinitionRegistryPrivate
 		static const TArray<FTcsTrackedDefinitionType> TrackedTypes = {
 			{ UTcsAttributeDefinition::StaticClass(), UTcsAttributeDefinition::PrimaryAssetType, TEXT("UTcsAttributeDefinition") },
 			{ UTcsAttributeModifierDefinition::StaticClass(), UTcsAttributeModifierDefinition::PrimaryAssetType, TEXT("UTcsAttributeModifierDefinition") },
-			{ UTcsStateDefinition::StaticClass(), UTcsStateDefinition::PrimaryAssetType, TEXT("UTcsStateDefinition") },
+			{ UTcsBuffDefinition::StaticClass(), UTcsBuffDefinition::PrimaryAssetType, TEXT("UTcsBuffDefinition") },
+			{ UTcsSkillDefinition::StaticClass(), UTcsSkillDefinition::PrimaryAssetType, TEXT("UTcsSkillDefinition") },
 			{ UTcsStateSlotDefinition::StaticClass(), UTcsStateSlotDefinition::PrimaryAssetType, TEXT("UTcsStateSlotDefinition") },
 			{ UTcsSkillModifierDefinition::StaticClass(), UTcsSkillModifierDefinition::PrimaryAssetType, TEXT("UTcsSkillModifierDefinition") },
 		};
@@ -407,7 +409,6 @@ void UTcsDefinitionRegistrySubsystem::RefreshDefinitionsNow()
 
 	TGuardValue<bool> RefreshGuard(bIsRefreshing, true);
 	RebuildSnapshot();
-	MirrorSnapshotToDeveloperSettings();
 
 	const bool bShouldReportCoverageIssues = bShouldReportCoverageIssuesAfterRefresh;
 	bShouldReportCoverageIssuesAfterRefresh = false;
@@ -798,7 +799,8 @@ void UTcsDefinitionRegistrySubsystem::RebuildSnapshot()
 	AttributeDefinitions.Empty();
 	AttributeModifierDefinitions.Empty();
 	SkillModifierDefinitions.Empty();
-	StateDefinitions.Empty();
+	BuffDefinitions.Empty();
+	SkillDefinitions.Empty();
 	StateSlotDefinitions.Empty();
 
 	const UAssetManagerSettings* AssetManagerSettings = GetDefault<UAssetManagerSettings>();
@@ -820,29 +822,13 @@ void UTcsDefinitionRegistrySubsystem::RebuildSnapshot()
 	RefreshAssetManagerCoverageIssues(AssetRegistry);
 
 	UE_LOG(LogTcs, Log,
-		TEXT("[UTcsDefinitionRegistrySubsystem] Rebuilt snapshot: %d Attributes, %d AttributeModifiers, %d SkillModifiers, %d States, %d StateSlots"),
+		TEXT("[UTcsDefinitionRegistrySubsystem] Rebuilt snapshot: %d Attributes, %d AttributeModifiers, %d SkillModifiers, %d Buffs, %d Skills, %d StateSlots"),
 		AttributeDefinitions.Num(),
 		AttributeModifierDefinitions.Num(),
 		SkillModifierDefinitions.Num(),
-		StateDefinitions.Num(),
+		BuffDefinitions.Num(),
+		SkillDefinitions.Num(),
 		StateSlotDefinitions.Num());
-}
-
-void UTcsDefinitionRegistrySubsystem::MirrorSnapshotToDeveloperSettings() const
-{
-	UTcsDeveloperSettings* Settings = GetMutableDefault<UTcsDeveloperSettings>();
-	if (!Settings)
-	{
-		UE_LOG(LogTcs, Error,
-			TEXT("[UTcsDefinitionRegistrySubsystem] Failed to get TcsDeveloperSettings while mirroring snapshot"));
-		return;
-	}
-
-	Settings->SetCachedAttributeDefinitions(AttributeDefinitions);
-	Settings->SetCachedAttributeModifierDefinitions(AttributeModifierDefinitions);
-	Settings->SetCachedSkillModifierDefinitions(SkillModifierDefinitions);
-	Settings->SetCachedStateDefinitions(StateDefinitions);
-	Settings->SetCachedStateSlotDefinitions(StateSlotDefinitions);
 }
 
 void UTcsDefinitionRegistrySubsystem::RefreshAssetManagerCoverageIssues(IAssetRegistry& AssetRegistry)
@@ -1009,7 +995,8 @@ void UTcsDefinitionRegistrySubsystem::ScanPrimaryAssetType(const FPrimaryAssetTy
 {
 	if (TypeInfo.PrimaryAssetType != UTcsAttributeDefinition::PrimaryAssetType &&
 		TypeInfo.PrimaryAssetType != UTcsAttributeModifierDefinition::PrimaryAssetType &&
-		TypeInfo.PrimaryAssetType != UTcsStateDefinition::PrimaryAssetType &&
+		TypeInfo.PrimaryAssetType != UTcsBuffDefinition::PrimaryAssetType &&
+		TypeInfo.PrimaryAssetType != UTcsSkillDefinition::PrimaryAssetType &&
 		TypeInfo.PrimaryAssetType != UTcsStateSlotDefinition::PrimaryAssetType &&
 		TypeInfo.PrimaryAssetType != UTcsSkillModifierDefinition::PrimaryAssetType)
 	{
@@ -1030,9 +1017,13 @@ void UTcsDefinitionRegistrySubsystem::ScanPrimaryAssetType(const FPrimaryAssetTy
 		{
 			ScanAttributeModifierDefinitions(AssetDataList);
 		}
-		else if (TypeInfo.PrimaryAssetType == UTcsStateDefinition::PrimaryAssetType)
+		else if (TypeInfo.PrimaryAssetType == UTcsBuffDefinition::PrimaryAssetType)
 		{
-			ScanStateDefinitions(AssetDataList);
+			ScanBuffDefinitions(AssetDataList);
+		}
+		else if (TypeInfo.PrimaryAssetType == UTcsSkillDefinition::PrimaryAssetType)
+		{
+			ScanSkillDefinitions(AssetDataList);
 		}
 		else if (TypeInfo.PrimaryAssetType == UTcsStateSlotDefinition::PrimaryAssetType)
 		{
@@ -1057,9 +1048,13 @@ void UTcsDefinitionRegistrySubsystem::ScanPrimaryAssetType(const FPrimaryAssetTy
 		{
 			ScanAttributeModifierDefinitions(AssetDataList);
 		}
-		else if (TypeInfo.PrimaryAssetType == UTcsStateDefinition::PrimaryAssetType)
+		else if (TypeInfo.PrimaryAssetType == UTcsBuffDefinition::PrimaryAssetType)
 		{
-			ScanStateDefinitions(AssetDataList);
+			ScanBuffDefinitions(AssetDataList);
+		}
+		else if (TypeInfo.PrimaryAssetType == UTcsSkillDefinition::PrimaryAssetType)
+		{
+			ScanSkillDefinitions(AssetDataList);
 		}
 		else if (TypeInfo.PrimaryAssetType == UTcsStateSlotDefinition::PrimaryAssetType)
 		{
@@ -1129,22 +1124,41 @@ void UTcsDefinitionRegistrySubsystem::ScanSkillModifierDefinitions(const TArray<
 	}
 }
 
-void UTcsDefinitionRegistrySubsystem::ScanStateDefinitions(const TArray<FAssetData>& AssetDataList)
+void UTcsDefinitionRegistrySubsystem::ScanBuffDefinitions(const TArray<FAssetData>& AssetDataList)
 {
 	for (const FAssetData& AssetData : AssetDataList)
 	{
-		TSoftObjectPtr<UTcsStateDefinition> AssetPtr(AssetData.ToSoftObjectPath());
-		const UTcsStateDefinition* Asset = AssetPtr.LoadSynchronous();
+		TSoftObjectPtr<UTcsBuffDefinition> AssetPtr(AssetData.ToSoftObjectPath());
+		const UTcsBuffDefinition* Asset = AssetPtr.LoadSynchronous();
 		if (!Asset)
 		{
 			continue;
 		}
 
 		TcsDefinitionRegistryPrivate::AddDefinition(
-			StateDefinitions,
+			BuffDefinitions,
 			Asset->StateDefId,
 			AssetPtr,
-			TEXT("State"));
+			TEXT("Buff"));
+	}
+}
+
+void UTcsDefinitionRegistrySubsystem::ScanSkillDefinitions(const TArray<FAssetData>& AssetDataList)
+{
+	for (const FAssetData& AssetData : AssetDataList)
+	{
+		TSoftObjectPtr<UTcsSkillDefinition> AssetPtr(AssetData.ToSoftObjectPath());
+		const UTcsSkillDefinition* Asset = AssetPtr.LoadSynchronous();
+		if (!Asset)
+		{
+			continue;
+		}
+
+		TcsDefinitionRegistryPrivate::AddDefinition(
+			SkillDefinitions,
+			Asset->StateDefId,
+			AssetPtr,
+			TEXT("Skill"));
 	}
 }
 
@@ -1182,7 +1196,8 @@ bool UTcsDefinitionRegistrySubsystem::IsTrackedDefinitionClass(const FAssetData&
 
 	return AssetClass->IsChildOf(UTcsAttributeDefinition::StaticClass()) ||
 		AssetClass->IsChildOf(UTcsAttributeModifierDefinition::StaticClass()) ||
-		AssetClass->IsChildOf(UTcsStateDefinition::StaticClass()) ||
+		AssetClass->IsChildOf(UTcsBuffDefinition::StaticClass()) ||
+		AssetClass->IsChildOf(UTcsSkillDefinition::StaticClass()) ||
 		AssetClass->IsChildOf(UTcsStateSlotDefinition::StaticClass()) ||
 		AssetClass->IsChildOf(UTcsSkillModifierDefinition::StaticClass());
 }
@@ -1192,7 +1207,8 @@ bool UTcsDefinitionRegistrySubsystem::IsTrackedDefinitionObject(const UObject* A
 	return AssetObject && (
 		AssetObject->IsA(UTcsAttributeDefinition::StaticClass()) ||
 		AssetObject->IsA(UTcsAttributeModifierDefinition::StaticClass()) ||
-		AssetObject->IsA(UTcsStateDefinition::StaticClass()) ||
+		AssetObject->IsA(UTcsBuffDefinition::StaticClass()) ||
+		AssetObject->IsA(UTcsSkillDefinition::StaticClass()) ||
 		AssetObject->IsA(UTcsStateSlotDefinition::StaticClass()) ||
 		AssetObject->IsA(UTcsSkillModifierDefinition::StaticClass()));
 }

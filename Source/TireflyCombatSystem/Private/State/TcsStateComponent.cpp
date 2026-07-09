@@ -2,6 +2,7 @@
 
 #include "State/TcsStateComponent.h"
 
+#include "TcsDefinitionManagerSubsystem.h"
 #include "TcsLogChannels.h"
 #include "TcsEntityInterface.h"
 #include "GameFramework/Actor.h"
@@ -428,15 +429,17 @@ bool UTcsStateComponent::TryApplyState(
 				*GetNameSafe(Instigator)));
 	}
 
-	UTcsStateManagerSubsystem* LocalStateMgr = ResolveStateManager();
-	if (!LocalStateMgr)
+	UTcsDefinitionManagerSubsystem* DefinitionManager = GetWorld() && GetWorld()->GetGameInstance()
+		? GetWorld()->GetGameInstance()->GetSubsystem<UTcsDefinitionManagerSubsystem>()
+		: nullptr;
+	if (!DefinitionManager)
 	{
 		return ReportApplyFailure(
 			ETcsStateApplyFailReason::InvalidInput,
-			TEXT("Failed to resolve StateManagerSubsystem."));
+			TEXT("Failed to resolve DefinitionManagerSubsystem."));
 	}
 
-	const UTcsStateDefinition* StateDef = LocalStateMgr->GetStateDefinition(StateDefId);
+	const UTcsStateDefinition* StateDef = DefinitionManager->GetStateDefinition(StateDefId);
 	if (!StateDef)
 	{
 		return ReportApplyFailure(

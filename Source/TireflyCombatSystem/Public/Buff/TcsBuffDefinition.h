@@ -90,6 +90,12 @@ public:
 	/** 构造默认 Buff 合并策略。 */
 	UTcsBuffDefinition();
 
+	/** Buff Definition 的 PrimaryAssetType 标识符。 */
+	static const FPrimaryAssetType PrimaryAssetType;
+
+	/** @return Buff Definition 的 PrimaryAssetId。 */
+	virtual FPrimaryAssetId GetPrimaryAssetId() const override;
+
 
 #pragma region Duration
 

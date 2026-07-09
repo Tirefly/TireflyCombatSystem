@@ -2,6 +2,7 @@
 
 #include "State/TcsStateComponent.h"
 
+#include "TcsDefinitionManagerSubsystem.h"
 #include "TcsEntityInterface.h"
 #include "TcsLogChannels.h"
 #include "Attribute/TcsAttributeManagerSubsystem.h"
@@ -76,7 +77,17 @@ UTcsStateInstance* UTcsStateComponent::CreateStateInstance(
 			TEXT("Failed to resolve StateManagerSubsystem while creating StateInstance."));
 	}
 
-	const UTcsStateDefinition* StateDef = LocalStateMgr->GetStateDefinition(StateDefRowId);
+	UTcsDefinitionManagerSubsystem* DefinitionManager = GetWorld() && GetWorld()->GetGameInstance()
+		? GetWorld()->GetGameInstance()->GetSubsystem<UTcsDefinitionManagerSubsystem>()
+		: nullptr;
+	if (!DefinitionManager)
+	{
+		return ReturnCreateStateFailure(
+			ETcsStateApplyFailReason::CreateInstanceFailed,
+			TEXT("Failed to resolve DefinitionManagerSubsystem while creating StateInstance."));
+	}
+
+	const UTcsStateDefinition* StateDef = DefinitionManager->GetStateDefinition(StateDefRowId);
 	if (!StateDef)
 	{
 		return ReturnCreateStateFailure(
