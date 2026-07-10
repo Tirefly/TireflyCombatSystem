@@ -6,7 +6,7 @@
 #include "Containers/Ticker.h"
 #include "EditorSubsystem.h"
 
-#include "TcsDefAssetDataTableSyncSubsystem.generated.h"
+#include "TcsDefinitionEditorManagerSubsystem.generated.h"
 
 class UDataTable;
 class UEditorAssetSubsystem;
@@ -84,10 +84,13 @@ struct FTcsRemovedDefAssetSnapshot
 
 
 /**
- * 编辑器期 DataTable ↔ DefAsset 双向同步子系统。
+ * 编辑器期 Definition 管理中枢。
+ *
+ * 统一负责 DataTable ↔ DefAsset 桥接协调、防递归回写、受管 Def 缓存/索引/更新队列、
+ * 编辑器期资产事件监听，以及在变更落地后驱动 DefinitionRegistry 刷新。
  */
 UCLASS()
-class TIREFLYCOMBATSYSTEMEDITOR_API UTcsDefAssetDataTableSyncSubsystem : public UEditorSubsystem
+class TIREFLYCOMBATSYSTEMEDITOR_API UTcsDefinitionEditorManagerSubsystem : public UEditorSubsystem
 {
 	GENERATED_BODY()
 
@@ -104,14 +107,14 @@ public:
 	virtual bool ShouldCreateSubsystem(UObject* Outer) const override;
 
 	/**
-	 * 初始化 DataTable ↔ DefAsset 自动同步子系统。
+	 * 初始化编辑器期 Definition 管理中枢。
 	 *
 	 * @param Collection 当前子系统集合
 	 */
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 
 	/**
-	 * 反注册编辑器回调并清理同步缓存状态。
+	 * 反注册编辑器回调并清理管理中枢缓存状态。
 	 */
 	virtual void Deinitialize() override;
 
@@ -260,7 +263,7 @@ private:
 	 * 从目标 DataTable 中移除已删除 DefAsset 对应的行。
 	 *
 	 * @param Snapshot 删除前缓存的 DefAsset 快照信息
-	 * @return 返回 true 表示目标 DataTable 成功移除了对应行
+	 * @return 返回 true 表示目标 DataTable 成功移除了对应行，并已被标记为脏
 	 */
 	bool RemoveDataTableRowForDeletedDefAsset(const FTcsRemovedDefAssetSnapshot& Snapshot);
 

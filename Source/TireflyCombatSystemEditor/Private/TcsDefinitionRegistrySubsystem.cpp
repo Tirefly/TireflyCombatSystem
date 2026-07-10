@@ -591,7 +591,7 @@ void UTcsDefinitionRegistrySubsystem::RegisterContentBrowserSaveButtonHook()
 					.ContentPadding(2.f)
 					.OnClicked_Lambda([]()
 					{
-						if (UTcsDefinitionRegistrySubsystem* const Registry = GEngine ? GEngine->GetEngineSubsystem<UTcsDefinitionRegistrySubsystem>() : nullptr)
+						if (UTcsDefinitionRegistrySubsystem* const Registry = GEditor ? GEditor->GetEditorSubsystem<UTcsDefinitionRegistrySubsystem>() : nullptr)
 						{
 							Registry->HandleContentBrowserSaveButton();
 						}

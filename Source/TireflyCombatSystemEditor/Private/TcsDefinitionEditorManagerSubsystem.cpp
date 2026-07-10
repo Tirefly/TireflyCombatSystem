@@ -1,10 +1,11 @@
 // Copyright Tirefly. All Rights Reserved.
 
-#include "DataTableSync/TcsDefAssetDataTableSyncSubsystem.h"
+#include "TcsDefinitionEditorManagerSubsystem.h"
 
 #include "AssetRegistry/AssetData.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "DataTableSync/TcsDefDataTableRows.h"
+#include "DataTableEditorUtils.h"
 #include "Editor.h"
 #include "Engine/DataTable.h"
 #include "ObjectTools.h"
@@ -42,6 +43,22 @@ namespace
 		FString Normalized = InObjectPath;
 		Normalized.TrimStartAndEndInline();
 		return Normalized;
+	}
+
+	FString BuildManagedDefAssetName(const FName DefId)
+	{
+		FString AssetName = ObjectTools::SanitizeObjectName(DefId.ToString());
+		if (AssetName.IsEmpty())
+		{
+			return AssetName;
+		}
+
+		if (!AssetName.StartsWith(TEXT("DA_")))
+		{
+			AssetName = FString::Printf(TEXT("DA_%s"), *AssetName);
+		}
+
+		return AssetName;
 	}
 
 	FString GetLongPackageNameFromObjectPath(const FString& ObjectPath)
@@ -109,7 +126,7 @@ namespace
 			if (const FString* const ExistingPath = OutAssetPathByDefId.Find(DefId))
 			{
 				UE_LOG(LogTcsEditorSync, Error,
-					TEXT("[UTcsDefAssetDataTableSyncSubsystem] Managed directory contains duplicate DefId '%s': %s and %s"),
+					TEXT("[UTcsDefinitionEditorManagerSubsystem] Managed directory contains duplicate DefId '%s': %s and %s"),
 					*DefId.ToString(),
 					**ExistingPath,
 					*DefAssetObjectPath);
@@ -124,12 +141,12 @@ namespace
 	}
 }
 
-bool UTcsDefAssetDataTableSyncSubsystem::ShouldCreateSubsystem(UObject* Outer) const
+bool UTcsDefinitionEditorManagerSubsystem::ShouldCreateSubsystem(UObject* Outer) const
 {
 	return GIsEditor;
 }
 
-void UTcsDefAssetDataTableSyncSubsystem::Initialize(FSubsystemCollectionBase& Collection)
+void UTcsDefinitionEditorManagerSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);
 
@@ -142,7 +159,7 @@ void UTcsDefAssetDataTableSyncSubsystem::Initialize(FSubsystemCollectionBase& Co
 	RegisterEditorCallbacks();
 }
 
-void UTcsDefAssetDataTableSyncSubsystem::Deinitialize()
+void UTcsDefinitionEditorManagerSubsystem::Deinitialize()
 {
 	UnregisterEditorCallbacks();
 
@@ -160,7 +177,7 @@ void UTcsDefAssetDataTableSyncSubsystem::Deinitialize()
 	Super::Deinitialize();
 }
 
-void UTcsDefAssetDataTableSyncSubsystem::RegisterEditorCallbacks()
+void UTcsDefinitionEditorManagerSubsystem::RegisterEditorCallbacks()
 {
 	if (bHasRegisteredCallbacks || !FModuleManager::Get().IsModuleLoaded(TEXT("AssetRegistry")))
 	{
@@ -169,14 +186,14 @@ void UTcsDefAssetDataTableSyncSubsystem::RegisterEditorCallbacks()
 
 	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
 	IAssetRegistry& AssetRegistry = AssetRegistryModule.Get();
-	AssetRemovedHandle = AssetRegistry.OnAssetRemoved().AddUObject(this, &UTcsDefAssetDataTableSyncSubsystem::OnAssetRemoved);
-	AssetRenamedHandle = AssetRegistry.OnAssetRenamed().AddUObject(this, &UTcsDefAssetDataTableSyncSubsystem::OnAssetRenamed);
-	InMemoryAssetDeletedHandle = AssetRegistry.OnInMemoryAssetDeleted().AddUObject(this, &UTcsDefAssetDataTableSyncSubsystem::OnInMemoryAssetDeleted);
-	PackageSavedHandle = UPackage::PackageSavedWithContextEvent.AddUObject(this, &UTcsDefAssetDataTableSyncSubsystem::OnPackageSaved);
+	AssetRemovedHandle = AssetRegistry.OnAssetRemoved().AddUObject(this, &UTcsDefinitionEditorManagerSubsystem::OnAssetRemoved);
+	AssetRenamedHandle = AssetRegistry.OnAssetRenamed().AddUObject(this, &UTcsDefinitionEditorManagerSubsystem::OnAssetRenamed);
+	InMemoryAssetDeletedHandle = AssetRegistry.OnInMemoryAssetDeleted().AddUObject(this, &UTcsDefinitionEditorManagerSubsystem::OnInMemoryAssetDeleted);
+	PackageSavedHandle = UPackage::PackageSavedWithContextEvent.AddUObject(this, &UTcsDefinitionEditorManagerSubsystem::OnPackageSaved);
 	bHasRegisteredCallbacks = true;
 }
 
-void UTcsDefAssetDataTableSyncSubsystem::UnregisterEditorCallbacks()
+void UTcsDefinitionEditorManagerSubsystem::UnregisterEditorCallbacks()
 {
 	if (!bHasRegisteredCallbacks)
 	{
@@ -216,7 +233,7 @@ void UTcsDefAssetDataTableSyncSubsystem::UnregisterEditorCallbacks()
 	bHasRegisteredCallbacks = false;
 }
 
-bool UTcsDefAssetDataTableSyncSubsystem::HandleDeferredSync(float DeltaTime)
+bool UTcsDefinitionEditorManagerSubsystem::HandleDeferredSync(float DeltaTime)
 {
 	DeferredSyncHandle.Reset();
 
@@ -266,14 +283,14 @@ bool UTcsDefAssetDataTableSyncSubsystem::HandleDeferredSync(float DeltaTime)
 	if (!PendingSyncRequests.IsEmpty())
 	{
 		DeferredSyncHandle = FTSTicker::GetCoreTicker().AddTicker(
-			FTickerDelegate::CreateUObject(this, &UTcsDefAssetDataTableSyncSubsystem::HandleDeferredSync),
+			FTickerDelegate::CreateUObject(this, &UTcsDefinitionEditorManagerSubsystem::HandleDeferredSync),
 			0.0f);
 	}
 
 	return false;
 }
 
-void UTcsDefAssetDataTableSyncSubsystem::QueueSyncRequest(const ETcsPendingSyncRequestType Type, const FString& ObjectPath)
+void UTcsDefinitionEditorManagerSubsystem::QueueSyncRequest(const ETcsPendingSyncRequestType Type, const FString& ObjectPath)
 {
 	if (ObjectPath.IsEmpty())
 	{
@@ -288,27 +305,27 @@ void UTcsDefAssetDataTableSyncSubsystem::QueueSyncRequest(const ETcsPendingSyncR
 	if (!DeferredSyncHandle.IsValid())
 	{
 		DeferredSyncHandle = FTSTicker::GetCoreTicker().AddTicker(
-			FTickerDelegate::CreateUObject(this, &UTcsDefAssetDataTableSyncSubsystem::HandleDeferredSync),
+			FTickerDelegate::CreateUObject(this, &UTcsDefinitionEditorManagerSubsystem::HandleDeferredSync),
 			0.0f);
 	}
 }
 
-void UTcsDefAssetDataTableSyncSubsystem::QueueManagedDataTableSync(const FString& DataTableObjectPath)
+void UTcsDefinitionEditorManagerSubsystem::QueueManagedDataTableSync(const FString& DataTableObjectPath)
 {
 	QueueSyncRequest(ETcsPendingSyncRequestType::SyncDataTable, DataTableObjectPath);
 }
 
-void UTcsDefAssetDataTableSyncSubsystem::QueueManagedDefAssetSync(const FString& DefAssetObjectPath)
+void UTcsDefinitionEditorManagerSubsystem::QueueManagedDefAssetSync(const FString& DefAssetObjectPath)
 {
 	QueueSyncRequest(ETcsPendingSyncRequestType::SyncDefAsset, DefAssetObjectPath);
 }
 
-void UTcsDefAssetDataTableSyncSubsystem::QueueManagedDefAssetRemoval(const FString& DefAssetObjectPath)
+void UTcsDefinitionEditorManagerSubsystem::QueueManagedDefAssetRemoval(const FString& DefAssetObjectPath)
 {
 	QueueSyncRequest(ETcsPendingSyncRequestType::RemoveDefAsset, DefAssetObjectPath);
 }
 
-void UTcsDefAssetDataTableSyncSubsystem::OnPackageSaved(const FString& PackageFileName, UPackage* Package, FObjectPostSaveContext ObjectSaveContext)
+void UTcsDefinitionEditorManagerSubsystem::OnPackageSaved(const FString& PackageFileName, UPackage* Package, FObjectPostSaveContext ObjectSaveContext)
 {
 	if (bIsApplyingSync || !Package)
 	{
@@ -341,7 +358,7 @@ void UTcsDefAssetDataTableSyncSubsystem::OnPackageSaved(const FString& PackageFi
 	}
 }
 
-void UTcsDefAssetDataTableSyncSubsystem::OnAssetRemoved(const FAssetData& AssetData)
+void UTcsDefinitionEditorManagerSubsystem::OnAssetRemoved(const FAssetData& AssetData)
 {
 	if (bIsApplyingSync)
 	{
@@ -362,7 +379,7 @@ void UTcsDefAssetDataTableSyncSubsystem::OnAssetRemoved(const FAssetData& AssetD
 	}
 }
 
-void UTcsDefAssetDataTableSyncSubsystem::OnAssetRenamed(const FAssetData& AssetData, const FString& OldObjectPath)
+void UTcsDefinitionEditorManagerSubsystem::OnAssetRenamed(const FAssetData& AssetData, const FString& OldObjectPath)
 {
 	if (bIsApplyingSync)
 	{
@@ -383,7 +400,7 @@ void UTcsDefAssetDataTableSyncSubsystem::OnAssetRenamed(const FAssetData& AssetD
 	}
 }
 
-void UTcsDefAssetDataTableSyncSubsystem::OnInMemoryAssetDeleted(UObject* AssetObject)
+void UTcsDefinitionEditorManagerSubsystem::OnInMemoryAssetDeleted(UObject* AssetObject)
 {
 	if (bIsApplyingSync)
 	{
@@ -403,6 +420,33 @@ void UTcsDefAssetDataTableSyncSubsystem::OnInMemoryAssetDeleted(UObject* AssetOb
 	}
 
 	FTcsRemovedDefAssetSnapshot Snapshot;
+	Snapshot.ObjectPath = NormalizeObjectPath(DefAssetObjectPath);
+	TryGetDefAssetSyncId(DefAsset, Snapshot.DefId);
+
+	if (const FTcsCachedDefAssetBinding* const CachedBinding = CachedDefAssetBindings.Find(Snapshot.ObjectPath))
+	{
+		if (Snapshot.DefId.IsNone())
+		{
+			Snapshot.DefId = CachedBinding->DefId;
+		}
+		Snapshot.TargetDataTable = CachedBinding->TargetDataTable;
+	}
+
+	if (Snapshot.TargetDataTable.IsNull())
+	{
+		if (const FTcsDataTableSyncConfig* const Config = FindSyncConfigByDefAssetPath(DefAssetObjectPath))
+		{
+			Snapshot.TargetDataTable = Config->TargetDataTable.ToSoftObjectPath();
+		}
+	}
+
+	if (!Snapshot.DefId.IsNone() && !Snapshot.TargetDataTable.IsNull())
+	{
+		PendingRemovedSnapshots.Add(DefAssetObjectPath, Snapshot);
+		QueueManagedDefAssetRemoval(DefAssetObjectPath);
+		return;
+	}
+
 	if (TryBuildRemovedSnapshot(DefAssetObjectPath, Snapshot))
 	{
 		PendingRemovedSnapshots.Add(DefAssetObjectPath, Snapshot);
@@ -410,7 +454,7 @@ void UTcsDefAssetDataTableSyncSubsystem::OnInMemoryAssetDeleted(UObject* AssetOb
 	}
 }
 
-bool UTcsDefAssetDataTableSyncSubsystem::ProcessDataTableSync(const FString& DataTableObjectPath)
+bool UTcsDefinitionEditorManagerSubsystem::ProcessDataTableSync(const FString& DataTableObjectPath)
 {
 	const FTcsDataTableSyncConfig* const Config = FindSyncConfigByDataTablePath(DataTableObjectPath);
 	if (!Config)
@@ -422,7 +466,7 @@ bool UTcsDefAssetDataTableSyncSubsystem::ProcessDataTableSync(const FString& Dat
 	if (!LoadManagedDataTable(*Config, DataTable) || !DataTable)
 	{
 		UE_LOG(LogTcsEditorSync, Warning,
-			TEXT("[UTcsDefAssetDataTableSyncSubsystem] Failed to load managed DataTable: %s"),
+			TEXT("[UTcsDefinitionEditorManagerSubsystem] Failed to load managed DataTable: %s"),
 			*DataTableObjectPath);
 		return false;
 	}
@@ -430,7 +474,7 @@ bool UTcsDefAssetDataTableSyncSubsystem::ProcessDataTableSync(const FString& Dat
 	return SyncDataTableToManagedDefAssets(*Config, *DataTable);
 }
 
-bool UTcsDefAssetDataTableSyncSubsystem::ProcessDefAssetSync(const FString& DefAssetObjectPath)
+bool UTcsDefinitionEditorManagerSubsystem::ProcessDefAssetSync(const FString& DefAssetObjectPath)
 {
 	const FTcsDataTableSyncConfig* const Config = FindSyncConfigByDefAssetPath(DefAssetObjectPath);
 	if (!Config)
@@ -448,7 +492,7 @@ bool UTcsDefAssetDataTableSyncSubsystem::ProcessDefAssetSync(const FString& DefA
 	if (!TryGetDefAssetSyncId(DefAsset, DefId) || DefId.IsNone())
 	{
 		UE_LOG(LogTcsEditorSync, Warning,
-			TEXT("[UTcsDefAssetDataTableSyncSubsystem] Managed DefAsset is missing DefId and cannot sync: %s"),
+			TEXT("[UTcsDefinitionEditorManagerSubsystem] Managed DefAsset is missing DefId and cannot sync: %s"),
 			*DefAssetObjectPath);
 		return false;
 	}
@@ -463,7 +507,7 @@ bool UTcsDefAssetDataTableSyncSubsystem::ProcessDefAssetSync(const FString& DefA
 	return SyncManagedDefAssetToDataTable(*Config, *DefAsset);
 }
 
-bool UTcsDefAssetDataTableSyncSubsystem::ProcessDefAssetRemoval(const FString& DefAssetObjectPath)
+bool UTcsDefinitionEditorManagerSubsystem::ProcessDefAssetRemoval(const FString& DefAssetObjectPath)
 {
 	FTcsRemovedDefAssetSnapshot Snapshot;
 	if (!PendingRemovedSnapshots.RemoveAndCopyValue(DefAssetObjectPath, Snapshot))
@@ -475,13 +519,13 @@ bool UTcsDefAssetDataTableSyncSubsystem::ProcessDefAssetRemoval(const FString& D
 	return RemoveDataTableRowForDeletedDefAsset(Snapshot);
 }
 
-bool UTcsDefAssetDataTableSyncSubsystem::SyncDataTableToManagedDefAssets(const FTcsDataTableSyncConfig& Config, UDataTable& DataTable)
+bool UTcsDefinitionEditorManagerSubsystem::SyncDataTableToManagedDefAssets(const FTcsDataTableSyncConfig& Config, UDataTable& DataTable)
 {
 	const UScriptStruct* const ExpectedRowStruct = ResolveExpectedDefDataTableRowStruct(Config.DefAssetClass.Get());
 	if (!ExpectedRowStruct || DataTable.GetRowStruct() != ExpectedRowStruct)
 	{
 		UE_LOG(LogTcsEditorSync, Error,
-			TEXT("[UTcsDefAssetDataTableSyncSubsystem] DataTable RowStruct mismatch. DataTable=%s Expected=%s Actual=%s"),
+			TEXT("[UTcsDefinitionEditorManagerSubsystem] DataTable RowStruct mismatch. DataTable=%s Expected=%s Actual=%s"),
 			*GetObjectPathString(DataTable),
 			ExpectedRowStruct ? *ExpectedRowStruct->GetPathName() : TEXT("None"),
 			DataTable.GetRowStruct() ? *DataTable.GetRowStruct()->GetPathName() : TEXT("None"));
@@ -511,7 +555,7 @@ bool UTcsDefAssetDataTableSyncSubsystem::SyncDataTableToManagedDefAssets(const F
 		if (!ExtractRowDataFromDataTable(DataTable, RowName, RowData))
 		{
 			UE_LOG(LogTcsEditorSync, Warning,
-				TEXT("[UTcsDefAssetDataTableSyncSubsystem] Failed to extract row '%s' from DataTable: %s"),
+				TEXT("[UTcsDefinitionEditorManagerSubsystem] Failed to extract row '%s' from DataTable: %s"),
 				*RowName.ToString(),
 				*GetObjectPathString(DataTable));
 			continue;
@@ -538,7 +582,7 @@ bool UTcsDefAssetDataTableSyncSubsystem::SyncDataTableToManagedDefAssets(const F
 			if (!TryApplyDefAssetDataTableRow(RowName, RowData, ExistingDefAsset))
 			{
 				UE_LOG(LogTcsEditorSync, Error,
-					TEXT("[UTcsDefAssetDataTableSyncSubsystem] Failed to apply DataTable row '%s' to DefAsset: %s"),
+					TEXT("[UTcsDefinitionEditorManagerSubsystem] Failed to apply DataTable row '%s' to DefAsset: %s"),
 					*RowName.ToString(),
 					**ExistingAssetPath);
 				continue;
@@ -555,11 +599,11 @@ bool UTcsDefAssetDataTableSyncSubsystem::SyncDataTableToManagedDefAssets(const F
 			continue;
 		}
 
-		FString AssetName = ObjectTools::SanitizeObjectName(RowName.ToString());
+		FString AssetName = BuildManagedDefAssetName(RowName);
 		if (AssetName.IsEmpty())
 		{
 			UE_LOG(LogTcsEditorSync, Error,
-				TEXT("[UTcsDefAssetDataTableSyncSubsystem] Cannot create DefAsset for row '%s' because the sanitized asset name is empty."),
+				TEXT("[UTcsDefinitionEditorManagerSubsystem] Cannot create DefAsset for row '%s' because the sanitized asset name is empty."),
 				*RowName.ToString());
 			continue;
 		}
@@ -581,7 +625,7 @@ bool UTcsDefAssetDataTableSyncSubsystem::SyncDataTableToManagedDefAssets(const F
 			if (!AssetPackage)
 			{
 				UE_LOG(LogTcsEditorSync, Error,
-					TEXT("[UTcsDefAssetDataTableSyncSubsystem] Failed to create package for new DefAsset: %s"),
+					TEXT("[UTcsDefinitionEditorManagerSubsystem] Failed to create package for new DefAsset: %s"),
 					*PackagePath);
 				continue;
 			}
@@ -594,7 +638,7 @@ bool UTcsDefAssetDataTableSyncSubsystem::SyncDataTableToManagedDefAssets(const F
 			if (!NewDefAsset)
 			{
 				UE_LOG(LogTcsEditorSync, Error,
-					TEXT("[UTcsDefAssetDataTableSyncSubsystem] Failed to instantiate managed DefAsset class '%s'."),
+					TEXT("[UTcsDefinitionEditorManagerSubsystem] Failed to instantiate managed DefAsset class '%s'."),
 					*GetNameSafe(Config.DefAssetClass.Get()));
 				continue;
 			}
@@ -605,7 +649,7 @@ bool UTcsDefAssetDataTableSyncSubsystem::SyncDataTableToManagedDefAssets(const F
 		if (!TryApplyDefAssetDataTableRow(RowName, RowData, NewDefAsset))
 		{
 			UE_LOG(LogTcsEditorSync, Error,
-				TEXT("[UTcsDefAssetDataTableSyncSubsystem] Failed to initialize new DefAsset from row '%s': %s"),
+				TEXT("[UTcsDefinitionEditorManagerSubsystem] Failed to initialize new DefAsset from row '%s': %s"),
 				*RowName.ToString(),
 				*NewAssetObjectPath);
 			continue;
@@ -652,7 +696,7 @@ bool UTcsDefAssetDataTableSyncSubsystem::SyncDataTableToManagedDefAssets(const F
 	return bAnyChangeApplied;
 }
 
-bool UTcsDefAssetDataTableSyncSubsystem::SyncManagedDefAssetToDataTable(const FTcsDataTableSyncConfig& Config, UPrimaryDataAsset& DefAsset)
+bool UTcsDefinitionEditorManagerSubsystem::SyncManagedDefAssetToDataTable(const FTcsDataTableSyncConfig& Config, UPrimaryDataAsset& DefAsset)
 {
 	UDataTable* DataTable = nullptr;
 	if (!LoadManagedDataTable(Config, DataTable) || !DataTable)
@@ -664,7 +708,7 @@ bool UTcsDefAssetDataTableSyncSubsystem::SyncManagedDefAssetToDataTable(const FT
 	if (!ExpectedRowStruct || DataTable->GetRowStruct() != ExpectedRowStruct)
 	{
 		UE_LOG(LogTcsEditorSync, Error,
-			TEXT("[UTcsDefAssetDataTableSyncSubsystem] DataTable RowStruct mismatch while syncing DefAsset '%s'."),
+			TEXT("[UTcsDefinitionEditorManagerSubsystem] DataTable RowStruct mismatch while syncing DefAsset '%s'."),
 			*GetObjectPathString(DefAsset));
 		return false;
 	}
@@ -674,7 +718,7 @@ bool UTcsDefAssetDataTableSyncSubsystem::SyncManagedDefAssetToDataTable(const FT
 	if (!TryBuildDefAssetDataTableRow(&DefAsset, RowName, RowData) || RowName.IsNone())
 	{
 		UE_LOG(LogTcsEditorSync, Warning,
-			TEXT("[UTcsDefAssetDataTableSyncSubsystem] Failed to build DataTable row from DefAsset: %s"),
+			TEXT("[UTcsDefinitionEditorManagerSubsystem] Failed to build DataTable row from DefAsset: %s"),
 			*GetObjectPathString(DefAsset));
 		return false;
 	}
@@ -685,7 +729,9 @@ bool UTcsDefAssetDataTableSyncSubsystem::SyncManagedDefAssetToDataTable(const FT
 	{
 		if (!CachedBinding->DefId.IsNone() && CachedBinding->DefId != RowName)
 		{
+			FDataTableEditorUtils::BroadcastPreChange(DataTable, FDataTableEditorUtils::EDataTableChangeInfo::RowList);
 			DataTable->RemoveRow(CachedBinding->DefId);
+			FDataTableEditorUtils::BroadcastPostChange(DataTable, FDataTableEditorUtils::EDataTableChangeInfo::RowList);
 			bDataTableChanged |= MarkLoadedAssetDirty(DataTable);
 		}
 	}
@@ -701,7 +747,7 @@ bool UTcsDefAssetDataTableSyncSubsystem::SyncManagedDefAssetToDataTable(const FT
 	if (!UpsertDataTableRow(*DataTable, RowName, RowData))
 	{
 		UE_LOG(LogTcsEditorSync, Error,
-			TEXT("[UTcsDefAssetDataTableSyncSubsystem] Failed to write row '%s' into DataTable: %s"),
+			TEXT("[UTcsDefinitionEditorManagerSubsystem] Failed to write row '%s' into DataTable: %s"),
 			*RowName.ToString(),
 			*GetObjectPathString(*DataTable));
 		return false;
@@ -712,12 +758,12 @@ bool UTcsDefAssetDataTableSyncSubsystem::SyncManagedDefAssetToDataTable(const FT
 	return bDataTableChanged;
 }
 
-bool UTcsDefAssetDataTableSyncSubsystem::RemoveDataTableRowForDeletedDefAsset(const FTcsRemovedDefAssetSnapshot& Snapshot)
+bool UTcsDefinitionEditorManagerSubsystem::RemoveDataTableRowForDeletedDefAsset(const FTcsRemovedDefAssetSnapshot& Snapshot)
 {
 	if (Snapshot.DefId.IsNone() || Snapshot.TargetDataTable.IsNull())
 	{
 		UE_LOG(LogTcsEditorSync, Error,
-			TEXT("[UTcsDefAssetDataTableSyncSubsystem] Cannot remove DataTable row for deleted DefAsset because DefId or TargetDataTable is missing. Asset=%s"),
+			TEXT("[UTcsDefinitionEditorManagerSubsystem] Cannot remove DataTable row for deleted DefAsset because DefId or TargetDataTable is missing. Asset=%s"),
 			*Snapshot.ObjectPath);
 		return false;
 	}
@@ -732,7 +778,7 @@ bool UTcsDefAssetDataTableSyncSubsystem::RemoveDataTableRowForDeletedDefAsset(co
 	if (!DataTable)
 	{
 		UE_LOG(LogTcsEditorSync, Warning,
-			TEXT("[UTcsDefAssetDataTableSyncSubsystem] Failed to load target DataTable while removing deleted DefAsset row. Asset=%s DataTable=%s"),
+			TEXT("[UTcsDefinitionEditorManagerSubsystem] Failed to load target DataTable while removing deleted DefAsset row. Asset=%s DataTable=%s"),
 			*Snapshot.ObjectPath,
 			*Snapshot.TargetDataTable.ToString());
 		return false;
@@ -743,12 +789,13 @@ bool UTcsDefAssetDataTableSyncSubsystem::RemoveDataTableRowForDeletedDefAsset(co
 		return false;
 	}
 
+	FDataTableEditorUtils::BroadcastPreChange(DataTable, FDataTableEditorUtils::EDataTableChangeInfo::RowList);
 	DataTable->RemoveRow(Snapshot.DefId);
-	DataTable->MarkPackageDirty();
-	return SaveLoadedAsset(DataTable);
+	FDataTableEditorUtils::BroadcastPostChange(DataTable, FDataTableEditorUtils::EDataTableChangeInfo::RowList);
+	return MarkLoadedAssetDirty(DataTable);
 }
 
-bool UTcsDefAssetDataTableSyncSubsystem::LoadManagedDataTable(const FTcsDataTableSyncConfig& Config, UDataTable*& OutDataTable) const
+bool UTcsDefinitionEditorManagerSubsystem::LoadManagedDataTable(const FTcsDataTableSyncConfig& Config, UDataTable*& OutDataTable) const
 {
 	OutDataTable = nullptr;
 
@@ -768,7 +815,7 @@ bool UTcsDefAssetDataTableSyncSubsystem::LoadManagedDataTable(const FTcsDataTabl
 	return OutDataTable != nullptr;
 }
 
-bool UTcsDefAssetDataTableSyncSubsystem::LoadManagedDefAsset(const FString& DefAssetObjectPath, UPrimaryDataAsset*& OutDefAsset) const
+bool UTcsDefinitionEditorManagerSubsystem::LoadManagedDefAsset(const FString& DefAssetObjectPath, UPrimaryDataAsset*& OutDefAsset) const
 {
 	OutDefAsset = nullptr;
 
@@ -782,7 +829,7 @@ bool UTcsDefAssetDataTableSyncSubsystem::LoadManagedDefAsset(const FString& DefA
 	return OutDefAsset != nullptr;
 }
 
-bool UTcsDefAssetDataTableSyncSubsystem::ExtractRowDataFromDataTable(const UDataTable& DataTable, const FName RowName, FInstancedStruct& OutRowData) const
+bool UTcsDefinitionEditorManagerSubsystem::ExtractRowDataFromDataTable(const UDataTable& DataTable, const FName RowName, FInstancedStruct& OutRowData) const
 {
 	OutRowData.Reset();
 
@@ -796,18 +843,20 @@ bool UTcsDefAssetDataTableSyncSubsystem::ExtractRowDataFromDataTable(const UData
 	return true;
 }
 
-bool UTcsDefAssetDataTableSyncSubsystem::UpsertDataTableRow(UDataTable& DataTable, const FName RowName, const FInstancedStruct& RowData) const
+bool UTcsDefinitionEditorManagerSubsystem::UpsertDataTableRow(UDataTable& DataTable, const FName RowName, const FInstancedStruct& RowData) const
 {
 	if (RowName.IsNone() || !RowData.IsValid() || DataTable.GetRowStruct() != RowData.GetScriptStruct())
 	{
 		return false;
 	}
 
+	FDataTableEditorUtils::BroadcastPreChange(&DataTable, FDataTableEditorUtils::EDataTableChangeInfo::RowList);
 	DataTable.AddRow(RowName, RowData.GetMemory(), RowData.GetScriptStruct());
+	FDataTableEditorUtils::BroadcastPostChange(&DataTable, FDataTableEditorUtils::EDataTableChangeInfo::RowList);
 	return true;
 }
 
-bool UTcsDefAssetDataTableSyncSubsystem::MarkLoadedAssetDirty(UObject* AssetObject) const
+bool UTcsDefinitionEditorManagerSubsystem::MarkLoadedAssetDirty(UObject* AssetObject) const
 {
 	if (!AssetObject)
 	{
@@ -818,19 +867,19 @@ bool UTcsDefAssetDataTableSyncSubsystem::MarkLoadedAssetDirty(UObject* AssetObje
 	return true;
 }
 
-bool UTcsDefAssetDataTableSyncSubsystem::SaveLoadedAsset(UObject* AssetObject) const
+bool UTcsDefinitionEditorManagerSubsystem::SaveLoadedAsset(UObject* AssetObject) const
 {
 	UEditorAssetSubsystem* const EditorAssetSubsystem = GetEditorAssetSubsystem();
 	return EditorAssetSubsystem && AssetObject && EditorAssetSubsystem->SaveLoadedAsset(AssetObject, true);
 }
 
-bool UTcsDefAssetDataTableSyncSubsystem::DeleteLoadedAsset(UObject* AssetObject)
+bool UTcsDefinitionEditorManagerSubsystem::DeleteLoadedAsset(UObject* AssetObject)
 {
 	UEditorAssetSubsystem* const EditorAssetSubsystem = GetEditorAssetSubsystem();
 	return EditorAssetSubsystem && AssetObject && EditorAssetSubsystem->DeleteLoadedAsset(AssetObject);
 }
 
-bool UTcsDefAssetDataTableSyncSubsystem::EnsureManagedDirectoryExists(const FString& ManagedDirectoryPath) const
+bool UTcsDefinitionEditorManagerSubsystem::EnsureManagedDirectoryExists(const FString& ManagedDirectoryPath) const
 {
 	UEditorAssetSubsystem* const EditorAssetSubsystem = GetEditorAssetSubsystem();
 	if (!EditorAssetSubsystem || ManagedDirectoryPath.IsEmpty())
@@ -842,7 +891,7 @@ bool UTcsDefAssetDataTableSyncSubsystem::EnsureManagedDirectoryExists(const FStr
 		|| EditorAssetSubsystem->MakeDirectory(ManagedDirectoryPath);
 }
 
-void UTcsDefAssetDataTableSyncSubsystem::RebuildManagedDefAssetBindings()
+void UTcsDefinitionEditorManagerSubsystem::RebuildManagedDefAssetBindings()
 {
 	CachedDefAssetBindings.Reset();
 
@@ -881,25 +930,25 @@ void UTcsDefAssetDataTableSyncSubsystem::RebuildManagedDefAssetBindings()
 	}
 }
 
-void UTcsDefAssetDataTableSyncSubsystem::RefreshDefinitionRegistry() const
+void UTcsDefinitionEditorManagerSubsystem::RefreshDefinitionRegistry() const
 {
-	if (UTcsDefinitionRegistrySubsystem* const DefinitionRegistry = GEngine ? GEngine->GetEngineSubsystem<UTcsDefinitionRegistrySubsystem>() : nullptr)
+	if (UTcsDefinitionRegistrySubsystem* const DefinitionRegistry = GEditor ? GEditor->GetEditorSubsystem<UTcsDefinitionRegistrySubsystem>() : nullptr)
 	{
 		DefinitionRegistry->RequestRefresh();
 	}
 }
 
-const UTcsDeveloperSettings* UTcsDefAssetDataTableSyncSubsystem::GetDeveloperSettings() const
+const UTcsDeveloperSettings* UTcsDefinitionEditorManagerSubsystem::GetDeveloperSettings() const
 {
 	return GetDefault<UTcsDeveloperSettings>();
 }
 
-UEditorAssetSubsystem* UTcsDefAssetDataTableSyncSubsystem::GetEditorAssetSubsystem() const
+UEditorAssetSubsystem* UTcsDefinitionEditorManagerSubsystem::GetEditorAssetSubsystem() const
 {
 	return GEditor ? GEditor->GetEditorSubsystem<UEditorAssetSubsystem>() : nullptr;
 }
 
-const FTcsDataTableSyncConfig* UTcsDefAssetDataTableSyncSubsystem::FindSyncConfigByDataTablePath(const FString& DataTableObjectPath) const
+const FTcsDataTableSyncConfig* UTcsDefinitionEditorManagerSubsystem::FindSyncConfigByDataTablePath(const FString& DataTableObjectPath) const
 {
 	const UTcsDeveloperSettings* const Settings = GetDeveloperSettings();
 	if (!Settings || !Settings->bEnableDataTableAutoSync)
@@ -924,7 +973,7 @@ const FTcsDataTableSyncConfig* UTcsDefAssetDataTableSyncSubsystem::FindSyncConfi
 	return nullptr;
 }
 
-const FTcsDataTableSyncConfig* UTcsDefAssetDataTableSyncSubsystem::FindSyncConfigByDefAssetPath(const FString& DefAssetObjectPath) const
+const FTcsDataTableSyncConfig* UTcsDefinitionEditorManagerSubsystem::FindSyncConfigByDefAssetPath(const FString& DefAssetObjectPath) const
 {
 	const UTcsDeveloperSettings* const Settings = GetDeveloperSettings();
 	if (!Settings || !Settings->bEnableDataTableAutoSync)
@@ -949,7 +998,7 @@ const FTcsDataTableSyncConfig* UTcsDefAssetDataTableSyncSubsystem::FindSyncConfi
 	return nullptr;
 }
 
-bool UTcsDefAssetDataTableSyncSubsystem::CollectManagedDefAssets(const FTcsDataTableSyncConfig& Config, TArray<FAssetData>& OutAssetData) const
+bool UTcsDefinitionEditorManagerSubsystem::CollectManagedDefAssets(const FTcsDataTableSyncConfig& Config, TArray<FAssetData>& OutAssetData) const
 {
 	OutAssetData.Reset();
 
@@ -968,20 +1017,20 @@ bool UTcsDefAssetDataTableSyncSubsystem::CollectManagedDefAssets(const FTcsDataT
 	return AssetRegistryModule.Get().GetAssetsByPath(FName(*ManagedDirectoryPath), OutAssetData, true, false);
 }
 
-void UTcsDefAssetDataTableSyncSubsystem::CacheDefAssetBinding(const FString& DefAssetObjectPath, const FName DefId, const FTcsDataTableSyncConfig& Config)
+void UTcsDefinitionEditorManagerSubsystem::CacheDefAssetBinding(const FString& DefAssetObjectPath, const FName DefId, const FTcsDataTableSyncConfig& Config)
 {
 	FTcsCachedDefAssetBinding& Binding = CachedDefAssetBindings.FindOrAdd(NormalizeObjectPath(DefAssetObjectPath));
 	Binding.DefId = DefId;
 	Binding.TargetDataTable = Config.TargetDataTable.ToSoftObjectPath();
 }
 
-void UTcsDefAssetDataTableSyncSubsystem::RemoveCachedDefAssetBinding(const FString& DefAssetObjectPath)
+void UTcsDefinitionEditorManagerSubsystem::RemoveCachedDefAssetBinding(const FString& DefAssetObjectPath)
 {
 	CachedDefAssetBindings.Remove(NormalizeObjectPath(DefAssetObjectPath));
 	PendingRemovedSnapshots.Remove(NormalizeObjectPath(DefAssetObjectPath));
 }
 
-bool UTcsDefAssetDataTableSyncSubsystem::TryBuildRemovedSnapshot(const FString& DefAssetObjectPath, FTcsRemovedDefAssetSnapshot& OutSnapshot) const
+bool UTcsDefinitionEditorManagerSubsystem::TryBuildRemovedSnapshot(const FString& DefAssetObjectPath, FTcsRemovedDefAssetSnapshot& OutSnapshot) const
 {
 	const FString NormalizedDefAssetPath = NormalizeObjectPath(DefAssetObjectPath);
 	if (const FTcsRemovedDefAssetSnapshot* const ExistingSnapshot = PendingRemovedSnapshots.Find(NormalizedDefAssetPath))
@@ -1009,12 +1058,12 @@ bool UTcsDefAssetDataTableSyncSubsystem::TryBuildRemovedSnapshot(const FString& 
 	return !OutSnapshot.TargetDataTable.IsNull();
 }
 
-void UTcsDefAssetDataTableSyncSubsystem::TrackSuppressedDefAssetRemoval(const FString& DefAssetObjectPath)
+void UTcsDefinitionEditorManagerSubsystem::TrackSuppressedDefAssetRemoval(const FString& DefAssetObjectPath)
 {
 	SuppressedDefAssetRemovalExpirations.Add(NormalizeObjectPath(DefAssetObjectPath), FPlatformTime::Seconds() + DefAssetRemovalSuppressionSeconds);
 }
 
-bool UTcsDefAssetDataTableSyncSubsystem::ConsumeSuppressedDefAssetRemoval(const FString& DefAssetObjectPath)
+bool UTcsDefinitionEditorManagerSubsystem::ConsumeSuppressedDefAssetRemoval(const FString& DefAssetObjectPath)
 {
 	const FString NormalizedDefAssetPath = NormalizeObjectPath(DefAssetObjectPath);
 	const double Now = FPlatformTime::Seconds();

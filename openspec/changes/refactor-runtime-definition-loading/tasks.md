@@ -26,13 +26,13 @@
 - [x] [AI] 2.7 清理 `AssetManagerSettings` 中把 `BuffDef` / `SkillDef` 共同挂在抽象 `TcsStateDef` 扫描路径下的旧配置与旧校验假设。
 
 ## 3. 编辑器期 Definition 管理中枢
-- [ ] [AI] 3.1 将现有 `UTcsDefAssetDataTableSyncSubsystem` 升级并重命名为 `UTcsDefinitionEditorManagerSubsystem`。
-- [ ] [AI] 3.2 让 `UTcsDefinitionEditorManagerSubsystem` 成为编辑器期 DefAsset / DataTable 的唯一桥接协调中心。
-- [ ] [AI] 3.3 为 `UTcsDefinitionEditorManagerSubsystem` 补齐受管 Def 的缓存、索引、脏标记、更新队列。
-- [ ] [AI] 3.4 让 `UTcsDefinitionEditorManagerSubsystem` 统一处理编辑器期资产事件监听与调度。
-- [ ] [AI] 3.5 明确并实现防递归回写策略，避免 DefAsset ↔ DataTable 互相影响时出现循环同步。
-- [ ] [AI] 3.6 将 `UTcsDefinitionRegistrySubsystem` 的源文件从 Runtime 模块（`Source/TireflyCombatSystem/`）迁移到 Editor 模块（`Source/TireflyCombatSystemEditor/`），因为第二阶段重构后运行时代码已不再引用该子系统，其实现几乎全部包裹在 `#if WITH_EDITOR` 中。
-- [ ] [协作] 3.7 验证 `UTcsDefinitionEditorManagerSubsystem` 不承担 runtime authoritative cache、runtime lifecycle 或通用 authoring 校验中枢职责。
+- [x] [AI] 3.1 将现有 `UTcsDefAssetDataTableSyncSubsystem` 升级并重命名为 `UTcsDefinitionEditorManagerSubsystem`。
+- [x] [AI] 3.2 让 `UTcsDefinitionEditorManagerSubsystem` 成为编辑器期 DefAsset / DataTable 的唯一桥接协调中心。
+- [x] [AI] 3.3 为 `UTcsDefinitionEditorManagerSubsystem` 补齐受管 Def 的缓存、索引、脏标记、更新队列。
+- [x] [AI] 3.4 让 `UTcsDefinitionEditorManagerSubsystem` 统一处理编辑器期资产事件监听与调度。
+- [x] [AI] 3.5 明确并实现防递归回写策略，避免 DefAsset ↔ DataTable 互相影响时出现循环同步。
+- [x] [AI] 3.6 将 `UTcsDefinitionRegistrySubsystem` 的源文件从 Runtime 模块（`Source/TireflyCombatSystem/`）迁移到 Editor 模块（`Source/TireflyCombatSystemEditor/`），因为第二阶段重构后运行时代码已不再引用该子系统，其实现几乎全部包裹在 `#if WITH_EDITOR` 中。
+- [x] [协作] 3.7 验证 `UTcsDefinitionEditorManagerSubsystem` 不承担 runtime authoritative cache、runtime lifecycle 或通用 authoring 校验中枢职责。
 
 ## 4. 运行时 Definition 加载层
 - [ ] [AI] 4.1 新增统一的运行时 Definition 管理子系统 `UTcsDefinitionManagerSubsystem`。

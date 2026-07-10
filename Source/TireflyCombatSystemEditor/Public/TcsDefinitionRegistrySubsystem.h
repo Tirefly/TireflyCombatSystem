@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Containers/Ticker.h"
-#include "Subsystems/EngineSubsystem.h"
+#include "EditorSubsystem.h"
 #include "TcsDefinitionRegistrySubsystem.generated.h"
 
 class UTcsAttributeDefinition;
@@ -41,12 +41,12 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FTcsDefinitionRegistryRefreshed, const UTcsD
  * 运行时 Definition 查询由 UTcsDefinitionManagerSubsystem 承担。
  */
 UCLASS()
-class TIREFLYCOMBATSYSTEM_API UTcsDefinitionRegistrySubsystem : public UEngineSubsystem
+class TIREFLYCOMBATSYSTEMEDITOR_API UTcsDefinitionRegistrySubsystem : public UEditorSubsystem
 {
 	GENERATED_BODY()
 
-// EngineSubsystem 生命周期
-#pragma region EngineSubsystem
+// EditorSubsystem 生命周期
+#pragma region EditorSubsystem
 
 public:
 	/** 注册编辑器回调并执行首次快照重建。 */

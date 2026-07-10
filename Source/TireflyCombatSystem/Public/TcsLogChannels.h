@@ -9,7 +9,7 @@
 #pragma region Generic
 
 // 战斗系统通用日志频道
-DECLARE_LOG_CATEGORY_EXTERN(LogTcs, Log, All);
+TIREFLYCOMBATSYSTEM_API DECLARE_LOG_CATEGORY_EXTERN(LogTcs, Log, All);
 
 #pragma endregion
 
@@ -18,13 +18,13 @@ DECLARE_LOG_CATEGORY_EXTERN(LogTcs, Log, All);
 #pragma region Attribute
 
 // 战斗系统属性模块日志频道
-DECLARE_LOG_CATEGORY_EXTERN(LogTcsAttribute, Log, All);
+TIREFLYCOMBATSYSTEM_API DECLARE_LOG_CATEGORY_EXTERN(LogTcsAttribute, Log, All);
 
 // 战斗系统属性修改器执行日志频道
-DECLARE_LOG_CATEGORY_EXTERN(LogTcsAttrModExec, Log, All);
+TIREFLYCOMBATSYSTEM_API DECLARE_LOG_CATEGORY_EXTERN(LogTcsAttrModExec, Log, All);
 
 // 战斗系统属性修改器合并日志频道
-DECLARE_LOG_CATEGORY_EXTERN(LogTcsAttrModMerger, Log, All);
+TIREFLYCOMBATSYSTEM_API DECLARE_LOG_CATEGORY_EXTERN(LogTcsAttrModMerger, Log, All);
 
 #pragma endregion
 
@@ -33,13 +33,13 @@ DECLARE_LOG_CATEGORY_EXTERN(LogTcsAttrModMerger, Log, All);
 #pragma region State
 
 // 战斗系统状态模块日志频道
-DECLARE_LOG_CATEGORY_EXTERN(LogTcsState, Log, All);
+TIREFLYCOMBATSYSTEM_API DECLARE_LOG_CATEGORY_EXTERN(LogTcsState, Log, All);
 
 // 战斗系统 Buff 合并执行日志频道
-DECLARE_LOG_CATEGORY_EXTERN(LogTcsBuffMerger, Log, All);
+TIREFLYCOMBATSYSTEM_API DECLARE_LOG_CATEGORY_EXTERN(LogTcsBuffMerger, Log, All);
 
 // 战斗系统状态条件执行日志频道
-DECLARE_LOG_CATEGORY_EXTERN(LogTcsStateCondition, Log, All);
+TIREFLYCOMBATSYSTEM_API DECLARE_LOG_CATEGORY_EXTERN(LogTcsStateCondition, Log, All);
 
 #pragma endregion
 
@@ -48,7 +48,7 @@ DECLARE_LOG_CATEGORY_EXTERN(LogTcsStateCondition, Log, All);
 #pragma region Skill
 
 // 战斗系统技能模块日志频道
-DECLARE_LOG_CATEGORY_EXTERN(LogTcsSkill, Log, All);
+TIREFLYCOMBATSYSTEM_API DECLARE_LOG_CATEGORY_EXTERN(LogTcsSkill, Log, All);
 
 #pragma endregion
 
@@ -57,6 +57,6 @@ DECLARE_LOG_CATEGORY_EXTERN(LogTcsSkill, Log, All);
 #pragma region StateTree
 
 // 战斗系统状态树日志频道
-DECLARE_LOG_CATEGORY_EXTERN(LogTcsStateTree, Log, All);
+TIREFLYCOMBATSYSTEM_API DECLARE_LOG_CATEGORY_EXTERN(LogTcsStateTree, Log, All);
 
 #pragma endregion

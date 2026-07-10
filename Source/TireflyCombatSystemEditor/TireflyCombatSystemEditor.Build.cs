@@ -25,8 +25,13 @@ public class TireflyCombatSystemEditor : ModuleRules
 			{
 				"AssetRegistry",
 				"AssetTools",
+				"DeveloperSettings",
 				"GameplayStateTreeModule",
+				"MainFrame",
+				"Slate",
+				"SlateCore",
 				"StateTreeEditorModule",
+				"ToolMenus",
 				"TireflyCombatSystem"
 			}
 		);

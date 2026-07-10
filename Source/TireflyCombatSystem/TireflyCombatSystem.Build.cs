@@ -53,10 +53,7 @@ public class TireflyCombatSystem : ModuleRules
 			PrivateDependencyModuleNames.AddRange(
 				new string[]
 				{
-					"AssetRegistry",
-					"MainFrame",
-					"ToolMenus",
-					"UnrealEd"
+					"AssetRegistry"
 				}
 			);
 		}
