@@ -2,7 +2,7 @@
 
 #include "Buff/TcsBuffComponent.h"
 
-#include "TcsDefinitionManagerSubsystem.h"
+#include "DefinitionManager/TcsDefinitionManagerSubsystem.h"
 #include "Buff/BuffMerger/TcsBuffMerger.h"
 #include "Buff/TcsBuffDefinition.h"
 #include "Buff/TcsBuffInstance.h"

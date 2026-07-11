@@ -28,6 +28,45 @@ class UPrimaryDataAsset;
 
 
 /**
+ * DefinitionAsset 运行时加载策略。
+ */
+UENUM(BlueprintType)
+enum class ETcsDefinitionLoadingStrategy : uint8
+{
+	// 启动时预加载该类型下的全部 DefinitionAsset
+	PreloadAll = 0		UMETA(DisplayName = "全部预加载", ToolTip = "启动时预加载该类型下的全部 DefinitionAsset"),
+
+	// 启动时只预加载显式指定的 DefinitionAsset，其余运行时按需同步解析
+	PreloadSelected = 1	UMETA(DisplayName = "只预加载特定资产", ToolTip = "启动时只预加载显式指定的 DefinitionAsset，其余运行时按需同步解析"),
+
+	// 启动时不预加载，全部在运行时首次访问时按需同步解析
+	OnDemand = 2		UMETA(DisplayName = "完全不预加载", ToolTip = "启动时不预加载，全部在运行时首次访问时按需同步解析"),
+};
+
+
+
+/**
+ * 单类 DefinitionAsset 的运行时加载配置。
+ */
+USTRUCT(BlueprintType)
+struct TIREFLYCOMBATSYSTEM_API FTcsDefinitionLoadingConfig
+{
+	GENERATED_BODY()
+
+public:
+	/** 当前 DefinitionAsset 类型采用的运行时加载策略。 */
+	UPROPERTY(Config, EditAnywhere, Category = "Definition Loading")
+	ETcsDefinitionLoadingStrategy LoadingStrategy = ETcsDefinitionLoadingStrategy::PreloadAll;
+
+	/** 仅在 PreloadSelected 策略下生效的预加载白名单。 */
+	UPROPERTY(Config, EditAnywhere, Category = "Definition Loading",
+		Meta = (EditCondition = "LoadingStrategy == ETcsDefinitionLoadingStrategy::PreloadSelected", EditConditionHides))
+	TArray<TSoftObjectPtr<UPrimaryDataAsset>> SpecificAssets;
+};
+
+
+
+/**
  * DataTable ↔ DefAsset 单条同步配置。
  *
  * 约束：一个受管目录严格对应一张显式绑定的 DataTable。
@@ -148,6 +187,36 @@ public:
 	 * @return 全部配置都合法时返回 true。
 	 */
 	bool ValidateAllConfigs(TArray<FText>& OutErrors, TArray<FText>& OutWarnings) const;
+
+#pragma endregion
+
+
+#pragma region DefinitionLoading
+
+public:
+	/** AttributeDefinition 的运行时加载配置。 */
+	UPROPERTY(Config, EditAnywhere, Category = "Definition Loading|Attribute")
+	FTcsDefinitionLoadingConfig AttributeDefinitionLoading;
+
+	/** AttributeModifierDefinition 的运行时加载配置。 */
+	UPROPERTY(Config, EditAnywhere, Category = "Definition Loading|Attribute")
+	FTcsDefinitionLoadingConfig AttributeModifierDefinitionLoading;
+
+	/** BuffDefinition 的运行时加载配置。 */
+	UPROPERTY(Config, EditAnywhere, Category = "Definition Loading|StateLike")
+	FTcsDefinitionLoadingConfig BuffDefinitionLoading;
+
+	/** SkillDefinition 的运行时加载配置。 */
+	UPROPERTY(Config, EditAnywhere, Category = "Definition Loading|StateLike")
+	FTcsDefinitionLoadingConfig SkillDefinitionLoading;
+
+	/** SkillModifierDefinition 的运行时加载配置。 */
+	UPROPERTY(Config, EditAnywhere, Category = "Definition Loading|Skill")
+	FTcsDefinitionLoadingConfig SkillModifierDefinitionLoading;
+
+	/** StateSlotDefinition 的运行时加载配置。 */
+	UPROPERTY(Config, EditAnywhere, Category = "Definition Loading|State")
+	FTcsDefinitionLoadingConfig StateSlotDefinitionLoading;
 
 #pragma endregion
 

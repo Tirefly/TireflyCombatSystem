@@ -3,7 +3,7 @@
 #include "Skill/TcsSkillComponent.h"
 
 #include "Engine/Engine.h"
-#include "TcsDefinitionManagerSubsystem.h"
+#include "DefinitionManager/TcsDefinitionManagerSubsystem.h"
 #include "Skill/TcsSkillEntry.h"
 #include "Skill/TcsSkillModifierDefinition.h"
 #include "Skill/TcsSkillInstance.h"

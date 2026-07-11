@@ -2,7 +2,7 @@
 
 #include "State/TcsStateComponent.h"
 
-#include "TcsDefinitionManagerSubsystem.h"
+#include "DefinitionManager/TcsDefinitionManagerSubsystem.h"
 #include "GameFramework/Actor.h"
 #include "State/TcsStateDefinition.h"
 #include "State/TcsStateManagerSubsystem.h"

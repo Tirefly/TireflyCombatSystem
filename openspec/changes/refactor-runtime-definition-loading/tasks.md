@@ -35,23 +35,37 @@
 - [x] [协作] 3.7 验证 `UTcsDefinitionEditorManagerSubsystem` 不承担 runtime authoritative cache、runtime lifecycle 或通用 authoring 校验中枢职责。
 
 ## 4. 运行时 Definition 加载层
-- [ ] [AI] 4.1 新增统一的运行时 Definition 管理子系统 `UTcsDefinitionManagerSubsystem`。
-- [ ] [AI] 4.2 将多类 DefinitionAsset 的 source cache、预加载策略、按需加载策略迁移到新子系统。
-- [ ] [AI] 4.3 为所有进入统一归口的 DefAsset 建立统一三种加载策略下的异步预加载主路径。
-- [ ] [AI] 4.4 为所有进入统一归口的 DefAsset 建立单资产粒度的按需异步加载主路径。
-- [ ] [AI] 4.5 若保留同步加载接口，明确它们只是运行时显式补充能力，不得反过来成为预加载主模型。
-- [ ] [AI] 4.6 为具体非抽象 DefAsset 类型建立统一加载配置面，并把现有 `DeveloperSettings` 明确收敛为统一三种加载策略配置，覆盖全部当前非抽象 DefAsset。
-- [ ] [AI] 4.7 调整 `AssetManagerSettings`：为 `BuffDef`、`SkillDef`、`StateSlotDef`、`AttributeDef`、`AttributeModifierDef`、`SkillModifierDef` 建立与加载配置粒度一致的 `PrimaryAssetType` 与扫描路径。
-- [ ] [AI] 4.8 从 `AssetManagerSettings` 中移除 `BuffDef` / `SkillDef` 共挂抽象 `TcsStateDef` 扫描路径的建模方式。
-- [ ] [AI] 4.9 为 `BuffDef`、`SkillDef`、`StateSlotDef`、`AttributeDef`、`AttributeModifierDef`、`SkillModifierDef` 提供类型化查询入口。
-- [ ] [AI] 4.9.1 明确并实现按 `DefId` 的类型化查询面；不得只提供弱类型通用入口。
-- [ ] [AI] 4.9.1.1 查询接口命名不强制区分 `Find` / `Get` / `TryResolve`，但最终保留面必须足够全面覆盖主执行路径。
-- [ ] [AI] 4.9.2 保留 `BuffDef` / `StateSlotDef` 的按 tag 查询语义；本次 change 不为其他 Definition 类型强行扩展新的 tag 查询契约。
-- [ ] [AI] 4.9.3 取消所有直接查询抽象 `StateDef` 的 public runtime 接口，并清理依赖这些接口的调用路径。
+- [x] [AI] 4.1 新增统一的运行时 Definition 管理子系统 `UTcsDefinitionManagerSubsystem`。
+- [x] [AI] 4.2 将多类 DefinitionAsset 的 source cache、预加载策略、按需加载策略迁移到新子系统。
+- [x] [AI] 4.2.1 在 `UTcsDefinitionManagerSubsystem` 中新增 source cache（`TMap<FName, TSoftObjectPtr<DefType>>`），与现有 loaded cache 分离。
+- [x] [AI] 4.2.2 `Initialize` 时先重建 source cache（不加载资产），再按配置执行预加载。
+- [x] [AI] 4.2.3 查询路径改为"先查 loaded cache → 未命中则从 source cache 按需同步加载 → 写入 loaded cache → 返回"。
+- [x] [AI] 4.2.4 `GetAll...DefIds()` 改为返回 source cache 的 key 集合，而非 loaded cache。
+- [x] [AI] 4.2.5 tag 查询在索引未命中时，从 source cache 逐条同步加载并匹配，命中后写入 loaded cache 与 tag 索引。
+- [x] [AI] 4.3 为所有进入统一归口的 DefAsset 建立统一三种加载策略下的异步预加载主路径。
+- [x] [AI] 4.3.1 新增 `RequestAsyncPreload()` 入口，使用 `UAssetManager::LoadPrimaryAssets` 异步加载。
+- [x] [AI] 4.3.2 `Initialize` 中根据 `DeveloperSettings` 配置触发异步预加载；`PreloadAll` 策略下异步加载全部，`PreloadSelected` 下只加载白名单。
+- [x] [AI] 4.3.3 异步预加载完成后将资产写入 loaded cache 与 tag 索引，并设置 `bIsRuntimeReady`。
+- [x] [AI] 4.4 为所有进入统一归口的 DefAsset 建立单资产粒度的按需异步加载主路径。
+- [x] [AI] 4.4.1 新增 `LoadDefinitionAsync()` 入口，使用 `UAssetManager::LoadPrimaryAsset` 异步加载单个资产。
+- [x] [AI] 4.4.2 异步加载完成后写入 loaded cache，并通过回调通知调用方。
+- [x] [AI] 4.4.3 定义异步加载完成回调委托类型，回调参数至少包含：`DefId`、加载结果（成功/失败）、加载完成的 Definition 指针（失败时为 nullptr）。
+- [x] [AI] 4.4.4 `LoadDefinitionAsync()` 在资产已在 loaded cache 中时立即同步回调，不走异步路径。
+- [x] [AI] 4.4.5 同一 `DefId` 的并发异步请求只发起一次实际加载，完成后统一广播给所有回调方。
+- [x] [AI] 4.5 若保留同步加载接口，明确它们只是运行时显式补充能力，不得反过来成为预加载主模型。
+- [x] [AI] 4.5.1 确认现有 `LoadSynchronous` 路径仅用于按需同步补充，不在 `Initialize` 中作为预加载主路径。
+- [x] [AI] 4.6 为具体非抽象 DefAsset 类型建立统一加载配置面，并把现有 `DeveloperSettings` 明确收敛为统一三种加载策略配置，覆盖全部当前非抽象 DefAsset。
+- [x] [AI] 4.7 调整 `AssetManagerSettings`：为 `BuffDef`、`SkillDef`、`StateSlotDef`、`AttributeDef`、`AttributeModifierDef`、`SkillModifierDef` 建立与加载配置粒度一致的 `PrimaryAssetType` 与扫描路径。
+- [x] [AI] 4.8 从 `AssetManagerSettings` 中移除 `BuffDef` / `SkillDef` 共挂抽象 `TcsStateDef` 扫描路径的建模方式。
+- [x] [AI] 4.9 为 `BuffDef`、`SkillDef`、`StateSlotDef`、`AttributeDef`、`AttributeModifierDef`、`SkillModifierDef` 提供类型化查询入口。
+- [x] [AI] 4.9.1 明确并实现按 `DefId` 的类型化查询面；不得只提供弱类型通用入口。
+- [x] [AI] 4.9.1.1 查询接口命名不强制区分 `Find` / `Get` / `TryResolve`，但最终保留面必须足够全面覆盖主执行路径。
+- [x] [AI] 4.9.2 保留 `BuffDef` / `StateSlotDef` 的按 tag 查询语义；本次 change 不为其他 Definition 类型强行扩展新的 tag 查询契约。
+- [x] [AI] 4.9.3 取消所有直接查询抽象 `StateDef` 的 public runtime 接口，并清理依赖这些接口的调用路径。
 - [ ] [AI] 4.9.4 将 `StateDefId` 相关查询与标识语义收紧到 `State` 模块内部；若实际检查后无必要，则直接清零。
 - [ ] [AI] 4.9.5 确保所有 Buff 相关 public API 若涉及 DefId，都统一使用 `BuffDefId`，不得继续对外使用 `StateDefId`。
-- [ ] [AI] 4.9.6 为按 `DefId` / 按 tag 的查询入口实现统一失败结果，不得伪造占位 Definition 或静默成功。
-- [ ] [AI] 4.9.7 为权威失败诊断补齐固定字段：查询 key / `DefId`、入口名、失败类别。
+- [x] [AI] 4.9.6 为按 `DefId` / 按 tag 的查询入口实现统一失败结果，不得伪造占位 Definition 或静默成功。
+- [x] [AI] 4.9.7 为权威失败诊断补齐固定字段：查询 key / `DefId`、入口名、失败类别。
 - [ ] [AI] 4.9.8 收窄 `UTcsDefinitionManagerSubsystem` 的 runtime-ready 契约；不得用跨 Definition 域的全局聚合就绪条件阻塞仅消费 `State` / `Attribute` 的运行时组件，必要时拆分为更贴近消费面的域内就绪判定。
 - [ ] [AI] 4.10 为新子系统补齐独立 capability 规格，避免与 `StateManagerSubsystem` 或编辑器期 registry / editor manager 职责混淆。
 

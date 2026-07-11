@@ -2,7 +2,7 @@
 
 #include "State/TcsStateComponent.h"
 
-#include "TcsDefinitionManagerSubsystem.h"
+#include "DefinitionManager/TcsDefinitionManagerSubsystem.h"
 #include "TcsEntityInterface.h"
 #include "TcsLogChannels.h"
 #include "Attribute/TcsAttributeManagerSubsystem.h"

@@ -2,7 +2,7 @@
 
 #include "Attribute/TcsAttributeComponent.h"
 
-#include "TcsDefinitionManagerSubsystem.h"
+#include "DefinitionManager/TcsDefinitionManagerSubsystem.h"
 #include "Attribute/TcsAttributeManagerSubsystem.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"

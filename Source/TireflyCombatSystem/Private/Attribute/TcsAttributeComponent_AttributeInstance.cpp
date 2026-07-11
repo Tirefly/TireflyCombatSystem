@@ -2,7 +2,7 @@
 
 #include "Attribute/TcsAttributeComponent.h"
 
-#include "TcsDefinitionManagerSubsystem.h"
+#include "DefinitionManager/TcsDefinitionManagerSubsystem.h"
 #include "TcsLogChannels.h"
 #include "Attribute/TcsAttributeManagerSubsystem.h"
 #include "Attribute/TcsAttributeDefinition.h"
