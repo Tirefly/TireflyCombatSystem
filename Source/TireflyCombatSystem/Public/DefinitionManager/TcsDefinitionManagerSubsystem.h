@@ -94,14 +94,23 @@ public:
 
 public:
 	/**
-	 * 查询当前 DefinitionManager 是否已进入 runtime-ready。
+	 * 查询当前 DefinitionManager 是否已完成全局异步预加载。
 	 *
-	 * @return 若当前子系统已完成初始化（含异步预加载）并可供运行时查询，则返回 true。
+	 * 此 flag 表示跨全部 Definition 域的预加载批次已完成，不区分具体域。
+	 * 仅消费单一 Definition 域（如 State 或 Attribute）的运行时组件
+	 * MUST NOT 以此全局就绪条件阻塞自身初始化；
+	 * 若需判断特定 Definition 是否可用，应直接调用对应的 Get...Definition() 检查返回值。
+	 *
+	 * @return 若当前子系统已完成异步预加载并可供运行时查询，则返回 true。
 	 */
 	UFUNCTION(BlueprintCallable, Category = "TireflyCombatSystem|Definition")
 	bool IsRuntimeReady() const { return bIsRuntimeReady; }
 
-	/** 异步预加载全部完成后的多播委托。在 bIsRuntimeReady 置为 true 时广播。 */
+	/**
+	 * 异步预加载全部完成后的多播委托。在 bIsRuntimeReady 置为 true 时广播。
+	 * 广播时机：全部预加载批次完成、或无资产需要预加载时立即广播。
+	 * 若监听者在广播后才注册，需自行检查 IsRuntimeReady() 决定是否立即执行。
+	 */
 	UPROPERTY(BlueprintAssignable, Category = "TireflyCombatSystem|Definition")
 	FOnTcsDefinitionManagerReady OnRuntimeReady;
 

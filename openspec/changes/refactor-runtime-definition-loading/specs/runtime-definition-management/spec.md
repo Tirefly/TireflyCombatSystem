@@ -148,6 +148,44 @@ TCS SHALL 新增 `UTcsDefinitionManagerSubsystem` 作为统一的运行时 Defin
 - **THEN** 该行为 MAY 作为独立编辑器工具链流程存在
 - **AND** 它 MUST NOT 被写成 `UTcsDefinitionManagerSubsystem` 的通用 runtime contract
 
+### Requirement: Runtime-ready 契约边界
+
+`UTcsDefinitionManagerSubsystem` SHALL 提供全局 runtime-ready 标记与完成委托，但该标记 MUST NOT 被解释为单一 Definition 域的就绪判定。仅消费特定域（如 State 或 Attribute）的运行时组件 MUST NOT 以全局聚合就绪条件阻塞自身初始化。
+
+#### Scenario: 全局 runtime-ready 不阻塞单一域消费方
+- **WHEN** 某个运行时组件（如 StateComponent 或 AttributeComponent）仅依赖特定 Definition 域
+- **THEN** 该组件 MUST NOT 将 `IsRuntimeReady()` 作为自身初始化的前置阻塞条件
+- **AND** 该组件 SHOULD 直接调用对应的 `Get...Definition()` 检查目标 Definition 是否已可用
+
+#### Scenario: 全局 runtime-ready 标记的语义边界
+- **WHEN** `UTcsDefinitionManagerSubsystem` 的 `bIsRuntimeReady` 被查询
+- **THEN** 该标记 MUST 只表示跨全部 Definition 域的预加载批次已完成
+- **AND** 该标记 MUST NOT 被解读为某个特定 Definition 域（如仅 Buff 或仅 Attribute）已全部加载
+
+#### Scenario: 预加载完成委托的广播时机
+- **WHEN** `OnRuntimeReady` 委托被广播
+- **THEN** 广播 MUST 在全部预加载批次完成后或确认无资产需预加载时发生
+- **AND** 在广播后才注册的监听者 MUST 自行检查 `IsRuntimeReady()` 决定是否立即执行
+
+### Requirement: 批量异步加载与蓝图可访问查询面
+
+`UTcsDefinitionManagerSubsystem` SHALL 为所有受管 DefAsset 类型提供批量异步加载入口与蓝图可访问的查询面，确保 C++ 和 Blueprint 调用方都能以一致的方式解析 Definition。
+
+#### Scenario: 批量异步加载入口覆盖全部受管类型
+- **WHEN** 调用方需要一次性异步加载多个同类型 DefAsset
+- **THEN** 子系统 MUST 为每种受管 DefAsset 类型提供批量异步加载入口
+- **AND** 批量入口 MUST 在全部请求完成后通过统一回调通知调用方，已在 loaded cache 中的资产跳过异步加载
+
+#### Scenario: Blueprint 可调用查询面
+- **WHEN** Blueprint 图表需要按 DefId 或按 tag 查询 Definition
+- **THEN** 子系统的全部 Get/GetAll/GetByTag 查询入口 MUST 标记为 `BlueprintCallable`
+- **AND** 预加载完成事件 MUST 以 `BlueprintAssignable` 多播委托暴露给 Blueprint
+
+#### Scenario: Blueprint 异步加载节点
+- **WHEN** Blueprint 图表需要异步加载单个或批量 Definition
+- **THEN** 子系统 MUST 通过 `BlueprintAsyncActionBase` 代理类暴露 latent 节点
+- **AND** 每种受管 DefAsset 类型 MUST 有对应的单资产与批量异步加载节点
+
 ### Requirement: 迁移归档前必须清零兼容包装
 
 如果某些旧 manager 或 gameplay API 在迁移期短暂保留 deprecated Definition 查询/对象型包装逻辑，这些逻辑 SHALL 只作为内部过渡层存在，并必须在 change 归档前清零对外 public API 面。

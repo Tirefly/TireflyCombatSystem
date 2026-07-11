@@ -62,12 +62,12 @@
 - [x] [AI] 4.9.1.1 查询接口命名不强制区分 `Find` / `Get` / `TryResolve`，但最终保留面必须足够全面覆盖主执行路径。
 - [x] [AI] 4.9.2 保留 `BuffDef` / `StateSlotDef` 的按 tag 查询语义；本次 change 不为其他 Definition 类型强行扩展新的 tag 查询契约。
 - [x] [AI] 4.9.3 取消所有直接查询抽象 `StateDef` 的 public runtime 接口，并清理依赖这些接口的调用路径。
-- [ ] [AI] 4.9.4 将 `StateDefId` 相关查询与标识语义收紧到 `State` 模块内部；若实际检查后无必要，则直接清零。
-- [ ] [AI] 4.9.5 确保所有 Buff 相关 public API 若涉及 DefId，都统一使用 `BuffDefId`，不得继续对外使用 `StateDefId`。
+- [x] [AI] 4.9.4 将 `StateDefId` 相关查询与标识语义收紧到 `State` 模块内部；若实际检查后无必要，则直接清零。
+- [x] [AI] 4.9.5 确保所有 Buff 相关 public API 若涉及 DefId，都统一使用 `BuffDefId`，不得继续对外使用 `StateDefId`。
 - [x] [AI] 4.9.6 为按 `DefId` / 按 tag 的查询入口实现统一失败结果，不得伪造占位 Definition 或静默成功。
 - [x] [AI] 4.9.7 为权威失败诊断补齐固定字段：查询 key / `DefId`、入口名、失败类别。
-- [ ] [AI] 4.9.8 收窄 `UTcsDefinitionManagerSubsystem` 的 runtime-ready 契约；不得用跨 Definition 域的全局聚合就绪条件阻塞仅消费 `State` / `Attribute` 的运行时组件，必要时拆分为更贴近消费面的域内就绪判定。
-- [ ] [AI] 4.10 为新子系统补齐独立 capability 规格，避免与 `StateManagerSubsystem` 或编辑器期 registry / editor manager 职责混淆。
+- [x] [AI] 4.9.8 收窄 `UTcsDefinitionManagerSubsystem` 的 runtime-ready 契约；不得用跨 Definition 域的全局聚合就绪条件阻塞仅消费 `State` / `Attribute` 的运行时组件，必要时拆分为更贴近消费面的域内就绪判定。
+- [x] [AI] 4.10 为新子系统补齐独立 capability 规格，避免与 `StateManagerSubsystem` 或编辑器期 registry / editor manager 职责混淆。
 
 ## 5. Manager / Registry 解耦
 - [ ] [AI] 5.1 从 `UTcsStateManagerSubsystem` 中移除 Definition cache/load 与 registry 刷新同步职责。
