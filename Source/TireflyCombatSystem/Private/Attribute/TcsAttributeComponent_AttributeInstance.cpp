@@ -4,7 +4,6 @@
 
 #include "DefinitionManager/TcsDefinitionManagerSubsystem.h"
 #include "TcsLogChannels.h"
-#include "Attribute/TcsAttributeManagerSubsystem.h"
 #include "Attribute/TcsAttributeDefinition.h"
 #include "Attribute/TcsAttributeModifierDefinition.h"
 
@@ -32,12 +31,6 @@ bool UTcsAttributeComponent::AddAttribute(FName AttributeName, float InitValue)
 		return LogAttributeRuntimeNotReady_AttrInstance(this, TEXT(__FUNCTION__));
 	}
 
-	UTcsAttributeManagerSubsystem* Mgr = ResolveAttributeManager();
-	if (!Mgr)
-	{
-		return false;
-	}
-
 	UTcsDefinitionManagerSubsystem* DefinitionManager = ResolveDefinitionManager();
 	if (!DefinitionManager)
 	{
@@ -63,7 +56,7 @@ bool UTcsAttributeComponent::AddAttribute(FName AttributeName, float InitValue)
 		return false;
 	}
 
-	FTcsAttributeInstance AttrInst = FTcsAttributeInstance(AttrDef, AttributeName, Mgr->AllocateAttributeInstanceId(), GetOwner(), InitValue);
+	FTcsAttributeInstance AttrInst = FTcsAttributeInstance(AttrDef, AttributeName, AllocateAttributeInstanceId(), GetOwner(), InitValue);
 	Attributes.Add(AttributeName, AttrInst);
 
 	// Clamp initialization values to the configured range (static or dynamic).
@@ -87,12 +80,6 @@ void UTcsAttributeComponent::AddAttributes(const TArray<FName>& AttributeNames)
 	if (!IsRuntimePrepared())
 	{
 		LogAttributeRuntimeNotReadyVoid_AttrInstance(this, TEXT(__FUNCTION__));
-		return;
-	}
-
-	UTcsAttributeManagerSubsystem* Mgr = ResolveAttributeManager();
-	if (!Mgr)
-	{
 		return;
 	}
 
@@ -125,7 +112,7 @@ void UTcsAttributeComponent::AddAttributes(const TArray<FName>& AttributeNames)
 			continue;
 		}
 
-		FTcsAttributeInstance AttrInst = FTcsAttributeInstance(AttrDef, AttributeName, Mgr->AllocateAttributeInstanceId(), GetOwner());
+		FTcsAttributeInstance AttrInst = FTcsAttributeInstance(AttrDef, AttributeName, AllocateAttributeInstanceId(), GetOwner());
 		Attributes.Add(AttributeName, AttrInst);
 
 		// Clamp initialization values to the configured range (static or dynamic).
@@ -153,14 +140,8 @@ bool UTcsAttributeComponent::AddAttributeByTag(const FGameplayTag& AttributeTag,
 		return LogAttributeRuntimeNotReady_AttrInstance(this, TEXT(__FUNCTION__));
 	}
 
-	UTcsAttributeManagerSubsystem* Mgr = ResolveAttributeManager();
-	if (!Mgr)
-	{
-		return false;
-	}
-
-	FName AttributeName;
-	if (!Mgr->TryResolveAttributeNameByTag(AttributeTag, AttributeName))
+	FName AttributeName = ResolveDefinitionManager()->ResolveAttributeDefIdByTag(AttributeTag);
+	if (AttributeName.IsNone())
 	{
 		UE_LOG(LogTcsAttribute, Warning,
 			TEXT("[%s] Failed to resolve AttributeTag '%s' to AttributeName"),

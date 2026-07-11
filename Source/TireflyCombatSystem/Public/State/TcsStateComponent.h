@@ -16,8 +16,6 @@
 
 class UTcsStateComponent;
 class UTcsStateInstance;
-class UTcsStateManagerSubsystem;
-class UTcsAttributeManagerSubsystem;
 class UTcsBuffComponent;
 class UTcsRuntimeBootstrapSubsystem;
 class UTcsStateDefinition;
@@ -493,39 +491,36 @@ protected:
 #pragma endregion
 
 
+// ManagerReferences
 #pragma region ManagerReferences
+
+protected:
+	/** 全局自增的 StateInstance ID 计数器（进程级唯一）。 */
+	static int32 NextStateInstanceId;
+
+	/** 全局自增的 SourceHandle ID 计数器（进程级唯一）。 */
+	static int32 NextSourceHandleId;
 
 public:
 	/**
-	 * 获取共享 StateManager。
+	 * 分配全局唯一的 StateInstance ID。
 	 *
-	 * @return 共享 StateManager 子系统；失败时返回 nullptr
+	 * @return 新分配的 Instance ID。
 	 */
-	UTcsStateManagerSubsystem* GetStateManager() const { return const_cast<UTcsStateComponent*>(this)->ResolveStateManager(); }
-
-protected:
-	// 状态管理器子系统
-	UPROPERTY()
-	TObjectPtr<UTcsStateManagerSubsystem> StateMgr;
-
-	// 属性管理器子系统（迁移期缓存，供 Phase D/E 下沉的生命周期/清理逻辑直接访问）
-	UPROPERTY()
-	TObjectPtr<UTcsAttributeManagerSubsystem> AttrMgr;
+	static int32 AllocateStateInstanceId() { return ++NextStateInstanceId; }
 
 	/**
-	 * 懒加载获取 StateManager
-	 * BeginPlay 已预热；业务方法中若首访为空，会在此补拉取并 ensureMsgf 诊断
+	 * 创建一个全局唯一的 SourceHandle。
 	 *
-	 * @return StateManager 指针；失败时返回 nullptr 并触发 ensureMsgf
+	 * @param CausalityChain 因果链（从根源到直接父级的完整链）。
+	 * @param Instigator 实际造成效果的运行时 Actor。
+	 * @param SourceTags 来源类型标签（可选）。
+	 * @return 新创建的 SourceHandle。
 	 */
-	UTcsStateManagerSubsystem* ResolveStateManager();
-
-	/**
-	 * 懒加载获取 AttributeManager
-	 *
-	 * @return AttributeManager 指针；失败时返回 nullptr 并触发 ensureMsgf
-	 */
-	UTcsAttributeManagerSubsystem* ResolveAttributeManager();
+	static FTcsSourceHandle CreateSourceHandle(
+		const TArray<FPrimaryAssetId>& CausalityChain = {},
+		AActor* Instigator = nullptr,
+		const FGameplayTagContainer& SourceTags = {});
 
 #pragma endregion
 

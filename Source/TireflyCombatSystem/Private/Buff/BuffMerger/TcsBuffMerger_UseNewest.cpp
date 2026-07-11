@@ -70,6 +70,6 @@ void UTcsBuffMerger_UseNewest::Merge_Implementation(
 		}
 	}
 
-	// 其它状态的移除/回收由 StateManagerSubsystem 负责
+	// 其它状态的移除/回收由 StateComponent 自身生命周期管理
 	// NOTE: Merger should not decide lifetime/GC; subsystem will remove unmerged instances.
 }

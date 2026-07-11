@@ -5,7 +5,6 @@
 #include "DefinitionManager/TcsDefinitionManagerSubsystem.h"
 #include "TcsEntityInterface.h"
 #include "TcsLogChannels.h"
-#include "Attribute/TcsAttributeManagerSubsystem.h"
 #include "Attribute/TcsAttributeModifierDefinition.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
 
@@ -47,12 +46,6 @@ bool UTcsAttributeComponent::CreateAttributeModifier(
 	{
 		OutModifierInst = FTcsAttributeModifierInstance();
 		return LogAttributeRuntimeNotReady_Modifiers(this, TEXT(__FUNCTION__));
-	}
-
-	UTcsAttributeManagerSubsystem* Mgr = ResolveAttributeManager();
-	if (!Mgr)
-	{
-		return false;
 	}
 
 	if (!IsValid(Instigator))
@@ -100,7 +93,7 @@ bool UTcsAttributeComponent::CreateAttributeModifier(
 		return false;
 	}
 
-	OutModifierInst.ModifierInstId = Mgr->AllocateModifierInstanceId();
+	OutModifierInst.ModifierInstId = AllocateModifierInstanceId();
 	OutModifierInst.Instigator = Instigator;
 	OutModifierInst.Target = GetOwner();
 	OutModifierInst.Operands = ModifierDef->Operands;
@@ -118,12 +111,6 @@ bool UTcsAttributeComponent::CreateAttributeModifierWithBindings(
 	{
 		OutModifierInst = FTcsAttributeModifierInstance();
 		return LogAttributeRuntimeNotReady_Modifiers(this, TEXT(__FUNCTION__));
-	}
-
-	UTcsAttributeManagerSubsystem* Mgr = ResolveAttributeManager();
-	if (!Mgr)
-	{
-		return false;
 	}
 
 	if (!IsValid(Instigator))
@@ -158,7 +145,7 @@ bool UTcsAttributeComponent::CreateAttributeModifierWithBindings(
 	OutModifierInst = FTcsAttributeModifierInstance();
 	OutModifierInst.ModifierDef = ModifierDef;
 	OutModifierInst.ModifierId = ModifierId;
-	OutModifierInst.ModifierInstId = Mgr->AllocateModifierInstanceId();
+	OutModifierInst.ModifierInstId = AllocateModifierInstanceId();
 	OutModifierInst.Instigator = Instigator;
 	OutModifierInst.Target = GetOwner();
 
@@ -185,17 +172,11 @@ void UTcsAttributeComponent::ApplyModifier(TArray<FTcsAttributeModifierInstance>
 		return;
 	}
 
-	UTcsAttributeManagerSubsystem* Mgr = ResolveAttributeManager();
-	if (!Mgr)
-	{
-		return;
-	}
-
 	TArray<FTcsAttributeModifierInstance> ModifiersToExecute;
 	TArray<FTcsAttributeModifierInstance> ModifiersToApply;
 	ModifiersToExecute.Reserve(Modifiers.Num());
 	ModifiersToApply.Reserve(Modifiers.Num());
-	const int64 BatchId = Mgr->AllocateModifierChangeBatchId();
+	const int64 BatchId = AllocateModifierChangeBatchId();
 	const int64 UtcNowTicks = FDateTime::UtcNow().GetTicks();
 
 	// 区分修改属性 Base 值和 Current 值的两种修改器
@@ -382,13 +363,7 @@ void UTcsAttributeComponent::RemoveModifier(TArray<FTcsAttributeModifierInstance
 		return;
 	}
 
-	UTcsAttributeManagerSubsystem* Mgr = ResolveAttributeManager();
-	if (!Mgr)
-	{
-		return;
-	}
-
-	const int64 BatchId = Mgr->AllocateModifierChangeBatchId();
+	const int64 BatchId = AllocateModifierChangeBatchId();
 	bool bModified = false;
 	TArray<FTcsAttributeModifierInstance> RemovedModifiers;
 	RemovedModifiers.Reserve(Modifiers.Num());
@@ -478,12 +453,6 @@ bool UTcsAttributeComponent::RemoveModifiersBySourceHandle(const FTcsSourceHandl
 		return false;
 	}
 
-	UTcsAttributeManagerSubsystem* Mgr = ResolveAttributeManager();
-	if (!Mgr)
-	{
-		return false;
-	}
-
 	UE_LOG(LogTcsAttribute, VeryVerbose,
 		TEXT("[Perf][%s] SourceId=%d BucketSize=%d StoredCurrentModifiers=%d"),
 		*FString(__FUNCTION__),
@@ -491,7 +460,7 @@ bool UTcsAttributeComponent::RemoveModifiersBySourceHandle(const FTcsSourceHandl
 		InstIdsPtr->Num(),
 		AttributeModifiers.Num());
 
-	return RemoveStoredModifiersByInstIds(*InstIdsPtr, Mgr->AllocateModifierChangeBatchId());
+	return RemoveStoredModifiersByInstIds(*InstIdsPtr, AllocateModifierChangeBatchId());
 }
 
 bool UTcsAttributeComponent::GetModifiersBySourceHandle(
@@ -545,14 +514,8 @@ void UTcsAttributeComponent::HandleModifierUpdated(TArray<FTcsAttributeModifierI
 		return;
 	}
 
-	UTcsAttributeManagerSubsystem* Mgr = ResolveAttributeManager();
-	if (!Mgr)
-	{
-		return;
-	}
-
 	bool bModified = false;
-	const int64 BatchId = Mgr->AllocateModifierChangeBatchId();
+	const int64 BatchId = AllocateModifierChangeBatchId();
 	const int64 UtcNowTicks = FDateTime::UtcNow().GetTicks();
 	TArray<FTcsAttributeModifierInstance> UpdatedModifiers;
 	UpdatedModifiers.Reserve(Modifiers.Num());

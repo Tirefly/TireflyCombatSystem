@@ -13,7 +13,6 @@
 
 
 
-class UTcsAttributeManagerSubsystem;
 class UTcsDefinitionManagerSubsystem;
 class UTcsAttributeDefinition;
 class UTcsAttributeModifierDefinition;
@@ -48,7 +47,6 @@ class TIREFLYCOMBATSYSTEM_API UTcsAttributeComponent : public UActorComponent
 
 #pragma region FriendClasses
 
-	friend class UTcsAttributeManagerSubsystem;
 	friend class UTcsRuntimeBootstrapSubsystem;
 
 #pragma endregion
@@ -110,27 +108,34 @@ protected:
 #pragma endregion
 
 
+// 全局 ID 工厂与 DefinitionManager 引用
 #pragma region ManagerReference
 
 protected:
+	/** 全局自增的 AttributeInstance ID 计数器（进程级唯一）。 */
+	static int32 NextAttributeInstanceId;
 
-	/** 缓存的 AttributeManager 指针。 */
-	UPROPERTY()
-	TObjectPtr<UTcsAttributeManagerSubsystem> AttrMgr;
+	/** 全局自增的 ModifierInstance ID 计数器（进程级唯一）。 */
+	static int32 NextModifierInstanceId;
+
+	/** 全局自增的 ModifierChangeBatchId 计数器（进程级唯一）。 */
+	static int64 NextModifierChangeBatchId;
 
 	/** 缓存的 DefinitionManager 指针。 */
 	UPROPERTY()
 	TObjectPtr<UTcsDefinitionManagerSubsystem> DefinitionMgr;
 
-	/**
-	 * 懒加载获取 AttributeManager。
-	 *
-	 * BeginPlay 已预热；业务方法中若首访为空，会在此补拉取并 ensureMsgf 诊断。
-	 *
-	 * @return AttributeManager 指针；失败时返回 nullptr 并触发 ensureMsgf
-	 */
-	UTcsAttributeManagerSubsystem* ResolveAttributeManager();
+public:
+	/** 分配全局唯一的 AttributeInstance ID。 */
+	static int32 AllocateAttributeInstanceId() { return ++NextAttributeInstanceId; }
 
+	/** 分配全局唯一的 ModifierInstance ID。 */
+	static int32 AllocateModifierInstanceId() { return ++NextModifierInstanceId; }
+
+	/** 分配全局唯一的 ModifierChangeBatchId。 */
+	static int64 AllocateModifierChangeBatchId() { return ++NextModifierChangeBatchId; }
+
+protected:
 	/**
 	 * 懒加载获取 DefinitionManager。
 	 *

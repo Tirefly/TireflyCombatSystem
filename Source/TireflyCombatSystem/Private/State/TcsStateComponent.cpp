@@ -8,9 +8,7 @@
 #include "GameFramework/Actor.h"
 #include "Engine/GameInstance.h"
 #include "State/TcsStateInstance.h"
-#include "State/TcsStateManagerSubsystem.h"
 #include "State/TcsStateSlotDefinition.h"
-#include "Attribute/TcsAttributeManagerSubsystem.h"
 #include "Runtime/TcsRuntimeBootstrapSubsystem.h"
 #include "Engine/World.h"
 #include "Engine/DataTable.h"
@@ -19,6 +17,11 @@
 #include "State/StateParameter/TcsStateNumericParameter.h"
 #include "State/StateParameter/TcsStateVectorParameter.h"
 #include "State/SamePriorityPolicy/TcsStateSamePriorityPolicy.h"
+
+
+
+int32 UTcsStateComponent::NextStateInstanceId = 0;
+int32 UTcsStateComponent::NextSourceHandleId = -1;
 
 
 
@@ -67,8 +70,6 @@ void UTcsStateComponent::UninitializeComponent()
 	bStateRuntimeActive = false;
 	bIsStartingStateRuntime = false;
 	bIsStoppingStateRuntime = false;
-	StateMgr = nullptr;
-	AttrMgr = nullptr;
 	RuntimeBootstrapSubsystem = nullptr;
 
 	Super::UninitializeComponent();
@@ -85,47 +86,14 @@ void UTcsStateComponent::BeginPlay()
 			BootstrapSubsystem->NotifyComponentRuntimeStateChanged(this);
 		}
 	}
-
-#if !UE_BUILD_SHIPPING
-	// 预热自测断言：GameInstanceSubsystem 在 BeginPlay 之前必然完成 Initialize，
-	// 若此处仍为空表明 Subsystem 生命周期被破坏，立即暴露。
-	checkf(StateMgr, TEXT("StateMgr resolve failed in BeginPlay for %s; GameInstanceSubsystem lifecycle broken."), *GetPathName());
-	checkf(AttrMgr, TEXT("AttrMgr resolve failed in BeginPlay for %s; GameInstanceSubsystem lifecycle broken."), *GetPathName());
-#endif
 }
 
-UTcsStateManagerSubsystem* UTcsStateComponent::ResolveStateManager()
+FTcsSourceHandle UTcsStateComponent::CreateSourceHandle(
+	const TArray<FPrimaryAssetId>& CausalityChain,
+	AActor* Instigator,
+	const FGameplayTagContainer& SourceTags)
 {
-	if (!StateMgr)
-	{
-		if (UWorld* World = GetWorld())
-		{
-			if (UGameInstance* GI = World->GetGameInstance())
-			{
-				StateMgr = GI->GetSubsystem<UTcsStateManagerSubsystem>();
-			}
-		}
-		ensureMsgf(StateMgr, TEXT("[%s] Failed to resolve StateManagerSubsystem for %s"),
-			*FString(__FUNCTION__), *GetPathName());
-	}
-	return StateMgr;
-}
-
-UTcsAttributeManagerSubsystem* UTcsStateComponent::ResolveAttributeManager()
-{
-	if (!AttrMgr)
-	{
-		if (UWorld* World = GetWorld())
-		{
-			if (UGameInstance* GI = World->GetGameInstance())
-			{
-				AttrMgr = GI->GetSubsystem<UTcsAttributeManagerSubsystem>();
-			}
-		}
-		ensureMsgf(AttrMgr, TEXT("[%s] Failed to resolve AttributeManagerSubsystem for %s"),
-			*FString(__FUNCTION__), *GetPathName());
-	}
-	return AttrMgr;
+	return FTcsSourceHandle(++NextSourceHandleId, CausalityChain, Instigator, SourceTags);
 }
 
 bool UTcsStateComponent::IsRuntimeReady() const
@@ -135,20 +103,21 @@ bool UTcsStateComponent::IsRuntimeReady() const
 
 bool UTcsStateComponent::PrepareStateRuntime()
 {
-	UTcsStateManagerSubsystem* LocalStateManager = ResolveStateManager();
-	UTcsAttributeManagerSubsystem* LocalAttributeManager = ResolveAttributeManager();
-	if (!LocalStateManager || !LocalAttributeManager)
+	// 仅需确保 DefinitionManager 已就绪——不再依赖独立的 State/Attribute Manager 子系统
+	if (UWorld* World = GetWorld())
 	{
-		bRuntimePrepared = false;
-		bStateSlotMappingsReady = false;
-		return false;
-	}
-
-	if (!LocalStateManager->IsRuntimeReady() || !LocalAttributeManager->IsRuntimeReady())
-	{
-		bRuntimePrepared = false;
-		bStateSlotMappingsReady = false;
-		return false;
+		if (UGameInstance* GI = World->GetGameInstance())
+		{
+			if (UTcsDefinitionManagerSubsystem* DefMgr = GI->GetSubsystem<UTcsDefinitionManagerSubsystem>())
+			{
+				if (!DefMgr->IsRuntimeReady())
+				{
+					bRuntimePrepared = false;
+					bStateSlotMappingsReady = false;
+					return false;
+				}
+			}
+		}
 	}
 
 	bStateSlotMappingsReady = InitStateSlotMappings();

@@ -226,6 +226,26 @@ public:
 	const UTcsAttributeDefinition* GetAttributeDefinition(FName AttributeDefId) const;
 
 	/**
+	 * 通过 GameplayTag 获取 Attribute 定义资产。
+	 *
+	 * 先查 tag 索引；未命中则从 source cache 逐条同步加载并匹配 tag。
+	 *
+	 * @param AttributeTag Attribute 语义标签。
+	 * @return Attribute 定义资产指针；未找到时返回 nullptr。
+	 */
+	UFUNCTION(BlueprintCallable, Category = "TireflyCombatSystem|Definition")
+	const UTcsAttributeDefinition* GetAttributeDefinitionByTag(FGameplayTag AttributeTag) const;
+
+	/**
+	 * 通过 GameplayTag 解析对应的 AttributeDefId。
+	 *
+	 * @param AttributeTag 要解析的 Attribute 语义标签。
+	 * @return 对应的 AttributeDefId；未找到时返回 NAME_None。
+	 */
+	UFUNCTION(BlueprintCallable, Category = "TireflyCombatSystem|Definition")
+	FName ResolveAttributeDefIdByTag(FGameplayTag AttributeTag) const;
+
+	/**
 	 * 获取 AttributeModifier 定义资产。
 	 *
 	 * 先查 loaded cache；未命中则从 source cache 按需同步加载并写入 loaded cache。
@@ -590,6 +610,9 @@ public:
 
 	/** StateSlotTag 到 StateSlotDefId 的运行时查询索引。 */
 	mutable TMap<FGameplayTag, FName> StateSlotTagToDefId;
+
+	/** AttributeTag 到 AttributeDefId 的运行时查询索引。 */
+	mutable TMap<FGameplayTag, FName> AttributeTagToDefId;
 
 #pragma endregion
 };

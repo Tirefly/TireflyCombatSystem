@@ -3,11 +3,17 @@
 #include "Attribute/TcsAttributeComponent.h"
 
 #include "DefinitionManager/TcsDefinitionManagerSubsystem.h"
-#include "Attribute/TcsAttributeManagerSubsystem.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
 #include "Runtime/TcsRuntimeBootstrapSubsystem.h"
 #include "TcsLogChannels.h"
+
+
+
+int32 UTcsAttributeComponent::NextAttributeInstanceId = -1;
+int32 UTcsAttributeComponent::NextModifierInstanceId = -1;
+int64 UTcsAttributeComponent::NextModifierChangeBatchId = -1;
+
 
 
 namespace
@@ -50,7 +56,6 @@ void UTcsAttributeComponent::UninitializeComponent()
 	}
 
 	bRuntimePrepared = false;
-	AttrMgr = nullptr;
 	RuntimeBootstrapSubsystem = nullptr;
 
 	Super::UninitializeComponent();
@@ -67,29 +72,6 @@ void UTcsAttributeComponent::BeginPlay()
 			BootstrapSubsystem->NotifyComponentRuntimeStateChanged(this);
 		}
 	}
-
-#if !UE_BUILD_SHIPPING
-	// 预热自测断言：GameInstanceSubsystem 在 BeginPlay 之前必然完成 Initialize，
-	// 若此处仍为空表明 Subsystem 生命周期被破坏，立即暴露。
-	checkf(AttrMgr, TEXT("AttrMgr resolve failed in BeginPlay for %s; GameInstanceSubsystem lifecycle broken."), *GetPathName());
-#endif
-}
-
-UTcsAttributeManagerSubsystem* UTcsAttributeComponent::ResolveAttributeManager()
-{
-	if (!AttrMgr)
-	{
-		if (UWorld* World = GetWorld())
-		{
-			if (UGameInstance* GI = World->GetGameInstance())
-			{
-				AttrMgr = GI->GetSubsystem<UTcsAttributeManagerSubsystem>();
-			}
-		}
-		ensureMsgf(AttrMgr, TEXT("[%s] Failed to resolve AttributeManagerSubsystem for %s"),
-			*FString(__FUNCTION__), *GetPathName());
-	}
-	return AttrMgr;
 }
 
 UTcsDefinitionManagerSubsystem* UTcsAttributeComponent::ResolveDefinitionManager()
@@ -111,8 +93,19 @@ UTcsDefinitionManagerSubsystem* UTcsAttributeComponent::ResolveDefinitionManager
 
 bool UTcsAttributeComponent::PrepareAttributeRuntime()
 {
-	UTcsAttributeManagerSubsystem* LocalAttributeManager = ResolveAttributeManager();
-	bRuntimePrepared = (LocalAttributeManager != nullptr) && LocalAttributeManager->IsRuntimeReady();
+	// 直接检查 DefinitionManager 是否 runtime-ready
+	if (UWorld* World = GetWorld())
+	{
+		if (UGameInstance* GI = World->GetGameInstance())
+		{
+			if (UTcsDefinitionManagerSubsystem* DefMgr = GI->GetSubsystem<UTcsDefinitionManagerSubsystem>())
+			{
+				bRuntimePrepared = DefMgr->IsRuntimeReady();
+				return bRuntimePrepared;
+			}
+		}
+	}
+	bRuntimePrepared = false;
 	return bRuntimePrepared;
 }
 
@@ -156,14 +149,8 @@ bool UTcsAttributeComponent::HasAttributeByTag(const FGameplayTag& AttributeTag)
 		return LogAttributeRuntimeNotReady_Query(this, TEXT(__FUNCTION__));
 	}
 
-	UTcsAttributeManagerSubsystem* Mgr = const_cast<UTcsAttributeComponent*>(this)->ResolveAttributeManager();
-	if (!Mgr)
-	{
-		return false;
-	}
-
-	FName AttributeName;
-	if (!Mgr->TryResolveAttributeNameByTag(AttributeTag, AttributeName))
+	FName AttributeName = const_cast<UTcsAttributeComponent*>(this)->ResolveDefinitionManager()->ResolveAttributeDefIdByTag(AttributeTag);
+	if (AttributeName.IsNone())
 	{
 		return false;
 	}
@@ -179,14 +166,8 @@ bool UTcsAttributeComponent::GetAttributeValueByTag(const FGameplayTag& Attribut
 		return LogAttributeRuntimeNotReady_Query(this, TEXT(__FUNCTION__));
 	}
 
-	UTcsAttributeManagerSubsystem* Mgr = const_cast<UTcsAttributeComponent*>(this)->ResolveAttributeManager();
-	if (!Mgr)
-	{
-		return false;
-	}
-
-	FName AttributeName;
-	if (!Mgr->TryResolveAttributeNameByTag(AttributeTag, AttributeName))
+	FName AttributeName = const_cast<UTcsAttributeComponent*>(this)->ResolveDefinitionManager()->ResolveAttributeDefIdByTag(AttributeTag);
+	if (AttributeName.IsNone())
 	{
 		return false;
 	}
@@ -219,14 +200,8 @@ bool UTcsAttributeComponent::GetAttributeBaseValueByTag(const FGameplayTag& Attr
 		return LogAttributeRuntimeNotReady_Query(this, TEXT(__FUNCTION__));
 	}
 
-	UTcsAttributeManagerSubsystem* Mgr = const_cast<UTcsAttributeComponent*>(this)->ResolveAttributeManager();
-	if (!Mgr)
-	{
-		return false;
-	}
-
-	FName AttributeName;
-	if (!Mgr->TryResolveAttributeNameByTag(AttributeTag, AttributeName))
+	FName AttributeName = const_cast<UTcsAttributeComponent*>(this)->ResolveDefinitionManager()->ResolveAttributeDefIdByTag(AttributeTag);
+	if (AttributeName.IsNone())
 	{
 		return false;
 	}

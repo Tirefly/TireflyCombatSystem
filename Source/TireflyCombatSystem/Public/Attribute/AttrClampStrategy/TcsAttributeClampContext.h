@@ -8,7 +8,6 @@
 
 
 class UTcsAttributeComponent;
-class UTcsAttributeManagerSubsystem;
 class UTcsAttributeDefinition;
 struct FTcsAttributeInstance;
 

@@ -195,6 +195,33 @@ const UTcsAttributeDefinition* UTcsDefinitionManagerSubsystem::GetAttributeDefin
 	return Definition;
 }
 
+const UTcsAttributeDefinition* UTcsDefinitionManagerSubsystem::GetAttributeDefinitionByTag(FGameplayTag AttributeTag) const
+{
+	if (const FName* AttributeDefId = AttributeTagToDefId.Find(AttributeTag))
+	{
+		return GetAttributeDefinition(*AttributeDefId);
+	}
+
+	const UTcsAttributeDefinition* Definition = LoadByTagFromSource(
+		AttributeDefinitionSources, AttributeDefinitions, AttributeTagToDefId, AttributeTag,
+		TFunctionRef<FGameplayTag(const UTcsAttributeDefinition&)>([](const UTcsAttributeDefinition& Def) { return Def.AttributeTag; }));
+
+	if (!Definition)
+	{
+		LogDefinitionQueryFailure(AttributeTag.GetTagName(), TEXT("GetAttributeDefinitionByTag"), TEXT("NotRegistered"));
+	}
+	return Definition;
+}
+
+FName UTcsDefinitionManagerSubsystem::ResolveAttributeDefIdByTag(FGameplayTag AttributeTag) const
+{
+	if (const UTcsAttributeDefinition* Def = GetAttributeDefinitionByTag(AttributeTag))
+	{
+		return Def->AttributeDefId;
+	}
+	return NAME_None;
+}
+
 const UTcsAttributeModifierDefinition* UTcsDefinitionManagerSubsystem::GetAttributeModifierDefinition(FName AttributeModifierDefId) const
 {
 	if (const TObjectPtr<UTcsAttributeModifierDefinition>* Found = AttributeModifierDefinitions.Find(AttributeModifierDefId))

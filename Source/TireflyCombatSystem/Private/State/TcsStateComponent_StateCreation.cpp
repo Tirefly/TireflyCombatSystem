@@ -5,11 +5,9 @@
 #include "DefinitionManager/TcsDefinitionManagerSubsystem.h"
 #include "TcsEntityInterface.h"
 #include "TcsLogChannels.h"
-#include "Attribute/TcsAttributeManagerSubsystem.h"
 #include "GameFramework/Actor.h"
 #include "State/TcsStateDefinition.h"
 #include "State/TcsStateInstance.h"
-#include "State/TcsStateManagerSubsystem.h"
 #include "State/StateParameter/TcsStateBoolParameter.h"
 #include "State/StateParameter/TcsStateNumericParameter.h"
 #include "State/StateParameter/TcsStateVectorParameter.h"
@@ -67,14 +65,6 @@ UTcsStateInstance* UTcsStateComponent::CreateStateInstance(
 				*StateDefRowId.ToString(),
 				*GetNameSafe(OwnerActor),
 				*GetNameSafe(Instigator)));
-	}
-
-	UTcsStateManagerSubsystem* LocalStateMgr = ResolveStateManager();
-	if (!LocalStateMgr)
-	{
-		return ReturnCreateStateFailure(
-			ETcsStateApplyFailReason::CreateInstanceFailed,
-			TEXT("Failed to resolve StateManagerSubsystem while creating StateInstance."));
 	}
 
 	UTcsDefinitionManagerSubsystem* DefinitionManager = GetWorld() && GetWorld()->GetGameInstance()
@@ -139,7 +129,7 @@ UTcsStateInstance* UTcsStateComponent::CreateStateInstance(
 		StateDefRowId,
 		OwnerActor,
 		Instigator,
-		LocalStateMgr->AllocateStateInstanceId(),
+		AllocateStateInstanceId(),
 		InLevel);
 
 	if (!TempStateInstance->IsInitialized())
@@ -164,16 +154,7 @@ UTcsStateInstance* UTcsStateComponent::CreateStateInstance(
 		NewCausalityChain.Add(StateDef->GetPrimaryAssetId());
 	}
 
-	if (UTcsAttributeManagerSubsystem* LocalAttrMgr = ResolveAttributeManager())
-	{
-		StateInstance->SetSourceHandle(LocalAttrMgr->CreateSourceHandle(NewCausalityChain, Instigator));
-	}
-	else
-	{
-		UE_LOG(LogTcsState, Warning, TEXT("[%s] Failed to get AttributeManagerSubsystem, SourceHandle not initialized for state '%s'"),
-			*FString(__FUNCTION__),
-			*StateDefRowId.ToString());
-	}
+	StateInstance->SetSourceHandle(CreateSourceHandle(NewCausalityChain, Instigator));
 
 	TArray<FName> FailedParams;
 	if (!StateInstance->PopulateStateParamInstances(StateDef, Instigator, OwnerActor, FailedParams))

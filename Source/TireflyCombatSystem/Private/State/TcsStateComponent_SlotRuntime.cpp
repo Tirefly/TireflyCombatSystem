@@ -5,7 +5,6 @@
 #include "DefinitionManager/TcsDefinitionManagerSubsystem.h"
 #include "GameFramework/Actor.h"
 #include "State/TcsStateDefinition.h"
-#include "State/TcsStateManagerSubsystem.h"
 #include "State/TcsStateSlotDefinition.h"
 #include "StateTree.h"
 #include "StateTreeExecutionTypes.h"
@@ -19,14 +18,6 @@ bool UTcsStateComponent::InitStateSlotMappings()
 	if (!IsValid(OwnerActor))
 	{
 		UE_LOG(LogTcsState, Warning, TEXT("[%s] OwnerActor is invalid"), *FString(__FUNCTION__));
-		return false;
-	}
-
-	UTcsStateManagerSubsystem* LocalStateMgr = ResolveStateManager();
-	if (!LocalStateMgr)
-	{
-		UE_LOG(LogTcsState, Warning, TEXT("[%s] StateManagerSubsystem is invalid for %s"),
-			*FString(__FUNCTION__), *GetPathName());
 		return false;
 	}
 
@@ -72,14 +63,6 @@ bool UTcsStateComponent::InitStateSlotMappings()
 
 bool UTcsStateComponent::RebuildStateSlotRuntimeData()
 {
-	UTcsStateManagerSubsystem* LocalStateMgr = ResolveStateManager();
-	if (!LocalStateMgr)
-	{
-		UE_LOG(LogTcsState, Warning, TEXT("[%s] StateManagerSubsystem is invalid for %s"),
-			*FString(__FUNCTION__), *GetPathName());
-		return false;
-	}
-
 	const UStateTree* StateTree = GetStateTree();
 	if (!IsValid(StateTree))
 	{

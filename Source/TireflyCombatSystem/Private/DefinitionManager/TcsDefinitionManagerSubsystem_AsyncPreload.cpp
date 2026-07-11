@@ -157,4 +157,14 @@ void UTcsDefinitionManagerSubsystem::RebuildTagIndexes()
 			StateSlotTagToDefId.Add(Definition->SlotTag, Pair.Key);
 		}
 	}
+
+	AttributeTagToDefId.Empty();
+	for (const TPair<FName, TObjectPtr<UTcsAttributeDefinition>>& Pair : AttributeDefinitions)
+	{
+		const UTcsAttributeDefinition* Definition = Pair.Value;
+		if (Definition && Definition->AttributeTag.IsValid())
+		{
+			AttributeTagToDefId.Add(Definition->AttributeTag, Pair.Key);
+		}
+	}
 }

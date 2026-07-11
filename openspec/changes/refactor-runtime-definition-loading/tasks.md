@@ -70,14 +70,18 @@
 - [x] [AI] 4.10 为新子系统补齐独立 capability 规格，避免与 `StateManagerSubsystem` 或编辑器期 registry / editor manager 职责混淆。
 
 ## 5. Manager / Registry 解耦
-- [ ] [AI] 5.1 从 `UTcsStateManagerSubsystem` 中移除 Definition cache/load 与 registry 刷新同步职责。
-- [ ] [AI] 5.2 评估并收敛 `UTcsAttributeManagerSubsystem` 与新 Definition 管理层之间的依赖方式，并同步检查 `Buff` 相关应用路径的归口调整。
-- [ ] [AI] 5.3 检查 `UTcsStateManagerSubsystem` 保留的跨 Actor facade 是否仍在对外暴露 `StateDefId`；若主要服务于 Buff apply，则同步改名/改参到 `BuffDefId` 语义。
-- [ ] [AI] 5.4 调整 `UTcsDefinitionRegistrySubsystem` 的编辑器期快照消费方，使编辑器期同步不再要求 `StateManagerSubsystem` 直连 registry。
-- [ ] [AI] 5.5 调整 `UTcsDefinitionRegistrySubsystem` 的 AssetManager 覆盖检查逻辑，使其按具体非抽象 DefAsset 类型分别校验，不再默认把 `BuffDef` / `SkillDef` 视为抽象 `StateDef` 家族的一条扫描规则。
-- [ ] [AI] 5.6 明确 `UTcsDefinitionEditorManagerSubsystem` 与 `UTcsDefinitionRegistrySubsystem` 的边界：editor manager 可以消费编辑器快照，但不得把这种消费扩展为 runtime 契约。
-- [ ] [AI] 5.7 允许迁移期保留 deprecated wrapper，但必须在 change 归档前清零。
-- [ ] [AI] 5.8 明确 editor registry / editor manager 都不定义 runtime source cache 生命周期，也不引入通用 `RuntimeRefresh` 契约。
+- [x] [AI] 5.1 从 `UTcsStateManagerSubsystem` 中移除 Definition cache/load 与 registry 刷新同步职责。
+- [x] [AI] 5.2 评估并收敛 `UTcsAttributeManagerSubsystem` 与新 Definition 管理层之间的依赖方式，并同步检查 `Buff` 相关应用路径的归口调整。
+- [x] [AI] 5.3 检查 `UTcsStateManagerSubsystem` 保留的跨 Actor facade 是否仍在对外暴露 `StateDefId`；若主要服务于 Buff apply，则同步改名/改参到 `BuffDefId` 语义。
+- [x] [AI] 5.4 调整 `UTcsDefinitionRegistrySubsystem` 的编辑器期快照消费方，使编辑器期同步不再要求 `StateManagerSubsystem` 直连 registry。
+- [x] [AI] 5.5 调整 `UTcsDefinitionRegistrySubsystem` 的 AssetManager 覆盖检查逻辑，使其按具体非抽象 DefAsset 类型分别校验，不再默认把 `BuffDef` / `SkillDef` 视为抽象 `StateDef` 家族的一条扫描规则。
+- [x] [AI] 5.6 明确 `UTcsDefinitionEditorManagerSubsystem` 与 `UTcsDefinitionRegistrySubsystem` 的边界：editor manager 可以消费编辑器快照，但不得把这种消费扩展为 runtime 契约。
+- [x] [AI] 5.7 允许迁移期保留 deprecated wrapper，但必须在 change 归档前清零。
+- [x] [AI] 5.8 明确 editor registry / editor manager 都不定义 runtime source cache 生命周期，也不引入通用 `RuntimeRefresh` 契约。
+- [x] [AI] 5.9 调研并清理名义管理器空壳职责：若 `UTcsStateManagerSubsystem` / `UTcsAttributeManagerSubsystem` 已不具备独立存在必要，则将残余职责下沉到更贴近使用点的组件或 DefinitionManager，并删除子系统本体。
+- [x] [AI] 5.9.1 删除 `UTcsStateManagerSubsystem`：将 `StateInstanceId` 工厂下沉到 `UTcsStateComponent` static，清理 RuntimeBootstrap / StateComponent 对其依赖与死 include。
+- [x] [AI] 5.9.2 删除 `UTcsAttributeManagerSubsystem`：将 AttributeTag 解析归口到 `UTcsDefinitionManagerSubsystem`，将 Attribute / Modifier ID 工厂下沉到 `UTcsAttributeComponent` static，将 `SourceHandle` 工厂下沉到 `UTcsStateComponent` static，并清理所有调用方。
+- [x] [AI] 5.9.3 同步更新 OpenSpec 规格与任务清单，确保删除两类名义管理器后代码事实与 change 文档一致。
 
 ## 6. Skill DefId 主路径
 - [ ] [AI] 6.1 为 `UTcsSkillEntry` 明确“对外使用 `SkillDefId`，实例内部缓存已校验 `UTcsSkillDefinition*`”的权威模型。

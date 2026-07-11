@@ -1,7 +1,7 @@
 ## MODIFIED Requirements
 ### Requirement: State Manager Subsystem 只保留全局职责
 
-迁移完成后，`UTcsStateManagerSubsystem` SHALL 只暴露全局 state instance ID 工厂，以及跨 Actor 门面。Definition cache/load、Definition 查询与运行时 Definition source cache 归口 SHALL 不再留在 `UTcsStateManagerSubsystem` 中。
+迁移完成后，`UTcsStateManagerSubsystem` SHALL 不再作为独立 runtime 子系统存在。State 运行时所需的全局 `StateInstanceId` 分配能力 SHALL 下沉到 `UTcsStateComponent` 内部静态工厂；Definition cache/load、Definition 查询与运行时 Definition source cache 归口 SHALL 全部由 `UTcsDefinitionManagerSubsystem` 承担。
 
 #### Scenario: Definition 查询不再由 StateManager 提供
 - **WHEN** 任意调用方需要通过 `FName` 或 `FGameplayTag` 解析具体 State-like Definition 或 `UTcsStateSlotDefinition` 时
@@ -13,9 +13,15 @@
 - **THEN** 它 MUST 只服务于 `State` 模块内部单个 state definition 在 `StateComponent` 上的运行生命周期
 - **AND** Buff 相关 public API MUST NOT 再对外暴露 `StateDefId`
 
-#### Scenario: 全局 ID 工厂仍留在 StateManager 上
+#### Scenario: 全局 StateInstanceId 工厂下沉到 StateComponent
 - **WHEN** `UTcsStateComponent` 需要一个新的全局唯一 `StateInstanceId`
-- **THEN** 它 MUST 继续调用 `ResolveStateManager()->AllocateStateInstanceId()`；ID 计数器 MUST NOT 被迁移到 Component 作用域
+- **THEN** 它 MUST 通过 `UTcsStateComponent` 自身持有的静态工厂分配该 ID
+- **AND** 分配出的 `StateInstanceId` MUST 在当前进程内保持全局唯一
+
+#### Scenario: 跨 Actor facade 已清零
+- **WHEN** 检查最终 public API 面时
+- **THEN** `UTcsStateManagerSubsystem` MUST NOT 再保留任何跨 Actor apply facade
+- **AND** 系统 MUST NOT 继续以 `TryApplyStateToTarget(..., StateDefId, ...)` 之类的接口对外暴露抽象 StateDef 语义
 
 #### Scenario: Buff apply 主路径按 DefId 驱动
 - **WHEN** 调用方要施加一个 Buff，且手里只有 `BuffDefId`

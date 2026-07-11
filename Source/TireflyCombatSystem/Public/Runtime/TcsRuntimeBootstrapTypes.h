@@ -75,11 +75,8 @@ enum class ETcsEntityRuntimeBlockReason : uint8
 	/** Actor 没有实现 `ITcsEntityInterface`。 */
 	MissingEntityInterface,
 
-	/** AttributeManagerSubsystem 尚未 ready。 */
-	AttributeManagerNotReady,
-
-	/** StateManagerSubsystem 尚未 ready。 */
-	StateManagerNotReady,
+	/** DefinitionManagerSubsystem 尚未 ready。 */
+	DefinitionManagerNotReady,
 
 	/** 实体缺少 AttributeComponent。 */
 	MissingAttributeComponent,

@@ -5,11 +5,10 @@
 #include "Components/ActorComponent.h"
 #include "Engine/GameInstance.h"
 #include "Attribute/TcsAttributeComponent.h"
-#include "Attribute/TcsAttributeManagerSubsystem.h"
 #include "Buff/TcsBuffComponent.h"
 #include "Skill/TcsSkillComponent.h"
 #include "State/TcsStateComponent.h"
-#include "State/TcsStateManagerSubsystem.h"
+#include "DefinitionManager/TcsDefinitionManagerSubsystem.h"
 #include "TcsEntityInterface.h"
 
 
@@ -29,13 +28,11 @@ void UTcsRuntimeBootstrapSubsystem::Initialize(FSubsystemCollectionBase& Collect
 {
 	Super::Initialize(Collection);
 
-	Collection.InitializeDependency<UTcsAttributeManagerSubsystem>();
-	Collection.InitializeDependency<UTcsStateManagerSubsystem>();
+	Collection.InitializeDependency<UTcsDefinitionManagerSubsystem>();
 
 	if (UGameInstance* GameInstance = GetGameInstance())
 	{
-		AttributeManagerSubsystem = GameInstance->GetSubsystem<UTcsAttributeManagerSubsystem>();
-		StateManagerSubsystem = GameInstance->GetSubsystem<UTcsStateManagerSubsystem>();
+		DefinitionManagerSubsystem = GameInstance->GetSubsystem<UTcsDefinitionManagerSubsystem>();
 	}
 }
 
@@ -44,8 +41,7 @@ void UTcsRuntimeBootstrapSubsystem::Deinitialize()
 	PendingEntityRegistrations.Empty();
 	RegisteredEntities.Empty();
 	TrackedEntityRuntimeData.Empty();
-	AttributeManagerSubsystem = nullptr;
-	StateManagerSubsystem = nullptr;
+	DefinitionManagerSubsystem = nullptr;
 
 	Super::Deinitialize();
 }
@@ -113,17 +109,10 @@ FTcsEntityRuntimeStateResult UTcsRuntimeBootstrapSubsystem::EvaluateEntityRuntim
 		return Result;
 	}
 
-	if (!AttributeManagerSubsystem || !AttributeManagerSubsystem->IsRuntimeReady())
+	if (!DefinitionManagerSubsystem || !DefinitionManagerSubsystem->IsRuntimeReady())
 	{
 		Result.State = ETcsEntityRuntimeState::Waiting;
-		Result.BlockReason = ETcsEntityRuntimeBlockReason::AttributeManagerNotReady;
-		return Result;
-	}
-
-	if (!StateManagerSubsystem || !StateManagerSubsystem->IsRuntimeReady())
-	{
-		Result.State = ETcsEntityRuntimeState::Waiting;
-		Result.BlockReason = ETcsEntityRuntimeBlockReason::StateManagerNotReady;
+		Result.BlockReason = ETcsEntityRuntimeBlockReason::DefinitionManagerNotReady;
 		return Result;
 	}
 
@@ -376,12 +365,7 @@ void UTcsRuntimeBootstrapSubsystem::TryAdvanceEntityRuntime(AActor* Entity)
 		return;
 	}
 
-	if (!AttributeManagerSubsystem || !AttributeManagerSubsystem->IsRuntimeReady())
-	{
-		return;
-	}
-
-	if (!StateManagerSubsystem || !StateManagerSubsystem->IsRuntimeReady())
+	if (!DefinitionManagerSubsystem || !DefinitionManagerSubsystem->IsRuntimeReady())
 	{
 		return;
 	}

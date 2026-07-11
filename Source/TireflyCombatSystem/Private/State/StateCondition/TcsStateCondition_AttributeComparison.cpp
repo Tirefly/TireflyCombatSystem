@@ -3,9 +3,10 @@
 #include "State/StateCondition/TcsStateCondition_AttributeComparison.h"
 #include "State/TcsStateInstance.h"
 #include "Attribute/TcsAttributeComponent.h"
-#include "Attribute/TcsAttributeManagerSubsystem.h"
+#include "DefinitionManager/TcsDefinitionManagerSubsystem.h"
 #include "TcsEntityInterface.h"
 #include "TcsLogChannels.h"
+#include "Engine/GameInstance.h"
 
 
 
@@ -55,15 +56,14 @@ bool UTcsStateCondition_AttributeComparison::CheckCondition_Implementation(
 
 	if (Config->AttributeTag.IsValid())
 	{
-		// 尝试通过 Tag 解析属性名称
 		if (UWorld* World = StateInstance->GetWorld())
 		{
 			if (UGameInstance* GameInstance = World->GetGameInstance())
 			{
-				if (UTcsAttributeManagerSubsystem* AttrMgr = GameInstance->GetSubsystem<UTcsAttributeManagerSubsystem>())
+				if (UTcsDefinitionManagerSubsystem* DefMgr = GameInstance->GetSubsystem<UTcsDefinitionManagerSubsystem>())
 				{
-					FName TagResolvedName;
-					if (AttrMgr->TryResolveAttributeNameByTag(Config->AttributeTag, TagResolvedName))
+					const FName TagResolvedName = DefMgr->ResolveAttributeDefIdByTag(Config->AttributeTag);
+					if (!TagResolvedName.IsNone())
 					{
 						ResolvedAttributeName = TagResolvedName;
 					}

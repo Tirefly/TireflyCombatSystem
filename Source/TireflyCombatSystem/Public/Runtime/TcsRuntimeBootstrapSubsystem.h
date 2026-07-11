@@ -13,11 +13,10 @@
 class AActor;
 class UActorComponent;
 class UTcsAttributeComponent;
-class UTcsAttributeManagerSubsystem;
 class UTcsBuffComponent;
 class UTcsSkillComponent;
 class UTcsStateComponent;
-class UTcsStateManagerSubsystem;
+class UTcsDefinitionManagerSubsystem;
 
 
 
@@ -186,13 +185,9 @@ public:
 #pragma region InternalState
 
 protected:
-	/** 缓存的 AttributeManagerSubsystem 指针。 */
+	/** 缓存的 DefinitionManagerSubsystem 指针，用于 runtime-ready 门控。 */
 	UPROPERTY(Transient)
-	TObjectPtr<UTcsAttributeManagerSubsystem> AttributeManagerSubsystem;
-
-	/** 缓存的 StateManagerSubsystem 指针。 */
-	UPROPERTY(Transient)
-	TObjectPtr<UTcsStateManagerSubsystem> StateManagerSubsystem;
+	TObjectPtr<UTcsDefinitionManagerSubsystem> DefinitionManagerSubsystem;
 
 	/** 当前 waiting 中的实体登记集合。 */
 	TMap<TObjectKey<AActor>, FTcsPendingEntityRegistration> PendingEntityRegistrations;
