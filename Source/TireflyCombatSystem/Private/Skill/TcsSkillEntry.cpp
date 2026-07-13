@@ -51,14 +51,38 @@ void UTcsSkillEntry::SetLevel(int32 InLevel)
 }
 
 
-void UTcsSkillEntry::InitializeFromDef(UTcsSkillDefinition* Def)
+bool UTcsSkillEntry::InitializeFromDef(FName InSkillDefId, const UTcsSkillDefinition* Def)
 {
+	if (InSkillDefId.IsNone())
+	{
+		UE_LOG(LogTcsState, Error, TEXT("[SkillEntry::InitializeFromDef] SkillDefId is none"));
+		return false;
+	}
+
 	if (!Def)
 	{
 		UE_LOG(LogTcsState, Error, TEXT("[SkillEntry::InitializeFromDef] SkillDefinition is null"));
-		return;
+		return false;
 	}
 
+	if (Def->StateDefId != InSkillDefId)
+	{
+		UE_LOG(LogTcsState, Error,
+			TEXT("[SkillEntry::InitializeFromDef] SkillDefId mismatch. Input=%s Definition=%s"),
+			*InSkillDefId.ToString(),
+			*Def->StateDefId.ToString());
+		return false;
+	}
+
+	SkillDefId = InSkillDefId;
+	// DefinitionManager 对外返回只读定义；Entry 只缓存 UObject 引用，不修改定义资产。
+	SkillDefinition = const_cast<UTcsSkillDefinition*>(Def);
+	RemainingCooldown = 0.0f;
+	NumericParamInstances.Reset();
+	BoolParamInstances.Reset();
+	VectorParamInstances.Reset();
+
+	bool bSucceeded = true;
 	for (const auto& ParamPair : Def->Parameters)
 	{
 		switch (ParamPair.Value.ParameterType)
@@ -74,6 +98,7 @@ void UTcsSkillEntry::InitializeFromDef(UTcsSkillDefinition* Def)
 				else
 				{
 					UE_LOG(LogTcsState, Error, TEXT("[SkillEntry::InitializeFromDef] %s"), *Error);
+					bSucceeded = false;
 				}
 				break;
 			}
@@ -88,6 +113,7 @@ void UTcsSkillEntry::InitializeFromDef(UTcsSkillDefinition* Def)
 				else
 				{
 					UE_LOG(LogTcsState, Error, TEXT("[SkillEntry::InitializeFromDef] %s"), *Error);
+					bSucceeded = false;
 				}
 				break;
 			}
@@ -102,6 +128,7 @@ void UTcsSkillEntry::InitializeFromDef(UTcsSkillDefinition* Def)
 				else
 				{
 					UE_LOG(LogTcsState, Error, TEXT("[SkillEntry::InitializeFromDef] %s"), *Error);
+					bSucceeded = false;
 				}
 				break;
 			}
@@ -109,6 +136,17 @@ void UTcsSkillEntry::InitializeFromDef(UTcsSkillDefinition* Def)
 			break;
 		}
 	}
+
+	if (Def->LevelParamTag.IsValid())
+	{
+		FTcsNumericStateParamInstance LevelInst;
+		LevelInst.ParamTag = Def->LevelParamTag;
+		LevelInst.bIsSnapshot = false;
+		LevelInst.NumericValue = 1.0f;
+		NumericParamInstances.Add(Def->LevelParamTag, LevelInst);
+	}
+
+	return bSucceeded;
 }
 
 
@@ -132,7 +170,7 @@ FTcsVectorStateParamInstance* UTcsSkillEntry::FindVectorParamInstance(FGameplayT
 
 bool UTcsSkillEntry::StartCooldown(UTcsSkillInstance* SkillInstance)
 {
-	if (!SkillInstance)
+	if (!SkillInstance || !SkillDefinition || !SkillDefinition->CooldownParamTag.IsValid())
 	{
 		return false;
 	}
@@ -184,6 +222,11 @@ bool UTcsSkillEntry::IsOnCooldown() const
 
 float UTcsSkillEntry::GetRemainingCooldownRatio() const
 {
+	if (!SkillDefinition)
+	{
+		return 0.0f;
+	}
+
 	const FTcsNumericStateParamInstance* CI = NumericParamInstances.Find(SkillDefinition->CooldownParamTag);
 	if (CI && CI->GetValue() > 0.0f)
 	{

@@ -26,8 +26,15 @@
 - `UTcsDefinitionManagerSubsystem` 的最终查询接口不强制区分 `Find` / `Get` / `TryResolve` 三套命名分层，但最终保留的类型化查询面必须足够全面，能够覆盖各主执行路径所需的按 `DefId` / 按既有 tag 语义查询。
 - `UTcsDeveloperSettings` 必须退出 Def 缓存基站角色，仅保留设置读取职责；运行时 Definition authoritative cache、编辑器期 Def 缓存与桥接状态都不得继续挂在 `DeveloperSettings` 上。当前 `StateLoadingStrategy` 这类只面向抽象 `StateDef` 的设置语义必须收敛到面向具体非抽象 DefAsset 类型的统一加载配置模型。
 - 现有 `UTcsDefAssetDataTableSyncSubsystem` 将升级并重命名为 `UTcsDefinitionEditorManagerSubsystem`，作为唯一编辑器期 Definition 管理中枢，负责编辑器期 DefAsset / DataTable 桥接协调、防递归回写、受管 Def 缓存/索引/脏标记/更新队列，以及编辑器事件监听与统一调度。
-- 调整 `UTcsStateManagerSubsystem` 最终职责：移除 Definition cache/load 与 registry 同步职责，仅保留全局 state instance ID 工厂和跨 Actor apply 门面。
-- 若 `UTcsStateManagerSubsystem` 仍保留跨 Actor facade，则其面向 Buff 的 public 语义必须同步改名/改参到 `BuffDefId`，避免继续通过 `TryApplyStateToTarget(..., StateDefId, ...)` 泄露旧的抽象 `StateDef` 语义。
+- 在第五阶段完成后，若 `UTcsStateManagerSubsystem` / `UTcsAttributeManagerSubsystem` 已退化为空壳职责，则直接删除两个子系统；其中为了先完成空壳移除，`StateInstanceId`、`AttributeInstId`、`ModifierInstId`、`ModifierChangeBatchId` 与 `SourceHandle.Id` 的分配逻辑可临时下沉到 `Component static`，但该方案只作为过渡实现，不视为最终架构。
+- 第六阶段将正式收敛运行时 InstanceId / Identity 设计：
+  - `SkillEntry`、`AttributeInstance` 不再被强行要求具备独立实例级 `InstanceId`
+  - `StateInstance` / `BuffInstance` / `SkillInstance` 继续保留实例级 authority identity
+  - `AttributeModifierInstance` / `SkillModifierInstance` 现阶段不进入预测流程，但仍保留实例级 authority identity
+  - `SourceHandle` 被明确为 **AuthorityOnly** 的因果链句柄，作为 TCS 事件因果链的唯一权威存储结构
+  - 未来若用户明确批准进入本地预测实现，则优先参考 GAS 的“根请求携带 `PredictionKey`”流程，不为实例 reconcile 额外引入专门 RPC
+- 当前版本并不要求、也不得在当前执行范围内实现本地预测与网络同步，且不得新增 `PredictionKey` 类型、字段、参数、RPC 或同步链路；本阶段只把相关设计约束写硬到 OpenSpec，确保后续显式进入实现时同时兼容本地预测、authority 唯一权威与最终验证。
+- 删除 `UTcsStateManagerSubsystem` 后，不再保留跨 Actor `TryApplyStateToTarget(..., StateDefId, ...)` facade；Buff apply 若仍需要跨 Actor 门面，应在后续阶段以更贴近 Buff 语义的组件或 gameplay API 重建，而不是继续泄露抽象 `StateDef` 语义。
 - 调整 `UTcsSkillComponent` / `UTcsSkillEntry` / 相关 Skill 调用链，使 Skill 相关入口以 `SkillDefId` 为对外主路径身份；同时 `UTcsSkillEntry` 作为运行时实例，内部应缓存一个已由合法 `SkillDefId` 解析并校验过的 `UTcsSkillDefinition*`，作为运行时唯一权威 SkillDef 对象，避免重复读取负载。
 - 统一要求 `LearnSkill`、`ActivateSkill`、`ApplyBuff`、`ApplySkillModifier` 支持按 DefId 执行；现有对象指针入口不再作为归档后保留的 public API 主路径，优先直接移除；若迁移阶段短暂保留，也只能退化为内部辅助转发逻辑。
 - 保持编辑器期 `UTcsDefinitionRegistrySubsystem` 为权威快照持有者，但运行时 manager/subsystem 不再直接把 registry 刷新同步逻辑塞进 `StateManagerSubsystem`。
@@ -47,6 +54,7 @@
   - `definition-live-registry`
   - `skill-runtime`
   - `runtime-definition-management`
+  - `runtime-instance-identity`
 - 受影响代码：
   - `Config/DefaultGame.ini`
   - `Source/TireflyCombatSystem/Public/TcsDeveloperSettings.h`
@@ -59,6 +67,9 @@
   - `Source/TireflyCombatSystem/Private/Buff/*`
   - `Source/TireflyCombatSystem/Public/State/TcsStateManagerSubsystem.h`
   - `Source/TireflyCombatSystem/Private/State/TcsStateManagerSubsystem.cpp`
+  - `Source/TireflyCombatSystem/Public/Attribute/TcsAttributeManagerSubsystem.h`
+  - `Source/TireflyCombatSystem/Private/Attribute/TcsAttributeManagerSubsystem.cpp`
+  - `Source/TireflyCombatSystem/Public/Runtime/*`
   - `Source/TireflyCombatSystem/Public/Skill/TcsSkillComponent.h`
   - `Source/TireflyCombatSystem/Private/Skill/TcsSkillComponent.cpp`
   - `Source/TireflyCombatSystem/Public/Skill/TcsSkillEntry.h`
@@ -76,6 +87,9 @@
 - **BREAKING**：Skill 相关运行时主入口将从“要求调用方提供已加载 `UTcsSkillDefinition*`”迁移为“按 `SkillDefId` 驱动并由系统负责解析 Definition”；`UTcsSkillEntry` 内部则改为持有一个已校验的权威 `UTcsSkillDefinition*` 运行时缓存。
 - **BREAKING**：运行时 Definition 查询面将从“散落在多个 gameplay manager 上的弱约定”迁移为“由 `UTcsDefinitionManagerSubsystem` 提供的显式类型化入口集合”。
 - **BREAKING**：所有直接查询抽象 `StateDef` 的 public runtime 接口都将被取消。
+- **BREAKING**：`UTcsStateManagerSubsystem` 与 `UTcsAttributeManagerSubsystem` 在当前 change 中已被判定为空壳职责并删除；第五阶段下沉到 `Component static` 的若干 ID 工厂仅为过渡实现。
+- **BREAKING**：运行时实例身份不再被视为单一概念；后续设计将在规格层区分 authority 实例身份、未来预测身份与条目级稳定身份，任何当前的本地 `static ++Counter` 结果都不得被误用为 authority 最终身份；当前执行范围不得因此新增 `PredictionKey` 代码或网络同步实现。
+- **BREAKING**：`FTcsSourceHandle` 的身份语义被收紧为 AuthorityOnly；客户端本地预测阶段不得生成最终 authority `SourceHandle`。
 - 迁移期间若因实现收口需要短暂存在对象型包装逻辑，它们也只能作为内部辅助实现存在；在 change 归档前，对外 public API 面 MUST 清零这些对象型入口，否则该 change 不应归档。
 
 ## 执行责任划分（基于当前没有 UE MCP / Editor 自动化桥接）
@@ -108,6 +122,7 @@
 ### 本提案阶段的硬边界
 - 在当前没有 UE MCP / Editor 自动化桥接的前提下，本提案不得把“编辑器内可视化验证已完成”写成 AI 已独立完成的事实。
 - 任何涉及编辑器交互行为的“验证通过”，都必须明确标注为“需要用户手动验证”或“等待用户回报结果”。
+- 在用户明确批准进入第 7 阶段前，本提案不得新增 `PredictionKey` 类型、字段、函数参数、RPC、复制字段或任何网络同步实现；相关内容只作为未来实现约束。
 - 因此，本 change 的前半段应优先推进 AI 可直接完成的工作：
   - 规格收敛
   - 旧逻辑清理

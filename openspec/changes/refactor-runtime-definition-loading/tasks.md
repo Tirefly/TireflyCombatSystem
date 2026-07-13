@@ -83,38 +83,55 @@
 - [x] [AI] 5.9.2 删除 `UTcsAttributeManagerSubsystem`：将 AttributeTag 解析归口到 `UTcsDefinitionManagerSubsystem`，将 Attribute / Modifier ID 工厂下沉到 `UTcsAttributeComponent` static，将 `SourceHandle` 工厂下沉到 `UTcsStateComponent` static，并清理所有调用方。
 - [x] [AI] 5.9.3 同步更新 OpenSpec 规格与任务清单，确保删除两类名义管理器后代码事实与 change 文档一致。
 
-## 6. Skill DefId 主路径
-- [ ] [AI] 6.1 为 `UTcsSkillEntry` 明确“对外使用 `SkillDefId`，实例内部缓存已校验 `UTcsSkillDefinition*`”的权威模型。
-- [ ] [AI] 6.2 将 `LearnSkill` / `ActivateSkill` 主路径改为按 `SkillDefId` 驱动。
-- [ ] [AI] 6.3 直接移除对象指针版本的 public 入口；若迁移阶段存在残余逻辑，只允许退化为内部辅助转发实现。
-- [ ] [AI] 6.4 明确 SkillDef 解析失败、缺失或加载失败时的运行时错误语义。
+## 6. 运行时 InstanceId / Identity 方案收敛
+- [x] [AI] 6.1 明确第五阶段下沉到 `Component static` 的 `StateInstanceId` / `AttributeInstId` / `ModifierInstId` / `ModifierChangeBatchId` / `SourceHandle.Id` 工厂只作为过渡实现，不视为最终架构。
+- [x] [AI] 6.2 明确当前版本不为了 InstanceId 单独新增子系统；后续若需要统一身份账本，再单独评估是否引入集中管理实现。
+- [x] [AI] 6.3 明确运行时实例身份在设计层至少区分：条目级稳定身份（如 `DefId`）、未来预测阶段身份（`PredictionKey`，仅作为预测/同步设计约束）与实例级 authority 最终身份（字段命名继续沿用 `StateInstId` / `AttrModInstId` / `SkillModInstId` 等现有语义名）；当前阶段不得因此新增 `PredictionKey` 代码。
+- [x] [AI] 6.4 明确哪些运行时对象不需要实例级身份（如 `SkillEntry`、`AttributeInstance`），哪些运行时对象必须具备实例级 authority 身份（如 `StateInstance`、`AttributeModifierInstance`、`SkillModifierInstance`）。
+- [x] [AI] 6.5 明确未来本地预测与 authority 确认的 reconcile 设计约束：若后续明确进入预测/同步实现，根请求携带 `PredictionKey`，客户端通过既有确认/复制链路完成 `PredictionKey -> 实例级 authority 身份` 映射，不额外为实例 reconcile 引入专门 RPC；当前阶段只写约束，不实现该链路。
+- [x] [AI] 6.6 明确 `FTcsSourceHandle::Id` 是 **AuthorityOnly** 的因果链句柄字段；客户端预测阶段不得生成最终 authority `SourceHandle`。
 
-## 7. DefId 主路径扩展到 Buff / SkillModifier
-- [ ] [AI] 7.1 将 Buff apply 主路径收敛到 `StateDefId` / `BuffDefId` 驱动，不要求调用方先持有已加载 Def 对象。
-- [ ] [AI] 7.2 将 SkillModifier apply 主路径收敛到 `SkillModifierDefId` 驱动，不要求调用方先持有已加载 Def 对象。
-- [ ] [AI] 7.3 直接移除旧对象型 public 入口；若迁移阶段存在残余逻辑，只允许退化为内部辅助转发实现。
+## 7. 未来保留：运行时 InstanceId / Identity 方案实现（按需进入）
 
-## 8. 验证
-- [ ] [AI] 8.1 编译验证 TCS 运行时与编辑器模块。
-- [ ] [AI] 8.2 验证所有受管 DefAsset 都遵循统一三种加载策略，且预加载主路径固定走异步。
-- [ ] [AI] 8.3 验证所有受管 DefAsset 都支持单资产粒度的按需异步加载。
-- [ ] [AI] 8.4 验证同步加载接口若存在，只作为显式补充能力，不会反客为主成为默认主路径。
-- [ ] [AI] 8.5 验证统一加载配置面已覆盖当前全部非抽象 DefAsset 类型，而不是只覆盖抽象 `StateDef` 家族。
-- [ ] [AI] 8.6 验证 `AssetManagerSettings` 已按 `BuffDef`、`SkillDef`、`StateSlotDef`、`AttributeDef`、`AttributeModifierDef`、`SkillModifierDef` 等具体类型分别配置扫描路径。
-- [ ] [AI] 8.7 验证 `BuffDef` / `SkillDef` 不再共同挂在抽象 `TcsStateDef` 扫描路径下。
-- [ ] [AI] 8.8 验证所有直接查询抽象 `StateDefinition` 的 public runtime 接口都已清零。
-- [ ] [AI] 8.9 验证 State / Skill / Modifier 相关 Def 查询与按需加载路径。
-- [ ] [协作] 8.10 验证编辑器期 `UTcsDefinitionRegistrySubsystem` / `UTcsDefinitionEditorManagerSubsystem` 与 runtime definition manager 已完成职责解耦。
-- [ ] [AI] 8.11 验证 `UTcsStateManagerSubsystem` 已不再暴露 Definition 查询 public API。
-- [ ] [AI] 8.12 验证 `LearnSkill` / `ActivateSkill` / `ApplyBuff` / `ApplySkillModifier` 的对象型 public 入口已清零，若仍有残余逻辑也仅限内部辅助实现。
-- [ ] [AI] 8.13 验证 Definition 解析失败时不会产生占位运行时对象、部分 apply 或静默成功。
-- [ ] [AI] 8.14 验证 runtime contract 中不存在依赖 editor registry、editor manager 或 `DeveloperSettings` cached defs 触发的 Definition cache 重建语义。
-- [ ] [AI] 8.15 验证失败诊断固定带有查询 key / `DefId`、入口名、失败类别。
-- [ ] [AI] 8.16 验证 `UTcsDefinitionManagerSubsystem` 的 runtime-ready 判定不会因无关 Definition 域未就绪而阻塞当前消费面；`State` / `Attribute` / `Skill` 等主路径仅受自身必需 Definition 域约束。
+> 进入门槛：本阶段不是当前执行范围，也不是当前归档前必须完成的代码任务。只有用户明确批准进入本地预测 / 网络同步实现后，才允许把 7.x 转为可执行编码任务；否则后续实现默认从第 8 阶段继续。
 
-## 9. 用户手动验证清单
-- [ ] [用户] 9.1 在 Unreal Editor 中验证 DefAsset 新增、修改、删除后，`UTcsDefinitionEditorManagerSubsystem` 的桥接与缓存更新行为符合预期。
-- [ ] [用户] 9.2 在 Unreal Editor 中验证 DefAsset ↔ DataTable 回写不会出现递归循环、重复刷新或错误覆盖。
-- [ ] [用户] 9.3 在 Unreal Editor 中验证资产移动、重命名、删除、重导入后，编辑器期索引、脏标记与更新队列行为符合预期。
-- [ ] [用户] 9.4 在 Unreal Editor 中验证 Details 面板、菜单入口、编辑器事件监听相关行为没有因为本次重构失效。
-- [ ] [用户] 9.5 对 AI 无法直接观察的编辑器期现象，记录实际步骤、日志、截图或报错文本，回传用于后续修正。
+- 7.1 未来若正式纳入本地预测开发，才允许在需要预测的主请求路径上接入 `PredictionKey`，并按 GAS 风格的根请求预测模型管理预测实例生命周期。
+- 7.2 未来若正式纳入网络同步 / authority 验证，才允许为 `StateInstance` / `BuffInstance` / `SkillInstance` 接入最终确认的实例级 authority 身份确认链路；字段命名继续沿用 `StateInstId` 等现有语义名。
+- 7.3 未来若对应路径进入跨端实例重关联范围，才评估 `AttributeModifierInstance` / `SkillModifierInstance` 的最终确认链路；当前不为其引入预测主路径。
+- 7.4 未来若正式纳入预测/同步实现，才根据最终方案收敛 `FTcsSourceHandle` 的 authority-only 代码实现，并通过既有确认/复制链路完成预测对象绑定。
+
+## 8. Skill DefId 主路径
+- [x] [AI] 8.1 为 `UTcsSkillEntry` 明确“对外使用 `SkillDefId`，实例内部缓存已校验 `UTcsSkillDefinition*`”的权威模型。
+- [x] [AI] 8.2 将 `LearnSkill` / `ActivateSkill` 主路径改为按 `SkillDefId` 驱动。
+- [x] [AI] 8.3 直接移除对象指针版本的 public 入口；若迁移阶段存在残余逻辑，只允许退化为内部辅助转发实现。
+- [x] [AI] 8.4 明确 SkillDef 解析失败、缺失或加载失败时的运行时错误语义。
+
+## 9. DefId 主路径扩展到 Buff / SkillModifier
+- [ ] [AI] 9.1 将 Buff apply 主路径收敛到 `StateDefId` / `BuffDefId` 驱动，不要求调用方先持有已加载 Def 对象。
+- [ ] [AI] 9.2 将 SkillModifier apply 主路径收敛到 `SkillModifierDefId` 驱动，不要求调用方先持有已加载 Def 对象。
+- [ ] [AI] 9.3 直接移除旧对象型 public 入口；若迁移阶段存在残余逻辑，只允许退化为内部辅助转发实现。
+
+## 10. 验证
+- [ ] [AI] 10.1 编译验证 TCS 运行时与编辑器模块。
+- [ ] [AI] 10.2 验证所有受管 DefAsset 都遵循统一三种加载策略，且预加载主路径固定走异步。
+- [ ] [AI] 10.3 验证所有受管 DefAsset 都支持单资产粒度的按需异步加载。
+- [ ] [AI] 10.4 验证同步加载接口若存在，只作为显式补充能力，不会反客为主成为默认主路径。
+- [ ] [AI] 10.5 验证统一加载配置面已覆盖当前全部非抽象 DefAsset 类型，而不是只覆盖抽象 `StateDef` 家族。
+- [ ] [AI] 10.6 验证 `AssetManagerSettings` 已按 `BuffDef`、`SkillDef`、`StateSlotDef`、`AttributeDef`、`AttributeModifierDef`、`SkillModifierDef` 等具体类型分别配置扫描路径。
+- [ ] [AI] 10.7 验证 `BuffDef` / `SkillDef` 不再共同挂在抽象 `TcsStateDef` 扫描路径下。
+- [ ] [AI] 10.8 验证所有直接查询抽象 `StateDefinition` 的 public runtime 接口都已清零。
+- [ ] [AI] 10.9 验证 State / Skill / Modifier 相关 Def 查询与按需加载路径。
+- [ ] [协作] 10.10 验证编辑器期 `UTcsDefinitionRegistrySubsystem` / `UTcsDefinitionEditorManagerSubsystem` 与 runtime definition manager 已完成职责解耦。
+- [ ] [AI] 10.11 验证 `UTcsStateManagerSubsystem` 已不再暴露 Definition 查询 public API。
+- [ ] [AI] 10.12 验证 `LearnSkill` / `ActivateSkill` / `ApplyBuff` / `ApplySkillModifier` 的对象型 public 入口已清零，若仍有残余逻辑也仅限内部辅助实现。
+- [ ] [AI] 10.13 验证 Definition 解析失败时不会产生占位运行时对象、部分 apply 或静默成功。
+- [ ] [AI] 10.14 验证 runtime contract 中不存在依赖 editor registry、editor manager 或 `DeveloperSettings` cached defs 触发的 Definition cache 重建语义。
+- [ ] [AI] 10.15 验证失败诊断固定带有查询 key / `DefId`、入口名、失败类别。
+- [ ] [AI] 10.16 验证 `UTcsDefinitionManagerSubsystem` 的 runtime-ready 判定不会因无关 Definition 域未就绪而阻塞当前消费面；`State` / `Attribute` / `Skill` 等主路径仅受自身必需 Definition 域约束。
+
+## 11. 用户手动验证清单
+- [ ] [用户] 11.1 在 Unreal Editor 中验证 DefAsset 新增、修改、删除后，`UTcsDefinitionEditorManagerSubsystem` 的桥接与缓存更新行为符合预期。
+- [ ] [用户] 11.2 在 Unreal Editor 中验证 DefAsset ↔ DataTable 回写不会出现递归循环、重复刷新或错误覆盖。
+- [ ] [用户] 11.3 在 Unreal Editor 中验证资产移动、重命名、删除、重导入后，编辑器期索引、脏标记与更新队列行为符合预期。
+- [ ] [用户] 11.4 在 Unreal Editor 中验证 Details 面板、菜单入口、编辑器事件监听相关行为没有因为本次重构失效。
+- [ ] [用户] 11.5 对 AI 无法直接观察的编辑器期现象，记录实际步骤、日志、截图或报错文本，回传用于后续修正。

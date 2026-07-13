@@ -39,17 +39,30 @@ public:
 #pragma region Identity
 
 public:
-	/** @return 当前 learned-skill 绑定的 Skill 定义资产。 */
+	/** @return 当前 learned-skill 的稳定 Skill 定义 ID。 */
+	UFUNCTION(BlueprintCallable, Category = "Skill|Entry")
+	FName GetSkillDefId() const { return SkillDefId; }
+
+	/** @return 当前 learned-skill 绑定的已校验 Skill 定义资产缓存。 */
 	UFUNCTION(BlueprintCallable, Category = "Skill|Entry")
 	UTcsSkillDefinition* GetSkillDefinition() const { return SkillDefinition.Get(); }
 
-	/** 设置当前 learned-skill 绑定的 Skill 定义资产。 */
-	UFUNCTION(BlueprintCallable, Category = "Skill|Entry")
-	void SetSkillDefinition(UTcsSkillDefinition* InSkillDefinition) { SkillDefinition = InSkillDefinition; }
+	/**
+	 * 从合法 Skill 定义初始化 learned-skill 数据对象。
+	 *
+	 * @param InSkillDefId 已通过 DefinitionManager 解析的 Skill 定义 ID。
+	 * @param Def 已通过 InSkillDefId 解析并校验的 Skill 定义资产。
+	 * @return 初始化成功返回 true；Definition 无效或参数初始化失败时返回 false。
+	 */
+	bool InitializeFromDef(FName InSkillDefId, const UTcsSkillDefinition* Def);
 
 protected:
-	/** 当前 learned-skill 绑定的 Skill 定义资产。 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Skill|Entry", Meta = (AllowPrivateAccess = "true"))
+	/** 当前 learned-skill 的稳定 Skill 定义 ID。 */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Skill|Entry", Meta = (AllowPrivateAccess = "true"))
+	FName SkillDefId = NAME_None;
+
+	/** 当前 learned-skill 绑定的已校验 Skill 定义资产运行时缓存。 */
+	UPROPERTY(Transient, BlueprintReadOnly, Category = "Skill|Entry", Meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UTcsSkillDefinition> SkillDefinition = nullptr;
 
 #pragma endregion
@@ -118,9 +131,6 @@ public:
 	 * SkillModifier 不会为 SkillInstance 复制第二套目标容器，而是统一落在该共享参数链上。
 	 */
 	TMap<FGameplayTag, FTcsVectorStateParamInstance> VectorParamInstances;
-
-	/** 从 Def 初始化技能参数。 */
-	void InitializeFromDef(UTcsSkillDefinition* Def);
 
 	/** @return 命中的 Numeric 参数实例；未命中时返回 nullptr。 */
 	FTcsNumericStateParamInstance* FindNumericParamInstance(FGameplayTag ParamTag);

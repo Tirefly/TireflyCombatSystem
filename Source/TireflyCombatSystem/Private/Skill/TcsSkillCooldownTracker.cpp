@@ -13,9 +13,10 @@ void FTcsSkillCooldownTracker::Add(UTcsSkillEntry* Entry)
 		return;
 	}
 
-	if (const UTcsSkillDefinition* Def = Entry->GetSkillDefinition())
+	const FName SkillDefId = Entry->GetSkillDefId();
+	if (!SkillDefId.IsNone())
 	{
-		TrackedEntries.Add(Def->GetFName(), Entry);
+		TrackedEntries.Add(SkillDefId, Entry);
 	}
 }
 
@@ -26,9 +27,10 @@ void FTcsSkillCooldownTracker::Remove(UTcsSkillEntry* Entry)
 		return;
 	}
 
-	if (const UTcsSkillDefinition* Def = Entry->GetSkillDefinition())
+	const FName SkillDefId = Entry->GetSkillDefId();
+	if (!SkillDefId.IsNone())
 	{
-		TrackedEntries.Remove(Def->GetFName());
+		TrackedEntries.Remove(SkillDefId);
 	}
 }
 

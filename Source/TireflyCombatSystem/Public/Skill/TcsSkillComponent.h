@@ -14,6 +14,7 @@ class UTcsSkillDefinition;
 class UTcsSkillEntry;
 class UTcsSkillModifierDefinition;
 class UTcsSkillInstance;
+class UTcsDefinitionManagerSubsystem;
 class UTcsRuntimeBootstrapSubsystem;
 class UTcsStateInstance;
 class UTcsStateComponent;
@@ -107,9 +108,14 @@ protected:
 #pragma region Learned
 
 public:
-	/** 学会一个技能（创建 Entry 并注册）。 */
+	/**
+	 * 按 SkillDefId 学会一个技能（创建 Entry 并注册）。
+	 *
+	 * @param SkillDefId 要学习的 Skill 定义 ID。
+	 * @return 成功创建并注册 SkillEntry 时返回 true；解析失败或已学会时返回 false。
+	 */
 	UFUNCTION(BlueprintCallable, Category = "Skill|Learned")
-	void LearnSkill(UTcsSkillDefinition* Def);
+	bool LearnSkill(FName SkillDefId);
 
 	/** 遗忘一个技能（移除 Entry，并取消活跃实例）。 */
 	UFUNCTION(BlueprintCallable, Category = "Skill|Learned")
@@ -127,9 +133,18 @@ public:
 	TArray<UTcsSkillEntry*> GetAllSkillEntries() const;
 
 protected:
-	/** 已学会技能集合（Key 为 SkillDef 的 AssetName）。 */
+	/** 已学会技能集合（Key 为稳定 SkillDefId）。 */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Skill|Learned", Meta = (AllowPrivateAccess = "true"))
 	TMap<FName, TObjectPtr<UTcsSkillEntry>> LearnedSkills;
+
+private:
+	/**
+	 * 通过 DefinitionManager 解析 Skill 定义。
+	 *
+	 * @param SkillDefId 要解析的 Skill 定义 ID。
+	 * @return 解析成功时返回 SkillDefinition；失败时返回 nullptr。
+	 */
+	const UTcsSkillDefinition* ResolveSkillDefinition(FName SkillDefId) const;
 
 #pragma endregion
 
@@ -247,7 +262,13 @@ private:
 #pragma region Activation
 
 public:
-	/** 激活指定技能。 */
+	/**
+	 * 激活指定技能。
+	 *
+	 * @param SkillDefId 要激活的 Skill 定义 ID。
+	 * @param Instigator 技能发起者。
+	 * @return 返回技能激活结果。
+	 */
 	UFUNCTION(BlueprintCallable, Category = "Skill|Activation")
 	ETcsSkillActivateResult ActivateSkill(FName SkillDefId, AActor* Instigator);
 

@@ -18,13 +18,14 @@
 - 把现有 `UTcsDefAssetDataTableSyncSubsystem` 升级为编辑器期 `UTcsDefinitionEditorManagerSubsystem`，承接编辑器期桥接、缓存与调度职责。
 - 让 `UTcsSkillEntry` 对外以 `SkillDefId` 参与主路径身份流转，但在实例内部以一个已校验的 `UTcsSkillDefinition*` 作为运行时唯一权威 SkillDef 缓存。
 - 让 `ApplyBuff` / `ApplySkillModifier` 的主执行路径也按 DefId 驱动。
-- 让 `UTcsStateManagerSubsystem` 退出 Definition cache/load 归口角色。
+- 让 `UTcsStateManagerSubsystem` / `UTcsAttributeManagerSubsystem` 退出 Definition cache/load 归口角色；若评估后仅剩空壳职责，则允许直接删除子系统本体。
 - 让 `Attribute`、`Buff` 两个模块同步完成相关加载/查询/应用路径收敛，而不是只修 Skill 链路。
 
 ## 非目标
 - 本提案不改变 Def editor authoring 菜单结构。
 - 本提案不在同一 change 中重做所有 gameplay runtime API 的 Blueprint 表面，仅要求主执行路径收敛。
 - 本提案不在同一 change 中完成所有 Definition 类型的完整统一加载策略配置面设计。
+- 本提案在当前执行范围内不实现本地预测、网络同步、`PredictionKey` 代码或实例 reconcile RPC；相关内容只作为未来显式进入第七阶段后的实现约束。
 
 ## 已确认设计决策
 1. 新的统一运行时 Definition 归口命名固定为 `UTcsDefinitionManagerSubsystem`
@@ -42,10 +43,15 @@
 11. `LearnSkill` / `ActivateSkill` / `ApplyBuff` / `ApplySkillModifier` 的主执行路径固定为按 DefId 驱动；对象指针版本不再作为归档后保留的 public API 主路径，优先直接删除，必要时也只能作为内部辅助逻辑短暂存在
 12. `Attribute` 与 `Buff` 模块必须与 Skill / State 一起完成 Definition 加载与应用路径收敛，不能留在旧模型里
 13. `StateDefId` 相关查询与标识语义只允许收紧到 `State` 模块内部，用于单个 state definition 在 `StateComponent` 上的运行生命周期；Buff 相关 public API 若涉及 Definition 标识，必须统一使用 `BuffDefId`
-14. 面向 Buff 语义的跨 Actor facade 若继续保留，命名与参数也必须同步收敛到 `BuffDefId`，不得继续以 `TryApplyStateToTarget(..., StateDefId, ...)` 形式对外泄露旧抽象语义
+14. 面向 Buff 语义的跨 Actor facade 若继续保留，命名与参数也必须同步收敛到 `BuffDefId`，不得继续以 `TryApplyStateToTarget(..., StateDefId, ...)` 形式对外泄露旧抽象语义；若无外部调用方，则优先直接删除而不是保留空壳 facade
 15. `UTcsDefinitionManagerSubsystem` 的最终查询接口不强制区分 `Find` / `Get` / `TryResolve` 三种命名层级，但保留的类型化查询面必须足够全面
 16. 失败诊断必须带上查询 key / `DefId`、入口名、失败类别（未注册 / 类型不匹配 / 加载失败）
 17. editor registry、`UTcsDefinitionEditorManagerSubsystem` 与 runtime definition manager 强解耦；runtime 不定义通用 refresh 生命周期，也不引入 `RuntimeRefresh` 契约
+18. 第五阶段若为先移除空壳子系统而把 `StateInstanceId`、`AttributeInstId`、`ModifierInstId`、`ModifierChangeBatchId`、`SourceHandle.Id` 的分配逻辑临时下沉到 `Component static`，该方案只视为过渡实现，不视为最终架构
+19. 第六阶段必须正式收敛运行时实例身份模型，但当前版本只先写设计；在用户明确批准进入第七阶段前，MUST NOT 新增 `PredictionKey` 类型、字段、参数、网络同步代码或实例 reconcile RPC
+20. `PredictionKey` 只作为未来本地预测阶段的主身份键设计约束，流程优先参考 GAS 的“根请求携带 PredictionKey”模型；系统 MUST NOT 为实例 reconcile 额外引入专门 RPC
+21. 实例级 authority 最终身份只由 authority 侧在成功创建 authority instance、且其他有效性验证已通过后立即分配；字段命名继续沿用 `StateInstId` / `AttrModInstId` / `SkillModInstId` 等现有语义名，不改称 `AuthorityId`
+22. `FTcsSourceHandle` 是 **AuthorityOnly** 的事件因果链句柄；客户端本地预测阶段不得生成最终 authority `SourceHandle`
 
 ## 本轮已写硬到 spec 的设计细节
 1. `UTcsDefinitionManagerSubsystem` 的 public 查询面已明确要求提供按 `DefId` 的类型化入口
@@ -124,6 +130,22 @@
 - 单个 DefAsset 的按需解析仍必须可独立触发；异步路径是推荐主路径，同步路径是阻塞式补充能力。
 - 同步加载函数（`Load...DefinitionSync`）作为纯内部实现细节放在 `protected` 域下，外部统一通过 `Get...Definition` 隐式触发；这保证调用方默认走 loaded cache 或异步路径，不会意外引入阻塞加载。
 
+## 运行时 InstanceId / Identity 收敛建议
+- 当前第五阶段下沉到 `Component static` 的 ID 工厂只应被解释为**过渡期实现**，不是最终身份系统。
+- 本节中涉及 `PredictionKey`、本地预测、authority 确认与网络同步的内容，只约束未来显式进入第七阶段后的实现方向；当前执行范围不得因此新增 `PredictionKey` 类型、字段、参数、RPC 或复制链路。
+- `SkillEntry`、`AttributeInstance` 不应被强行要求具备独立实例级 `InstanceId`：
+	- `UTcsSkillEntry` 的稳定身份继续由 `SkillDefId` 表达
+	- `AttributeInstance` 的稳定身份继续由 `Owner + AttributeDefId` 表达
+- `AttributeModifierInstance` 与 `SkillModifierInstance` 现阶段不进入本地预测流程；至少在当前阶段，它们不需要 `PredictionKey`，但保留实例级 authority 身份（如 `AttrModInstId` / `SkillModInstId`）以支撑 authority 唯一身份与多实例并存。
+- `StateInstance` 继续以实例级 authority 身份（如 `StateInstId`）表达运行时实例身份；`BuffInstance`、`SkillInstance` 继承该模型。
+- `StateParamInstance` 长期从属于单个 `StateInstance`，只需通过 `StateInstance + StateParamName` 完成有效性验证，不需要额外实例级 ID。
+- `FTcsSourceHandle` 是 TCS 事件因果链的唯一权威存储结构，且其 `Id` 被明确锁定为 **AuthorityOnly** 字段；它用于 authority 归因与因果链追踪，不承担客户端预测阶段的本地实例身份职责。
+- 未来本地预测阶段默认不再强制要求引入全局 `LocalInstanceId`；当前已确认：**一个 `PredictionKey` 不会产生多个同类预测实例**，因此当前阶段不需要再额外设计 prediction-scope 局部区分键。
+- 未来 authority 确认与 reconcile 规则应遵循：
+    - 客户端预测对象以 `PredictionKey` 为主身份
+    - authority 在创建最终实例且其他有效性验证都通过后，立即分配对应的实例级 authority 身份
+    - 客户端通过既有根请求确认/复制链路完成 `PredictionKey -> 实例级 authority 身份` 绑定，而不是为实例自身额外引入专门 RPC
+
 ## `SkillEntry` 权威对象建议
 - `SkillEntry` 作为运行时实例，不应只把 `SkillDefId` 当作唯一运行时真相，而把真实 `SkillDef` 每次都重新查回。
 - 更合理的模型是：
@@ -195,6 +217,16 @@
 - 如果迁移阶段短暂保留这些逻辑，它们也只能退化为内部辅助转发实现，而不能继续对外承担 public 主入口职责。
 - 如果运行时仍存在必须依赖对象型 public 主入口的调用点，说明迁移尚未完成，该 change 不应归档。
 
+## 当前已追加确认的 InstanceId 设计结论
+- 当前版本已经明确：
+	- `SkillEntry`、`AttributeInstance` 不需要实例级 `InstanceId`
+	- `SourceHandle` 是 **AuthorityOnly**
+	- `PredictionKey` 只是未来预测阶段主身份键的设计约束，当前阶段不得新增对应代码
+	- 一个 `PredictionKey` 不会产生多个同类预测实例
+	- 除 `SkillInstance` 预测路径外，当前已知运行时实例都不需要 `PredictionKey`；但 `StateInstId`、`AttrModInstId`、`SkillModInstId` 仍继续承担各自的实例级 authority 身份
+	- `SourceHandle` 不是 `StateInstId` / `AttrModInstId` / `SkillModInstId` 的替代物，而是这些实例在 authority 侧有效性验证与语义归因的一部分
+- 当前版本的第六阶段已足够支持后续阶段继续实现；若未来真正进入本地预测或网络同步开发，必须在用户明确批准后，才可在第七阶段按需把这些设计落实到代码。
+
 ## 初步推荐
 - 推荐新增统一 `UGameInstanceSubsystem` 级别的 Definition 管理子系统 `UTcsDefinitionManagerSubsystem`。
 - 推荐把现有 `UTcsDefAssetDataTableSyncSubsystem` 升级并重命名为 `UTcsDefinitionEditorManagerSubsystem`，而不是再平行叠加新的 EditorSubsystem。
@@ -203,6 +235,6 @@
 - 推荐运行时加载默认优先异步，同时保留显式同步补充接口。
 - 推荐 `UTcsDeveloperSettings` 只保留设置读取职责，不再承担 Def 缓存基站角色。
 - 推荐 AssetManager 建模与加载配置粒度一致，直接拆到具体非抽象 DefAsset 类型，而不是继续让 `BuffDef` / `SkillDef` 共同挂在抽象 `TcsStateDef` 家族中心下面。
-- 推荐 `StateManagerSubsystem` 仅保留全局 ID 工厂与跨 Actor apply facade。
+- 推荐不要为了单纯的 ID 发号行为额外新增 runtime 子系统；当前版本先把身份语义收敛清楚，再在后续真正需要时决定是否引入统一的 identity / reconcile 账本实现。
 - 推荐直接取消对象型 public 主入口；若迁移阶段内部确实需要短暂转发逻辑，也应限定为内部辅助实现，并把“归档前清零”写入任务与验收标准。
 - 推荐 `ApplyBuff` / `ApplySkillModifier` 与 `LearnSkill` / `ActivateSkill` 一样，以 DefId 作为主执行路径输入。
