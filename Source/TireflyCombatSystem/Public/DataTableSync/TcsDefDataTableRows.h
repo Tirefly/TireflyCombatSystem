@@ -337,7 +337,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skill Modifier")
 	int32 Priority = 0;
 
-	/** 同 ModifierId 的合并策略。 */
+	/** 同 SkillModifierDefId 的合并策略。 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skill Modifier")
 	ETcsSkillModifierMergePolicy MergePolicy = ETcsSkillModifierMergePolicy::Stack;
 };

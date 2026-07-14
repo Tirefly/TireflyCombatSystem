@@ -54,7 +54,8 @@ TCS SHALL 新增 `UTcsDefinitionManagerSubsystem` 作为统一的运行时 Defin
 #### Scenario: DefinitionManager 可提供 State 模块内部桥接查询
 - **WHEN** State 模块运行时需要按 `StateDefId` 解析一个 state-like Definition，但不关心它是 BuffDef 还是 SkillDef
 - **THEN** `UTcsDefinitionManagerSubsystem` MAY 提供一个返回抽象 `UTcsStateDefinition*` 的便捷查询入口
-- **AND** 该查询 MUST 仅作为具体 `BuffDef` / `SkillDef` 的内部 dispatch 实现，MUST NOT 重建独立的抽象 StateDef source cache 或独立加载族
+- **AND** 该查询 MAY 维护由具体 `BuffDef` / `SkillDef` source cache 与 loaded cache 派生的 `StateDefinitionSources` / `StateDefinitions` 聚合索引，以保证 State 模块高频查询先以单次缓存查找命中
+- **AND** 该聚合索引 MUST NOT 自行扫描 AssetManager、定义独立加载策略、成为独立 authoritative source，或替代具体类型缓存
 - **AND** 该查询不得被用于绕过具体类型化查询面对外暴露弱类型总入口
 
 #### Scenario: AssetManager 粒度必须与加载配置粒度一致

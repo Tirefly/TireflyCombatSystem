@@ -32,7 +32,7 @@ EStateTreeRunStatus FTcsSTTask_ApplySkillModifierToOwner::EnterState(
 	UTcsStateInstance& StateInstance = Context.GetExternalData(StateInstanceHandle);
 
 	UTcsSkillComponent* SkillComp = StateInstance.GetOwnerSkillComponent();
-	if (!SkillComp || InstanceData.ModifierIds.IsEmpty() || !StateInstance.GetSourceHandle().IsValid())
+	if (!SkillComp || InstanceData.SkillModifierDefIds.IsEmpty() || !StateInstance.GetSourceHandle().IsValid())
 	{
 		InstanceData.AppliedRuntimeEntries.Reset();
 		return EStateTreeRunStatus::Failed;
@@ -40,7 +40,7 @@ EStateTreeRunStatus FTcsSTTask_ApplySkillModifierToOwner::EnterState(
 
 	if (!SkillComp->ApplySkillModifiersWithSourceHandle(
 		StateInstance.GetSourceHandle(),
-		InstanceData.ModifierIds,
+		InstanceData.SkillModifierDefIds,
 		InstanceData.AppliedRuntimeEntries))
 	{
 		InstanceData.AppliedRuntimeEntries.Reset();

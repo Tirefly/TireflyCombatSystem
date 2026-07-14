@@ -22,7 +22,7 @@ void UTcsDefinitionManagerSubsystem::LoadBuffDefinitionAsync(FName BuffDefId, co
 		return;
 	}
 
-	StartAsyncLoad(BuffDefinitionSources, BuffDefId, Callback);
+	StartAsyncLoad(BuffDefinitionSources, BuffDefId, TEXT("LoadBuffDefinitionAsync"), Callback);
 }
 
 void UTcsDefinitionManagerSubsystem::LoadSkillDefinitionAsync(FName SkillDefId, const FOnTcsDefinitionAsyncLoaded& Callback)
@@ -33,7 +33,7 @@ void UTcsDefinitionManagerSubsystem::LoadSkillDefinitionAsync(FName SkillDefId, 
 		return;
 	}
 
-	StartAsyncLoad(SkillDefinitionSources, SkillDefId, Callback);
+	StartAsyncLoad(SkillDefinitionSources, SkillDefId, TEXT("LoadSkillDefinitionAsync"), Callback);
 }
 
 void UTcsDefinitionManagerSubsystem::LoadStateSlotDefinitionAsync(FName StateSlotDefId, const FOnTcsDefinitionAsyncLoaded& Callback)
@@ -44,7 +44,7 @@ void UTcsDefinitionManagerSubsystem::LoadStateSlotDefinitionAsync(FName StateSlo
 		return;
 	}
 
-	StartAsyncLoad(StateSlotDefinitionSources, StateSlotDefId, Callback);
+	StartAsyncLoad(StateSlotDefinitionSources, StateSlotDefId, TEXT("LoadStateSlotDefinitionAsync"), Callback);
 }
 
 void UTcsDefinitionManagerSubsystem::LoadAttributeDefinitionAsync(FName AttributeDefId, const FOnTcsDefinitionAsyncLoaded& Callback)
@@ -55,7 +55,7 @@ void UTcsDefinitionManagerSubsystem::LoadAttributeDefinitionAsync(FName Attribut
 		return;
 	}
 
-	StartAsyncLoad(AttributeDefinitionSources, AttributeDefId, Callback);
+	StartAsyncLoad(AttributeDefinitionSources, AttributeDefId, TEXT("LoadAttributeDefinitionAsync"), Callback);
 }
 
 void UTcsDefinitionManagerSubsystem::LoadAttributeModifierDefinitionAsync(FName AttributeModifierDefId, const FOnTcsDefinitionAsyncLoaded& Callback)
@@ -66,7 +66,7 @@ void UTcsDefinitionManagerSubsystem::LoadAttributeModifierDefinitionAsync(FName 
 		return;
 	}
 
-	StartAsyncLoad(AttributeModifierDefinitionSources, AttributeModifierDefId, Callback);
+	StartAsyncLoad(AttributeModifierDefinitionSources, AttributeModifierDefId, TEXT("LoadAttributeModifierDefinitionAsync"), Callback);
 }
 
 void UTcsDefinitionManagerSubsystem::LoadSkillModifierDefinitionAsync(FName SkillModifierDefId, const FOnTcsDefinitionAsyncLoaded& Callback)
@@ -77,17 +77,19 @@ void UTcsDefinitionManagerSubsystem::LoadSkillModifierDefinitionAsync(FName Skil
 		return;
 	}
 
-	StartAsyncLoad(SkillModifierDefinitionSources, SkillModifierDefId, Callback);
+	StartAsyncLoad(SkillModifierDefinitionSources, SkillModifierDefId, TEXT("LoadSkillModifierDefinitionAsync"), Callback);
 }
 
 void UTcsDefinitionManagerSubsystem::StartAsyncLoad(
 	const TMap<FName, FTcsDefinitionSourceEntry>& SourceCache,
 	FName DefId,
+	FName EntryName,
 	const FOnTcsDefinitionAsyncLoaded& Callback)
 {
 	const FTcsDefinitionSourceEntry* Entry = SourceCache.Find(DefId);
 	if (!Entry)
 	{
+		LogDefinitionQueryFailure(DefId, *EntryName.ToString(), TEXT("NotRegistered"));
 		Callback.ExecuteIfBound(DefId, false, nullptr);
 		return;
 	}
@@ -104,13 +106,13 @@ void UTcsDefinitionManagerSubsystem::StartAsyncLoad(
 	const FPrimaryAssetId AssetId = Entry->AssetId;
 	TWeakObjectPtr<UTcsDefinitionManagerSubsystem> WeakThis(this);
 	UAssetManager::Get().LoadPrimaryAsset(AssetId, {},
-		FStreamableDelegate::CreateLambda([WeakThis, AssetId, DefId]()
+		FStreamableDelegate::CreateLambda([WeakThis, AssetId, DefId, EntryName]()
 		{
 			if (UTcsDefinitionManagerSubsystem* Self = WeakThis.Get())
 			{
 				TArray<FOnTcsDefinitionAsyncLoaded> Callbacks;
 				Self->PendingAsyncLoads.RemoveAndCopyValue(AssetId, Callbacks);
-				Self->OnAsyncDefinitionLoaded(AssetId, DefId, MoveTemp(Callbacks));
+				Self->OnAsyncDefinitionLoaded(AssetId, DefId, EntryName, MoveTemp(Callbacks));
 			}
 		}));
 }
@@ -118,34 +120,36 @@ void UTcsDefinitionManagerSubsystem::StartAsyncLoad(
 void UTcsDefinitionManagerSubsystem::OnAsyncDefinitionLoaded(
 	FPrimaryAssetId AssetId,
 	FName DefId,
+	FName EntryName,
 	TArray<FOnTcsDefinitionAsyncLoaded> Callbacks)
 {
 	UPrimaryDataAsset* Asset = UAssetManager::Get().GetPrimaryAssetObject<UPrimaryDataAsset>(AssetId);
-	const bool bSuccess = Asset != nullptr;
+	bool bSuccess = false;
 
 	if (Asset)
 	{
-		WriteLoadedAssetToCache(AssetId, Asset);
+		bSuccess = WriteLoadedAssetToCache(AssetId, Asset);
+		if (!bSuccess)
+		{
+			LogDefinitionQueryFailure(DefId, *EntryName.ToString(), TEXT("TypeMismatch"));
+		}
 	}
 	else
 	{
-		UE_LOG(LogTcs, Warning,
-			TEXT("[UTcsDefinitionManagerSubsystem] Async load failed for DefId=%s AssetId=%s"),
-			*DefId.ToString(),
-			*AssetId.ToString());
+		LogDefinitionQueryFailure(DefId, *EntryName.ToString(), TEXT("LoadFailed"));
 	}
 
 	for (const FOnTcsDefinitionAsyncLoaded& Callback : Callbacks)
 	{
-		Callback.ExecuteIfBound(DefId, bSuccess, Asset);
+		Callback.ExecuteIfBound(DefId, bSuccess, bSuccess ? Asset : nullptr);
 	}
 }
 
-void UTcsDefinitionManagerSubsystem::WriteLoadedAssetToCache(const FPrimaryAssetId& AssetId, UPrimaryDataAsset* Asset)
+bool UTcsDefinitionManagerSubsystem::WriteLoadedAssetToCache(const FPrimaryAssetId& AssetId, UPrimaryDataAsset* Asset)
 {
 	if (!Asset)
 	{
-		return;
+		return false;
 	}
 
 	if (AssetId.PrimaryAssetType == UTcsBuffDefinition::PrimaryAssetType)
@@ -154,11 +158,15 @@ void UTcsDefinitionManagerSubsystem::WriteLoadedAssetToCache(const FPrimaryAsset
 		{
 			const FName DefId = Def->StateDefId;
 			BuffDefinitions.Add(DefId, Def);
-			StateDefinitions.Add(DefId, Def);
+			if (!AmbiguousStateDefinitionIds.Contains(DefId))
+			{
+				StateDefinitions.Add(DefId, Def);
+			}
 			if (Def->StateTag.IsValid())
 			{
 				BuffTagToDefId.Add(Def->StateTag, DefId);
 			}
+			return true;
 		}
 	}
 	else if (AssetId.PrimaryAssetType == UTcsSkillDefinition::PrimaryAssetType)
@@ -167,7 +175,11 @@ void UTcsDefinitionManagerSubsystem::WriteLoadedAssetToCache(const FPrimaryAsset
 		{
 			const FName DefId = Def->StateDefId;
 			SkillDefinitions.Add(DefId, Def);
-			StateDefinitions.Add(DefId, Def);
+			if (!AmbiguousStateDefinitionIds.Contains(DefId))
+			{
+				StateDefinitions.Add(DefId, Def);
+			}
+			return true;
 		}
 	}
 	else if (AssetId.PrimaryAssetType == UTcsStateSlotDefinition::PrimaryAssetType)
@@ -180,6 +192,7 @@ void UTcsDefinitionManagerSubsystem::WriteLoadedAssetToCache(const FPrimaryAsset
 			{
 				StateSlotTagToDefId.Add(Def->SlotTag, DefId);
 			}
+			return true;
 		}
 	}
 	else if (AssetId.PrimaryAssetType == UTcsAttributeDefinition::PrimaryAssetType)
@@ -187,6 +200,7 @@ void UTcsDefinitionManagerSubsystem::WriteLoadedAssetToCache(const FPrimaryAsset
 		if (UTcsAttributeDefinition* Def = Cast<UTcsAttributeDefinition>(Asset))
 		{
 			AttributeDefinitions.Add(Def->AttributeDefId, Def);
+			return true;
 		}
 	}
 	else if (AssetId.PrimaryAssetType == UTcsAttributeModifierDefinition::PrimaryAssetType)
@@ -194,13 +208,17 @@ void UTcsDefinitionManagerSubsystem::WriteLoadedAssetToCache(const FPrimaryAsset
 		if (UTcsAttributeModifierDefinition* Def = Cast<UTcsAttributeModifierDefinition>(Asset))
 		{
 			AttributeModifierDefinitions.Add(Def->AttributeModifierDefId, Def);
+			return true;
 		}
 	}
 	else if (AssetId.PrimaryAssetType == UTcsSkillModifierDefinition::PrimaryAssetType)
 	{
 		if (UTcsSkillModifierDefinition* Def = Cast<UTcsSkillModifierDefinition>(Asset))
 		{
-			SkillModifierDefinitions.Add(Def->ModifierId, Def);
+			SkillModifierDefinitions.Add(Def->SkillModifierDefId, Def);
+			return true;
 		}
 	}
+
+	return false;
 }

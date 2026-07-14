@@ -36,11 +36,11 @@ enum class ETcsDefinitionLoadingStrategy : uint8
 	// 启动时预加载该类型下的全部 DefinitionAsset
 	PreloadAll = 0		UMETA(DisplayName = "全部预加载", ToolTip = "启动时预加载该类型下的全部 DefinitionAsset"),
 
-	// 启动时只预加载显式指定的 DefinitionAsset，其余运行时按需同步解析
-	PreloadSelected = 1	UMETA(DisplayName = "只预加载特定资产", ToolTip = "启动时只预加载显式指定的 DefinitionAsset，其余运行时按需同步解析"),
+	// 启动时只预加载显式指定的 DefinitionAsset，其余运行时优先按需异步解析
+	PreloadSelected = 1	UMETA(DisplayName = "只预加载特定资产", ToolTip = "启动时只预加载显式指定的 DefinitionAsset，其余运行时优先按需异步解析"),
 
-	// 启动时不预加载，全部在运行时首次访问时按需同步解析
-	OnDemand = 2		UMETA(DisplayName = "完全不预加载", ToolTip = "启动时不预加载，全部在运行时首次访问时按需同步解析"),
+	// 启动时不预加载，全部在运行时首次访问时优先按需异步解析
+	OnDemand = 2		UMETA(DisplayName = "完全不预加载", ToolTip = "启动时不预加载，全部在运行时首次访问时优先按需异步解析"),
 };
 
 

@@ -93,19 +93,8 @@ UTcsDefinitionManagerSubsystem* UTcsAttributeComponent::ResolveDefinitionManager
 
 bool UTcsAttributeComponent::PrepareAttributeRuntime()
 {
-	// 直接检查 DefinitionManager 是否 runtime-ready
-	if (UWorld* World = GetWorld())
-	{
-		if (UGameInstance* GI = World->GetGameInstance())
-		{
-			if (UTcsDefinitionManagerSubsystem* DefMgr = GI->GetSubsystem<UTcsDefinitionManagerSubsystem>())
-			{
-				bRuntimePrepared = DefMgr->IsRuntimeReady();
-				return bRuntimePrepared;
-			}
-		}
-	}
-	bRuntimePrepared = false;
+	// Attribute runtime 按实际查询需要加载 Attribute Definition，不等待无关域的全局预加载批次。
+	bRuntimePrepared = ResolveDefinitionManager() != nullptr;
 	return bRuntimePrepared;
 }
 

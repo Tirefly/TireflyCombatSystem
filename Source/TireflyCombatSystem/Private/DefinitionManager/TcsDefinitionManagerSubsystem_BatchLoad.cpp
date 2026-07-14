@@ -58,10 +58,14 @@ void UTcsDefinitionManagerSubsystem::StartBatchAsyncLoad(
 			continue;
 		}
 
-		UPrimaryDataAsset* CachedAsset = Entry->SoftPtr.LoadSynchronous();
-		if (CachedAsset)
+		UPrimaryDataAsset* CachedAsset = UAssetManager::Get().GetPrimaryAssetObject<UPrimaryDataAsset>(Entry->AssetId);
+		if (CachedAsset && WriteLoadedAssetToCache(Entry->AssetId, CachedAsset))
 		{
 			AlreadyLoaded.Add(CachedAsset);
+		}
+		else if (CachedAsset)
+		{
+			LogDefinitionQueryFailure(DefId, TEXT("StartBatchAsyncLoad"), TEXT("TypeMismatch"));
 		}
 		else
 		{
@@ -89,7 +93,7 @@ void UTcsDefinitionManagerSubsystem::StartBatchAsyncLoad(
 
 	for (const FName DefId : PendingDefIds)
 	{
-		StartAsyncLoad(SourceCache, DefId,
+		StartAsyncLoad(SourceCache, DefId, FName(*FString::Printf(TEXT("Load%sAsync"), *DefinitionTypeName.ToString())),
 			FOnTcsDefinitionAsyncLoaded::CreateLambda(
 				[WeakThis, LoadedResults, RemainingCount, TotalPending, RequestedDefIds, Callback]
 				(FName LoadedDefId, bool bSuccess, UPrimaryDataAsset* Asset)

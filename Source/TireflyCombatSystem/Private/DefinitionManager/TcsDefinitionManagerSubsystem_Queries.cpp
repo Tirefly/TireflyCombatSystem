@@ -22,7 +22,8 @@ namespace
 	AssetType* LoadFromSource(
 		const TMap<FName, FTcsDefinitionSourceEntry>& SourceCache,
 		TMap<FName, TObjectPtr<AssetType>>& LoadedCache,
-		FName DefinitionId)
+		FName DefinitionId,
+		const TCHAR*& OutFailureCategory)
 	{
 		if (const TObjectPtr<AssetType>* Found = LoadedCache.Find(DefinitionId))
 		{
@@ -32,18 +33,21 @@ namespace
 		const FTcsDefinitionSourceEntry* Source = SourceCache.Find(DefinitionId);
 		if (!Source)
 		{
+			OutFailureCategory = TEXT("NotRegistered");
 			return nullptr;
 		}
 
 		UPrimaryDataAsset* Asset = Source->SoftPtr.LoadSynchronous();
 		if (!Asset)
 		{
+			OutFailureCategory = TEXT("LoadFailed");
 			return nullptr;
 		}
 
 		AssetType* TypedAsset = Cast<AssetType>(Asset);
 		if (!TypedAsset)
 		{
+			OutFailureCategory = TEXT("TypeMismatch");
 			return nullptr;
 		}
 
@@ -60,15 +64,23 @@ namespace
 		TMap<FName, TObjectPtr<AssetType>>& LoadedCache,
 		TMap<FGameplayTag, FName>& TagToDefId,
 		FGameplayTag Tag,
-		TFunctionRef<FGameplayTag(const AssetType&)> GetTag)
+		TFunctionRef<FGameplayTag(const AssetType&)> GetTag,
+		const TCHAR*& OutFailureCategory)
 	{
+		OutFailureCategory = TEXT("NotRegistered");
 		for (const TPair<FName, FTcsDefinitionSourceEntry>& Pair : SourceCache)
 		{
-			AssetType* Asset = LoadFromSource(SourceCache, LoadedCache, Pair.Key);
+			const TCHAR* CandidateFailureCategory = TEXT("NotRegistered");
+			AssetType* Asset = LoadFromSource(SourceCache, LoadedCache, Pair.Key, CandidateFailureCategory);
 			if (Asset && GetTag(*Asset) == Tag)
 			{
 				TagToDefId.Add(Tag, Pair.Key);
 				return Asset;
+			}
+
+			if (!Asset && !FStringView(CandidateFailureCategory).Equals(TEXT("NotRegistered")))
+			{
+				OutFailureCategory = CandidateFailureCategory;
 			}
 		}
 
@@ -85,10 +97,11 @@ const UTcsBuffDefinition* UTcsDefinitionManagerSubsystem::GetBuffDefinition(FNam
 		return Found->Get();
 	}
 
-	const UTcsBuffDefinition* Definition = LoadBuffDefinitionSync(BuffDefId);
+	const TCHAR* FailureCategory = TEXT("NotRegistered");
+	const UTcsBuffDefinition* Definition = LoadBuffDefinitionSync(BuffDefId, FailureCategory);
 	if (!Definition)
 	{
-		LogDefinitionQueryFailure(BuffDefId, TEXT("GetBuffDefinition"), TEXT("NotRegisteredOrLoadFailed"));
+		LogDefinitionQueryFailure(BuffDefId, TEXT("GetBuffDefinition"), FailureCategory);
 	}
 	return Definition;
 }
@@ -100,13 +113,15 @@ const UTcsBuffDefinition* UTcsDefinitionManagerSubsystem::GetBuffDefinitionByTag
 		return GetBuffDefinition(*BuffDefId);
 	}
 
+	const TCHAR* FailureCategory = TEXT("NotRegistered");
 	const UTcsBuffDefinition* Definition = LoadByTagFromSource(
 		BuffDefinitionSources, BuffDefinitions, BuffTagToDefId, BuffTag,
-		TFunctionRef<FGameplayTag(const UTcsBuffDefinition&)>([](const UTcsBuffDefinition& Def) { return Def.StateTag; }));
+		TFunctionRef<FGameplayTag(const UTcsBuffDefinition&)>([](const UTcsBuffDefinition& Def) { return Def.StateTag; }),
+		FailureCategory);
 
 	if (!Definition)
 	{
-		LogDefinitionQueryFailure(BuffTag.GetTagName(), TEXT("GetBuffDefinitionByTag"), TEXT("NotRegistered"));
+		LogDefinitionQueryFailure(BuffTag.GetTagName(), TEXT("GetBuffDefinitionByTag"), FailureCategory);
 	}
 	return Definition;
 }
@@ -118,10 +133,11 @@ const UTcsSkillDefinition* UTcsDefinitionManagerSubsystem::GetSkillDefinition(FN
 		return Found->Get();
 	}
 
-	const UTcsSkillDefinition* Definition = LoadSkillDefinitionSync(SkillDefId);
+	const TCHAR* FailureCategory = TEXT("NotRegistered");
+	const UTcsSkillDefinition* Definition = LoadSkillDefinitionSync(SkillDefId, FailureCategory);
 	if (!Definition)
 	{
-		LogDefinitionQueryFailure(SkillDefId, TEXT("GetSkillDefinition"), TEXT("NotRegisteredOrLoadFailed"));
+		LogDefinitionQueryFailure(SkillDefId, TEXT("GetSkillDefinition"), FailureCategory);
 	}
 	return Definition;
 }
@@ -133,18 +149,19 @@ const UTcsStateDefinition* UTcsDefinitionManagerSubsystem::GetStateDefinition(FN
 		return Found->Get();
 	}
 
-	if (const UTcsStateDefinition* Definition = LoadBuffDefinitionSync(StateDefId))
+	if (AmbiguousStateDefinitionIds.Contains(StateDefId))
 	{
-		return Definition;
+		LogDefinitionQueryFailure(StateDefId, TEXT("GetStateDefinition"), TEXT("TypeMismatch"));
+		return nullptr;
 	}
 
-	if (const UTcsStateDefinition* Definition = LoadSkillDefinitionSync(StateDefId))
+	const TCHAR* FailureCategory = TEXT("NotRegistered");
+	const UTcsStateDefinition* Definition = LoadStateDefinitionSync(StateDefId, FailureCategory);
+	if (!Definition)
 	{
-		return Definition;
+		LogDefinitionQueryFailure(StateDefId, TEXT("GetStateDefinition"), FailureCategory);
 	}
-
-	LogDefinitionQueryFailure(StateDefId, TEXT("GetStateDefinition"), TEXT("NotRegisteredOrLoadFailed"));
-	return nullptr;
+	return Definition;
 }
 
 const UTcsStateSlotDefinition* UTcsDefinitionManagerSubsystem::GetStateSlotDefinition(FName StateSlotDefId) const
@@ -154,10 +171,11 @@ const UTcsStateSlotDefinition* UTcsDefinitionManagerSubsystem::GetStateSlotDefin
 		return Found->Get();
 	}
 
-	const UTcsStateSlotDefinition* Definition = LoadStateSlotDefinitionSync(StateSlotDefId);
+	const TCHAR* FailureCategory = TEXT("NotRegistered");
+	const UTcsStateSlotDefinition* Definition = LoadStateSlotDefinitionSync(StateSlotDefId, FailureCategory);
 	if (!Definition)
 	{
-		LogDefinitionQueryFailure(StateSlotDefId, TEXT("GetStateSlotDefinition"), TEXT("NotRegisteredOrLoadFailed"));
+		LogDefinitionQueryFailure(StateSlotDefId, TEXT("GetStateSlotDefinition"), FailureCategory);
 	}
 	return Definition;
 }
@@ -169,13 +187,15 @@ const UTcsStateSlotDefinition* UTcsDefinitionManagerSubsystem::GetStateSlotDefin
 		return GetStateSlotDefinition(*StateSlotDefId);
 	}
 
+	const TCHAR* FailureCategory = TEXT("NotRegistered");
 	const UTcsStateSlotDefinition* Definition = LoadByTagFromSource(
 		StateSlotDefinitionSources, StateSlotDefinitions, StateSlotTagToDefId, StateSlotTag,
-		TFunctionRef<FGameplayTag(const UTcsStateSlotDefinition&)>([](const UTcsStateSlotDefinition& Def) { return Def.SlotTag; }));
+		TFunctionRef<FGameplayTag(const UTcsStateSlotDefinition&)>([](const UTcsStateSlotDefinition& Def) { return Def.SlotTag; }),
+		FailureCategory);
 
 	if (!Definition)
 	{
-		LogDefinitionQueryFailure(StateSlotTag.GetTagName(), TEXT("GetStateSlotDefinitionByTag"), TEXT("NotRegistered"));
+		LogDefinitionQueryFailure(StateSlotTag.GetTagName(), TEXT("GetStateSlotDefinitionByTag"), FailureCategory);
 	}
 	return Definition;
 }
@@ -187,10 +207,11 @@ const UTcsAttributeDefinition* UTcsDefinitionManagerSubsystem::GetAttributeDefin
 		return Found->Get();
 	}
 
-	const UTcsAttributeDefinition* Definition = LoadAttributeDefinitionSync(AttributeDefId);
+	const TCHAR* FailureCategory = TEXT("NotRegistered");
+	const UTcsAttributeDefinition* Definition = LoadAttributeDefinitionSync(AttributeDefId, FailureCategory);
 	if (!Definition)
 	{
-		LogDefinitionQueryFailure(AttributeDefId, TEXT("GetAttributeDefinition"), TEXT("NotRegisteredOrLoadFailed"));
+		LogDefinitionQueryFailure(AttributeDefId, TEXT("GetAttributeDefinition"), FailureCategory);
 	}
 	return Definition;
 }
@@ -202,13 +223,15 @@ const UTcsAttributeDefinition* UTcsDefinitionManagerSubsystem::GetAttributeDefin
 		return GetAttributeDefinition(*AttributeDefId);
 	}
 
+	const TCHAR* FailureCategory = TEXT("NotRegistered");
 	const UTcsAttributeDefinition* Definition = LoadByTagFromSource(
 		AttributeDefinitionSources, AttributeDefinitions, AttributeTagToDefId, AttributeTag,
-		TFunctionRef<FGameplayTag(const UTcsAttributeDefinition&)>([](const UTcsAttributeDefinition& Def) { return Def.AttributeTag; }));
+		TFunctionRef<FGameplayTag(const UTcsAttributeDefinition&)>([](const UTcsAttributeDefinition& Def) { return Def.AttributeTag; }),
+		FailureCategory);
 
 	if (!Definition)
 	{
-		LogDefinitionQueryFailure(AttributeTag.GetTagName(), TEXT("GetAttributeDefinitionByTag"), TEXT("NotRegistered"));
+		LogDefinitionQueryFailure(AttributeTag.GetTagName(), TEXT("GetAttributeDefinitionByTag"), FailureCategory);
 	}
 	return Definition;
 }
@@ -229,10 +252,11 @@ const UTcsAttributeModifierDefinition* UTcsDefinitionManagerSubsystem::GetAttrib
 		return Found->Get();
 	}
 
-	const UTcsAttributeModifierDefinition* Definition = LoadAttributeModifierDefinitionSync(AttributeModifierDefId);
+	const TCHAR* FailureCategory = TEXT("NotRegistered");
+	const UTcsAttributeModifierDefinition* Definition = LoadAttributeModifierDefinitionSync(AttributeModifierDefId, FailureCategory);
 	if (!Definition)
 	{
-		LogDefinitionQueryFailure(AttributeModifierDefId, TEXT("GetAttributeModifierDefinition"), TEXT("NotRegisteredOrLoadFailed"));
+		LogDefinitionQueryFailure(AttributeModifierDefId, TEXT("GetAttributeModifierDefinition"), FailureCategory);
 	}
 	return Definition;
 }
@@ -244,10 +268,11 @@ const UTcsSkillModifierDefinition* UTcsDefinitionManagerSubsystem::GetSkillModif
 		return Found->Get();
 	}
 
-	const UTcsSkillModifierDefinition* Definition = LoadSkillModifierDefinitionSync(SkillModifierDefId);
+	const TCHAR* FailureCategory = TEXT("NotRegistered");
+	const UTcsSkillModifierDefinition* Definition = LoadSkillModifierDefinitionSync(SkillModifierDefId, FailureCategory);
 	if (!Definition)
 	{
-		LogDefinitionQueryFailure(SkillModifierDefId, TEXT("GetSkillModifierDefinition"), TEXT("NotRegisteredOrLoadFailed"));
+		LogDefinitionQueryFailure(SkillModifierDefId, TEXT("GetSkillModifierDefinition"), FailureCategory);
 	}
 	return Definition;
 }
@@ -273,17 +298,10 @@ TArray<FName> UTcsDefinitionManagerSubsystem::GetAllStateSlotDefIds() const
 	return DefinitionIds;
 }
 
-TArray<FName> UTcsDefinitionManagerSubsystem::GetAllStateLikeDefIds() const
+const UTcsBuffDefinition* UTcsDefinitionManagerSubsystem::LoadBuffDefinitionSync(FName BuffDefId, const TCHAR*& OutFailureCategory) const
 {
-	TArray<FName> DefinitionIds;
-	StateDefinitionSources.GetKeys(DefinitionIds);
-	return DefinitionIds;
-}
-
-const UTcsBuffDefinition* UTcsDefinitionManagerSubsystem::LoadBuffDefinitionSync(FName BuffDefId) const
-{
-	UTcsBuffDefinition* Asset = LoadFromSource(BuffDefinitionSources, BuffDefinitions, BuffDefId);
-	if (Asset)
+	UTcsBuffDefinition* Asset = LoadFromSource(BuffDefinitionSources, BuffDefinitions, BuffDefId, OutFailureCategory);
+	if (Asset && !AmbiguousStateDefinitionIds.Contains(BuffDefId))
 	{
 		StateDefinitions.Add(BuffDefId, Asset);
 		if (Asset->StateTag.IsValid())
@@ -294,19 +312,44 @@ const UTcsBuffDefinition* UTcsDefinitionManagerSubsystem::LoadBuffDefinitionSync
 	return Asset;
 }
 
-const UTcsSkillDefinition* UTcsDefinitionManagerSubsystem::LoadSkillDefinitionSync(FName SkillDefId) const
+const UTcsSkillDefinition* UTcsDefinitionManagerSubsystem::LoadSkillDefinitionSync(FName SkillDefId, const TCHAR*& OutFailureCategory) const
 {
-	UTcsSkillDefinition* Asset = LoadFromSource(SkillDefinitionSources, SkillDefinitions, SkillDefId);
-	if (Asset)
+	UTcsSkillDefinition* Asset = LoadFromSource(SkillDefinitionSources, SkillDefinitions, SkillDefId, OutFailureCategory);
+	if (Asset && !AmbiguousStateDefinitionIds.Contains(SkillDefId))
 	{
 		StateDefinitions.Add(SkillDefId, Asset);
 	}
 	return Asset;
 }
 
-const UTcsStateSlotDefinition* UTcsDefinitionManagerSubsystem::LoadStateSlotDefinitionSync(FName StateSlotDefId) const
+const UTcsStateDefinition* UTcsDefinitionManagerSubsystem::LoadStateDefinitionSync(FName StateDefId, const TCHAR*& OutFailureCategory) const
 {
-	UTcsStateSlotDefinition* Asset = LoadFromSource(StateSlotDefinitionSources, StateSlotDefinitions, StateSlotDefId);
+	UTcsStateDefinition* Asset = LoadFromSource(StateDefinitionSources, StateDefinitions, StateDefId, OutFailureCategory);
+	if (UTcsBuffDefinition* BuffDefinition = Cast<UTcsBuffDefinition>(Asset))
+	{
+		BuffDefinitions.Add(StateDefId, BuffDefinition);
+		if (BuffDefinition->StateTag.IsValid())
+		{
+			BuffTagToDefId.Add(BuffDefinition->StateTag, StateDefId);
+		}
+	}
+	else if (UTcsSkillDefinition* SkillDefinition = Cast<UTcsSkillDefinition>(Asset))
+	{
+		SkillDefinitions.Add(StateDefId, SkillDefinition);
+	}
+	else if (Asset)
+	{
+		StateDefinitions.Remove(StateDefId);
+		OutFailureCategory = TEXT("TypeMismatch");
+		return nullptr;
+	}
+
+	return Asset;
+}
+
+const UTcsStateSlotDefinition* UTcsDefinitionManagerSubsystem::LoadStateSlotDefinitionSync(FName StateSlotDefId, const TCHAR*& OutFailureCategory) const
+{
+	UTcsStateSlotDefinition* Asset = LoadFromSource(StateSlotDefinitionSources, StateSlotDefinitions, StateSlotDefId, OutFailureCategory);
 	if (Asset && Asset->SlotTag.IsValid())
 	{
 		StateSlotTagToDefId.Add(Asset->SlotTag, StateSlotDefId);
@@ -314,19 +357,19 @@ const UTcsStateSlotDefinition* UTcsDefinitionManagerSubsystem::LoadStateSlotDefi
 	return Asset;
 }
 
-const UTcsAttributeDefinition* UTcsDefinitionManagerSubsystem::LoadAttributeDefinitionSync(FName AttributeDefId) const
+const UTcsAttributeDefinition* UTcsDefinitionManagerSubsystem::LoadAttributeDefinitionSync(FName AttributeDefId, const TCHAR*& OutFailureCategory) const
 {
-	return LoadFromSource(AttributeDefinitionSources, AttributeDefinitions, AttributeDefId);
+	return LoadFromSource(AttributeDefinitionSources, AttributeDefinitions, AttributeDefId, OutFailureCategory);
 }
 
-const UTcsAttributeModifierDefinition* UTcsDefinitionManagerSubsystem::LoadAttributeModifierDefinitionSync(FName AttributeModifierDefId) const
+const UTcsAttributeModifierDefinition* UTcsDefinitionManagerSubsystem::LoadAttributeModifierDefinitionSync(FName AttributeModifierDefId, const TCHAR*& OutFailureCategory) const
 {
-	return LoadFromSource(AttributeModifierDefinitionSources, AttributeModifierDefinitions, AttributeModifierDefId);
+	return LoadFromSource(AttributeModifierDefinitionSources, AttributeModifierDefinitions, AttributeModifierDefId, OutFailureCategory);
 }
 
-const UTcsSkillModifierDefinition* UTcsDefinitionManagerSubsystem::LoadSkillModifierDefinitionSync(FName SkillModifierDefId) const
+const UTcsSkillModifierDefinition* UTcsDefinitionManagerSubsystem::LoadSkillModifierDefinitionSync(FName SkillModifierDefId, const TCHAR*& OutFailureCategory) const
 {
-	return LoadFromSource(SkillModifierDefinitionSources, SkillModifierDefinitions, SkillModifierDefId);
+	return LoadFromSource(SkillModifierDefinitionSources, SkillModifierDefinitions, SkillModifierDefId, OutFailureCategory);
 }
 
 void UTcsDefinitionManagerSubsystem::LogDefinitionQueryFailure(

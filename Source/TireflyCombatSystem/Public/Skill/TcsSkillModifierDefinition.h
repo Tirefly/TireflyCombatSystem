@@ -41,9 +41,9 @@ public:
 #pragma region Identity
 
 public:
-	/** 唯一标识符（用于互斥判定和跨系统引用）。 */
+	/** SkillModifier 定义的唯一标识符（用于互斥判定和跨系统引用）。 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity")
-	FName ModifierId;
+	FName SkillModifierDefId;
 
 #pragma endregion
 
@@ -105,7 +105,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Merge")
 	int32 Priority = 0;
 
-	/** 同 ModifierId 的合并策略。 */
+	/** 同 SkillModifierDefId 的合并策略。 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Merge")
 	ETcsSkillModifierMergePolicy MergePolicy = ETcsSkillModifierMergePolicy::Stack;
 

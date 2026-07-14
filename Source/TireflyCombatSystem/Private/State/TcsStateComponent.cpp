@@ -103,26 +103,23 @@ bool UTcsStateComponent::IsRuntimeReady() const
 
 bool UTcsStateComponent::PrepareStateRuntime()
 {
-	// 仅需确保 DefinitionManager 已就绪——不再依赖独立的 State/Attribute Manager 子系统
+	// State runtime 只依赖 StateSlot Definition 查询可用，不等待无关域的全局预加载批次。
 	if (UWorld* World = GetWorld())
 	{
 		if (UGameInstance* GI = World->GetGameInstance())
 		{
 			if (UTcsDefinitionManagerSubsystem* DefMgr = GI->GetSubsystem<UTcsDefinitionManagerSubsystem>())
 			{
-				if (!DefMgr->IsRuntimeReady())
-				{
-					bRuntimePrepared = false;
-					bStateSlotMappingsReady = false;
-					return false;
-				}
+				bStateSlotMappingsReady = InitStateSlotMappings();
+				bRuntimePrepared = bStateSlotMappingsReady;
+				return bRuntimePrepared;
 			}
 		}
 	}
 
-	bStateSlotMappingsReady = InitStateSlotMappings();
-	bRuntimePrepared = bStateSlotMappingsReady;
-	return bRuntimePrepared;
+	bRuntimePrepared = false;
+	bStateSlotMappingsReady = false;
+	return false;
 }
 
 UTcsRuntimeBootstrapSubsystem* UTcsStateComponent::ResolveRuntimeBootstrapSubsystem()

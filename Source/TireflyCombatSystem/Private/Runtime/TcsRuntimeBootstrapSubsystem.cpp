@@ -109,7 +109,7 @@ FTcsEntityRuntimeStateResult UTcsRuntimeBootstrapSubsystem::EvaluateEntityRuntim
 		return Result;
 	}
 
-	if (!DefinitionManagerSubsystem || !DefinitionManagerSubsystem->IsRuntimeReady())
+	if (!DefinitionManagerSubsystem)
 	{
 		Result.State = ETcsEntityRuntimeState::Waiting;
 		Result.BlockReason = ETcsEntityRuntimeBlockReason::DefinitionManagerNotReady;
@@ -365,7 +365,7 @@ void UTcsRuntimeBootstrapSubsystem::TryAdvanceEntityRuntime(AActor* Entity)
 		return;
 	}
 
-	if (!DefinitionManagerSubsystem || !DefinitionManagerSubsystem->IsRuntimeReady())
+	if (!DefinitionManagerSubsystem)
 	{
 		return;
 	}

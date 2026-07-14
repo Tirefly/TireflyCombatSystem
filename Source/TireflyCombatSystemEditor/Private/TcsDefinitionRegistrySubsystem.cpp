@@ -1118,7 +1118,7 @@ void UTcsDefinitionRegistrySubsystem::ScanSkillModifierDefinitions(const TArray<
 
 		TcsDefinitionRegistryPrivate::AddDefinition(
 			SkillModifierDefinitions,
-			Asset->ModifierId,
+			Asset->SkillModifierDefId,
 			AssetPtr,
 			TEXT("SkillModifier"));
 	}

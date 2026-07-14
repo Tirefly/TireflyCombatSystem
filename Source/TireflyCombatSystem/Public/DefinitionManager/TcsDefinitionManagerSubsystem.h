@@ -17,6 +17,7 @@ class UTcsAttributeModifierDefinition;
 class UTcsBuffDefinition;
 class UTcsSkillDefinition;
 class UTcsSkillModifierDefinition;
+class UTcsStateComponent;
 class UTcsStateDefinition;
 class UTcsStateSlotDefinition;
 
@@ -76,6 +77,9 @@ class TIREFLYCOMBATSYSTEM_API UTcsDefinitionManagerSubsystem : public UGameInsta
 {
 	GENERATED_BODY()
 
+	// State 模块内部桥接
+	friend class UTcsStateComponent;
+
 // GameInstanceSubsystem 生命周期
 #pragma region GameInstanceSubsystem
 
@@ -122,7 +126,7 @@ protected:
 #pragma endregion
 
 
-// State-like Definition 查询（Buff / Skill / 合并 StateDef）
+// State-like Definition 查询（Buff / Skill）
 #pragma region StateLikeDefinitionQueries
 
 public:
@@ -159,20 +163,17 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "TireflyCombatSystem|Definition")
 	const UTcsSkillDefinition* GetSkillDefinition(FName SkillDefId) const;
 
+protected:
 	/**
-	 * 获取 State-like 定义资产（面向 State 模块内部的桥接查询）。
+	 * 为 State 模块提供 State-like Definition 的内部高频查询。
 	 *
-	 * 先查合并 loaded cache；未命中则依次尝试从 Buff / Skill source cache 按需加载。
+	 * 先查派生的 StateDefinitions 聚合缓存；未命中时从派生的 StateDefinitionSources
+	 * 进行一次 O(1) source 查询并按需加载。该入口不对 Blueprint 或其他模块公开。
 	 *
-	 * @param StateDefId 状态定义 ID。
-	 * @return 状态定义资产指针；未找到时返回 nullptr。
+	 * @param StateDefId State 模块内部使用的状态定义 ID。
+	 * @return State-like 定义资产；未找到、类型冲突或加载失败时返回 nullptr。
 	 */
-	UFUNCTION(BlueprintCallable, Category = "TireflyCombatSystem|Definition")
 	const UTcsStateDefinition* GetStateDefinition(FName StateDefId) const;
-
-	/** @return source cache 中全部 State-like Definition 定义 ID。 */
-	UFUNCTION(BlueprintCallable, Category = "TireflyCombatSystem|Definition")
-	TArray<FName> GetAllStateLikeDefIds() const;
 
 #pragma endregion
 
@@ -393,11 +394,13 @@ protected:
 	 *
 	 * @param SourceCache 对应类型的 source cache。
 	 * @param DefId 要加载的 Definition ID。
+	 * @param EntryName 发起加载的公开入口名，用于统一失败诊断。
 	 * @param Callback 加载完成回调。
 	 */
 	void StartAsyncLoad(
 		const TMap<FName, FTcsDefinitionSourceEntry>& SourceCache,
 		FName DefId,
+		FName EntryName,
 		const FOnTcsDefinitionAsyncLoaded& Callback);
 
 	/**
@@ -405,15 +408,23 @@ protected:
 	 *
 	 * @param AssetId 加载完成的 PrimaryAssetId。
 	 * @param DefId 发起请求时使用的 Definition ID。
+	 * @param EntryName 发起加载的公开入口名，用于统一失败诊断。
 	 * @param Callbacks 等待该资产加载的全部回调。
 	 */
 	void OnAsyncDefinitionLoaded(
 		FPrimaryAssetId AssetId,
 		FName DefId,
+		FName EntryName,
 		TArray<FOnTcsDefinitionAsyncLoaded> Callbacks);
 
-	/** 将异步加载完成的资产写入对应的 loaded cache 与 tag 索引。 */
-	void WriteLoadedAssetToCache(const FPrimaryAssetId& AssetId, UPrimaryDataAsset* Asset);
+	/**
+	 * 将异步加载完成的资产写入对应的 loaded cache 与 tag 索引。
+	 *
+	 * @param AssetId 已完成加载的 PrimaryAssetId，用于选择目标类型缓存。
+	 * @param Asset 已完成加载的 DefinitionAsset。
+	 * @return 成功写入与 AssetId 匹配的类型化缓存时返回 true；类型不匹配或资产无效时返回 false。
+	 */
+	bool WriteLoadedAssetToCache(const FPrimaryAssetId& AssetId, UPrimaryDataAsset* Asset);
 
 	/** 按需异步加载的待处理请求（同一 PrimaryAssetId 的并发请求合并）。 */
 	TMap<FPrimaryAssetId, TArray<FOnTcsDefinitionAsyncLoaded>> PendingAsyncLoads;
@@ -492,7 +503,7 @@ protected:
 	 * 对已在 loaded cache 中的立即收集；对其余的逐个走单资产异步路径，全部完成后统一回调。
 	 *
 	 * @param SourceCache 对应类型的 source cache。
-	 * @param LoadedCache 对应类型的 loaded cache。
+	 * @param DefinitionTypeName 当前批次的 Definition 类型名，用于失败诊断。
 	 * @param DefIds 要加载的 Definition ID 列表。
 	 * @param Callback 批量加载完成回调。
 	 */
@@ -512,28 +523,79 @@ protected:
 	/** 从 AssetManager 重建所有具体 DefAsset source cache（不加载资产）。 */
 	void RebuildSourceCache();
 
-	/** 从 source cache 按需同步加载 BuffDefinition 并写入 loaded cache。 */
-	const UTcsBuffDefinition* LoadBuffDefinitionSync(FName BuffDefId) const;
+	/**
+	 * 从 State 模块内部聚合 source cache 按需同步加载 State-like Definition。
+	 *
+	 * @param StateDefId State 模块内部使用的状态定义 ID。
+	 * @param OutFailureCategory 输出失败类别；成功时保持调用方提供的值。
+	 * @return 已加载的 State-like Definition；未注册、类型冲突或加载失败时返回 nullptr。
+	 */
+	const UTcsStateDefinition* LoadStateDefinitionSync(FName StateDefId, const TCHAR*& OutFailureCategory) const;
 
-	/** 从 source cache 按需同步加载 SkillDefinition 并写入 loaded cache。 */
-	const UTcsSkillDefinition* LoadSkillDefinitionSync(FName SkillDefId) const;
+	/**
+	 * 从 source cache 按需同步加载 BuffDefinition 并写入 typed 与 State 聚合缓存。
+	 *
+	 * @param BuffDefId 要加载的 Buff 定义 ID。
+	 * @param OutFailureCategory 输出失败类别；成功时保持调用方提供的值。
+	 * @return 已加载的 BuffDefinition；未注册、类型不匹配或加载失败时返回 nullptr。
+	 */
+	const UTcsBuffDefinition* LoadBuffDefinitionSync(FName BuffDefId, const TCHAR*& OutFailureCategory) const;
 
-	/** 从 source cache 按需同步加载 StateSlotDefinition 并写入 loaded cache。 */
-	const UTcsStateSlotDefinition* LoadStateSlotDefinitionSync(FName StateSlotDefId) const;
+	/**
+	 * 从 source cache 按需同步加载 SkillDefinition 并写入 typed 与 State 聚合缓存。
+	 *
+	 * @param SkillDefId 要加载的 Skill 定义 ID。
+	 * @param OutFailureCategory 输出失败类别；成功时保持调用方提供的值。
+	 * @return 已加载的 SkillDefinition；未注册、类型不匹配或加载失败时返回 nullptr。
+	 */
+	const UTcsSkillDefinition* LoadSkillDefinitionSync(FName SkillDefId, const TCHAR*& OutFailureCategory) const;
 
-	/** 从 source cache 按需同步加载 AttributeDefinition 并写入 loaded cache。 */
-	const UTcsAttributeDefinition* LoadAttributeDefinitionSync(FName AttributeDefId) const;
+	/**
+	 * 从 source cache 按需同步加载 StateSlotDefinition 并写入 typed cache。
+	 *
+	 * @param StateSlotDefId 要加载的 StateSlot 定义 ID。
+	 * @param OutFailureCategory 输出失败类别；成功时保持调用方提供的值。
+	 * @return 已加载的 StateSlotDefinition；未注册、类型不匹配或加载失败时返回 nullptr。
+	 */
+	const UTcsStateSlotDefinition* LoadStateSlotDefinitionSync(FName StateSlotDefId, const TCHAR*& OutFailureCategory) const;
 
-	/** 从 source cache 按需同步加载 AttributeModifierDefinition 并写入 loaded cache。 */
-	const UTcsAttributeModifierDefinition* LoadAttributeModifierDefinitionSync(FName AttributeModifierDefId) const;
+	/**
+	 * 从 source cache 按需同步加载 AttributeDefinition 并写入 typed cache。
+	 *
+	 * @param AttributeDefId 要加载的 Attribute 定义 ID。
+	 * @param OutFailureCategory 输出失败类别；成功时保持调用方提供的值。
+	 * @return 已加载的 AttributeDefinition；未注册、类型不匹配或加载失败时返回 nullptr。
+	 */
+	const UTcsAttributeDefinition* LoadAttributeDefinitionSync(FName AttributeDefId, const TCHAR*& OutFailureCategory) const;
 
-	/** 从 source cache 按需同步加载 SkillModifierDefinition 并写入 loaded cache。 */
-	const UTcsSkillModifierDefinition* LoadSkillModifierDefinitionSync(FName SkillModifierDefId) const;
+	/**
+	 * 从 source cache 按需同步加载 AttributeModifierDefinition 并写入 typed cache。
+	 *
+	 * @param AttributeModifierDefId 要加载的 AttributeModifier 定义 ID。
+	 * @param OutFailureCategory 输出失败类别；成功时保持调用方提供的值。
+	 * @return 已加载的 AttributeModifierDefinition；未注册、类型不匹配或加载失败时返回 nullptr。
+	 */
+	const UTcsAttributeModifierDefinition* LoadAttributeModifierDefinitionSync(FName AttributeModifierDefId, const TCHAR*& OutFailureCategory) const;
+
+	/**
+	 * 从 source cache 按需同步加载 SkillModifierDefinition 并写入 typed cache。
+	 *
+	 * @param SkillModifierDefId 要加载的 SkillModifier 定义 ID。
+	 * @param OutFailureCategory 输出失败类别；成功时保持调用方提供的值。
+	 * @return 已加载的 SkillModifierDefinition；未注册、类型不匹配或加载失败时返回 nullptr。
+	 */
+	const UTcsSkillModifierDefinition* LoadSkillModifierDefinitionSync(FName SkillModifierDefId, const TCHAR*& OutFailureCategory) const;
 
 	/** 重建 BuffTag 与 StateSlotTag 查询索引（仅遍历已 loaded 的资产）。 */
 	void RebuildTagIndexes();
 
-	/** 记录 Definition 查询失败诊断。 */
+	/**
+	 * 记录统一格式的 Definition 查询失败诊断。
+	 *
+	 * @param QueryKey 查询的 DefId 或 tag key。
+	 * @param EntryName 发起查询或加载的入口名。
+	 * @param FailureCategory 失败类别，例如 NotRegistered、TypeMismatch 或 LoadFailed。
+	 */
 	void LogDefinitionQueryFailure(FName QueryKey, const TCHAR* EntryName, const TCHAR* FailureCategory) const;
 
 #pragma endregion
@@ -561,11 +623,16 @@ public:
 	/** SkillModifierDefinition source cache。 */
 	TMap<FName, FTcsDefinitionSourceEntry> SkillModifierDefinitionSources;
 
+protected:
 	/**
-	 * State-like Definition 合并 source cache（Buff + Skill）。
-	 * 供 State 模块与编辑器选项面枚举全部 StateDefId。
+	 * 从具体 Buff / Skill source cache 派生的 State 模块内部索引。
+	 *
+	 * 它不自行扫描 AssetManager、不定义独立加载策略，只用于 StateDefId 的 O(1) 查找。
 	 */
 	TMap<FName, FTcsDefinitionSourceEntry> StateDefinitionSources;
+
+	/** 同时属于 BuffDef 与 SkillDef 的 StateDefId，拒绝进入 State 模块的弱类型查询。 */
+	TSet<FName> AmbiguousStateDefinitionIds;
 
 #pragma endregion
 
@@ -582,13 +649,16 @@ public:
 	UPROPERTY(Transient)
 	mutable TMap<FName, TObjectPtr<UTcsSkillDefinition>> SkillDefinitions;
 
+protected:
 	/**
-	 * State-like Definition 合并 loaded cache（Buff + Skill）。
-	 * 供 State 模块高频查询路径（如 CreateStateInstance）一次命中。
+	 * 从具体 Buff / Skill loaded cache 派生的 State 模块内部高频聚合缓存。
+	 *
+	 * 它不拥有独立加载生命周期，只镜像已经解析成功的具体 State-like Definition。
 	 */
 	UPROPERTY(Transient)
 	mutable TMap<FName, TObjectPtr<UTcsStateDefinition>> StateDefinitions;
 
+public:
 	/** StateSlotDefinition loaded cache。 */
 	UPROPERTY(Transient)
 	mutable TMap<FName, TObjectPtr<UTcsStateSlotDefinition>> StateSlotDefinitions;

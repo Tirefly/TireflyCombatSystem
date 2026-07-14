@@ -113,15 +113,20 @@ void UTcsDefinitionManagerSubsystem::OnAsyncPreloadComplete(TArray<FPrimaryAsset
 		UPrimaryDataAsset* Asset = AssetManager.GetPrimaryAssetObject<UPrimaryDataAsset>(AssetId);
 		if (!Asset)
 		{
-			UE_LOG(LogTcs, Warning,
-				TEXT("[UTcsDefinitionManagerSubsystem] Async preload failed for: %s"),
-				*AssetId.ToString());
+			LogDefinitionQueryFailure(AssetId.PrimaryAssetName, TEXT("OnAsyncPreloadComplete"), TEXT("LoadFailed"));
 			++FailCount;
 			continue;
 		}
 
-		WriteLoadedAssetToCache(AssetId, Asset);
-		++SuccessCount;
+		if (WriteLoadedAssetToCache(AssetId, Asset))
+		{
+			++SuccessCount;
+		}
+		else
+		{
+			LogDefinitionQueryFailure(AssetId.PrimaryAssetName, TEXT("OnAsyncPreloadComplete"), TEXT("TypeMismatch"));
+			++FailCount;
+		}
 	}
 
 	RebuildTagIndexes();

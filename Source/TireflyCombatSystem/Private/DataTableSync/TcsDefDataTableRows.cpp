@@ -164,7 +164,7 @@ namespace
 			{ UTcsAttributeModifierDefinition::StaticClass(), FTcsAttributeModifierDefRow::StaticStruct(), GET_MEMBER_NAME_CHECKED(UTcsAttributeModifierDefinition, AttributeModifierDefId), TEXT("AttributeModifier") },
 			{ UTcsBuffDefinition::StaticClass(), FTcsBuffDefRow::StaticStruct(), GET_MEMBER_NAME_CHECKED(UTcsStateDefinition, StateDefId), TEXT("Buff") },
 			{ UTcsSkillDefinition::StaticClass(), FTcsSkillDefRow::StaticStruct(), GET_MEMBER_NAME_CHECKED(UTcsStateDefinition, StateDefId), TEXT("Skill") },
-			{ UTcsSkillModifierDefinition::StaticClass(), FTcsSkillModifierDefRow::StaticStruct(), GET_MEMBER_NAME_CHECKED(UTcsSkillModifierDefinition, ModifierId), TEXT("SkillModifier") },
+			{ UTcsSkillModifierDefinition::StaticClass(), FTcsSkillModifierDefRow::StaticStruct(), GET_MEMBER_NAME_CHECKED(UTcsSkillModifierDefinition, SkillModifierDefId), TEXT("SkillModifier") },
 			{ UTcsStateSlotDefinition::StaticClass(), FTcsStateSlotDefRow::StaticStruct(), GET_MEMBER_NAME_CHECKED(UTcsStateSlotDefinition, StateSlotDefId), TEXT("StateSlot") },
 		};
 
@@ -260,7 +260,7 @@ bool TryGetDefAssetSyncId(const UPrimaryDataAsset* DefAsset, FName& OutDefId)
 
 	if (const UTcsSkillModifierDefinition* const SkillModifierDefinition = Cast<UTcsSkillModifierDefinition>(DefAsset))
 	{
-		OutDefId = SkillModifierDefinition->ModifierId;
+		OutDefId = SkillModifierDefinition->SkillModifierDefId;
 		return !OutDefId.IsNone();
 	}
 
@@ -306,7 +306,7 @@ bool TrySetDefAssetSyncId(UPrimaryDataAsset* DefAsset, const FName DefId)
 
 	if (UTcsSkillModifierDefinition* const SkillModifierDefinition = Cast<UTcsSkillModifierDefinition>(DefAsset))
 	{
-		SkillModifierDefinition->ModifierId = DefId;
+		SkillModifierDefinition->SkillModifierDefId = DefId;
 		return true;
 	}
 
@@ -542,7 +542,7 @@ bool TryApplyDefAssetDataTableRow(const FName RowName, const FInstancedStruct& R
 			return false;
 		}
 
-		SkillModifierDefinition->ModifierId = RowName;
+		SkillModifierDefinition->SkillModifierDefId = RowName;
 		SkillModifierDefinition->EntrySelectorClass = Row->EntrySelectorClass;
 		SkillModifierDefinition->EntrySelectorConfig = Row->EntrySelectorConfig;
 		SkillModifierDefinition->TargetParamTag = Row->TargetParamTag;

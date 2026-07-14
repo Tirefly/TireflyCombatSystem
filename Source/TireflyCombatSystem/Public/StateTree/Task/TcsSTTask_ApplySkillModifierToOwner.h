@@ -23,9 +23,9 @@ struct FTcsSTTask_ApplySkillModifierToOwnerInstanceData
 {
 	GENERATED_BODY()
 
-	/** 要应用的 SkillModifier Id 列表。 */
+	/** 要应用的 SkillModifierDefId 列表。 */
 	UPROPERTY(EditAnywhere, Category = "Parameter")
-	TArray<FName> ModifierIds;
+	TArray<FName> SkillModifierDefIds;
 
 	/** 本次应用成功后返回的运行时账本记录。 */
 	UPROPERTY(EditAnywhere, Category = "Output")

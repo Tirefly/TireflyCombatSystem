@@ -17,12 +17,15 @@ namespace
 {
 	/**
 	 * 从 AssetManager 获取 PrimaryAssetId 列表，填充 source cache（不加载资产）。
+	 * 所有受管 Definition 的 GetPrimaryAssetId 均以其 DefId 作为 PrimaryAssetName。
+	 *
+	 * @param Cache 要填充的具体 Definition source cache。
+	 * @param PrimaryAssetType 要从 AssetManager 枚举的具体 PrimaryAsset 类型。
+	 * @param DefinitionLabel 用于失败诊断的 Definition 类型名称。
 	 */
-	template <typename AssetType>
 	void AddPrimaryAssetsToSourceCache(
 		TMap<FName, FTcsDefinitionSourceEntry>& Cache,
 		const FPrimaryAssetType& PrimaryAssetType,
-		TFunctionRef<FName(const AssetType&)> GetDefinitionId,
 		const TCHAR* DefinitionLabel)
 	{
 		UAssetManager& AssetManager = UAssetManager::Get();
@@ -41,24 +44,13 @@ namespace
 				continue;
 			}
 
-			// 同步加载一次以读取 DefId，但不保留硬引用——source cache 只存软引用
-			AssetType* Asset = TSoftObjectPtr<AssetType>(AssetPath).LoadSynchronous();
-			if (!Asset)
-			{
-				UE_LOG(LogTcs, Warning,
-					TEXT("[UTcsDefinitionManagerSubsystem] Failed to load %s for DefId extraction: %s"),
-					DefinitionLabel,
-					*PrimaryAssetId.ToString());
-				continue;
-			}
-
-			const FName DefinitionId = GetDefinitionId(*Asset);
+			const FName DefinitionId = PrimaryAssetId.PrimaryAssetName;
 			if (DefinitionId.IsNone())
 			{
 				UE_LOG(LogTcs, Warning,
-					TEXT("[UTcsDefinitionManagerSubsystem] Skipping %s with empty DefId: %s"),
+					TEXT("[UTcsDefinitionManagerSubsystem] Skipping %s with empty PrimaryAssetName/DefId: %s"),
 					DefinitionLabel,
-					*Asset->GetPathName());
+					*PrimaryAssetId.ToString());
 				continue;
 			}
 
@@ -105,6 +97,7 @@ void UTcsDefinitionManagerSubsystem::Deinitialize()
 	AttributeModifierDefinitionSources.Empty();
 	SkillModifierDefinitionSources.Empty();
 	StateDefinitionSources.Empty();
+	AmbiguousStateDefinitionIds.Empty();
 
 	BuffDefinitions.Empty();
 	SkillDefinitions.Empty();
@@ -129,61 +122,74 @@ void UTcsDefinitionManagerSubsystem::RebuildSourceCache()
 	AttributeModifierDefinitionSources.Empty();
 	SkillModifierDefinitionSources.Empty();
 	StateDefinitionSources.Empty();
-
-	AddPrimaryAssetsToSourceCache<UTcsAttributeDefinition>(
+	AmbiguousStateDefinitionIds.Empty();
+	AddPrimaryAssetsToSourceCache(
 		AttributeDefinitionSources,
 		UTcsAttributeDefinition::PrimaryAssetType,
-		[](const UTcsAttributeDefinition& Definition) { return Definition.AttributeDefId; },
 		TEXT("UTcsAttributeDefinition"));
 
-	AddPrimaryAssetsToSourceCache<UTcsAttributeModifierDefinition>(
+	AddPrimaryAssetsToSourceCache(
 		AttributeModifierDefinitionSources,
 		UTcsAttributeModifierDefinition::PrimaryAssetType,
-		[](const UTcsAttributeModifierDefinition& Definition) { return Definition.AttributeModifierDefId; },
 		TEXT("UTcsAttributeModifierDefinition"));
 
-	AddPrimaryAssetsToSourceCache<UTcsBuffDefinition>(
+	AddPrimaryAssetsToSourceCache(
 		BuffDefinitionSources,
 		UTcsBuffDefinition::PrimaryAssetType,
-		[](const UTcsBuffDefinition& Definition) { return Definition.StateDefId; },
 		TEXT("UTcsBuffDefinition"));
 
-	AddPrimaryAssetsToSourceCache<UTcsSkillDefinition>(
+	AddPrimaryAssetsToSourceCache(
 		SkillDefinitionSources,
 		UTcsSkillDefinition::PrimaryAssetType,
-		[](const UTcsSkillDefinition& Definition) { return Definition.StateDefId; },
 		TEXT("UTcsSkillDefinition"));
 
-	AddPrimaryAssetsToSourceCache<UTcsSkillModifierDefinition>(
+	AddPrimaryAssetsToSourceCache(
 		SkillModifierDefinitionSources,
 		UTcsSkillModifierDefinition::PrimaryAssetType,
-		[](const UTcsSkillModifierDefinition& Definition) { return Definition.ModifierId; },
 		TEXT("UTcsSkillModifierDefinition"));
 
-	AddPrimaryAssetsToSourceCache<UTcsStateSlotDefinition>(
+	AddPrimaryAssetsToSourceCache(
 		StateSlotDefinitionSources,
 		UTcsStateSlotDefinition::PrimaryAssetType,
-		[](const UTcsStateSlotDefinition& Definition) { return Definition.StateSlotDefId; },
 		TEXT("UTcsStateSlotDefinition"));
 
-	// 构建合并的 StateDefinitionSources
-	for (const TPair<FName, FTcsDefinitionSourceEntry>& Pair : BuffDefinitionSources)
+	// State 查询复用具体 Buff / Skill 的发现结果，不建立独立的 AssetManager 扫描或加载配置族。
+	const auto AddStateDefinitionSources = [this](
+		const TMap<FName, FTcsDefinitionSourceEntry>& ConcreteSources,
+		const TCHAR* DefinitionLabel)
 	{
-		StateDefinitionSources.Add(Pair.Key, Pair.Value);
-	}
+		for (const TPair<FName, FTcsDefinitionSourceEntry>& Pair : ConcreteSources)
+		{
+			if (const FTcsDefinitionSourceEntry* ExistingSource = StateDefinitionSources.Find(Pair.Key))
+			{
+				if (ExistingSource->SoftPtr.ToSoftObjectPath() != Pair.Value.SoftPtr.ToSoftObjectPath())
+				{
+					AmbiguousStateDefinitionIds.Add(Pair.Key);
+					UE_LOG(LogTcs, Error,
+						TEXT("[UTcsDefinitionManagerSubsystem] StateDefId '%s' is duplicated across State-like Definition types: '%s' conflicts with %s '%s'. State internal query is disabled for this ID."),
+						*Pair.Key.ToString(),
+						*ExistingSource->SoftPtr.ToSoftObjectPath().ToString(),
+						DefinitionLabel,
+						*Pair.Value.SoftPtr.ToSoftObjectPath().ToString());
+				}
+				continue;
+			}
 
-	for (const TPair<FName, FTcsDefinitionSourceEntry>& Pair : SkillDefinitionSources)
-	{
-		StateDefinitionSources.Add(Pair.Key, Pair.Value);
-	}
+			StateDefinitionSources.Add(Pair.Key, Pair.Value);
+		}
+	};
+
+	AddStateDefinitionSources(BuffDefinitionSources, TEXT("UTcsBuffDefinition"));
+	AddStateDefinitionSources(SkillDefinitionSources, TEXT("UTcsSkillDefinition"));
 
 	UE_LOG(LogTcs, Log,
-		TEXT("[UTcsDefinitionManagerSubsystem] Rebuilt source cache: %d Attributes, %d AttributeModifiers, %d Buffs, %d Skills, %d SkillModifiers, %d StateSlots, %d StateDefs"),
+		TEXT("[UTcsDefinitionManagerSubsystem] Rebuilt source cache without loading assets: %d Attributes, %d AttributeModifiers, %d Buffs, %d Skills, %d SkillModifiers, %d StateSlots, %d StateDefs, %d ambiguous StateDefIds"),
 		AttributeDefinitionSources.Num(),
 		AttributeModifierDefinitionSources.Num(),
 		BuffDefinitionSources.Num(),
 		SkillDefinitionSources.Num(),
 		SkillModifierDefinitionSources.Num(),
 		StateSlotDefinitionSources.Num(),
-		StateDefinitionSources.Num());
+		StateDefinitionSources.Num(),
+		AmbiguousStateDefinitionIds.Num());
 }

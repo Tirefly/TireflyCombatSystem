@@ -161,11 +161,18 @@ protected:
 #pragma region SkillModifier
 
 public:
-	/** 使用 SourceHandle 批量应用 SkillModifier。 */
+	/**
+	 * 使用 SourceHandle 按 SkillModifierDefId 批量应用 SkillModifier。
+	 *
+	 * @param SourceHandle 当前 apply 的 authority 因果链句柄。
+	 * @param SkillModifierDefIds 要应用的 SkillModifier 定义 ID 列表。
+	 * @param OutRuntimeEntries 成功写入账本的运行时记录。
+	 * @return 所有定义都成功解析并完整写入时返回 true；失败时不保留部分 apply。
+	 */
 	UFUNCTION(BlueprintCallable, Category = "Skill|Modifier")
 	bool ApplySkillModifiersWithSourceHandle(
 		const FTcsSourceHandle& SourceHandle,
-		const TArray<FName>& ModifierIds,
+		const TArray<FName>& SkillModifierDefIds,
 		TArray<FTcsSkillModifierRuntimeEntry>& OutRuntimeEntries);
 
 	/** 按 SourceHandle 批量移除 SkillModifier。 */
@@ -199,8 +206,13 @@ protected:
 	int32 NextSkillModifierRuntimeId = 0;
 
 private:
-	/** 解析指定 SkillModifier Id 对应的定义资产。 */
-	const UTcsSkillModifierDefinition* ResolveSkillModifierDefinition(FName ModifierId) const;
+	/**
+	 * 通过 DefinitionManager 解析指定 SkillModifier 定义资产。
+	 *
+	 * @param SkillModifierDefId 要解析的 SkillModifier 定义 ID。
+	 * @return 解析成功时返回对应 Definition；失败时返回 nullptr。
+	 */
+	const UTcsSkillModifierDefinition* ResolveSkillModifierDefinition(FName SkillModifierDefId) const;
 
 	/**
 	 * 分配新的 SkillModifier runtime id。
@@ -209,9 +221,16 @@ private:
 	 */
 	int32 AllocateSkillModifierRuntimeId();
 
-	/** 为单个 ModifierId 创建展开后的 runtime records。 */
+	/**
+	 * 为单个 SkillModifierDefId 创建展开后的 runtime records。
+	 *
+	 * @param SkillModifierDefId 要展开的 SkillModifier 定义 ID。
+	 * @param SourceHandle 当前 apply 的 authority 因果链句柄。
+	 * @param OutRuntimeEntries 输出的待写入运行时记录。
+	 * @return 定义解析并至少创建一条运行时记录时返回 true。
+	 */
 	bool CreateSkillModifierRuntimeEntries(
-		FName ModifierId,
+		FName SkillModifierDefId,
 		const FTcsSourceHandle& SourceHandle,
 		TArray<FTcsSkillModifierRuntimeEntry>& OutRuntimeEntries);
 

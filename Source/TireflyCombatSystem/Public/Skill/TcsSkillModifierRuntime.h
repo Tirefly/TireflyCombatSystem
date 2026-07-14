@@ -27,9 +27,9 @@ struct TIREFLYCOMBATSYSTEM_API FTcsSkillModifierConflictKey
 	GENERATED_BODY()
 
 public:
-	/** Modifier 标识符。 */
+	/** SkillModifier 定义标识符。 */
 	UPROPERTY()
-	FName ModifierId;
+	FName SkillModifierDefId;
 
 	/** 目标 SkillEntry。使用弱引用，避免阻止 SkillEntry 正常回收。 */
 	UPROPERTY()
@@ -39,7 +39,7 @@ public:
 	/**
 	 * 判断两个冲突组键是否指向同一组互斥集合。
 	 *
-	 * @return 当 ModifierId 和 TargetSkillEntry 全部一致时返回 true。
+	 * @return 当 SkillModifierDefId 和 TargetSkillEntry 全部一致时返回 true。
 	 */
 	bool operator==(const FTcsSkillModifierConflictKey& Other) const;
 };
@@ -68,9 +68,9 @@ public:
 	UPROPERTY()
 	int32 RuntimeModifierId = INDEX_NONE;
 
-	/** Modifier 标识符。 */
+	/** SkillModifier 定义标识符。 */
 	UPROPERTY()
-	FName ModifierId;
+	FName SkillModifierDefId;
 
 	/** 来源定义资产。使用弱引用，避免账本反向延长 Def 生命周期。 */
 	UPROPERTY()
@@ -116,7 +116,7 @@ public:
 	/**
 	 * 构造当前记录所属的冲突组键。
 	 *
-	 * @return 由 ModifierId 和 TargetSkillEntry 组成的冲突组键。
+	 * @return 由 SkillModifierDefId 和 TargetSkillEntry 组成的冲突组键。
 	 */
 	FTcsSkillModifierConflictKey MakeConflictKey() const;
 };
@@ -143,7 +143,7 @@ public:
 	/** 目标 SkillEntry 索引：TargetSkillEntry -> RuntimeModifierId[]。 */
 	TMap<TWeakObjectPtr<UTcsSkillEntry>, TArray<int32>> RuntimeIdsByTargetEntry;
 
-	/** 冲突组索引：(ModifierId + TargetSkillEntry) -> RuntimeModifierId[]。 */
+	/** 冲突组索引：(SkillModifierDefId + TargetSkillEntry) -> RuntimeModifierId[]。 */
 	TMap<FTcsSkillModifierConflictKey, TArray<int32>> RuntimeIdsByConflictKey;
 
 public:

@@ -141,7 +141,7 @@ void UTcsSkillComponent::HandleOwnerStateFinalizeRemovalSourceCleanup(UTcsStateC
 
 bool UTcsSkillComponent::ApplySkillModifiersWithSourceHandle(
 	const FTcsSourceHandle& SourceHandle,
-	const TArray<FName>& ModifierIds,
+	const TArray<FName>& SkillModifierDefIds,
 	TArray<FTcsSkillModifierRuntimeEntry>& OutRuntimeEntries)
 {
 	OutRuntimeEntries.Reset();
@@ -158,9 +158,9 @@ bool UTcsSkillComponent::ApplySkillModifiersWithSourceHandle(
 
 	TArray<FTcsSkillModifierRuntimeEntry> PendingRuntimeEntries;
 
-	for (const FName& ModifierId : ModifierIds)
+	for (const FName& SkillModifierDefId : SkillModifierDefIds)
 	{
-		if (!CreateSkillModifierRuntimeEntries(ModifierId, SourceHandle, PendingRuntimeEntries))
+		if (!CreateSkillModifierRuntimeEntries(SkillModifierDefId, SourceHandle, PendingRuntimeEntries))
 		{
 			return false;
 		}
@@ -265,56 +265,65 @@ bool UTcsSkillComponent::GetSkillModifiersBySkillEntry(
 }
 
 
-const UTcsSkillModifierDefinition* UTcsSkillComponent::ResolveSkillModifierDefinition(FName ModifierId) const
+const UTcsSkillModifierDefinition* UTcsSkillComponent::ResolveSkillModifierDefinition(FName SkillModifierDefId) const
 {
+	if (SkillModifierDefId.IsNone())
+	{
+		UE_LOG(LogTcsState, Error, TEXT("[SkillComp::ResolveSkillModifierDefinition] SkillModifierDefId is none"));
+		return nullptr;
+	}
+
 	const UWorld* World = GetWorld();
 	const UGameInstance* GameInstance = World ? World->GetGameInstance() : nullptr;
 	UTcsDefinitionManagerSubsystem* DefinitionManager = GameInstance ? GameInstance->GetSubsystem<UTcsDefinitionManagerSubsystem>() : nullptr;
 	if (!DefinitionManager)
 	{
+		UE_LOG(LogTcsState, Error,
+			TEXT("[SkillComp::ResolveSkillModifierDefinition] Missing DefinitionManager for SkillModifierDefId '%s'"),
+			*SkillModifierDefId.ToString());
 		return nullptr;
 	}
 
-	return DefinitionManager->GetSkillModifierDefinition(ModifierId);
+	return DefinitionManager->GetSkillModifierDefinition(SkillModifierDefId);
 }
 
 
 bool UTcsSkillComponent::CreateSkillModifierRuntimeEntries(
-	FName ModifierId,
+	FName SkillModifierDefId,
 	const FTcsSourceHandle& SourceHandle,
 	TArray<FTcsSkillModifierRuntimeEntry>& OutRuntimeEntries)
 {
-	const UTcsSkillModifierDefinition* ModifierDef = ResolveSkillModifierDefinition(ModifierId);
+	const UTcsSkillModifierDefinition* ModifierDef = ResolveSkillModifierDefinition(SkillModifierDefId);
 	if (!ModifierDef)
 	{
-		UE_LOG(LogTcsState, Error, TEXT("[%s] SkillModifierDefinition '%s' not found"), *FString(__FUNCTION__), *ModifierId.ToString());
+		UE_LOG(LogTcsState, Error, TEXT("[%s] SkillModifierDefinition not found. SkillModifierDefId=%s"), *FString(__FUNCTION__), *SkillModifierDefId.ToString());
 		return false;
 	}
 
 	if (!ModifierDef->EntrySelectorClass)
 	{
-		UE_LOG(LogTcsState, Error, TEXT("[%s] SkillModifierDefinition '%s' has no EntrySelectorClass"), *FString(__FUNCTION__), *ModifierId.ToString());
+		UE_LOG(LogTcsState, Error, TEXT("[%s] SkillModifierDefinition has no EntrySelectorClass. SkillModifierDefId=%s"), *FString(__FUNCTION__), *SkillModifierDefId.ToString());
 		return false;
 	}
 
 	UClass* EvaluatorClass = ModifierDef->ResolveActiveEvaluatorClass();
 	if (!EvaluatorClass)
 	{
-		UE_LOG(LogTcsState, Error, TEXT("[%s] SkillModifierDefinition '%s' failed to resolve active evaluator class"), *FString(__FUNCTION__), *ModifierId.ToString());
+		UE_LOG(LogTcsState, Error, TEXT("[%s] SkillModifierDefinition failed to resolve active evaluator class. SkillModifierDefId=%s"), *FString(__FUNCTION__), *SkillModifierDefId.ToString());
 		return false;
 	}
 
 	UTcsSkillEntrySelector* Selector = ModifierDef->EntrySelectorClass->GetDefaultObject<UTcsSkillEntrySelector>();
 	if (!Selector)
 	{
-		UE_LOG(LogTcsState, Error, TEXT("[%s] SkillModifierDefinition '%s' failed to resolve EntrySelector CDO"), *FString(__FUNCTION__), *ModifierId.ToString());
+		UE_LOG(LogTcsState, Error, TEXT("[%s] SkillModifierDefinition failed to resolve EntrySelector CDO. SkillModifierDefId=%s"), *FString(__FUNCTION__), *SkillModifierDefId.ToString());
 		return false;
 	}
 
 	const TArray<UTcsSkillEntry*> TargetEntries = Selector->ResolveTargets(ModifierDef->EntrySelectorConfig, this);
 	if (TargetEntries.IsEmpty())
 	{
-		UE_LOG(LogTcsState, Warning, TEXT("[%s] SkillModifierDefinition '%s' resolved no target SkillEntry"), *FString(__FUNCTION__), *ModifierId.ToString());
+		UE_LOG(LogTcsState, Warning, TEXT("[%s] SkillModifierDefinition resolved no target SkillEntry. SkillModifierDefId=%s"), *FString(__FUNCTION__), *SkillModifierDefId.ToString());
 		return false;
 	}
 
@@ -330,7 +339,7 @@ bool UTcsSkillComponent::CreateSkillModifierRuntimeEntries(
 
 		FTcsSkillModifierRuntimeEntry RuntimeEntry;
 		RuntimeEntry.RuntimeModifierId = AllocateSkillModifierRuntimeId();
-		RuntimeEntry.ModifierId = ModifierId;
+		RuntimeEntry.SkillModifierDefId = SkillModifierDefId;
 		RuntimeEntry.Definition = const_cast<UTcsSkillModifierDefinition*>(ModifierDef);
 		RuntimeEntry.TargetSkillEntry = TargetEntry;
 		RuntimeEntry.TargetParamTag = ModifierDef->TargetParamTag;
@@ -404,7 +413,7 @@ bool UTcsSkillComponent::WriteRuntimeEntryToSkillEntry(FTcsSkillModifierRuntimeE
 			}
 
 			FStateParamNumericModifierInstance ModifierInstance;
-			ModifierInstance.ModifierId = RuntimeEntry.ModifierId;
+			ModifierInstance.ModifierId = RuntimeEntry.SkillModifierDefId;
 			ModifierInstance.RuntimeModifierId = RuntimeEntry.RuntimeModifierId;
 			ModifierInstance.Evaluator = Evaluator;
 			ModifierInstance.Config = RuntimeEntry.ResolvedConfig;
@@ -429,7 +438,7 @@ bool UTcsSkillComponent::WriteRuntimeEntryToSkillEntry(FTcsSkillModifierRuntimeE
 			}
 
 			FStateParamBoolModifierInstance ModifierInstance;
-			ModifierInstance.ModifierId = RuntimeEntry.ModifierId;
+			ModifierInstance.ModifierId = RuntimeEntry.SkillModifierDefId;
 			ModifierInstance.RuntimeModifierId = RuntimeEntry.RuntimeModifierId;
 			ModifierInstance.Evaluator = Evaluator;
 			ModifierInstance.Config = RuntimeEntry.ResolvedConfig;
@@ -454,7 +463,7 @@ bool UTcsSkillComponent::WriteRuntimeEntryToSkillEntry(FTcsSkillModifierRuntimeE
 			}
 
 			FStateParamVectorModifierInstance ModifierInstance;
-			ModifierInstance.ModifierId = RuntimeEntry.ModifierId;
+			ModifierInstance.ModifierId = RuntimeEntry.SkillModifierDefId;
 			ModifierInstance.RuntimeModifierId = RuntimeEntry.RuntimeModifierId;
 			ModifierInstance.Evaluator = Evaluator;
 			ModifierInstance.Config = RuntimeEntry.ResolvedConfig;

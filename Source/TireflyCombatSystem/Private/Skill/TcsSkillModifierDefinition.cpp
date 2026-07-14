@@ -118,7 +118,7 @@ UTcsSkillModifierDefinition::UTcsSkillModifierDefinition()
 
 FPrimaryAssetId UTcsSkillModifierDefinition::GetPrimaryAssetId() const
 {
-	return FPrimaryAssetId(PrimaryAssetType, ModifierId);
+	return FPrimaryAssetId(PrimaryAssetType, SkillModifierDefId);
 }
 
 
@@ -163,9 +163,9 @@ EDataValidationResult UTcsSkillModifierDefinition::IsDataValid(FDataValidationCo
 {
 	EDataValidationResult Result = Super::IsDataValid(Context);
 
-	if (ModifierId.IsNone())
+	if (SkillModifierDefId.IsNone())
 	{
-		Context.AddError(FText::FromString(TEXT("ModifierId cannot be empty")));
+		Context.AddError(FText::FromString(TEXT("SkillModifierDefId cannot be empty")));
 		Result = EDataValidationResult::Invalid;
 	}
 

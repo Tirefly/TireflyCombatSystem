@@ -56,23 +56,23 @@ namespace
 
 bool FTcsSkillModifierConflictKey::operator==(const FTcsSkillModifierConflictKey& Other) const
 {
-	return ModifierId == Other.ModifierId
+	return SkillModifierDefId == Other.SkillModifierDefId
 		&& TargetSkillEntry == Other.TargetSkillEntry;
 }
 
 
 uint32 GetTypeHash(const FTcsSkillModifierConflictKey& Key)
 {
-	const uint32 ModifierIdHash = GetTypeHash(Key.ModifierId);
+	const uint32 SkillModifierDefIdHash = GetTypeHash(Key.SkillModifierDefId);
 	const uint32 TargetEntryHash = GetTypeHash(Key.TargetSkillEntry);
-	return HashCombine(ModifierIdHash, TargetEntryHash);
+	return HashCombine(SkillModifierDefIdHash, TargetEntryHash);
 }
 
 
 FTcsSkillModifierConflictKey FTcsSkillModifierRuntimeEntry::MakeConflictKey() const
 {
 	FTcsSkillModifierConflictKey Key;
-	Key.ModifierId = ModifierId;
+	Key.SkillModifierDefId = SkillModifierDefId;
 	Key.TargetSkillEntry = TargetSkillEntry;
 	return Key;
 }
@@ -81,7 +81,7 @@ FTcsSkillModifierConflictKey FTcsSkillModifierRuntimeEntry::MakeConflictKey() co
 bool FTcsSkillModifierRuntimeIndex::AddRuntimeEntry(const FTcsSkillModifierRuntimeEntry& Entry)
 {
 	if (Entry.RuntimeModifierId == INDEX_NONE
-		|| Entry.ModifierId.IsNone()
+		|| Entry.SkillModifierDefId.IsNone()
 		|| !Entry.TargetSkillEntry.IsValid()
 		|| !Entry.TargetParamTag.IsValid()
 		|| !Entry.SourceHandle.IsValid()
