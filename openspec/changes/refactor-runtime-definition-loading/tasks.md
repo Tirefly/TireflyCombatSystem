@@ -104,13 +104,13 @@
 
 ### 8.B 命令行验证（8.A review 通过后执行）
 - [x] [AI] 8.1 编译验证 TCS 运行时与编辑器模块。
-- [ ] [AI] 8.2 验证所有受管 DefAsset 都遵循统一三种加载策略，且预加载主路径固定走异步。
-- [ ] [AI] 8.3 验证所有受管 DefAsset 都支持单资产粒度的按需异步加载。
-- [ ] [AI] 8.4 验证同步加载接口若存在，只作为显式补充能力，不会反客为主成为默认主路径。
-- [ ] [AI] 8.5 验证统一加载配置面已覆盖当前全部非抽象 DefAsset 类型，而不是只覆盖抽象 `StateDef` 家族。
-- [ ] [AI] 8.6 验证 `AssetManagerSettings` 已按 `BuffDef`、`SkillDef`、`StateSlotDef`、`AttributeDef`、`AttributeModifierDef`、`SkillModifierDef` 等具体类型分别配置扫描路径。
-- [ ] [AI] 8.7 验证 `BuffDef` / `SkillDef` 不再共同挂在抽象 `TcsStateDef` 扫描路径下。
-- [ ] [AI] 8.8 验证所有直接查询抽象 `StateDefinition` 的 public runtime 接口都已清零。
+- [x] [AI] 8.2 验证所有受管 DefAsset 都遵循统一三种加载策略，且预加载主路径固定走异步。已确认六类 Definition 统一消费 `FTcsDefinitionLoadingConfig`，预加载通过 `UAssetManager::LoadPrimaryAssets` 异步执行。
+- [x] [AI] 8.3 验证所有受管 DefAsset 都支持单资产粒度的按需异步加载。已确认六类 Definition 都有单资产 async 入口、Blueprint async action 与 typed cache 回填；Automation 覆盖已有四类真实测试资产成功路径和六类未注册失败路径。
+- [x] [AI] 8.4 验证同步加载接口若存在，只作为显式补充能力，不会反客为主成为默认主路径。按已确认设计边界，`Load...DefinitionSync` 均保持 `protected`；source cache 初始化、预加载、单资产 async 与批量 async 主路径均不调用同步加载。公开 `Get...Definition()` 查询包装明确承担 cache miss 时的显式阻塞补充语义。
+- [x] [AI] 8.5 验证统一加载配置面已覆盖当前全部非抽象 DefAsset 类型，而不是只覆盖抽象 `StateDef` 家族。已确认 `UTcsDeveloperSettings`、source cache、预加载消费面覆盖 `BuffDef`、`SkillDef`、`StateSlotDef`、`AttributeDef`、`AttributeModifierDef`、`SkillModifierDef` 六类。
+- [x] [AI] 8.6 验证 `AssetManagerSettings` 已按 `BuffDef`、`SkillDef`、`StateSlotDef`、`AttributeDef`、`AttributeModifierDef`、`SkillModifierDef` 等具体类型分别配置扫描路径。已确认 `Config/DefaultGame.ini` 六类 `PrimaryAssetType` 均使用具体基类与专属扫描目录。
+- [x] [AI] 8.7 验证 `BuffDef` / `SkillDef` 不再共同挂在抽象 `TcsStateDef` 扫描路径下。已确认不存在 `TcsStateDef` 扫描配置，Buff / Skill 分别使用 `TcsBuffDef` / `TcsSkillDef`。
+- [x] [AI] 8.8 验证所有直接查询抽象 `StateDefinition` 的 public runtime 接口都已清零。已移除 `UTcsGenericLibrary::GetStateDefNames()`，将 `UTcsStateInstance::GetStateDef()` 收窄为 State 内部 C++ 访问，并取消 `StateDef` 的 Blueprint 可读暴露；DefinitionLoading Automation 已加入反射回归断言并通过。
 - [ ] [AI] 8.9 验证 State / Skill / Modifier 相关 Def 查询与按需加载路径。
 - [ ] [协作] 8.10 验证编辑器期 `UTcsDefinitionRegistrySubsystem` / `UTcsDefinitionEditorManagerSubsystem` 与 runtime definition manager 已完成职责解耦。
 - [ ] [AI] 8.11 验证 `UTcsStateManagerSubsystem` 已不再暴露 Definition 查询 public API。

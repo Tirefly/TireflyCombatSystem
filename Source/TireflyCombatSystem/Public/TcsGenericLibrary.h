@@ -35,10 +35,6 @@ public:
 #pragma region StateHelper
 
 public:
-	// 获取所有状态定义名称
-	UFUNCTION(BlueprintCallable, CallInEditor, Category = "TireflyCombatSystem|State")
-	static TArray<FName> GetStateDefNames();
-
 	// 获取状态组件
 	UFUNCTION(BlueprintCallable, Category = "TireflyCombatSystem|State")
 	static class UTcsStateComponent* GetStateComponent(AActor* Actor);

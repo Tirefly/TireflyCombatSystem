@@ -14,8 +14,11 @@
 #include "Misc/AutomationTest.h"
 #include "Skill/TcsSkillDefinition.h"
 #include "Skill/TcsSkillModifierDefinition.h"
+#include "State/TcsStateInstance.h"
 #include "State/TcsStateSlotDefinition.h"
 #include "TcsDeveloperSettings.h"
+#include "TcsGenericLibrary.h"
+#include "UObject/UnrealType.h"
 
 
 
@@ -361,6 +364,18 @@ bool FTireflyCombatSystem_DefinitionLoading_ConfigurationSpec::RunTest(const FSt
 	TestNull(
 		TEXT("State-like aggregate enumeration has no Blueprint query entry"),
 		UTcsDefinitionManagerSubsystem::StaticClass()->FindFunctionByName(TEXT("GetAllStateLikeDefIds")));
+	TestNull(
+		TEXT("Runtime utility library has no weak StateDefinition enumeration entry"),
+		UTcsGenericLibrary::StaticClass()->FindFunctionByName(TEXT("GetStateDefNames")));
+
+	const FProperty* StateDefProperty = UTcsStateInstance::StaticClass()->FindPropertyByName(TEXT("StateDef"));
+	TestNotNull(TEXT("StateInstance retains its internal StateDefinition GC reference"), StateDefProperty);
+	if (StateDefProperty)
+	{
+		TestFalse(
+			TEXT("StateInstance does not expose the abstract StateDefinition cache to Blueprint"),
+			StateDefProperty->HasAnyPropertyFlags(CPF_BlueprintVisible));
+	}
 
 	return true;
 }

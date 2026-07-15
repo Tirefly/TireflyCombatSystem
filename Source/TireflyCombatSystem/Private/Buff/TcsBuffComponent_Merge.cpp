@@ -280,18 +280,18 @@ void UTcsBuffComponent::RemoveMergedOutBuffs(
 void UTcsBuffComponent::MarkBuffMergeGroupDirty(UTcsBuffInstance* BuffInstance, ETcsBuffMergeDirtyReason DirtyReason)
 {
 	UTcsStateComponent* StateComponent = ResolveOwnerStateComponent();
-	const UTcsStateDefinition* StateDef = IsValid(BuffInstance) ? BuffInstance->GetStateDef() : nullptr;
-	if (!IsValid(StateComponent) || !IsValid(BuffInstance) || !StateDef || !StateDef->StateSlotType.IsValid())
+	const UTcsBuffDefinition* BuffDef = IsValid(BuffInstance) ? BuffInstance->GetBuffDef() : nullptr;
+	if (!IsValid(StateComponent) || !IsValid(BuffInstance) || !BuffDef || !BuffDef->StateSlotType.IsValid())
 	{
 		return;
 	}
 
-	FTcsStateSlot* StateSlot = StateComponent->FindRuntimeStateSlot(StateDef->StateSlotType);
+	FTcsStateSlot* StateSlot = StateComponent->FindRuntimeStateSlot(BuffDef->StateSlotType);
 	if (!StateSlot)
 	{
 		return;
 	}
 
 	StateSlot->MarkBuffMergeGroupDirty(BuffInstance->GetStateDefId(), DirtyReason);
-	StateComponent->RequestStateSlotRefresh(StateDef->StateSlotType);
+	StateComponent->RequestStateSlotRefresh(BuffDef->StateSlotType);
 }

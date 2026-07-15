@@ -7,10 +7,8 @@
 #include "Attribute/TcsAttributeModifierDefinition.h"
 #include "Attribute/TcsAttributeComponent.h"
 #include "Buff/TcsBuffComponent.h"
-#include "Buff/TcsBuffDefinition.h"
 #include "Engine/AssetManager.h"
 #include "State/TcsStateComponent.h"
-#include "Skill/TcsSkillDefinition.h"
 #include "Skill/TcsSkillComponent.h"
 
 
@@ -73,18 +71,6 @@ UTcsAttributeComponent *UTcsGenericLibrary::GetAttributeComponent(AActor *Actor)
 	}
     return nullptr;
 }
-TArray<FName> UTcsGenericLibrary::GetStateDefNames()
-{
-	TArray<FName> StateDefNames;
-
-	AppendPrimaryAssetNames(UTcsBuffDefinition::PrimaryAssetType, StateDefNames);
-	AppendPrimaryAssetNames(UTcsSkillDefinition::PrimaryAssetType, StateDefNames);
-
-	NormalizeEditorOptionNames(StateDefNames);
-
-	return StateDefNames;
-}
-
 UTcsStateComponent* UTcsGenericLibrary::GetStateComponent(AActor *Actor)
 {
     if (IsValid(Actor) && Actor->Implements<UTcsEntityInterface>())

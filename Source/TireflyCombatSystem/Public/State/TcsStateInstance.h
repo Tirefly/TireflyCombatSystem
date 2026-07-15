@@ -85,6 +85,10 @@ class TIREFLYCOMBATSYSTEM_API UTcsStateInstance : public UObject
 {
 	GENERATED_BODY()
 
+	// State 模块内部运行时访问
+	friend class UTcsStateComponent;
+	friend struct FTcsStateInstanceIndex;
+
 #pragma region UObject
 
 public:
@@ -113,9 +117,6 @@ public:
     // 获取状态的定义Id
     UFUNCTION(BlueprintPure, Category = "TireflyCombatSystem|State")
     FName GetStateDefId() const { return StateDefId; }
-
-	// 获取状态定义 DataAsset 硬引用
-	const UTcsStateDefinition* GetStateDef() const { return StateDef; }
 
 	// 获取状态实例Id
 	int32 GetInstanceId() const { return StateInstanceId; }
@@ -204,10 +205,13 @@ protected:
 	// 初始化派生运行态的专属参数缓存。
 	virtual void InitializeRuntimeParameters();
 
+	/** @return State 模块内部使用的抽象状态定义缓存。 */
+	const UTcsStateDefinition* GetStateDef() const { return StateDef; }
+
 protected:
 	// --- 变量 ---
 	// 状态定义 DataAsset 硬引用
-	UPROPERTY(BlueprintReadOnly, Category = "Meta")
+	UPROPERTY(Transient)
 	const UTcsStateDefinition* StateDef = nullptr;
 
 	// 状态定义Id（冗余字段，用于快速查询和调试）

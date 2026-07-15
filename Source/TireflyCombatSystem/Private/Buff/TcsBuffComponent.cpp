@@ -235,7 +235,7 @@ void UTcsBuffComponent::RefreshBuffRemainingDuration(UTcsBuffInstance* BuffInsta
 		return;
 	}
 
-	if (!BuffInstance->GetStateDef() || BuffInstance->HasInfiniteDuration() || !BuffInstance->HasFiniteDuration())
+	if (!BuffInstance->GetBuffDef() || BuffInstance->HasInfiniteDuration() || !BuffInstance->HasFiniteDuration())
 	{
 		return;
 	}
@@ -267,7 +267,7 @@ void UTcsBuffComponent::SetBuffRemainingDuration(UTcsBuffInstance* BuffInstance,
 		return;
 	}
 
-	if (!BuffInstance->GetStateDef() || BuffInstance->HasInfiniteDuration() || !BuffInstance->HasFiniteDuration())
+	if (!BuffInstance->GetBuffDef() || BuffInstance->HasInfiniteDuration() || !BuffInstance->HasFiniteDuration())
 	{
 		return;
 	}
@@ -398,4 +398,3 @@ bool UTcsBuffComponent::HasActiveBuffInSlot(FGameplayTag SlotTag) const
 	TArray<UTcsBuffInstance*> Buffs;
 	return GetBuffsInSlot(SlotTag, Buffs);
 }
-
