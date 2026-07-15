@@ -97,13 +97,13 @@
 - [x] [AI] 7.3 直接移除旧对象型 public 入口；若迁移阶段存在残余逻辑，只允许退化为内部辅助转发实现。
 
 ## 8. 验证
-### 8.A 验证前修正与测试准备（等待用户 review）
-- [ ] [协作] 8.A.1 审计第 8 阶段后发现并修正四项代码级阻断：source cache / 批量 async 路径不得同步加载；抽象 `StateDef` 查询不得作为 Blueprint public 弱类型入口；全局 `IsRuntimeReady()` 不得阻塞单一 Definition 域；失败诊断必须区分未注册 / 类型不匹配 / 加载失败。当前代码修改已完成，等待用户 review，尚未编译验证。
-- [ ] [协作] 8.A.2 恢复并收敛 State 模块内部的高频 `StateDefId` 查询：`StateDefinitionSources` / `StateDefinitions` 只能从具体 Buff / Skill cache 派生；`GetStateDefinition` 仅供 State 模块内部使用，热路径先单次命中聚合缓存；跨 Buff / Skill 重名 ID 必须确定性失败而非静默覆盖。当前代码与 delta spec wording 已更新，等待用户 review，尚未编译验证。
-- [ ] [协作] 8.A.3 新增 Runtime 模块 `TireflyCombatSystem.DefinitionLoading.*` Automation tests，覆盖六类 AssetManager 配置、仓库已有 Attribute / AttributeModifier / Buff / StateSlot 测试资产的真实单资产 async load、六类未注册 DefId 失败回调与空 source cache 预加载完成语义。测试代码已写入，等待用户 review，尚未编译或执行。
+### 8.A 验证前修正与测试准备
+- [x] [协作] 8.A.1 审计第 8 阶段后发现并修正四项代码级阻断：source cache / 批量 async 路径不得同步加载；抽象 `StateDef` 查询不得作为 Blueprint public 弱类型入口；全局 `IsRuntimeReady()` 不得阻塞单一 Definition 域；失败诊断必须区分未注册 / 类型不匹配 / 加载失败。修正后已通过 Editor target 编译与 DefinitionLoading Automation tests。
+- [x] [协作] 8.A.2 恢复并收敛 State 模块内部的高频 `StateDefId` 查询：`StateDefinitionSources` / `StateDefinitions` 只能从具体 Buff / Skill cache 派生；`GetStateDefinition` 仅供 State 模块内部使用，热路径先单次命中聚合缓存；跨 Buff / Skill 重名 ID 必须确定性失败而非静默覆盖。代码与 delta spec wording 已更新，并通过 Editor target 编译。
+- [x] [协作] 8.A.3 新增并执行 Runtime 模块 `TireflyCombatSystem.DefinitionLoading.*` Automation tests，覆盖六类 AssetManager 配置、仓库已有 Attribute / AttributeModifier / Buff / StateSlot 测试资产的真实单资产 async load，以及六类未注册 DefId 的同步 / 异步失败契约。3 项测试全部通过，报告位于 `Saved/Automation/DefinitionLoading/index.json`。
 
 ### 8.B 命令行验证（8.A review 通过后执行）
-- [ ] [AI] 8.1 编译验证 TCS 运行时与编辑器模块。
+- [x] [AI] 8.1 编译验证 TCS 运行时与编辑器模块。
 - [ ] [AI] 8.2 验证所有受管 DefAsset 都遵循统一三种加载策略，且预加载主路径固定走异步。
 - [ ] [AI] 8.3 验证所有受管 DefAsset 都支持单资产粒度的按需异步加载。
 - [ ] [AI] 8.4 验证同步加载接口若存在，只作为显式补充能力，不会反客为主成为默认主路径。
