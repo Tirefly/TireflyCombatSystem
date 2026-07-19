@@ -31,3 +31,21 @@ attribute 与 modifier 的定义查询 SHALL 统一经过 `UTcsDefinitionManager
 - **WHEN** State 运行时创建新的 `FTcsSourceHandle`
 - **THEN** 该工厂 MUST 位于更贴近 State 生命周期的实现侧
 - **AND** `UTcsAttributeManagerSubsystem` MUST NOT 再暴露 `CreateSourceHandle` 入口
+
+### Requirement: Modifier 创建通过 Manager 获取全局 ID
+
+`UTcsAttributeComponent` 中凡是需要进程级唯一 ID 的方法 SHALL 通过自身静态工厂分配 `AttributeInstId`、`ModifierInstId` 与 `ModifierChangeBatchId`。已删除的 `UTcsAttributeManagerSubsystem` MUST NOT 继续承担 ID 分配职责，Component 实例之间也 MUST NOT 各自维护独立计数器。
+
+#### Scenario: CreateAttributeModifier 从 Component 静态工厂分配 ID
+- **WHEN** `UTcsAttributeComponent::CreateAttributeModifier` 创建新的 `FTcsAttributeModifierInstance`
+- **THEN** 其实例 ID MUST 来自 `UTcsAttributeComponent` 的静态分配入口
+- **AND** 该入口 MUST 在当前进程内保持全局唯一
+
+#### Scenario: 已删除 AttributeManager 不再分配 ID
+- **WHEN** 在 TCS runtime 源码中搜索 `ResolveAttributeManager`、`UTcsAttributeManagerSubsystem` 或旧 Manager ID 计数器
+- **THEN** 搜索结果 MUST 不包含 Attribute / Modifier ID 分配实现
+
+## REMOVED Requirements
+### Requirement: Deprecated 兼容层必须严格作为临时过渡
+**Reason**: `UTcsAttributeManagerSubsystem` 已被删除，不再存在需要保留或移除的 Manager 兼容包装器。
+**Migration**: Actor 本地 Attribute 业务直接使用 `UTcsAttributeComponent`；Definition 与 tag 解析使用 `UTcsDefinitionManagerSubsystem`。

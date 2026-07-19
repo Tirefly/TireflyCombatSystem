@@ -410,7 +410,8 @@ bool UTcsStateComponent::TryApplyState(
 	{
 		return ReportApplyFailure(
 			ETcsStateApplyFailReason::InvalidStateDefinition,
-			TEXT("Invalid state definition."));
+			TEXT("Invalid state definition."),
+			true);
 	}
 
 	ETcsStateApplyFailReason CreateFailureReason = ETcsStateApplyFailReason::CreateInstanceFailed;

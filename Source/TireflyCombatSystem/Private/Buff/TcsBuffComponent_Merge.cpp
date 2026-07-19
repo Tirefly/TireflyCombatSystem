@@ -190,9 +190,6 @@ void UTcsBuffComponent::MergeBuffStateGroup(
 	const UTcsBuffDefinition* BuffDef = DefinitionManager->GetBuffDefinition(BuffsToMerge[0]->GetStateDefId());
 	if (!BuffDef)
 	{
-		UE_LOG(LogTcsState, Warning, TEXT("[%s] Failed to get buff definition for %s"),
-			*FString(__FUNCTION__),
-			*BuffsToMerge[0]->GetStateDefId().ToString());
 		OutMergedBuffs = BuffsToMerge;
 		OutMergedOutBuffs.Reset();
 		return;

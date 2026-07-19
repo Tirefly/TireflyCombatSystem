@@ -111,8 +111,6 @@ bool UTcsStateComponent::RebuildStateSlotRuntimeData()
 		const UTcsStateSlotDefinition* SlotDefAsset = DefinitionManager->GetStateSlotDefinition(StateSlotDefId);
 		if (!SlotDefAsset)
 		{
-			UE_LOG(LogTcsState, Warning, TEXT("[%s] StateSlotDefinition %s could not be loaded for %s"),
-				*FString(__FUNCTION__), *StateSlotDefId.ToString(), *GetPathName());
 			continue;
 		}
 

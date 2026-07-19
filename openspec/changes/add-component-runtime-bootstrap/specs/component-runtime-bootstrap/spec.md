@@ -4,7 +4,7 @@
 TCS SHALL 将 `Attribute`、`State`、`Buff`、`Skill` 四个运行时组件的业务可用性建模为独立的 runtime-ready 生命周期，而不是把 `OnRegister`、`BeginPlay` 或组件已存在本身视为业务 ready 信号。
 
 #### Scenario: 组件已注册但尚未 ready 时不得执行业务逻辑
-- **WHEN** 一个 TCS 组件已经完成 UE 注册，但其前置 subsystem 或前置组件尚未满足
+- **WHEN** 一个 TCS 组件已经完成 UE 注册，但其必需的 DefinitionManager 实例、Definition 查询或前置组件尚未满足
 - **THEN** 该组件 MUST 处于非 ready 状态
 - **AND** 不得执行业务 Tick、业务事件绑定或真正的 public runtime API 主逻辑
 
@@ -18,7 +18,8 @@ TCS SHALL 提供一个 `UGameInstanceSubsystem` 级别的运行时编排器，�
 
 #### Scenario: bootstrap subsystem 推进预挂组件初始化
 - **WHEN** 一个 Actor 在关卡启动时已预挂 `Attribute`、`State`、`Buff`、`Skill` 中的若干组件
-- **THEN** bootstrap subsystem MUST 在所需 subsystem ready 后按依赖顺序推进这些组件进入 ready
+- **THEN** bootstrap subsystem MUST 在 `UTcsDefinitionManagerSubsystem` 实例可用后按依赖顺序推进这些组件进入 ready
+- **AND** 单一组件 MUST NOT 因无关 Definition 域尚未完成全局预加载而被阻塞
 
 #### Scenario: RegisterEntity 作为统一建档入口
 - **WHEN** 一个实现了 `ITcsEntityInterface` 的 Actor 需要被纳入 TCS runtime 编排
@@ -96,21 +97,22 @@ TCS SHALL 要求四个运行时组件向 bootstrap subsystem 提供最小注册 
 - **AND** MUST NOT 仅依赖 `OnRegister()` / `OnUnregister()` 作为唯一的主初始化协作入口
 
 ### Requirement: 组件初始化顺序必须显式服从依赖图
-TCS SHALL 将 `AttributeManagerSubsystem`、`StateManagerSubsystem`、`AttributeComponent`、`StateComponent`、`BuffComponent`、`SkillComponent` 的初始化顺序建模为显式依赖图，而不是依赖隐式注册先后。
+TCS SHALL 将 `UTcsDefinitionManagerSubsystem`、`AttributeComponent`、`StateComponent`、`BuffComponent`、`SkillComponent` 的初始化顺序建模为显式依赖图，而不是依赖隐式注册先后。
 
 #### Scenario: 基础层先于协作层进入 ready
 - **WHEN** 一个 Actor 同时持有 `AttributeComponent`、`StateComponent`、`BuffComponent`、`SkillComponent`
 - **THEN** `AttributeComponent` 与 `StateComponent` MUST 作为并行基础层先于 `BuffComponent` 与 `SkillComponent` 进入 ready
 
-#### Scenario: State 只等待全局依赖，不等待 AttributeComponent
+#### Scenario: State 按自身必需 Definition 域准备，不等待 AttributeComponent
 - **WHEN** `StateComponent` 需要进入 ready
-- **THEN** 它 MUST 等待 `StateManagerSubsystem` ready
-- **AND** MUST 等待 `AttributeManagerSubsystem` ready
+- **THEN** 它 MUST 要求 `UTcsDefinitionManagerSubsystem` 实例可用
+- **AND** MUST 通过 StateSlotDefinition 查询验证自身必需的 State 运行时数据
 - **AND** MUST NOT 把同 Actor 上的 `AttributeComponent` 作为前置依赖
+- **AND** MUST NOT 把 DefinitionManager 的全局 `IsRuntimeReady()` 作为自身前置条件
 
 #### Scenario: Attribute 与 State 可以并行进入基础层 ready
 - **WHEN** 一个 Actor 同时持有 `AttributeComponent` 与 `StateComponent`
-- **THEN** `AttributeComponent` 与 `StateComponent` MAY 在各自全局前置依赖满足后并行进入基础层 ready
+- **THEN** `AttributeComponent` 与 `StateComponent` MAY 在各自必需 Definition 查询满足后并行进入基础层 ready
 - **AND** `StateComponent` 不得因为 `AttributeComponent` 尚未 ready 而被阻塞
 
 #### Scenario: Buff 与 Skill 等待 State ready
@@ -170,7 +172,7 @@ TCS SHALL 让预挂组件复用 bootstrap 编排规则，而不是依赖隐式�
 
 #### Scenario: 预挂组件复用同一 ready 流程
 - **WHEN** 一个关卡内预挂 TCS 组件的 Actor 进入世界
-- **THEN** 该 Actor MUST 复用统一的 subsystem-ready 与 component-ready 编排规则
+- **THEN** 该 Actor MUST 复用统一的 DefinitionManager 实例可用性与 component-ready 编排规则
 - **AND** MUST NOT 依赖组件注册先后顺序来决定业务 ready
 
 ### Requirement: 未 ready 状态下的 Tick 与 public API 必须受保护
@@ -235,7 +237,7 @@ TCS SHALL 让外界能够通过 `RegisterEntity` 返回值、显式检测结果�
 #### Scenario: 未显式注册时阻塞原因优先于普通 waiting 原因
 - **WHEN** 一个 Actor 实现了 `ITcsEntityInterface`，其组件已经存在，但开发者尚未调用 `RegisterEntity`
 - **THEN** `EvaluateEntityRuntimeState` MUST 优先返回 `NotRegistered` 或等价阻塞原因
-- **AND** MUST NOT 先返回 `MissingAttributeComponent`、`StateManagerNotReady` 或其他后续编排阶段诊断
+- **AND** MUST NOT 先返回 `MissingAttributeComponent`、`DefinitionManagerNotReady` 或其他后续编排阶段诊断
 
 #### Scenario: EvaluateEntityRuntimeState 返回阻塞原因
 - **WHEN** 外部系统调用 `EvaluateEntityRuntimeState` 检测一个实体的当前 runtime 状态
@@ -262,11 +264,11 @@ TCS SHALL 区分 `StateComponent` 的预热动作与其真正进入业务运行�
 
 #### Scenario: State 的初始化应迁移到显式 prepare 流程
 - **WHEN** 审查 `UTcsStateComponent` 的初始化职责时
-- **THEN** 其现有 manager 解析、slot 初始化、缓存建立等关键初始化逻辑 SHOULD 从 `BeginPlay` 迁移到显式 prepare 阶段
+- **THEN** 其现有 DefinitionManager 解析、slot 初始化、缓存建立等关键初始化逻辑 SHOULD 从 `BeginPlay` 迁移到显式 prepare 阶段
 - **AND** MUST NOT 继续依赖 `BeginPlay` 作为关键初始化主路径
 
 #### Scenario: 真实运行时启动受 ready 屏障控制
-- **WHEN** `StateComponent` 尚未满足其 subsystem 与组件依赖
+- **WHEN** `StateComponent` 尚未满足其 DefinitionManager 实例、必需 Definition 查询与组件依赖
 - **THEN** 它的真实运行时逻辑与 `StateTree` 驱动 MUST NOT 提前启动
 
 #### Scenario: StateTree 与 StateSlotMapping 未验证时不得启动真实运行时

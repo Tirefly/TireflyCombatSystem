@@ -36,9 +36,7 @@
 
 采用 `UGameInstanceSubsystem` 级 bootstrap，由它：
 
-- 通过 `InitializeDependency` 依赖：
-  - `UTcsAttributeManagerSubsystem`
-  - `UTcsStateManagerSubsystem`
+- 通过 `InitializeDependency` 依赖 `UTcsDefinitionManagerSubsystem`
 - 接收 `RegisterEntity`
 - 在组件报到 / 注销 / prepare 完成时执行重评估
 - 按依赖顺序推进 ready
@@ -141,8 +139,7 @@ enum class ETcsEntityRuntimeBlockReason : uint8
 	NotRegistered,
 	InvalidEntity,
 	MissingEntityInterface,
-	AttributeManagerNotReady,
-	StateManagerNotReady,
+	DefinitionManagerNotReady,
 	MissingAttributeComponent,
 	MissingStateComponent,
 	AttributeComponentNotPrepared,
@@ -183,14 +180,13 @@ enum class ETcsEntityRuntimeBlockReason : uint8
 
 确认后的依赖图如下：
 
-1. `AttributeManagerSubsystem`
-2. `StateManagerSubsystem`
-3. `AttributeComponent` 与 `StateComponent`（并行基础层）
-4. `BuffComponent` 与 `SkillComponent`（后置层）
+1. `DefinitionManagerSubsystem`（只保证统一 Definition 加载归口实例存在）
+2. `AttributeComponent` 与 `StateComponent`（并行基础层）
+3. `BuffComponent` 与 `SkillComponent`（后置层）
 
 补充约束：
 
-- `StateComponent` 等待 `AttributeManagerSubsystem` 与 `StateManagerSubsystem`
+- `StateComponent` 只要求 `DefinitionManagerSubsystem` 实例可用，并按实际 StateSlotDefinition 查询准备自身运行时；不得等待全局 `IsRuntimeReady()`
 - `StateComponent` **不等待** `AttributeComponent`
 - `BuffComponent` / `SkillComponent` 都等待 `StateComponent` ready
 
@@ -289,8 +285,8 @@ enum class ETcsEntityRuntimeBlockReason : uint8
 4. 组件 `InitializeComponent()` 报到
 5. 组件完成 prepare 后回报
 6. bootstrap 按依赖顺序推进：
-   - `AttributeComponent`
-	- `StateComponent.PrepareStateRuntime()`：验证 `StateTree`、StateSlot 运行时数据与 StateSlotMapping
+    - `AttributeComponent`
+	- `StateComponent.PrepareStateRuntime()`：验证 `DefinitionManagerSubsystem`、`StateTree`、StateSlot 运行时数据与 StateSlotMapping
 	- `StateComponent.StartStateRuntime()`：启动 `StateTree` 并确认 running
    - `Buff / Skill`
 7. 若此前返回 `RegisteredWaiting`，ready 后触发 one-shot 回调并删除 pending 记录

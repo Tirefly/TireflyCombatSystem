@@ -67,14 +67,6 @@ bool UTcsStateCondition_AttributeComparison::CheckCondition_Implementation(
 					{
 						ResolvedAttributeName = TagResolvedName;
 					}
-					else
-					{
-						UE_LOG(LogTcsStateCondition, Warning,
-							TEXT("[%s] Failed to resolve AttributeTag '%s', falling back to AttributeName '%s'."),
-							*FString(__FUNCTION__),
-							*Config->AttributeTag.ToString(),
-							*Config->AttributeName.ToString());
-					}
 				}
 			}
 		}

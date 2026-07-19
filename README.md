@@ -10,7 +10,7 @@ TCS 当前版本不再把“技能、Buff、普通状态”简单当成同一种
 
 1. `State Core` 负责共享运行态宿主、Apply / Remove / Query / Slot / StateTree 生命周期主链。
 2. `Buff` 负责 Duration / Stack / Merge / Period 等 Buff 专属语义，但仍挂接在共享 `UTcsStateComponent` 主链上执行。
-3. `Skill` 当前仍保持轻量骨架；`UTcsSkillEntry` 表示 learned skill 拥有态，`UTcsSkillInstance` 表示一次技能激活执行态。
+3. `Skill` 当前已具备 learned skill、SkillModifier 与 DefId 驱动激活主链；`UTcsSkillEntry` 表示 learned skill 拥有态，`UTcsSkillInstance` 表示一次技能激活执行态。
 4. 技能执行态仍通过 `UTcsStateComponent` 进入共享运行主链，而不是让 Skill 自己复制一套平行宿主框架。
 
 ## 当前可直接 Author 的 DefinitionAsset
@@ -24,13 +24,16 @@ TCS 当前版本不再把“技能、Buff、普通状态”简单当成同一种
 
 1. `UTcsAttributeDefinition`
 2. `UTcsAttributeModifierDefinition`
-3. `UTcsStateSlotDefinition`
-4. `UTcsBuffDefinition`
+3. `UTcsBuffDefinition`
+4. `UTcsSkillDefinition`
+5. `UTcsStateSlotDefinition`
+6. `UTcsSkillModifierDefinition`
 
 补充说明：
 
 1. `UTcsStateDefinition` 现在是抽象共享基类，不再是直接可创建的最终资产类型。
-2. 运行时仍以 `StateDefId` 和 `PrimaryAssetId` 为统一加载入口；`UTcsBuffDefinition` 只是把 Buff 专属配置从抽象基类中拿回 Buff 侧。
+2. `UTcsDefinitionManagerSubsystem` 按具体 `BuffDefId`、`SkillDefId`、`StateSlotDefId`、`AttributeDefId`、`AttributeModifierDefId`、`SkillModifierDefId` 提供类型化运行时解析。
+3. `StateDefId` 仅保留给 State 模块内部的 state-like 聚合查询；`FPrimaryAssetId` 是 AssetManager 加载实现细节，不是对外业务 API 的统一身份。
 
 ## 当前可直接 Author 的 Gameplay Runtime 资产
 

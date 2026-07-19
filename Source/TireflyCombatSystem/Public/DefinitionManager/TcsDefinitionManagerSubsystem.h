@@ -503,13 +503,13 @@ protected:
 	 * 对已在 loaded cache 中的立即收集；对其余的逐个走单资产异步路径，全部完成后统一回调。
 	 *
 	 * @param SourceCache 对应类型的 source cache。
-	 * @param DefinitionTypeName 当前批次的 Definition 类型名，用于失败诊断。
+	 * @param EntryName 发起批量加载的公开入口名，用于统一失败诊断。
 	 * @param DefIds 要加载的 Definition ID 列表。
 	 * @param Callback 批量加载完成回调。
 	 */
 	void StartBatchAsyncLoad(
 		const TMap<FName, FTcsDefinitionSourceEntry>& SourceCache,
-		FName DefinitionTypeName,
+		FName EntryName,
 		const TArray<FName>& DefIds,
 		const FOnTcsDefinitionsBatchLoaded& Callback);
 

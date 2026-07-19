@@ -1,7 +1,7 @@
 ## 1. 规范与设计
 - [x] 1.1 明确 TCS runtime-ready 与 UE 生命周期的分层契约
 - [x] 1.2 确认 `UTcsRuntimeBootstrapSubsystem` 只暴露 entity 级状态 / 原因 / 事件的职责边界，以及它与四个运行时组件的最小协作面
-- [x] 1.3 明确 `AttributeManagerSubsystem` / `StateManagerSubsystem` 的 runtime-ready 契约与诊断面
+- [x] 1.3 明确 `UTcsDefinitionManagerSubsystem` 的实例依赖边界与 `DefinitionManagerNotReady` 诊断面；全局预加载完成状态不作为单一组件的 ready 前置条件
 - [x] 1.4 明确 `Attribute` 与 `State` 的并行基础层关系，以及 `Buff`、`Skill` 的后置依赖与失败策略
 - [x] 1.5 明确未 ready API 的分类矩阵（命令型 / 查询型 / Tick）与统一保护策略
 - [x] 1.6 明确 `StateComponent` 的 runtime start/stop 入口命名与职责边界
@@ -15,16 +15,16 @@
 
 ## 2. bootstrap 基础设施
 - [x] 2.1 引入 `UTcsRuntimeBootstrapSubsystem : UGameInstanceSubsystem`
-- [x] 2.2 在 bootstrap subsystem 中通过 `InitializeDependency` 显式依赖 `UTcsAttributeManagerSubsystem` 与 `UTcsStateManagerSubsystem`
+- [x] 2.2 在 bootstrap subsystem 中通过 `InitializeDependency` 显式依赖 `UTcsDefinitionManagerSubsystem`
 - [x] 2.3 提供统一的 `RegisterEntity` 入口，并在注册时重扫已有组件
 - [x] 2.4 复用 `ITcsEntityInterface` 解析四个组件，并支持按 Actor 做即时依赖评估与 waiting registration 跟踪
 - [x] 2.5 建立轻量的显式注册集合、瞬时 ready 检测结果与 waiting 中 pending registration 记录，而不是长期缓存已 ready entity
 - [x] 2.6 提供统一的组件注册、反注册、重评估与诊断输出入口
 
-## 3. subsystem ready 契约
-- [x] 3.1 为 `UTcsAttributeManagerSubsystem` 增加显式 ready 查询面
-- [x] 3.2 为 `UTcsStateManagerSubsystem` 增加显式 ready 查询面
-- [x] 3.3 保持 ManagerSubsystem 与 bootstrap subsystem 都只承担全局职责，不回流 Actor 本地业务逻辑
+## 3. DefinitionManager 依赖边界
+- [x] 3.1 bootstrap 仅检查 `UTcsDefinitionManagerSubsystem` 实例是否可用，不将全局预加载完成标记当作单一组件 ready 前置条件
+- [x] 3.2 `StateComponent` / `AttributeComponent` 按自身必需 Definition 域查询准备，不等待无关域预加载
+- [x] 3.3 保持 DefinitionManager 与 bootstrap subsystem 都只承担全局职责，不回流 Actor 本地业务逻辑
 
 ## 4. 四个组件接入 bootstrap
 - [x] 4.1 `UTcsAttributeComponent` 接入 bootstrap，并把本地业务 ready 与 UE 生命周期解耦

@@ -9,37 +9,37 @@
 
 void UTcsDefinitionManagerSubsystem::LoadBuffDefinitionsBatch(const TArray<FName>& BuffDefIds, const FOnTcsDefinitionsBatchLoaded& Callback)
 {
-	StartBatchAsyncLoad(BuffDefinitionSources, TEXT("BuffDefinition"), BuffDefIds, Callback);
+	StartBatchAsyncLoad(BuffDefinitionSources, TEXT("LoadBuffDefinitionsBatch"), BuffDefIds, Callback);
 }
 
 void UTcsDefinitionManagerSubsystem::LoadSkillDefinitionsBatch(const TArray<FName>& SkillDefIds, const FOnTcsDefinitionsBatchLoaded& Callback)
 {
-	StartBatchAsyncLoad(SkillDefinitionSources, TEXT("SkillDefinition"), SkillDefIds, Callback);
+	StartBatchAsyncLoad(SkillDefinitionSources, TEXT("LoadSkillDefinitionsBatch"), SkillDefIds, Callback);
 }
 
 void UTcsDefinitionManagerSubsystem::LoadStateSlotDefinitionsBatch(const TArray<FName>& StateSlotDefIds, const FOnTcsDefinitionsBatchLoaded& Callback)
 {
-	StartBatchAsyncLoad(StateSlotDefinitionSources, TEXT("StateSlotDefinition"), StateSlotDefIds, Callback);
+	StartBatchAsyncLoad(StateSlotDefinitionSources, TEXT("LoadStateSlotDefinitionsBatch"), StateSlotDefIds, Callback);
 }
 
 void UTcsDefinitionManagerSubsystem::LoadAttributeDefinitionsBatch(const TArray<FName>& AttributeDefIds, const FOnTcsDefinitionsBatchLoaded& Callback)
 {
-	StartBatchAsyncLoad(AttributeDefinitionSources, TEXT("AttributeDefinition"), AttributeDefIds, Callback);
+	StartBatchAsyncLoad(AttributeDefinitionSources, TEXT("LoadAttributeDefinitionsBatch"), AttributeDefIds, Callback);
 }
 
 void UTcsDefinitionManagerSubsystem::LoadAttributeModifierDefinitionsBatch(const TArray<FName>& AttributeModifierDefIds, const FOnTcsDefinitionsBatchLoaded& Callback)
 {
-	StartBatchAsyncLoad(AttributeModifierDefinitionSources, TEXT("AttributeModifierDefinition"), AttributeModifierDefIds, Callback);
+	StartBatchAsyncLoad(AttributeModifierDefinitionSources, TEXT("LoadAttributeModifierDefinitionsBatch"), AttributeModifierDefIds, Callback);
 }
 
 void UTcsDefinitionManagerSubsystem::LoadSkillModifierDefinitionsBatch(const TArray<FName>& SkillModifierDefIds, const FOnTcsDefinitionsBatchLoaded& Callback)
 {
-	StartBatchAsyncLoad(SkillModifierDefinitionSources, TEXT("SkillModifierDefinition"), SkillModifierDefIds, Callback);
+	StartBatchAsyncLoad(SkillModifierDefinitionSources, TEXT("LoadSkillModifierDefinitionsBatch"), SkillModifierDefIds, Callback);
 }
 
 void UTcsDefinitionManagerSubsystem::StartBatchAsyncLoad(
 	const TMap<FName, FTcsDefinitionSourceEntry>& SourceCache,
-	FName DefinitionTypeName,
+	FName EntryName,
 	const TArray<FName>& DefIds,
 	const FOnTcsDefinitionsBatchLoaded& Callback)
 {
@@ -51,10 +51,7 @@ void UTcsDefinitionManagerSubsystem::StartBatchAsyncLoad(
 		const FTcsDefinitionSourceEntry* Entry = SourceCache.Find(DefId);
 		if (!Entry)
 		{
-			UE_LOG(LogTcs, Warning,
-				TEXT("[UTcsDefinitionManagerSubsystem] Batch load: %s not found in source cache. DefId=%s"),
-				*DefinitionTypeName.ToString(),
-				*DefId.ToString());
+			LogDefinitionQueryFailure(DefId, *EntryName.ToString(), TEXT("NotRegistered"));
 			continue;
 		}
 
@@ -65,7 +62,7 @@ void UTcsDefinitionManagerSubsystem::StartBatchAsyncLoad(
 		}
 		else if (CachedAsset)
 		{
-			LogDefinitionQueryFailure(DefId, TEXT("StartBatchAsyncLoad"), TEXT("TypeMismatch"));
+			LogDefinitionQueryFailure(DefId, *EntryName.ToString(), TEXT("TypeMismatch"));
 		}
 		else
 		{
@@ -93,7 +90,7 @@ void UTcsDefinitionManagerSubsystem::StartBatchAsyncLoad(
 
 	for (const FName DefId : PendingDefIds)
 	{
-		StartAsyncLoad(SourceCache, DefId, FName(*FString::Printf(TEXT("Load%sAsync"), *DefinitionTypeName.ToString())),
+		StartAsyncLoad(SourceCache, DefId, EntryName,
 			FOnTcsDefinitionAsyncLoaded::CreateLambda(
 				[WeakThis, LoadedResults, RemainingCount, TotalPending, RequestedDefIds, Callback]
 				(FName LoadedDefId, bool bSuccess, UPrimaryDataAsset* Asset)

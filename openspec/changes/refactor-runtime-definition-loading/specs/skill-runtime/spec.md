@@ -13,6 +13,23 @@ TCS SHALL 在 Skill 自有的定义、实例和组件中建模 learned skill、c
 - **THEN** 它 MUST 持有对应的已校验 `UTcsSkillDefinition*` 缓存
 - **AND** 调用链 SHOULD 优先复用该缓存，而不是在每次运行时访问时都重新向 DefinitionManager 取回同一个 SkillDef
 
+### Requirement: Level 迁移到 NumericParamInstances
+
+`UTcsStateDefinition` 基类 SHALL 使用 `LevelParamTag` 表达实例等级参数，其构造默认值 MUST 从 `UTcsDeveloperSettings::DefaultStateInstanceLevelParamTag` 读取。`UTcsSkillEntry` MUST NOT 保留独立 `int32 Level` 字段；技能等级 SHALL 保存在 `NumericParamInstances[LevelParamTag]` 中，并通过 `GetLevel()` / `SetLevel()` 访问。
+
+#### Scenario: LearnSkill 时建立默认等级参数
+- **WHEN** `LearnSkill(SkillDefId)` 成功创建 `UTcsSkillEntry`
+- **THEN** 若对应 Definition 配置了有效 `LevelParamTag`，Entry MUST 初始化该 NumericParamInstance 的基础值为 `1.0f`
+
+#### Scenario: SetLevel 更新基础等级
+- **WHEN** 调用 `UTcsSkillEntry::SetLevel(3)`
+- **THEN** `NumericParamInstances[LevelParamTag]` 的基础值 MUST 更新为 `3.0f`
+- **AND** 已挂接的 SkillModifier 参数链 MUST 保持不变
+
+#### Scenario: GetLevel 含 SkillModifier 修正
+- **WHEN** `NumericParamInstances[LevelParamTag]` 的基础值为 `3`，且存在 Add(+1) SkillModifier
+- **THEN** `GetLevel()` MUST 返回 `4`
+
 ### Requirement: Skill 激活桥接到 State Runtime
 
 TCS SHALL 让 Skill 自有激活逻辑在通过 Skill 侧校验后，再向 `UTcsStateComponent` 请求运行时状态。`LearnSkill` 与 `ActivateSkill` 的主执行路径 SHALL 支持按 `SkillDefId` 执行。

@@ -132,22 +132,15 @@ struct FTcsSourceHandle
 
 ```cpp
 // 1. 创建 SourceHandle
-UTcsAttributeManagerSubsystem* AttrMgr = GetWorld()->GetGameInstance()
-    ->GetSubsystem<UTcsAttributeManagerSubsystem>();
-
-FTcsSourceHandle SourceHandle = AttrMgr->CreateSourceHandle(
+FTcsSourceHandle SourceHandle = UTcsStateComponent::CreateSourceHandle(
     {},             // CausalityChain（根源为空）
     CasterActor,    // Instigator
     SkillTags       // SourceTags（可选）
 );
 
-// 2. 应用修改器
-TArray<FName> ModifierIds = { FName("Mod_AttackBoost") };
-TArray<FTcsAttributeModifierInstance> OutModifiers;
-AttrMgr->ApplyModifierWithSourceHandle(TargetActor, SourceHandle, ModifierIds, OutModifiers);
-
-// 3. 移除修改器
-AttrMgr->RemoveModifiersBySourceHandle(TargetActor, SourceHandle);
+// 2. 将该 SourceHandle 传给目标 Actor 上独立 State 的运行时逻辑。
+// 目标 State 在自身生命周期内调用其 owner 的 AttributeComponent 应用和清理 Modifier。
+// 不要从外部 Actor 直接调用 TargetAttributeComponent->ApplyModifierWithSourceHandle(...).
 ```
 
 ### 设计决策
@@ -168,15 +161,14 @@ AttrMgr->RemoveModifiersBySourceHandle(TargetActor, SourceHandle);
 - 派生 State：CausalityChain = ParentSourceHandle.CausalityChain + ParentStateDef.PrimaryAssetId
 
 **API**：
-- `CreateSourceHandle(CausalityChain, Instigator, SourceTags)` - 唯一的创建入口
-- `TryApplyStateToTarget(..., ParentSourceHandle)` - 支持因果链传递
-- `RemoveModifiersBySourceHandle(Owner, SourceHandle)` - 清理 Owner 上的 Modifier
-- `GetModifiersBySourceHandle(CombatEntity, SourceHandle, OutModifiers)` - 纯 const 查询
+- `UTcsStateComponent::CreateSourceHandle(CausalityChain, Instigator, SourceTags)` - State 生命周期侧的创建入口
+- `UTcsStateComponent::TryApplyState(..., ParentSourceHandle)` - 在 StateComponent owner 上应用状态并传递因果链
+- `UTcsAttributeComponent::ApplyModifierWithSourceHandle(...)` / `RemoveModifiersBySourceHandle(SourceHandle)` - 仅由 owner 的本地 State 生命周期调用
+- `UTcsAttributeComponent::GetModifiersBySourceHandle(SourceHandle, OutModifiers)` - 当前 owner 上的纯 const 查询
 
 ### 待办
 
 - **P1**：SourceHandle 查询 API 增强（按 Tag/Instigator 批量查询）
-- **P2**：SkillModifier SourceHandle 集成（待 SkillModifier 基础架构成型）
 - **P2**：对象池集成（涉及 TCS 底层逻辑）
 
 ---
@@ -230,7 +222,7 @@ Layer 2: 动态状态实例 (动态)
 
 **核心类**:
 - `UTcsAttributeComponent` - 属性管理组件
-- `UTcsAttributeManagerSubsystem` - 全局属性管理（SourceHandle API 所在）
+- `UTcsDefinitionManagerSubsystem` - 统一运行时 Definition source/loaded cache、加载策略和类型化查询归口
 - `UTcsAttributeDefinition` - 属性定义（UPrimaryDataAsset）
 - `UTcsAttributeModifierDefinition` - 修改器定义（UPrimaryDataAsset）
 - `FTcsAttribute` / `FTcsAttributeInstance` - 属性定义/实例
@@ -268,8 +260,8 @@ Layer 2: 动态状态实例 (动态)
 
 **核心类**:
 - `UTcsStateComponent` - 状态管理组件（继承 StateTreeComponent）
-- `UTcsStateManagerSubsystem` - 全局状态管理
-- `UTcsStateDefinition` - 状态定义（UPrimaryDataAsset）
+- `UTcsRuntimeBootstrapSubsystem` - 战斗实体的 runtime-ready 编排器
+- `UTcsStateDefinition` - 抽象状态语义基类
 - `UTcsStateSlotDefinition` - 状态槽定义（UPrimaryDataAsset）
 - `UTcsStateInstance` - 状态实例（携带 SourceHandle）
 - `FTcsStateSlot` - 状态槽位
@@ -321,13 +313,13 @@ RequestStateRemoval → FinalizeStateRemoval
 - `UTcsSkillEntry` - learned skill 拥有态 / 数据对象
 - `UTcsSkillInstance` - 一次技能激活的执行态（继承 `UTcsStateInstance`）
 - `UTcsSkillDefinition` - 同时配置 `SkillEntryClass` 与 `SkillInstanceClass`
-- `UTcsSkillManagerSubsystem` - 全局技能管理子系统骨架
+- `UTcsSkillManagerSubsystem` - 遗留技能管理子系统骨架（当前不是运行时 Definition 或激活主路径归口）
 
 **当前实现状态**:
 
 - Skill 代码层已经显式拆分 learned skill 拥有态与单次激活执行态。
 - `UTcsSTSchema_Skill` 会同时向 SkillStateTree 暴露 `SkillEntry` 与 `SkillInstance` 两个上下文。
-- `UTcsSkillComponent` 内完整的 learned skill 容器、SkillModifier、激活 / 取消 / 查询主链目前尚未继续扩面。
+- `UTcsSkillComponent` 已提供 learned skill 容器、SkillModifier、DefId 驱动激活与查询主链；更高层的网络同步与预测仍属于后续范围。
 
 ---
 
@@ -351,10 +343,10 @@ RequestStateRemoval → FinalizeStateRemoval
 所有 TCS 类使用 `Tcs` 前缀：
 
 - **组件**: `UTcs*Component`（如 `UTcsAttributeComponent`）
-- **子系统**: `UTcs*Subsystem`（如 `UTcsStateManagerSubsystem`）
+- **子系统**: `UTcs*Subsystem`（如 `UTcsDefinitionManagerSubsystem`）
 - **实例**: `UTcs*Instance` 或 `FTcs*Instance`
 - **策略**: `UTcs*Execution`、`UTcs*Merger`、`UTcs*Strategy` 等
-- **定义资产**: `UTcs*DefinitionAsset`（如 `UTcsStateDefinition`）
+- **定义资产**: `UTcs*DefinitionAsset`（如 `UTcsBuffDefinition`、`UTcsSkillDefinition`）
 - **接口**: `ITcsEntityInterface`
 
 ### 文件命名
@@ -401,7 +393,6 @@ TireflyCombatSystem/
 │   │   │   ├── TcsAttributeModifier.h
 │   │   │   ├── TcsAttributeDefinition.h
 │   │   │   ├── TcsAttributeModifierDefinition.h
-│   │   │   ├── TcsAttributeManagerSubsystem.h
 │   │   │   └── TcsAttributeChangeEventPayload.h
 │   │   │
 │   │   ├── State/                       # 状态系统
@@ -412,7 +403,6 @@ TireflyCombatSystem/
 │   │   │   ├── TcsStateInstance.h
 │   │   │   ├── TcsStateComponent.h
 │   │   │   ├── TcsStateSlot.h
-│   │   │   ├── TcsStateManagerSubsystem.h
 │   │   │   ├── TcsStateDefinition.h
 │   │   │   └── TcsStateSlotDefinition.h
 │   │   │
@@ -434,6 +424,12 @@ TireflyCombatSystem/
 │   │   │   └── Task/
 │   │   │       ├── TcsSTTask_BuffPeriodDriver.h
 │   │   │       └── TcsSTTask_StateChangeNotify.h
+│   │   │
+│   │   ├── DefinitionManager/            # 统一运行时 Definition 加载与查询
+│   │   │   └── TcsDefinitionManagerSubsystem.h
+│   │   │
+│   │   ├── Runtime/                      # runtime-ready 编排
+│   │   │   └── TcsRuntimeBootstrapSubsystem.h
 │   │   │
 │   │   ├── TcsEntityInterface.h          # 战斗实体接口
 │   │   ├── TcsSourceHandle.h             # SourceHandle 结构体

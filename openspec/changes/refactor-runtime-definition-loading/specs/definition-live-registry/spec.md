@@ -32,3 +32,22 @@ TCS 的编辑器期 Definition 快照消费方在 registry 刷新时 SHALL 从�
 - **WHEN** 编辑器期 registry 或相关校验逻辑检查 `AssetManagerSettings` 对 TCS DefinitionAsset 的覆盖情况
 - **THEN** 它 MUST 按 `BuffDef`、`SkillDef`、`StateSlotDef`、`AttributeDef`、`AttributeModifierDef`、`SkillModifierDef` 等具体非抽象 DefAsset 类型分别检查
 - **AND** 它 MUST NOT 继续默认接受把 `BuffDef` / `SkillDef` 共同挂在抽象 `TcsStateDef` 扫描路径下的旧建模
+
+### Requirement: 派生 Def 兼容性
+
+TCS 编辑器期 Definition registry SHALL 按各受管具体非抽象 DefAsset 类型及其可派生类建立快照，而不是将抽象 `UTcsStateDefinition` 建模为独立 AssetManager 扫描、运行时 cache 或加载策略中心。registry 刷新只更新编辑器期快照消费方，MUST NOT 驱动 runtime Definition cache 重建。
+
+#### Scenario: 派生具体 Buff 或 Skill Definition 能建立编辑器索引
+- **WHEN** 项目定义了派生自 `UTcsBuffDefinition` 或 `UTcsSkillDefinition` 的具体资产类，且资产位于对应扫描目录
+- **THEN** 编辑器期 registry MUST 将该资产索引到对应具体 Definition 类型快照
+- **AND** MUST NOT 因此为抽象 `UTcsStateDefinition` 新增独立 PrimaryAssetType、扫描目录或 runtime cache
+
+#### Scenario: 派生 Attribute Definition 能建立编辑器索引
+- **WHEN** 项目定义了派生自 `UTcsAttributeDefinition` 或 `UTcsAttributeModifierDefinition` 的具体资产类，且资产位于对应扫描目录
+- **THEN** 编辑器期 registry MUST 将该资产索引到对应具体 Definition 类型快照
+- **AND** runtime `UTcsDefinitionManagerSubsystem` MUST 继续仅从 AssetManager 建立自身 source cache
+
+## REMOVED Requirements
+### Requirement: DeveloperSettings 兼容视图
+**Reason**: `UTcsDeveloperSettings` 只保存配置，不能保存 editor 或 runtime Definition 快照。
+**Migration**: 编辑器期权威快照由 `UTcsDefinitionRegistrySubsystem` 持有，桥接状态由 `UTcsDefinitionEditorManagerSubsystem` 管理；运行时 source/loaded cache 由 `UTcsDefinitionManagerSubsystem` 从 AssetManager 建立。

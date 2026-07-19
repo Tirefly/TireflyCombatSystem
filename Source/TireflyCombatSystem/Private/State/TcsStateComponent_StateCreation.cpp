@@ -82,7 +82,8 @@ UTcsStateInstance* UTcsStateComponent::CreateStateInstance(
 	{
 		return ReturnCreateStateFailure(
 			ETcsStateApplyFailReason::InvalidStateDefinition,
-			FString::Printf(TEXT("Invalid state definition: %s"), *StateDefRowId.ToString()));
+			FString::Printf(TEXT("Invalid state definition: %s"), *StateDefRowId.ToString()),
+			true);
 	}
 
 	UClass* StateInstanceClass = StateDef->ResolveStateInstanceClass();

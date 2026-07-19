@@ -14,10 +14,7 @@
 
 - 新增一个独立的 **TCS 运行时初始化编排 capability**，把 “UE 组件已注册” 与 “TCS 组件已就绪” 明确分层
 - 新增一个 `UGameInstanceSubsystem` 级别的运行时编排器（暂名 `UTcsRuntimeBootstrapSubsystem`），统一协调四个运行时组件的 ready 顺序，其中 `AttributeComponent` 与 `StateComponent` 作为并行基础层，`BuffComponent` 与 `SkillComponent` 作为后置协作层；该编排器不长期缓存已 ready 的实体，只维护等待中的注册项与一次性 ready 回调，并通过函数返回值或即时检测结果表达 entity 当前状态
-- 要求该编排器在 `Initialize()` 中通过 `InitializeDependency` 显式依赖：
-  - `UTcsAttributeManagerSubsystem`
-  - `UTcsStateManagerSubsystem`
-- 为 `AttributeManagerSubsystem` 与 `StateManagerSubsystem` 增加显式的 runtime-ready 契约，避免组件仅靠拿到指针就假定全局前置条件已满足
+- 要求该编排器在 `Initialize()` 中通过 `InitializeDependency` 显式依赖 `UTcsDefinitionManagerSubsystem`；它只保证统一 Definition 加载归口实例可用，不得把全局预加载完成标记解释为单一组件的 ready 前置条件
 - 继续复用 `ITcsEntityInterface` 作为四个组件的统一发现面，而不是新增初始化专用接口
 - 不新增专门用于初始化的 ActorComponent；组件初始化编排由新的 bootstrap subsystem 承担
 - 要求 bootstrap subsystem 提供统一的 `RegisterEntity` 入口，用于显式把一个实现了 `ITcsEntityInterface` 的实体纳入运行时编排；该入口应支持可选的“entity 首次完全 ready 后”的一次性回调注册，并且应能被蓝图调用
@@ -40,7 +37,6 @@
 
 - 受影响规范：
   - **新增** `component-runtime-bootstrap`
-  - **修改** `combat-manager-subsystems`
   - 后续讨论后可能继续影响：`state-management`、`buff-runtime`、`skill-runtime`
 - 受影响代码：
   - `Source/TireflyCombatSystem/Public/Attribute/*`
@@ -52,7 +48,7 @@
 
 ## 预期收益
 
-- 初始化顺序从“隐式依赖注册/BeginPlay 时机”变为“显式依赖 ready 契约”
+- 初始化顺序从“隐式依赖注册/BeginPlay 时机”变为“显式 DefinitionManager 实例依赖与组件 ready 契约”
 - `Buff` / `Skill` 对 `State` 的依赖不再靠碰巧的组件注册顺序成立
 - 预挂组件初始化路径的一致性提升
 - 复用现有 `ITcsEntityInterface`，避免引入额外的初始化专用接口层

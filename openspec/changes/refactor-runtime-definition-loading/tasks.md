@@ -111,14 +111,15 @@
 - [x] [AI] 8.6 验证 `AssetManagerSettings` 已按 `BuffDef`、`SkillDef`、`StateSlotDef`、`AttributeDef`、`AttributeModifierDef`、`SkillModifierDef` 等具体类型分别配置扫描路径。已确认 `Config/DefaultGame.ini` 六类 `PrimaryAssetType` 均使用具体基类与专属扫描目录。
 - [x] [AI] 8.7 验证 `BuffDef` / `SkillDef` 不再共同挂在抽象 `TcsStateDef` 扫描路径下。已确认不存在 `TcsStateDef` 扫描配置，Buff / Skill 分别使用 `TcsBuffDef` / `TcsSkillDef`。
 - [x] [AI] 8.8 验证所有直接查询抽象 `StateDefinition` 的 public runtime 接口都已清零。已移除 `UTcsGenericLibrary::GetStateDefNames()`，将 `UTcsStateInstance::GetStateDef()` 收窄为 State 内部 C++ 访问，并取消 `StateDef` 的 Blueprint 可读暴露；DefinitionLoading Automation 已加入反射回归断言并通过。
-- [ ] [AI] 8.9 验证 State / Skill / Modifier 相关 Def 查询与按需加载路径。
-- [ ] [协作] 8.10 验证编辑器期 `UTcsDefinitionRegistrySubsystem` / `UTcsDefinitionEditorManagerSubsystem` 与 runtime definition manager 已完成职责解耦。
-- [ ] [AI] 8.11 验证 `UTcsStateManagerSubsystem` 已不再暴露 Definition 查询 public API。
-- [ ] [AI] 8.12 验证 `LearnSkill` / `ActivateSkill` / `ApplyBuff` / `ApplySkillModifier` 的对象型 public 入口已清零，若仍有残余逻辑也仅限内部辅助实现。
-- [ ] [AI] 8.13 验证 Definition 解析失败时不会产生占位运行时对象、部分 apply 或静默成功。
-- [ ] [AI] 8.14 验证 runtime contract 中不存在依赖 editor registry、editor manager 或 `DeveloperSettings` cached defs 触发的 Definition cache 重建语义。
-- [ ] [AI] 8.15 验证失败诊断固定带有查询 key / `DefId`、入口名、失败类别。
-- [ ] [AI] 8.16 验证 `UTcsDefinitionManagerSubsystem` 的 runtime-ready 判定不会因无关 Definition 域未就绪而阻塞当前消费面；`State` / `Attribute` / `Skill` 等主路径仅受自身必需 Definition 域约束。
+- [x] [AI] 8.9 验证 State / Skill / Modifier 相关 Def 查询与按需加载路径。已确认 State 内部 O(1) 聚合查询和冲突拒绝，以及 Skill / AttributeModifier / SkillModifier 的类型化 query、单资产 async、batch async 与 Blueprint async 节点均收敛到 DefinitionManager；Automation 覆盖四类已有真实测试资产的成功 async 路径和六类未注册失败路径。Skill / SkillModifier 当前没有已提交的真实测试资产，成功加载证据为静态实现审计。
+- [x] [协作] 8.10 验证编辑器期 `UTcsDefinitionRegistrySubsystem` / `UTcsDefinitionEditorManagerSubsystem` 与 runtime definition manager 已完成职责解耦。静态审计已确认 Runtime 不依赖 Editor 模块、registry、editor manager、`GEditor` 或 editor refresh callback；runtime source cache 只在 DefinitionManager 初始化时从 AssetManager 构建，Editor 不直接写入 runtime cache。用户已在 Unreal Editor 中实际修改受管 DefAsset / DataTable 并确认无异常，未观察到 runtime `RebuildSourceCache()`、`RequestAsyncPreload()` 或当前 PIE runtime cache 被 editor refresh 改变。
+- [x] [AI] 8.11 验证 `UTcsStateManagerSubsystem` 已不再暴露 Definition 查询 public API。已确认 runtime 源文件、public header、引用与反射面均已清零，State 路径直接使用 DefinitionManager。
+- [x] [AI] 8.12 验证 `LearnSkill` / `ActivateSkill` / `ApplyBuff` / `ApplySkillModifier` 的对象型 public 入口已清零，若仍有残余逻辑也仅限内部辅助实现。已将 `UTcsSkillEntry::InitializeFromDef` 收窄为 private，并仅通过 `UTcsSkillComponent` friend 供 DefId 主路径内部调用。
+- [x] [AI] 8.13 验证 Definition 解析失败时不会产生占位运行时对象、部分 apply 或静默成功。已静态审计 LearnSkill、ActivateSkill、ApplyBuff、SkillModifier apply 的解析优先、延后写入与 rollback 路径；定义解析失败均显式返回失败且不会保留半完成对象。
+- [x] [AI] 8.14 验证 runtime contract 中不存在依赖 editor registry、editor manager 或 `DeveloperSettings` cached defs 触发的 Definition cache 重建语义。已确认 source cache 仅在 DefinitionManager Initialize 中直接从 AssetManager 构建，DeveloperSettings 仅提供加载策略配置。
+- [x] [AI] 8.15 验证失败诊断固定带有查询 key / `DefId`、入口名、失败类别。已统一同步、单资产 async、batch async、预加载的权威日志格式，并清理 gameplay 层对同一 Definition 查询失败的重复日志；Automation 已覆盖六类单资产与 batch 未注册请求的回调失败及 `NotRegistered` 固定诊断。
+- [x] [AI] 8.16 验证 `UTcsDefinitionManagerSubsystem` 的 runtime-ready 判定不会因无关 Definition 域未就绪而阻塞当前消费面；`State` / `Attribute` / `Skill` 等主路径仅受自身必需 Definition 域约束。已确认 State / Attribute 不读取全局 ready，Buff / Skill 只依赖 State runtime，RuntimeBootstrap 只要求 DefinitionManager 子系统实例存在。
+- [x] [AI] 8.17 修正与 `add-component-runtime-bootstrap` 的活动 OpenSpec 冲突，并补齐归档 delta 对现行 manager、registry、DeveloperSettings、具体 DefAsset Editor 覆盖、模块布局与等级默认配置契约的覆盖；两个活动 change 及全局 strict 校验均已通过。
 
 ## 9. 用户手动验证清单
 - [ ] [用户] 9.1 在 Unreal Editor 中验证 DefAsset 新增、修改、删除后，`UTcsDefinitionEditorManagerSubsystem` 的桥接与缓存更新行为符合预期。
@@ -126,3 +127,6 @@
 - [ ] [用户] 9.3 在 Unreal Editor 中验证资产移动、重命名、删除、重导入后，编辑器期索引、脏标记与更新队列行为符合预期。
 - [ ] [用户] 9.4 在 Unreal Editor 中验证 Details 面板、菜单入口、编辑器事件监听相关行为没有因为本次重构失效。
 - [ ] [用户] 9.5 对 AI 无法直接观察的编辑器期现象，记录实际步骤、日志、截图或报错文本，回传用于后续修正。
+
+## 10. 归档前文档收尾
+- [ ] [AI] 10.1 在归档 `refactor-runtime-definition-loading` 时更新受影响 current spec 的 `Purpose`，特别是删除 `definition-live-registry` 中的 DeveloperSettings cache 镜像和 runtime manager refresh 表述，并同步反映 DefinitionManager、具体 DefAsset 与 editor/runtime 强解耦的当前事实。

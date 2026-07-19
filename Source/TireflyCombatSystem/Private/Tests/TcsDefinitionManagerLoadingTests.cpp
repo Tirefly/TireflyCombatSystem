@@ -512,6 +512,32 @@ bool FTireflyCombatSystem_DefinitionLoading_FailureContractSpec::RunTest(const F
 	VerifyMissingAsyncLoad(TEXT("LoadAttributeModifierDefinitionAsync"), [Manager, MissingDefId](const FOnTcsDefinitionAsyncLoaded& Callback) { Manager->LoadAttributeModifierDefinitionAsync(MissingDefId, Callback); });
 	VerifyMissingAsyncLoad(TEXT("LoadSkillModifierDefinitionAsync"), [Manager, MissingDefId](const FOnTcsDefinitionAsyncLoaded& Callback) { Manager->LoadSkillModifierDefinitionAsync(MissingDefId, Callback); });
 
+	const auto VerifyMissingBatchAsyncLoad = [this, Manager, MissingDefId](const TCHAR* EntryName, auto&& RequestBatchAsyncLoad)
+	{
+		int32 CallbackCount = 0;
+		TArray<FName> CallbackDefIds;
+		TArray<UPrimaryDataAsset*> LoadedDefinitions;
+
+		RequestBatchAsyncLoad(FOnTcsDefinitionsBatchLoaded::CreateLambda(
+			[&CallbackCount, &CallbackDefIds, &LoadedDefinitions](const TArray<FName>& InDefIds, const TArray<UPrimaryDataAsset*>& InLoadedDefinitions)
+			{
+				++CallbackCount;
+				CallbackDefIds = InDefIds;
+				LoadedDefinitions = InLoadedDefinitions;
+			}));
+
+		TestEqual(FString::Printf(TEXT("%s completes an unregistered batch request exactly once"), EntryName), CallbackCount, 1);
+		TestEqual(FString::Printf(TEXT("%s preserves requested batch DefIds"), EntryName), CallbackDefIds, TArray<FName>{MissingDefId});
+		TestTrue(FString::Printf(TEXT("%s returns no placeholder Definitions"), EntryName), LoadedDefinitions.IsEmpty());
+	};
+
+	VerifyMissingBatchAsyncLoad(TEXT("LoadBuffDefinitionsBatch"), [Manager, MissingDefId](const FOnTcsDefinitionsBatchLoaded& Callback) { Manager->LoadBuffDefinitionsBatch({MissingDefId}, Callback); });
+	VerifyMissingBatchAsyncLoad(TEXT("LoadSkillDefinitionsBatch"), [Manager, MissingDefId](const FOnTcsDefinitionsBatchLoaded& Callback) { Manager->LoadSkillDefinitionsBatch({MissingDefId}, Callback); });
+	VerifyMissingBatchAsyncLoad(TEXT("LoadStateSlotDefinitionsBatch"), [Manager, MissingDefId](const FOnTcsDefinitionsBatchLoaded& Callback) { Manager->LoadStateSlotDefinitionsBatch({MissingDefId}, Callback); });
+	VerifyMissingBatchAsyncLoad(TEXT("LoadAttributeDefinitionsBatch"), [Manager, MissingDefId](const FOnTcsDefinitionsBatchLoaded& Callback) { Manager->LoadAttributeDefinitionsBatch({MissingDefId}, Callback); });
+	VerifyMissingBatchAsyncLoad(TEXT("LoadAttributeModifierDefinitionsBatch"), [Manager, MissingDefId](const FOnTcsDefinitionsBatchLoaded& Callback) { Manager->LoadAttributeModifierDefinitionsBatch({MissingDefId}, Callback); });
+	VerifyMissingBatchAsyncLoad(TEXT("LoadSkillModifierDefinitionsBatch"), [Manager, MissingDefId](const FOnTcsDefinitionsBatchLoaded& Callback) { Manager->LoadSkillModifierDefinitionsBatch({MissingDefId}, Callback); });
+
 	return true;
 }
 

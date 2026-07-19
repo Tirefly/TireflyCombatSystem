@@ -10,6 +10,7 @@
 
 
 class UTcsSkillDefinition;
+class UTcsSkillComponent;
 class UTcsSkillInstance;
 
 
@@ -23,6 +24,9 @@ UCLASS(BlueprintType, Blueprintable)
 class TIREFLYCOMBATSYSTEM_API UTcsSkillEntry : public UObject
 {
 	GENERATED_BODY()
+
+	// SkillComponent 创建并初始化 learned-skill 运行时对象。
+	friend class UTcsSkillComponent;
 
 #pragma region UObject
 
@@ -47,15 +51,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Skill|Entry")
 	UTcsSkillDefinition* GetSkillDefinition() const { return SkillDefinition.Get(); }
 
-	/**
-	 * 从合法 Skill 定义初始化 learned-skill 数据对象。
-	 *
-	 * @param InSkillDefId 已通过 DefinitionManager 解析的 Skill 定义 ID。
-	 * @param Def 已通过 InSkillDefId 解析并校验的 Skill 定义资产。
-	 * @return 初始化成功返回 true；Definition 无效或参数初始化失败时返回 false。
-	 */
-	bool InitializeFromDef(FName InSkillDefId, const UTcsSkillDefinition* Def);
-
 protected:
 	/** 当前 learned-skill 的稳定 Skill 定义 ID。 */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Skill|Entry", Meta = (AllowPrivateAccess = "true"))
@@ -64,6 +59,16 @@ protected:
 	/** 当前 learned-skill 绑定的已校验 Skill 定义资产运行时缓存。 */
 	UPROPERTY(Transient, BlueprintReadOnly, Category = "Skill|Entry", Meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UTcsSkillDefinition> SkillDefinition = nullptr;
+
+private:
+	/**
+	 * 从已经由 DefinitionManager 解析的合法 Skill 定义初始化 learned-skill 数据对象。
+	 *
+	 * @param InSkillDefId 已通过 DefinitionManager 解析的 Skill 定义 ID。
+	 * @param Def 已通过 InSkillDefId 解析并校验的 Skill 定义资产。
+	 * @return 初始化成功返回 true；Definition 无效或参数初始化失败时返回 false。
+	 */
+	bool InitializeFromDef(FName InSkillDefId, const UTcsSkillDefinition* Def);
 
 #pragma endregion
 
