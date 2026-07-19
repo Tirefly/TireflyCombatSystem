@@ -42,18 +42,11 @@
 - **THEN** 该入口 MUST 位于实际拥有状态生命周期的组件或其紧邻实现中
 - **AND** `UTcsAttributeManagerSubsystem` MUST NOT 再暴露 `CreateSourceHandle` 入口
 
-### Requirement: ID 计数器只存在于 Subsystem 中
-
-迁移完成后，Attribute、Modifier 与 ModifierChangeBatch 的进程级唯一 ID SHALL 由 `UTcsAttributeComponent` 内部静态工厂分配。`UTcsAttributeManagerSubsystem` 不再存在，其他组件或 runtime subsystem MUST NOT 持有这些 ID 工厂的并行副本。
-
-#### Scenario: Component 静态工厂分配 Attribute 相关 ID
+#### Scenario: ID 计数器下沉到 Component 静态工厂
 - **WHEN** `UTcsAttributeComponent` 需要分配新的 `AttributeInstId`、`ModifierInstId` 或 `ModifierChangeBatchId`
 - **THEN** 它 MUST 使用自身的静态分配入口完成分配
 - **AND** 分配结果 MUST 在当前进程内保持全局唯一
-
-#### Scenario: 已删除 Manager 不再持有计数器
-- **WHEN** 在 TCS runtime 源码中搜索 `UTcsAttributeManagerSubsystem`、`GlobalAttributeInstanceIdMgr`、`GlobalAttributeModifierInstanceIdMgr` 或 `GlobalAttributeModifierChangeBatchIdMgr`
-- **THEN** 搜索结果 MUST 不包含已删除 Manager 的声明、实现或等价计数器
+- **AND** 已删除的 `UTcsAttributeManagerSubsystem` MUST NOT 再持有 `GlobalAttributeInstanceIdMgr` / `GlobalAttributeModifierInstanceIdMgr` / `GlobalAttributeModifierChangeBatchIdMgr` 或等价计数器
 
 ### Requirement: Subsystem 到 Component 不再保留 Friend 访问
 

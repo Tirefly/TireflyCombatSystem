@@ -1,7 +1,7 @@
 # runtime-module-file-layout Specification
 
 ## Purpose
-TBD - created by archiving change refactor-runtime-module-file-layout. Update Purpose after archive.
+约束 TCS runtime 实现文件按稳定职责拆分与头文件声明布局。`UTcsStateManagerSubsystem` 已删除，不再作为“可保留单 `.cpp` 的结构例外”；Definition 加载职责由 `UTcsDefinitionManagerSubsystem` 及其职责拆分文件承担。
 ## Requirements
 ### Requirement: 超长运行时文件必须按稳定职责重组
 TCS SHALL 将 Attribute、State、Buff 模块中超长的运行时实现文件按稳定职责边界重组，而不是仅按行数阈值机械切分。
@@ -28,14 +28,6 @@ TCS SHALL 允许在 `.cpp` 拆分之前，先重整目标头文件的 region 与
 - **WHEN** `TcsStateComponent.h` 的当前 region 结构无法直接映射到稳定的实现文件边界
 - **THEN** 本次变更应先重整其头文件结构
 - **AND** 随后的 `.cpp` 拆分应基于新的职责边界进行
-
-### Requirement: StateManagerSubsystem 可以作为结构重组例外
-TCS SHALL 允许对超过 500 行的运行时文件定义结构重组例外，只要该例外在 proposal 与 design 中被明确记录且职责边界仍然收敛。
-
-#### Scenario: StateManagerSubsystem 保持单 `.cpp`
-- **WHEN** `TcsStateManagerSubsystem.cpp` 的主要职责仍然收敛在定义加载、定义查询与跨 Actor apply 门面
-- **THEN** 本次变更可以不拆分该 `.cpp`
-- **AND** 仍应重整其头文件的 region、注释与声明布局
 
 ### Requirement: 目标头文件必须遵循统一的声明布局与注释规范
 TCS SHALL 对纳入本次结构重组范围的目标头文件应用统一的声明布局、region 间距与成员注释规则。

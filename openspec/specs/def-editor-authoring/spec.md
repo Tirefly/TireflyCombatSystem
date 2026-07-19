@@ -1,7 +1,7 @@
 # def-editor-authoring Specification
 
 ## Purpose
-为 TCS DefinitionAsset 与受支持的 gameplay runtime 资产提供稳定、插件自有的编辑器 authoring 入口、菜单结构与配置勘误能力。
+为 TCS DefinitionAsset 与受支持的 gameplay runtime 资产提供稳定、插件自有的编辑器 authoring 入口、菜单结构与配置勘误能力。AssetManagerSettings 覆盖勘误按具体非抽象 DefAsset 类型检查（Attribute、AttributeModifier、Buff、Skill、StateSlot、SkillModifier），不得把抽象 `UTcsStateDefinition` 作为独立扫描中心。
 ## Requirements
 ### Requirement: 插件自有的 DefinitionAsset Authoring 入口
 TCS 编辑器集成 SHALL 为每一个规范、且应直接 authoring 的 TCS DefinitionAsset 类型暴露插件自有的 Content Browser 创建入口。
@@ -120,10 +120,11 @@ TCS 编辑器 authoring capability SHALL 为后续的 StateComponent schema 和 
 TCS 编辑器 authoring 集成 SHALL 在编辑器阶段检测 `AssetManagerSettings` 对 TCS DefinitionAsset 的覆盖完整性，并在漏配时通过错误日志与编辑器通知提供明确勘误提示。
 
 #### Scenario: 检测到 Definition 类型或扫描路径漏配
-- **WHEN** `PrimaryAssetTypesToScan` 未正确覆盖 `UTcsAttributeDefinition`、`UTcsAttributeModifierDefinition`、`UTcsStateDefinition`、`UTcsStateSlotDefinition`、`UTcsSkillModifierDefinition` 对应的类型或扫描目录
+- **WHEN** `PrimaryAssetTypesToScan` 未正确覆盖 `UTcsAttributeDefinition`、`UTcsAttributeModifierDefinition`、`UTcsBuffDefinition`、`UTcsSkillDefinition`、`UTcsStateSlotDefinition`、`UTcsSkillModifierDefinition` 对应的类型或扫描目录
 - **THEN** 编辑器应输出可读勘误信息，明确缺失的 PrimaryAssetType 与扫描路径
 - **AND** 该勘误信息至少应同时出现在错误日志与编辑器通知中
 - **AND** 勘误信息应可用于直接指导开发者修正工程配置
+- **AND** 系统 MUST NOT 把抽象 `UTcsStateDefinition` 作为独立 PrimaryAssetType、扫描目录或覆盖勘误对象
 
 #### Scenario: 类型与路径漏配必须分别可见
 - **WHEN** 某个 TCS DefAsset 类型已存在于 `PrimaryAssetTypesToScan`，但其扫描目录配置错误或缺失

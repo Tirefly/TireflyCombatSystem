@@ -1,7 +1,7 @@
 # attribute-modifier-runtime Specification
 
 ## Purpose
-TBD - created by archiving change add-stateparam-instance-operand-binding. Update Purpose after archive.
+定义 AttributeModifier 的运行时绑定与创建契约：`OperandBindings` 将 Operand 动态绑定到 StateParam；创建入口使用 `CreateAttributeModifierWithBindings`，不再保留 `CreateAttributeModifierWithOperands` 或已删除 AttributeManager 上的兼容路径。
 ## Requirements
 ### Requirement: Operand 动态绑定
 
@@ -62,7 +62,7 @@ TBD - created by archiving change add-stateparam-instance-operand-binding. Updat
 
 ### Requirement: 删除 CreateAttributeModifierWithOperands
 
-`CreateAttributeModifierWithOperands` SHALL 从 `UTcsAttributeComponent` 和 `UTcsAttributeManagerSubsystem` 中删除。
+`CreateAttributeModifierWithOperands` SHALL 从 TCS runtime public API 中删除。`UTcsAttributeComponent` MUST 不再声明该入口，且已删除的 `UTcsAttributeManagerSubsystem` MUST NOT 作为任何兼容层或迁移目标重新出现。
 
 #### Scenario: 旧 API 不可用
 - **WHEN** 编译引用了 `CreateAttributeModifierWithOperands` 的代码

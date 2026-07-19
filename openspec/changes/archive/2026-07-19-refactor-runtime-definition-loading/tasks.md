@@ -122,11 +122,11 @@
 - [x] [AI] 8.17 修正与 `add-component-runtime-bootstrap` 的活动 OpenSpec 冲突，并补齐归档 delta 对现行 manager、registry、DeveloperSettings、具体 DefAsset Editor 覆盖、模块布局与等级默认配置契约的覆盖；两个活动 change 及全局 strict 校验均已通过。
 
 ## 9. 用户手动验证清单
-- [ ] [用户] 9.1 在 Unreal Editor 中验证 DefAsset 新增、修改、删除后，`UTcsDefinitionEditorManagerSubsystem` 的桥接与缓存更新行为符合预期。
-- [ ] [用户] 9.2 在 Unreal Editor 中验证 DefAsset ↔ DataTable 回写不会出现递归循环、重复刷新或错误覆盖。
-- [ ] [用户] 9.3 在 Unreal Editor 中验证资产移动、重命名、删除、重导入后，编辑器期索引、脏标记与更新队列行为符合预期。
-- [ ] [用户] 9.4 在 Unreal Editor 中验证 Details 面板、菜单入口、编辑器事件监听相关行为没有因为本次重构失效。
-- [ ] [用户] 9.5 对 AI 无法直接观察的编辑器期现象，记录实际步骤、日志、截图或报错文本，回传用于后续修正。
+- [x] [用户] 9.1 在 Unreal Editor 中验证 DefAsset 新增、修改、删除后，`UTcsDefinitionEditorManagerSubsystem` 的桥接与缓存更新行为符合预期。用户已确认通过。
+- [x] [用户] 9.2 在 Unreal Editor 中验证 DefAsset ↔ DataTable 回写不会出现递归循环、重复刷新或错误覆盖。用户已确认通过。
+- [x] [用户] 9.3 在 Unreal Editor 中验证资产移动、重命名、删除、重导入后，编辑器期索引、脏标记与更新队列行为符合预期。用户已确认通过。
+- [x] [用户] 9.4 在 Unreal Editor 中验证 Details 面板、菜单入口、编辑器事件监听相关行为没有因为本次重构失效。用户已确认：DefAsset Details 编辑保存、创建菜单、资产事件监听均正常。
+- [x] [用户] 9.5 对 AI 无法直接观察的编辑器期现象，记录实际步骤、日志、截图或报错文本，回传用于后续修正。用户已口头确认 9.1–9.4 无异常、无需回传问题日志。
 
 ## 10. 归档前文档收尾
-- [ ] [AI] 10.1 在归档 `refactor-runtime-definition-loading` 时更新受影响 current spec 的 `Purpose`，特别是删除 `definition-live-registry` 中的 DeveloperSettings cache 镜像和 runtime manager refresh 表述，并同步反映 DefinitionManager、具体 DefAsset 与 editor/runtime 强解耦的当前事实。
+- [x] [AI] 10.1 在归档 `refactor-runtime-definition-loading` 时更新受影响 current spec 的 `Purpose`，特别是删除 `definition-live-registry` 中的 DeveloperSettings cache 镜像和 runtime manager refresh 表述，并同步反映 DefinitionManager、具体 DefAsset 与 editor/runtime 强解耦的当前事实。已在归档前更新相关 current spec 的 Purpose。

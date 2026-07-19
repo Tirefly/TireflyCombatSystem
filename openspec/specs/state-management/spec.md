@@ -1,7 +1,7 @@
 # state-management Specification
 
 ## Purpose
-TBD - created by archiving change migrate-manager-api-to-component. Update Purpose after archive.
+定义 `UTcsStateComponent` 的 Actor 本地 State 业务边界：创建、应用、参数求值、条件检查、槽位、生命周期与查询。Definition cache/load 与 State-like 内部聚合查询归口到 `UTcsDefinitionManagerSubsystem`；`StateDefId` 仅保留在 State 模块内部；Buff apply 对外使用 `BuffDefId`。
 ## Requirements
 ### Requirement: State Component 拥有 Actor 本地 State 业务逻辑
 
@@ -151,22 +151,42 @@ State 查询 API `GetStatesInSlot`、`GetStatesByDefId`、`GetAllActiveStates`�
 
 ### Requirement: State Manager Subsystem 只保留全局职责
 
-迁移完成后，`UTcsStateManagerSubsystem` SHALL 只暴露 definition cache/load、definition 查询、全局 state instance ID 工厂，以及跨 Actor 门面。
+迁移完成后，`UTcsStateManagerSubsystem` SHALL 不再作为独立 runtime 子系统存在。State 运行时所需的全局 `StateInstanceId` 分配能力 SHALL 下沉到 `UTcsStateComponent` 内部静态工厂；Definition cache/load、Definition 查询与运行时 Definition source cache 归口 SHALL 全部由 `UTcsDefinitionManagerSubsystem` 承担。
 
-#### Scenario: Definition 查询仍保持集中化
+#### Scenario: Definition 查询不再由 StateManager 提供
+- **WHEN** 任意调用方需要通过 `FName` 或 `FGameplayTag` 解析具体 State-like Definition 或 `UTcsStateSlotDefinition` 时
+- **THEN** 该查询 MUST 通过统一的运行时 Definition 加载归口完成
+- **AND** `UTcsStateManagerSubsystem` MUST NOT 再暴露 `GetStateDefinition` / `GetStateDefinitionByTag` / `GetStateSlotDefinition` / `GetStateSlotDefinitionByTag` / `GetAllStateDefNames`
 
-- **WHEN** 任意调用方需要通过 `FName` 或 `FGameplayTag` 解析 `UTcsStateDefinition` 时
-- **THEN** MUST 使用 `UTcsStateManagerSubsystem::GetStateDefinition` / `GetStateDefinitionByTag` / `GetStateSlotDefinition` / `GetStateSlotDefinitionByTag` / `GetAllStateDefNames`
+#### Scenario: StateDefId 查询语义只允许留在 State 模块内部
+- **WHEN** 系统仍保留 `StateDefId` 相关查询或标识语义
+- **THEN** 它 MUST 只服务于 `State` 模块内部单个 state definition 在 `StateComponent` 上的运行生命周期
+- **AND** Buff 相关 public API MUST NOT 再对外暴露 `StateDefId`
 
-#### Scenario: 全局 ID 工厂仍留在 Subsystem 上
-
+#### Scenario: 全局 StateInstanceId 工厂下沉到 StateComponent
 - **WHEN** `UTcsStateComponent` 需要一个新的全局唯一 `StateInstanceId`
-- **THEN** 它 MUST 调用 `ResolveStateManager()->AllocateStateInstanceId()`；ID 计数器 MUST NOT 被迁移到 Component 作用域
+- **THEN** 它 MUST 通过 `UTcsStateComponent` 自身持有的静态工厂分配该 ID
+- **AND** 分配出的 `StateInstanceId` MUST 在当前进程内保持全局唯一
 
-#### Scenario: 跨 Actor 门面保持轻薄
+#### Scenario: 跨 Actor facade 已清零
+- **WHEN** 检查最终 public API 面时
+- **THEN** `UTcsStateManagerSubsystem` MUST NOT 再保留任何跨 Actor apply facade
+- **AND** 系统 MUST NOT 继续以 `TryApplyStateToTarget(..., StateDefId, ...)` 之类的接口对外暴露抽象 StateDef 语义
 
-- **WHEN** `UTcsStateManagerSubsystem::TryApplyStateToTarget(TargetActor, ...)` is invoked
-- **THEN** 它 MUST 只执行：Target 校验、`StateComponent` 解析，以及委托到 `StateComp->TryApplyState(...)`；不允许包含任何 Actor 本地逻辑
+#### Scenario: Buff apply 主路径按 DefId 驱动
+- **WHEN** 调用方要施加一个 Buff，且手里只有 `BuffDefId`
+- **THEN** 主执行路径 MUST 允许直接按 DefId 解析并继续 apply
+- **AND** 不得要求调用方先显式持有已加载的 `UTcsBuffDefinition*`
+
+#### Scenario: Buff Definition 解析失败时不得部分 apply
+- **WHEN** Buff apply 主路径按 `BuffDefId` 解析 Definition 失败
+- **THEN** 该次 apply MUST 明确失败
+- **AND** 系统 MUST NOT 创建部分初始化的 runtime state、占位 buff 或半完成的 apply 副作用
+
+#### Scenario: Buff 对象型逻辑若残留只能作为内部辅助实现
+- **WHEN** 迁移阶段内部仍存在对象型 Buff apply 转发逻辑
+- **THEN** 这些逻辑 MUST NOT 继续作为 public API 暴露
+- **AND** 它们 MUST 只服务于内部参数转换与 DefId 主路径收口
 
 ### Requirement: Removal Reason 使用具名常量
 
@@ -184,39 +204,32 @@ State 查询 API `GetStatesInSlot`、`GetStatesByDefId`、`GetAllActiveStates`�
 
 ### Requirement: Manager 缓存在 BeginPlay 解析并带有诊断安全网
 
-`UTcsStateComponent` SHALL 在 `BeginPlay` 期间缓存 `UTcsStateManagerSubsystem` 指针，暴露一个返回该缓存的 `protected ResolveStateManager()` helper（缓存缺失时带 `ensureMsgf` 诊断并尝试重新获取一次），并在非 shipping 构建下于 `BeginPlay` 末尾加入 `checkf` 自检。
+`UTcsStateComponent` SHALL NOT 缓存、解析或重新获取已删除的 `UTcsStateManagerSubsystem`。当 State runtime prepare、StateSlot 构建或按 `StateDefId` 解析确实需要 Definition 时，组件 MUST 通过当前 `UGameInstance` 获取 `UTcsDefinitionManagerSubsystem`，并使用其 State 模块内部聚合查询或具体类型化查询完成解析。
 
-#### Scenario: 正常 BeginPlay 会解析缓存
+#### Scenario: State runtime 只依赖 DefinitionManager 实例
+- **WHEN** `UTcsStateComponent` 准备 State runtime 或解析必要 Definition
+- **THEN** 它 MUST 只要求 `UTcsDefinitionManagerSubsystem` 实例可用
+- **AND** MUST NOT 缓存或调用 `ResolveStateManager()`
+- **AND** MUST NOT 将 DefinitionManager 的全局 `IsRuntimeReady()` 作为自身单域 ready 前置条件
 
-- **WHEN** `UTcsStateComponent::BeginPlay` runs in any target configuration
-- **THEN** `BeginPlay` 返回后 `StateMgr` MUST 非空；后续调用 `ResolveStateManager()` 时 MUST 直接返回缓存指针，不引入额外运行时开销
-
-#### Scenario: 预热失败时触发 checkf（非 shipping）
-
-- **WHEN** 一个异常环境导致 `GetGameInstance()->GetSubsystem<UTcsStateManagerSubsystem>()` 在 `BeginPlay` 期间返回 null（Debug / Development / Test 构建）
-- **THEN** `#if !UE_BUILD_SHIPPING` 下的 `checkf(StateMgr, ...)` MUST 立即触发，并先于任何 gameplay 代码执行
-
-#### Scenario: Shipping 运行时缓存缺失会发出 ensureMsgf
-
-- **WHEN** 某个运行时方法在 Shipping 中调用 `ResolveStateManager()` 且缓存为空（理论场景）
-- **THEN** 该 helper MUST 带诊断上下文发出 `ensureMsgf`，并尝试重新获取一次；Shipping 下的 `checkf` MUST 被裁掉
+#### Scenario: 已删除 StateManager 缓存路径已清零
+- **WHEN** 在 TCS runtime 源码中搜索 `StateMgr`、`ResolveStateManager` 或 `UTcsStateManagerSubsystem`
+- **THEN** 搜索结果 MUST 不包含 StateComponent 的缓存、诊断或 fallback 路径
 
 ### Requirement: TryApplyStateInstance 在入口强制校验归属
 
-`UTcsStateComponent::TryApplyStateInstance(UTcsStateInstance*)` SHALL 作为 `virtual` 的 `UFUNCTION(BlueprintCallable)` 入口暴露出来，让调用方可以对已构造好的 `UTcsStateInstance` 执行 apply 后半段流程（条件检查 → 槽位分配 → 索引登记 → 成功通知）。在入口处，该方法 MUST 校验 `StateInstance->GetOwner() == GetOwner()`；若校验失败，它 MUST 调用 `NotifyStateApplyFailed(ETcsStateApplyFailReason::InvalidInput, ...)` 并返回 `false`，从而防止属于 Actor A 的状态实例被误注入到 Actor B 的 component 中。
+`UTcsStateComponent::TryApplyStateInstance(UTcsStateInstance*)` SHALL 作为 `virtual` 的 `UFUNCTION(BlueprintCallable)` 入口暴露出来，让调用方可以对已构造好的 `UTcsStateInstance` 执行 apply 后半段流程。入口 MUST 校验 `StateInstance->GetOwner() == GetOwner()`；不匹配时 MUST 通知 `InvalidInput` 失败并返回 `false`，从而防止属于 Actor A 的状态实例被注入到 Actor B 的 Component。
 
 #### Scenario: 归属匹配时继续执行后半段
-
-- **WHEN** `TryApplyStateInstance(Instance)` is invoked on the component whose `GetOwner()` matches `Instance->GetOwner()`
-- **THEN** 该方法 MUST 依次执行条件检查 → 槽位分配 → `StateInstanceIndex.AddInstance`（仅在槽位分配成功后）→ `NotifyStateApplySuccess`
+- **WHEN** `TryApplyStateInstance(Instance)` 在所属 Actor 与 Component owner 匹配时被调用
+- **THEN** 该方法 MUST 执行条件检查、槽位分配、索引登记与成功通知
 
 #### Scenario: 归属不匹配时被拒绝
+- **WHEN** `TryApplyStateInstance(Instance)` 在 Component A 上被调用，而 `Instance->GetOwner()` 是 Actor B
+- **THEN** 该方法 MUST NOT 修改任何槽位或索引状态
+- **AND** MUST 通知 `InvalidInput` 失败并返回 `false`
 
-- **WHEN** `TryApplyStateInstance(Instance)` is invoked on Component A while `Instance->GetOwner()` is Actor B (B != A's owner)
-- **THEN** 该方法 MUST NOT 修改任何槽位或索引状态，MUST 调用 `NotifyStateApplyFailed(ETcsStateApplyFailReason::InvalidInput, ...)`，并且 MUST 返回 `false`
-
-#### Scenario: Deprecated 的 Subsystem 包装器委托给 owner component
-
-- **WHEN** 在 Phase F 期间调用过渡态包装器 `UTcsStateManagerSubsystem::TryApplyStateInstance(Instance)`
-- **THEN** 它 MUST 委托到 `Instance->GetOwnerStateComponent()->TryApplyStateInstance(Instance)`；Subsystem 自身 MUST NOT 承担任何 Actor 本地逻辑
+#### Scenario: 已删除 StateManager 不再保留 apply 包装器
+- **WHEN** 检查最终 runtime public API 面
+- **THEN** `UTcsStateManagerSubsystem::TryApplyStateInstance` 或任何等价的 Manager apply 包装器 MUST 不存在
 
