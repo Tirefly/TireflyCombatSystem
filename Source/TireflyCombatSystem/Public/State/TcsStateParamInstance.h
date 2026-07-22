@@ -11,6 +11,7 @@
 
 
 class UTcsStateInstance;
+class UTcsSkillEntry;
 class UTcsStateNumericParamEvaluator;
 class UTcsStateBoolParamEvaluator;
 class UTcsStateVectorParamEvaluator;
@@ -67,6 +68,8 @@ public:
 	FInstancedStruct ParamValueContainer;
 };
 
+
+
 /**
  * 为共享 StateParam 的 evaluator 字段补齐默认 concrete 类。
  *
@@ -75,10 +78,12 @@ public:
 TIREFLYCOMBATSYSTEM_API void NormalizeStateParameterStrategyDefaults(FTcsStateParameter& StateParameter);
 
 
+
 /**
  * Numeric 类型运行时 StateParam 实例。
  *
- * 持有 Numeric 专用 Evaluator CDO 和 Snapshot 策略，通过 GetValue() 返回当前数值。
+ * 持有 Numeric 专用 Evaluator CDO、Snapshot 策略和自身求值上下文。
+ * 业务 effective 读取无需由外部拼装上下文。
  */
 USTRUCT(BlueprintType)
 struct TIREFLYCOMBATSYSTEM_API FTcsNumericStateParamInstance
@@ -95,6 +100,24 @@ public:
 	// 是否为快照参数（true=首次求值后缓存，false=每次都重新求值）
 	UPROPERTY(BlueprintReadOnly, Category = "Meta")
 	bool bIsSnapshot = true;
+
+#pragma endregion
+
+
+#pragma region EvaluationContext
+
+private:
+	friend class UTcsStateInstance;
+	friend class UTcsSkillEntry;
+
+	// 参数所属的 SkillEntry；普通 State / Buff 参数保持为空。
+	TWeakObjectPtr<UTcsSkillEntry> OwningSkillEntry;
+
+	// 创建或最近一次激活该参数宿主时绑定的发起者。
+	TWeakObjectPtr<AActor> EvaluationInstigator;
+
+	// 仅允许参数宿主生命周期在创建或激活时绑定求值上下文。
+	void BindEvaluationContext(UTcsSkillEntry* InSkillEntry, AActor* InInstigator);
 
 #pragma endregion
 
@@ -147,7 +170,8 @@ public:
 
 	void RemoveModifiersBySourceHandle(const struct FTcsSourceHandle& SourceHandle);
 
-	float GetModifiedValue(class UTcsSkillEntry* SkillEntry, AActor* Instigator) const;
+	/** @return base 加激活中 SkillModifier 链后的 effective 值。 */
+	float GetModifiedValue() const;
 
 #pragma endregion
 
@@ -156,7 +180,9 @@ public:
 
 public:
 	bool Initialize(const FGameplayTag& InTag, const FTcsStateParameter& ParamDef, FString& OutError);
-	float GetValue() const { return NumericValue; }
+
+	/** @return Evaluator 产出的 base 值；不含 SkillModifier 链。 */
+	float GetBaseValue() const { return NumericValue; }
 
 #pragma endregion
 };
@@ -165,7 +191,8 @@ public:
 /**
  * Bool 类型运行时 StateParam 实例。
  *
- * 持有 Bool 专用 Evaluator CDO 和 Snapshot 策略，通过 GetValue() 返回当前布尔值。
+ * 持有 Bool 专用 Evaluator CDO、Snapshot 策略和自身求值上下文。
+ * 业务 effective 读取无需由外部拼装上下文。
  */
 USTRUCT(BlueprintType)
 struct TIREFLYCOMBATSYSTEM_API FTcsBoolStateParamInstance
@@ -182,6 +209,24 @@ public:
 	// 是否为快照参数
 	UPROPERTY(BlueprintReadOnly, Category = "Meta")
 	bool bIsSnapshot = true;
+
+#pragma endregion
+
+
+#pragma region EvaluationContext
+
+private:
+	friend class UTcsStateInstance;
+	friend class UTcsSkillEntry;
+
+	// 参数所属的 SkillEntry；普通 State / Buff 参数保持为空。
+	TWeakObjectPtr<UTcsSkillEntry> OwningSkillEntry;
+
+	// 创建或最近一次激活该参数宿主时绑定的发起者。
+	TWeakObjectPtr<AActor> EvaluationInstigator;
+
+	// 仅允许参数宿主生命周期在创建或激活时绑定求值上下文。
+	void BindEvaluationContext(UTcsSkillEntry* InSkillEntry, AActor* InInstigator);
 
 #pragma endregion
 
@@ -233,7 +278,8 @@ public:
 
 	void RemoveModifiersBySourceHandle(const struct FTcsSourceHandle& SourceHandle);
 
-	bool GetModifiedValue(class UTcsSkillEntry* SkillEntry, AActor* Instigator) const;
+	/** @return base 加激活中 SkillModifier 链后的 effective 布尔值。 */
+	bool GetModifiedValue() const;
 
 #pragma endregion
 
@@ -242,7 +288,9 @@ public:
 
 public:
 	bool Initialize(const FGameplayTag& InTag, const FTcsStateParameter& ParamDef, FString& OutError);
-	bool GetValue() const { return BoolValue; }
+
+	/** @return Evaluator 产出的 base 布尔值；不含 SkillModifier 链。 */
+	bool GetBaseValue() const { return BoolValue; }
 
 #pragma endregion
 };
@@ -251,7 +299,8 @@ public:
 /**
  * Vector 类型运行时 StateParam 实例。
  *
- * 持有 Vector 专用 Evaluator CDO 和 Snapshot 策略，通过 GetValue() 返回当前向量值。
+ * 持有 Vector 专用 Evaluator CDO、Snapshot 策略和自身求值上下文。
+ * 业务 effective 读取无需由外部拼装上下文。
  */
 USTRUCT(BlueprintType)
 struct TIREFLYCOMBATSYSTEM_API FTcsVectorStateParamInstance
@@ -268,6 +317,24 @@ public:
 	// 是否为快照参数
 	UPROPERTY(BlueprintReadOnly, Category = "Meta")
 	bool bIsSnapshot = true;
+
+#pragma endregion
+
+
+#pragma region EvaluationContext
+
+private:
+	friend class UTcsStateInstance;
+	friend class UTcsSkillEntry;
+
+	// 参数所属的 SkillEntry；普通 State / Buff 参数保持为空。
+	TWeakObjectPtr<UTcsSkillEntry> OwningSkillEntry;
+
+	// 创建或最近一次激活该参数宿主时绑定的发起者。
+	TWeakObjectPtr<AActor> EvaluationInstigator;
+
+	// 仅允许参数宿主生命周期在创建或激活时绑定求值上下文。
+	void BindEvaluationContext(UTcsSkillEntry* InSkillEntry, AActor* InInstigator);
 
 #pragma endregion
 
@@ -319,7 +386,8 @@ public:
 
 	void RemoveModifiersBySourceHandle(const struct FTcsSourceHandle& SourceHandle);
 
-	FVector GetModifiedValue(class UTcsSkillEntry* SkillEntry, AActor* Instigator) const;
+	/** @return base 加激活中 SkillModifier 链后的 effective 向量值。 */
+	FVector GetModifiedValue() const;
 
 #pragma endregion
 
@@ -328,7 +396,9 @@ public:
 
 public:
 	bool Initialize(const FGameplayTag& InTag, const FTcsStateParameter& ParamDef, FString& OutError);
-	FVector GetValue() const { return VectorValue; }
+
+	/** @return Evaluator 产出的 base 向量值；不含 SkillModifier 链。 */
+	FVector GetBaseValue() const { return VectorValue; }
 
 #pragma endregion
 };

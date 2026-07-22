@@ -19,7 +19,8 @@ TCS 当前的 Skill 系统已经完成了 `SkillEntry` / `SkillInstance` 的职�
   - 不重做 `UTcsSkillModifierDefinition` 的 typed evaluator authoring 结构。
   - 不引入“`SkillInstance` 独立参数容器”或“Entry / Instance 双目标作用域”模型。
   - 不把 `Snapshot` 扩展成“冻结 Modifier 链”的复合语义。
-  - 不在本提案中补 `AttributeModifier` 式的 OperandBinding / 外部参数覆盖 `EvaluatorConfig` 机制；本提案先建立稳定的管理与消费底盘。
+  - 不在本提案中补 `AttributeModifier` 式的 OperandBinding / 外部参数覆盖 `SkillModifier.EvaluatorConfig` 机制；本提案先建立稳定的管理与消费底盘。
+  - 不把 Attribute 自身的 BaseValue / CurrentValue 语义重做成第二套 SkillModifier 风格链；Attribute 仍走现有 Recalculate 路径。
 
 ## 决策
 
@@ -70,6 +71,25 @@ TCS 当前的 Skill 系统已经完成了 `SkillEntry` / `SkillInstance` 的职�
   - `UTcsSkillComponent` 应提供 SkillModifier 的统一组件 API。
   - StateTree 任务只负责组装入参和附带 `SourceHandle`，不直接手写 `SkillEntry` 容器。
   - Blueprint 和 C++ 直调入口也应走同一套核心逻辑，避免不同调用面再次各写各的。
+
+- 决策：公开读取默认 effective，base 只走显式 API
+  - SkillModifier 的“写”已经闭环；真正阻断业务的是“读”分裂：`GetLevel()` / `StartCooldown()` 走 effective，但 `Get*ParamByTag`、OperandBinding、参数条件、CD 进度分母等仍读 base。
+  - 统一口径不是再发明第三套覆盖系统，而是固定 **effective-by-default public read contract**：
+    1. **ParamInstance 层**：`GetBaseValue()` 只表示 base；无参 `GetModifiedValue()` 只表示沿 modifier 链求值后的 effective。
+    2. **Host 公开层**（`UTcsStateInstance` / `UTcsSkillInstance` / 后续 `UTcsSkillEntry` 参数读取面）：`Get*ParamByTag` 默认返回 effective；若需要 base，必须走显式 `Get*BaseParamByTag`（或同等命名）API。
+    3. **跨系统消费层**（Attribute OperandBinding、State 参数条件、冷却进度、伤害公式读取技能参数等）：MUST 复用 host 公开 effective 读取，或直接调用无参 `GetModifiedValue()`；禁止为业务语义直接读 `NumericValue` / `GetBaseValue()`。
+    4. **AttributeModifierInstance 的“解析值”**：对 Operand 而言，权威解析入口是 Recalculate 前的 OperandBinding 刷新；刷新后写入 `Operands` 的值 MUST 来自 StateParam effective。Modifier 自身没有第二套“公开 GetModifiedValue”去替代这条刷新路径。
+  - `UTcsSkillInstance::Get*ParamByTag` 不得继续误读本地空容器；host 读取 MUST 通过 virtual `Get*ParamInstance` 定位真实参数宿主（Skill 场景下即 Entry 容器）。
+  - 内部写链、调试、迁移与“只想看 base”的场景可继续使用 base API；但新增公开业务 API 默认只能暴露 effective，除非接口名明确声明 Base。
+  - `GetModifiedValue()` 不接受 `SkillEntry` / `Instigator` 参数。普通 State 创建时绑定 Instigator；SkillEntry 创建时从所属 `SkillComponent` 绑定 Owner 作为其固定 SkillEntry / Instigator 上下文。外部不得再反推上下文。
+  - `ActivateSkill` 只接收 `SkillDefId`，固定使用 `SkillComponent` Owner 作为 `SkillInstance` 的 Owner、Instigator 与 SourceHandle Instigator。当前单活跃实例模型下，Entry 参数上下文不随激活重写；若未来允许远端实体代放本地技能或同一 Entry 多实例使用不同 Instigator，必须为该独立能力新建设计，不得重新引入外部读时拼参。
+
+- 决策：以后新增公开读取面的强制落点
+  - 任何新增的、公开的、需要“StateParam 解析值”的 API，默认只允许：
+    - 调用 host 的 `Get*ParamByTag`（effective），或
+    - 调用 `FTcs*StateParamInstance::GetModifiedValue()`
+  - 任何新增的、公开的、需要“AttributeModifierInstance 已解析 Operand 值”的 API，默认只允许读取 `Operands`（并假定调用方处于 Recalculate / 已刷新之后），不得再各自手写一遍 `GetBaseValue()` 绑定拉取。
+  - 代码审查与后续实现以这条契约为准；若有人新增公开 API 直接读 base 字段，视为违反本提案。
 
 ## 运行时结构草案
 
@@ -174,6 +194,47 @@ TCS 当前的 Skill 系统已经完成了 `SkillEntry` / `SkillInstance` 的职�
 - `Create...` 负责“Definition + Selector -> 0..N 条账本记录草案”
 - `Apply...` 负责真正落账本、落参数链、处理 rollback
 - `Handle...Ended` 负责把外部生命周期钩子翻译成统一清理入口
+
+### Effective-value 读取面（跨系统统一）
+
+参数解析统一收敛到两层，而不是每个业务模块各自发明取值函数：
+
+#### 1) ParamInstance 层（唯一求值语义）
+
+- `float/bool/FVector GetBaseValue() const`：只返回 base（Evaluator 产出、未被 SkillModifier 链改写）
+- `float/bool/FVector GetModifiedValue() const`：通过实例已绑定的上下文返回 effective（base + 激活中的 modifier 链）
+
+约束：
+- 不允许再新增第三种“半 effective”求值函数名（例如 `GetResolvedValue` / `GetFinalValue`）去表达同一语义
+- `GetModifiedValue()` 是唯一公开 effective 入口；SkillModifier Evaluator 的 `Evaluate` 只允许由该 ParamInstance 内部求值链调用
+
+#### 2) Host 公开层（业务默认入口）
+
+- `UTcsStateInstance::GetNumericParamByTag / GetBoolParamByTag / GetVectorParamByTag`
+  - 默认返回 effective
+  - Skill 场景下必须经 virtual `Get*ParamInstance` 定位到真实宿主容器（`SkillEntry`）
+- 显式 base 入口（建议命名，可微调但语义不可变）：
+  - `GetNumericBaseParamByTag`
+  - `GetBoolBaseParamByTag`
+  - `GetVectorBaseParamByTag`
+- `UTcsSkillEntry` 若补公开参数读取，同样遵守 effective-by-default；不得只暴露容器字段让外部手写 `GetBaseValue()`
+
+#### 3) 跨系统消费层（强制复用，不另开旁路）
+
+| 消费点 | 必须读取 |
+|--------|----------|
+| Attribute OperandBinding 刷新 | StateParam **effective**（无参 `GetModifiedValue()`） |
+| State 参数条件 | host `Get*ParamByTag`（effective） |
+| Skill CD 启动时长 | effective（已有 `StartCooldown` 路径） |
+| Skill CD 进度分母 | effective（不使用 `GetBaseValue()` 作为分母） |
+| Skill Level | effective（已有 `GetLevel` 路径） |
+| 新增公开“读技能/状态参数” API | effective，除非 API 名明确声明 Base |
+| 新增公开“读 AttributeModifier 已解析 Operand” API | 读 `Operands`（假定已完成 binding 刷新），禁止再各自 `GetBaseValue()` 拉参 |
+
+AttributeModifierInstance 侧不新增平行的 `GetModifiedValue`：
+- Attribute 的 effective 结果仍然由 `RecalculateAttributeCurrentValues` 产出到属性 CurrentValue
+- Operand 的“解析值”权威位置就是刷新后的 `Operands`
+- 统一方式是“刷新路径读 effective + 业务读 Operands”，而不是给 ModifierInstance 再挂一套参数求值 API
 
 ## 生命周期时序
 
@@ -321,8 +382,15 @@ sequenceDiagram
 - 风险：如果继续允许任何调用面直接写 `SkillEntry.StateParamInstances`，账本会与实际生效状态失同步。
   - 缓解：proposal 明确禁止手写容器，所有公开调用面必须经过 `UTcsSkillComponent`。
 
-- 风险：未来如果要支持外部参数覆盖 `EvaluatorConfig`，当前账本记录结构可能需要扩展。
+- 风险：未来如果要支持外部参数覆盖 `SkillModifier.EvaluatorConfig`，当前账本记录结构可能需要扩展。
   - 缓解：本提案保留 `ResolvedConfig` 槽位，但不在本次实现 operand-binding 风格的额外输入语义。
+
+- 风险：公开 API 从 base 默认切换到 effective 默认，会改变现有 `Get*ParamByTag` 语义。
+  - 取舍：这是本提案明确接受的破坏性修正；继续保留 base 默认会让 SkillModifier 永久半闭环。
+  - 缓解：同步提供显式 base API；当前仓库仍处架构实践阶段，默认无 Blueprint 资产兼容包袱。
+
+- 风险：内部实现或未来新增 API 再次绕过 host 读取，直接摸 `NumericValue` / `GetBaseValue()`。
+  - 缓解：把 effective-by-default 写进 spec 与 tasks；审查时把“公开业务读取直接拿 base”视为契约违规。
 
 ## 迁移计划
 
@@ -331,7 +399,13 @@ sequenceDiagram
 3. 将 SkillModifier 写入路径收敛到 `SkillEntry` 的 typed 参数实例链。
 4. 补齐 StateTree / Blueprint / C++ 三类入口面，并统一 `SourceHandle` 清理语义。
 5. 覆盖 `ForgetSkill`、来源结束、实例取消/结束等生命周期清理场景。
+6. 统一 effective-value 消费契约：
+   - `Get*ParamByTag` 默认 effective，并补显式 base API
+   - SkillInstance 参数读取经 virtual 宿主定位，禁止读本地空容器
+   - Attribute OperandBinding / 参数条件 / CD 进度分母全部切到 effective
+7. 用运行时验证覆盖：Apply 后公开读取、OperandBinding、条件判定、CD ratio 都反映 modifier。
 
 ## 开放问题
 
-- 当前不引入 OperandBinding / 外部参数覆盖 `EvaluatorConfig` 机制；若后续确认需要，可在账本结构稳定后新增独立提案。
+- 当前不引入 OperandBinding / 外部参数覆盖 `SkillModifier.EvaluatorConfig` 机制；若后续确认需要，可在账本结构稳定后新增独立提案。
+- `GetModifiedValue` 是否在后续全局 rename 为 `GetEffectiveValue`：本提案先锁语义，不强制立刻 rename；若 rename，必须整仓一次性完成。

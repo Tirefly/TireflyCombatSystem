@@ -14,7 +14,7 @@ class TIREFLYCOMBATSYSTEM_API UTcsSkillModExec_SetBool : public UTcsStateParamBo
 {
 	GENERATED_BODY()
 
-public:
+protected:
 	virtual bool Evaluate(
 		bool CurrentValue,
 		const FStateParamBoolModifierInstance& ModifierInst,

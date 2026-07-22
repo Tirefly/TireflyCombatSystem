@@ -79,7 +79,8 @@ public:
 	UPROPERTY(BlueprintReadOnly)
 	TMap<FName, float> Operands;
 
-	// 操作数动态绑定：运行时从 StateParam 读取 Operand 值
+	// 操作数动态绑定：运行时从 StateParam 拉取 effective 值写入 Operands
+	// 已解析 Operand 的权威读取位置是 Operands（在 Recalculate 刷新之后）
 	UPROPERTY(BlueprintReadOnly)
 	TArray<FTcsStateParamBinding> OperandBindings;
 

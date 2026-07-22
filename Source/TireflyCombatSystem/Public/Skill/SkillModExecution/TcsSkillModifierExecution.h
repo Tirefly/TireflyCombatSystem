@@ -72,7 +72,11 @@ class TIREFLYCOMBATSYSTEM_API UTcsStateParamNumericModifierExecution : public UO
 {
 	GENERATED_BODY()
 
-public:
+	friend struct FTcsNumericStateParamInstance;
+
+
+protected:
+	/** 仅由 FTcsNumericStateParamInstance 的 effective 求值链调用。 */
 	virtual float Evaluate(float CurrentValue, const FStateParamNumericModifierInstance& ModifierInst,
 		UTcsSkillEntry* SkillEntry, AActor* Instigator) const PURE_VIRTUAL(, return CurrentValue;);
 };
@@ -87,7 +91,11 @@ class TIREFLYCOMBATSYSTEM_API UTcsStateParamBoolModifierExecution : public UObje
 {
 	GENERATED_BODY()
 
-public:
+	friend struct FTcsBoolStateParamInstance;
+
+
+protected:
+	/** 仅由 FTcsBoolStateParamInstance 的 effective 求值链调用。 */
 	virtual bool Evaluate(bool CurrentValue, const FStateParamBoolModifierInstance& ModifierInst,
 		UTcsSkillEntry* SkillEntry, AActor* Instigator) const PURE_VIRTUAL(, return CurrentValue;);
 };
@@ -102,7 +110,11 @@ class TIREFLYCOMBATSYSTEM_API UTcsStateParamVectorModifierExecution : public UOb
 {
 	GENERATED_BODY()
 
-public:
+	friend struct FTcsVectorStateParamInstance;
+
+
+protected:
+	/** 仅由 FTcsVectorStateParamInstance 的 effective 求值链调用。 */
 	virtual FVector Evaluate(FVector CurrentValue, const FStateParamVectorModifierInstance& ModifierInst,
 		UTcsSkillEntry* SkillEntry, AActor* Instigator) const PURE_VIRTUAL(, return CurrentValue;);
 };

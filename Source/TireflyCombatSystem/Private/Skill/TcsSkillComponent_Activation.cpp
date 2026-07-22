@@ -13,7 +13,7 @@
 
 
 
-ETcsSkillActivateResult UTcsSkillComponent::ActivateSkill(FName SkillDefId, AActor* Instigator)
+ETcsSkillActivateResult UTcsSkillComponent::ActivateSkill(FName SkillDefId)
 {
 	if (!IsRuntimeReady())
 	{
@@ -69,8 +69,15 @@ ETcsSkillActivateResult UTcsSkillComponent::ActivateSkill(FName SkillDefId, AAct
 	}
 
 	AActor* OwnerActor = GetOwner();
-	UObject* SkillInstanceOuter = OwnerActor ? static_cast<UObject*>(OwnerActor) : static_cast<UObject*>(this);
-	UTcsSkillInstance* SkillInst = NewObject<UTcsSkillInstance>(SkillInstanceOuter, SkillInstanceClass);
+	if (!OwnerActor)
+	{
+		UE_LOG(LogTcsState, Error,
+			TEXT("[SkillComp::ActivateSkill] SkillComponent '%s' has no owner actor"),
+			*GetPathName());
+		return ETcsSkillActivateResult::ApplyFailed;
+	}
+
+	UTcsSkillInstance* SkillInst = NewObject<UTcsSkillInstance>(OwnerActor, SkillInstanceClass);
 	if (!SkillInst)
 	{
 		return ETcsSkillActivateResult::ApplyFailed;
@@ -80,7 +87,7 @@ ETcsSkillActivateResult UTcsSkillComponent::ActivateSkill(FName SkillDefId, AAct
 		Definition,
 		SkillDefId,
 		OwnerActor,
-		Instigator,
+		OwnerActor,
 		UTcsStateComponent::AllocateStateInstanceId(),
 		Entry->GetLevel());
 
@@ -91,7 +98,7 @@ ETcsSkillActivateResult UTcsSkillComponent::ActivateSkill(FName SkillDefId, AAct
 	}
 
 	SkillInst->SetApplyTimestamp(FDateTime::UtcNow().GetTicks());
-	SkillInst->SetSourceHandle(UTcsStateComponent::CreateSourceHandle(TArray<FPrimaryAssetId>(), Instigator));
+	SkillInst->SetSourceHandle(UTcsStateComponent::CreateSourceHandle(TArray<FPrimaryAssetId>(), OwnerActor));
 
 	UTcsStateComponent* StateCmp = GetOwnerStateComponent();
 	if (!StateCmp)

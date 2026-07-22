@@ -285,11 +285,10 @@ public:
 	 * 激活指定技能。
 	 *
 	 * @param SkillDefId 要激活的 Skill 定义 ID。
-	 * @param Instigator 技能发起者。
 	 * @return 返回技能激活结果。
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Skill|Activation")
-	ETcsSkillActivateResult ActivateSkill(FName SkillDefId, AActor* Instigator);
+	ETcsSkillActivateResult ActivateSkill(FName SkillDefId);
 
 private:
 	/** @return Owner Actor 上的 UTcsStateComponent。 */

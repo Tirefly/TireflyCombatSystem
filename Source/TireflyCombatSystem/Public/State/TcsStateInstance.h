@@ -382,27 +382,75 @@ protected:
 #pragma region Parameter
 
 public:
-	// 获取数值类型参数值
+	/**
+	 * 获取数值类型参数的 effective 值（base + 激活中 SkillModifier）。
+	 *
+	 * @param ParameterTag 参数标识。
+	 * @param OutValue 输出 effective 值。
+	 * @return 找到参数时返回 true。
+	 */
 	UFUNCTION(BlueprintCallable, Category = "State|Parameters")
 	bool GetNumericParamByTag(FGameplayTag ParameterTag, float& OutValue) const;
 
-	// 设置数值类型参数值
+	/**
+	 * 获取数值类型参数的 base 值（不含 SkillModifier）。
+	 *
+	 * @param ParameterTag 参数标识。
+	 * @param OutValue 输出 base 值。
+	 * @return 找到参数时返回 true。
+	 */
+	UFUNCTION(BlueprintCallable, Category = "State|Parameters")
+	bool GetNumericBaseParamByTag(FGameplayTag ParameterTag, float& OutValue) const;
+
+	// 设置数值类型参数的 base 值（写入 NumericValue，不经过 Modifier）
 	UFUNCTION(BlueprintCallable, Category = "State|Parameters")
 	void SetNumericParamByTag(FGameplayTag ParameterTag, float Value);
 
-	// 获取布尔类型参数值
+	/**
+	 * 获取布尔类型参数的 effective 值（base + 激活中 SkillModifier）。
+	 *
+	 * @param ParameterTag 参数标识。
+	 * @param OutValue 输出 effective 值。
+	 * @return 找到参数时返回 true。
+	 */
 	UFUNCTION(BlueprintCallable, Category = "State|Parameters")
 	bool GetBoolParamByTag(FGameplayTag ParameterTag, bool& OutValue) const;
 
-	// 设置布尔类型参数值
+	/**
+	 * 获取布尔类型参数的 base 值（不含 SkillModifier）。
+	 *
+	 * @param ParameterTag 参数标识。
+	 * @param OutValue 输出 base 值。
+	 * @return 找到参数时返回 true。
+	 */
+	UFUNCTION(BlueprintCallable, Category = "State|Parameters")
+	bool GetBoolBaseParamByTag(FGameplayTag ParameterTag, bool& OutValue) const;
+
+	// 设置布尔类型参数的 base 值
 	UFUNCTION(BlueprintCallable, Category = "State|Parameters")
 	void SetBoolParamByTag(FGameplayTag ParameterTag, bool Value);
 
-	// 获取向量类型参数值
+	/**
+	 * 获取向量类型参数的 effective 值（base + 激活中 SkillModifier）。
+	 *
+	 * @param ParameterTag 参数标识。
+	 * @param OutValue 输出 effective 值。
+	 * @return 找到参数时返回 true。
+	 */
 	UFUNCTION(BlueprintCallable, Category = "State|Parameters")
 	bool GetVectorParamByTag(FGameplayTag ParameterTag, FVector& OutValue) const;
 
-	// 设置向量类型参数值
+	/**
+	 * 获取向量类型参数的 base 值（不含 SkillModifier）。
+	 *
+	 * @param ParameterTag 参数标识。
+	 * @param OutValue 输出 base 值。
+	 * @return 找到参数时返回 true。
+	 */
+	UFUNCTION(BlueprintCallable, Category = "State|Parameters")
+	bool GetVectorBaseParamByTag(FGameplayTag ParameterTag, FVector& OutValue) const;
+
+	// 设置向量类型参数的 base 值
 	UFUNCTION(BlueprintCallable, Category = "State|Parameters")
 	void SetVectorParamByTag(FGameplayTag ParameterTag, const FVector& Value);
 

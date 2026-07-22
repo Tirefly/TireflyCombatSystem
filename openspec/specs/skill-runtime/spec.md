@@ -227,4 +227,3 @@ TCS SHALL 让 Skill-only 的归属引用和激活元数据停留在共享 State 
 #### Scenario: 冷却戒指生效
 - **WHEN** Cooldown 求值结果 = 8s，有一个 Modifier Multiply(0.5)
 - **THEN** RemainingCooldown = 4s
-

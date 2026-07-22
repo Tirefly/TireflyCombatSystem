@@ -14,7 +14,7 @@ class TIREFLYCOMBATSYSTEM_API UTcsSkillModExec_SetVector : public UTcsStateParam
 {
 	GENERATED_BODY()
 
-public:
+protected:
 	virtual FVector Evaluate(
 		FVector CurrentValue,
 		const FStateParamVectorModifierInstance& ModifierInst,

@@ -14,7 +14,7 @@ class TIREFLYCOMBATSYSTEM_API UTcsSkillModExec_Addition : public UTcsStateParamN
 {
 	GENERATED_BODY()
 
-public:
+protected:
 	virtual float Evaluate(
 		float CurrentValue,
 		const FStateParamNumericModifierInstance& ModifierInst,

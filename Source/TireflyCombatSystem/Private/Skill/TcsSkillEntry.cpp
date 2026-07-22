@@ -3,6 +3,7 @@
 #include "Skill/TcsSkillEntry.h"
 
 #include "Skill/TcsSkillDefinition.h"
+#include "Skill/TcsSkillComponent.h"
 #include "Skill/TcsSkillInstance.h"
 #include "State/StateParameter/TcsStateNumericParameter.h"
 #include "TcsLogChannels.h"
@@ -32,7 +33,7 @@ int32 UTcsSkillEntry::GetLevel() const
 		return 1;
 	}
 
-	return FMath::RoundToInt(Inst->GetModifiedValue(const_cast<UTcsSkillEntry*>(this), nullptr));
+	return FMath::RoundToInt(Inst->GetModifiedValue());
 }
 
 
@@ -82,6 +83,10 @@ bool UTcsSkillEntry::InitializeFromDef(FName InSkillDefId, const UTcsSkillDefini
 	BoolParamInstances.Reset();
 	VectorParamInstances.Reset();
 
+	// Learned SkillEntry 由 SkillComponent 持有，参数上下文固定为该组件所属实体。
+	const UTcsSkillComponent* OwningSkillComponent = Cast<UTcsSkillComponent>(GetOuter());
+	AActor* const OwningActor = OwningSkillComponent ? OwningSkillComponent->GetOwner() : nullptr;
+
 	bool bSucceeded = true;
 	for (const auto& ParamPair : Def->Parameters)
 	{
@@ -93,6 +98,7 @@ bool UTcsSkillEntry::InitializeFromDef(FName InSkillDefId, const UTcsSkillDefini
 				FString Error;
 				if (Instance.Initialize(ParamPair.Key, ParamPair.Value, Error))
 				{
+					Instance.BindEvaluationContext(this, OwningActor);
 					NumericParamInstances.Add(ParamPair.Key, Instance);
 				}
 				else
@@ -108,6 +114,7 @@ bool UTcsSkillEntry::InitializeFromDef(FName InSkillDefId, const UTcsSkillDefini
 				FString Error;
 				if (Instance.Initialize(ParamPair.Key, ParamPair.Value, Error))
 				{
+					Instance.BindEvaluationContext(this, OwningActor);
 					BoolParamInstances.Add(ParamPair.Key, Instance);
 				}
 				else
@@ -123,6 +130,7 @@ bool UTcsSkillEntry::InitializeFromDef(FName InSkillDefId, const UTcsSkillDefini
 				FString Error;
 				if (Instance.Initialize(ParamPair.Key, ParamPair.Value, Error))
 				{
+					Instance.BindEvaluationContext(this, OwningActor);
 					VectorParamInstances.Add(ParamPair.Key, Instance);
 				}
 				else
@@ -143,6 +151,7 @@ bool UTcsSkillEntry::InitializeFromDef(FName InSkillDefId, const UTcsSkillDefini
 		LevelInst.ParamTag = Def->LevelParamTag;
 		LevelInst.bIsSnapshot = false;
 		LevelInst.NumericValue = 1.0f;
+		LevelInst.BindEvaluationContext(this, OwningActor);
 		NumericParamInstances.Add(Def->LevelParamTag, LevelInst);
 	}
 
@@ -197,7 +206,7 @@ bool UTcsSkillEntry::StartCooldown(UTcsSkillInstance* SkillInstance)
 
 	if (Duration > 0.0f)
 	{
-		RemainingCooldown = CI->GetModifiedValue(this, SkillInstance->GetInstigator());
+		RemainingCooldown = CI->GetModifiedValue();
 		return true;
 	}
 
@@ -228,9 +237,16 @@ float UTcsSkillEntry::GetRemainingCooldownRatio() const
 	}
 
 	const FTcsNumericStateParamInstance* CI = NumericParamInstances.Find(SkillDefinition->CooldownParamTag);
-	if (CI && CI->GetValue() > 0.0f)
+	if (!CI)
 	{
-		return RemainingCooldown / CI->GetValue();
+		return 0.0f;
+	}
+
+	// 进度分母使用 effective 冷却时长，与 StartCooldown 写入 RemainingCooldown 的口径一致
+	const float EffectiveCooldown = CI->GetModifiedValue();
+	if (EffectiveCooldown > 0.0f)
+	{
+		return RemainingCooldown / EffectiveCooldown;
 	}
 	return 0.0f;
 }

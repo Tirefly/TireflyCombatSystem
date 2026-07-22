@@ -411,7 +411,9 @@ void UTcsAttributeComponent::RecalculateAttributeCurrentValues(int64 ChangeBatch
 								P->bHasEvaluated = P->bIsSnapshot;
 							}
 						}
-						Modifier.Operands.FindOrAdd(B.OperandName) = P->GetValue();
+
+						// 参数实例在创建或激活时已绑定上下文；Operand 只消费其 effective 值。
+						Modifier.Operands.FindOrAdd(B.OperandName) = P->GetModifiedValue();
 					}
 				}
 			}

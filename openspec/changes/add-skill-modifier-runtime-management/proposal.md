@@ -20,10 +20,12 @@
 - 固化 `Snapshot` 语义：它只冻结 Evaluator 的重新求值，不冻结 SkillModifier 链的增删改。
 - 为 `UTcsSkillComponent` 设计统一的 SkillModifier 运行时实例、索引结构与公开入口，要求 C++ / Blueprint / StateTree 全部复用同一套核心路径，而不是手写 `SkillEntry` 容器。
 - 设计来源结束、`ForgetSkill`、实例取消/结束后的自动清理与互斥恢复逻辑，确保 SkillModifier 不会永久污染 `SkillEntry`。
+- **补齐 effective-value 统一消费契约**：SkillModifier 写入链已存在，但公开读取大多仍停在 base；本提案要求公开业务读取默认走 effective，并把 Attribute OperandBinding / 参数条件 / CD 进度等跨系统消费统一到同一读取口径。
+- StateParamInstance SHALL 在宿主创建时绑定自身求值上下文，对外只公开无参 `GetModifiedValue()`；原 `GetValue()` 重命名为 `GetBaseValue()`，SkillModifier Evaluator 仅允许由 ParamInstance 内部调度。SkillEntry / SkillInstance 的参数上下文固定为所属 `SkillComponent` Owner，Skill 激活不接受外部 Instigator。
 
 ## 影响范围
 
-- 受影响规范：`skill-runtime`
+- 受影响规范：`skill-runtime`、`state-parameter-management`、`attribute-modifier-runtime`
 - 受影响代码：
   - `Source/TireflyCombatSystem/Public/Skill/TcsSkillComponent.h`
   - `Source/TireflyCombatSystem/Private/Skill/TcsSkillComponent.cpp`
@@ -32,6 +34,9 @@
   - `Source/TireflyCombatSystem/Public/Skill/TcsSkillModifierInstance.h`
   - `Source/TireflyCombatSystem/Public/State/TcsStateParamInstance.h`
   - `Source/TireflyCombatSystem/Private/State/TcsStateParamInstance.cpp`
+  - `Source/TireflyCombatSystem/Public/State/TcsStateInstance.h`
+  - `Source/TireflyCombatSystem/Private/State/TcsStateInstance_Parameters.cpp`
+  - `Source/TireflyCombatSystem/Private/Attribute/TcsAttributeComponent_Calculation.cpp`
   - `Source/TireflyCombatSystem/Public/StateTree/Task/*SkillModifier*.h`
   - `Source/TireflyCombatSystem/Private/StateTree/Task/*SkillModifier*.cpp`
   - 相关 Skill / State 生命周期清理与调试查询逻辑

@@ -129,6 +129,15 @@ bool FTcsNumericStateParamInstance::Initialize(const FGameplayTag& InTag, const 
 }
 
 
+void FTcsNumericStateParamInstance::BindEvaluationContext(
+	UTcsSkillEntry* InSkillEntry,
+	AActor* InInstigator)
+{
+	OwningSkillEntry = InSkillEntry;
+	EvaluationInstigator = InInstigator;
+}
+
+
 bool FTcsBoolStateParamInstance::Initialize(const FGameplayTag& InTag, const FTcsStateParameter& ParamDef, FString& OutError)
 {
 	ParamTag     = InTag;
@@ -152,6 +161,15 @@ bool FTcsBoolStateParamInstance::Initialize(const FGameplayTag& InTag, const FTc
 }
 
 
+void FTcsBoolStateParamInstance::BindEvaluationContext(
+	UTcsSkillEntry* InSkillEntry,
+	AActor* InInstigator)
+{
+	OwningSkillEntry = InSkillEntry;
+	EvaluationInstigator = InInstigator;
+}
+
+
 bool FTcsVectorStateParamInstance::Initialize(const FGameplayTag& InTag, const FTcsStateParameter& ParamDef, FString& OutError)
 {
 	ParamTag     = InTag;
@@ -172,6 +190,15 @@ bool FTcsVectorStateParamInstance::Initialize(const FGameplayTag& InTag, const F
 	}
 
 	return true;
+}
+
+
+void FTcsVectorStateParamInstance::BindEvaluationContext(
+	UTcsSkillEntry* InSkillEntry,
+	AActor* InInstigator)
+{
+	OwningSkillEntry = InSkillEntry;
+	EvaluationInstigator = InInstigator;
 }
 
 
@@ -248,7 +275,7 @@ void FTcsNumericStateParamInstance::RemoveModifiersBySourceHandle(const struct F
 }
 
 
-float FTcsNumericStateParamInstance::GetModifiedValue(UTcsSkillEntry* SkillEntry, AActor* Instigator) const
+float FTcsNumericStateParamInstance::GetModifiedValue() const
 {
 	float Value = NumericValue;
 	for (const FStateParamNumericModifierInstance& Inst : ModifierInstances)
@@ -257,7 +284,11 @@ float FTcsNumericStateParamInstance::GetModifiedValue(UTcsSkillEntry* SkillEntry
 		{
 			continue;
 		}
-		Value = Inst.Evaluator->Evaluate(Value, Inst, SkillEntry, Instigator);
+		Value = Inst.Evaluator->Evaluate(
+			Value,
+			Inst,
+			OwningSkillEntry.Get(),
+			EvaluationInstigator.Get());
 	}
 	return Value;
 }
@@ -336,7 +367,7 @@ void FTcsBoolStateParamInstance::RemoveModifiersBySourceHandle(const struct FTcs
 }
 
 
-bool FTcsBoolStateParamInstance::GetModifiedValue(UTcsSkillEntry* SkillEntry, AActor* Instigator) const
+bool FTcsBoolStateParamInstance::GetModifiedValue() const
 {
 	bool Value = BoolValue;
 	for (const FStateParamBoolModifierInstance& Inst : ModifierInstances)
@@ -345,7 +376,11 @@ bool FTcsBoolStateParamInstance::GetModifiedValue(UTcsSkillEntry* SkillEntry, AA
 		{
 			continue;
 		}
-		Value = Inst.Evaluator->Evaluate(Value, Inst, SkillEntry, Instigator);
+		Value = Inst.Evaluator->Evaluate(
+			Value,
+			Inst,
+			OwningSkillEntry.Get(),
+			EvaluationInstigator.Get());
 	}
 	return Value;
 }
@@ -424,7 +459,7 @@ void FTcsVectorStateParamInstance::RemoveModifiersBySourceHandle(const struct FT
 }
 
 
-FVector FTcsVectorStateParamInstance::GetModifiedValue(UTcsSkillEntry* SkillEntry, AActor* Instigator) const
+FVector FTcsVectorStateParamInstance::GetModifiedValue() const
 {
 	FVector Value = VectorValue;
 	for (const FStateParamVectorModifierInstance& Inst : ModifierInstances)
@@ -433,7 +468,11 @@ FVector FTcsVectorStateParamInstance::GetModifiedValue(UTcsSkillEntry* SkillEntr
 		{
 			continue;
 		}
-		Value = Inst.Evaluator->Evaluate(Value, Inst, SkillEntry, Instigator);
+		Value = Inst.Evaluator->Evaluate(
+			Value,
+			Inst,
+			OwningSkillEntry.Get(),
+			EvaluationInstigator.Get());
 	}
 	return Value;
 }
