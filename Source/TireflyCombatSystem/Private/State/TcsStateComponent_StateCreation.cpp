@@ -3,6 +3,7 @@
 #include "State/TcsStateComponent.h"
 
 #include "DefinitionManager/TcsDefinitionManagerSubsystem.h"
+#include "TcsSourceHandle.h"
 #include "TcsEntityInterface.h"
 #include "TcsLogChannels.h"
 #include "GameFramework/Actor.h"
@@ -19,6 +20,7 @@ UTcsStateInstance* UTcsStateComponent::CreateStateInstance(
 	AActor* Instigator,
 	int32 InLevel,
 	const FTcsSourceHandle& ParentSourceHandle,
+	FPrimaryAssetId ParentSourceDefId,
 	ETcsStateApplyFailReason* OutFailureReason,
 	FString* OutFailureMessage,
 	bool* bOutFailureLogged)
@@ -149,13 +151,47 @@ UTcsStateInstance* UTcsStateComponent::CreateStateInstance(
 	UTcsStateInstance* StateInstance = TempStateInstance;
 	StateInstance->SetApplyTimestamp(FDateTime::UtcNow().GetTicks());
 
-	TArray<FPrimaryAssetId> NewCausalityChain = ParentSourceHandle.CausalityChain;
+	FTcsSourceHandle SourceHandle;
 	if (ParentSourceHandle.IsValid())
 	{
-		NewCausalityChain.Add(StateDef->GetPrimaryAssetId());
+		if (!ParentSourceDefId.IsValid())
+		{
+			StateInstance->MarkPendingGC();
+			return ReturnCreateStateFailure(
+				ETcsStateApplyFailReason::InvalidInput,
+				FString::Printf(TEXT("Parent SourceHandle requires a valid direct parent source definition id. State=%s ParentHandle=%s"),
+					*StateDefRowId.ToString(),
+					*ParentSourceHandle.ToDebugString()));
+		}
+
+		SourceHandle = FTcsSourceHandleFactory::CreateChildSourceHandle(
+			ParentSourceHandle,
+			ParentSourceDefId,
+			Instigator);
+	}
+	else if (ParentSourceDefId.IsValid())
+	{
+		StateInstance->MarkPendingGC();
+		return ReturnCreateStateFailure(
+			ETcsStateApplyFailReason::InvalidInput,
+			FString::Printf(TEXT("Parent source definition id requires a valid Parent SourceHandle. State=%s ParentSourceDefId=%s"),
+				*StateDefRowId.ToString(),
+				*ParentSourceDefId.ToString()));
+	}
+	else
+	{
+		SourceHandle = FTcsSourceHandleFactory::CreateRootSourceHandle(Instigator);
 	}
 
-	StateInstance->SetSourceHandle(CreateSourceHandle(NewCausalityChain, Instigator));
+	if (!SourceHandle.IsValid())
+	{
+		StateInstance->MarkPendingGC();
+		return ReturnCreateStateFailure(
+			ETcsStateApplyFailReason::CreateInstanceFailed,
+			FString::Printf(TEXT("Failed to create SourceHandle for state '%s'."), *StateDefRowId.ToString()));
+	}
+
+	StateInstance->SetSourceHandle(SourceHandle);
 
 	TArray<FName> FailedParams;
 	if (!StateInstance->PopulateStateParamInstances(StateDef, Instigator, OwnerActor, FailedParams))

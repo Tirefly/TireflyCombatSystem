@@ -242,6 +242,24 @@ public:
 		const FTcsSourceHandle& ParentSourceHandle = FTcsSourceHandle());
 
 	/**
+	 * 尝试在当前宿主身上应用带父来源的 Buff 定义。
+	 *
+	 * @param BuffDefId 要应用的 Buff 定义 ID
+	 * @param Instigator Buff 发起者
+	 * @param BuffLevel Buff 等级
+	 * @param ParentSourceHandle 父级来源句柄
+	 * @param ParentSourceDefId 直接父来源的 Definition Id
+	 * @return 如果成功进入共享 State 主流程则返回 true，否则返回 false
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Buff|Lifecycle")
+	bool ApplyBuffFromSourceHandle(
+		FName BuffDefId,
+		AActor* Instigator,
+		int32 BuffLevel,
+		const FTcsSourceHandle& ParentSourceHandle,
+		FPrimaryAssetId ParentSourceDefId);
+
+	/**
 	 * 请求从当前宿主身上移除指定 Buff 实例。
 	 *
 	 * @param BuffInstance 要移除的 Buff 实例

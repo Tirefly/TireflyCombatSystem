@@ -10,6 +10,7 @@
 #include "State/TcsStateComponent.h"
 #include "State/TcsStateInstance.h"
 #include "TcsLogChannels.h"
+#include "TcsSourceHandle.h"
 
 
 
@@ -98,7 +99,7 @@ ETcsSkillActivateResult UTcsSkillComponent::ActivateSkill(FName SkillDefId)
 	}
 
 	SkillInst->SetApplyTimestamp(FDateTime::UtcNow().GetTicks());
-	SkillInst->SetSourceHandle(UTcsStateComponent::CreateSourceHandle(TArray<FPrimaryAssetId>(), OwnerActor));
+	SkillInst->SetSourceHandle(FTcsSourceHandleFactory::CreateRootSourceHandle(OwnerActor));
 
 	UTcsStateComponent* StateCmp = GetOwnerStateComponent();
 	if (!StateCmp)

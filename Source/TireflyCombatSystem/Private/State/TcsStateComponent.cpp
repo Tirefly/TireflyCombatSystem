@@ -21,7 +21,6 @@
 
 
 int32 UTcsStateComponent::NextStateInstanceId = 0;
-int32 UTcsStateComponent::NextSourceHandleId = -1;
 
 
 
@@ -86,14 +85,6 @@ void UTcsStateComponent::BeginPlay()
 			BootstrapSubsystem->NotifyComponentRuntimeStateChanged(this);
 		}
 	}
-}
-
-FTcsSourceHandle UTcsStateComponent::CreateSourceHandle(
-	const TArray<FPrimaryAssetId>& CausalityChain,
-	AActor* Instigator,
-	const FGameplayTagContainer& SourceTags)
-{
-	return FTcsSourceHandle(++NextSourceHandleId, CausalityChain, Instigator, SourceTags);
 }
 
 bool UTcsStateComponent::IsRuntimeReady() const
@@ -344,6 +335,36 @@ bool UTcsStateComponent::TryApplyState(
 	int32 StateLevel,
 	const FTcsSourceHandle& ParentSourceHandle)
 {
+	return TryApplyState(
+		StateDefId,
+		Instigator,
+		StateLevel,
+		ParentSourceHandle,
+		FPrimaryAssetId());
+}
+
+bool UTcsStateComponent::TryApplyStateFromSourceHandle(
+	FName StateDefId,
+	AActor* Instigator,
+	int32 StateLevel,
+	const FTcsSourceHandle& ParentSourceHandle,
+	FPrimaryAssetId ParentSourceDefId)
+{
+	return TryApplyState(
+		StateDefId,
+		Instigator,
+		StateLevel,
+		ParentSourceHandle,
+		ParentSourceDefId);
+}
+
+bool UTcsStateComponent::TryApplyState(
+	FName StateDefId,
+	AActor* Instigator,
+	int32 StateLevel,
+	const FTcsSourceHandle& ParentSourceHandle,
+	FPrimaryAssetId ParentSourceDefId)
+{
 	AActor* OwnerActor = GetOwner();
 	auto ReportApplyFailure = [this, OwnerActor, StateDefId](
 		ETcsStateApplyFailReason FailureReason,
@@ -422,6 +443,7 @@ bool UTcsStateComponent::TryApplyState(
 		Instigator,
 		StateLevel,
 		ParentSourceHandle,
+		ParentSourceDefId,
 		&CreateFailureReason,
 		&CreateFailureMessage,
 		&bCreateFailureLogged);

@@ -30,6 +30,21 @@ bool UTcsBuffComponent::ApplyBuff(
 	int32 BuffLevel,
 	const FTcsSourceHandle& ParentSourceHandle)
 {
+	return ApplyBuffFromSourceHandle(
+		BuffDefId,
+		Instigator,
+		BuffLevel,
+		ParentSourceHandle,
+		FPrimaryAssetId());
+}
+
+bool UTcsBuffComponent::ApplyBuffFromSourceHandle(
+	FName BuffDefId,
+	AActor* Instigator,
+	int32 BuffLevel,
+	const FTcsSourceHandle& ParentSourceHandle,
+	FPrimaryAssetId ParentSourceDefId)
+{
 	UTcsStateComponent* StateComponent = ResolveOwnerStateComponent();
 	auto ReportApplyFailure = [&](ETcsStateApplyFailReason FailureReason, const FString& FailureMessage)
 	{
@@ -88,7 +103,7 @@ bool UTcsBuffComponent::ApplyBuff(
 			TEXT("Invalid buff definition."));
 	}
 
-	return StateComponent->TryApplyState(BuffDefId, Instigator, BuffLevel, ParentSourceHandle);
+	return StateComponent->TryApplyState(BuffDefId, Instigator, BuffLevel, ParentSourceHandle, ParentSourceDefId);
 }
 
 bool UTcsBuffComponent::RemoveBuff(UTcsBuffInstance* BuffInstance, FName RemovalReason)

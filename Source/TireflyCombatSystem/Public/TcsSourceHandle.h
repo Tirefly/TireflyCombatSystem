@@ -8,6 +8,10 @@
 
 
 
+struct TIREFLYCOMBATSYSTEM_API FTcsSourceHandleFactory;
+
+
+
 /**
  * SourceHandle 用于标识和追踪效果的来源
  *
@@ -48,15 +52,21 @@ public:
 	// 默认构造函数
 	FTcsSourceHandle() = default;
 
+private:
+	friend struct FTcsSourceHandleFactory;
+
 	/**
 	 * 完整构造函数
-	 * @param InId 全局唯一ID
-	 * @param InCausalityChain 因果链
-	 * @param InInstigator 施加者Actor
-	 * @param InSourceTags Source类型标签
+	 * @param InId 全局唯一 ID。
+	 * @param InCausalityChain 因果链。
+	 * @param InInstigator 施加者 Actor。
+	 * @param InSourceTags Source 类型标签。
 	 */
-	FTcsSourceHandle(int32 InId, const TArray<FPrimaryAssetId>& InCausalityChain,
-		AActor* InInstigator, const FGameplayTagContainer& InSourceTags = FGameplayTagContainer())
+	FTcsSourceHandle(
+		int32 InId,
+		const TArray<FPrimaryAssetId>& InCausalityChain,
+		AActor* InInstigator,
+		const FGameplayTagContainer& InSourceTags = FGameplayTagContainer())
 		: Id(InId)
 		, SourceTags(InSourceTags)
 		, Instigator(InInstigator)
@@ -64,6 +74,7 @@ public:
 	{
 	}
 
+public:
 	/**
 	 * 检查 SourceHandle 是否有效
 	 * @return true 当且仅当 ID >= 0
@@ -148,4 +159,46 @@ struct TStructOpsTypeTraits<FTcsSourceHandle> : public TStructOpsTypeTraitsBase2
 	{
 		WithNetSerializer = true,
 	};
+};
+
+
+
+/**
+ * SourceHandle 创建工厂。
+ *
+ * 统一分配进程内唯一的 SourceHandle ID，并负责构造 Root / Child 因果链。
+ */
+struct TIREFLYCOMBATSYSTEM_API FTcsSourceHandleFactory
+{
+public:
+	/**
+	 * 创建没有父来源的 Root SourceHandle。
+	 *
+	 * @param Instigator 实际造成效果的运行时 Actor。
+	 * @param SourceTags Source 类型标签。
+	 * @return 返回新创建的有效 SourceHandle。
+	 */
+	static FTcsSourceHandle CreateRootSourceHandle(
+		AActor* Instigator = nullptr,
+		const FGameplayTagContainer& SourceTags = FGameplayTagContainer());
+
+	/**
+	 * 创建从父来源派生的 Child SourceHandle。
+	 *
+	 * @param ParentSourceHandle 父来源句柄。
+	 * @param DirectParentSourceDefId 直接父来源的 Definition Id。
+	 * @param Instigator 实际造成效果的运行时 Actor。
+	 * @param SourceTags Source 类型标签。
+	 * @return 返回新创建的有效 SourceHandle；输入无效时返回默认无效 SourceHandle。
+	 */
+	static FTcsSourceHandle CreateChildSourceHandle(
+		const FTcsSourceHandle& ParentSourceHandle,
+		const FPrimaryAssetId& DirectParentSourceDefId,
+		AActor* Instigator = nullptr,
+		const FGameplayTagContainer& SourceTags = FGameplayTagContainer());
+
+#if WITH_AUTOMATION_TESTS
+	/** 重置测试用 SourceHandle ID 计数器。 */
+	static void ResetForTests();
+#endif
 };

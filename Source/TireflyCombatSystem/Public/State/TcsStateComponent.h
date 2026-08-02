@@ -498,9 +498,6 @@ protected:
 	/** 全局自增的 StateInstance ID 计数器（进程级唯一）。 */
 	static int32 NextStateInstanceId;
 
-	/** 全局自增的 SourceHandle ID 计数器（进程级唯一）。 */
-	static int32 NextSourceHandleId;
-
 public:
 	/**
 	 * 分配全局唯一的 StateInstance ID。
@@ -508,19 +505,6 @@ public:
 	 * @return 新分配的 Instance ID。
 	 */
 	static int32 AllocateStateInstanceId() { return ++NextStateInstanceId; }
-
-	/**
-	 * 创建一个全局唯一的 SourceHandle。
-	 *
-	 * @param CausalityChain 因果链（从根源到直接父级的完整链）。
-	 * @param Instigator 实际造成效果的运行时 Actor。
-	 * @param SourceTags 来源类型标签（可选）。
-	 * @return 新创建的 SourceHandle。
-	 */
-	static FTcsSourceHandle CreateSourceHandle(
-		const TArray<FPrimaryAssetId>& CausalityChain = {},
-		AActor* Instigator = nullptr,
-		const FGameplayTagContainer& SourceTags = {});
 
 #pragma endregion
 
@@ -537,11 +521,47 @@ public:
 	 * @param ParentSourceHandle 父级来源句柄
 	 * @return 是否应用成功
 	 */
+	UFUNCTION(BlueprintCallable, Category = "State")
 	virtual bool TryApplyState(
 		FName StateDefId,
 		AActor* Instigator,
 		int32 StateLevel = 1,
 		const FTcsSourceHandle& ParentSourceHandle = FTcsSourceHandle());
+
+	/**
+	 * 尝试在当前组件拥有者上应用带父来源的状态定义。
+	 *
+	 * @param StateDefId 要应用的状态定义 ID
+	 * @param Instigator 状态发起者
+	 * @param StateLevel 状态等级
+	 * @param ParentSourceHandle 父级来源句柄
+	 * @param ParentSourceDefId 直接父来源的 Definition Id
+	 * @return 是否应用成功
+	 */
+	UFUNCTION(BlueprintCallable, Category = "State")
+	virtual bool TryApplyStateFromSourceHandle(
+		FName StateDefId,
+		AActor* Instigator,
+		int32 StateLevel,
+		const FTcsSourceHandle& ParentSourceHandle,
+		FPrimaryAssetId ParentSourceDefId);
+
+	/**
+	 * 尝试在当前组件拥有者上应用带父来源的状态定义。
+	 *
+	 * @param StateDefId 要应用的状态定义 ID
+	 * @param Instigator 状态发起者
+	 * @param StateLevel 状态等级
+	 * @param ParentSourceHandle 父级来源句柄
+	 * @param ParentSourceDefId 直接父来源的 Definition Id
+	 * @return 是否应用成功
+	 */
+	virtual bool TryApplyState(
+		FName StateDefId,
+		AActor* Instigator,
+		int32 StateLevel,
+		const FTcsSourceHandle& ParentSourceHandle,
+		FPrimaryAssetId ParentSourceDefId);
 
 	/**
 	 * 尝试将已初始化的状态实例应用到当前组件。
@@ -559,6 +579,7 @@ protected:
 	 * @param Instigator 状态发起者
 	 * @param InLevel 状态等级
 	 * @param ParentSourceHandle 父级来源句柄
+	 * @param ParentSourceDefId 直接父来源的 Definition Id
 	 * @param OutFailureReason 可选输出参数，用于返回创建失败原因
 	 * @param OutFailureMessage 可选输出参数，用于返回创建失败描述
 	 * @param bOutFailureLogged 可选输出参数，用于标记失败是否已在内部记录日志
@@ -569,6 +590,7 @@ protected:
 		AActor* Instigator,
 		int32 InLevel = 1,
 		const FTcsSourceHandle& ParentSourceHandle = FTcsSourceHandle(),
+		FPrimaryAssetId ParentSourceDefId = FPrimaryAssetId(),
 		ETcsStateApplyFailReason* OutFailureReason = nullptr,
 		FString* OutFailureMessage = nullptr,
 		bool* bOutFailureLogged = nullptr);

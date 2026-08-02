@@ -15,8 +15,8 @@
 
 namespace
 {
-void NormalizeEditorOptionNames(TArray<FName>& Names)
-{
+	void NormalizeEditorOptionNames(TArray<FName>& Names)
+	{
 	Names.RemoveAll([](const FName& Name)
 	{
 		return Name.IsNone();
@@ -96,4 +96,24 @@ UTcsSkillComponent *UTcsGenericLibrary::GetSkillComponent(AActor *Actor)
 		return ITcsEntityInterface::Execute_GetSkillComponent(Actor);
 	}
     return nullptr;
+}
+
+FTcsSourceHandle UTcsGenericLibrary::CreateRootSourceHandle(
+	AActor* Instigator,
+	const FGameplayTagContainer& SourceTags)
+{
+	return FTcsSourceHandleFactory::CreateRootSourceHandle(Instigator, SourceTags);
+}
+
+FTcsSourceHandle UTcsGenericLibrary::CreateChildSourceHandle(
+	const FTcsSourceHandle& ParentSourceHandle,
+	FPrimaryAssetId DirectParentSourceDefId,
+	AActor* Instigator,
+	const FGameplayTagContainer& SourceTags)
+{
+	return FTcsSourceHandleFactory::CreateChildSourceHandle(
+		ParentSourceHandle,
+		DirectParentSourceDefId,
+		Instigator,
+		SourceTags);
 }

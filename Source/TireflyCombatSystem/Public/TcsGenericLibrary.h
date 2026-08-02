@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
+#include "TcsSourceHandle.h"
 #include "TcsGenericLibrary.generated.h"
 
 
@@ -58,6 +59,41 @@ public:
 	// 获取技能组件
 	UFUNCTION(BlueprintCallable, Category = "TireflyCombatSystem|Skill")
 	static class UTcsSkillComponent* GetSkillComponent(AActor* Actor);
+
+#pragma endregion
+
+
+	// SourceHandle 工厂转发
+#pragma region SourceHandleHelper
+
+public:
+	/**
+	 * 创建没有父来源的 Root SourceHandle。
+	 *
+	 * @param Instigator 实际造成效果的运行时 Actor。
+	 * @param SourceTags Source 类型标签。
+	 * @return 返回新创建的有效 SourceHandle。
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "TireflyCombatSystem|SourceHandle")
+	static FTcsSourceHandle CreateRootSourceHandle(
+		AActor* Instigator,
+		const FGameplayTagContainer& SourceTags);
+
+	/**
+	 * 创建从父来源派生的 Child SourceHandle。
+	 *
+	 * @param ParentSourceHandle 父来源句柄。
+	 * @param DirectParentSourceDefId 直接父来源的 Definition Id。
+	 * @param Instigator 实际造成效果的运行时 Actor。
+	 * @param SourceTags Source 类型标签。
+	 * @return 返回新创建的有效 SourceHandle；输入无效时返回默认无效 SourceHandle。
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "TireflyCombatSystem|SourceHandle")
+	static FTcsSourceHandle CreateChildSourceHandle(
+		const FTcsSourceHandle& ParentSourceHandle,
+		FPrimaryAssetId DirectParentSourceDefId,
+		AActor* Instigator,
+		const FGameplayTagContainer& SourceTags);
 
 #pragma endregion
 };

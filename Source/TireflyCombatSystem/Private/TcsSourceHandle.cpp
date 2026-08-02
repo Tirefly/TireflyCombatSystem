@@ -4,6 +4,44 @@
 
 
 
+namespace
+{
+	int32 NextSourceHandleId = -1;
+}
+
+
+
+FTcsSourceHandle FTcsSourceHandleFactory::CreateRootSourceHandle(
+	AActor* Instigator,
+	const FGameplayTagContainer& SourceTags)
+{
+	return FTcsSourceHandle(++NextSourceHandleId, TArray<FPrimaryAssetId>(), Instigator, SourceTags);
+}
+
+FTcsSourceHandle FTcsSourceHandleFactory::CreateChildSourceHandle(
+	const FTcsSourceHandle& ParentSourceHandle,
+	const FPrimaryAssetId& DirectParentSourceDefId,
+	AActor* Instigator,
+	const FGameplayTagContainer& SourceTags)
+{
+	if (!ParentSourceHandle.IsValid() || !DirectParentSourceDefId.IsValid())
+	{
+		return FTcsSourceHandle();
+	}
+
+	TArray<FPrimaryAssetId> ChildCausalityChain = ParentSourceHandle.CausalityChain;
+	ChildCausalityChain.Add(DirectParentSourceDefId);
+
+	return FTcsSourceHandle(++NextSourceHandleId, ChildCausalityChain, Instigator, SourceTags);
+}
+
+#if WITH_AUTOMATION_TESTS
+void FTcsSourceHandleFactory::ResetForTests()
+{
+	NextSourceHandleId = -1;
+}
+#endif
+
 bool FTcsSourceHandle::NetSerialize(FArchive& Ar, UPackageMap* Map, bool& bOutSuccess)
 {
 	// 序列化 ID
