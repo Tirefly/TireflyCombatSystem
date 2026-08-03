@@ -24,7 +24,7 @@ namespace
 
 
 
-bool UTcsAttributeComponent::AddAttribute(FName AttributeName, float InitValue)
+bool UTcsAttributeComponent::AddAttribute(FName AttributeName)
 {
 	if (!IsRuntimePrepared())
 	{
@@ -53,7 +53,7 @@ bool UTcsAttributeComponent::AddAttribute(FName AttributeName, float InitValue)
 		return false;
 	}
 
-	FTcsAttributeInstance AttrInst = FTcsAttributeInstance(AttrDef, AttributeName, AllocateAttributeInstanceId(), GetOwner(), InitValue);
+	FTcsAttributeInstance AttrInst = FTcsAttributeInstance(AttrDef, AttributeName, AllocateAttributeInstanceId(), GetOwner());
 	Attributes.Add(AttributeName, AttrInst);
 
 	// Clamp initialization values to the configured range (static or dynamic).
@@ -127,7 +127,7 @@ void UTcsAttributeComponent::AddAttributes(const TArray<FName>& AttributeNames)
 	}
 }
 
-bool UTcsAttributeComponent::AddAttributeByTag(const FGameplayTag& AttributeTag, float InitValue)
+bool UTcsAttributeComponent::AddAttributeByTag(const FGameplayTag& AttributeTag)
 {
 	if (!IsRuntimePrepared())
 	{
@@ -151,10 +151,7 @@ bool UTcsAttributeComponent::AddAttributeByTag(const FGameplayTag& AttributeTag,
 		return false;
 	}
 
-	AddAttribute(AttributeName, InitValue);
-
-	// 验证是否真的添加成功
-	return Attributes.Contains(AttributeName);
+	return AddAttribute(AttributeName);
 }
 
 bool UTcsAttributeComponent::SetAttributeBaseValue(FName AttributeName, float NewValue, bool bTriggerEvents)
@@ -210,143 +207,6 @@ bool UTcsAttributeComponent::SetAttributeBaseValue(FName AttributeName, float Ne
 		*AttributeName.ToString(),
 		OldValue,
 		Attribute->BaseValue,
-		*GetPathName());
-
-	return true;
-}
-
-bool UTcsAttributeComponent::SetAttributeCurrentValue(FName AttributeName, float NewValue, bool bTriggerEvents)
-{
-	if (!IsRuntimePrepared())
-	{
-		return LogAttributeRuntimeNotReady_AttrInstance(this, TEXT(__FUNCTION__));
-	}
-
-	if (AttributeName.IsNone())
-	{
-		UE_LOG(LogTcsAttribute, Error, TEXT("[%s] Invalid AttributeName"), *FString(__FUNCTION__));
-		return false;
-	}
-
-	FTcsAttributeInstance* Attribute = Attributes.Find(AttributeName);
-	if (!Attribute)
-	{
-		UE_LOG(LogTcsAttribute, Error,
-			TEXT("[%s] Attribute '%s' not found on '%s'"),
-			*FString(__FUNCTION__),
-			*AttributeName.ToString(),
-			*GetPathName());
-		return false;
-	}
-
-	// 保存旧值
-	float OldValue = Attribute->CurrentValue;
-	TMap<FName, float> PreviousBaseValues;
-	TMap<FName, float> PreviousCurrentValues;
-	if (bTriggerEvents)
-	{
-		PreviousBaseValues = GetAttributeBaseValues();
-		PreviousCurrentValues = GetAttributeValues();
-	}
-
-	// 设置新值并 Clamp
-	Attribute->CurrentValue = NewValue;
-	ClampAttributeValueInRange(AttributeName, Attribute->CurrentValue);
-
-	// 传播动态范围约束（该属性值变化可能影响其他属性的动态范围边界）
-	TSet<FName> DirtyAttributes;
-	DirtyAttributes.Add(AttributeName);
-	EnforceAttributeRangeConstraints(DirtyAttributes, false);
-
-	// 触发事件
-	if (bTriggerEvents && !FMath::IsNearlyEqual(OldValue, Attribute->CurrentValue))
-	{
-		BroadcastAttributeStateDiffs(PreviousBaseValues, PreviousCurrentValues);
-	}
-
-	UE_LOG(LogTcsAttribute, Verbose,
-		TEXT("[%s] Set attribute '%s' CurrentValue from %.2f to %.2f on '%s'"),
-		*FString(__FUNCTION__),
-		*AttributeName.ToString(),
-		OldValue,
-		Attribute->CurrentValue,
-		*GetPathName());
-
-	return true;
-}
-
-bool UTcsAttributeComponent::ResetAttribute(FName AttributeName)
-{
-	if (!IsRuntimePrepared())
-	{
-		return LogAttributeRuntimeNotReady_AttrInstance(this, TEXT(__FUNCTION__));
-	}
-
-	if (AttributeName.IsNone())
-	{
-		UE_LOG(LogTcsAttribute, Error, TEXT("[%s] Invalid AttributeName"), *FString(__FUNCTION__));
-		return false;
-	}
-
-	FTcsAttributeInstance* Attribute = Attributes.Find(AttributeName);
-	if (!Attribute)
-	{
-		UE_LOG(LogTcsAttribute, Error,
-			TEXT("[%s] Attribute '%s' not found on '%s'"),
-			*FString(__FUNCTION__),
-			*AttributeName.ToString(),
-			*GetPathName());
-		return false;
-	}
-
-	// 获取初始值（恢复到 AddAttribute 时传入的初始值）
-	float InitValue = Attribute->InitialValue;
-
-	// 移除所有应用到该属性的修改器
-	TArray<FTcsAttributeModifierInstance> ModifiersToRemove;
-	for (const FTcsAttributeModifierInstance& Modifier : AttributeModifiers)
-	{
-		if (!Modifier.ModifierDef)
-		{
-			continue;
-		}
-		const UTcsAttributeModifierDefinition* ModDef = Modifier.ModifierDef;
-		if (ModDef && ModDef->AttributeId == AttributeName)
-		{
-			ModifiersToRemove.Add(Modifier);
-		}
-	}
-	if (ModifiersToRemove.Num() > 0)
-	{
-		RemoveModifier(ModifiersToRemove);
-	}
-
-	TMap<FName, float> PreviousBaseValues = GetAttributeBaseValues();
-	TMap<FName, float> PreviousCurrentValues = GetAttributeValues();
-
-	// 重置 Base 和 Current 值
-	float OldBase = Attribute->BaseValue;
-	float OldCurrent = Attribute->CurrentValue;
-	Attribute->BaseValue = InitValue;
-	Attribute->CurrentValue = InitValue;
-
-	// Clamp 值
-	ClampAttributeValueInRange(AttributeName, Attribute->BaseValue);
-	ClampAttributeValueInRange(AttributeName, Attribute->CurrentValue);
-	EnforceAttributeRangeConstraints(false);
-
-	// 触发事件
-	if (!FMath::IsNearlyEqual(OldBase, Attribute->BaseValue)
-		|| !FMath::IsNearlyEqual(OldCurrent, Attribute->CurrentValue))
-	{
-		BroadcastAttributeStateDiffs(PreviousBaseValues, PreviousCurrentValues);
-	}
-
-	UE_LOG(LogTcsAttribute, Log,
-		TEXT("[%s] Reset attribute '%s' to initial value %.2f on '%s'"),
-		*FString(__FUNCTION__),
-		*AttributeName.ToString(),
-		InitValue,
 		*GetPathName());
 
 	return true;

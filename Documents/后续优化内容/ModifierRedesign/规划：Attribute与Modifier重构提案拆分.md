@@ -1,6 +1,6 @@
 # 规划：Attribute 与 Modifier 重构提案拆分
 
-> 状态：规划中。本文只定义后续 OpenSpec change 的拆分边界、依赖关系与创建顺序；当前不创建 change，也不替代主设计文档中的行为契约。
+> 状态：执行中。`centralize-source-handle-creation` 已完成实现、规格校验、原生编译和定向自动化测试，尚待单独归档；其余 change 仍按本文定义的边界与依赖顺序推进。本文不替代主设计文档中的行为契约。
 >
 > 关联主方案：[设计：Modifier操作数与AttributeOperation模型（待审核）.md](设计：Modifier操作数与AttributeOperation模型（待审核）.md)。
 >
@@ -29,6 +29,14 @@
 ```text
 centralize-source-handle-creation
 ```
+
+### 2.0 当前实施状态
+
+- 已创建并完成 `openspec/changes/centralize-source-handle-creation/` 的 proposal、design、tasks 与 delta specs。
+- 已实现无状态静态 `FTcsSourceHandleFactory`、Root / Child API、`Id == 0` 有效性、`UTcsGenericLibrary` Blueprint authority 转发，以及无对象反查注册表边界。
+- 已删除 `UTcsStateComponent::CreateSourceHandle` 与 `NextSourceHandleId`，并迁移现有 State / Skill 来源创建路径。
+- 已通过 `openspec validate centralize-source-handle-creation --strict --no-interactive`、`TireflyGameplayUtilsEditor Win64 Development` 编译、Glue / 用户脚本编译和 4 个 `TireflyCombatSystem.SourceHandle` 自动化测试。
+- 本 change 的 tasks 已全部完成，但尚未归档；归档前 `openspec/specs/` 仍是当前权威基线，不能把 delta 当作已归档事实。
 
 ### 2.1 范围
 
@@ -68,7 +76,7 @@ simplify-attribute-value-lifecycle
 - BaseValue 与 CurrentValue 使用同一个 AttributeRange 和同一 ClampStrategy。
 - 动态 Min / Max 只读取同一 AttributeComponent 中依赖 Attribute 的 CurrentValue。
 - 临时容量降低时，将资源的 BaseValue 与 CurrentValue 一并 Clamp；超限部分永久丢失。
-- 明确并实现 `SetAttributeCurrentValue` 的最终边界。
+- 删除 `SetAttributeCurrentValue`，不保留受限底层校正 API。
 - 更新 `attribute-management` 规格和现有 public API 扩展点描述。
 
 ### 3.2 非目标
@@ -81,6 +89,10 @@ simplify-attribute-value-lifecycle
 ### 3.3 独立原因
 
 Attribute 数值状态、CRUD 与 Clamp 生命周期不依赖新的 Modifier Operation 模型。现有 `attribute-management` 规格仍包含 `AddAttribute(Name, InitValue)`、`ResetAttribute` 与相关 virtual API，适合先独立收敛并形成清晰的 Attribute 底盘。
+
+### 3.4 当前创建状态
+
+`SetAttributeCurrentValue` 已确认删除。当前代码搜索只发现测试 Director 的一处调用，未发现 Attribute Core、State、Buff、Skill 或 Modifier 运行时对它的直接业务依赖；该调用应迁移为明确的 BaseValue fixture 设置。`simplify-attribute-value-lifecycle` 现在可以创建 proposal、tasks 与完整 delta。
 
 ## 4. Change 3：AttributeModifier Operation 重构
 
@@ -230,7 +242,7 @@ add-tcs-damage-runtime
 ```text
 完成并归档重叠的活动 change
   |
-  +-- centralize-source-handle-creation
+  +-- centralize-source-handle-creation（已实现，待归档）
   |
   +-- simplify-attribute-value-lifecycle
   |
@@ -252,7 +264,7 @@ add-tcs-damage-runtime
 
 ### 8.1 Change 2 阻塞项
 
-- `SetAttributeCurrentValue` 是删除，还是保留为受限底层校正 API。
+- 无。`SetAttributeCurrentValue` 已确认删除；业务初始化、读档、等级变化和资源恢复使用明确的 BaseValue 写入，伤害、治疗和周期结算等待后续 Instant AttributeModifier 入口。
 
 ### 8.2 Change 3 阻塞项
 
@@ -291,8 +303,8 @@ OpenSpec 约束提醒：只要一个现有 Requirement 需要增加、删除或�
 
 | 规划 change | 当前 specs 明确需要 MODIFIED / REMOVED / RENAMED | 当前 specs 需 ADDED 或机械性补充 | 活动 changes 归档后会强化的旧语义 | 备注 |
 | --- | ---: | ---: | ---: | --- |
-| SourceHandle 统一工厂 | 3 个 Requirement / 3 个明确变化 Scenario；完整 delta 需携带 11 个 Scenario | 至少 3 个新 Requirement / 约 10 个 Scenario | 0 个明确冲突 delta | 重点是静态工厂、Id `0` 合法、Root / Child、无对象注册表。 |
-| Attribute 数值生命周期收敛 | 2 个 Requirement / 1 个明确变化 Scenario；另有 1 个 Requirement / 1 个 Scenario 取决于 `SetAttributeCurrentValue` 决策 | Clamp / 容量损失 / 无初始基线等主要为 ADDED | 0 个明确冲突 delta | 创建 Change 2 前必须先定 `SetAttributeCurrentValue`。 |
+| SourceHandle 统一工厂 | 3 个 Requirement / 3 个明确变化 Scenario；完整 delta 需携带 11 个 Scenario | 至少 3 个新 Requirement / 约 10 个 Scenario | 0 个明确冲突 delta | `centralize-source-handle-creation` 已实现且 tasks 完成，待单独归档；重点是静态工厂、Id `0` 合法、Root / Child、无对象注册表。 |
+| Attribute 数值生命周期收敛 | 3 个 Requirement / 3 个明确变化 Scenario；完整 delta 需携带 5 个 Scenario | 3 个新 Requirement / 9 个 Scenario | 0 个明确冲突 delta | `SetAttributeCurrentValue` 已确认删除；`simplify-attribute-value-lifecycle` 已创建，需覆盖无初始基线、统一 Clamp、容量降低永久损失和测试 Director 迁移。 |
 | AttributeModifier Operation 重构 | 约 7 个 Requirement / 10 个 Scenario 明确过期或冲突；约 4 个 Requirement / 6 个 Scenario 取决于新 ID 与 EvaluatorContext 决策 | def-editor-authoring 需 1 个机械性 MODIFIED Requirement 追加 2 个 Scenario，并新增 3 个 Requirement / 8 个 Scenario；调用方规格主要为 ADDED | 至少 4 个活动 delta Requirement / 6 个 Scenario 归档后需由 Change 3 修改或移除 | 当前影响最大，必须分散到 `attribute-modifier-runtime`、`attribute-management`、`def-editor-authoring`、必要的 `skill-runtime` / `buff-runtime`。 |
 | Ongoing 依赖链自动重算 | 当前基线直接计数 0；语义血缘上会替代旧 `RecalculateAttributeCurrentValues` 的 1 个 Requirement / 2 个 Scenario | 依赖键、Revision、Dirty、Flush、拓扑与循环检测主要为 ADDED | 取决于 Change 3 归档后的新 Ongoing 惰性重算 Requirement | Change 4 必须修改 Change 3 之后的规格，不能直接针对旧 OperandBindings 写 delta。 |
 | TCS 伤害模块 | 0 | 新伤害 capability 主要为 ADDED | 0 | 当前没有 Damage 规格；不要修改 AttributeModifier 通用 Instant 语义来表达伤害业务。 |
@@ -340,12 +352,11 @@ OpenSpec 约束提醒：只要一个现有 Requirement 需要增加、删除或�
 - 旧场景使用 `AddAttribute(Name, InitValue)`；新场景应验证无初始数值参数的 AddAttribute 仍通过 DefinitionManager 解析定义。
 
 - `Requirement: 通过 Virtual 明确 Public Component API 的扩展点`：MODIFIED。
-- 至少删除 `ResetAttribute` 作为 public virtual 扩展点的正向契约。
-- `SetAttributeCurrentValue` 是否继续列入该 Requirement，取决于 Change 2 创建前的最终决策。
+- 删除 `ResetAttribute` 与 `SetAttributeCurrentValue` 作为 public virtual 扩展点的正向契约。
 - 现有两个 Scenario 本身不直接验证 `ResetAttribute`，但完整 MODIFIED 区块必须原样或等价携带。
 
-- `Requirement: Attribute Component 拥有 Actor 本地 Attribute 业务逻辑`：待决。
-- 如果删除 `SetAttributeCurrentValue`，或将其改成不再走统一 ClampStrategy 的受限底层 API，则 `Scenario: 子类扩展夹值策略` 必须同步修改。
+- `Requirement: Attribute Component 拥有 Actor 本地 Attribute 业务逻辑`：MODIFIED。
+- `Scenario: 子类扩展夹值策略` 必须删除 `SetAttributeCurrentValue`，并改为验证 AddAttribute 占位值、SetAttributeBaseValue 与 modifier / range 传播路径。
 
 - `Requirement: Attribute 夹值绑定到单一 Component 作用域`：保持现有语义，另用 ADDED Requirements 补充 Base / Current 共用 Range、动态 Min / Max 读取 CurrentValue、容量降低永久损失等规则。
 

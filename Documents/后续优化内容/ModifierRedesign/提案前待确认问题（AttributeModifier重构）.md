@@ -17,6 +17,7 @@
 - `FTcsAttributeInstance` 删除 `InitValue` / `InitialValue` 等创建时数值基线；数值状态只保留 `BaseValue` 和 `CurrentValue`。
 - `AddAttribute` 不接收初始数值；业务层根据数据表、等级、存档或角色配置写入 BaseValue。
 - 删除 `ResetAttribute`；重生、回档、等级回退与资源恢复属于业务层语义。
+- 删除 `SetAttributeCurrentValue`；它不是初始化、伤害、治疗或周期结算的正常入口，业务层必须选择 BaseValue 写入或后续 Instant AttributeModifier 结算。
 - `Damage` 不是 Attribute Core 内置 Meta Attribute；后续独立伤害模块负责 `ApplyDamageToTarget -> DamageAmountCalculation -> ApplyAttributeModifier(Instant)`。
 - 所有影响结算、调试或未来网络确定性的 Operation 遍历必须按 `OperationId` 稳定排序。
 - 多 Operation Ongoing Modifier 使用 `NoMerge` 始终合法；内建选择 / 聚合 Merger 不得猜测整组或逐 Operation 语义。
@@ -155,6 +156,12 @@ AttributeModifier DataTableRow 必须与新的 DefinitionAsset 非标识 UPROPER
 旧 `AttributeId + ModifierMode + Operands + ModifierType + MergerType` Row 结构、旧 DataTable 行和旧 DefinitionAsset 不保留兼容或自动迁移；当前处于开发阶段，相关测试资产可直接重新创建。`FInstancedStruct` 已是现有 DataTable ↔ DefAsset 同步支持的直接映射类型，Operation Map 的编辑与同步只需在实现时补充一次实际编辑器验证。
 
 `add-def-strategy-defaults-and-validation` 与本重构修改同一 AttributeModifier Definition / Row 同步面。本重构 proposal 必须在该 change 完成并归档后创建，避免旧默认化逻辑或同步映射回写已删除字段。
+
+### 2.15 SetAttributeCurrentValue 的最终边界（已确认）
+
+删除 `SetAttributeCurrentValue`，不保留受限底层校正 API、Blueprint 包装或兼容入口。`CurrentValue` 只能由 BaseValue、Ongoing 聚合与统一 Range Clamp 推导；业务层初始化、读档、等级变化或资源恢复必须显式写入相应 Attribute 的 BaseValue。
+
+伤害、治疗与周期结算不以直接写 CurrentValue 作为过渡路径；在 Change 3 稳定 Instant AttributeModifier 入口之前，它们不属于 Attribute Core 的内置业务能力。当前代码搜索只发现测试 Director 的一处 `SetAttributeCurrentValue` 调用，应在 Attribute 生命周期 change 中迁移为明确的 BaseValue fixture 设置。
 
 ## 3. 可在 proposal 内细化
 

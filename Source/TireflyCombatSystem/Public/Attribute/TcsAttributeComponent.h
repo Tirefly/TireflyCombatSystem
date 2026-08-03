@@ -291,13 +291,10 @@ public:
 	 * 给当前战斗实体添加属性。
 	 *
 	 * @param AttributeName 属性名称
-	 * @param InitValue 初始值
 	 * @return 是否成功添加
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Attribute")
-	virtual bool AddAttribute(
-		UPARAM(Meta = (GetParamOptions = "TcsGenericLibrary.GetAttributeNames"))FName AttributeName,
-		float InitValue = 0.f);
+	virtual bool AddAttribute(UPARAM(Meta = (GetParamOptions = "TcsGenericLibrary.GetAttributeNames"))FName AttributeName);
 
 	/**
 	 * 批量给当前战斗实体添加属性。
@@ -311,11 +308,10 @@ public:
 	 * 通过 GameplayTag 给战斗实体添加属性（非 virtual，通过 Tag 解析后调用 AddAttribute）
 	 *
 	 * @param AttributeTag 属性的 GameplayTag 标识
-	 * @param InitValue 初始值
 	 * @return 是否成功添加（Tag 有效、在映射中注册、且属性不存在时返回 true）
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Attribute")
-	bool AddAttributeByTag(const FGameplayTag& AttributeTag, float InitValue = 0.f);
+	bool AddAttributeByTag(const FGameplayTag& AttributeTag);
 
 	/**
 	 * 直接设置属性的 Base 值
@@ -330,30 +326,6 @@ public:
 		UPARAM(Meta = (GetParamOptions = "TcsGenericLibrary.GetAttributeNames"))FName AttributeName,
 		float NewValue,
 		bool bTriggerEvents = true);
-
-	/**
-	 * 直接设置属性的 Current 值
-	 *
-	 * @param AttributeName 属性名称
-	 * @param NewValue 新的 Current 值
-	 * @param bTriggerEvents 是否触发事件（默认 true）
-	 * @return 是否成功设置
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Attribute")
-	virtual bool SetAttributeCurrentValue(
-		UPARAM(Meta = (GetParamOptions = "TcsGenericLibrary.GetAttributeNames"))FName AttributeName,
-		float NewValue,
-		bool bTriggerEvents = true);
-
-	/**
-	 * 重置属性到定义的初始值
-	 *
-	 * @param AttributeName 属性名称
-	 * @return 是否成功重置
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Attribute")
-	virtual bool ResetAttribute(
-		UPARAM(Meta = (GetParamOptions = "TcsGenericLibrary.GetAttributeNames"))FName AttributeName);
 
 	/**
 	 * 移除属性和所有属性相关的修改器

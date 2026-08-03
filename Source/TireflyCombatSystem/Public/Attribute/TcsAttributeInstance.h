@@ -33,10 +33,6 @@ public:
 	UPROPERTY(BlueprintReadOnly)
 	TWeakObjectPtr<AActor> Owner;
 
-	// 初始值（AddAttribute 时传入，用于 ResetAttribute 恢复）
-	UPROPERTY(BlueprintReadOnly)
-	float InitialValue = 0.0f;
-
 	// 基础值
 	UPROPERTY(BlueprintReadOnly)
 	float BaseValue = 0.0f;
@@ -48,11 +44,16 @@ public:
 public:
 	FTcsAttributeInstance() {}
 
-	FTcsAttributeInstance(const UTcsAttributeDefinition* InAttrDefAsset, FName InAttrDefId, int32 InstId, AActor* InOwner)
-		: AttributeDef(InAttrDefAsset), AttributeDefId(InAttrDefId), AttributeInstId(InstId), Owner(InOwner), InitialValue(0.f), BaseValue(0.f), CurrentValue(0.f)
-	{}
-
-	FTcsAttributeInstance(const UTcsAttributeDefinition* InAttrDefAsset, FName InAttrDefId, int32 InstId, AActor* InOwner, float InitValue)
-		: AttributeDef(InAttrDefAsset), AttributeDefId(InAttrDefId), AttributeInstId(InstId), Owner(InOwner), InitialValue(InitValue), BaseValue(InitValue), CurrentValue(InitValue)
+	FTcsAttributeInstance(
+		const UTcsAttributeDefinition* InAttrDefAsset,
+		FName InAttrDefId,
+		int32 InstId,
+		AActor* InOwner)
+		: AttributeDef(InAttrDefAsset)
+		, AttributeDefId(InAttrDefId)
+		, AttributeInstId(InstId)
+		, Owner(InOwner)
+		, BaseValue(0.f)
+		, CurrentValue(0.f)
 	{}
 };

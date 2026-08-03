@@ -304,7 +304,7 @@ CurrentValue  // 由 BaseValue 与全部 Ongoing 贡献聚合得到的当前有�
 3. SetAttributeBaseValue(AttributeDefId, CalculatedBaseValue)
 ```
 
-例如，创建角色、读档或等级变化时，业务层分别为 `MaxHealth` 与 `CurrentHealth` 设置各自应有的 BaseValue；若没有 Ongoing 直接作用于 `CurrentHealth`，则其 `CurrentValue` 自然等于 BaseValue。`SetAttributeCurrentValue` 不属于本方案中 Attribute 初始化、伤害、治疗或周期结算的正常入口；是否保留它作为受限的底层校正 API，留待后续独立决策。
+例如，创建角色、读档或等级变化时，业务层分别为 `MaxHealth` 与 `CurrentHealth` 设置各自应有的 BaseValue；若没有 Ongoing 直接作用于 `CurrentHealth`，则其 `CurrentValue` 自然等于 BaseValue。删除 `SetAttributeCurrentValue`，它不属于 Attribute 初始化、伤害、治疗或周期结算的正常入口；需要改变业务数值时，业务层必须明确选择 BaseValue 写入或后续的 Instant AttributeModifier 结算。
 
 资源属性始终按当前有效最大值 Clamp。临时 Max 类 Ongoing 贡献移除并降低有效上限时，AttributeRange 必须将资源的 BaseValue 与 CurrentValue 一并截断至新上限；超出部分永久丢失，不保存隐藏溢出，也不在容量恢复时返还。
 
