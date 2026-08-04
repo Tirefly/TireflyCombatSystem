@@ -103,25 +103,13 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Attribute Modifier")
 	int32 Priority = 0;
 
-	/** 目标属性定义 ID。 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Attribute Modifier")
-	FName AttributeId = NAME_None;
-
-	/** 修改模式。 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Attribute Modifier")
-	ETcsAttributeModifierMode ModifierMode = ETcsAttributeModifierMode::AMM_CurrentValue;
-
-	/** 修改器操作数。 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Attribute Modifier")
-	TMap<FName, float> Operands;
-
-	/** 修改器执行器类型。 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Attribute Modifier")
-	TSubclassOf<class UTcsAttributeModifierExecution> ModifierType;
-
 	/** 修改器合并器类型。 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Attribute Modifier")
 	TSubclassOf<class UTcsAttributeModifierMerger> MergerType;
+
+	/** 以稳定 OperationId 为 Key 的属性修改操作配置。 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Attribute Modifier")
+	TMap<FName, FTcsAttributeOperationSpec> Operations;
 };
 
 

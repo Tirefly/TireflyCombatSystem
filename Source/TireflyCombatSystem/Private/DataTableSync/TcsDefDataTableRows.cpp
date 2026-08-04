@@ -359,11 +359,8 @@ bool TryBuildDefAssetDataTableRow(const UPrimaryDataAsset* DefAsset, FName& OutR
 		Row.ModifierName = AttributeModifierDefinition->ModifierName;
 		Row.Tags = AttributeModifierDefinition->Tags;
 		Row.Priority = AttributeModifierDefinition->Priority;
-		Row.AttributeId = AttributeModifierDefinition->AttributeId;
-		Row.ModifierMode = AttributeModifierDefinition->ModifierMode;
-		Row.Operands = AttributeModifierDefinition->Operands;
-		Row.ModifierType = AttributeModifierDefinition->ModifierType;
 		Row.MergerType = AttributeModifierDefinition->MergerType;
+		Row.Operations = AttributeModifierDefinition->Operations;
 		NormalizeAttributeModifierDefRowDefaults(Row);
 		OutRowData = FInstancedStruct::Make(Row);
 		return true;
@@ -481,11 +478,8 @@ bool TryApplyDefAssetDataTableRow(const FName RowName, const FInstancedStruct& R
 		AttributeModifierDefinition->ModifierName = Row->ModifierName;
 		AttributeModifierDefinition->Tags = Row->Tags;
 		AttributeModifierDefinition->Priority = Row->Priority;
-		AttributeModifierDefinition->AttributeId = Row->AttributeId;
-		AttributeModifierDefinition->ModifierMode = Row->ModifierMode;
-		AttributeModifierDefinition->Operands = Row->Operands;
-		AttributeModifierDefinition->ModifierType = Row->ModifierType;
 		AttributeModifierDefinition->MergerType = Row->MergerType;
+		AttributeModifierDefinition->Operations = Row->Operations;
 		if (!AttributeModifierDefinition->MergerType)
 		{
 			AttributeModifierDefinition->MergerType = UTcsAttrModMerger_NoMerge::StaticClass();

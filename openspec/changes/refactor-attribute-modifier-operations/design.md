@@ -35,6 +35,7 @@ OperandPayload -- OperandEvaluator --> EvaluatedOperand -- Operator --> Attribut
 - `FInstancedStruct` 只承载 OperandPayload。
 - Definition 使用 `TMap<FName, FTcsAttributeOperationSpec>`，Key 为稳定 `OperationId`。
 - Operation 保存 `TargetAttributeId`、内建 Operator 或 Custom Operator、Evaluator、OperandPayload。
+- Operation Spec 构造时默认 `UTcsAttributeModifierConstantOperandEvaluator` 与 `FTcsAttributeConstantOperandPayload`；Operator 保持 `AMO_None`，Custom Operator 不提供默认值。
 - Application 只允许覆写 Evaluator 与 Payload，不得覆写 Operator、目标、Priority 或 Merger。
 - 所有影响结果 / 调试 / 确定性的 Operation 遍历按 `OperationId` 稳定排序。
 
@@ -150,7 +151,7 @@ Owner 侧 StateTree Task 迁移到 `ApplyAttributeModifier` Request 模型。
 
 ## 迁移计划
 
-1. 落地 Operation Definition / Payload / Evaluator / Operator 类型与 Def/Row 同步。
+1. 落地 Operation Spec / Payload / Evaluator / Operator 类型与 Def/Row 同步。
 2. 实现 Snapshot、ApplicationRequest/Result、ApplyAttributeModifier Instant/Ongoing。
 3. 重写 Ongoing 存储索引、Merger 输入语义与兼容设置。
 4. 删除旧 Execution / Bindings / Apply API / Target StateTree Task。

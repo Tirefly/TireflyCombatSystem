@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
 #include "GameplayTagContainer.h"
-#include "TcsAttributeModifier.h"
+#include "Attribute/AttrModOperation/TcsAttributeModifierOperation.h"
 #include "TcsAttributeModifierDefinition.generated.h"
 
 
@@ -70,17 +70,10 @@ public:
 	int32 Priority = 0;
 
 	/**
-	 * 修改器要修改的属性定义 ID
+	 * 修改器合并器
 	 */
-	UPROPERTY(Meta = (GetOptions = "TcsGenericLibrary.GetAttributeNames"),
-		EditAnywhere, BlueprintReadOnly, Category = "Modifier")
-	FName AttributeId = NAME_None;
-
-	/**
-	 * 修改器修改属性的方式
-	 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Modifier")
-	ETcsAttributeModifierMode ModifierMode = ETcsAttributeModifierMode::AMM_CurrentValue;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Operation")
+	TSubclassOf<class UTcsAttributeModifierMerger> MergerType;
 
 #pragma endregion
 
@@ -88,23 +81,12 @@ public:
 #pragma region Operation
 
 public:
-	/**
-	 * 修改器操作数
-	 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Operation")
-	TMap<FName, float> Operands;
 
 	/**
-	 * 修改器执行器
+	 * 以稳定 OperationId 为 Key 的属性修改操作配置
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Operation")
-	TSubclassOf<class UTcsAttributeModifierExecution> ModifierType;
-
-	/**
-	 * 修改器合并器
-	 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Operation")
-	TSubclassOf<class UTcsAttributeModifierMerger> MergerType;
+	TMap<FName, FTcsAttributeOperationSpec> Operations;
 
 #pragma endregion
 

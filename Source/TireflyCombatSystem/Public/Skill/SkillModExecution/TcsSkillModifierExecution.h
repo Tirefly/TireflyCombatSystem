@@ -65,7 +65,7 @@ struct TIREFLYCOMBATSYSTEM_API FTcsSkillModifierVectorConfig
 /**
  * Numeric 类型 SkillModifier 执行策略基类。
  *
- * 对标 UTcsAttributeModifierExecution 的 CDO 策略模式。
+ * 使用 CDO 策略模式执行 Numeric 类型的参数修改。
  */
 UCLASS(Abstract, Blueprintable)
 class TIREFLYCOMBATSYSTEM_API UTcsStateParamNumericModifierExecution : public UObject

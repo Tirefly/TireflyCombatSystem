@@ -1,9 +1,9 @@
 ## 1. Definition / Operation / DataTable 模型
-- [ ] 1.1 新增 `FTcsAttributeOperationSpec`、OperandPayload 基类型、Numeric Evaluator 与 Operator（内建枚举 + Custom Operator）类型。
-- [ ] 1.2 将 `UTcsAttributeModifierDefinition` 改为 `Operations` Map + Merger/Priority/Tags 等定义字段；删除 `AttributeId`、`ModifierMode`、`Operands`、`ModifierType`。
-- [ ] 1.3 重建 `FTcsAttributeModifierDefRow` 与 Def 非标识字段 1:1，并更新双向 Sync 直接赋值。
-- [ ] 1.4 删除 `UTcsAttributeModifierExecution` 与内建 Execution 实现，迁移内建运算到新 Operator 路径。
-- [ ] 1.5 更新 DefAsset 默认值：`MergerType` 仍默认 `NoMerge`；不再默认化 Operator/Custom Operator/Payload。
+- [x] 1.1 新增 `FTcsAttributeOperationSpec`、OperandPayload 基类型、Numeric Evaluator 与 Operator（内建枚举 + Custom Operator）类型。
+- [x] 1.2 将 `UTcsAttributeModifierDefinition` 改为 `Operations` Map + Merger/Priority/Tags 等定义字段；删除 `AttributeId`、`ModifierMode`、`Operands`、`ModifierType`。
+- [x] 1.3 重建 `FTcsAttributeModifierDefRow` 与 Def 非标识字段 1:1，并更新双向 Sync 直接赋值。
+- [x] 1.4 删除 `UTcsAttributeModifierExecution` 与内建 Execution 实现，迁移内建运算到新 Operator 路径。
+- [x] 1.5 更新 DefAsset / Operation 默认值：`MergerType` 仍默认 `NoMerge`；Operation 默认 Constant Evaluator / Payload；不默认化 Operator / Custom Operator。
 
 ## 2. Application 入口、Snapshot 与原子结算
 - [ ] 2.1 新增 `FTcsAttributeModifierApplicationRequest` / `FTcsAttributeModifierApplicationResult` 与 `ApplyAttributeModifier(Request, OutResult)` 唯一入口。

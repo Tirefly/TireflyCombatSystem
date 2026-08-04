@@ -79,10 +79,12 @@ TCS 编辑器 authoring 集成 SHALL 在 DefAsset 级别校验受支持策略字
 - **THEN** 编辑器校验 SHALL 报告错误
 - **AND** 只有与 `TargetParamType` 匹配的 evaluator 字段才应被视为有效 authoring 输入
 
-#### Scenario: 非默认项不被强行补值
-- **WHEN** 开发者 authoring AttributeModifier Operation 的 Custom Operator、OperandPayload，或 Buff/State 的 `ActiveConditions`
-- **THEN** 编辑器 SHALL NOT 因为这些字段为空而自动注入默认值
-- **AND** 只有明确纳入默认值范围的策略字段（如 AttributeModifier `MergerType`）才参与自动归一化
+#### Scenario: Operation 默认 Operand 保持可编辑
+- **WHEN** 开发者新建 AttributeModifier Operation
+- **THEN** 系统 SHALL 默认配置 Constant Operand Evaluator 与 Constant OperandPayload
+- **AND** 系统 MUST NOT 默认配置 Operator 或 Custom Operator
+- **AND** 编辑器 MUST NOT 在后续编辑、同步或校验期间重置开发者选择的 Evaluator 或 OperandPayload
+- **AND** Buff/State 的 `ActiveConditions` 为空时，编辑器 SHALL NOT 自动注入默认值
 
 #### Scenario: StateParameter 默认值共享不替代 DefAsset 本地校验
 - **WHEN** `UTcsStateDefinition::Parameters` 或 `UTcsSkillDefinition::CooldownParam` 依赖 shared `FTcsStateParameter` 默认 evaluator 规则
