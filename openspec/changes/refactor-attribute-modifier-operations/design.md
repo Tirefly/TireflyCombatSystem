@@ -33,7 +33,7 @@ OperandPayload -- OperandEvaluator --> EvaluatedOperand -- Operator --> Attribut
 
 - AttributeModifier 固定 Numeric / `float`。
 - `FInstancedStruct` 只承载 OperandPayload。
-- Definition 使用 `TMap<FName, FTcsAttributeOperationDefinition>`，Key 为稳定 `OperationId`。
+- Definition 使用 `TMap<FName, FTcsAttributeOperationSpec>`，Key 为稳定 `OperationId`。
 - Operation 保存 `TargetAttributeId`、内建 Operator 或 Custom Operator、Evaluator、OperandPayload。
 - Application 只允许覆写 Evaluator 与 Payload，不得覆写 Operator、目标、Priority 或 Merger。
 - 所有影响结果 / 调试 / 确定性的 Operation 遍历按 `OperationId` 稳定排序。

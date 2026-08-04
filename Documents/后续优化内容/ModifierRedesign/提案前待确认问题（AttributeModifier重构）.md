@@ -1,6 +1,6 @@
 # AttributeModifier 重构：提案前待确认问题
 
-> 状态：讨论中。本文记录创建 OpenSpec change 前必须冻结的架构契约，以及可留待 proposal 设计阶段细化的事项；未标记“已确认”的建议不是冻结决策。
+> 状态：第 2 节事项已全部确认。本文记录创建 OpenSpec change 前冻结的架构契约，以及可留待 proposal 设计阶段细化的事项。
 >
 > 关联主方案：[设计：Modifier操作数与AttributeOperation模型（待审核）.md](设计：Modifier操作数与AttributeOperation模型（待审核）.md)。
 
@@ -21,6 +21,10 @@
 - `Damage` 不是 Attribute Core 内置 Meta Attribute；后续独立伤害模块负责 `ApplyDamageToTarget -> DamageAmountCalculation -> ApplyAttributeModifier(Instant)`。
 - 所有影响结算、调试或未来网络确定性的 Operation 遍历必须按 `OperationId` 稳定排序。
 - 多 Operation Ongoing Modifier 使用 `NoMerge` 始终合法；内建选择 / 聚合 Merger 不得猜测整组或逐 Operation 语义。
+- 所有 Ongoing AttributeModifier 必须经由 StateInstance 来持有和施加，不允许任何来源直接向 TargetAttributeComponent 施加 Ongoing；Instant 不受此约束。
+- Operator / Merger 兼容规则采用二元判定 `Allowed` / `Forbidden`，不引入 `AllowedWithWarning` 中间态。
+- 多 Operation + 内建选择 / 聚合 Merger 的 Data Validation 默认 Error，`TcsDeveloperSettings` 可降级为强 Warning；`NoMerge` 始终合法。
+- 保留 `ModifierInstId` 作为 Ongoing 实例稳定标识；删除 `ModifierChangeBatchId` 及其静态计数器。
 
 ## 2. 创建提案前必须确认
 
@@ -46,17 +50,17 @@ SourceHandle 不建立全局运行时对象解析或注册表。Handle 已承载
 
 SkillInstance 不得直接施加 Ongoing AttributeModifier；它可以直接施加 Instant AttributeModifier，或通过施加 Buff 使 BuffInstance 持有 Ongoing AttributeModifier。违反该规则必须硬拒绝、零修改，并在 Development / Editor 输出 Warning。
 
-### 2.4 非 Buff Ongoing 来源的生命周期契约（已确认）
+### 2.4 所有 Ongoing AttributeModifier 必须经由 StateInstance 持有与施加（已确认）
 
-装备、天赋、场景光环等持续效果允许直接持有并施加 Ongoing AttributeModifier。来源自行创建唯一 SourceHandle，Apply 后在自身生命周期结束时显式调用 `RemoveOngoingModifiersBySourceHandle(SourceHandle)` 清理；TCS 不解析、注册或观察业务来源对象。
+所有 Ongoing AttributeModifier 必须经由 StateInstance 来持有和施加，不允许任何来源直接向 TargetAttributeComponent 施加 Ongoing。装备、天赋、场景光环等持续效果必须在 owning Actor 上创建 StateInstance（首版以 BuffInstance 作为目标本地生命周期宿主），由该 StateInstance 持有并施加 Ongoing；来源自行创建唯一 SourceHandle，StateInstance 在生命周期结束时显式调用 `RemoveOngoingModifiersBySourceHandle(SourceHandle)` 清理。TCS 不解析、注册或观察业务来源对象。
 
-非 Buff 来源对同一 `ModifierDefId` 的重复 Ongoing Apply、更新或并存语义尚未确认，保留到后续讨论。
+由于所有 Ongoing 均由 StateInstance 持有，同一 StateInstance 对同一 `ModifierDefId` 最多施加一次；重复施加硬拒绝、零修改，并在 Development / Editor 输出包含 StateInstance、SourceHandle 与 ModifierDefId 的 Warning。不同 StateInstance 施加同一 `ModifierDefId` 的 Ongoing 允许并存，由各自 SourceHandle 独立管理生命周期，叠加行为由 AttributeModifierMerger 处理。
 
 ### 2.5 跨 Actor 的 Instant / Ongoing 施加路径（已确认）
 
-Ongoing AttributeModifierInstance 严格禁止直接跨 Actor 施加。跨 Actor 持续效果必须先在目标 Actor 上创建 StateInstance，首版以 BuffInstance 作为该目标本地生命周期宿主；由该 BuffInstance 在目标 AttributeComponent 上施加和结束 Ongoing。
+Ongoing AttributeModifierInstance 严格禁止直接跨 Actor 施加，也禁止不经 StateInstance 直接作用于 TargetAttributeComponent。跨 Actor 持续效果必须先在目标 Actor 上创建 StateInstance，首版以 BuffInstance 作为该目标本地生命周期宿主；由该 StateInstance 在目标 AttributeComponent 上施加和结束 Ongoing。同 Actor 的 Ongoing 也必须由 StateInstance 持有。
 
-Instant AttributeModifierInstance 允许直接作用于 TargetAttributeComponent，供后续独立伤害模块等一次性跨 Actor 结算使用；它仍必须携带有效 SourceHandle，但不依赖目标 State 或 BuffInstance。
+Instant AttributeModifierInstance 允许直接作用于 TargetAttributeComponent，供后续独立伤害模块等一次性跨 Actor 结算使用；它仍必须携带有效 SourceHandle，但不依赖目标 State 或 StateInstance。
 
 删除现有 `TcsSTTask_ApplyAttributeModifierToTarget`，不得将其限制为 Instant 或保留为跨 Actor Ongoing 的兼容入口。
 
@@ -129,8 +133,8 @@ GAS 的持续 Attribute Aggregator 不提供独立的 `UseHighest` / `UseLowest`
 DefinitionAsset 编辑器需要提供双重验证：
 
 - 先设置 Operator 再设置 Merger 时，Merger 下拉菜单只显示或只允许选择与当前 Operator 兼容的 Merger；若默认 Details 面板无法仅靠元数据完成动态过滤，则通过自定义 Detail Customization / Class Viewer Filter 实现。
-- 先设置 Merger 再设置 Operator 时，如果当前 Merger 与新 Operator 不兼容，不自动清空用户已有选择；通过 `PostEditChangeProperty` 输出编辑器告警，并在 `IsDataValid` 中使用现有 DefAsset 验证方式添加 Warning 或 Error。
-- 对无法安全执行或语义必然错误的组合使用 Error；对可运行但语义需要设计者显式确认的组合使用 Warning。
+- 先设置 Merger 再设置 Operator 时，如果当前 Merger 与新 Operator 不兼容，不自动清空用户已有选择；通过 `PostEditChangeProperty` 输出编辑器告警，并在 `IsDataValid` 中使用现有 DefAsset 验证方式报 Error。
+- Operator / Merger 兼容规则采用二元判定：`Allowed` 或 `Forbidden`；不引入 `AllowedWithWarning` 中间态。对语义必然错误或不可安全执行的组合使用 Forbidden（Data Validation 报 Error）；对可安全执行的组合使用 Allowed。`Override + UseMaximum / UseMinimum / UseAdditiveSum` 归为 Forbidden，创作者必须拆分 Operation 或改用 `UseNewest / UseOldest`。
 - 运行时 Apply / Recalculate 仍必须做兼容性检查；编辑器过滤不能作为唯一防线。
 
 推荐的 `TcsDeveloperSettings` 配置语义：
@@ -141,8 +145,8 @@ AttributeModifierOperatorMergerRules
     - BuiltInOperator 或 CustomOperatorClass
   AllowedMergerTypes
     - 可选择的 AttributeModifierMerger Class 列表
-  ValidationSeverity
-    - 不在 AllowedMergerTypes 内时使用 Error 或 Warning
+  ForbiddenMergerTypes
+    - 明确禁止的 AttributeModifierMerger Class 列表（用于显式声明确 Forbidden 的组合，默认依赖不在 AllowedMergerTypes 内即为 Forbidden）
   Description
     - 面向编辑器诊断的说明文本
 ```
@@ -163,6 +167,18 @@ AttributeModifier DataTableRow 必须与新的 DefinitionAsset 非标识 UPROPER
 
 伤害、治疗与周期结算不以直接写 CurrentValue 作为过渡路径；在 Change 3 稳定 Instant AttributeModifier 入口之前，它们不属于 Attribute Core 的内置业务能力。当前代码搜索只发现测试 Director 的一处 `SetAttributeCurrentValue` 调用，应在 Attribute 生命周期 change 中迁移为明确的 BaseValue fixture 设置。
 
+### 2.16 多 Operation 与内建选择 / 聚合 Merger 的 Data Validation（已确认）
+
+当 `UTcsAttributeModifierDefinition` 的 Operation Map 包含多个 Operation，且其 Merger 使用内建选择 / 聚合类型（`UseMaximum`、`UseMinimum`、`UseAdditiveSum`、`UseNewest`、`UseOldest`）时，Data Validation 默认报 Error；`TcsDeveloperSettings` 可将特定 Merger 的多 Operation 组合降级为强 Warning，给项目提供 escape hatch。`NoMerge` 在多 Operation 下始终合法，不触发该验证。
+
+该规则理由：内建选择 / 聚合 Merger 的输入空间是"跨 Ongoing 实例的同 Operation Operand"；多 Operation 的 Definition 内部可能跨 Attribute 或跨 Operator，Operand 不处于同一可比较数值空间，Merger 无法自洽地选择或聚合。
+
+### 2.17 ModifierInstId 与 ChangeBatchId 的去留（已确认）
+
+保留 `ModifierInstId`（`int32`）作为 Ongoing AttributeModifier 实例的稳定标识，继续用于 `ModifierInstIdToIndex` 与按来源批量移除索引；删除 `ModifierChangeBatchId`（`int64`）及其静态计数器 `NextModifierChangeBatchId`。
+
+理由：新模型下一次 `ApplyAttributeModifier(Request)` 只创建一个父 Ongoing 实例，ChangeBatchId 在 Apply 路径上从"一对多"退化为"1:1"，作为批次标识已无意义；Remove / Update 路径的事件分组可由"一次 API 调用 = 一次事件"自然实现。同 Priority 实例间的应用顺序若需稳定 tie-break，可在实现阶段引入轻量的 `ApplicationOrderId`（每次 Apply 自增的 `int32`，存在父实例上），不预先承诺。
+
 ## 3. 可在 proposal 内细化
 
 这些事项已有明确方向，但需要在 proposal 的 `design.md` 和 delta spec 中写成精确算法、接口和验收场景：
@@ -180,7 +196,7 @@ AttributeModifier DataTableRow 必须与新的 DefinitionAsset 非标识 UPROPER
 以下不是当前待定项，但 proposal 的 tasks 与 specs 应明确覆盖：
 
 - Instant 原子提交、来源结束后不回滚、无效 SourceHandle 零修改。
-- Ongoing 添加、Buff 同 Definition 重复施加硬拒绝、来源结束回滚、无效 SourceHandle 拒绝；非 Buff 同 Definition 重复语义需在确认后补充覆盖。
+- Ongoing 添加、StateInstance 同 Definition 重复施加硬拒绝、来源结束回滚、无效 SourceHandle 拒绝；不同 StateInstance 施加同 DefId 允许并存并由 Merger 处理叠加。
 - 多 Operation 任一 Evaluator / Operator 失败时零提交。
 - 多 Operation 按 OperationId 稳定顺序，且不依赖 TMap 遍历。
 - Ongoing 自引用公式排除自身旧贡献，避免反馈循环。
@@ -193,12 +209,12 @@ AttributeModifier DataTableRow 必须与新的 DefinitionAsset 非标识 UPROPER
 
 ## 5. 关联活动变更
 
-当前活动 OpenSpec change：
+以下活动 change 已于 2026-08-03 归档，其 delta 已写入当前 `openspec/specs/`：
 
-- `add-def-strategy-defaults-and-validation`：修改 AttributeModifier Definition 的策略默认值与 DataTable 同步面。与本重构直接重叠，应先协调其完成、归档或范围调整。
-- `add-skill-modifier-runtime-management`：已将 effective StateParam 消费、Attribute OperandBinding 读取纳入范围。新 Attribute Evaluator / OperandContext 必须与其无参 `GetModifiedValue()` 契约一致，但不应把 Attribute 重构塞入该 change。
-- `add-component-runtime-bootstrap`：与 AttributeModifier 数据模型不直接重叠，但实施期间应避免破坏 Component runtime ready / bootstrap 契约。
+- `2026-08-03-add-def-strategy-defaults-and-validation`：AttributeModifier Definition 策略默认值与 DataTable 同步面。Change 3 删除 `ModifierType` 后必须 MODIFIED 归档后的具体场景。
+- `2026-08-03-add-skill-modifier-runtime-management`：effective StateParam 消费与 Attribute OperandBinding 读取。Change 3 必须整体替换 AttributeModifier 侧旧解析模型。
+- `2026-08-03-add-component-runtime-bootstrap`：Component runtime-ready 生命周期。Change 3 实现时必须遵守未 ready 命令型 API 拒绝策略。
 
 ## 6. 当前结论
 
-在第 2 节的事项全部确认前，不创建 OpenSpec change。确认后，新 change 应独立覆盖 AttributeModifier 运行时、Attribute 管理 API、Definition / DataTable authoring、StateTree Task 迁移与相关规格；伤害系统本身仍作为后续独立模块和独立 change。
+第 2 节事项已全部确认，活动 change 前置已全部归档。Change 3 `refactor-attribute-modifier-operations` 提案已创建并通过 strict 校验，等待评审批准后实现；伤害系统本身仍作为后续独立模块和独立 change。

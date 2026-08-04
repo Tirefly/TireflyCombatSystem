@@ -1,5 +1,5 @@
 ## 1. Definition / Operation / DataTable 模型
-- [ ] 1.1 新增 `FTcsAttributeOperationDefinition`、OperandPayload 基类型、Numeric Evaluator 与 Operator（内建枚举 + Custom Operator）类型。
+- [ ] 1.1 新增 `FTcsAttributeOperationSpec`、OperandPayload 基类型、Numeric Evaluator 与 Operator（内建枚举 + Custom Operator）类型。
 - [ ] 1.2 将 `UTcsAttributeModifierDefinition` 改为 `Operations` Map + Merger/Priority/Tags 等定义字段；删除 `AttributeId`、`ModifierMode`、`Operands`、`ModifierType`。
 - [ ] 1.3 重建 `FTcsAttributeModifierDefRow` 与 Def 非标识字段 1:1，并更新双向 Sync 直接赋值。
 - [ ] 1.4 删除 `UTcsAttributeModifierExecution` 与内建 Execution 实现，迁移内建运算到新 Operator 路径。

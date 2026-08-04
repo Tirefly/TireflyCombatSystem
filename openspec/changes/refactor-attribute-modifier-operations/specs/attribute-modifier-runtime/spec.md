@@ -36,7 +36,7 @@
 
 ### Requirement: AttributeOperation 模型与 Operation Map
 
-AttributeModifier Definition SHALL 使用 `TMap<FName, FTcsAttributeOperationDefinition>` 表达多 Operation，Key 为稳定 `OperationId`。每条 Operation MUST 声明 `TargetAttributeId`、Operator（内建或 Custom）、OperandEvaluator 与 OperandPayload。AttributeModifier 的 Evaluator 与 Operand MUST 固定为 Numeric / `float`。`FInstancedStruct` MUST 只承载 OperandPayload。Definition MUST NOT 暴露 `ModifierMode`、单目标 `AttributeId`、旧 `Operands` Map 或 `ModifierType`。
+AttributeModifier Definition SHALL 使用 `TMap<FName, FTcsAttributeOperationSpec>` 表达多 Operation，Key 为稳定 `OperationId`。每条 Operation MUST 声明 `TargetAttributeId`、Operator（内建或 Custom）、OperandEvaluator 与 OperandPayload。AttributeModifier 的 Evaluator 与 Operand MUST 固定为 Numeric / `float`。`FInstancedStruct` MUST 只承载 OperandPayload。Definition MUST NOT 暴露 `ModifierMode`、单目标 `AttributeId`、旧 `Operands` Map 或 `ModifierType`。
 
 #### Scenario: Definition 持有多个稳定 Operation
 - **WHEN** 设计者在 AttributeModifierDef 中创建 `op_health` 与 `op_mana` 两条 Operation

@@ -15,7 +15,7 @@ OperandPayload -- OperandEvaluator --> EvaluatedOperand -- Operator --> NewValue
 | OperandPayload | Evaluator 的创作输入，例如常量、随机范围、结构化公式、条件。 |
 | OperandEvaluator | 根据 Payload 和只读上下文计算 typed Operand。 |
 | Operator | 将 EvaluatedOperand 施加到当前目标值。 |
-| FTcsAttributeOperationDefinition | 编辑器中配置的一条 Attribute 修改模板。 |
+| FTcsAttributeOperationSpec | 编辑器中配置的一条 Attribute 修改模板；嵌在 AttributeModifierDef 内，不是独立 DefAsset。 |
 | FTcsEvaluatedAttributeOperation | 本轮计算完成、尚未写入 Attribute 的运行时操作。 |
 
 `FInstancedStruct` 只承载 OperandPayload。它不属于最终 Operator 配置，也不应在 Skill StateParam 的每次 effective 读取时被解析。
@@ -87,7 +87,7 @@ SkillModifier 在 apply 时解析一次 Operand，保存到 RuntimeEntry 与 Par
 ```text
 AttributeModifierDefId                // 定义唯一 Id。
 MergerType                            // 多个同 Def 实例的合并策略。
-Operations: TMap<FName, FTcsAttributeOperationDefinition>
+Operations: TMap<FName, FTcsAttributeOperationSpec>
   Key: OperationId                    // Definition 内唯一，亦是 Override 的索引键。
   TargetAttributeId                   // 最终修改的 Attribute。
   Operator / CustomOperatorClass      // 用 EvaluatedOperand 修改目标值的方式。
@@ -95,7 +95,7 @@ Operations: TMap<FName, FTcsAttributeOperationDefinition>
   OperandPayload                      // Evaluator 的默认创作输入。
 ```
 
-`FTcsAttributeOperationDefinition` 不暴露 `ModifierMode`、`AMM_BaseValue`、`AMM_CurrentValue` 或等价的写入层配置。Operation Definition 只描述“计算什么 Operand、对哪个 Attribute 施加什么 Operator”。调用方通过唯一的 `ApplyAttributeModifier` 入口和 ApplicationMode 决定结算路径：
+`FTcsAttributeOperationSpec` 不暴露 `ModifierMode`、`AMM_BaseValue`、`AMM_CurrentValue` 或等价的写入层配置。Operation Spec 只描述“计算什么 Operand、对哪个 Attribute 施加什么 Operator”，且不是独立 DefAsset。调用方通过唯一的 `ApplyAttributeModifier` 入口和 ApplicationMode 决定结算路径：
 
 ```text
 ApplyAttributeModifier(ApplicationMode = Instant)  一次性结算，原子写入目标 Attribute 的 BaseValue。

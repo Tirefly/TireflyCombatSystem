@@ -9,7 +9,7 @@ Change 1 与 Change 2 已提供 SourceHandle 工厂与 Attribute Base/Current �
 ## What Changes
 
 - **BREAKING**：建立 `OperandPayload -> OperandEvaluator -> EvaluatedOperand -> Operator` 模型；AttributeModifier 固定为 Numeric / `float`。
-- **BREAKING**：`UTcsAttributeModifierDefinition` 改为 `TMap<FName, FTcsAttributeOperationDefinition>`（Key = 稳定 `OperationId`）；删除 Def 级 `AttributeId`、`ModifierMode`、`Operands`、`ModifierType`。
+- **BREAKING**：`UTcsAttributeModifierDefinition` 改为 `TMap<FName, FTcsAttributeOperationSpec>`（Key = 稳定 `OperationId`）；删除 Def 级 `AttributeId`、`ModifierMode`、`Operands`、`ModifierType`。
 - **BREAKING**：删除 `UTcsAttributeModifierExecution` 及其内建实现；内建 Operator 改为枚举 / Custom Operator 策略。
 - **BREAKING**：删除 `CreateAttributeModifier`、`CreateAttributeModifierWithBindings`、`ApplyModifier`、`ApplyModifierWithSourceHandle`、`OperandBindings` 与旧 `Operands` 权威读取口径。
 - 建立唯一入口 `ApplyAttributeModifier(Request, OutResult)`：
