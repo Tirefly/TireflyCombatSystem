@@ -7,6 +7,7 @@
 #include "Engine/EngineTypes.h"
 #include "GameplayTagContainer.h"
 #include "State/TcsStateInstance.h"
+#include "Attribute/TcsAttributeModifierCompatibility.h"
 
 #if WITH_EDITOR
 #include "Misc/DataValidation.h"
@@ -231,6 +232,34 @@ public:
 	/** 冷却参数的默认 GameplayTag（SkillDef 构造函数中读取）。 */
 	UPROPERTY(EditAnywhere, Config, Category = "State Param Tag")
 	FGameplayTag DefaultSkillCooldownParamTag;
+
+#pragma endregion
+
+
+// AttributeModifier Operator / Merger 兼容规则
+#pragma region AttributeModifierCompatibility
+
+public:
+	/**
+	 * 显式 Operator / Merger 兼容规则列表。
+	 * Forbidden 优先于 Allowed；未命中规则时回退到内建默认矩阵。
+	 */
+	UPROPERTY(Config, EditAnywhere, Category = "Attribute Modifier|Compatibility")
+	TArray<FTcsAttributeOperatorMergerRule> AttributeOperatorMergerRules;
+
+	/**
+	 * 是否允许 MultiplyAdditive 与 UseAdditiveSum 组合。
+	 * 允许时按 delta 语义聚合 Operand。
+	 */
+	UPROPERTY(Config, EditAnywhere, Category = "Attribute Modifier|Compatibility")
+	bool bAllowMultiplyAdditiveWithUseAdditiveSum = false;
+
+	/**
+	 * 多 Operation + 内建选择/聚合 Merger 的 Data Validation 是否报 Error。
+	 * false 时降级为 Warning。
+	 */
+	UPROPERTY(Config, EditAnywhere, Category = "Attribute Modifier|Compatibility")
+	bool bMultiOperationSelectionMergerIsError = true;
 
 #pragma endregion
 };

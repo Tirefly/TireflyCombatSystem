@@ -2,13 +2,46 @@
 
 #include "Attribute/AttrModMerger/TcsAttrModMerger_UseMinimum.h"
 
+#include "Attribute/AttrModOperation/TcsAttributeModifierOperation.h"
+
 
 
 void UTcsAttrModMerger_UseMinimum::Merge_Implementation(
 	TArray<FTcsAttributeModifierInstance>& ModifiersToMerge,
 	TArray<FTcsAttributeModifierInstance>& MergedModifiers)
 {
-	ensureMsgf(ModifiersToMerge.IsEmpty() && MergedModifiers.IsEmpty(),
-		TEXT("[%s] Legacy Magnitude-based AttributeModifier mergers are unsupported after the Operation refactor."),
-		*FString(__FUNCTION__));
+	if (ModifiersToMerge.IsEmpty())
+	{
+		return;
+	}
+
+	FTcsAttributeModifierInstance MergedInstance = ModifiersToMerge[0];
+	TMap<FName, FTcsEvaluatedAttributeOperation> BestOperations;
+	BestOperations.Reserve(MergedInstance.AppliedOperations.Num());
+
+	for (const FTcsAttributeModifierInstance& ModifierInstance : ModifiersToMerge)
+	{
+		for (const FTcsEvaluatedAttributeOperation& Operation : ModifierInstance.AppliedOperations)
+		{
+			if (FTcsEvaluatedAttributeOperation* const Existing = BestOperations.Find(Operation.OperationId))
+			{
+				if (Operation.EvaluatedOperand < Existing->EvaluatedOperand)
+				{
+					*Existing = Operation;
+				}
+			}
+			else
+			{
+				BestOperations.Add(Operation.OperationId, Operation);
+			}
+		}
+	}
+
+	MergedInstance.AppliedOperations.Reset();
+	BestOperations.GenerateValueArray(MergedInstance.AppliedOperations);
+	MergedInstance.AppliedOperations.Sort([](const FTcsEvaluatedAttributeOperation& Left, const FTcsEvaluatedAttributeOperation& Right)
+	{
+		return Left.OperationId.LexicalLess(Right.OperationId);
+	});
+	MergedModifiers.Add(MergedInstance);
 }

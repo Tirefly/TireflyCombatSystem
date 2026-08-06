@@ -1,7 +1,10 @@
 // Copyright Tirefly. All Rights Reserved.
 
 #include "Attribute/TcsAttributeModifierDefinition.h"
+
 #include "Attribute/AttrModMerger/TcsAttrModMerger_NoMerge.h"
+#include "Attribute/TcsAttributeModifierCompatibility.h"
+#include "TcsDeveloperSettings.h"
 
 #if WITH_EDITOR
 #include "Misc/DataValidation.h"
@@ -41,22 +44,35 @@ EDataValidationResult UTcsAttributeModifierDefinition::IsDataValid(FDataValidati
 {
 	EDataValidationResult Result = Super::IsDataValid(Context);
 
-	// 验证 AttributeModifierDefId
 	if (AttributeModifierDefId.IsNone())
 	{
 		Context.AddError(FText::FromString(TEXT("AttributeModifierDefId cannot be empty")));
 		Result = EDataValidationResult::Invalid;
 	}
 
-	if (!MergerType)
+	TArray<FText> Errors;
+	TArray<FText> Warnings;
+	const UTcsDeveloperSettings* const Settings = GetDefault<UTcsDeveloperSettings>();
+	if (!FTcsAttributeModifierCompatibility::ValidateModifierDefinitionCompatibility(
+		*this,
+		Errors,
+		Warnings,
+		Settings))
 	{
-		Context.AddError(FText::FromString(TEXT("MergerType cannot be empty")));
+		for (const FText& Error : Errors)
+		{
+			Context.AddError(Error);
+		}
 		Result = EDataValidationResult::Invalid;
 	}
-	else if (MergerType->HasAnyClassFlags(CLASS_Abstract))
+
+	for (const FText& Warning : Warnings)
 	{
-		Context.AddError(FText::FromString(TEXT("MergerType cannot reference an abstract class")));
-		Result = EDataValidationResult::Invalid;
+		Context.AddWarning(Warning);
+		if (Result == EDataValidationResult::Valid)
+		{
+			Result = EDataValidationResult::NotValidated;
+		}
 	}
 
 	return Result;

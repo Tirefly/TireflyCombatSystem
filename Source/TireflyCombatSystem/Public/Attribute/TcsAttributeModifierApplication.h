@@ -47,6 +47,7 @@ enum class ETcsAttributeModifierApplicationFailure : uint8
 	AMAF_InvalidOngoingOwner = 13			UMETA(DisplayName = "Invalid Ongoing Owner", ToolTip = "The Ongoing application has no valid local StateInstance owner."),
 	AMAF_DuplicateOngoingDefinition = 14	UMETA(DisplayName = "Duplicate Ongoing Definition", ToolTip = "The StateInstance already owns this ongoing AttributeModifier Definition."),
 	AMAF_UnsupportedMerger = 15			UMETA(DisplayName = "Unsupported Merger", ToolTip = "The selected Ongoing merger is not supported by the current runtime stage."),
+	AMAF_IncompatibleOperatorMerger = 16	UMETA(DisplayName = "Incompatible Operator Merger", ToolTip = "An Operator and Merger combination is forbidden."),
 };
 
 

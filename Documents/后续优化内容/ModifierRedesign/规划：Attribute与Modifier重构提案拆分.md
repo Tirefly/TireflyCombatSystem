@@ -1,6 +1,6 @@
 # 规划：Attribute 与 Modifier 重构提案拆分
 
-> 状态：执行中。Change 1 / Change 2 与重叠活动 change 均已归档。Change 3 `refactor-attribute-modifier-operations` 已通过提案评审并按 `tasks.md` 分阶段实施；阶段一（Definition / Operation / DataTable 模型）已完成 review，阶段二（Application、Snapshot 与原子结算）已完成实现与构建验证，等待 Review。本文不替代主设计文档中的行为契约。
+> 状态：执行中。Change 1 / Change 2 与重叠活动 change 均已归档。Change 3 `refactor-attribute-modifier-operations` 实现任务已全部勾选（含 EvaluatedOperand Merger、DeveloperSettings 兼容规则、Def Data Validation 与构建验证）；自动化测试按用户规范不设任务。可进行人工场景测试，通过后归档。本文不替代主设计文档中的行为契约。
 >
 > 关联主方案：[设计：Modifier操作数与AttributeOperation模型（待审核）.md](设计：Modifier操作数与AttributeOperation模型（待审核）.md)。
 >

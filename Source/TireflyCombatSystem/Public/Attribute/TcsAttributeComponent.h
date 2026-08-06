@@ -426,6 +426,30 @@ protected:
 		FTcsAttributeModifierApplicationResult* InOutResult = nullptr);
 
 	/**
+	 * 校验 AttributeModifier Definition 的 Operator / Merger 兼容性。
+	 *
+	 * @param ModifierDefinition 待校验 Definition。
+	 * @param InOutResult 可选失败原因输出。
+	 * @return 兼容时返回 true。
+	 */
+	bool ValidateAttributeModifierDefinitionCompatibility(
+		const UTcsAttributeModifierDefinition& ModifierDefinition,
+		FTcsAttributeModifierApplicationResult* InOutResult = nullptr) const;
+
+	/**
+	 * 按 ModifierDefId 分组并对同组 Ongoing 父实例执行 Merger。
+	 *
+	 * @param ModifierInstances 已求值的 Ongoing 父实例。
+	 * @param OutMergedModifierInstances 输出 Merger 后的有效父实例集合。
+	 * @param InOutResult 可选失败原因输出。
+	 * @return 全部组合均可安全合并时返回 true。
+	 */
+	bool MergeOngoingModifierInstances(
+		const TArray<FTcsAttributeModifierInstance>& ModifierInstances,
+		TArray<FTcsAttributeModifierInstance>& OutMergedModifierInstances,
+		FTcsAttributeModifierApplicationResult* InOutResult = nullptr) const;
+
+	/**
 	 * 将已求值 Operation 按稳定顺序施加到候选 Attribute 值集合。
 	 *
 	 * @param Operations 待施加的 Operation 集合。

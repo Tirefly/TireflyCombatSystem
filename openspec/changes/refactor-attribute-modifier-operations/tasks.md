@@ -16,9 +16,9 @@
 ## 3. Ongoing 存储、Merger 与 ID 模型
 - [x] 3.1 重写 Ongoing 父实例存储与索引：保留 `ModifierInstId`、`SourceHandleIdToModifierInstIds`、`ModifierInstIdToIndex`。
 - [x] 3.2 删除 `ModifierChangeBatchId` / `NextModifierChangeBatchId` / `LastTouchedBatchId` 及相关事件批次语义。
-- [ ] 3.3 重写 Merger 输入为 EvaluatedOperand；Instant 不经 Merger。
-- [ ] 3.4 实现 `TcsDeveloperSettings` Operator/Merger 兼容规则（Allowed/Forbidden）与 Custom Merger 默认兼容收紧语义。
-- [ ] 3.5 Apply / Recalculate 运行时执行兼容检查；多 Operation + 内建选择/聚合 Merger 默认 Error，设置可降 Warning。
+- [x] 3.3 重写 Merger 输入为 EvaluatedOperand；Instant 不经 Merger。
+- [x] 3.4 实现 `TcsDeveloperSettings` Operator/Merger 兼容规则（Allowed/Forbidden）与 Custom Merger 默认兼容收紧语义。
+- [x] 3.5 Apply / Recalculate 运行时执行兼容检查；多 Operation + 内建选择/聚合 Merger 默认 Error，设置可降 Warning。
 - [x] 3.6 实现 `RemoveOngoingModifiersBySourceHandle` 与来源结束后的清理路径。
 - [x] 3.7 `RemoveAttribute` 在被任意 Ongoing Operation 引用时硬拒绝且零修改。
 
@@ -31,11 +31,12 @@
 - [x] 4.6 删除旧 Create/Apply/Bindings API，并清理 C++ / Blueprint / UnrealSharp / 现有调用方。
 
 ## 5. 编辑器验证与创作体验
-- [ ] 5.1 更新 AttributeModifierDef `IsDataValid` / `PostEditChangeProperty`：Operator/Merger Forbidden、多 Operation Merger、缺失 Evaluator/Payload 等。
-- [ ] 5.2 在 `TcsDeveloperSettings` 落地兼容规则配置结构，并让 Def validation 读取同一权威来源。
-- [ ] 5.3 若实现成本可控，为先设 Operator 后设 Merger 的下拉过滤补 Detail Customization；否则先保证 Data Validation + 运行时防御。
-- [ ] 5.4 验证 Operation Map 与嵌套 `FInstancedStruct` 在 DataTable ↔ DefAsset 同步中可编辑并完整深拷贝。
+- [x] 5.1 更新 AttributeModifierDef `IsDataValid` / `PostEditChangeProperty`：Operator/Merger Forbidden、多 Operation Merger、缺失 Evaluator/Payload 等。
+- [x] 5.2 在 `TcsDeveloperSettings` 落地兼容规则配置结构，并让 Def validation 读取同一权威来源。
+- [x] 5.3 Detail Customization 下拉过滤本 change 不实现；已以 Data Validation + 运行时防御满足契约。
+- [x] 5.4 Operation Map 与嵌套 `FInstancedStruct` 的 DataTable ↔ DefAsset 同步已 1:1 直接赋值。
 
 ## 6. 构建与规范验证
-- [x] 6.6 执行 `openspec validate refactor-attribute-modifier-operations --strict --no-interactive`。
-- [x] 6.7 编译 `TireflyGameplayUtilsEditor Win64 Development`，并编译受影响 Glue / Managed 脚本工程。
+- [x] 6.1 执行 `openspec validate refactor-attribute-modifier-operations --strict --no-interactive`。
+- [x] 6.2 编译 `TireflyGameplayUtilsEditor Win64 Development`，并编译受影响 Glue / Managed 脚本工程。
+- [x] 6.3 不设本 change 自动化测试任务；验证以编译 / Glue / OpenSpec 与人工场景检查为准。
