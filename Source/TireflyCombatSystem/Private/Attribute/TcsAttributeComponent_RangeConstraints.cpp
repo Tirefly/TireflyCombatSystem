@@ -99,7 +99,8 @@ void UTcsAttributeComponent::ClampAttributeValueInRange(
 		UTcsAttributeClampStrategy* StrategyCDO = StrategyClass->GetDefaultObject<UTcsAttributeClampStrategy>();
 
 		FTcsAttributeClampContextBase Context(
-			this,
+			// Context retains its non-const reflected component field for existing Blueprint readers.
+			const_cast<UTcsAttributeComponent*>(this),
 			AttributeName,
 			Attribute->AttributeDef,
 			Attribute,

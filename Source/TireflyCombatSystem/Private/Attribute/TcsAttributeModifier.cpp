@@ -7,18 +7,12 @@
 
 bool FTcsAttributeModifierInstance::IsValid() const
 {
-	bool bHasInvalidOperand = false;
-	for (const auto& Pair : Operands)
-	{
-		if (Pair.Key == NAME_None)
-		{
-			bHasInvalidOperand = true;
-			break;
-		}
-	}
-	return ModifierId != NAME_None
+	return ModifierDef
+		&& ModifierDefId != NAME_None
 		&& ModifierInstId >= 0
-		&& !bHasInvalidOperand;
+		&& SourceHandle.IsValid()
+		&& OwningStateInstance.IsValid()
+		&& !AppliedOperations.IsEmpty();
 }
 
 bool FTcsAttributeModifierInstance::operator<(const FTcsAttributeModifierInstance& Other) const
@@ -26,12 +20,18 @@ bool FTcsAttributeModifierInstance::operator<(const FTcsAttributeModifierInstanc
 	// 直接使用硬指针获取优先级
 	if (ModifierDef && Other.ModifierDef)
 	{
-		// Higher priority first.
-		int32 thisPriority = FMath::Max<int32>(0, ModifierDef->Priority);
-		int32 OtherPriority = FMath::Max<int32>(0, Other.ModifierDef->Priority);
-		return thisPriority > OtherPriority;
+		const int32 ThisPriority = FMath::Max<int32>(0, ModifierDef->Priority);
+		const int32 OtherPriority = FMath::Max<int32>(0, Other.ModifierDef->Priority);
+		if (ThisPriority != OtherPriority)
+		{
+			return ThisPriority > OtherPriority;
+		}
 	}
 
-	// 如果无法获取定义，则按 ModifierId 排序
-	return ModifierId.LexicalLess(Other.ModifierId);
+	if (ModifierDefId != Other.ModifierDefId)
+	{
+		return ModifierDefId.LexicalLess(Other.ModifierDefId);
+	}
+
+	return ModifierInstId < Other.ModifierInstId;
 }

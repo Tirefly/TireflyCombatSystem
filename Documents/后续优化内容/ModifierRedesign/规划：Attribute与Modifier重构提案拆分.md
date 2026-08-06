@@ -1,6 +1,6 @@
 # 规划：Attribute 与 Modifier 重构提案拆分
 
-> 状态：执行中。Change 1 / Change 2 与重叠活动 change 均已归档。Change 3 `refactor-attribute-modifier-operations` 提案已创建并通过 `openspec validate --strict`，等待评审批准后实现。本文不替代主设计文档中的行为契约。
+> 状态：执行中。Change 1 / Change 2 与重叠活动 change 均已归档。Change 3 `refactor-attribute-modifier-operations` 已通过提案评审并按 `tasks.md` 分阶段实施；阶段一（Definition / Operation / DataTable 模型）已完成 review，阶段二（Application、Snapshot 与原子结算）已完成实现与构建验证，等待 Review。本文不替代主设计文档中的行为契约。
 >
 > 关联主方案：[设计：Modifier操作数与AttributeOperation模型（待审核）.md](设计：Modifier操作数与AttributeOperation模型（待审核）.md)。
 >
@@ -103,12 +103,16 @@ Attribute 数值状态、CRUD 与 Clamp 生命周期不依赖新的 Modifier Ope
 refactor-attribute-modifier-operations
 ```
 
-### 4.0 当前创建状态
+### 4.0 当前实施状态
 
 - 已创建 `openspec/changes/refactor-attribute-modifier-operations/`：`proposal.md`、`design.md`、`tasks.md` 与 5 个 capability delta。
 - 已通过 `openspec validate refactor-attribute-modifier-operations --strict --no-interactive`。
 - 提案覆盖 Operation 模型、唯一 Apply 入口、Snapshot 自排除、StateInstance 宿主、二元 Operator/Merger 兼容、保留 ModifierInstId / 删除 ChangeBatchId，以及旧 API / Target StateTree Task 删除。
-- 当前处于提案评审阶段，批准前不开始实现。
+- 阶段一 `tasks 1.1-1.5` 已实现并完成 review：新增 Operation / Operand / Operator 类型，重建 Definition 与 DataTable Row schema，删除旧 AttributeModifier Execution 体系。
+- Operation 类型位于 `Source/TireflyCombatSystem/Public|Private/Attribute/AttrModOperation/`：Operation 主文件只保留 Operator 枚举、Operation Spec、已求值 Operation 与运算分发；Operand Evaluator、Constant Operand、Custom Operator 均按职责拆分为独立文件。
+- `FTcsAttributeOperationSpec` 默认 Constant Evaluator / Constant Payload；Operator 保持 `AMO_None`，Custom Operator 不默认化；`CustomOperatorClass` 仅在 Operator 为 `AMO_Custom` 时显示。
+- `UTcsAttributeModifierDefinition` 与 `FTcsAttributeModifierDefRow` 现在以 `Operations` Map 替代旧 Def 级 `AttributeId`、`ModifierMode`、`Operands`、`ModifierType`；旧 Execution 类、旧字段 Core Redirect 已删除，`MergerType` 仍默认 `NoMerge`。
+- 阶段二 `tasks 2.1-2.6` 已实现，并通过 UE 5.7 Editor Development、UHT、TireflyCombatSystem Glue、TireflyCombatSystemEditor Glue、ManagedTireflyGameplayUtils 与 `BuildEmitLoadOrder` 验证。旧 Component Calculation / Modifier 文件、旧 C++ / Managed 调用方已删除或迁移；不为中间阶段恢复旧 schema 或 Execution 兼容层。阶段三 Merger 兼容规则与 Operation-aware Merger 语义尚未实现。
 
 这是本轮改造的核心纵向 change。虽然范围较大，但运行时、Definition、DataTable、Merger 和验证不能继续横向拆开，否则会产生不可使用的中间态或被迫增加已经明确不需要的兼容层。
 
@@ -119,6 +123,8 @@ refactor-attribute-modifier-operations
 - `UTcsAttributeModifierDefinition` 使用 `TMap<FName, FTcsAttributeOperationSpec>`，Key 为稳定 `OperationId`。
 - Operation 保存 TargetAttributeId、Operator / CustomOperator、Evaluator 与 OperandPayload。
 - `FInstancedStruct` 只承载 OperandPayload。
+- Operation 的公共类型按职责拆分到 `AttrModOperation`：Payload / Numeric Evaluator、Constant Payload / Evaluator、Custom Operator 与 Operation Spec / 内建 Operator 分发分别独立维护。
+- 新建 Operation 默认 Constant Evaluator 与 Constant Payload；不默认 Operator 或 Custom Operator，Custom Operator 仅在 `AMO_Custom` 时可编辑。
 - Definition 不暴露 ModifierMode 或数值写入层。
 - Application 只允许覆写 Evaluator 与 Payload，不得覆写 Operator、目标、Priority 或 Merger。
 - 删除旧 `UTcsAttributeModifierExecution`、`ModifierType`、单 Operation Operands 与 OperandBindings 模型。
@@ -257,7 +263,7 @@ add-tcs-damage-runtime
   |
   +-- simplify-attribute-value-lifecycle（已归档 2026-08-03）
   |
-  +-- refactor-attribute-modifier-operations（提案已创建，待批准）
+  +-- refactor-attribute-modifier-operations（分阶段实施中；阶段一完成，阶段二实现完成待 Review）
   |
   +-- add-ongoing-attribute-dependency-recalculation
   |
@@ -284,7 +290,7 @@ add-tcs-damage-runtime
 - ~~多 Operation 使用内建选择 / 聚合 Merger 时，Data Validation 固定为 Error，还是允许项目配置为强 Warning。~~ 已确认：默认 Error，`TcsDeveloperSettings` 可降级为强 Warning；`NoMerge` 始终合法（见提案前待确认问题 2.16）。
 - `ModifierInstId` / `ModifierChangeBatchId` 在新父 Ongoing 实例模型中的去留已确认：保留 `ModifierInstId`，删除 `ModifierChangeBatchId`（见提案前待确认问题 2.17）。
 
-Change 3 提案前阻塞项已全部确认；活动 change 前置亦已全部归档（见第 7 节）。现在可以创建 `refactor-attribute-modifier-operations`。
+Change 3 提案前阻塞项已全部确认；活动 change 前置亦已全部归档（见第 7 节）。`refactor-attribute-modifier-operations` 已创建并进入分阶段实施。
 
 ## 9. OpenSpec Capability 映射
 

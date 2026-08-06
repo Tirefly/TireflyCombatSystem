@@ -12,7 +12,7 @@
 FTcsSTTask_ApplyAttributeModifierToOwner::FTcsSTTask_ApplyAttributeModifierToOwner()
 {
 	bShouldCallTick = false;
-	bShouldStateChangeOnReselect = true;
+	bShouldStateChangeOnReselect = false;
 }
 
 bool FTcsSTTask_ApplyAttributeModifierToOwner::Link(FStateTreeLinker& Linker)
@@ -35,22 +35,16 @@ EStateTreeRunStatus FTcsSTTask_ApplyAttributeModifierToOwner::EnterState(
 		return EStateTreeRunStatus::Failed;
 	}
 
-	FTcsAttributeModifierInstance ModifierInst;
-	if (!AttrComp->CreateAttributeModifierWithBindings(
-		InstanceData.ModifierId,
-		StateInstance.GetInstigator(),
-		InstanceData.OperandBindings,
-		ModifierInst))
-	{
-		return EStateTreeRunStatus::Failed;
-	}
+	FTcsAttributeModifierApplicationRequest Request;
+	Request.ModifierDefId = InstanceData.ModifierDefId;
+	Request.ApplicationMode = ETcsAttributeModifierApplicationMode::AMAM_Ongoing;
+	Request.SourceHandle = StateInstance.GetSourceHandle();
+	Request.SourceStateInstance = &StateInstance;
 
-	ModifierInst.SourceHandle = StateInstance.GetSourceHandle();
-
-	TArray<FTcsAttributeModifierInstance> Modifiers = { ModifierInst };
-	AttrComp->ApplyModifier(Modifiers);
-
-	return EStateTreeRunStatus::Running;
+	FTcsAttributeModifierApplicationResult Result;
+	return AttrComp->ApplyAttributeModifier(Request, Result)
+		? EStateTreeRunStatus::Running
+		: EStateTreeRunStatus::Failed;
 }
 
 #if WITH_EDITOR

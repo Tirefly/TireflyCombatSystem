@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "StateTreeTaskBase.h"
-#include "Attribute/TcsAttributeModifier.h"
+#include "Attribute/TcsAttributeModifierApplication.h"
 #include "TcsSTTask_ApplyAttributeModifierToOwner.generated.h"
 
 
@@ -19,21 +19,17 @@ struct FTcsSTTask_ApplyAttributeModifierToOwnerInstanceData
 {
 	GENERATED_BODY()
 
-	// 要应用的 AttributeModifier Id
+	// 要应用的 AttributeModifier Definition Id。
 	UPROPERTY(EditAnywhere, Category = "Parameter")
-	FName ModifierId;
-
-	// Operand 到 StateParam 的绑定列表
-	UPROPERTY(EditAnywhere, Category = "Parameter")
-	TArray<FTcsStateParamBinding> OperandBindings;
+	FName ModifierDefId = NAME_None;
 };
 
 
 /**
- * 在 State 激活时将 AttributeModifier 应用到 Owner，操作数从 StateParam 动态绑定。
+ * 在 State 激活时以 Ongoing 模式将 AttributeModifier 应用到 Owner。
  *
- * EnterState: 创建 Modifier → 应用到 Owner 的 AttributeComponent → ApplyModifier。
- * ExitState: SourceHandle → RemoveModifiersBySourceHandle 自动清理。
+ * EnterState: 构造 Application Request → ApplyAttributeModifier。
+ * ExitState: State 生命周期按 SourceHandle 自动清理 Ongoing 父实例。
  */
 USTRUCT(meta = (DisplayName = "TcsSTTask_ApplyAttributeModifierToOwner"))
 struct TIREFLYCOMBATSYSTEM_API FTcsSTTask_ApplyAttributeModifierToOwner : public FStateTreeTaskCommonBase

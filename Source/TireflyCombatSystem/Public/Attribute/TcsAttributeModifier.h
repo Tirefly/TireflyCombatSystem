@@ -3,129 +3,106 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "GameplayTagContainer.h"
+#include "Attribute/TcsAttributeModifierApplication.h"
 #include "TcsSourceHandle.h"
 #include "TcsAttributeModifier.generated.h"
 
 
 class UTcsAttributeModifierDefinition;
 class UTcsStateInstance;
-class UTcsSkillEntry;
 
 
 
-// 修改器修改属性的方式
-UENUM(BlueprintType)
-enum class ETcsAttributeModifierMode : uint8
-{
-	AMM_BaseValue			UMETA(ToolTip = "The base value of the attribute."),
-	AMM_CurrentValue		UMETA(ToolTip = "The current value, modified by skill or buff, of the attribute."),
-};
-
-
-
-// 操作数到 StateParam 的运行时绑定描述
-USTRUCT(BlueprintType)
-struct TIREFLYCOMBATSYSTEM_API FTcsStateParamBinding
-{
-	GENERATED_BODY()
-
-public:
-	// 操作数标识（如 "Magnitude" — ModifierDef 内部约定）
-	UPROPERTY(EditAnywhere, BlueprintReadOnly)
-	FName OperandName;
-
-	// 绑定的 StateParam（GameplayTag 标识）
-	UPROPERTY(EditAnywhere, BlueprintReadOnly)
-	FGameplayTag StateParamTag;
-};
-
-
-
-// 属性修改器实例
+/** 由 StateInstance 持有的 Ongoing AttributeModifier 父实例。 */
 USTRUCT(BlueprintType)
 struct TIREFLYCOMBATSYSTEM_API FTcsAttributeModifierInstance
 {
 	GENERATED_BODY()
 
-#pragma region Variables
+// Definition 与身份
+#pragma region Identity
 
 public:
-	// 修改器定义 DataAsset 硬引用
+	// AttributeModifier Definition DataAsset 硬引用。
 	UPROPERTY(BlueprintReadOnly)
 	const UTcsAttributeModifierDefinition* ModifierDef = nullptr;
 
-	// 修改器实例Id
+	// Ongoing 父实例的稳定 ID。
 	UPROPERTY(BlueprintReadOnly)
 	int32 ModifierInstId = -1;
 
-	// 修改器定义Id (用于合并分组和快速查询)
+	// AttributeModifier Definition Id。
 	UPROPERTY(BlueprintReadOnly)
-	FName ModifierId = NAME_None;
-
-	// 修改器来源句柄 (统一的来源追踪)
-	UPROPERTY(BlueprintReadOnly)
-	FTcsSourceHandle SourceHandle;
-
-	// 修改器发起者
-	UPROPERTY(BlueprintReadOnly)
-	TWeakObjectPtr<AActor> Instigator;
-
-	// 修改器目标
-	UPROPERTY(BlueprintReadOnly)
-	TWeakObjectPtr<AActor> Target;
-
-	// 修改器操作数
-	UPROPERTY(BlueprintReadOnly)
-	TMap<FName, float> Operands;
-
-	// 操作数动态绑定：运行时从 StateParam 拉取 effective 值写入 Operands
-	// 已解析 Operand 的权威读取位置是 Operands（在 Recalculate 刷新之后）
-	UPROPERTY(BlueprintReadOnly)
-	TArray<FTcsStateParamBinding> OperandBindings;
-
-	// 直接引用——源 StateInstance（O(1) 最快路径）
-	UPROPERTY(BlueprintReadOnly)
-	TWeakObjectPtr<UTcsStateInstance> SourceStateInstance;
-
-	// 源 SkillEntry（AOE/投射物：技能已结束但 Entry 仍存活）
-	UPROPERTY(BlueprintReadOnly)
-	TWeakObjectPtr<UTcsSkillEntry> SourceSkillEntry;
-
-	// 修改器应用时间戳
-	// NOTE: 当前单位为 UTC Ticks (FDateTime::GetTicks, 100ns)。这不是网络同步时间，仅用于排序/调试/本地归因。
-	UPROPERTY(BlueprintReadOnly)
-	int64 ApplyTimestamp = -1;
-
-	// 修改器最新更新时间戳
-	// NOTE: 当前单位为 UTC Ticks (FDateTime::GetTicks, 100ns)。这不是网络同步时间，仅用于排序/调试/本地归因。
-	UPROPERTY(BlueprintReadOnly)
-	int64 UpdateTimestamp = -1;
-
-	// 本地变更批次号：用于把一次 Apply/Update 操作导致的变化归因到对应 SourceHandle。
-	// NOTE: 这是"顺序/归因"序号，不是时间戳；未来网络同步不应直接依赖它。
-	UPROPERTY(BlueprintReadOnly)
-	int64 LastTouchedBatchId = -1;
+	FName ModifierDefId = NAME_None;
 
 #pragma endregion
 
 
-#pragma region Constructors
+// 来源与宿主
+#pragma region Source
 
 public:
+	// 当前 Ongoing 父实例的来源句柄。
+	UPROPERTY(BlueprintReadOnly)
+	FTcsSourceHandle SourceHandle;
+
+	// 持有并施加当前 Ongoing 父实例的本地 StateInstance。
+	UPROPERTY(BlueprintReadOnly)
+	TWeakObjectPtr<UTcsStateInstance> OwningStateInstance;
+
+#pragma endregion
+
+
+// Operation 记录
+#pragma region Operations
+
+public:
+	// 本父实例当前参与聚合的已求值 Operation 记录。
+	UPROPERTY(BlueprintReadOnly)
+	TArray<FTcsEvaluatedAttributeOperation> AppliedOperations;
+
+	// 为后续受控重算保留的 Evaluator / Payload 覆写配置。
+	UPROPERTY(BlueprintReadOnly)
+	TMap<FName, FTcsAttributeModifierOperationOverride> OperationOverrides;
+
+#pragma endregion
+
+
+// 时间信息
+#pragma region Timestamps
+
+public:
+	// Ongoing 父实例首次提交的 UTC Ticks 时间戳。
+	UPROPERTY(BlueprintReadOnly)
+	int64 ApplyTimestamp = -1;
+
+	// Ongoing 父实例最近一次 Operation 重算的 UTC Ticks 时间戳。
+	UPROPERTY(BlueprintReadOnly)
+	int64 UpdateTimestamp = -1;
+
+#pragma endregion
+
+
+// 构造函数
+#pragma region Construction
+
+public:
+	// 默认构造 Ongoing 父实例。
 	FTcsAttributeModifierInstance() {}
 
 #pragma endregion
 
 
-#pragma region Functions
+// 查询与排序
+#pragma region Query
 
 public:
+	// 检查父实例是否具备有效 Definition、Id、SourceHandle 和 StateInstance 宿主。
 	bool IsValid() const;
 
 	bool operator==(const FTcsAttributeModifierInstance& Other) const
 	{
-		return ModifierId == Other.ModifierId
+		return ModifierDefId == Other.ModifierDefId
 			&& ModifierInstId == Other.ModifierInstId;
 	}
 
@@ -134,6 +111,7 @@ public:
 		return !(*this == Other);
 	}
 
+	// 按 Definition Priority、Definition Id、实例 ID 稳定排序。
 	bool operator<(const FTcsAttributeModifierInstance& Other) const;
 
 #pragma endregion

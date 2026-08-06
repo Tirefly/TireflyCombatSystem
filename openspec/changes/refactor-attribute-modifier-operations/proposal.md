@@ -40,7 +40,7 @@ Change 1 与 Change 2 已提供 SourceHandle 工厂与 Attribute Base/Current �
   - AttributeModifier Definition / DataTable Row / Def sync
   - `TcsDeveloperSettings` Operator/Merger 兼容规则
   - StateTree Apply AttributeModifier Task
-  - Buff / Skill / State 调用方与相关自动化测试
+   - Buff / Skill / State 调用方与相关验证资产
 
 ## Non-Goals
 

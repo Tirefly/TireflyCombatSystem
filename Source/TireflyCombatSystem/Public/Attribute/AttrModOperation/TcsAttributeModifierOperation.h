@@ -17,17 +17,11 @@ class UTcsAttributeModifierCustomOperator;
 UENUM(BlueprintType)
 enum class ETcsAttributeModifierOperator : uint8
 {
-	// 未选择 Operator。
 	AMO_None = 0				UMETA(DisplayName = "None", ToolTip = "No AttributeModifier operator is selected."),
-	// 使用 Custom Operator 类。
 	AMO_Custom = 1			UMETA(DisplayName = "Custom", ToolTip = "Apply the selected custom AttributeModifier operator."),
-	// 将求值后的 Operand 加到当前值。
 	AMO_Add = 2				UMETA(DisplayName = "Add", ToolTip = "Calculate CurrentValue + Operand."),
-	// 以一加上求值后的 Operand 进行乘算。
 	AMO_MultiplyAdditive = 3	UMETA(DisplayName = "Multiply Additive", ToolTip = "Calculate CurrentValue * (1 + Operand)."),
-	// 以求值后的 Operand 进行乘算。
 	AMO_MultiplyCompound = 4	UMETA(DisplayName = "Multiply Compound", ToolTip = "Calculate CurrentValue * Operand."),
-	// 以求值后的 Operand 覆盖当前值。
 	AMO_Override = 5			UMETA(DisplayName = "Override", ToolTip = "Use Operand as the resulting value."),
 };
 

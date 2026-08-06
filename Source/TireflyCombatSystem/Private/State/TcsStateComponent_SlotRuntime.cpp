@@ -500,11 +500,12 @@ bool UTcsStateComponent::TryAssignStateToStateSlot(UTcsStateInstance* StateInsta
 		}
 	}
 
+	// 先注册实例，再同步激活槽位；Owner StateTree Task 可能在激活回调中施加 Ongoing Modifier。
+	StateInstanceIndex.AddInstance(StateInstance);
 	RequestUpdateStateSlotActivation(StateDef->StateSlotType);
 
 	if (IsStateStillValid(StateInstance))
 	{
-		StateInstanceIndex.AddInstance(StateInstance);
 		NotifyStateApplySuccess(
 			StateInstance->GetOwner(),
 			StateInstance->GetStateDefId(),

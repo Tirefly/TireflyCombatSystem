@@ -7,7 +7,9 @@
 #include "GameplayTagContainer.h"
 #include "TcsAttributeInstance.h"
 #include "TcsAttributeChangeEventPayload.h"
+#include "TcsAttributeEvaluationSnapshot.h"
 #include "TcsAttributeModifier.h"
+#include "TcsAttributeModifierApplication.h"
 #include "TcsSourceHandle.h"
 #include "TcsAttributeComponent.generated.h"
 
@@ -17,6 +19,8 @@ class UTcsDefinitionManagerSubsystem;
 class UTcsAttributeDefinition;
 class UTcsAttributeModifierDefinition;
 class UTcsRuntimeBootstrapSubsystem;
+class UTcsStateInstance;
+class UTcsSkillEntry;
 
 
 
@@ -118,9 +122,6 @@ protected:
 	/** 全局自增的 ModifierInstance ID 计数器（进程级唯一）。 */
 	static int32 NextModifierInstanceId;
 
-	/** 全局自增的 ModifierChangeBatchId 计数器（进程级唯一）。 */
-	static int64 NextModifierChangeBatchId;
-
 	/** 缓存的 DefinitionManager 指针。 */
 	UPROPERTY()
 	TObjectPtr<UTcsDefinitionManagerSubsystem> DefinitionMgr;
@@ -131,9 +132,6 @@ public:
 
 	/** 分配全局唯一的 ModifierInstance ID。 */
 	static int32 AllocateModifierInstanceId() { return ++NextModifierInstanceId; }
-
-	/** 分配全局唯一的 ModifierChangeBatchId。 */
-	static int64 AllocateModifierChangeBatchId() { return ++NextModifierChangeBatchId; }
 
 protected:
 	/**
@@ -340,100 +338,28 @@ public:
 #pragma endregion
 
 
-#pragma region ModifierLifecycle
+#pragma region ModifierApplication
 
 public:
 	/**
-	 * 创建属性修改器实例
-	 * （Component 已知自身 Owner 作为 Target，移除了原有 Target 参数）
+	 * 唯一 AttributeModifier Application 入口。
 	 *
-	 * @param ModifierId 属性修改器 Id
-	 * @param Instigator 修改器发起者
-	 * @param OutModifierInst 输出创建的修改器实例
-	 * @return 是否创建成功
+	 * Instant 原子写入 BaseValue；Ongoing 创建由本地 StateInstance 持有的可撤销父实例。
+	 * @param Request Application 输入与可选 Operand 覆写。
+	 * @param OutResult 输出逐 Operation 审计结果。
+	 * @return 全部 Operation 成功提交时返回 true。
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Attribute|Modifier")
-	virtual bool CreateAttributeModifier(
-		UPARAM(Meta = (GetParamOptions = "TcsGenericLibrary.GetAttributeModifierIds"))FName ModifierId,
-		AActor* Instigator,
-		FTcsAttributeModifierInstance& OutModifierInst);
+	virtual bool ApplyAttributeModifier(
+		const FTcsAttributeModifierApplicationRequest& Request,
+		FTcsAttributeModifierApplicationResult& OutResult);
 
 	/**
-	 * 创建属性修改器实例，并设置 StateParam 绑定。
+	 * 按 SourceHandle 移除全部 Ongoing AttributeModifier 父实例。
 	 *
-	 * Operands 从 DefAsset 复制默认值，绑定的操作数在首次 RecalculateAttributeCurrentValues 时刷新。
-	 *
-	 * @param ModifierId 属性修改器 Id
-	 * @param Instigator 修改器发起者
-	 * @param Bindings   Operand 到 StateParam 的绑定列表
-	 * @param OutModifierInst 输出创建的修改器实例
-	 * @return 是否创建成功
+	 * @param SourceHandle 要清理的有效来源句柄。
+	 * @return 至少移除一个父实例时返回 true。
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Attribute|Modifier")
-	virtual bool CreateAttributeModifierWithBindings(
-		UPARAM(Meta = (GetParamOptions = "TcsGenericLibrary.GetAttributeModifierIds"))FName ModifierId,
-		AActor* Instigator,
-		const TArray<FTcsStateParamBinding>& Bindings,
-		FTcsAttributeModifierInstance& OutModifierInst);
-
-	/**
-	 * 应用多个属性修改器实例。
-	 *
-	 * @param Modifiers 要应用的修改器实例列表
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Attribute|Modifier")
-	virtual void ApplyModifier(UPARAM(ref) TArray<FTcsAttributeModifierInstance>& Modifiers);
-
-	/**
-	 * 使用 SourceHandle 应用属性修改器（非 virtual，调用 CreateAttributeModifier + ApplyModifier）
-	 *
-	 * @param SourceHandle 来源句柄
-	 * @param ModifierIds 要应用的修改器 ID 列表
-	 * @param OutModifiers 输出创建的修改器实例列表
-	 * @return 是否成功应用
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Attribute|Modifier")
-	bool ApplyModifierWithSourceHandle(
-		const FTcsSourceHandle& SourceHandle,
-		const TArray<FName>& ModifierIds,
-		TArray<FTcsAttributeModifierInstance>& OutModifiers);
-
-	/**
-	 * 从当前战斗实体移除多个属性修改器。
-	 *
-	 * @param Modifiers 要移除的修改器实例列表
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Attribute|Modifier")
-	virtual void RemoveModifier(UPARAM(ref) TArray<FTcsAttributeModifierInstance>& Modifiers);
-
-	/**
-	 * 按 SourceHandle 移除属性修改器
-	 *
-	 * @param SourceHandle 来源句柄
-	 * @return 是否成功移除
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Attribute|Modifier")
-	virtual bool RemoveModifiersBySourceHandle(const FTcsSourceHandle& SourceHandle);
-
-	/**
-	 * 按 SourceHandle 查询属性修改器（非 virtual，纯读取操作）
-	 *
-	 * @param SourceHandle 来源句柄
-	 * @param OutModifiers 输出查询到的修改器实例列表
-	 * @return 是否查询到修改器
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Attribute|Modifier")
-	bool GetModifiersBySourceHandle(
-		const FTcsSourceHandle& SourceHandle,
-		TArray<FTcsAttributeModifierInstance>& OutModifiers) const;
-
-	/**
-	 * 处理属性修改器更新后的重算与事件广播逻辑。
-	 *
-	 * @param Modifiers 已更新的修改器实例列表
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Attribute|Modifier")
-	virtual void HandleModifierUpdated(UPARAM(ref) TArray<FTcsAttributeModifierInstance>& Modifiers);
+	virtual bool RemoveOngoingModifiersBySourceHandle(const FTcsSourceHandle& SourceHandle);
 
 #pragma endregion
 
@@ -442,13 +368,99 @@ public:
 
 protected:
 	/**
-	 * 从当前持久化修改器集合中批量移除指定实例 ID，并在末尾一次性重建运行时缓存。
+	 * 以给定 BaseValue 工作集及 Ongoing 父实例构建不可变 Snapshot。
 	 *
-	 * @param ModifierInstIdsToRemove 要移除的 ModifierInstId 集合
-	 * @param ChangeBatchId 本次变更批次号
-	 * @return 是否实际移除了任意修改器
+	 * @param BaseValues 当前事务中的候选 BaseValue。
+	 * @param ModifierInstances 当前参与聚合的 Ongoing 父实例。
+	 * @param ExcludedModifierInstId 要虚拟排除的父实例 ID；负值表示不排除。
+	 * @param OutSnapshot 输出只读数值 Snapshot。
+	 * @return 全部已应用 Operation 可安全重放时返回 true。
 	 */
-	bool RemoveStoredModifiersByInstIds(const TSet<int32>& ModifierInstIdsToRemove, int64 ChangeBatchId);
+	bool BuildAttributeEvaluationSnapshot(
+		const TMap<FName, float>& BaseValues,
+		const TArray<FTcsAttributeModifierInstance>& ModifierInstances,
+		int32 ExcludedModifierInstId,
+		FTcsAttributeEvaluationSnapshot& OutSnapshot,
+		FTcsAttributeModifierApplicationResult* InOutResult = nullptr);
+
+	/**
+	 * 解析并稳定排序单个 Definition 的全部 Operation。
+	 *
+	 * @param ModifierDefinition 要解析的 AttributeModifier Definition。
+	 * @param OperationOverrides 本轮允许的 Evaluator / Payload 覆写。
+	 * @param SourceHandle 本轮有效来源句柄。
+	 * @param SourceStateInstance 可选来源 StateInstance。
+	 * @param SourceSkillEntry 可选来源 SkillEntry。
+	 * @param Snapshot 本轮共享的只读 Attribute Snapshot。
+	 * @param OutOperations 输出按 OperationId 排序的已求值 Operation。
+	 * @param InOutResult 输出失败和逐 Operation 审计结果。
+	 * @return 全部 Operation 都成功求值时返回 true。
+	 */
+	bool BuildEvaluatedAttributeOperations(
+		const UTcsAttributeModifierDefinition& ModifierDefinition,
+		const TMap<FName, FTcsAttributeModifierOperationOverride>& OperationOverrides,
+		const FTcsSourceHandle& SourceHandle,
+		UTcsStateInstance* SourceStateInstance,
+		UTcsSkillEntry* SourceSkillEntry,
+		const FTcsAttributeEvaluationSnapshot& Snapshot,
+		TArray<FTcsEvaluatedAttributeOperation>& OutOperations,
+		FTcsAttributeModifierApplicationResult* InOutResult = nullptr) const;
+
+	/**
+	 * 以候选 BaseValue 和 Ongoing 父实例重算全部 CurrentValue 及动态 Operand。
+	 *
+	 * @param BaseValues 当前事务的候选 BaseValue。
+	 * @param ModifierInstances 参与本轮重算的 Ongoing 父实例。
+	 * @param OutUpdatedModifierInstances 输出带最新 EvaluatedOperation 的父实例。
+	 * @param OutCurrentValues 输出候选 CurrentValue。
+	 * @param AuditedModifierInstId 需要写入 OutResult 的父实例 ID；负值表示无需审计。
+	 * @param InOutResult 可选逐 Operation 审计输出。
+	 * @return 全部父实例都能以自排除 Snapshot 重算时返回 true。
+	 */
+	bool BuildOngoingAttributeValues(
+		const TMap<FName, float>& BaseValues,
+		const TArray<FTcsAttributeModifierInstance>& ModifierInstances,
+		TArray<FTcsAttributeModifierInstance>& OutUpdatedModifierInstances,
+		TMap<FName, float>& OutCurrentValues,
+		int32 AuditedModifierInstId = INDEX_NONE,
+		FTcsAttributeModifierApplicationResult* InOutResult = nullptr);
+
+	/**
+	 * 将已求值 Operation 按稳定顺序施加到候选 Attribute 值集合。
+	 *
+	 * @param Operations 待施加的 Operation 集合。
+	 * @param InOutValues 候选 Attribute 值集合。
+	 * @param InOutResult 可选逐 Operation 审计输出。
+	 * @return 全部 Operator 成功且结果有限时返回 true。
+	 */
+	bool ApplyEvaluatedOperationsToValues(
+		const TArray<FTcsEvaluatedAttributeOperation>& Operations,
+		TMap<FName, float>& InOutValues,
+		FTcsAttributeModifierApplicationResult* InOutResult) const;
+
+	/**
+	 * 对候选 Attribute 值工作集执行独立的范围约束 fixpoint。
+	 *
+	 * @param InOutValues 待收敛的 BaseValue 或 CurrentValue 候选集合。
+	 * @return 在最大迭代次数内收敛时返回 true。
+	 */
+	bool ClampCandidateAttributeValues(TMap<FName, float>& InOutValues);
+
+	/**
+	 * 将同一事务中的 BaseValue、CurrentValue 与 Ongoing 父实例一次性提交，并广播最终稳定态。
+	 *
+	 * @param BaseValues 成功求得的候选 BaseValue。
+	 * @param CurrentValues 成功求得的候选 CurrentValue。
+	 * @param ModifierInstances 成功重算后的 Ongoing 父实例。
+	 * @param bCommitModifierInstances 是否提交 Ongoing 父实例变更。
+	 * @param bBroadcastEvents 是否在 Clamp 和范围传播收敛后广播 Attribute 事件。
+	 */
+	void CommitAttributeModifierTransaction(
+		const TMap<FName, float>& BaseValues,
+		const TMap<FName, float>& CurrentValues,
+		const TArray<FTcsAttributeModifierInstance>& ModifierInstances,
+		bool bCommitModifierInstances,
+		bool bBroadcastEvents = true);
 
 	/**
 	 * 按当前 AttributeModifiers 内容重建 Modifier 运行时缓存。
@@ -500,29 +512,11 @@ protected:
 	// 若未来需要跨 Actor 依赖，应扩展 FTcsAttributeClampContextBase 或引入跨 Component Resolver。
 
 	/**
-	 * 重新计算所有属性的 BaseValue。
+	 * 从 BaseValue 与全部 Ongoing 父实例受控重建 CurrentValue。
 	 *
-	 * 执行器如果声明了 touched 集，只会为这些属性记录旧值并生成差异事件；
-	 * 未声明时会回退到原来的全表快照路径，以保持行为完全一致。
-	 *
-	 * @param Modifiers 参与本次基础值重算的修改器集合
+	 * @param bBroadcastEvents 是否在最终稳定态后广播 Attribute 事件。
 	 */
-	virtual void RecalculateAttributeBaseValues(const TArray<FTcsAttributeModifierInstance>& Modifiers, bool bBroadcastEvents = true);
-
-	/**
-	 * 重新计算所有属性的 CurrentValue。
-	 *
-	 * 该流程与 BaseValue 重算共用 touched-report 机制；如果提供有效的 ChangeBatchId，
-	 * 则会把本轮真实变更过的属性作为范围传播种子，尽量缩小后续 Clamp 传播的处理面。
-	 *
-	 * @param ChangeBatchId 本次增量变更批次号，< 0 表示保守的全量重算路径
-	 */
-	virtual void RecalculateAttributeCurrentValues(int64 ChangeBatchId = -1, bool bBroadcastEvents = true);
-
-	// 属性修改器合并
-	virtual void MergeAttributeModifiers(
-		const TArray<FTcsAttributeModifierInstance>& Modifiers,
-		TArray<FTcsAttributeModifierInstance>& MergedModifiers);
+	void RecalculateAttributeCurrentValues(bool bBroadcastEvents = true);
 
 	/**
 	 * 将指定属性值约束到其定义的范围内。
@@ -581,20 +575,6 @@ public:
 	//   避免对每个元素独立 Swap+Map 更新，可改为 "先收集所有待删索引 → 一次性重排 → 整体重建 Index Map"，
 	//   将 K 次移除的总成本从 O(K) 次 Map 写入降为一次性 O(N) 扫描（当 K 接近 N 时更优）。
 	TMap<int32, int32> ModifierInstIdToIndex;
-
-#pragma endregion
-
-
-#pragma region PerfCaches
-
-	// 合并+排序后的修改器缓存，避免每次 RecalculateAttributeCurrentValues 都做 O(N log N)。
-	TArray<FTcsAttributeModifierInstance> CachedMergedModifiers;
-
-	// 当 AttributeModifiers 数组发生增/删/改时置 true，下次重算时重建缓存。
-	bool bMergedModifiersDirty = true;
-
-	// 上次重算时的 BaseValue 快照，用于稳定态快速跳过。
-	TMap<FName, float> CachedBaseValuesSnapshot;
 
 #pragma endregion
 };

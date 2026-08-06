@@ -131,7 +131,7 @@ AttributeModifier 的 Operator / Merger 兼容规则 SHALL 以 `TcsDeveloperSett
 
 ### Requirement: 旧 AttributeModifier 创作数据不迁移
 
-系统 MUST NOT 自动迁移旧 AttributeModifier DefinitionAsset、DataTable 行或 OperandBindings 资产。开发阶段相关测试资产 MUST 按新 Operation Map schema 重建。同步系统遇到无法直接赋值到新 Row / Def 字段的旧结构时 MUST 拒绝静默兼容。
+系统 MUST NOT 自动迁移旧 AttributeModifier DefinitionAsset、DataTable 行或 OperandBindings 资产。开发阶段相关验证资产 MUST 按新 Operation Map schema 重建。同步系统遇到无法直接赋值到新 Row / Def 字段的旧结构时 MUST 拒绝静默兼容。
 
 #### Scenario: 旧 schema 不自动升级
 - **WHEN** 仓库中仍存在旧 `AttributeId + ModifierMode + Operands + ModifierType` 形态的创作数据

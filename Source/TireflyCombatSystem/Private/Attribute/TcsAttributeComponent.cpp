@@ -12,7 +12,6 @@
 
 int32 UTcsAttributeComponent::NextAttributeInstanceId = -1;
 int32 UTcsAttributeComponent::NextModifierInstanceId = -1;
-int64 UTcsAttributeComponent::NextModifierChangeBatchId = -1;
 
 
 

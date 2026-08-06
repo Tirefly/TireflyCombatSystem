@@ -145,7 +145,7 @@ Owner 侧 StateTree Task 迁移到 `ApplyAttributeModifier` Request 模型。
 ## 风险 / 取舍
 
 - 范围大但不可横向拆分，否则产生不可用中间态或被迫加兼容层。
-- 旧测试资产与 DataTable 必须重建。
+- 旧验证资产与 DataTable 必须重建。
 - 动态 Merger 下拉过滤若实现成本过高，可后置 UI 增强，但规则与 Validation 必须先落地。
 - 归档后的 `add-skill-modifier-runtime-management` 强化了 OperandBindings 旧语义；本 change 必须整体替换，而不是局部补丁。
 
@@ -156,7 +156,7 @@ Owner 侧 StateTree Task 迁移到 `ApplyAttributeModifier` Request 模型。
 3. 重写 Ongoing 存储索引、Merger 输入语义与兼容设置。
 4. 删除旧 Execution / Bindings / Apply API / Target StateTree Task。
 5. 迁移 Buff/StateInstance/Skill/Owner Task 调用方。
-6. 更新规格、编译、Glue 与定向自动化测试。
+6. 更新规格、编译与 Glue 验证。
 
 ## 开放问题
 

@@ -178,28 +178,41 @@ bool UTcsAttributeComponent::SetAttributeBaseValue(FName AttributeName, float Ne
 		return false;
 	}
 
-	// 保存旧值
 	float OldValue = Attribute->BaseValue;
-	TMap<FName, float> PreviousBaseValues;
-	TMap<FName, float> PreviousCurrentValues;
-	if (bTriggerEvents)
+	TMap<FName, float> CandidateBaseValues = GetAttributeBaseValues();
+	CandidateBaseValues.Add(AttributeName, NewValue);
+	if (!ClampCandidateAttributeValues(CandidateBaseValues))
 	{
-		PreviousBaseValues = GetAttributeBaseValues();
-		PreviousCurrentValues = GetAttributeValues();
+		UE_LOG(LogTcsAttribute, Error,
+			TEXT("[%s] Failed to clamp candidate BaseValue for '%s' on '%s'"),
+			*FString(__FUNCTION__),
+			*AttributeName.ToString(),
+			*GetPathName());
+		return false;
 	}
 
-	// 设置新值并 Clamp
-	Attribute->BaseValue = NewValue;
-	ClampAttributeValueInRange(AttributeName, Attribute->BaseValue);
-
-	// 重新计算 Current 值（应用修改器）
-	RecalculateAttributeCurrentValues(-1, false);
-
-	// 触发事件
-	if (bTriggerEvents && !FMath::IsNearlyEqual(OldValue, Attribute->BaseValue))
+	TArray<FTcsAttributeModifierInstance> UpdatedModifierInstances;
+	TMap<FName, float> CandidateCurrentValues;
+	if (!BuildOngoingAttributeValues(
+		CandidateBaseValues,
+		AttributeModifiers,
+		UpdatedModifierInstances,
+		CandidateCurrentValues))
 	{
-		BroadcastAttributeStateDiffs(PreviousBaseValues, PreviousCurrentValues);
+		UE_LOG(LogTcsAttribute, Error,
+			TEXT("[%s] Failed to rebuild Ongoing AttributeModifier values for '%s' on '%s'"),
+			*FString(__FUNCTION__),
+			*AttributeName.ToString(),
+			*GetPathName());
+		return false;
 	}
+
+	CommitAttributeModifierTransaction(
+		CandidateBaseValues,
+		CandidateCurrentValues,
+		UpdatedModifierInstances,
+		!AttributeModifiers.IsEmpty(),
+		bTriggerEvents);
 
 	UE_LOG(LogTcsAttribute, Verbose,
 		TEXT("[%s] Set attribute '%s' BaseValue from %.2f to %.2f on '%s'"),
@@ -268,23 +281,22 @@ bool UTcsAttributeComponent::RemoveAttribute(FName AttributeName)
 		}
 	}
 
-	// 移除所有应用到该属性的修改器
-	TArray<FTcsAttributeModifierInstance> ModifiersToRemove;
+	// 被任意 Ongoing Operation 引用的 Attribute 不能移除，避免留下无目标的持续贡献。
 	for (const FTcsAttributeModifierInstance& Modifier : AttributeModifiers)
 	{
-		if (!Modifier.ModifierDef)
+		for (const FTcsEvaluatedAttributeOperation& Operation : Modifier.AppliedOperations)
 		{
-			continue;
+			if (Operation.TargetAttributeId == AttributeName)
+			{
+				UE_LOG(LogTcsAttribute, Error,
+					TEXT("[%s] Cannot remove attribute '%s' from '%s': Ongoing ModifierInstId %d still targets it."),
+					*FString(__FUNCTION__),
+					*AttributeName.ToString(),
+					*GetPathName(),
+					Modifier.ModifierInstId);
+				return false;
+			}
 		}
-		const UTcsAttributeModifierDefinition* ModDef = Modifier.ModifierDef;
-		if (ModDef && ModDef->AttributeId == AttributeName)
-		{
-			ModifiersToRemove.Add(Modifier);
-		}
-	}
-	if (ModifiersToRemove.Num() > 0)
-	{
-		RemoveModifier(ModifiersToRemove);
 	}
 
 	// 从组件中移除属性

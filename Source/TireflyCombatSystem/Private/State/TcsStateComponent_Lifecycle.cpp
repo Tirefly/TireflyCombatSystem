@@ -551,13 +551,13 @@ void UTcsStateComponent::FinalizeStateRemoval(UTcsStateInstance* StateInstance, 
 	{
 		if (UTcsAttributeComponent* OwnerAttrComp = StateInstance->GetOwnerAttributeComponent())
 		{
-			OwnerAttrComp->RemoveModifiersBySourceHandle(StateInstance->GetSourceHandle());
+			OwnerAttrComp->RemoveOngoingModifiersBySourceHandle(StateInstance->GetSourceHandle());
 		}
 		else if (AActor* MutableOwnerActor = GetOwner())
 		{
 			if (UTcsAttributeComponent* FallbackAttrComp = MutableOwnerActor->FindComponentByClass<UTcsAttributeComponent>())
 			{
-				FallbackAttrComp->RemoveModifiersBySourceHandle(StateInstance->GetSourceHandle());
+				FallbackAttrComp->RemoveOngoingModifiersBySourceHandle(StateInstance->GetSourceHandle());
 			}
 		}
 
