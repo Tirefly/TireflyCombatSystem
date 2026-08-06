@@ -1,8 +1,39 @@
-# attribute-modifier-runtime Specification
-
 ## Purpose
-定义 AttributeModifier 的运行时绑定与创建契约：`OperandBindings` 将 Operand 动态绑定到 StateParam；创建入口使用 `CreateAttributeModifierWithBindings`，不再保留 `CreateAttributeModifierWithOperands` 或已删除 AttributeManager 上的兼容路径。
-## Requirements
+
+定义 AttributeModifier 的 Operation 运行时契约：`OperandPayload -> OperandEvaluator -> EvaluatedOperand -> Operator` 模型、唯一入口 `ApplyAttributeModifier(Request, OutResult)`、Instant BaseValue 原子结算、Ongoing CurrentValue 聚合、Snapshot 自排除、StateInstance 宿主边界，以及 Operator/Merger 兼容规则。
+
+## REMOVED Requirements
+
+### Requirement: Operand 动态绑定
+**Reason**: OperandBindings / `FTcsStateParamBinding` 被 `FTcsStateParamOperandPayload` + Numeric Evaluator 取代。
+**Migration**: 在 Operation 的 OperandPayload 中声明 StateParamTag 与来源类型；Evaluator 从 EvaluatorContext 读取 effective `GetModifiedValue()`。
+
+### Requirement: RecalculateAttributeCurrentValues 中刷新 Operand
+**Reason**: 旧“先刷新 Operands Map 再 Execution”模型被 Snapshot + Evaluator 按 Operation 求值取代。
+**Migration**: Ongoing 受控重算入口构建排除自身后的 Snapshot，再按 OperationId 稳定排序求值；动态依赖自动标脏留给后续 change。
+
+### Requirement: ResolveStateParamInstances
+**Reason**: 旧容器定位 helper 绑定到 OperandBindings 刷新路径。
+**Migration**: EvaluatorContext 直接携带可选 SourceStateInstance / SourceSkillEntry；StateParam Evaluator 从 Context 解析 Numeric Param。
+
+### Requirement: CreateAttributeModifierWithBindings
+**Reason**: 创建与 Apply 分离的旧入口删除；Bindings 模型删除。
+**Migration**: 使用 `ApplyAttributeModifier(Request, OutResult)`，Request 携带 ApplicationMode、SourceHandle 与可选 OperationOverrides。
+
+### Requirement: 删除 CreateAttributeModifierWithOperands
+**Reason**: 该“删除旧 API”要求本身已成为历史；本 change 删除全部旧 Create/Apply 入口族。
+**Migration**: 统一迁移到 `ApplyAttributeModifier`。
+
+### Requirement: AttributeModifierInstance 新增引用字段
+**Reason**: SourceStateInstance / SourceSkillEntry 不再作为 ModifierInstance 上为 OperandBindings 服务的持久定位字段契约。
+**Migration**: 它们只作为每轮 EvaluatorContext 的可选输入；由 StateInstance / Skill 宿主在 Apply 时提供，不通过 SourceHandle 反查。
+
+### Requirement: AttributeModifier 已解析 Operand 的统一访问口径
+**Reason**: `FTcsAttributeModifierInstance::Operands` 不再是权威已解析值存储。
+**Migration**: 业务与调试读取 ApplicationResult、Ongoing 已应用 Operation 记录或最终 Attribute CurrentValue；不再依赖 Operands Map。
+
+## ADDED Requirements
+
 ### Requirement: AttributeOperation 模型与 Operation Map
 
 AttributeModifier Definition SHALL 使用 `TMap<FName, FTcsAttributeOperationSpec>` 表达多 Operation，Key 为稳定 `OperationId`。每条 Operation MUST 声明 `TargetAttributeId`、Operator（内建或 Custom）、OperandEvaluator 与 OperandPayload。AttributeModifier 的 Evaluator 与 Operand MUST 固定为 Numeric / `float`。`FInstancedStruct` MUST 只承载 OperandPayload。Definition MUST NOT 暴露 `ModifierMode`、单目标 `AttributeId`、旧 `Operands` Map 或 `ModifierType`。
@@ -158,4 +189,3 @@ Merger SHALL 只用于 Ongoing。内建 Merger MUST 在 Operator 之前处理本
 - **WHEN** 搜索 TCS runtime / editor 源码中的 `TcsSTTask_ApplyAttributeModifierToTarget`
 - **THEN** 搜索结果 MUST 为空
 - **AND** MUST NOT 存在将其限制为 Instant 的兼容入口
-

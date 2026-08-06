@@ -349,7 +349,7 @@ TCS SHALL 为 SkillModifier 提供统一的组件级外部入口，并让 StateT
 
 ### Requirement: 公开参数读取默认返回 effective value
 
-TCS SHALL 让业务可见的 Skill / State 参数读取默认返回 effective value（base + 激活中的 SkillModifier 链结果）。无参 `GetModifiedValue()` 与任何默认参数读取 API SHALL 使用 ParamInstance 自身绑定的上下文；`GetBaseValue()` 与任何显式 Base API SHALL 仅表示未经 SkillModifier 链改写的 base value。跨系统消费（含 Attribute OperandBinding、参数条件、冷却进度）MUST 复用同一 effective 读取口径，而不是各自读取 base 字段。
+TCS SHALL 让业务可见的 Skill / State 参数读取默认返回 effective value（base + 激活中的 SkillModifier 链结果）。无参 `GetModifiedValue()` 与任何默认参数读取 API SHALL 使用 ParamInstance 自身绑定的上下文；`GetBaseValue()` 与任何显式 Base API SHALL 仅表示未经 SkillModifier 链改写的 base value。跨系统消费（含 AttributeModifier 的 StateParam OperandEvaluator、参数条件、冷却进度）MUST 复用同一 effective 读取口径，而不是各自读取 base 字段。
 
 #### Scenario: Get*ParamByTag 默认返回 SkillModifier 修正后的值
 - **WHEN** 目标 `SkillEntry` 参数上已存在激活中的 SkillModifier
@@ -391,4 +391,19 @@ TCS SHALL 将 `UTcsSkillComponent::ActivateSkill` 的公开输入收敛为 `Skil
 - **WHEN** SkillComponent 为所属实体创建一个 SkillEntry
 - **THEN** 该 Entry 的全部 StateParamInstance MUST 绑定该 Entry 与所属实体作为内部求值上下文
 - **AND** 后续激活该技能 MUST NOT 重写这些参数的 Instigator 上下文
+
+### Requirement: SkillInstance 不得直接施加 Ongoing AttributeModifier
+
+SkillInstance SHALL 只能直接施加 Instant AttributeModifier，或通过目标本地 StateInstance（首版以 BuffInstance 为宿主）间接产生 Ongoing AttributeModifier。直接 Ongoing 请求 MUST 硬拒绝、零修改，并在 Development / Editor 输出 Warning。
+
+#### Scenario: Skill 直接 Ongoing 被拒绝
+- **WHEN** SkillInstance 调用 `ApplyAttributeModifier` 且 `ApplicationMode = Ongoing`
+- **THEN** 系统 MUST 拒绝该请求并保持零修改
+- **AND** Development / Editor MUST 输出 Warning
+
+#### Scenario: Skill 可通过目标本地 StateInstance 间接 Ongoing
+- **WHEN** SkillInstance 先在目标 Actor 上创建 / 施加 StateInstance
+- **AND** 该 StateInstance 再 Apply Ongoing AttributeModifier
+- **THEN** 该路径 MUST 被允许
+- **AND** Ongoing 生命周期 MUST 由该目标本地 StateInstance 管理
 

@@ -1,8 +1,5 @@
-# attribute-management Specification
+## MODIFIED Requirements
 
-## Purpose
-定义 `UTcsAttributeComponent` 的 Actor 本地 Attribute 业务边界：属性 CRUD、Modifier 管线、SourceHandle 本地索引、重算与夹值。`AttributeDef` / `AttributeModifierDef` 与 tag 解析归口到 `UTcsDefinitionManagerSubsystem`；Attribute / Modifier 进程级 ID 由 Component 静态工厂分配。
-## Requirements
 ### Requirement: Attribute Component 拥有 Actor 本地 Attribute 业务逻辑
 
 `UTcsAttributeComponent` SHALL 成为 Actor 本地 attribute 业务逻辑的唯一归属，包括 attribute CRUD、BaseValue 写入、由 BaseValue / Ongoing AttributeModifier 聚合推导 CurrentValue、SourceHandle 到 Ongoing modifier 的本地索引、重算、夹值以及范围约束。`UTcsAttributeManagerSubsystem` MUST NOT 再保留任何 Actor 本地业务实现。
@@ -51,29 +48,6 @@
 - **WHEN** 在 TCS runtime 源码中搜索 `ResolveAttributeManager`、`UTcsAttributeManagerSubsystem`、`ModifierChangeBatchId` 或 `NextModifierChangeBatchId`
 - **THEN** 搜索结果 MUST 不包含 Attribute / Modifier ID 分配实现或 ChangeBatchId 计数器
 
-### Requirement: Attribute 定义通过 Manager 解析
-
-attribute 与 modifier 的定义查询 SHALL 统一经过 `UTcsDefinitionManagerSubsystem` 的类型化 Definition 查询入口。Components MUST NOT 在本地缓存或复制 definition registry，也 MUST NOT 继续通过 `UTcsAttributeManagerSubsystem` 解析 `AttributeDef` / `AttributeModifierDef`。
-
-#### Scenario: AddAttribute 从 DefinitionManager 解析定义
-- **WHEN** `UTcsAttributeComponent::AddAttribute(Name)` executes
-- **THEN** `UTcsAttributeDefinition` MUST 通过统一的运行时 Definition 加载归口获取
-- **AND** AddAttribute MUST NOT 接受 InitValue 或通过 component 本地 map / `UTcsAttributeManagerSubsystem::GetAttributeDefinition(Name)` 获取定义
-
-### Requirement: Attribute 夹值绑定到单一 Component 作用域
-
-Attribute 夹值 SHALL 只在单个 `UTcsAttributeComponent` 作用域内工作。`FTcsAttributeRange` 的 `MinValueAttribute` / `MaxValueAttribute`（均为 `FName`）MUST 解析到同一个 component 实例上的 attributes。`UTcsAttributeClampStrategy` 子类收到的 `FTcsAttributeClampContextBase` 也只能绑定到所属 component。
-
-#### Scenario: 同 Component 内解析最小值/最大值
-
-- **WHEN** `EnforceAttributeRangeConstraints` processes an attribute whose `FTcsAttributeRange.MinValueAttribute` is `HealthFloor`
-- **THEN** 解析过程 MUST 在 `this` component 上查找 `HealthFloor`；MUST NOT 去查找其他 Actor 的 component
-
-#### Scenario: 不支持跨 Actor 引用
-
-- **WHEN** 设计者试图在 `FTcsAttributeRange` 中通过名称引用另一个 Actor 的 attribute
-- **THEN** 该行为属于未定义且不受支持；解析会回落到本地 component，不会形成跨 component 依赖
-
 ### Requirement: Attribute Manager Subsystem 只保留全局职责
 
 迁移完成后，`UTcsAttributeManagerSubsystem` SHALL 不再作为独立 runtime 子系统存在。attribute 与 modifier 的 tag 解析、Definition 查询与相关运行时索引 SHALL 收敛到 `UTcsDefinitionManagerSubsystem`；Attribute / Ongoing Modifier 的运行时实例 ID 工厂 SHALL 下沉到 `UTcsAttributeComponent` 内部静态工厂，并只覆盖 `AttributeInstId` 与 `ModifierInstId`；SourceHandle 创建 SHALL 统一委托共享的 `FTcsSourceHandleFactory`。
@@ -114,26 +88,6 @@ Attribute 夹值 SHALL 只在单个 `UTcsAttributeComponent` 作用域内工作�
 - **WHEN** 某个子类尝试对 `GetOngoingModifiersBySourceHandle` 做 `virtual override`
 - **THEN** 编译器 MUST 因基类方法为 non-virtual 而拒绝该覆写；子类若要扩展，必须通过新增方法叠加实现
 
-### Requirement: Attribute 创建不持有业务数值基线
-
-`FTcsAttributeInstance` SHALL 只保存 `BaseValue` 与 `CurrentValue` 作为数值状态。系统 MUST NOT 保存 `InitValue`、`InitialValue`、`InitialBaseValue` 或其他创建时数值基线。`AddAttribute` 与 `AddAttributeByTag` MUST NOT 接受数值参数；它们只负责解析 Definition、创建 / 注册 AttributeInstance、使用内部零值占位参与统一 Range Clamp，以及建立范围依赖。
-
-#### Scenario: AddAttribute 不接受初始值但仍解析定义
-- **WHEN** 调用方执行 `AddAttribute(AttributeDefId)`
-- **THEN** `UTcsAttributeDefinition` MUST 通过 `UTcsDefinitionManagerSubsystem` 的统一运行时加载归口解析
-- **AND** 调用方 MUST NOT 提供 InitValue 或等价数值参数
-- **AND** AttributeInstance MUST NOT 保存任何可恢复初始值字段
-
-#### Scenario: 业务层在创建后明确写入 BaseValue
-- **WHEN** 角色创建、读档、等级变化或资源恢复需要设置 Attribute 数值
-- **THEN** 业务层 MUST 在 Attribute 创建后通过 `SetAttributeBaseValue` 写入计算得到的 BaseValue
-- **AND** 系统 MUST NOT 从 AddAttribute 的历史参数、AttributeInstance 初始字段或 Reset 语义推断该数值
-
-#### Scenario: 创建占位值仍受范围约束
-- **WHEN** 新 Attribute 的内部零值不在其有效 AttributeRange 内
-- **THEN** 系统 MUST 通过该 Attribute 的统一 ClampStrategy 对 BaseValue 与 CurrentValue 应用范围约束
-- **AND** 约束后的值 MUST NOT 被记录为业务初始基线
-
 ### Requirement: Attribute Core 不提供 Reset 或直接 CurrentValue 写入
 
 `UTcsAttributeComponent` MUST NOT 声明或实现 `ResetAttribute` 或 `SetAttributeCurrentValue`，也 MUST NOT 提供等价的 Blueprint、UnrealSharp 或兼容包装入口。CurrentValue SHALL 只由 BaseValue、当前 Ongoing AttributeModifier 聚合与统一 Range Clamp 推导。业务层的初始化、读档、等级变化和资源恢复 MUST 通过 `SetAttributeBaseValue` 完成；伤害、治疗和周期结算 MUST 使用 Instant AttributeModifier，而不是 Attribute Core 的直接 CurrentValue 写入。
@@ -153,25 +107,7 @@ Attribute 夹值 SHALL 只在单个 `UTcsAttributeComponent` 作用域内工作�
 - **THEN** 系统 MUST 使用当前 Ongoing Modifier 与统一 Range Clamp 重新建立最终 CurrentValue
 - **AND** 系统 MUST NOT 通过直接覆写 CurrentValue 绕过该重建路径
 
-### Requirement: BaseValue 与 CurrentValue 共用范围约束
-
-对同一个 Attribute，BaseValue 与 CurrentValue SHALL 使用同一个 `FTcsAttributeRange` 和同一个 `UTcsAttributeClampStrategy`。动态 MinValueAttribute / MaxValueAttribute MUST 只解析同一 `UTcsAttributeComponent` 上被依赖 Attribute 的 CurrentValue。系统 MUST NOT 为 Base / Current 引入不同 Range、不同 ClampStrategy、ValueLayer 选择、跨 Component 查询或跨 Actor 依赖。
-
-#### Scenario: 同一策略约束两个数值层
-- **WHEN** AddAttribute、SetAttributeBaseValue、Modifier 重算或范围传播使 Attribute 的 BaseValue 或 CurrentValue 超出有效范围
-- **THEN** 系统 MUST 对两个数值层使用同一个 AttributeRange 和同一个 ClampStrategy
-- **AND** 所有范围传播完成后才提交最终稳定值和对应事件
-
-#### Scenario: 动态范围只读取本地 CurrentValue
-- **WHEN** Attribute 的动态 MaxValueAttribute 引用同一组件上的 `MaxHealth`
-- **THEN** `MaxHealth` 的 CurrentValue MUST 作为该范围上限
-- **AND** 系统 MUST NOT 改读 `MaxHealth` 的 BaseValue、其他 Component 或其他 Actor 的 Attribute
-
-#### Scenario: 容量降低永久截断两个数值层
-- **WHEN** 有效最大值从 100 降至 80，而资源 Attribute 的 BaseValue 与 CurrentValue 都为 100
-- **THEN** 范围传播完成后两个值 MUST 都为 80
-- **AND** 当有效最大值后续恢复至 100 时，两个值 MUST 保持 80
-- **AND** 系统 MUST NOT 保存或返还任何隐藏 overflow 数值
+## ADDED Requirements
 
 ### Requirement: RemoveAttribute 被 Ongoing Operation 引用时硬拒绝
 
@@ -182,4 +118,3 @@ Attribute 夹值 SHALL 只在单个 `UTcsAttributeComponent` 作用域内工作�
 - **AND** 调用方执行 `RemoveAttribute("Health")`
 - **THEN** 调用 MUST 失败
 - **AND** `Health` Attribute、相关 Ongoing 实例与索引 MUST 保持不变
-
