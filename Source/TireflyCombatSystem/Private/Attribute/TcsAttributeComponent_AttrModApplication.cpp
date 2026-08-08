@@ -16,6 +16,14 @@ bool UTcsAttributeComponent::ApplyAttributeModifier(
 	OutResult.ModifierDefId = Request.ModifierDefId;
 	OutResult.ApplicationMode = Request.ApplicationMode;
 	OutResult.SourceHandle = Request.SourceHandle;
+	if (bIsBroadcastingAttributeStateDiffs)
+	{
+		UE_LOG(LogTcsAttribute, Warning,
+			TEXT("[%s] Reentrant AttributeModifier Application was rejected during Attribute event publication for %s"),
+			*FString(__FUNCTION__),
+			*GetPathNameSafe(this));
+		return TcsAttributeModPrivate::SetApplicationFailure(&OutResult, ETcsAttributeModifierApplicationFailure::AMAF_InvalidRequest);
+	}
 
 	if (!IsRuntimePrepared())
 	{
@@ -112,6 +120,7 @@ bool UTcsAttributeComponent::ApplyAttributeModifier(
 		SourceSkillEntry,
 		Snapshot,
 		EvaluatedOperations,
+		nullptr,
 		&OutResult))
 	{
 		return false;
@@ -138,7 +147,8 @@ bool UTcsAttributeComponent::ApplyAttributeModifier(
 			UpdatedModifierInstances,
 			CandidateCurrentValues,
 			INDEX_NONE,
-			&OutResult))
+			&OutResult,
+			true))
 		{
 			return false;
 		}
@@ -169,15 +179,32 @@ bool UTcsAttributeComponent::ApplyAttributeModifier(
 	TArray<FTcsAttributeModifierInstance> UpdatedModifierInstances;
 	TMap<FName, float> CandidateCurrentValues;
 	OutResult.OperationResults.Reset();
+	// Existing registered parents may temporary-skip; the new candidate itself must succeed.
 	if (!BuildOngoingAttributeValues(
 		BaseValues,
 		CandidateModifierInstances,
 		UpdatedModifierInstances,
 		CandidateCurrentValues,
 		NewModifierInstance.ModifierInstId,
-		&OutResult))
+		&OutResult,
+		true))
 	{
 		return false;
+	}
+
+	const FTcsAttributeModifierInstance* const CommittedNewInstance = UpdatedModifierInstances.FindByPredicate(
+		[&NewModifierInstance](const FTcsAttributeModifierInstance& Candidate)
+		{
+			return Candidate.ModifierInstId == NewModifierInstance.ModifierInstId;
+		});
+	if (!CommittedNewInstance || CommittedNewInstance->AppliedOperations.IsEmpty())
+	{
+		// Never-registered candidates must not persist as empty-contribution rows.
+		return TcsAttributeModPrivate::SetApplicationFailure(
+			&OutResult,
+			OutResult.Failure != ETcsAttributeModifierApplicationFailure::AMAF_None
+				? OutResult.Failure
+				: ETcsAttributeModifierApplicationFailure::AMAF_DependencyCycle);
 	}
 
 	CommitAttributeModifierTransaction(
@@ -187,85 +214,4 @@ bool UTcsAttributeComponent::ApplyAttributeModifier(
 		true);
 	OutResult.bSucceeded = true;
 	return true;
-}
-
-bool UTcsAttributeComponent::RemoveOngoingModifiersBySourceHandle(const FTcsSourceHandle& SourceHandle)
-{
-	if (!IsRuntimePrepared() || !SourceHandle.IsValid())
-	{
-		return false;
-	}
-
-	TArray<FTcsAttributeModifierInstance> CandidateModifierInstances;
-	CandidateModifierInstances.Reserve(AttributeModifiers.Num());
-	for (const FTcsAttributeModifierInstance& ModifierInstance : AttributeModifiers)
-	{
-		if (ModifierInstance.SourceHandle != SourceHandle)
-		{
-			CandidateModifierInstances.Add(ModifierInstance);
-		}
-	}
-
-	if (CandidateModifierInstances.Num() == AttributeModifiers.Num())
-	{
-		return false;
-	}
-
-	TMap<FName, float> BaseValues = GetAttributeBaseValues();
-	if (!ClampCandidateAttributeValues(BaseValues))
-	{
-		return false;
-	}
-	TArray<FTcsAttributeModifierInstance> UpdatedModifierInstances;
-	TMap<FName, float> CandidateCurrentValues;
-	if (!BuildOngoingAttributeValues(
-		BaseValues,
-		CandidateModifierInstances,
-		UpdatedModifierInstances,
-		CandidateCurrentValues))
-	{
-		return false;
-	}
-
-	CommitAttributeModifierTransaction(
-		BaseValues,
-		CandidateCurrentValues,
-		UpdatedModifierInstances,
-		true);
-	return true;
-}
-
-void UTcsAttributeComponent::CommitAttributeModifierTransaction(
-	const TMap<FName, float>& BaseValues,
-	const TMap<FName, float>& CurrentValues,
-	const TArray<FTcsAttributeModifierInstance>& ModifierInstances,
-	bool bCommitModifierInstances,
-	bool bBroadcastEvents)
-{
-	const TMap<FName, float> PreviousBaseValues = GetAttributeBaseValues();
-	const TMap<FName, float> PreviousCurrentValues = GetAttributeValues();
-
-	for (TPair<FName, FTcsAttributeInstance>& AttributePair : Attributes)
-	{
-		if (const float* const BaseValue = BaseValues.Find(AttributePair.Key))
-		{
-			AttributePair.Value.BaseValue = *BaseValue;
-		}
-
-		if (const float* const CurrentValue = CurrentValues.Find(AttributePair.Key))
-		{
-			AttributePair.Value.CurrentValue = *CurrentValue;
-		}
-	}
-
-	if (bCommitModifierInstances)
-	{
-		AttributeModifiers = ModifierInstances;
-		RebuildModifierRuntimeCaches();
-	}
-
-	if (bBroadcastEvents)
-	{
-		BroadcastAttributeStateDiffs(PreviousBaseValues, PreviousCurrentValues);
-	}
 }

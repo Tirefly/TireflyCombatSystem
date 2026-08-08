@@ -48,6 +48,8 @@ enum class ETcsAttributeModifierApplicationFailure : uint8
 	AMAF_DuplicateOngoingDefinition = 14	UMETA(DisplayName = "Duplicate Ongoing Definition", ToolTip = "The StateInstance already owns this ongoing AttributeModifier Definition."),
 	AMAF_UnsupportedMerger = 15			UMETA(DisplayName = "Unsupported Merger", ToolTip = "The selected Ongoing merger is not supported by the current runtime stage."),
 	AMAF_IncompatibleOperatorMerger = 16	UMETA(DisplayName = "Incompatible Operator Merger", ToolTip = "An Operator and Merger combination is forbidden."),
+	AMAF_DependencyCycle = 17			UMETA(DisplayName = "Dependency Cycle", ToolTip = "The Ongoing parent dependency graph contains a cycle."),
+	AMAF_DependencyGraphChanged = 18		UMETA(DisplayName = "Dependency Graph Changed", ToolTip = "The dependency structure changed during final evaluation, so the atomic update was rejected."),
 };
 
 

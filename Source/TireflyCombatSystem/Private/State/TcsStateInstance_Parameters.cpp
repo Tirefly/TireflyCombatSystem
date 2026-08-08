@@ -41,7 +41,7 @@ bool UTcsStateInstance::PopulateStateParamInstances(
 		case ETcsStateParameterType::SPT_Numeric:
 			{
 				FTcsNumericStateParamInstance Instance;
-				Instance.BindEvaluationContext(nullptr, InInstigator);
+				Instance.BindEvaluationContext(this, nullptr, InInstigator);
 				FString Error;
 				if (!Instance.Initialize(ParamPair.Key, ParamPair.Value, Error))
 				{
@@ -199,7 +199,9 @@ void UTcsStateInstance::SetNumericParamByTag(FGameplayTag ParameterTag, float Va
 
 	if (FTcsNumericStateParamInstance* P = GetNumericParamInstance(ParameterTag))
 	{
+		const float PreviousEffectiveValue = P->GetModifiedValue();
 		P->NumericValue = Value;
+		P->NotifyEffectiveValueChanged(PreviousEffectiveValue);
 	}
 }
 

@@ -10,6 +10,14 @@ void UTcsAttributeComponent::BroadcastAttributeStateDiffs(
 	const TMap<FName, float>& PreviousBaseValues,
 	const TMap<FName, float>& PreviousCurrentValues)
 {
+	if (bIsBroadcastingAttributeStateDiffs)
+	{
+		return;
+	}
+	TGuardValue<bool> BroadcastGuard(bIsBroadcastingAttributeStateDiffs, true);
+	ActiveBroadcastBaseValues = PreviousBaseValues;
+	ActiveBroadcastCurrentValues = PreviousCurrentValues;
+
 	TArray<FTcsAttributeChangeEventPayload> BaseChangePayloads;
 	TArray<FTcsAttributeChangeEventPayload> CurrentChangePayloads;
 	TArray<FTcsAttributeBoundaryEventPayload> BoundaryPayloads;
@@ -65,13 +73,37 @@ void UTcsAttributeComponent::BroadcastAttributeStateDiffs(
 		}
 	}
 
+	ActiveBroadcastBaseValues = GetAttributeBaseValues();
+	uint64 BroadcastSerial = AttributeStateCommitSerial;
 	BroadcastAttributeBaseValueChangeEvent(BaseChangePayloads);
-	BroadcastAttributeValueChangeEvent(CurrentChangePayloads);
-	BroadcastAttributeReachedBoundaryBatchEvent(BoundaryPayloads);
+	const bool bChangedDuringBaseEvents = BroadcastSerial != AttributeStateCommitSerial;
+
+	if (!bChangedDuringBaseEvents)
+	{
+		ActiveBroadcastCurrentValues = GetAttributeValues();
+		BroadcastSerial = AttributeStateCommitSerial;
+		BroadcastAttributeValueChangeEvent(CurrentChangePayloads);
+		if (BroadcastSerial == AttributeStateCommitSerial)
+		{
+			BroadcastAttributeReachedBoundaryBatchEvent(BoundaryPayloads);
+		}
+	}
+
+	ActiveBroadcastBaseValues.Reset();
+	ActiveBroadcastCurrentValues.Reset();
 }
 
 void UTcsAttributeComponent::RecalculateAttributeCurrentValues(bool bBroadcastEvents)
 {
+	if (bIsBroadcastingAttributeStateDiffs)
+	{
+		UE_LOG(LogTcsAttribute, Warning,
+			TEXT("[%s] Reentrant Ongoing recalculation was rejected during Attribute event publication for %s"),
+			*FString(__FUNCTION__),
+			*GetPathNameSafe(this));
+		return;
+	}
+
 	if (!IsRuntimePrepared())
 	{
 		UE_LOG(LogTcsAttribute, Warning, TEXT("[%s] Attribute runtime is not ready for %s"),
@@ -83,6 +115,12 @@ void UTcsAttributeComponent::RecalculateAttributeCurrentValues(bool bBroadcastEv
 	TMap<FName, float> CandidateBaseValues = GetAttributeBaseValues();
 	if (!ClampCandidateAttributeValues(CandidateBaseValues))
 	{
+		if (AttributeModifiers.IsEmpty())
+		{
+			UE_LOG(LogTcsAttribute, Fatal, TEXT("[%s] BaseValue/Range configuration cannot produce a legal value for %s"),
+				*FString(__FUNCTION__),
+				*GetPathNameSafe(this));
+		}
 		UE_LOG(LogTcsAttribute, Error, TEXT("[%s] Failed to clamp Attribute BaseValue candidates for %s"),
 			*FString(__FUNCTION__),
 			*GetPathNameSafe(this));
@@ -95,7 +133,10 @@ void UTcsAttributeComponent::RecalculateAttributeCurrentValues(bool bBroadcastEv
 		CandidateBaseValues,
 		AttributeModifiers,
 		UpdatedModifierInstances,
-		CandidateCurrentValues))
+		CandidateCurrentValues,
+		INDEX_NONE,
+		nullptr,
+		true))
 	{
 		UE_LOG(LogTcsAttribute, Error, TEXT("[%s] Failed to rebuild Ongoing AttributeModifier values for %s"),
 			*FString(__FUNCTION__),
@@ -115,8 +156,10 @@ void UTcsAttributeComponent::RebuildModifierRuntimeCaches()
 {
 	ModifierInstIdToIndex.Reset();
 	SourceHandleIdToModifierInstIds.Reset();
+	ReverseDependencyIndex.Reset();
 	ModifierInstIdToIndex.Reserve(AttributeModifiers.Num());
 	SourceHandleIdToModifierInstIds.Reserve(AttributeModifiers.Num());
+	ReverseDependencyIndex.Reserve(AttributeModifiers.Num());
 
 	for (int32 Index = 0; Index < AttributeModifiers.Num(); ++Index)
 	{
@@ -128,5 +171,27 @@ void UTcsAttributeComponent::RebuildModifierRuntimeCaches()
 
 		ModifierInstIdToIndex.Add(ModifierInstance.ModifierInstId, Index);
 		SourceHandleIdToModifierInstIds.FindOrAdd(ModifierInstance.SourceHandle.Id).Add(ModifierInstance.ModifierInstId);
+		for (const FTcsAttributeModifierDependencyRecord& DependencyRecord : ModifierInstance.DependencyRecords)
+		{
+			DependencyRevisions.FindOrAdd(DependencyRecord.Key) = FMath::Max(
+				DependencyRevisions.FindRef(DependencyRecord.Key),
+				DependencyRecord.ObservedRevision);
+			ReverseDependencyIndex.FindOrAdd(DependencyRecord.Key).Add(ModifierInstance.ModifierInstId);
+		}
+	}
+
+	for (auto DirtyIt = DirtyOngoingModifierInstIds.CreateIterator(); DirtyIt; ++DirtyIt)
+	{
+		if (!ModifierInstIdToIndex.Contains(*DirtyIt))
+		{
+			DirtyIt.RemoveCurrent();
+		}
+	}
+	for (auto RevisionIt = DependencyRevisions.CreateIterator(); RevisionIt; ++RevisionIt)
+	{
+		if (!ReverseDependencyIndex.Contains(RevisionIt.Key()))
+		{
+			RevisionIt.RemoveCurrent();
+		}
 	}
 }

@@ -26,6 +26,11 @@ namespace
 
 bool UTcsAttributeComponent::AddAttribute(FName AttributeName)
 {
+	if (bIsBroadcastingAttributeStateDiffs)
+	{
+		return false;
+	}
+
 	if (!IsRuntimePrepared())
 	{
 		return LogAttributeRuntimeNotReady_AttrInstance(this, TEXT(__FUNCTION__));
@@ -74,6 +79,11 @@ bool UTcsAttributeComponent::AddAttribute(FName AttributeName)
 
 void UTcsAttributeComponent::AddAttributes(const TArray<FName>& AttributeNames)
 {
+	if (bIsBroadcastingAttributeStateDiffs)
+	{
+		return;
+	}
+
 	if (!IsRuntimePrepared())
 	{
 		LogAttributeRuntimeNotReadyVoid_AttrInstance(this, TEXT(__FUNCTION__));
@@ -156,6 +166,15 @@ bool UTcsAttributeComponent::AddAttributeByTag(const FGameplayTag& AttributeTag)
 
 bool UTcsAttributeComponent::SetAttributeBaseValue(FName AttributeName, float NewValue, bool bTriggerEvents)
 {
+	if (bIsBroadcastingAttributeStateDiffs)
+	{
+		UE_LOG(LogTcsAttribute, Warning,
+			TEXT("[%s] Reentrant BaseValue write was rejected during Attribute event publication for %s"),
+			*FString(__FUNCTION__),
+			*GetPathNameSafe(this));
+		return false;
+	}
+
 	if (!IsRuntimePrepared())
 	{
 		return LogAttributeRuntimeNotReady_AttrInstance(this, TEXT(__FUNCTION__));
@@ -197,7 +216,10 @@ bool UTcsAttributeComponent::SetAttributeBaseValue(FName AttributeName, float Ne
 		CandidateBaseValues,
 		AttributeModifiers,
 		UpdatedModifierInstances,
-		CandidateCurrentValues))
+		CandidateCurrentValues,
+		INDEX_NONE,
+		nullptr,
+		true))
 	{
 		UE_LOG(LogTcsAttribute, Error,
 			TEXT("[%s] Failed to rebuild Ongoing AttributeModifier values for '%s' on '%s'"),
@@ -227,6 +249,11 @@ bool UTcsAttributeComponent::SetAttributeBaseValue(FName AttributeName, float Ne
 
 bool UTcsAttributeComponent::RemoveAttribute(FName AttributeName)
 {
+	if (bIsBroadcastingAttributeStateDiffs)
+	{
+		return false;
+	}
+
 	if (!IsRuntimePrepared())
 	{
 		return LogAttributeRuntimeNotReady_AttrInstance(this, TEXT(__FUNCTION__));
@@ -242,6 +269,27 @@ bool UTcsAttributeComponent::RemoveAttribute(FName AttributeName)
 	{
 		UE_LOG(LogTcsAttribute, Warning,
 			TEXT("[%s] Attribute '%s' not found on '%s'"),
+			*FString(__FUNCTION__),
+			*AttributeName.ToString(),
+			*GetPathName());
+		return false;
+	}
+
+	TMap<FName, TSet<FName>> DeclaredRangeDependents;
+	if (!TryBuildDeclaredRangeConstraintDependents(DeclaredRangeDependents))
+	{
+		UE_LOG(LogTcsAttribute, Error,
+			TEXT("[%s] Cannot safely remove attribute '%s' from '%s': at least one ClampStrategy does not declare complete dependencies."),
+			*FString(__FUNCTION__),
+			*AttributeName.ToString(),
+			*GetPathName());
+		return false;
+	}
+	if (const TSet<FName>* const RangeDependents = DeclaredRangeDependents.Find(AttributeName);
+		RangeDependents && !RangeDependents->IsEmpty())
+	{
+		UE_LOG(LogTcsAttribute, Error,
+			TEXT("[%s] Cannot remove attribute '%s' from '%s': declared range dependents still reference it."),
 			*FString(__FUNCTION__),
 			*AttributeName.ToString(),
 			*GetPathName());
@@ -297,6 +345,23 @@ bool UTcsAttributeComponent::RemoveAttribute(FName AttributeName)
 				return false;
 			}
 		}
+	}
+
+	const FTcsAttributeModifierDependencyKey CurrentValueDependencyKey =
+		FTcsAttributeModifierDependencyKey::MakeAttributeCurrentValue(AttributeName);
+	if (const TSet<int32>* const DependentModifierInstIds = ReverseDependencyIndex.Find(CurrentValueDependencyKey);
+		DependentModifierInstIds && !DependentModifierInstIds->IsEmpty())
+	{
+		UE_LOG(LogTcsAttribute, Error,
+			TEXT("[%s] Cannot remove attribute '%s' from '%s': Ongoing parents [%s] still read its CurrentValue."),
+			*FString(__FUNCTION__),
+			*AttributeName.ToString(),
+			*GetPathName(),
+			*FString::JoinBy(DependentModifierInstIds->Array(), TEXT(","), [](const int32 ModifierInstId)
+			{
+				return FString::FromInt(ModifierInstId);
+			}));
+		return false;
 	}
 
 	// 从组件中移除属性

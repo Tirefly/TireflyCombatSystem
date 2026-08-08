@@ -16,7 +16,9 @@ int32 UTcsAttributeComponent::NextModifierInstanceId = -1;
 
 UTcsAttributeComponent::UTcsAttributeComponent()
 {
-	PrimaryComponentTick.bCanEverTick = false;
+	PrimaryComponentTick.bCanEverTick = true;
+	PrimaryComponentTick.bStartWithTickEnabled = false;
+	PrimaryComponentTick.TickGroup = TG_PostUpdateWork;
 }
 
 void UTcsAttributeComponent::InitializeComponent()
@@ -24,6 +26,7 @@ void UTcsAttributeComponent::InitializeComponent()
 	Super::InitializeComponent();
 
 	bRuntimePrepared = false;
+	SetComponentTickEnabled(false);
 	RuntimeBootstrapSubsystem = ResolveRuntimeBootstrapSubsystem();
 	if (RuntimeBootstrapSubsystem)
 	{
@@ -38,6 +41,20 @@ void UTcsAttributeComponent::InitializeComponent()
 
 void UTcsAttributeComponent::UninitializeComponent()
 {
+	SetComponentTickEnabled(false);
+	DirtyOngoingModifierInstIds.Reset();
+	ReverseDependencyIndex.Reset();
+	DependencyRevisions.Reset();
+	bIsFlushingDirtyOngoingModifiers = false;
+	bIsBroadcastingAttributeStateDiffs = false;
+	AttributeStateCommitSerial = 0;
+	ActiveBroadcastBaseValues.Reset();
+	ActiveBroadcastCurrentValues.Reset();
+	DeferredEventBaseValues.Reset();
+	DeferredEventCurrentValues.Reset();
+	bHasDeferredAttributeEventBaseline = false;
+	bDeferredBroadcastEvents = false;
+
 	if (UTcsRuntimeBootstrapSubsystem* BootstrapSubsystem = ResolveRuntimeBootstrapSubsystem())
 	{
 		BootstrapSubsystem->NotifyComponentUnregistered(this);
@@ -62,6 +79,22 @@ void UTcsAttributeComponent::BeginPlay()
 	}
 }
 
+void UTcsAttributeComponent::TickComponent(
+	float DeltaTime,
+	ELevelTick TickType,
+	FActorComponentTickFunction* ThisTickFunction)
+{
+	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
+
+	if (!IsRuntimePrepared())
+	{
+		SetComponentTickEnabled(false);
+		return;
+	}
+
+	FlushDirtyOngoingModifiers();
+}
+
 UTcsDefinitionManagerSubsystem* UTcsAttributeComponent::ResolveDefinitionManager()
 {
 	if (!DefinitionMgr)
@@ -83,6 +116,10 @@ bool UTcsAttributeComponent::PrepareAttributeRuntime()
 {
 	// Attribute runtime 按实际查询需要加载 Attribute Definition，不等待无关域的全局预加载批次。
 	bRuntimePrepared = ResolveDefinitionManager() != nullptr;
+	if (bRuntimePrepared)
+	{
+		RebuildModifierRuntimeCaches();
+	}
 	return bRuntimePrepared;
 }
 

@@ -72,9 +72,9 @@ Instant AttributeModifierInstance 允许直接作用于 TargetAttributeComponent
 
 BaseValue 与 CurrentValue 使用同一个 AttributeRange 和同一 ClampStrategy。所有动态 Min / Max 均在同一 AttributeComponent 内读取依赖 Attribute 的 CurrentValue；本次不向 ClampContext 引入 ValueLayer，也不支持按数值层配置不同的范围策略。
 
-### 2.8 Ongoing 动态 Operand 的依赖链惰性重算（延期）
+### 2.8 Ongoing 动态 Operand 的依赖链惰性重算（已归档）
 
-依赖链自动标脏、延迟 Flush、循环检测与 StateParam 失效通知不进入当前 AttributeModifier 重构，将以独立 proposal 处理，详见：[设计：OngoingAttrMod依赖链惰性重算（后续提案）.md](设计：OngoingAttrMod依赖链惰性重算（后续提案）.md)。
+依赖链自动标脏、延迟 Flush、循环检测与 StateParam 失效通知已作为独立 change 完成并归档：`openspec/changes/archive/2026-08-08-add-ongoing-attribute-dependency-recalculation/`。设计背景见：[设计：OngoingAttrMod依赖链惰性重算（后续提案）.md](设计：OngoingAttrMod依赖链惰性重算（后续提案）.md)。
 
 当前重构维持既有拉取式惰性语义：Ongoing 仅在 AttributeComponent 已有的受控重算入口执行时读取最新动态 Operand；不承诺 StateParam、Attribute 或其他依赖变化会自动触发重算，也不引入全帧 Tick 或跨 Actor 轮询作为过渡方案。
 

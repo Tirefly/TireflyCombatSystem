@@ -1,6 +1,6 @@
 # 规划：Attribute 与 Modifier 重构提案拆分
 
-> 状态：Change 1–3 均已归档。Change 3 `refactor-attribute-modifier-operations` 于 2026-08-06 归档，delta 已写入当前 `openspec/specs/`。后续为 Change 4（Ongoing 依赖链自动重算）与 Change 5（TCS 伤害模块）。本文不替代主设计文档中的行为契约。
+> 状态：Change 1–4 均已归档。Change 4 `add-ongoing-attribute-dependency-recalculation` 已实现、编译通过，并归档为 `openspec/changes/archive/2026-08-08-add-ongoing-attribute-dependency-recalculation/`；delta 已写入当前 `openspec/specs/`。Change 5 仍为后续。本文不替代主设计文档中的行为契约。
 >
 > 关联主方案：[设计：Modifier操作数与AttributeOperation模型（待审核）.md](设计：Modifier操作数与AttributeOperation模型（待审核）.md)。
 >
@@ -16,11 +16,11 @@
 1. SourceHandle 统一工厂
 2. Attribute 数值生命周期收敛
 3. AttributeModifier Operation 运行时与创作链重构
-4. Ongoing 依赖链自动重算（后续）
+4. Ongoing 依赖链自动重算（已归档）
 5. TCS 伤害模块（后续）
 ```
 
-第一项与第二项在概念上可以并行，但都应先于第三项完成。第四项与第五项不得提前并入第三项。
+第一项与第二项在概念上可以并行，但都应先于第三项完成。第四项已在第三项之后完成并归档；第五项不得提前并入第三项。
 
 ## 2. Change 1：SourceHandle 统一工厂
 
@@ -211,18 +211,30 @@ refactor-attribute-modifier-operations
 add-ongoing-attribute-dependency-recalculation
 ```
 
-该 change 必须在 Change 3 完成后创建。范围以现有后续设计文档为准：
+### 5.0 当前实施状态
+
+- 已实现并归档为 `openspec/changes/archive/2026-08-08-add-ongoing-attribute-dependency-recalculation/`。
+- delta 已写入当前 `openspec/specs/`：`attribute-modifier-runtime`、`attribute-management`、`state-parameter-management`。
+- 已落地 DependencyKey / Revision / 反向索引 / Dirty 集合、Context 自动收集、策略 C Flush（受控路径安全点同步 + `TG_PostUpdateWork` 帧末）、父实例级原子重算、最小 SCC 与临时跳过、单一注册表空 `AppliedOperations` 无贡献语义、Source Step 5 先删来源再重建、显式 `RequestOngoingModifierRecalculation(SourceHandle)`。
+- 首版自动观察范围：目标 Attribute CurrentValue + 本地 Buff Numeric StateParam effective；SkillEntry / 跨 Actor 等走显式 Request。
+- 验证：`openspec validate --strict`、`TireflyGameplayUtilsEditor Win64 Development` 编译通过；按用户规范不设自动化测试任务。
+
+### 5.1 范围（已完成）
+
+该 change 在 Change 3 完成后创建并完成。范围包括：
 
 - DependencyKey 与 Revision。
 - 读取时自动收集依赖。
 - 反向依赖索引与 Dirty 集合。
 - 延迟 Flush 和同帧合并。
 - 父 Ongoing ModifierInstance 级原子重算。
-- 依赖闭包、稳定排序、拓扑排序与循环检测。
+- 依赖闭包、稳定排序、拓扑排序与循环检测（精确最小 SCC）。
 - StateParam 失效通知。
 - 未自动观察依赖的显式重算入口。
+- 已注册失败父实例临时跳过（清空贡献、保留注册，后续 Attribute 事务重试）。
+- Initial Apply 失败零提交、不保存空贡献注册项。
 
-不引入每帧 Tick、跨 Actor 全局轮询或固定次数迭代兜底。
+不引入每帧全量 Tick、跨 Actor 全局轮询、固定次数迭代兜底，也不引入 Quarantined / Disabled / Retry 第二套容器。
 
 关联文档：[设计：OngoingAttrMod依赖链惰性重算（后续提案）.md](设计：OngoingAttrMod依赖链惰性重算（后续提案）.md)。
 
@@ -264,7 +276,7 @@ add-tcs-damage-runtime
   |
   +-- refactor-attribute-modifier-operations（已归档 2026-08-06）
   |
-  +-- add-ongoing-attribute-dependency-recalculation（后续）
+  +-- add-ongoing-attribute-dependency-recalculation（已归档 2026-08-08）
   |
   +-- add-tcs-damage-runtime（后续）
 ```
@@ -275,9 +287,10 @@ add-tcs-damage-runtime
 - `add-skill-modifier-runtime-management` → `2026-08-03-add-skill-modifier-runtime-management`
 - `add-component-runtime-bootstrap` → `2026-08-03-add-component-runtime-bootstrap`
 
-Change 3 本身已归档：
+Change 3 / Change 4 已归档：
 
 - `refactor-attribute-modifier-operations` → `2026-08-06-refactor-attribute-modifier-operations`
+- `add-ongoing-attribute-dependency-recalculation` → `2026-08-08-add-ongoing-attribute-dependency-recalculation`
 
 ## 8. 创建提案前阻塞项
 
@@ -293,7 +306,7 @@ Change 3 本身已归档：
 - ~~多 Operation 使用内建选择 / 聚合 Merger 时，Data Validation 固定为 Error，还是允许项目配置为强 Warning。~~ 已确认：默认 Error，`TcsDeveloperSettings` 可降级为强 Warning；`NoMerge` 始终合法（见提案前待确认问题 2.16）。
 - `ModifierInstId` / `ModifierChangeBatchId` 在新父 Ongoing 实例模型中的去留已确认：保留 `ModifierInstId`，删除 `ModifierChangeBatchId`（见提案前待确认问题 2.17）。
 
-Change 3 提案前阻塞项已全部确认；活动 change 前置与 Change 3 本身均已归档（见第 7 节）。后续应创建 Change 4 / Change 5 提案，而不是继续修改已归档的 Change 3 快照。
+Change 3 / Change 4 提案前阻塞项已全部确认，且均已归档（见第 7 节）。后续应创建 Change 5 伤害模块提案，而不是继续修改已归档的 Change 3 / Change 4 快照。
 
 ## 9. OpenSpec Capability 映射
 
@@ -328,7 +341,7 @@ OpenSpec 约束提醒：只要一个现有 Requirement 需要增加、删除或�
 | SourceHandle 统一工厂 | 3 个 Requirement / 3 个明确变化 Scenario；完整 delta 需携带 11 个 Scenario | 至少 3 个新 Requirement / 约 10 个 Scenario | 0 个明确冲突 delta | `centralize-source-handle-creation` 已实现且 tasks 完成，待单独归档；重点是静态工厂、Id `0` 合法、Root / Child、无对象注册表。 |
 | Attribute 数值生命周期收敛 | 3 个 Requirement / 3 个明确变化 Scenario；完整 delta 需携带 5 个 Scenario | 3 个新 Requirement / 9 个 Scenario | 0 个明确冲突 delta | `SetAttributeCurrentValue` 已确认删除；`simplify-attribute-value-lifecycle` 已创建，需覆盖无初始基线、统一 Clamp、容量降低永久损失和测试 Director 迁移。 |
 | AttributeModifier Operation 重构 | 约 7 个 Requirement / 10 个 Scenario 明确过期或冲突；约 4 个 Requirement / 6 个 Scenario 取决于新 ID 与 EvaluatorContext 决策 | def-editor-authoring 需 1 个机械性 MODIFIED Requirement 追加 2 个 Scenario，并新增 3 个 Requirement / 8 个 Scenario；调用方规格主要为 ADDED | 至少 4 个活动 delta Requirement / 6 个 Scenario 归档后需由 Change 3 修改或移除 | 当前影响最大，必须分散到 `attribute-modifier-runtime`、`attribute-management`、`def-editor-authoring`、必要的 `skill-runtime` / `buff-runtime`。 |
-| Ongoing 依赖链自动重算 | 当前基线直接计数 0；语义血缘上会替代旧 `RecalculateAttributeCurrentValues` 的 1 个 Requirement / 2 个 Scenario | 依赖键、Revision、Dirty、Flush、拓扑与循环检测主要为 ADDED | 取决于 Change 3 归档后的新 Ongoing 惰性重算 Requirement | Change 4 必须修改 Change 3 之后的规格，不能直接针对旧 OperandBindings 写 delta。 |
+| Ongoing 依赖链自动重算 | 已归档到当前 specs：`attribute-modifier-runtime` +7、`attribute-management` +1/~1、`state-parameter-management` +2 | 依赖键、Revision、Dirty、Flush、拓扑/SCC、临时跳过、显式 Request 已写入 | 0 | 已归档 `2026-08-08-add-ongoing-attribute-dependency-recalculation`；后续以当前 specs 为准。 |
 | TCS 伤害模块 | 0 | 新伤害 capability 主要为 ADDED | 0 | 当前没有 Damage 规格；不要修改 AttributeModifier 通用 Instant 语义来表达伤害业务。 |
 
 统计口径说明：表中“当前 specs”只统计已归档到 `openspec/specs/` 的权威 Requirement / Scenario；“活动 changes”统计当前非 archive change 在归档后可能写入的旧语义。活动 change 的历史 `proposal.md` / `design.md` 归档后是历史背景，不需要回改，但其 spec delta 一旦归档会成为当前事实，必须由后续 change 负责修改。
@@ -431,9 +444,11 @@ OpenSpec 约束提醒：只要一个现有 Requirement 需要增加、删除或�
 
 ### 11.5 Change 4 需要更新的 specs
 
-- Change 4 不应直接修改当前旧 `Requirement: RecalculateAttributeCurrentValues 中刷新 Operand`。
-- 正确顺序是：Change 3 先把该 Requirement 替换为 Ongoing Modifier 受控惰性重算或等价新契约；Change 4 再 MODIFIED 这个新契约，加入 DependencyKey、Revision、Dirty、Flush、拓扑排序和循环检测。
-- `Attribute Component 拥有 Actor 本地 Attribute 业务逻辑` 与 `Attribute 夹值绑定到单一 Component 作用域` 可保持现有语义，通过 ADDED Requirements 补依赖机制。
+- 已完成：`2026-08-08-add-ongoing-attribute-dependency-recalculation` 已归档，delta 已写入当前 specs。
+- `attribute-modifier-runtime`：新增依赖键自动收集、Revision 标脏、策略 C Flush、循环/SCC、显式 Request、移除清理、临时跳过等 Requirements。
+- `attribute-management`：更新 Modifier 管线不变量（路径安全点 Flush + 事务内 candidate clamp），并新增 AttributeComponent 拥有 Dirty Flush 调度。
+- `state-parameter-management`：新增 effective 变化可通知依赖失效且禁止同步 Attribute 重算；跨模块消费仍读 effective。
+- 后续以当前 `openspec/specs/` 为准；归档目录仅作历史背景。
 
 ### 11.6 Change 5 需要更新的 specs
 

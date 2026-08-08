@@ -98,7 +98,7 @@ bool UTcsSkillEntry::InitializeFromDef(FName InSkillDefId, const UTcsSkillDefini
 				FString Error;
 				if (Instance.Initialize(ParamPair.Key, ParamPair.Value, Error))
 				{
-					Instance.BindEvaluationContext(this, OwningActor);
+					Instance.BindEvaluationContext(nullptr, this, OwningActor);
 					NumericParamInstances.Add(ParamPair.Key, Instance);
 				}
 				else
@@ -151,7 +151,7 @@ bool UTcsSkillEntry::InitializeFromDef(FName InSkillDefId, const UTcsSkillDefini
 		LevelInst.ParamTag = Def->LevelParamTag;
 		LevelInst.bIsSnapshot = false;
 		LevelInst.NumericValue = 1.0f;
-		LevelInst.BindEvaluationContext(this, OwningActor);
+		LevelInst.BindEvaluationContext(nullptr, this, OwningActor);
 		NumericParamInstances.Add(Def->LevelParamTag, LevelInst);
 	}
 

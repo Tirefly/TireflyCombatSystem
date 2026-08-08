@@ -71,6 +71,12 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "Operation")
 	float EvaluatedOperand = 0.f;
 
+	/**
+	 * 产生该 Operation Operand 的父实例 ID 集合。
+	 * 运行时 provenance，不参与反射或序列化。
+	 */
+	TArray<int32> ContributorModifierInstIds;
+
 #pragma endregion
 };
 

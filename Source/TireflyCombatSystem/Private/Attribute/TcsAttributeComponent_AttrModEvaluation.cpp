@@ -19,9 +19,14 @@ bool UTcsAttributeComponent::BuildEvaluatedAttributeOperations(
 	UTcsSkillEntry* SourceSkillEntry,
 	const FTcsAttributeEvaluationSnapshot& Snapshot,
 	TArray<FTcsEvaluatedAttributeOperation>& OutOperations,
+	TArray<FTcsAttributeModifierDependencyKey>* OutDependencyKeys,
 	FTcsAttributeModifierApplicationResult* InOutResult) const
 {
 	OutOperations.Reset();
+	if (OutDependencyKeys)
+	{
+		OutDependencyKeys->Reset();
+	}
 
 	for (const TPair<FName, FTcsAttributeModifierOperationOverride>& OverridePair : OperationOverrides)
 	{
@@ -43,6 +48,7 @@ bool UTcsAttributeComponent::BuildEvaluatedAttributeOperations(
 	Context.SourceStateInstance = SourceStateInstance;
 	Context.SourceSkillEntry = SourceSkillEntry;
 	Context.AttributeSnapshot = &Snapshot;
+	Context.DependencyCollector = OutDependencyKeys;
 
 	for (const FName OperationId : OperationIds)
 	{
@@ -142,6 +148,28 @@ bool UTcsAttributeComponent::BuildEvaluatedAttributeOperations(
 		EvaluatedOperation.Operator = OperationSpec->Operator;
 		EvaluatedOperation.CustomOperatorClass = OperationSpec->CustomOperatorClass;
 		EvaluatedOperation.EvaluatedOperand = EvaluatedOperand;
+	}
+
+	if (OutDependencyKeys)
+	{
+		OutDependencyKeys->Sort([](
+			const FTcsAttributeModifierDependencyKey& Left,
+			const FTcsAttributeModifierDependencyKey& Right)
+		{
+			if (Left.Type != Right.Type)
+			{
+				return static_cast<uint8>(Left.Type) < static_cast<uint8>(Right.Type);
+			}
+			if (Left.AttributeId != Right.AttributeId)
+			{
+				return Left.AttributeId.LexicalLess(Right.AttributeId);
+			}
+			if (Left.StateParamTag != Right.StateParamTag)
+			{
+				return Left.StateParamTag.GetTagName().LexicalLess(Right.StateParamTag.GetTagName());
+			}
+			return GetTypeHash(Left.SourceBuffObjectKey) < GetTypeHash(Right.SourceBuffObjectKey);
+		});
 	}
 
 	return true;

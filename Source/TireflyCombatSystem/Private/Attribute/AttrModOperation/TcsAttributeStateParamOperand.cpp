@@ -3,9 +3,6 @@
 #include "Attribute/AttrModOperation/TcsAttributeStateParamOperand.h"
 
 #include "Attribute/AttrModOperation/TcsAttributeOperandEvaluatorContext.h"
-#include "Skill/TcsSkillEntry.h"
-#include "State/TcsStateInstance.h"
-#include "State/TcsStateParamInstance.h"
 
 
 
@@ -20,36 +17,15 @@ bool UTcsAttributeModifierStateParamOperandEvaluator::Evaluate(
 		return false;
 	}
 
-	FTcsNumericStateParamInstance* NumericParamInstance = nullptr;
 	switch (StateParamPayload->Source)
 	{
 	case ETcsAttributeStateParamOperandSource::ASPOS_SourceStateInstance:
-		if (!Context.SourceStateInstance)
-		{
-			return false;
-		}
-
-		NumericParamInstance = Context.SourceStateInstance->GetNumericParamInstance(StateParamPayload->StateParamTag);
-		break;
+		return Context.ReadSourceStateNumericParamEffectiveValue(StateParamPayload->StateParamTag, OutOperand);
 
 	case ETcsAttributeStateParamOperandSource::ASPOS_SourceSkillEntry:
-		if (!Context.SourceSkillEntry)
-		{
-			return false;
-		}
-
-		NumericParamInstance = Context.SourceSkillEntry->FindNumericParamInstance(StateParamPayload->StateParamTag);
-		break;
+		return Context.ReadSourceSkillEntryNumericParamEffectiveValue(StateParamPayload->StateParamTag, OutOperand);
 
 	default:
 		return false;
 	}
-
-	if (!NumericParamInstance)
-	{
-		return false;
-	}
-
-	OutOperand = NumericParamInstance->GetModifiedValue();
-	return FMath::IsFinite(OutOperand);
 }

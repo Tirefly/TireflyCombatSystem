@@ -11,8 +11,7 @@ bool FTcsAttributeModifierInstance::IsValid() const
 		&& ModifierDefId != NAME_None
 		&& ModifierInstId >= 0
 		&& SourceHandle.IsValid()
-		&& OwningStateInstance.IsValid()
-		&& !AppliedOperations.IsEmpty();
+		&& OwningStateInstance.IsValid();
 }
 
 bool FTcsAttributeModifierInstance::operator<(const FTcsAttributeModifierInstance& Other) const

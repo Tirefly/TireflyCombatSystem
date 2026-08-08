@@ -18,6 +18,7 @@
 class UTcsDefinitionManagerSubsystem;
 class UTcsAttributeDefinition;
 class UTcsAttributeModifierDefinition;
+class UTcsBuffInstance;
 class UTcsRuntimeBootstrapSubsystem;
 class UTcsStateInstance;
 class UTcsSkillEntry;
@@ -52,6 +53,8 @@ class TIREFLYCOMBATSYSTEM_API UTcsAttributeComponent : public UActorComponent
 #pragma region FriendClasses
 
 	friend class UTcsRuntimeBootstrapSubsystem;
+	friend class UTcsStateInstance;
+	friend struct FTcsNumericStateParamInstance;
 
 #pragma endregion
 
@@ -71,6 +74,12 @@ protected:
 
 	/** 在 BeginPlay 时预热 AttributeManager 缓存。 */
 	virtual void BeginPlay() override;
+
+	/** 在 PostUpdateWork 安全点合并处理跨调用栈 Dirty Ongoing。 */
+	virtual void TickComponent(
+		float DeltaTime,
+		ELevelTick TickType,
+		FActorComponentTickFunction* ThisTickFunction) override;
 
 #pragma endregion
 
@@ -361,6 +370,15 @@ public:
 	 */
 	virtual bool RemoveOngoingModifiersBySourceHandle(const FTcsSourceHandle& SourceHandle);
 
+	/**
+	 * 请求按来源惰性重算 Ongoing 父实例。
+	 *
+	 * 该入口只标脏并安排安全点 Flush，不同步执行重算。
+	 * @param SourceHandle 要重算的有效来源句柄。
+	 * @return 至少找到并标脏一个当前父实例时返回 true。
+	 */
+	bool RequestOngoingModifierRecalculation(const FTcsSourceHandle& SourceHandle);
+
 #pragma endregion
 
 
@@ -393,6 +411,7 @@ protected:
 	 * @param SourceSkillEntry 可选来源 SkillEntry。
 	 * @param Snapshot 本轮共享的只读 Attribute Snapshot。
 	 * @param OutOperations 输出按 OperationId 排序的已求值 Operation。
+	 * @param OutDependencyKeys 可选输出本轮自动收集的依赖键。
 	 * @param InOutResult 输出失败和逐 Operation 审计结果。
 	 * @return 全部 Operation 都成功求值时返回 true。
 	 */
@@ -404,6 +423,7 @@ protected:
 		UTcsSkillEntry* SourceSkillEntry,
 		const FTcsAttributeEvaluationSnapshot& Snapshot,
 		TArray<FTcsEvaluatedAttributeOperation>& OutOperations,
+		TArray<FTcsAttributeModifierDependencyKey>* OutDependencyKeys,
 		FTcsAttributeModifierApplicationResult* InOutResult = nullptr) const;
 
 	/**
@@ -415,7 +435,8 @@ protected:
 	 * @param OutCurrentValues 输出候选 CurrentValue。
 	 * @param AuditedModifierInstId 需要写入 OutResult 的父实例 ID；负值表示无需审计。
 	 * @param InOutResult 可选逐 Operation 审计输出。
-	 * @return 全部父实例都能以自排除 Snapshot 重算时返回 true。
+	 * @param bAllowSkipInvalidRegisteredParents 为 true 时已注册失败父实例清空贡献并继续；为 false 时整次零提交。
+	 * @return 严格模式下全部成功，或跳过模式下得到可提交有效贡献集时返回 true。
 	 */
 	bool BuildOngoingAttributeValues(
 		const TMap<FName, float>& BaseValues,
@@ -423,7 +444,42 @@ protected:
 		TArray<FTcsAttributeModifierInstance>& OutUpdatedModifierInstances,
 		TMap<FName, float>& OutCurrentValues,
 		int32 AuditedModifierInstId = INDEX_NONE,
-		FTcsAttributeModifierApplicationResult* InOutResult = nullptr);
+		FTcsAttributeModifierApplicationResult* InOutResult = nullptr,
+		bool bAllowSkipInvalidRegisteredParents = false);
+
+	/**
+	 * 为依赖闭包构建稳定拓扑求值顺序。
+	 *
+	 * @param ModifierInstances 候选 Ongoing 父实例。
+	 * @param SeedModifierInstIds Dirty 种子；为空时验证并返回完整图。
+	 * @param OutEvaluationOrder 输出稳定父实例 ID 顺序。
+	 * @param OutCycleDiagnostic 失败时输出依赖环诊断。
+	 * @param OutCyclicSccs 可选输出最小循环 SCC；仅包含真实环成员。
+	 * @return 图无环且全部种子可解析时返回 true。
+	 */
+	bool BuildOngoingDependencyEvaluationOrder(
+		const TArray<FTcsAttributeModifierInstance>& ModifierInstances,
+		const TSet<int32>& SeedModifierInstIds,
+		TArray<int32>& OutEvaluationOrder,
+		FString& OutCycleDiagnostic,
+		TArray<TArray<int32>>* OutCyclicSccs = nullptr) const;
+
+	/**
+	 * 只重算 Dirty 依赖闭包中的父实例，并构造原子候选结果。
+	 *
+	 * @param DirtyModifierInstIds 本轮 Dirty 父实例 ID。
+	 * @param OutModifierInstances 输出成功重算后的完整父实例集合。
+	 * @param OutCurrentValues 输出最终候选 CurrentValue。
+	 * @param OutRecalculatedModifierInstIds 输出本轮实际重算的父实例 ID。
+	 * @param OutFailureDiagnostic 失败时输出诊断。
+	 * @return 全部 Dirty 父实例及闭包原子求值成功时返回 true。
+	 */
+	bool RecalculateDirtyOngoingModifierInstances(
+		const TSet<int32>& DirtyModifierInstIds,
+		TArray<FTcsAttributeModifierInstance>& OutModifierInstances,
+		TMap<FName, float>& OutCurrentValues,
+		TSet<int32>& OutRecalculatedModifierInstIds,
+		FString& OutFailureDiagnostic);
 
 	/**
 	 * 校验 AttributeModifier Definition 的 Operator / Merger 兼容性。
@@ -442,12 +498,14 @@ protected:
 	 * @param ModifierInstances 已求值的 Ongoing 父实例。
 	 * @param OutMergedModifierInstances 输出 Merger 后的有效父实例集合。
 	 * @param InOutResult 可选失败原因输出。
+	 * @param OutFailedModifierDefId 可选输出首个失败的 ModifierDefId 组。
 	 * @return 全部组合均可安全合并时返回 true。
 	 */
 	bool MergeOngoingModifierInstances(
 		const TArray<FTcsAttributeModifierInstance>& ModifierInstances,
 		TArray<FTcsAttributeModifierInstance>& OutMergedModifierInstances,
-		FTcsAttributeModifierApplicationResult* InOutResult = nullptr) const;
+		FTcsAttributeModifierApplicationResult* InOutResult = nullptr,
+		FName* OutFailedModifierDefId = nullptr) const;
 
 	/**
 	 * 将已求值 Operation 按稳定顺序施加到候选 Attribute 值集合。
@@ -484,7 +542,35 @@ protected:
 		const TMap<FName, float>& CurrentValues,
 		const TArray<FTcsAttributeModifierInstance>& ModifierInstances,
 		bool bCommitModifierInstances,
+		bool bBroadcastEvents = true,
+		const TSet<int32>* RecalculatedModifierInstIds = nullptr);
+
+	/**
+	 * 在受控安全点原子 Flush 当前 Dirty Ongoing 集合。
+	 *
+	 * @param PreviousBaseValues 可选事务开始前 BaseValue 快照。
+	 * @param PreviousCurrentValues 可选事务开始前 CurrentValue 快照。
+	 * @param bBroadcastEvents 是否在最终稳定态后广播 Attribute 事件。
+	 */
+	void FlushDirtyOngoingModifiers(
+		const TMap<FName, float>* PreviousBaseValues = nullptr,
+		const TMap<FName, float>* PreviousCurrentValues = nullptr,
 		bool bBroadcastEvents = true);
+
+	/** 标记 Attribute CurrentValue 依赖发生真实变化。 */
+	void MarkAttributeCurrentValueDependencyChanged(
+		FName AttributeId,
+		const TSet<int32>* SuppressedModifierInstIds = nullptr);
+
+	/** 标记本地 Buff Numeric StateParam effective 值发生真实变化。 */
+	void NotifyLocalBuffNumericStateParamEffectiveValueChanged(
+		const UTcsBuffInstance& BuffInstance,
+		FGameplayTag ParamTag);
+
+	/** 根据依赖反向索引标脏父实例。 */
+	void MarkOngoingModifiersDirty(
+		const FTcsAttributeModifierDependencyKey& DependencyKey,
+		const TSet<int32>* SuppressedModifierInstIds = nullptr);
 
 	/**
 	 * 按当前 AttributeModifiers 内容重建 Modifier 运行时缓存。
@@ -599,6 +685,42 @@ public:
 	//   避免对每个元素独立 Swap+Map 更新，可改为 "先收集所有待删索引 → 一次性重排 → 整体重建 Index Map"，
 	//   将 K 次移除的总成本从 O(K) 次 Map 写入降为一次性 O(N) 扫描（当 K 接近 N 时更优）。
 	TMap<int32, int32> ModifierInstIdToIndex;
+
+	// 自动依赖生产者的本地运行时版本。
+	TMap<FTcsAttributeModifierDependencyKey, uint64> DependencyRevisions;
+
+	// 自动依赖键到 Ongoing 父实例 ID 的反向索引。
+	TMap<FTcsAttributeModifierDependencyKey, TSet<int32>> ReverseDependencyIndex;
+
+	// 等待受控或帧末 Flush 的 Ongoing 父实例 ID。
+	TSet<int32> DirtyOngoingModifierInstIds;
+
+	// 防止 Flush 期间同步递归进入完整依赖图。
+	bool bIsFlushingDirtyOngoingModifiers = false;
+
+	// 防止 Attribute 公共事件回调同步递归进入完整依赖图。
+	bool bIsBroadcastingAttributeStateDiffs = false;
+
+	// Attribute 数值或 Ongoing 存储每次成功提交后的本地序号。
+	uint64 AttributeStateCommitSerial = 0;
+
+	// 当前事件批次已确认对外发布后的 BaseValue 基线。
+	TMap<FName, float> ActiveBroadcastBaseValues;
+
+	// 当前事件批次已确认对外发布后的 CurrentValue 基线。
+	TMap<FName, float> ActiveBroadcastCurrentValues;
+
+	// 广播回调发生嵌套提交时保留的最早 BaseValue 事件基线。
+	TMap<FName, float> DeferredEventBaseValues;
+
+	// 广播回调发生嵌套提交时保留的最早 CurrentValue 事件基线。
+	TMap<FName, float> DeferredEventCurrentValues;
+
+	// 是否存在等待安全点补发的 Attribute 事件基线。
+	bool bHasDeferredAttributeEventBaseline = false;
+
+	// 延迟事件基线是否允许在安全点广播。
+	bool bDeferredBroadcastEvents = false;
 
 #pragma endregion
 };

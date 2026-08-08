@@ -1,6 +1,6 @@
 # 设计：OngoingAttrMod 依赖链惰性重算（后续提案）
 
-> 状态：搁置。该能力在 AttributeModifier 重构完成后，以独立 OpenSpec change 讨论和实现；当前不进入 AttributeModifier 重构 proposal。
+> 状态：对应 OpenSpec change `add-ongoing-attribute-dependency-recalculation` 已实现、编译通过，并归档为 `openspec/changes/archive/2026-08-08-add-ongoing-attribute-dependency-recalculation/`。Flush 策略为 C（受控路径安全点同步 Flush + 跨调用栈 Dirty 帧末兜底）。本文保留为设计背景；权威契约以当前 `openspec/specs/` 为准，归档 change 仅作历史快照。
 >
 > 关联：[设计：Modifier操作数与AttributeOperation模型（待审核）.md](设计：Modifier操作数与AttributeOperation模型（待审核）.md)。
 
@@ -114,14 +114,19 @@ AttributeComponent->RequestOngoingModifierRecalculation(SourceHandle);
 
 该入口只标脏匹配 SourceHandle 的 Ongoing 实例，仍由后续 Flush 统一处理。
 
-## 8. 后续待确认
+## 8. 决策与仍可实现期细化项
 
-- Scheduler 的精确 Flush 时机：批次末尾、Component Tick、还是两者结合。
-- 同一 Component 内依赖闭包、拓扑排序与跨父实例循环检测的具体算法。
-- 生产者 Revision 的存储位置和网络同步边界。
-- Attribute / Contribution / StateParam 依赖变化的统一通知接口。
-- Ongoing 来源 StateParam 失效时的最终策略：保留旧结果、移除 Ongoing 或本轮失败。
-- 与 Buff Period、StateTree reselect、AttributeRange 传播的执行顺序。
+### 已确认
+
+- **Flush 策略 C**：受控路径（Apply / SetBase / Commit / 显式 Recalculate 等）安全点若 Dirty 非空则同步 Flush；跨调用栈 Dirty 合并到帧末（或等价延迟）Flush；禁止在依赖生产者 setter/回调内同步递归全图重算。
+
+### 实现期可细化
+
+- 帧末挂点的具体 API（Ticker / World Subsystem / Component 延迟任务）。
+- 同一 Component 内依赖闭包、拓扑排序与跨父实例循环检测的具体算法细节。
+- 生产者 Revision 的存储位置和网络同步边界（首版可仅本地）。
+- Attribute / StateParam 依赖变化的统一通知接口形态。
+- 与 Buff Period、StateTree reselect、AttributeRange 传播的相对顺序若冲突再收紧。
 - `RequestOngoingModifierRecalculation` 的 Blueprint 公开面、错误结果和批量语义。
 
 ## 9. 当前重构的兼容边界

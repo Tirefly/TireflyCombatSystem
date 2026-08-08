@@ -113,11 +113,26 @@ private:
 	// 参数所属的 SkillEntry；普通 State / Buff 参数保持为空。
 	TWeakObjectPtr<UTcsSkillEntry> OwningSkillEntry;
 
+	// 参数所属的 StateInstance；SkillEntry 参数保持为空。
+	TWeakObjectPtr<UTcsStateInstance> OwningStateInstance;
+
 	// 创建或最近一次激活该参数宿主时绑定的发起者。
 	TWeakObjectPtr<AActor> EvaluationInstigator;
 
-	// 仅允许参数宿主生命周期在创建或激活时绑定求值上下文。
-	void BindEvaluationContext(UTcsSkillEntry* InSkillEntry, AActor* InInstigator);
+	/**
+	 * 绑定 Numeric StateParam 的运行时求值宿主。
+	 *
+	 * @param InStateInstance 普通 State / Buff 参数宿主；SkillEntry 参数为空。
+	 * @param InSkillEntry SkillEntry 参数宿主；普通 State / Buff 参数为空。
+	 * @param InInstigator 创建或最近一次激活宿主时的发起者。
+	 */
+	void BindEvaluationContext(
+		UTcsStateInstance* InStateInstance,
+		UTcsSkillEntry* InSkillEntry,
+		AActor* InInstigator);
+
+	// effective 值真实变化时通知本地 Buff 的 Attribute 依赖调度器。
+	void NotifyEffectiveValueChanged(float PreviousEffectiveValue) const;
 
 #pragma endregion
 

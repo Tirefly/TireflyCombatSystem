@@ -72,6 +72,8 @@ void UTcsAttributeComponent::EnforceAttributeRangeConstraintsInternal(
 	bool bBroadcastEvents)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(TcsAttributeComponent_EnforceAttributeRangeConstraints);
+	const TMap<FName, float> PreviousBaseValues = GetAttributeBaseValues();
+	const TMap<FName, float> PreviousCurrentValues = GetAttributeValues();
 
 	const int32 MaxIterations = 8; // 闃叉鏃犻檺寰幆
 	int32 Iteration = 0;
@@ -245,87 +247,31 @@ void UTcsAttributeComponent::EnforceAttributeRangeConstraintsInternal(
 		Iteration,
 		Iteration >= MaxIterations ? TEXT("true") : TEXT("false"));
 
-	// 鎵€鏈?Clamp 浼犳挱瀹屾垚鍚庡啀缁熶竴鎻愪氦锛岄伩鍏嶅崐鏇存柊鐘舵€佹薄鏌撳悗缁緷璧栬В鏋愬拰骞挎挱缁撴灉銆?
-	TArray<FTcsAttributeChangeEventPayload> BaseChangePayloads;
-	TArray<FTcsAttributeChangeEventPayload> CurrentChangePayloads;
-	TArray<FTcsAttributeBoundaryEventPayload> BoundaryPayloads;
-	BaseChangePayloads.Reserve(Attributes.Num());
-	CurrentChangePayloads.Reserve(Attributes.Num());
-	BoundaryPayloads.Reserve(Attributes.Num());
-
+	// Clamp 收敛后统一写回，再让依赖 Flush 与公共事件只观察最终稳定态。
+	bool bCommittedStateChanged = false;
 	for (auto& Pair : Attributes)
 	{
-		FName AttributeName = Pair.Key;
+		const FName AttributeName = Pair.Key;
 		FTcsAttributeInstance& Attribute = Pair.Value;
 
-		// 鎻愪氦闃舵鍙礋璐ｆ妸鏀舵暃鍚庣殑宸ヤ綔闆嗗啓鍥炵粍浠讹紝骞惰ˉ鍙戝彉鏇?杈圭晫浜嬩欢锛屼笉鍐嶅弬涓庝緷璧栨帹瀵笺€?
-		// 杩欐牱鈥滄眰鍊间紶鎾€濆拰鈥滃澶栧彲瑙佺姸鎬佹彁浜も€濅袱涓樁娈垫槸瑙ｈ€︾殑銆?
-		// 鎻愪氦 BaseValue
-		float NewBase = WorkingBaseValues[AttributeName];
+		const float NewBase = WorkingBaseValues.FindRef(AttributeName);
 		if (!FMath::IsNearlyEqual(Attribute.BaseValue, NewBase))
 		{
-			float OldBase = Attribute.BaseValue;
 			Attribute.BaseValue = NewBase;
-
-			FTcsAttributeChangeEventPayload Payload;
-			Payload.AttributeName = AttributeName;
-			Payload.OldValue = OldBase;
-			Payload.NewValue = NewBase;
-			BaseChangePayloads.Add(Payload);
-
-			// 妫€娴嬫槸鍚﹁揪鍒拌竟鐣?
-			float RangeMin = NewBase;
-			float RangeMax = NewBase;
-			ClampAttributeValueInRange(AttributeName, NewBase, &RangeMin, &RangeMax);
-			const bool bReachedMin = FMath::IsNearlyEqual(NewBase, RangeMin);
-			const bool bReachedMax = FMath::IsNearlyEqual(NewBase, RangeMax);
-			if (bReachedMin || bReachedMax)
-			{
-				const bool bIsMaxBoundary = bReachedMax;
-				const float BoundaryValue = bReachedMax ? RangeMax : RangeMin;
-				BoundaryPayloads.Emplace(AttributeName, bIsMaxBoundary, OldBase, NewBase, BoundaryValue);
-			}
+			bCommittedStateChanged = true;
 		}
-
-		// 鎻愪氦 CurrentValue
-		float NewCurrent = WorkingCurrentValues[AttributeName];
+		const float NewCurrent = WorkingCurrentValues.FindRef(AttributeName);
 		if (!FMath::IsNearlyEqual(Attribute.CurrentValue, NewCurrent))
 		{
-			float OldCurrent = Attribute.CurrentValue;
 			Attribute.CurrentValue = NewCurrent;
-
-			FTcsAttributeChangeEventPayload Payload;
-			Payload.AttributeName = AttributeName;
-			Payload.OldValue = OldCurrent;
-			Payload.NewValue = NewCurrent;
-			CurrentChangePayloads.Add(Payload);
-
-			// 妫€娴嬫槸鍚﹁揪鍒拌竟鐣?
-			float RangeMin = NewCurrent;
-			float RangeMax = NewCurrent;
-			ClampAttributeValueInRange(AttributeName, NewCurrent, &RangeMin, &RangeMax);
-			const bool bReachedMin = FMath::IsNearlyEqual(NewCurrent, RangeMin);
-			const bool bReachedMax = FMath::IsNearlyEqual(NewCurrent, RangeMax);
-			if (bReachedMin || bReachedMax)
-			{
-				const bool bIsMaxBoundary = bReachedMax;
-				const float BoundaryValue = bReachedMax ? RangeMax : RangeMin;
-				BoundaryPayloads.Emplace(AttributeName, bIsMaxBoundary, OldCurrent, NewCurrent, BoundaryValue);
-			}
+			bCommittedStateChanged = true;
+			MarkAttributeCurrentValueDependencyChanged(AttributeName);
 		}
 	}
+	if (bCommittedStateChanged)
+	{
+		++AttributeStateCommitSerial;
+	}
 
-	// 骞挎挱浜嬩欢
-	if (bBroadcastEvents && BaseChangePayloads.Num() > 0)
-	{
-		BroadcastAttributeBaseValueChangeEvent(BaseChangePayloads);
-	}
-	if (bBroadcastEvents && CurrentChangePayloads.Num() > 0)
-	{
-		BroadcastAttributeValueChangeEvent(CurrentChangePayloads);
-	}
-	if (bBroadcastEvents)
-	{
-		BroadcastAttributeReachedBoundaryBatchEvent(BoundaryPayloads);
-	}
+	FlushDirtyOngoingModifiers(&PreviousBaseValues, &PreviousCurrentValues, bBroadcastEvents);
 }

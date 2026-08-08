@@ -2,6 +2,8 @@
 
 #include "State/TcsStateParamInstance.h"
 
+#include "Attribute/TcsAttributeComponent.h"
+#include "Buff/TcsBuffInstance.h"
 #include "Skill/SkillModExecution/TcsSkillModifierExecution.h"
 #include "Skill/TcsSkillModifierInstance.h"
 #include "Skill/TcsSkillEntry.h"
@@ -130,11 +132,33 @@ bool FTcsNumericStateParamInstance::Initialize(const FGameplayTag& InTag, const 
 
 
 void FTcsNumericStateParamInstance::BindEvaluationContext(
+	UTcsStateInstance* InStateInstance,
 	UTcsSkillEntry* InSkillEntry,
 	AActor* InInstigator)
 {
+	OwningStateInstance = InStateInstance;
 	OwningSkillEntry = InSkillEntry;
 	EvaluationInstigator = InInstigator;
+}
+
+void FTcsNumericStateParamInstance::NotifyEffectiveValueChanged(float PreviousEffectiveValue) const
+{
+	const float NewEffectiveValue = GetModifiedValue();
+	if (FMath::IsNearlyEqual(PreviousEffectiveValue, NewEffectiveValue))
+	{
+		return;
+	}
+
+	const UTcsBuffInstance* const BuffInstance = Cast<UTcsBuffInstance>(OwningStateInstance.Get());
+	if (!BuffInstance)
+	{
+		return;
+	}
+
+	if (UTcsAttributeComponent* const AttributeComponent = BuffInstance->GetOwnerAttributeComponent())
+	{
+		AttributeComponent->NotifyLocalBuffNumericStateParamEffectiveValueChanged(*BuffInstance, ParamTag);
+	}
 }
 
 
@@ -204,6 +228,7 @@ void FTcsVectorStateParamInstance::BindEvaluationContext(
 
 void FTcsNumericStateParamInstance::AssignModifier(const FStateParamNumericModifierInstance& Instance)
 {
+	const float PreviousEffectiveValue = GetModifiedValue();
 	if (Instance.MergePolicy == ETcsSkillModifierMergePolicy::Exclusive)
 	{
 		for (FStateParamNumericModifierInstance& Existing : ModifierInstances)
@@ -219,6 +244,7 @@ void FTcsNumericStateParamInstance::AssignModifier(const FStateParamNumericModif
 					FStateParamNumericModifierInstance InactiveCopy = Instance;
 					InactiveCopy.bActive = false;
 					ModifierInstances.Add(InactiveCopy);
+					NotifyEffectiveValueChanged(PreviousEffectiveValue);
 					return;
 				}
 			}
@@ -230,6 +256,7 @@ void FTcsNumericStateParamInstance::AssignModifier(const FStateParamNumericModif
 	{
 		return A.Priority > B.Priority;
 	});
+	NotifyEffectiveValueChanged(PreviousEffectiveValue);
 }
 
 
@@ -238,15 +265,31 @@ bool FTcsNumericStateParamInstance::RemoveModifierByRuntimeId(
 	FName& OutModifierId,
 	bool& bOutRemovedActiveInstance)
 {
+	const float PreviousEffectiveValue = GetModifiedValue();
 	OutModifierId = NAME_None;
 	bOutRemovedActiveInstance = false;
-	return RemoveModifierByRuntimeIdInternal(ModifierInstances, RuntimeModifierId, OutModifierId, bOutRemovedActiveInstance);
+	const bool bRemoved = RemoveModifierByRuntimeIdInternal(
+		ModifierInstances,
+		RuntimeModifierId,
+		OutModifierId,
+		bOutRemovedActiveInstance);
+	if (bRemoved)
+	{
+		NotifyEffectiveValueChanged(PreviousEffectiveValue);
+	}
+	return bRemoved;
 }
 
 
 bool FTcsNumericStateParamInstance::ReactivateHighestInactiveExclusive(FName ModifierId)
 {
-	return ReactivateHighestInactiveModifier(ModifierInstances, ModifierId);
+	const float PreviousEffectiveValue = GetModifiedValue();
+	const bool bReactivated = ReactivateHighestInactiveModifier(ModifierInstances, ModifierId);
+	if (bReactivated)
+	{
+		NotifyEffectiveValueChanged(PreviousEffectiveValue);
+	}
+	return bReactivated;
 }
 
 

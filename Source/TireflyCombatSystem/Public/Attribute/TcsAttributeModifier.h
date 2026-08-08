@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Attribute/TcsAttributeModifierApplication.h"
+#include "Attribute/TcsAttributeModifierDependency.h"
 #include "TcsSourceHandle.h"
 #include "TcsAttributeModifier.generated.h"
 
@@ -64,6 +65,9 @@ public:
 	// 为后续受控重算保留的 Evaluator / Payload 覆写配置。
 	UPROPERTY(BlueprintReadOnly)
 	TMap<FName, FTcsAttributeModifierOperationOverride> OperationOverrides;
+
+	// 最近一次成功求值并提交的运行时依赖记录；不参与反射或序列化。
+	TArray<FTcsAttributeModifierDependencyRecord> DependencyRecords;
 
 #pragma endregion
 
