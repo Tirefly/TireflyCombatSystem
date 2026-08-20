@@ -3,8 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Attribute/AttrModOperation/TcsAttributeOperandEvaluator.h"
-#include "TcsAttributeCurrentValueOperand.generated.h"
+#include "Attribute/AttrModOperand/TcsAttributeModifierOperandEvaluator.h"
+#include "TcsAttrModOperand_CurrentValue.generated.h"
 
 
 

@@ -1,8 +1,8 @@
 // Copyright Tirefly. All Rights Reserved.
 
-#include "Attribute/AttrModOperation/TcsAttributeCurrentValueOperand.h"
+#include "Attribute/AttrModOperand/TcsAttrModOperand_CurrentValue.h"
 
-#include "Attribute/AttrModOperation/TcsAttributeOperandEvaluatorContext.h"
+#include "Attribute/AttrModOperand/TcsAttributeModifierOperandEvaluatorContext.h"
 
 
 

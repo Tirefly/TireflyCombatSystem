@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Attribute/AttrModOperation/TcsAttributeOperandEvaluator.h"
+#include "Attribute/AttrModOperand/TcsAttributeModifierOperandEvaluator.h"
 #include "StructUtils/InstancedStruct.h"
 #include "TcsAttributeModifierOperation.generated.h"
 

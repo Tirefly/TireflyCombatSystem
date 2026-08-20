@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "StructUtils/InstancedStruct.h"
 #include "UObject/Object.h"
-#include "TcsAttributeOperandEvaluator.generated.h"
+#include "TcsAttributeModifierOperandEvaluator.generated.h"
 
 
 

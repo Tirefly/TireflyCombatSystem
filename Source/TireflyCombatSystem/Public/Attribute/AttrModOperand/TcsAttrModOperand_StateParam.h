@@ -4,8 +4,8 @@
 
 #include "CoreMinimal.h"
 #include "GameplayTagContainer.h"
-#include "Attribute/AttrModOperation/TcsAttributeOperandEvaluator.h"
-#include "TcsAttributeStateParamOperand.generated.h"
+#include "Attribute/AttrModOperand/TcsAttributeModifierOperandEvaluator.h"
+#include "TcsAttrModOperand_StateParam.generated.h"
 
 
 

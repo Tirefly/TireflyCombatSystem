@@ -1,8 +1,8 @@
 // Copyright Tirefly. All Rights Reserved.
 
-#include "Attribute/AttrModOperation/TcsAttributeStateParamOperand.h"
+#include "Attribute/AttrModOperand/TcsAttrModOperand_StateParam.h"
 
-#include "Attribute/AttrModOperation/TcsAttributeOperandEvaluatorContext.h"
+#include "Attribute/AttrModOperand/TcsAttributeModifierOperandEvaluatorContext.h"
 
 
 

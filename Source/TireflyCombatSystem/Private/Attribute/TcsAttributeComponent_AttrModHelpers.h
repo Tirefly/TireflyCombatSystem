@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "Attribute/AttrModOperation/TcsAttributeOperandEvaluator.h"
+#include "Attribute/AttrModOperand/TcsAttributeModifierOperandEvaluator.h"
 #include "Attribute/TcsAttributeModifierApplication.h"
 #include "Attribute/TcsAttributeModifierDefinition.h"
 #include "Skill/TcsSkillEntry.h"

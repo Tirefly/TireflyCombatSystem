@@ -3,7 +3,7 @@
 #include "Attribute/TcsAttributeComponent.h"
 
 #include "Attribute/AttrModOperation/TcsAttributeModifierCustomOperator.h"
-#include "Attribute/AttrModOperation/TcsAttributeOperandEvaluatorContext.h"
+#include "Attribute/AttrModOperand/TcsAttributeModifierOperandEvaluatorContext.h"
 #include "Attribute/TcsAttributeComponent_AttrModHelpers.h"
 #include "Attribute/TcsAttributeModifierCompatibility.h"
 #include "Attribute/TcsAttributeModifierDefinition.h"

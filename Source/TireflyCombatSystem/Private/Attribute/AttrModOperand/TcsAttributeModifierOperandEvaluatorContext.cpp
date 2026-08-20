@@ -1,6 +1,6 @@
 // Copyright Tirefly. All Rights Reserved.
 
-#include "Attribute/AttrModOperation/TcsAttributeOperandEvaluatorContext.h"
+#include "Attribute/AttrModOperand/TcsAttributeModifierOperandEvaluatorContext.h"
 
 #include "Attribute/TcsAttributeComponent.h"
 #include "Buff/TcsBuffInstance.h"
