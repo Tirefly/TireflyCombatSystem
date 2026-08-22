@@ -33,8 +33,6 @@ public class TireflyCombatSystem : ModuleRules
 				"StateTreeModule",
 				"GameplayStateTreeModule",
 				"DeveloperSettings",
-				"GameplayMessageRuntime",
-				"TireflyObjectPool"
 			}
 			);
 			
