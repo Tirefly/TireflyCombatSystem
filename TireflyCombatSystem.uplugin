@@ -1,5 +1,6 @@
 {
 	"FileVersion": 3,
+	"EngineVersion": "5.8",
 	"Version": 1,
 	"VersionName": "1.0",
 	"FriendlyName": "TireflyCombatSystem",
@@ -16,32 +17,19 @@
 	"Installed": false,
 	"Modules": [
 		{
-			"Name": "TireflyCombatSystem",
+			"Name": "TcsCore",
 			"Type": "Runtime",
 			"LoadingPhase": "Default"
 		},
 		{
-			"Name": "TireflyCombatSystemEditor",
-			"Type": "Editor",
+			"Name": "TcsNotation",
+			"Type": "Runtime",
 			"LoadingPhase": "Default"
-		}
-	],
-	"Plugins": [
-		{
-			"Name": "StateTree",
-			"Enabled": true
 		},
 		{
-			"Name": "GameplayStateTree",
-			"Enabled": true
-		},
-		{
-			"Name": "GameplayMessageRouter",
-			"Enabled": true
-		},
-		{
-			"Name": "TireflyObjectPool",
-			"Enabled": true
+			"Name": "TcsAttribute",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
 		}
 	]
 }
