@@ -298,13 +298,26 @@ UCLASS() class UTcsClockSubsystem : public UTickableWorldSubsystem
 - 禁 wall-clock：时钟封装内不出现 FDateTime/FPlatformTime（review 检查点）。
 - 消费者：计划二 WaitDelay、（未来）冷却/状态到期。
 
-- [ ] **Step 1: ITcsTimeSource 默认实现 + FTcsClock 推进**
-- [ ] **Step 2: FTcsExpiryHeap**（手写堆或 TSortedMap；Generation 校验；堆深度统计 CVar）
-- [ ] **Step 3: 泵顺序接线**（含 Task 2 帧末 flush；到期回调打 `LogTcsCore` Log 级日志——含到期时刻，供检查点 7 观测）
-- [ ] **Step 4: 编译验证**
-- [ ] **Step 5: 人工检查（检查点 7 提前验）**
+- [x] **Step 1: ITcsTimeSource 默认实现 + FTcsClock 推进**
+- [x] **Step 2: FTcsExpiryHeap**（手写堆或 TSortedMap；Generation 校验；堆深度统计 CVar）
+- [x] **Step 3: 泵顺序接线**（含 Task 2 帧末 flush；到期回调打 `LogTcsCore` Log 级日志——含到期时刻，供检查点 7 观测）
+- [x] **Step 4: 编译验证**（Result: Succeeded，2026-09-16）
+- [x] **Step 5: 人工检查（检查点 7 提前验）**
 
 PIE 设 `slomo 0.1`：Output Log 中到期回调的时刻增量随游戏时间减速；`pause` 时冻结（`LogTcsCore` 时间戳对照）。
+
+> **2026-09-16 检查点 7 验收状态**：**slomo 半边已实测确认**（用户双跑对照——slomo 0.1 vs slomo 1：游戏时间增量恒 ≈0.50s，实时帧数按 1/TimeDilation 从 54 拉长至 400+，ScaledDt 语义成立；slomo 1 全项 14/14 PASS、迟滞 0.005s）。**`pause` 冻结项未单独回报**（观测方式：暂停期轮询随 TimerManager 停摆 + 到期回调静默，解除后补触发）——如需补验：执行 `Tcs.Test.Clock` 后在 0.5s 窗口内 `pause` 观察。
+
+> **2026-09-16 实施注记（OpenSpec 提案 add-tcscore-clock-expiry-heap 规格先行）**：
+> - **泵点机制修正（引擎事实，源码核实）**：Tickable 自 tick 位于 `UWorld::Tick` 尾部 `FTickableGameObject::TickObjects`（LevelTick.cpp:1821，晚于全部 tick 组与 TimerManager）——无法承担 PrePhysics 泵点；改由 **`FWorldDelegates::OnWorldTickStart`**（`UWorld::Tick` 头部广播，LevelTick.cpp:1522）驱动。`UTickableWorldSubsystem` 壳类型保留（01 §2.3 口径）但自 tick 全程停用：**重写 `GetTickableTickType()` 返回 Never**——引擎在 `Initialize` 内以 `GetTickableTickType()` 返回值注册自 tick（WorldSubsystem.cpp:101），构造期 `SetTickableTickType(Never)` 会被重注册覆盖，重写才是全程停用的正确机制。总线子系统同款处理。
+> - **引擎信号核实**：暂停判定 = `UWorld::IsPaused()`（LevelTick.cpp:1565 同口径，暂停帧步长兜 0）；TimeDilation 读 `WorldSettings->TimeDilation`（slomo 改写目标，WorldSettings.h:742；无 WorldSettings 世界按 1.0 兜底）。时间源 = 抽象 C++ 接口 `ITcsTimeSource`（非 UINTerface——引擎管道设施非 Def 配置数据）+ `FTcsTimeSource_Default`（Raw × TimeDilation），宿主经 `SetTimeSource` 注入替换。
+> - **FTcsExpiryHeap**：条目池化（TTcsInstancePool 代际校验）；**Cancel 即刻回收槽位（代际 +1），堆内残留条目出队时凭代际失配跳过**；AdvanceTo **先换出当前到期集再逐项回调**（回调内新入堆归下一拍——与总线冲洗换出同纪律）；稳定序 = (DueTime 升序，同刻按入堆 Sequence)；回调先拷出再触发（回调内入堆可致池扩容/槽位复用，原条目指针失效）；深度统计 CVar `Tcs.Core.ExpiryHeapDepth`（`FTcsCoreHeapStats`，对齐 PoolStats 无参对签名纪律）。
+> - **子系统增补消费者入口**：`PushExpiry` / `CancelExpiry` 转发内部到期堆（对齐总线门面"转发而非暴露内核"模式），`AdvanceTo` 保持泵私有——plan1 File 列表未列，OpenSpec 提案 R3 已同步。
+> - **帧末通道派发时机变化（BREAKING）**：总线自 tick 停用后，帧末事件于下一帧泵点（早于该帧游戏逻辑）派发——event-bus 能力规格由本提案 MODIFIED；临时测试装置 `Tcs.Test.Bus` 新增"到达帧 = 发布帧 + 1"检查。
+> - **验证入口（临时装置增补，不入库）**：PIE 控制台执行 `Tcs.Test.Clock`——A 段本地堆机制 5 项（泵已推进/到期升序+同刻入堆序/取消不回调/回调内入堆归下一拍/深度统计增减）+ B 段泵集成轮询 4 项（0.5s 条目泵点触发/触发时刻与时机/深度回落，末行打印入堆帧 vs 触发帧供 slomo/pause 对照）；**故意 ensure 的悬空 Cancel 检查拆为独立命令 `Tcs.Test.Clock.Dangling`**（对齐 `Tcs.Test.Pool.Dangling` 先例）。
+> - **"首次运行红字刷屏 + 断点式卡顿"的真因（2026-09-16 用户实测反馈，引擎机制）**：ensure **每站点每进程只上报一次**（站点持 `static std::atomic<uint8> bExecuted`，触发时 `exchange(GEnsureResetState)`——已等于重置态则静默返回）——故编辑器会话内首次跑到该站点才有完整输出（Error 级约 11 行：ensure 消息 + 4 行 callstack + `EnsureFailed` 重复块），且 `core.EnsureBreakEnabled`（默认 true）令附加调试器时断点捕获（即卡顿来源）；重跑同一路径完全静默。`core.ResetEnsureState` 可重置以复现。**实践结论已入 `unreal-development-workflow` 引擎机制事实节**：故意 ensure 必须独立 opt-in 命令。
+> - **装置三轮校准（2026-09-16，用户 PIE 实测驱动）**：①首轮"触发迟滞 ≤1s"判据被 PIE 单帧 dt 尖刺（实测 +3.5s）误判——迟滞由 `AdvanceTo(Elapsed)` 结构性保证（迟滞不可能超过一个泵点），降级为日志观测项；②次轮泵集成 30 tick 预算在 60fps 下差 1~2 帧未及 Due；③轮次三 slomo 0.1 下空图跑至约 80fps，0.5 游戏秒需约 402 帧，400 tick 预算被精确击穿——**tick 预算改实时 20 秒**（fps 无关）+ 中间轮询静默；④控制台命令在编辑器侧执行、时机可能早于同外帧泵点，导致发布帧与冲洗帧重合（Bus"到达帧=发布帧"FAIL）——**帧末发布/入堆改由 TimerManager 回调执行**（UWorld::Tick 内序恒为 泵点→tick 组→TimerManager，回调必然晚于同帧泵点），帧号判定转为确定性，"到达帧 > 发布帧"判据保留 `>=` 口径。轮询随暂停冻结（TimerManager 暂停期不 tick）——pause 观测语义：轮询停摆 + 到期回调静默 = 冻结确认。
+> - **检查点 7 slomo 半边已验（2026-09-16，用户双跑对照）**：slomo 0.1 vs slomo 1——游戏时间增量恒 ≈0.50s（49.355−48.855 / 54.004−53.499），实时时长约 400 帧 vs 54 帧（按 1/TimeDilation 拉长）——ScaledDt 语义确认；slomo 1 全项 14/14 PASS、迟滞 0.005s。
 
 ---
 

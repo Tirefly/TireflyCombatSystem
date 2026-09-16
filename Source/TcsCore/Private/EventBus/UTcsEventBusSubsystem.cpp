@@ -29,14 +29,6 @@ void UTcsEventBusSubsystem::Deinitialize()
 	Super::Deinitialize();
 }
 
-void UTcsEventBusSubsystem::Tick(float DeltaTime)
-{
-	Super::Tick(DeltaTime);
-
-	// 帧末冲洗（TickObjects 位于 UWorld::Tick 尾部，晚于全部 Actor tick 组）
-	EventBus.FlushFrameEnd();
-}
-
 TStatId UTcsEventBusSubsystem::GetStatId() const
 {
 	RETURN_QUICK_DECLARE_CYCLE_STAT(UTcsEventBusSubsystem, STATGROUP_Tickables);

@@ -29,6 +29,30 @@ int32 FTcsCorePoolStats::GetSlotCount()
 	return GTcsCorePoolSlotsTotal;
 }
 
+// 到期堆有效条目总数（仅游戏线程读写——堆进入点已断言 D0-4）
+static int32 GTcsCoreHeapDepthTotal = 0;
+
+FAutoConsoleVariableRef GTcsCoreHeapDepthCVar(
+	TEXT("Tcs.Core.ExpiryHeapDepth"),
+	GTcsCoreHeapDepthTotal,
+	TEXT("TCS 到期堆当前有效条目总数（入堆/移出维护，只读参考值）"),
+	ECVF_Default);
+
+void FTcsCoreHeapStats::AddDepth()
+{
+	++GTcsCoreHeapDepthTotal;
+}
+
+void FTcsCoreHeapStats::RemoveDepth()
+{
+	--GTcsCoreHeapDepthTotal;
+}
+
+int32 FTcsCoreHeapStats::GetDepth()
+{
+	return GTcsCoreHeapDepthTotal;
+}
+
 // 编译期实例化锚点：Task 1 暂无运行时消费者，显式实例化确保池模板全量编译检查
 // （Allocate/Free/Resolve/IsValid/ForEach 全部过编译；Task 2 起由真实消费者取代本锚点）
 namespace TcsCorePoolAnchor

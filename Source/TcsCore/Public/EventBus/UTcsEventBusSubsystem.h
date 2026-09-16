@@ -21,9 +21,10 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FTcsOnCombatEvent, FGameplayTag, Ev
 /**
  * 事件总线门面（M0 §2.2）：世界级子系统，持有总线内核并接入动态多播反射面。
  *
- * 帧末队列冲洗时机：当前随本子系统 Tick（UWorld::Tick 尾部 TickObjects——晚于全部 Actor tick 组，
- * 即"帧末冲洗"：本帧游戏逻辑期间入队的事件不会在发布当场送达）；
- * Task 3 起改由时钟泵按时序驱动（时钟推进 → 总线冲洗 → 到期堆，PrePhysics），届时本子系统停用自 tick。
+ * 帧末队列冲洗由时钟泵驱动（UTcsClockSubsystem 固定泵序第三步，FWorldDelegates::OnWorldTickStart
+ * 帧界泵点——早于全部 Actor tick 组）：本帧游戏逻辑期间入队的事件于下一帧泵点派发。
+ * 本子系统自 tick 全程停用（GetTickableTickType = Never——Tickable 自 tick 位于 UWorld::Tick 尾部，
+ * 晚于 tick 组与 TimerManager，2026-09-16 源码核实）；FlushFrameEndQueue 保留为泵驱动入口。
  */
 UCLASS()
 class TCSCORE_API UTcsEventBusSubsystem : public UTickableWorldSubsystem
@@ -46,14 +47,17 @@ public:
 #pragma endregion
 
 
-// Tick
-#pragma region Tick
+// 统计
+#pragma region Stats
 
 public:
-	// 帧末冲洗帧末队列（Task 3 起由时钟泵按时序驱动）
-	virtual void Tick(float DeltaTime) override;
+	// 自 tick 停用（帧末冲洗归时钟泵驱动——本子系统不再自持冲洗时机）
+	virtual ETickableTickType GetTickableTickType() const override
+	{
+		return ETickableTickType::Never;
+	}
 
-	// Tick 统计标识
+	// Tick 统计标识（基类纯虚——自 tick 停用后仍需提供）
 	virtual TStatId GetStatId() const override;
 
 #pragma endregion
@@ -103,7 +107,7 @@ public:
 	 */
 	void PublishFrameEnd(FGameplayTag Tag, const FInstancedStruct& Payload);
 
-	// 冲洗帧末队列（泵驱动入口；本子系统 Tick 亦调用）
+	// 冲洗帧末队列（时钟泵驱动入口——固定泵序第三步）
 	void FlushFrameEndQueue();
 
 	// 帧末队列深度（观测/测试用）
