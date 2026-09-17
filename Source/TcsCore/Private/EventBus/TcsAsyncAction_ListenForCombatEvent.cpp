@@ -1,6 +1,6 @@
 // Copyright Tirefly. All Rights Reserved.
 
-#include "EventBus/UTcsAsyncAction_ListenForCombatEvent.h"
+#include "EventBus/TcsAsyncAction_ListenForCombatEvent.h"
 
 #include "Engine/Engine.h"
 #include "Engine/World.h"

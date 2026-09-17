@@ -6,7 +6,7 @@
 #include "GameplayTagContainer.h"
 #include "StructUtils/InstancedStruct.h"
 #include "UObject/Object.h"
-#include "UTcsEventHandler.generated.h"
+#include "TcsEventHandler.generated.h"
 
 
 

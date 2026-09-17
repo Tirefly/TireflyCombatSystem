@@ -1,8 +1,8 @@
 // Copyright Tirefly. All Rights Reserved.
 
-#include "Clock/UTcsClockSubsystem.h"
+#include "Clock/TcsClockSubsystem.h"
 
-#include "EventBus/UTcsEventBusSubsystem.h"
+#include "EventBus/TcsEventBusSubsystem.h"
 #include "Stats/Stats.h"
 
 bool UTcsClockSubsystem::DoesSupportWorldType(const EWorldType::Type WorldType) const

@@ -5,11 +5,11 @@
 #include "CoreMinimal.h"
 #include "Subsystems/WorldSubsystem.h"
 
-#include "Clock/FTcsClock.h"
-#include "Clock/FTcsExpiryHeap.h"
-#include "Clock/ITcsTimeSource.h"
+#include "Clock/TcsClock.h"
+#include "Clock/TcsExpiryHeap.h"
+#include "Clock/TcsTimeSource.h"
 
-#include "UTcsClockSubsystem.generated.h"
+#include "TcsClockSubsystem.generated.h"
 
 
 

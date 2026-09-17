@@ -3,8 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Handle/TTcsInstanceHandle.h"
-#include "Pool/TTcsInstancePool.h"
+#include "Handle/TcsInstanceHandle.h"
+#include "Pool/TcsInstancePool.h"
 #include "TcsCoreLogChannel.h"
 #include "TcsCoreStats.h"
 

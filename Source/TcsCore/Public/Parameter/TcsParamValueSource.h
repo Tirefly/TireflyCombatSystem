@@ -4,8 +4,8 @@
 
 #include "CoreMinimal.h"
 #include "UObject/Interface.h"
-#include "Parameter/ITcsParamTableReader.h"
-#include "FTcsParamValueSource.generated.h"
+#include "Parameter/TcsParamTableReader.h"
+#include "TcsParamValueSource.generated.h"
 
 
 

@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Engine/DeveloperSettings.h"
-#include "UTcsDeveloperSettings.generated.h"
+#include "TcsDeveloperSettings.generated.h"
 
 /**
  * TcsCore 开发者设置（空壳）：承载后续模块级配置项，在项目设置中呈现为独立 "Tcs" 分类

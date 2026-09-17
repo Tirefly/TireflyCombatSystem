@@ -3,8 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Parameter/FTcsParamValueSource.h"
-#include "FTcsParamSource_ParamRef.generated.h"
+#include "Parameter/TcsParamValueSource.h"
+#include "TcsParamSource_ParamRef.generated.h"
 
 
 

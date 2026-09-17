@@ -28,62 +28,62 @@
       TcsEffectModule.h / .cpp                 （根：模块类）
       Public/
         TcsEffectLogChannel.h                  （日志通道 D0-6 v2：DECLARE_LOG_CATEGORY_EXTERN(LogTcsEffect, Log, All)）
-        FTcsEffectStep.h                       （FInstancedStruct 容器 + ETcsStepResult）
-        FTcsEffectChain.h                      （Id/步骤数组/MaxStepsPerFrame 熔断）
-        FTcsEffectContext.h                    （黑板：Caster/Instigator/EventPayload/Targets/Variables——属性捕获归 Damage 流 Context，见 Flow/）
-        FTcsChainRun.h                         （池化运行态：PC/状态）
-        FTcsEffectStepExecutor.h               （执行器签名 + 注册表 + UE_DEFINE_EFFECT_STEP_EXECUTOR 宏）
-        ITcsEntityQuery.h                      （注入接口：机制层定义，宿主实现）
-        UTcsEffectSubsystem.h                  （解释器门面）
-        FTcsStepWaitDelay.h                    （WaitDelay 步骤 struct——Task 1 落地）
+        TcsEffectStep.h                       （FInstancedStruct 容器 + ETcsStepResult）
+        TcsEffectChain.h                      （Id/步骤数组/MaxStepsPerFrame 熔断）
+        TcsEffectContext.h                    （黑板：Caster/Instigator/EventPayload/Targets/Variables——属性捕获归 Damage 流 Context，见 Flow/）
+        TcsChainRun.h                         （池化运行态：PC/状态）
+        TcsEffectStepExecutor.h               （执行器签名 + 注册表 + UE_DEFINE_EFFECT_STEP_EXECUTOR 宏）
+        TcsEntityQuery.h                      （注入接口：机制层定义，宿主实现）
+        TcsEffectSubsystem.h                  （解释器门面）
+        TcsStepWaitDelay.h                    （WaitDelay 步骤 struct——Task 1 落地）
       Private/
         TcsEffectLogChannel.cpp                （DEFINE_LOG_CATEGORY(LogTcsEffect)）
-        UTcsEffectSubsystem.cpp                （解释器 + WaitDelay 执行器 + **Context 默认目标初始化=事件目标**）
+        TcsEffectSubsystem.cpp                （解释器 + WaitDelay 执行器 + **Context 默认目标初始化=事件目标**）
     TcsTargeting/
       TcsTargeting.Build.cs                    （根）
       TcsTargetingModule.h / .cpp              （根：模块类）
       Public/
         TcsTargetingLogChannel.h               （DECLARE_LOG_CATEGORY_EXTERN(LogTcsTargeting, Log, All)）
-        FTcsTargetSelectorStrategy.h           （策略契约：Resolve 纯虚 USTRUCT——D4-4 v2 策略化；载体 D3-7 v3）
-        FTcsSelSelf.h                          （默认策略 1：Context.Caster）
-        FTcsSelEventTarget.h                   （默认策略 2：事件载荷目标）
-        FTcsTargetFilterStrategy.h             （过滤契约：Pass 纯虚——存活/敌对语义宿主实现）
-        FTcsStepSelectTargets.h                （链步骤：TInstancedStruct 策略 + Filter AND → 写 Context.Targets）
+        TcsTargetSelectorStrategy.h           （策略契约：Resolve 纯虚 USTRUCT——D4-4 v2 策略化；载体 D3-7 v3）
+        TcsSelSelf.h                          （默认策略 1：Context.Caster）
+        TcsSelEventTarget.h                   （默认策略 2：事件载荷目标）
+        TcsTargetFilterStrategy.h             （过滤契约：Pass 纯虚——存活/敌对语义宿主实现）
+        TcsStepSelectTargets.h                （链步骤：TInstancedStruct 策略 + Filter AND → 写 Context.Targets）
       Private/
         TcsTargetingLogChannel.cpp             （DEFINE_LOG_CATEGORY(LogTcsTargeting)）
-        FTcsStepSelectTargets.cpp              （执行器）
+        TcsStepSelectTargets.cpp              （执行器）
     TcsDamage/
       TcsDamage.Build.cs                       （根）
       TcsDamageModule.h / .cpp                 （根：模块类）
       Public/
         TcsDamageLogChannel.h                  （DECLARE_LOG_CATEGORY_EXTERN(LogTcsDamage, Log, All)）
-        Flow/FTcsDamageFlowContext.h           （三层值空间/分类 Tag/FlowSource/CapturedAttrs）
-        Flow/FTcsFlowAttributes.h              （流程属性黑板：键+修正链+封闭运算）
-        Flow/FTcsFlowTemplate.h                （有序步骤数组）
-        Flow/FTcsFlowStepExecutor.h            （流程步骤注册表 + UE_DEFINE_FLOW_STEP_EXECUTOR 宏）
+        Flow/TcsDamageFlowContext.h           （三层值空间/分类 Tag/FlowSource/CapturedAttrs）
+        Flow/TcsFlowAttributes.h              （流程属性黑板：键+修正链+封闭运算）
+        Flow/TcsFlowTemplate.h                （有序步骤数组）
+        Flow/TcsFlowStepExecutor.h            （流程步骤注册表 + UE_DEFINE_FLOW_STEP_EXECUTOR 宏）
         Flow/Steps/（标准步骤库十 struct + FlowModify/FlowDelegate，各 .h）
-        Flow/ITcsDamageFlowDelegate.h          （纯 C++ 接口：宿主实现公式）
-        Flow/FTcsDamageRecord.h
-        Chain/FTcsStepDamage.h                 （链步骤 Damage/Heal/ModifyFlow 三 struct 定义；**R3 只实现 Damage 执行器**，Heal/ModifyFlow 执行器后续轮）
-        UTcsDamageSubsystem.h                  （流程解释器门面）
+        Flow/TcsDamageFlowDelegate.h          （纯 C++ 接口：宿主实现公式）
+        Flow/TcsDamageRecord.h
+        Chain/TcsStepDamage.h                 （链步骤 Damage/Heal/ModifyFlow 三 struct 定义；**R3 只实现 Damage 执行器**，Heal/ModifyFlow 执行器后续轮）
+        TcsDamageSubsystem.h                  （流程解释器门面）
       Private/
         TcsDamageLogChannel.cpp                （DEFINE_LOG_CATEGORY(LogTcsDamage)）
         Flow/Steps/（标准步骤执行器 .cpp）
-        Chain/FTcsStepDamage.cpp               （本计划实现 Damage 执行器）
-        UTcsDamageSubsystem.cpp                （流程解释器 + 默认模板注册）
+        Chain/TcsStepDamage.cpp               （本计划实现 Damage 执行器）
+        TcsDamageSubsystem.cpp                （流程解释器 + 默认模板注册）
     TcsIntegration/
       TcsIntegration.Build.cs                  （根）
       TcsIntegrationModule.h / .cpp            （根：模块类）
       Public/
         TcsIntegrationLogChannel.h             （DECLARE_LOG_CATEGORY_EXTERN(LogTcsIntegration, Log, All)）
-        Entity/UTcsCombatEntityComponent.h     （身份锚/查询门面/手动触发 API）
-        Entity/UTcsEntityQuery.h               （ITcsEntityQuery 默认实现：PIE 枚举）
-        UTcsDefLibrary.h                       （最小定义加载：链资产/流程模板注册）
+        Entity/TcsCombatEntityComponent.h     （身份锚/查询门面/手动触发 API）
+        Entity/TcsEntityQuery.h               （ITcsEntityQuery 默认实现：PIE 枚举）
+        TcsDefLibrary.h                       （最小定义加载：链资产/流程模板注册）
       Private/
         TcsIntegrationLogChannel.cpp           （DEFINE_LOG_CATEGORY(LogTcsIntegration)）
-        Entity/UTcsCombatEntityComponent.cpp
-        Entity/UTcsEntityQuery.cpp
-        UTcsDefLibrary.cpp
+        Entity/TcsCombatEntityComponent.cpp
+        Entity/TcsEntityQuery.cpp
+        TcsDefLibrary.cpp
   Content/（PIE 测试地图 + 属性 DataTable + 测试链资产——执行期编辑器内建）
 ```
 
@@ -101,7 +101,7 @@
 
 ### Task 1: TcsEffect——步骤/链/注册表/挂起协议
 
-**Files:** `FTcsEffectStep.h / FTcsEffectChain.h / FTcsEffectContext.h / FTcsChainRun.h / FTcsEffectStepExecutor.h / ITcsEntityQuery.h / FTcsStepWaitDelay.h / UTcsEffectSubsystem.h(.cpp)`
+**Files:** `TcsEffectStep.h / TcsEffectChain.h / TcsEffectContext.h / TcsChainRun.h / TcsEffectStepExecutor.h / TcsEntityQuery.h / TcsStepWaitDelay.h / TcsEffectSubsystem.h(.cpp)`
 
 **Interfaces:**
 - Consumes: TcsCore 池/总线/时钟。
@@ -131,7 +131,7 @@ using FTcsStepExecute = TFunction<ETcsStepResult(const FInstancedStruct&, FTcsEf
 
 ### Task 2: TcsTargeting——策略契约与默认实现
 
-**Files:** `FTcsTargetSelectorStrategy.h / FTcsSelSelf.h / FTcsSelEventTarget.h / FTcsTargetFilterStrategy.h / FTcsStepSelectTargets.h(.cpp)`
+**Files:** `TcsTargetSelectorStrategy.h / TcsSelSelf.h / TcsSelEventTarget.h / TcsTargetFilterStrategy.h / TcsStepSelectTargets.h(.cpp)`
 
 **Interfaces:**
 - Consumes: ITcsEntityQuery（TcsEffect 定义，本任务只消费接口）。
@@ -162,7 +162,7 @@ USTRUCT() struct FTcsStepSelectTargets {   // 链步骤：策略 Resolve → Fil
 
 ### Task 3: TcsDamage——流程机制层（解释器/黑板/协议/裁决）
 
-**Files:** `Flow/FTcsDamageFlowContext.h / Flow/FTcsFlowAttributes.h / Flow/FTcsFlowTemplate.h / Flow/FTcsFlowStepExecutor.h / UTcsDamageSubsystem.h(.cpp)`
+**Files:** `Flow/TcsDamageFlowContext.h / Flow/TcsFlowAttributes.h / Flow/TcsFlowTemplate.h / Flow/TcsFlowStepExecutor.h / TcsDamageSubsystem.h(.cpp)`
 
 **Interfaces:**
 - Consumes: TcsCore（Source/总线——日志走本模块 LogTcsDamage 通道）、TcsAttribute（provider 接口——读 Current/ApplyModifier/RemoveBySource）、TcsEffect（宏同构认知，不依赖其注册表）。
@@ -194,7 +194,7 @@ struct FTcsDamageFlowContext
 
 ### Task 4: 标准步骤库 + 官方默认模板 + Damage 链步骤
 
-**Files:** `Flow/Steps/（标准步骤库十 struct + FlowModify/FlowDelegate，各 .h，执行器分 .cpp）`、默认模板注册（Subsystem 初始化）、`Flow/ITcsDamageFlowDelegate.h / Flow/FTcsDamageRecord.h`、`Chain/FTcsStepDamage.h(.cpp)`
+**Files:** `Flow/Steps/（标准步骤库十 struct + FlowModify/FlowDelegate，各 .h，执行器分 .cpp）`、默认模板注册（Subsystem 初始化）、`Flow/TcsDamageFlowDelegate.h / Flow/TcsDamageRecord.h`、`Chain/TcsStepDamage.h(.cpp)`
 
 **Interfaces:**
 - Produces:
@@ -224,7 +224,7 @@ USTRUCT() struct FTcsStepDamage { FName FlowTemplateId;   // 空=默认模板；
 
 ### Task 5: TcsIntegration——CombatEntity 接线与查询
 
-**Files:** `Entity/UTcsCombatEntityComponent.h(.cpp) / Entity/UTcsEntityQuery.h(.cpp) / UTcsDefLibrary.h(.cpp)`
+**Files:** `Entity/TcsCombatEntityComponent.h(.cpp) / Entity/TcsEntityQuery.h(.cpp) / TcsDefLibrary.h(.cpp)`
 
 **Interfaces:**
 - Consumes: 全前序模块。

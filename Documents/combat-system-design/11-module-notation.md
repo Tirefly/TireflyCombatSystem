@@ -17,7 +17,7 @@
 - `ETcsValueConventionFlag`：`VCF_None=0（默认）/ VCF_Percent / VCF_OneMinus / VCF_Negate`——EnumFlags，**固定组合顺序 Percent→OneMinus→Negate**。
 - 三变换语义（用户 GAS 扩展实战）：Percent（配 85 → 逻辑 0.85）；OneMinus（配 25"减少25%" → 逻辑 0.75）；Negate（配 1000"减少1000生命" → 逻辑 -1000）——**变换改写逻辑消费的值本身，不只是显示格式**。
 - 转换助手：`ConvertToCanonical(Raw, Flags)`（写入点调用）；`DecomposeFromCanonical(Canonical, Flags)`（UI 反变换：0.75 → "25"+%样式）。
-- **实现现状与纪律**：`ConvertToCanonical` 已落地（`Public/FTcsValueConvention.h`，FORCEINLINE 静态）；`DecomposeFromCanonical` **未实现**——注意它是正向的**逆序**（Negate→OneMinus→×100，因正向固定序为 Percent→OneMinus→Negate），随描述组装器功能面一并落地。反向变换逐项执行：非当前格 = `Decompose(ConvertToCanonical(表值, 约定), 约定)`（与逻辑同源往返，杜绝第二份真相）；当前格 = `Decompose(账本现值, 约定)`。**本模块不引入新的 `Resolve` 用法**（动词纪律：Resolve 仅句柄/Id→对象）。
+- **实现现状与纪律**：`ConvertToCanonical` 已落地（`Public/TcsValueConvention.h`，FORCEINLINE 静态）；`DecomposeFromCanonical` **未实现**——注意它是正向的**逆序**（Negate→OneMinus→×100，因正向固定序为 Percent→OneMinus→Negate），随描述组装器功能面一并落地。反向变换逐项执行：非当前格 = `Decompose(ConvertToCanonical(表值, 约定), 约定)`（与逻辑同源往返，杜绝第二份真相）；当前格 = `Decompose(账本现值, 约定)`。**本模块不引入新的 `Resolve` 用法**（动词纪律：Resolve 仅句柄/Id→对象）。
 
 ### 2.2 描述视图体系（D5-17 v3——视图策略化，2026-09-15；v2 文本内嵌词法已被本版取代）
 

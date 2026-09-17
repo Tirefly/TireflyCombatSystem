@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "UObject/Interface.h"
-#include "ITcsParamTableReader.generated.h"
+#include "TcsParamTableReader.generated.h"
 
 
 

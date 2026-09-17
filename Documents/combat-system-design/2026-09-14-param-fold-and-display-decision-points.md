@@ -44,7 +44,7 @@
   - ✅ 可配：`Literal`、表型源（`StateLevelArray/Map`、`InstigatorLevelArray/Map`、未来 `LevelCurve` 等）——其书写值直接成为结果。
   - ❌ 禁配：`ParamRef`（读到的已是规范值，再转 = 二次转换；等级表行 `{5,7.5,10}` 配 Percent 得 `0.10`，引用行再配 Percent 会变 `0.001`）；`AttributeScaled`（结果是 `Coefficient × Current(Attribute)` 乘积，约定作用在系数还是乘积上有歧义；系数需要百分比语义直接写小数）。
 - **修正行 Operand 补约定列（已拍板）**：PV-6 全量切换后，链步骤数值字段/FlowModify Operand/时值字段也都是 `FTcsParamValue`——其中**参数修正行 `FTcsNumericParamModifier` 的 Operand 补 `ValueConvention` 列**（否则"冷却 -30%"这类策划书写只能手算 `0.30`）。**链步骤数值字段与纯结构时值（Duration 秒数等）按需再议**（YAGNI：它们换型后同样可挂约定列，需求出现即按同一模式加，不在本轮预建）。
-- **`Literal.Value` 定性（消解文档/代码冲突）**：Literal 的 `Value` 是**配置态书写值**；无约定列（`VCF_None`）时它即规范值（恒等）。"账本/快照内恒为规范值"这条不变式的管辖范围是**运行侧**，不是 Def 配置态。→ 需修正 `FTcsParamSource_Literal.h` 的注释措辞（原文"直接返回配置的规范值"/"字面量值（规范值）"读起来像是 Literal 只能写规范值，与约定列的存在矛盾）。
+- **`Literal.Value` 定性（消解文档/代码冲突）**：Literal 的 `Value` 是**配置态书写值**；无约定列（`VCF_None`）时它即规范值（恒等）。"账本/快照内恒为规范值"这条不变式的管辖范围是**运行侧**，不是 Def 配置态。→ 需修正 `TcsParamSource_Literal.h` 的注释措辞（原文"直接返回配置的规范值"/"字面量值（规范值）"读起来像是 Literal 只能写规范值，与约定列的存在矛盾）。
 - **M8 校验扩展**：`源类型 × 可配约定` 合法性矩阵（与 PV-8 已有的 `源 × 上下文` 矩阵合并为四联矩阵，见下）。
 
 ---
@@ -190,7 +190,7 @@
 | `2026-09-02-m0min-m2-decision-points.md` | D2-10 条目"M5 参数链不跟进"口径作废 |
 | `README.md` | 文档清单 + 决策日志新增条目 |
 | `openspec/project.md` | 架构模式段补一行 |
-| `Source/TcsCore/Public/Parameter/FTcsParamSource_Literal.h` | 注释措辞修正（书写值定性） |
+| `Source/TcsCore/Public/Parameter/TcsParamSource_Literal.h` | 注释措辞修正（书写值定性） |
 
 ---
 

@@ -3,7 +3,7 @@
 #include "TcsCoreStats.h"
 
 #include "HAL/IConsoleManager.h"
-#include "Pool/TTcsInstancePool.h"
+#include "Pool/TcsInstancePool.h"
 
 // 跨池已分配槽位总数（仅游戏线程读写——池进入点已断言 D0-4）
 static int32 GTcsCorePoolSlotsTotal = 0;

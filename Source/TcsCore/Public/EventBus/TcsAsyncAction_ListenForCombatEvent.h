@@ -7,9 +7,9 @@
 #include "Kismet/BlueprintAsyncActionBase.h"
 #include "StructUtils/InstancedStruct.h"
 
-#include "EventBus/UTcsEventBusSubsystem.h"
+#include "EventBus/TcsEventBusSubsystem.h"
 
-#include "UTcsAsyncAction_ListenForCombatEvent.generated.h"
+#include "TcsAsyncAction_ListenForCombatEvent.generated.h"
 
 
 

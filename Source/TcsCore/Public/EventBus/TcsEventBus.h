@@ -4,13 +4,13 @@
 
 #include "CoreMinimal.h"
 #include "GameplayTagContainer.h"
-#include "Pool/TTcsInstancePool.h"
+#include "Pool/TcsInstancePool.h"
 #include "StructUtils/InstancedStruct.h"
 #include "TcsCoreLogChannel.h"
 
-#include "EventBus/UTcsEventHandler.h"
+#include "EventBus/TcsEventHandler.h"
 
-#include "FTcsEventBus.generated.h"
+#include "TcsEventBus.generated.h"
 
 
 

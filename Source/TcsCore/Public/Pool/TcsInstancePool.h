@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Async/Async.h"
-#include "Handle/TTcsInstanceHandle.h"
+#include "Handle/TcsInstanceHandle.h"
 #include "TcsCoreStats.h"
 
 /**

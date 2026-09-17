@@ -4,9 +4,9 @@
 
 #include "CoreMinimal.h"
 #include "StructUtils/InstancedStruct.h"
-#include "Parameter/FTcsParamValueSource.h"
-#include "Parameter/FTcsParamSource_Literal.h"
-#include "FTcsParamValue.generated.h"
+#include "Parameter/TcsParamValueSource.h"
+#include "Parameter/TcsParamSource_Literal.h"
+#include "TcsParamValue.generated.h"
 
 
 

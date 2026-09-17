@@ -1,6 +1,6 @@
 // Copyright Tirefly. All Rights Reserved.
 
-#include "UTcsDeveloperSettings.h"
+#include "TcsDeveloperSettings.h"
 
 FName UTcsDeveloperSettings::GetCategoryName() const
 {

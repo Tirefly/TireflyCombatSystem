@@ -7,9 +7,9 @@
 #include "StructUtils/InstancedStruct.h"
 #include "Subsystems/WorldSubsystem.h"
 
-#include "EventBus/FTcsEventBus.h"
+#include "EventBus/TcsEventBus.h"
 
-#include "UTcsEventBusSubsystem.generated.h"
+#include "TcsEventBusSubsystem.generated.h"
 
 
 

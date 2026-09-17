@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "FTcsValueConvention.generated.h"
+#include "TcsValueConvention.generated.h"
 
 
 
