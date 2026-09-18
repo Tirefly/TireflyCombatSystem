@@ -78,12 +78,15 @@ E:\Projects_Dev\LegendAutoChess\Plugins\Tirefly\TireflyCombatSystem\   ← 仓�
         Attribute/TcsAttributeProvider.h         （对外唯一契约 UINTerface）
         Attribute/TcsAttrModDef.h                （修正器模板资产 D3-19/D2-13：纯模板+OperandDef+ValueConvention 列）
         TcsAttributeSubsystem.h                  （门面）
+        Attribute/TcsAttributePipeline.h         （聚合管线声明——**公开面，2026-09-18 用户拍板移出 Private**）
       Private/
         TcsAttributeLogChannel.cpp                （DEFINE_LOG_CATEGORY(LogTcsAttribute)）
-        Attribute/TcsAttributePipeline.h / .cpp  （聚合/依赖登记/SCC/事务——模块内部）
+        Attribute/TcsAttributePipeline.cpp / _Dependency.cpp / _Cascade.cpp  （聚合/依赖登记/SCC/事务——实现在 Private）
         Attribute/TcsAttrModDef.cpp
         TcsAttributeSubsystem.cpp
 ```
+
+> 可见性口径（2026-09-18 用户拍板）：**类的声明在 `Public/`、实现在 `Private/`**（本仓 TBNS 既有同款——`Public/Pathfinder/TbnsPathfinder.h` + `Private/Pathfinder/TbnsPathfinder.cpp`；内部细节另有 `_Internal.h` 留 Private）。搬出理由：确认未来会有**跨模块消费者**直调管线驱动求值/事务（不改内部执行逻辑）；推荐路径仍是门面（唯一入口），直调为逃生口。代价与纪律写在该头注释：有 out-of-line 成员必须带 `TCSATTRIBUTE_API`；`private:` 段不属消费契约；**实例由门面拥有、MUST NOT 跨帧持有**（门面销毁后即悬空）。
 
 > 拆分规则：`.cpp` 超 300 行按功能拆 `TcsAttributePipeline_Batch.cpp` 式命名（unreal-cpp-style implementation.md）。头文件 include：公开头以 Public 为根（如 `#include "Attribute/TcsAttributeName.h"`）；日志分类 include `Tcs<名>LogChannel.h`（Public 根相对）——Module.h 不对外引用。
 
@@ -482,10 +485,10 @@ class ITcsAttributeProvider
 
 ---
 
-### Task 5: 聚合管线（recalc + 依赖登记 SCC + clamp + 事务）
+### Task 5: 聚合管线（recalc + 依赖登记 SCC + clamp + 事务）——**已完成并归档（2026-09-18）**
 
 **Files:**
-- Create: `Private/Attribute/TcsAttributePipeline.h/.cpp`（超 300 行按 `TcsAttributePipeline_Batch.cpp` 拆分）；`UTcsAttributeSubsystem` 暴露入口
+- Create: `Public/Attribute/TcsAttributePipeline.h`（**声明在 Public**——2026-09-18 用户拍板：确认未来有跨模块消费者）+ `Private/Attribute/TcsAttributePipeline.cpp`（实现留 Private；超 300 行按 `TcsAttributePipeline_Batch.cpp` 拆分）；`UTcsAttributeSubsystem` 暴露入口
 
 **Interfaces:**
 - Consumes: Task 4 类型。
@@ -505,19 +508,20 @@ public:
 	// 聚合：五带顺序无关——((Base+ΣAdd)×(1+ΣPercentAdd))×ΠMul + ΣFlatAdd 后按 ValueDomain 收口（Clamp/Wrap/Custom）；
 	//       Operand 求值挂接（D2-11）：OPK_AttributeScaled 的 Operand = Coefficient × Current(Attribute)——
 	//       求值走读即登记（D2-3），主属性变化自动把派生属性标脏（"1 力量=2 攻击力"零宿主维护）；
-	//       Override 存在时取 Override 组最大值替换整个结果（FlatAdd 一并被覆盖，"最强覆盖生效"语义不变）；
+	//       Override 存在时按"优先级（OverridePriority，大者胜）→ 同优先级策略（OverrideTieBreak，属性定义侧四值）
+	//       → 有符号值"选出一条替换整个结果（FlatAdd 一并被覆盖，"最强覆盖生效"语义不变；默认全 0 + 取最大 ≡ 旧口径）；
 	//       带权 Override 0 / Add 10 / PercentAdd 15 / Mul 20 / FlatAdd 30（D2-10）
 	// 广播：变更 → 总线立即通道（比较 epsilon 1e-5，未变不广播）
 };
 ```
 - 消费者：计划二 Damage 公式与扣血、屏显验收信号。
 
-- [ ] **Step 1: recalc 聚合**（单属性：Modifiers 四桶 → 公式 → clamp → CachedCurrent）
-- [ ] **Step 1b（2026-09-18 增补）: 属性冻结暂存区**（规格 delta 草稿见决策文档 §附录，写本任务提案时复制进 `specs/attribute-store/spec.md`）——`RemoveAttribute` 改"冻结整条实例"（搬进暂存区、不销毁、日志）、`AddAttribute` 解冻优先（整条搬回）、双态约束、单位注销释放暂存区；`RemoveBySource` 扫描面含暂存区（同批实现与验证）
-- [ ] **Step 2: 事务与行内 flush**（Batch 计数；Commit 尾对 bDirty 属性逐个 recalc+广播）
-- [ ] **Step 3: 依赖登记 + Tarjan SCC 环检测**（R3 无派生属性数据，机制先立、有派生数据时复验）
-- [ ] **Step 4: RemoveBySource**（按 Source 过滤移除 → bDirty → recalc）
-- [ ] **Step 5: 编译验证**
+- [x] **Step 1: recalc 聚合**（单属性：Modifiers 四桶 → 公式 → clamp → CachedCurrent）
+- [x] **Step 1b（2026-09-18 增补）: 属性冻结暂存区**（规格 delta 草稿见决策文档 §附录，写本任务提案时复制进 `specs/attribute-store/spec.md`）——`RemoveAttribute` 改"冻结整条实例"（搬进暂存区、不销毁、日志）、`AddAttribute` 解冻优先（整条搬回）、双态约束、单位注销释放暂存区；`RemoveBySource` 扫描面含暂存区（同批实现与验证）
+- [x] **Step 2: 事务与行内 flush**（Batch 计数；Commit 尾对 bDirty 属性逐个 recalc+广播）
+- [x] **Step 3: 依赖登记 + Tarjan SCC 环检测**（R3 无派生属性数据，机制先立、有派生数据时复验）
+- [x] **Step 4: RemoveBySource**（按 Source 过滤移除 → bDirty → recalc）
+- [x] **Step 5: 编译验证**
 
 > **2026-09-17/18 输入增补（D2-14 裁决折入）**：①`AddAttribute` / `RemoveAttribute` MUST 走与 modifier 同一 store 变更路径与同一事务纪律（批内加属性与批内挂 modifier 行为一致——02 §4 已写明）；②对"modifier 的 Target 已无实例"给出**确定行为**（忽略 + 日志，不 ensure）；③**属性冻结暂存区（2026-09-18 设计定稿，本任务落地）**——`RemoveAttribute` 改为**冻结整条实例**（搬进暂存区、不销毁、输出日志）、`AddAttribute` **解冻优先**（整条搬回，基础值取回冻结前的值）、双态约束（同名不同时存在于容器与暂存区）；④**`RemoveBySource` 的扫描面 MUST 含暂存区**——否则来源在冻结期间结束、其修正器永久滞留、属性恢复后凭空多出数值（本条与本轮的 `RemoveBySource` 同批实现与验证）；⑤装置补检查：逐字段保真 / 解冻取回冻结前的值 / 双态互斥 / 单位注销释放暂存区。⑥AttributeSet（D2-15）不在本任务范围，随 M6 轮。
 
@@ -533,3 +537,16 @@ public:
 - [ ] **Step 3: 检查点 3**：Batch 内两次改同属性 → 提交尾只 1 次广播；PeekPending 返回未提交值
 - [ ] **Step 4: 检查点 4**：句柄悬空 ensure（Task 1 已验，此处复验于真实单位数据）
 - [ ] **Step 5: 全量编译 + 停点待用户检查**（提交经用户授权）
+
+> **2026-09-18 落地实施注记**（提案：`openspec/changes/add-tcsattribute-pipeline-and-transaction`，18 delta / 2 新能力 + 3 修订）：
+> - **产物**：`Public/Attribute/TcsAttributeBandFold.h`（折叠纯函数 + `FTcsAttributeBandEntry`，**Public**——M5/TcsDamage 复用；plan1 原清单只列了 Private 的管线文件，规范扫描时补正）、`Public/Attribute/TcsAttributeChangedEvent.h/.cpp`（变更事件 USTRUCT + 原生 Tag `Tcs.Event.Attribute.ValueChanged`——命名公约 `Tcs.Event.<域>.<事件名>`，2026-09-18 用户拍板；由事件所属模块原生声明，TcsCore 不持战斗域词汇）、**`Public/Attribute/TcsAttributePipeline.h`**（管线类声明，2026-09-18 用户拍板从 Private 移出——确认未来有跨模块消费者；PIMPL 前向声明仍由门面持有）+ `Private/Attribute/TcsAttributePipeline.cpp`（recalc/收口/事务/PeekPending/广播/求值栈）、`TcsAttributePipeline_Dependency.cpp`（Tarjan SCC + 读即登记 + 脏传播）、`TcsAttributePipeline_Cascade.cpp`（RemoveBySource + SetBaseValue）；`TcsAttributeStore` 增冻结暂存区 / 依赖边 / 批深度；门面转发六个管线入口 + `SetBaseValue`，`RemoveAttribute` 改冻结、`AddAttribute` 改解冻优先。
+> - **偏差 1（实体句柄升格为反射 USTRUCT）**：事件载荷走总线（`FInstancedStruct`）MUST 反射可见，而 `FTcsCombatEntityHandle` 原为纯 C++ 值类型（Task 4 的 D4 分界）→ **升格为 `USTRUCT(BlueprintType)` + 导出宏**（反射类型必须带宏），且 `Id` 由 `uint64` 改 **`int64`**（UHT 不支持 uint64 作为属性类型；句柄恒为正，无实际差异）。副作用正面：PV-1 规划的上下文 `Subject`（需 UPROPERTY）随之解禁。已回写 `instance-handle-pool` 规格（MODIFIED）。
+> - **偏差 2（新增 `SetBaseValue`）**：规格的"改基值"写操作类需要落点（02 §2.2a 的"等级成长 = 宿主升级事务改基值"），plan1 Task 5 接口清单原本没列 → 补 `UTcsAttributeSubsystem::SetBaseValue(单位, 属性名, 值)`（标脏 + 按事务纪律重算/广播，批外立即生效）。
+> - **偏差 3（成环语义按设计原文）**：设计写"成环 ensure + **拒绝该边**"（而非整条属性零写入）——实现为：登记边时跑 Tarjan SCC，成环则撤销刚登记的边 + ensure，读者用被读者的上一缓存值，求值有限不递归。提案 delta 的场景措辞已按此对齐。重算轮数上限（64 轮）只作收敛安全网，**与环判定解耦**（修旧 TCS 8 轮误判深链的缺陷）。
+> - **偏差 4（每单位运行时状态住容器）**：批深度与依赖边作为 `FTcsAttributeStore` 字段（随单位注销一并释放，无跨单位残留）——提案 `attribute-transaction` 需求已同步。
+> - **偏差 5（`AddAttribute` 新建即脏，2026-09-18 首轮 PIE 实测暴露）**：规格 delta 原写 `bDirty = false`——"从定义行抄来的缓存初值"被当成已结算值，**值域收口被整段跳过**（基础值 150、边界 0..100、Clamp 的属性会一直读到 150，直到某个后续写入把它标脏；装置断言"收口 Clamp 越界钳到上边界"FAIL 即此）。改为**新建即脏**：初值在"批外读取或提交"这一刻由管线结算（那一刻单位上的属性图通常已搭好，**定义/添加顺序不影响结果**）；不在 `AddAttribute` 内立即结算的理由——动态边界会读到尚未添加的引用属性（求值 0）→ 把原值钳成 0 且无人再标脏。代价：首次结算可能广播一次（旧值 = 原始基础值），"结算前的缓存值不对外承诺"。delta 已改写（含"越界初值经结算收口"新场景）。
+> - **偏差 6（`RemoveBySource` 摘冻结区后标脏，同轮暴露）**：从冻结暂存区摘除修正器后 MUST 标脏该冻结实例——否则来源在冻结期结束后，解冻会把"已被撤销来源的旧缓存值"带回（装置断言"扫描面含冻结暂存区"FAIL 即此：期待 77、实得 110）。
+> - **语义澄清 7（Wrap 跨度成立条件，同轮暴露）**：`AVD_Wrap` 只在**两侧边界齐备且 `Max > Min`** 时回卷；跨度未成立（任一侧 `ABM_None`，或 `Max ≤ Min`）时**不回卷、返回聚合原值**（确定、不 ensure——"Wrap 却没给跨度"是作者侧配置错误，热路径不拦，留给 M8 定义校验矩阵）。首轮 FAIL"收口：Wrap 按跨度回卷"根因是**装置夹具**给的是只有上界的边界，而规格场景前提是"值域 0..100"；已修夹具并加一条退化解检查把该分支钉住，规格补对应场景。
+> - **增补 8（2026-09-18 用户拍板，落地期）：覆盖带强弱口径**——原"Override 组取最大值"隐含"数值大 = 更强"，而数值本身不含方向（承伤倍率/冷却这类"越低越强"的属性会被取到最温和的一条）。定为三级阶梯：①`OverridePriority`（修正器侧，大者胜，唯一第一裁决键）→ ②`OverrideTieBreak`（属性定义侧，封闭四值：取最大/取最小/绝对值最大/绝对值最小，**不开放自定义策略**）→ ③有符号值（补齐全序，"策略下打平"如 `OTB_MaxAbs` 的 ±5 必须有确定答案）。**策略住属性定义而非修正器**（放修正器上会变成"两个来源各说各话"，等于又需要一条规则来裁决规则）；**框架不定义任何其它"谁盖谁"的规则**（用户口径：跨来源协调完全交给 Priority，否则属二次规则）。默认值 = 历史行为（全 0 + 取最大 ≡ 旧口径），已有检查全部保持绿。数据驱动路径（模板行）同步持 `OverridePriority`，`IsDataValid` 对"非覆盖带填了它"给警告。**`SortKey` 与本机制无关**：它在属性折叠里始终是零语义展示位（09-module-damage 里才有"选一"语义），02 §2.2 已补定位说明。
+> - **装置**：`Tcs.Test.Attribute` 增补管线段（折叠四例 / 隐式批广播计数 / 干净零重算 / Clamp·Wrap·动态边界 / AttributeScaled 读即登记传播 / 批内读旧值 + PeekPending 预览 + 提交单次广播 / 来源级联两属性 / 冻结解冻往返与双态约束 / 注销释放暂存区 / **覆盖带六例 + 覆盖带端到端四例**）+ 订阅 Handler（`UTcsTestAttributeChangeHandler`）；拒绝面命令增三条故意 ensure（`AVD_Custom` 回落 / 依赖成环拒边 / 无批提交）+ 模板校验两条（非覆盖带填优先级的警告 / 覆盖带无警告）。装置自身修三处：来源发号器改**单一实例**（原为临时对象，每次构造计数器归零 → 四个来源同 Id → 一次 `RemoveBySource` 摘光全部来源，断言形同虚设）、定义登记改幂等（定义表跨命令调用存活——二次运行同一命令不得重复登记）、管线段加"预热结算"循环（新建属性先读一遍落账，广播计数才只反映真正的变更）。
+> - **编译**：Development Editor 通过（零警告）。**用户 PIE 实测三轮：首轮 46 通过/6 失败、次轮 51/1（Wrap 夹具）、第三轮 `Tcs.Test.Attribute` 67 条全 PASS（2026-09-18）→ 提案已归档为 `openspec/changes/archive/2026-09-18-add-tcsattribute-pipeline-and-transaction`，18 delta 已并入 `openspec/specs/`（11 条规格全部 `validate --strict` 通过）。下一站：Task 6（验收装置：检查点 2/3/4 屏显信号）。**

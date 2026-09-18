@@ -14,8 +14,8 @@
 
 /**
  * 属性运算带（D2-7 砍 Custom op / D2-10 增 FlatAdd，纯封闭五带）——聚合公式：
- * 存在 Override 时取 Override 组最大值直接作为结果（FlatAdd 一并被覆盖，"最强覆盖生效"）；
- * 否则 `Final = ((Base + ΣAdd) × (1 + ΣPercentAdd)) × ΠMul + ΣFlatAdd`。
+ * 存在 Override 时按"优先级 → 同优先级策略 → 有符号值"三级比较选出一条直接作为结果
+ * （FlatAdd 一并被覆盖，"最强覆盖生效"）；否则 `Final = ((Base + ΣAdd) × (1 + ΣPercentAdd)) × ΠMul + ΣFlatAdd`。
  * 组内与带间顺序无关（M5 参数链同用此五带与同一折叠器——D5-5 v3）。
  * 无 Custom 位：计算在上游（施加链/伤害流程/项目代码）求值传入终值，聚合内无代码插点（D0-1）；
  * 新增运算 = 末尾追加枚举值（追加需论证与既有带的交换性）。
@@ -25,7 +25,7 @@ UENUM(BlueprintType)
 enum class ETcsAttributeOp : uint8
 {
 	TAO_Add = 0			UMETA(DisplayName = "加", ToolTip = "同带求和（ΣAdd）——默认，值 0"),
-	TAO_Override = 1	UMETA(DisplayName = "覆盖", ToolTip = "覆盖组存在时取组内最大值直接作为结果，其余带（含 FlatAdd）一并被覆盖"),
+	TAO_Override = 1	UMETA(DisplayName = "覆盖", ToolTip = "覆盖组存在时按优先级与同优先级策略选出一条作为结果，其余带（含 FlatAdd）一并被覆盖"),
 	TAO_PercentAdd = 2	UMETA(DisplayName = "百分比加", ToolTip = "同带求和后作整体缩放系数（1 + ΣPercentAdd）"),
 	TAO_Mul = 3			UMETA(DisplayName = "乘", ToolTip = "同带连乘（ΠMul）"),
 	TAO_FlatAdd = 4		UMETA(DisplayName = "平加", ToolTip = "全部缩放之后、clamp 之前的平坦加，不受 PercentAdd/Mul 缩放（GAS FixedAdd 借鉴）"),
@@ -51,6 +51,30 @@ FORCEINLINE int32 GetTcsAttributeBandWeight(ETcsAttributeOp Op)
 		return 10;
 	}
 }
+
+
+
+/**
+ * Override 带的**同优先级裁决策略**（2026-09-18 用户口径：暴露几个基础策略、**不开放 CustomStrategy**）。
+ *
+ * 用在哪：一条属性上同时挂着多条 `TAO_Override` 修正器、且它们的 `OverridePriority` **打平**时，
+ * 按本策略比较数值决定谁生效。策略住在**属性定义**（`FTcsAttributeDefTableRow::OverrideTieBreak`）
+ * 而不是单条修正器上——放修正器上会变成"两个来源各说各话"，等于又需要一条规则来裁决规则。
+ *
+ * 为什么是封闭四值：这是热路径上的比较函数，必须**全域且确定**（选出的赢家与遍历顺序无关）；
+ * 开放自定义策略会把"谁说了算"重新变成不可静态推演的东西。注意与 `AVD_Custom` 的区别：
+ * 后者是**值域**语义的逃逸位，另有"按 Clamp 回落"的确定性保证，两者不同源、不可类比。
+ *
+ * 枚举值前缀 OTB_ 是 OverrideTieBreak 的缩写。
+ */
+UENUM(BlueprintType)
+enum class ETcsAttrOverrideTieBreak : uint8
+{
+	OTB_Max = 0		UMETA(DisplayName = "取最大值", ToolTip = "同优先级下数值大者胜——默认（= 引入优先级之前的历史行为）"),
+	OTB_Min = 1		UMETA(DisplayName = "取最小值", ToolTip = "同优先级下数值小者胜（越低越强的语义，如承伤倍率）"),
+	OTB_MaxAbs = 2	UMETA(DisplayName = "取绝对值最大", ToolTip = "同优先级下幅度大者胜、符号保留（-5 胜 +3）"),
+	OTB_MinAbs = 3	UMETA(DisplayName = "取绝对值最小", ToolTip = "同优先级下幅度小者胜、符号保留（+3 胜 -5）"),
+};
 
 
 
@@ -169,6 +193,10 @@ struct FTcsAttrModInstance
 
 	// 归属来源（级联撤销锚点；系统级常驻修正器用约定的常驻来源句柄）
 	FTcsSourceHandle Source;
+
+	// Override 带的强弱排座次（**仅 TAO_Override 读**：同一属性上多条 Override 时大者胜；
+	// 其余带忽略本字段）。打平时按属性定义侧的 OverrideTieBreak 策略比较数值。
+	int32 OverridePriority = 0;
 
 	// 同带内展示/审计位（折叠按 Op 分桶——带序唯一真相在 Op，不得依赖本字段）
 	int32 SortKey = 0;

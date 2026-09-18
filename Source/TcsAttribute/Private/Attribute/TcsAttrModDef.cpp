@@ -74,6 +74,14 @@ EDataValidationResult UTcsAttrModDef::IsDataValid(
 		}
 	}
 
+	// 覆盖优先级只对覆盖带有意义（2026-09-18）：非 Override 带填了它不会参与折叠——
+	// 给一条警告而非错误（配置本身无害，静默才是问题）
+	if (Def.Op != ETcsAttributeOp::TAO_Override && Def.OverridePriority != 0)
+	{
+		Context.AddWarning(FText::FromString(
+			TEXT("OverridePriority 只在运算带为「覆盖」时参与折叠：当前带非覆盖，该值将被忽略")));
+	}
+
 	// 本资产带校验规则且未发现问题 → 明确报 Valid（引擎基类默认返回 NotValidated，
 	// 语义是"没有规则"，会让编辑器把已校验通过的资产显示为"未验证"）
 	if (Result == EDataValidationResult::NotValidated)

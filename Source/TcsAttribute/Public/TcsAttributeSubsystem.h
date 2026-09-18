@@ -14,6 +14,9 @@
 
 #include "TcsAttributeSubsystem.generated.h"
 
+// 聚合管线（模块内部类型；仅前向声明——公开头不暴露 Private 头）
+class FTcsAttributePipeline;
+
 
 
 /**
@@ -34,6 +37,12 @@ class TCSATTRIBUTE_API UTcsAttributeSubsystem : public UWorldSubsystem
 #pragma region Lifetime
 
 public:
+	// 构造函数：建聚合管线（管线持本门面引用——数据宿主与单位注册表）
+	UTcsAttributeSubsystem();
+
+	// 析构函数：显式定义（管线为前向声明的不完整类型，销毁点须在 .cpp 内——PIMPL 约束）
+	virtual ~UTcsAttributeSubsystem() override;
+
 	// 世界类型过滤：仅游戏世界（Game/PIE/GamePreview）实例化——属性是运行时状态（对齐时钟/总线门面）
 	virtual bool DoesSupportWorldType(const EWorldType::Type WorldType) const override;
 
@@ -112,8 +121,10 @@ public:
 	/**
 	 * 添加属性（单位侧唯一入口）：按**属性名**在该单位属性容器内建实例——定义由本门面
 	 * 从定义表内部解析，调用方不需要也不应该知道定义数据。
-	 * 拒绝面（ensure 提示 + 返回 false）：单位未注册、属性名为空、同单位重复添加同属性、
-	 * 定义未登记、定义行的动态边界自引用（以自身为边界 = 循环依赖，D2-4）。
+	 * **解冻优先**：暂存区已有同名实例 → 整条搬回（基础值/边界/值域模式/槽位原样保留，输出解冻日志）；
+	 * 否则按定义行新建（输出新建日志）。
+	 * 拒绝面（ensure 提示 + 返回 false）：单位未注册、属性名为空、该单位已持有同名属性、
+	 * 定义未登记（仅新建路径需要）、定义行的动态边界自引用（以自身为边界 = 循环依赖，D2-4）。
 	 *
 	 * @param Unit 单位句柄。
 	 * @param Attribute 属性名（= 定义行 DefId）。
@@ -124,9 +135,25 @@ public:
 		const FTcsAttributeName& Attribute);
 
 	/**
-	 * 移除属性（整条属性下线）：销毁该属性实例及其修正器槽位内容。
-	 * 语义说明：槽位内修正器随实例一并丢弃——来源方（buff/装备等）的级联撤销仍按其自身生命周期
-	 * 走 `RemoveBySource`（聚合管线轮），二者不互相替代；调用方需保证移除时机不与来源回收竞态。
+	 * 改写属性基础值（等级成长等宿主升级事务的落点，02 §2.2a）：标脏并按事务纪律重算/广播
+	 * （未开批 = 隐式批，立即生效）——属事务的"改基值"写操作类。
+	 * 拒绝面（ensure 提示 + 返回 false）：单位未注册、属性名为空、该单位未持有此属性。
+	 *
+	 * @param Unit 单位句柄。
+	 * @param Attribute 属性名。
+	 * @param NewBaseValue 新的基础值。
+	 * @return 返回是否改写成功。
+	 */
+	bool SetBaseValue(
+		FTcsCombatEntityHandle Unit,
+		const FTcsAttributeName& Attribute,
+		double NewBaseValue);
+
+	/**
+	 * 移除属性（整条属性下线）= **冻结**：把整条实例（基础值/边界/值域模式/修正器槽位）从属性容器
+	 * 搬入暂存区 `FrozenAttributes`——**不销毁、不丢弃槽位内容**，输出冻结日志。
+	 * 与来源撤销的关系：来源方（buff/装备等）的级联撤销仍按其自身生命周期走 `RemoveBySource`；
+	 * 被冻结实例的槽位也在 `RemoveBySource` 的扫描面内（来源在冻结期结束不会被遗留）。
 	 * 拒绝面（ensure 提示 + 返回 false）：单位未注册、属性名为空、该单位未持有此属性。
 	 *
 	 * @param Unit 单位句柄。
@@ -136,6 +163,57 @@ public:
 	bool RemoveAttribute(
 		FTcsCombatEntityHandle Unit,
 		const FTcsAttributeName& Attribute);
+
+#pragma endregion
+
+
+// 聚合管线（门面转发——消费者只认识门面）
+#pragma region Pipeline
+
+public:
+	/**
+	 * 求值属性当前值（脏则惰性重算；事务期读旧值）。
+	 * 单位未注册或属性未定义时返回 0（读取是正常查询路径，不 ensure）。
+	 *
+	 * @param Unit 单位句柄。
+	 * @param Attribute 属性名。
+	 * @return 返回当前值。
+	 */
+	double EvaluateCurrent(FTcsCombatEntityHandle Unit, const FTcsAttributeName& Attribute);
+
+	/**
+	 * 读未提交候选值（预览；不落账、不广播）。无进行中的批时等同求值当前值。
+	 *
+	 * @param Unit 单位句柄。
+	 * @param Attribute 属性名。
+	 * @return 返回候选值。
+	 */
+	double PeekPending(FTcsCombatEntityHandle Unit, const FTcsAttributeName& Attribute);
+
+	/**
+	 * 挂修正器（标脏；未开批时立即重算 + 广播 = 隐式批）。
+	 * 单位未注册或目标属性无实例时忽略并留日志（返回 false，不 ensure——D2-14）。
+	 *
+	 * @param Unit 单位句柄。
+	 * @param Modifier 修正器（Target 指向目标属性）。
+	 * @return 返回是否挂载成功。
+	 */
+	bool ApplyModifier(FTcsCombatEntityHandle Unit, const FTcsAttrModInstance& Modifier);
+
+	/**
+	 * 按来源级联摘除（扫描面含实例槽位与冻结暂存区）。
+	 *
+	 * @param Unit 单位句柄。
+	 * @param Source 来源句柄。
+	 * @return 返回摘除条数（0 = 无匹配，正常路径）。
+	 */
+	int32 RemoveBySource(FTcsCombatEntityHandle Unit, const FTcsSourceHandle& Source);
+
+	// 开始变更批（嵌套计数；最外层提交才统一重算 + 广播）
+	void BeginBatch(FTcsCombatEntityHandle Unit);
+
+	// 提交变更批（唯一提交点；批内多次变更只重算一次、每属性最多广播一次）
+	void Commit(FTcsCombatEntityHandle Unit);
 
 #pragma endregion
 
@@ -179,8 +257,27 @@ private:
 	// 实体身份发号器（R3 由本门面发号，见 RegisterUnit 说明）
 	FTcsCombatEntityHandleRegistry EntityRegistry;
 
-	// 解引用外层表的间接层（命中返回容器指针；未命中返回 nullptr，不 ensure——调用方已判定）
+	// 聚合管线（模块内部类型，仅前向声明持有——公开头不暴露 Private 头；构造建、Deinitialize 清）
+	TUniquePtr<FTcsAttributePipeline> Pipeline;
+
+#pragma endregion
+
+
+// 内部查询（门面与管线共用）
+#pragma region Internal
+
+public:
+	/**
+	 * 非确保解析（句柄 → 容器）：命中返回容器指针，未命中返回 nullptr。
+	 * 与 `GetStore` 的区别：**不 ensure**——供管线与内部读取路径使用（读取是正常查询路径，
+	 * 单位未注册不算契约违规）。
+	 *
+	 * @param Unit 单位句柄。
+	 * @return 返回该单位的属性容器；未注册返回 nullptr。
+	 */
 	FTcsAttributeStore* ResolveStore(FTcsCombatEntityHandle Unit);
+
+	// 非确保解析（只读）
 	const FTcsAttributeStore* ResolveStore(FTcsCombatEntityHandle Unit) const;
 
 #pragma endregion

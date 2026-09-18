@@ -25,6 +25,8 @@
 - `FCombatEventBus`：Tag 路由 + 订阅表（`TMultiMap<FGameplayTag, FEventSubscription>`）+ 共享 Handler UClass（事件类型 → Handler CDO 执行；struct 上不自绑 delegate）。
 - **两条通道**：立即派发（同步）与帧末队列（泵统一 flush）；订阅退订走 `FEventSubscriptionHandle`（句柄配对清理，复用 2.1 机制）。
 - 载荷规约：核心词汇级事件 = 具体 FStruct（数量少、结构稳）；域扩展载荷 = `FInstancedStruct` 扩展位；**核心不 include 域扩展头**。
+- **事件 Tag 的命名与归属（2026-09-18 用户拍板）**：命名公约 **`Tcs.Event.<域>.<事件名>`**（域单数、事件名 PascalCase 动词短语，如 `Tcs.Event.Attribute.ValueChanged`、`Tcs.Event.State.Added`）——域段是**真层级节点**，同域后续事件挂其下；**由事件所属模块原生声明**（`UE_DECLARE_GAMEPLAY_TAG_EXTERN` / `UE_DEFINE_GAMEPLAY_TAG`，随模块加载生效、**无需项目 Tag 表配置**——项目漏配不会静默丢事件）。理由：这是**框架协议**而非游戏词汇（游戏词汇如属性名仍归项目词表，D2-1/02 §2.2），且本模块**不得持有战斗域词汇**（上方"核心不 include 域扩展头"同源）。备选被否：项目侧声明（插件不自足、漏配即静默不广播）；改门面委托（推翻 02 §4"变更 → 总线立即通道"并引入第二通知机制）。
+- **随之而来的总线输入（2026-09-18 记录，M0 轮排期）**：命名采用三层后，**父标签订阅**（订阅 `Tcs.Event.Attribute` 收全属性域事件）才有意义——但**当前原生订阅路径是精确匹配**（`FTcsEventBus::DispatchToChannel` 用 `TagIndex.MultiFind(Tag, ...)`），BP/CS 动态层已支持部分匹配（`MatchesTag`）。故"**原生侧层级匹配**（含订阅索引结构选型：TMultiMap vs 按 Tag 分桶 vs 层级树缓存）"从 2026-08-31 总线文档的开放项，升为**采用三层命名的配套前置**：落地前，原生消费者要"全域订阅"只能按叶子逐条订阅（本域事件数少，可接受）；未落地不等于命名要降级（改名成本 > 等落地）。
 - **BP/CS 动态监听层（M9 收尾轮拍板 A'，Lyra GMS 形态）**：router 内泛化动态多播 `(EventTag, FInstancedStruct)`——Publish 同步喂（立即通道）/flush 时喂（帧末通道）；`UTcsAsyncAction_ListenForCombatEvent{Tag 过滤, PayloadType(UScriptStruct*) 类型匹配过滤, MatchType(精确/部分)}` 提供"绑定即过滤"的 BP/CS 订阅入口（Lyra 先例：FInstancedStruct 作动态委托参数已 shipped；用户线索：FInstancedStruct 支持反射与网络同步，载荷较大——总线不复制，网络面未来讨论）。K2 强类型引脚节点 = 未来项（M8 轮）；类型化委托 = 未来增量（哪个事件用得痛再单独加）。C++ Handler CDO 路径原样不动。验证项两条（不阻塞 R3）：BP InstancedStruct 节点面版本覆盖、CS 读 FInstancedStruct 载荷实测。
 
 ### 2.3 时钟与到期堆（D0-1、D0-5、D3-6）

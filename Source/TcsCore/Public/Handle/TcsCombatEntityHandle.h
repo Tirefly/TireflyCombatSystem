@@ -6,6 +6,8 @@
 
 #include <atomic>
 
+#include "TcsCombatEntityHandle.generated.h"
+
 
 
 /**
@@ -17,12 +19,20 @@
  * 与 FTcsSourceHandle 的区别（语义隔离，编译期不可互换）：Source = 归属来源/级联撤销锚点，
  * 本句柄 = 被修饰或被查询的主体。
  *
- * 导出宏纪律同 FTcsSourceHandle：全内联值类型不加模块导出宏（加了会在消费方 LNK2019）。
+ * **反射性（2026-09-18 升格）**：本句柄是**身份词汇**（token 化，非裸 uint64），需出现在
+ * 反射载荷里——属性变更事件 `FTcsAttributeChangedEvent.Unit`（走总线的 FInstancedStruct 载荷
+ * MUST 反射可见），且 PV-1 规划的上下文 `Subject` 字段同样是 UPROPERTY。故本结构为
+ * `USTRUCT(BlueprintType)` 并带模块导出宏（反射类型有 UHT 生成符号 → 按导出宏纪律必须带宏；
+ * 纯内联的 `FTcsSourceHandle` 反而不能带——两者差异正是该纪律的两面）。
  */
-struct FTcsCombatEntityHandle
+USTRUCT(BlueprintType)
+struct TCSCORE_API FTcsCombatEntityHandle
 {
+	GENERATED_BODY()
+
 	// 实体 Id（0 = 无效）
-	uint64 Id = 0;
+	UPROPERTY(BlueprintReadOnly, Category = "Combat Entity")
+	int64 Id = 0;
 
 	// 句柄有效性
 	bool IsValid() const
@@ -63,5 +73,5 @@ struct FTcsCombatEntityHandleRegistry
 
 private:
 	// 下一实体 Id（原子计数；0 保留无效）
-	std::atomic<uint64> NextId{0};
+	std::atomic<int64> NextId{0};
 };

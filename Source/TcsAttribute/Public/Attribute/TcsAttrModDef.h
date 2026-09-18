@@ -65,6 +65,15 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Modifier Template")
 	int32 SortKey = 0;
 
+	/**
+	 * Override 带的强弱排座次（**仅 `Op == TAO_Override` 时有意义**，物化时原样进账本）：
+	 * 同一属性上多条 Override 时**大者胜**；优先级打平才落到属性定义的 `OverrideTieBreak` 策略。
+	 * 非 Override 带填了它不会参与折叠（编辑器校验会给一条警告）。
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Modifier Template",
+		Meta = (EditCondition = "Op == ETcsAttributeOp::TAO_Override", EditConditionHides))
+	int32 OverridePriority = 0;
+
 	// 同来源内分组标签（可选）
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Modifier Template")
 	FName Tag = NAME_None;

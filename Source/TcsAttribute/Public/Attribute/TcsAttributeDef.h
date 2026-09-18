@@ -7,6 +7,7 @@
 #include "Engine/DataTable.h"
 
 #include "Attribute/TcsAttributeBounds.h"
+#include "Attribute/TcsAttrModInstance.h"
 
 #if WITH_EDITOR
 #include "Misc/DataValidation.h"
@@ -23,7 +24,7 @@
  * **身份 = RowName（= 属性名）**——行内 MUST NOT 再存一份 id（2026-09-17 用户口径：
  * DataTable 的键本就是行名，行内再放一份只会制造"行名与字段谁为准"的双真相）；
  * 运行期资产按 `[PrimaryAssetType, DefId]` 解析（资产侧 `DefId` 与行名取同一值）。
- * 定义字段（基础值/边界/值域模式）MUST 只在本结构声明一次，资产侧组合持有（不得复制字段集）。
+ * 定义字段（基础值/边界/值域模式/覆盖带同优先级策略）MUST 只在本结构声明一次，资产侧组合持有（不得复制字段集）。
  */
 USTRUCT(BlueprintType)
 struct TCSATTRIBUTE_API FTcsAttributeDefTableRow : public FTableRowBase
@@ -59,6 +60,22 @@ public:
 	// 值域模式（末端收口语义——钳制 / 自定义逃逸位 / 循环）
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Attribute Definition")
 	ETcsAttributeValueDomain ValueDomain = ETcsAttributeValueDomain::AVD_Clamp;
+
+#pragma endregion
+
+
+// 覆盖带口径
+#pragma region OverrideTieBreak
+
+public:
+	/**
+	 * Override 带的**同优先级裁决策略**（2026-09-18 用户口径，封闭四值不开放 Custom）：
+	 * 本属性的 Override 修正器优先级打平时，按此策略比较数值（默认取最大值 = 历史行为）。
+	 * 强弱的第一裁决者始终是修正器侧的 `OverridePriority`；本字段只在打平时生效。
+	 * 只有本属性用到 `TAO_Override` 时才有意义（其余情况是死配置，不报错）。
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Attribute Definition")
+	ETcsAttrOverrideTieBreak OverrideTieBreak = ETcsAttrOverrideTieBreak::OTB_Max;
 
 #pragma endregion
 };

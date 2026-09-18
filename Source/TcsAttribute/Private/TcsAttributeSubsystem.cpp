@@ -2,9 +2,18 @@
 
 #include "TcsAttributeSubsystem.h"
 
+#include "Attribute/TcsAttributePipeline.h"
 #include "TcsAttributeLogChannel.h"
 
 
+
+UTcsAttributeSubsystem::UTcsAttributeSubsystem()
+{
+	// 建聚合管线（持本门面引用：数据宿主与单位注册表）
+	Pipeline = MakeUnique<FTcsAttributePipeline>(*this);
+}
+
+UTcsAttributeSubsystem::~UTcsAttributeSubsystem() = default;
 
 bool UTcsAttributeSubsystem::DoesSupportWorldType(const EWorldType::Type WorldType) const
 {
@@ -16,7 +25,8 @@ bool UTcsAttributeSubsystem::DoesSupportWorldType(const EWorldType::Type WorldTy
 
 void UTcsAttributeSubsystem::Deinitialize()
 {
-	// 确定性清理：属性实例随容器释放（零外部资源持有）
+	// 确定性清理：属性实例与冻结暂存区随容器释放（零外部资源持有）
+	Pipeline.Reset();
 	Stores.Empty();
 	UnitNames.Empty();
 
@@ -40,7 +50,7 @@ FTcsCombatEntityHandle UTcsAttributeSubsystem::RegisterUnit(FName UnitName)
 void UTcsAttributeSubsystem::UnregisterUnit(FTcsCombatEntityHandle Unit)
 {
 	if (!ensureMsgf(Stores.Contains(Unit),
-		TEXT("UTcsAttributeSubsystem::UnregisterUnit: 未注册或已注销的单位句柄（Id=%llu）"), Unit.Id))
+		TEXT("UTcsAttributeSubsystem::UnregisterUnit: 未注册或已注销的单位句柄（Id=%lld）"), Unit.Id))
 	{
 		return;
 	}
@@ -95,22 +105,36 @@ bool UTcsAttributeSubsystem::AddAttribute(
 	// 直接查表而非走 GetStore：拒绝面只在此处报一次 ensure（避免同一违规双站点触发）
 	FTcsAttributeStore* Store = ResolveStore(Unit);
 	if (!ensureMsgf(Store != nullptr,
-		TEXT("UTcsAttributeSubsystem::AddAttribute: 单位未注册（Id=%llu）"), Unit.Id))
+		TEXT("UTcsAttributeSubsystem::AddAttribute: 单位未注册（Id=%lld）"), Unit.Id))
 	{
 		return false;
 	}
 
 	if (!ensureMsgf(!Attribute.IsNone(),
-		TEXT("UTcsAttributeSubsystem::AddAttribute: 属性名为空（单位 Id=%llu）"), Unit.Id))
+		TEXT("UTcsAttributeSubsystem::AddAttribute: 属性名为空（单位 Id=%lld）"), Unit.Id))
 	{
 		return false;
 	}
 
 	if (!ensureMsgf(!Store->Attributes.Contains(Attribute),
-		TEXT("UTcsAttributeSubsystem::AddAttribute: 属性重复添加（单位 Id=%llu，属性 %s）"),
+		TEXT("UTcsAttributeSubsystem::AddAttribute: 属性重复添加（单位 Id=%lld，属性 %s）"),
 		Unit.Id, *Attribute.Name.ToString()))
 	{
 		return false;
+	}
+
+	// 解冻优先：暂存区已有同名实例 → 整条搬回（基础值/边界/值域模式/槽位原样保留）
+	if (FTcsAttributeInstance* FrozenInstance = Store->FrozenAttributes.Find(Attribute))
+	{
+		const int32 SlotCount = FrozenInstance->ModifierSlots.Num();
+		Store->Attributes.Add(Attribute, MoveTemp(*FrozenInstance));
+		Store->FrozenAttributes.Remove(Attribute);
+
+		UE_LOG(LogTcsAttribute, Log,
+			TEXT("UTcsAttributeSubsystem: 属性解冻 Unit=%llu Attribute=%s 槽位=%d（基础值取回冻结前的值）"),
+			Unit.Id, *Attribute.Name.ToString(), SlotCount);
+
+		return true;
 	}
 
 	// 定义解析在门面内部完成（2026-09-17 用户口径：单位侧只认属性名，不传定义数据）
@@ -127,7 +151,7 @@ bool UTcsAttributeSubsystem::AddAttribute(
 		(DefRow->Bounds.Min.Mode == ETcsAttributeBoundMode::ABM_Dynamic && DefRow->Bounds.Min.DynamicAttribute == Attribute) ||
 		(DefRow->Bounds.Max.Mode == ETcsAttributeBoundMode::ABM_Dynamic && DefRow->Bounds.Max.DynamicAttribute == Attribute);
 	if (!ensureMsgf(!bSelfReferencedBound,
-		TEXT("UTcsAttributeSubsystem::AddAttribute: 动态边界自引用（单位 Id=%llu，属性 %s 以自身为边界）"),
+		TEXT("UTcsAttributeSubsystem::AddAttribute: 动态边界自引用（单位 Id=%lld，属性 %s 以自身为边界）"),
 		Unit.Id, *Attribute.Name.ToString()))
 	{
 		return false;
@@ -137,13 +161,14 @@ bool UTcsAttributeSubsystem::AddAttribute(
 	FTcsAttributeInstance Instance;
 	Instance.Attr = Attribute;
 	Instance.BaseValue = DefRow->BaseValue;
-	Instance.CachedCurrent = DefRow->BaseValue;	// 添加期初值即基础值（此后缓存值的唯一生产者是聚合管线）
-	Instance.bDirty = false;
+	Instance.CachedCurrent = DefRow->BaseValue;	// 占位值（结算前不对外承诺——缓存值的唯一生产者仍是聚合管线）
+	Instance.bDirty = true;	// 新建即脏：初值在批外读取/提交时由管线结算——值域收口、既有修正器、动态边界都在那一刻生效
 	Instance.Bounds = DefRow->Bounds;
 	Instance.ValueDomain = DefRow->ValueDomain;
+	Instance.OverrideTieBreak = DefRow->OverrideTieBreak;
 	Store->Attributes.Add(Attribute, MoveTemp(Instance));
 
-	UE_LOG(LogTcsAttribute, Log, TEXT("UTcsAttributeSubsystem: 属性添加 Unit=%llu Attribute=%s BaseValue=%.6f"),
+	UE_LOG(LogTcsAttribute, Log, TEXT("UTcsAttributeSubsystem: 属性新建 Unit=%llu Attribute=%s BaseValue=%.6f"),
 		Unit.Id, *Attribute.Name.ToString(), DefRow->BaseValue);
 
 	return true;
@@ -155,36 +180,108 @@ bool UTcsAttributeSubsystem::RemoveAttribute(
 {
 	FTcsAttributeStore* Store = ResolveStore(Unit);
 	if (!ensureMsgf(Store != nullptr,
-		TEXT("UTcsAttributeSubsystem::RemoveAttribute: 单位未注册（Id=%llu）"), Unit.Id))
+		TEXT("UTcsAttributeSubsystem::RemoveAttribute: 单位未注册（Id=%lld）"), Unit.Id))
 	{
 		return false;
 	}
 
 	if (!ensureMsgf(!Attribute.IsNone(),
-		TEXT("UTcsAttributeSubsystem::RemoveAttribute: 属性名为空（单位 Id=%llu）"), Unit.Id))
+		TEXT("UTcsAttributeSubsystem::RemoveAttribute: 属性名为空（单位 Id=%lld）"), Unit.Id))
 	{
 		return false;
 	}
 
-	// 实例连同其修正器槽位一并移除（来源方的级联撤销按其自身生命周期走 RemoveBySource，二者不互相替代）
-	if (!ensureMsgf(Store->Attributes.Remove(Attribute) > 0,
-		TEXT("UTcsAttributeSubsystem::RemoveAttribute: 该单位未持有此属性（单位 Id=%llu，属性 %s）"),
+	// 冻结：整条实例搬入暂存区（不销毁、不丢槽位内容——装备穿脱不丢等级加成、buff 效果不丢）
+	FTcsAttributeInstance* Instance = Store->Attributes.Find(Attribute);
+	if (!ensureMsgf(Instance != nullptr,
+		TEXT("UTcsAttributeSubsystem::RemoveAttribute: 该单位未持有此属性（单位 Id=%lld，属性 %s）"),
 		Unit.Id, *Attribute.Name.ToString()))
 	{
 		return false;
 	}
 
-	UE_LOG(LogTcsAttribute, Log, TEXT("UTcsAttributeSubsystem: 属性移除 Unit=%llu Attribute=%s"),
-		Unit.Id, *Attribute.Name.ToString());
+	const int32 SlotCount = Instance->ModifierSlots.Num();
+	Store->FrozenAttributes.Add(Attribute, MoveTemp(*Instance));
+	Store->Attributes.Remove(Attribute);
+
+	UE_LOG(LogTcsAttribute, Log,
+		TEXT("UTcsAttributeSubsystem: 属性冻结 Unit=%llu Attribute=%s 槽位=%d（可被同名添加解冻恢复）"),
+		Unit.Id, *Attribute.Name.ToString(), SlotCount);
 
 	return true;
+}
+
+double UTcsAttributeSubsystem::EvaluateCurrent(FTcsCombatEntityHandle Unit, const FTcsAttributeName& Attribute)
+{
+	return Pipeline.IsValid() ? Pipeline->EvaluateCurrent(Unit, Attribute) : 0.0;
+}
+
+bool UTcsAttributeSubsystem::SetBaseValue(
+	FTcsCombatEntityHandle Unit,
+	const FTcsAttributeName& Attribute,
+	double NewBaseValue)
+{
+	FTcsAttributeStore* Store = ResolveStore(Unit);
+	if (!ensureMsgf(Store != nullptr,
+		TEXT("UTcsAttributeSubsystem::SetBaseValue: 单位未注册（Id=%lld）"), Unit.Id))
+	{
+		return false;
+	}
+
+	if (!ensureMsgf(!Attribute.IsNone(),
+		TEXT("UTcsAttributeSubsystem::SetBaseValue: 属性名为空（单位 Id=%lld）"), Unit.Id))
+	{
+		return false;
+	}
+
+	FTcsAttributeInstance* Instance = Store->FindInstance(Attribute);
+	if (!ensureMsgf(Instance != nullptr,
+		TEXT("UTcsAttributeSubsystem::SetBaseValue: 该单位未持有此属性（单位 Id=%lld，属性 %s）"),
+		Unit.Id, *Attribute.Name.ToString()))
+	{
+		return false;
+	}
+
+	// 改基值 = 事务的写操作类之一；标脏与重算/广播交给管线（批内由提交统一处理）
+	return Pipeline.IsValid() ? Pipeline->SetBaseValue(Unit, Attribute, NewBaseValue) : false;
+}
+
+double UTcsAttributeSubsystem::PeekPending(FTcsCombatEntityHandle Unit, const FTcsAttributeName& Attribute)
+{
+	return Pipeline.IsValid() ? Pipeline->PeekPending(Unit, Attribute) : 0.0;
+}
+
+bool UTcsAttributeSubsystem::ApplyModifier(FTcsCombatEntityHandle Unit, const FTcsAttrModInstance& Modifier)
+{
+	return Pipeline.IsValid() ? Pipeline->ApplyModifier(Unit, Modifier) : false;
+}
+
+int32 UTcsAttributeSubsystem::RemoveBySource(FTcsCombatEntityHandle Unit, const FTcsSourceHandle& Source)
+{
+	return Pipeline.IsValid() ? Pipeline->RemoveBySource(Unit, Source) : 0;
+}
+
+void UTcsAttributeSubsystem::BeginBatch(FTcsCombatEntityHandle Unit)
+{
+	if (Pipeline.IsValid())
+	{
+		Pipeline->BeginBatch(Unit);
+	}
+}
+
+void UTcsAttributeSubsystem::Commit(FTcsCombatEntityHandle Unit)
+{
+	if (Pipeline.IsValid())
+	{
+		Pipeline->Commit(Unit);
+	}
 }
 
 FTcsAttributeStore* UTcsAttributeSubsystem::GetStore(FTcsCombatEntityHandle Unit)
 {
 	// 悬空表现为"查不到"（句柄无代际段）：返回 nullptr + ensure 提示——Development 期暴露传错句柄
 	if (!ensureMsgf(Stores.Contains(Unit),
-		TEXT("UTcsAttributeSubsystem::GetStore: 未注册或已注销的单位句柄（Id=%llu）"), Unit.Id))
+		TEXT("UTcsAttributeSubsystem::GetStore: 未注册或已注销的单位句柄（Id=%lld）"), Unit.Id))
 	{
 		return nullptr;
 	}
@@ -195,7 +292,7 @@ FTcsAttributeStore* UTcsAttributeSubsystem::GetStore(FTcsCombatEntityHandle Unit
 const FTcsAttributeStore* UTcsAttributeSubsystem::GetStore(FTcsCombatEntityHandle Unit) const
 {
 	if (!ensureMsgf(Stores.Contains(Unit),
-		TEXT("UTcsAttributeSubsystem::GetStore: 未注册或已注销的单位句柄（Id=%llu）"), Unit.Id))
+		TEXT("UTcsAttributeSubsystem::GetStore: 未注册或已注销的单位句柄（Id=%lld）"), Unit.Id))
 	{
 		return nullptr;
 	}

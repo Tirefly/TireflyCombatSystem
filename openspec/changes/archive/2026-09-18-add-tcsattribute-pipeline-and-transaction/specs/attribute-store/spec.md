@@ -1,35 +1,4 @@
-# attribute-store Specification
-
-## Purpose
-TBD - created by archiving change add-tcsattribute-types-and-store. Update Purpose after archive.
-## Requirements
-### Requirement: 属性数据宿主与单位注册
-
-`TcsAttribute` MUST 提供 `UTcsAttributeSubsystem : UWorldSubsystem`（**非 Tickable**——M2 不认识时间，D2-8；零自 tick 依赖）作为 M2 数据宿主的唯一门面，MUST 仅在 Game / PIE / GamePreview 世界实例化（无跨 World 静态状态，PIE 安全），`Deinitialize` MUST 确定性清空全部单位与 Store。
-
-- 单位身份 = `FTcsCombatEntityHandle`（`TcsCore` 词汇，PV-1 边界让步记录）；本门面 `RegisterUnit(FName UnitName)` 发号并建空 Store，`UnitName` 为调试/屏显名；`UnregisterUnit(FTcsCombatEntityHandle)` 释放该单位的 Store（无效/已注销句柄 MUST ensure 拦截，不得静默）；
-- Store 布局 MUST 为"每单位一个 `FTcsAttributeStore`"，门面持 `TMap<FTcsCombatEntityHandle, TUniquePtr<FTcsAttributeStore>>`（**外层经 `TUniquePtr` 间接层**），`GetStore(Unit)` 暴露该单位 Store 指针（mutable/const 两版；无效句柄返回 nullptr + ensure）；`FTcsAttributeStore` 内含 `TMap<FTcsAttributeName, FTcsAttributeInstance> Attributes`——键控形状与 02 §2.2a 一致。
-- **指针稳定性的真实边界（引擎事实，2026-09-17 实证）**：**容器指针**（`GetStore` 返回值）MUST 在"新增其他单位"后仍有效（由外层 `TUniquePtr` 间接层保证——这正是 02 §2.2a"适配器缓存 Store 指针"的前提）；句柄注销后该指针失效（容器被释放，注销与缓存不可交叉）。**容器内部实例指针 MUST NOT 被跨插入缓存**（`TMap`/`TSet` 元素存在连续缓冲中、扩容即搬移——直接按值存的容器都会搬走指针）。**"热路径不重查定义"（D2-9）由"实例自持定义字段"满足，与指针缓存无关**。
-
-#### Scenario: 注册发号唯一且可解析
-
-- **WHEN** 连续注册两个单位
-- **THEN** 得到两个互异且 `IsValid()` 的实体句柄，各自 `GetStore` 非空且互不相同
-
-#### Scenario: 容器指针跨"新增单位"稳定
-
-- **WHEN** 缓存某单位的 `GetStore` 返回值后，再注册若干个**其他**单位
-- **THEN** 该缓存指针仍指向同一容器（外层 `TUniquePtr` 间接层保证）；容器内部实例指针不作此保证（按名查询）
-
-#### Scenario: 注销后句柄失效
-
-- **WHEN** 注册后 `UnregisterUnit`，再以同一句柄调用 `GetStore` 或 `UnregisterUnit`
-- **THEN** 前者返回 nullptr、后者 ensure 命中（悬空句柄不静默通过）
-
-#### Scenario: 非游戏世界不创建
-
-- **WHEN** 在编辑器预览/检查器世界解析该子系统
-- **THEN** 子系统不存在
+## MODIFIED Requirements
 
 ### Requirement: 属性定义表与单位侧添加移除
 
@@ -85,19 +54,7 @@ TBD - created by archiving change add-tcsattribute-types-and-store. Update Purpo
 - **WHEN** 一个批内先 `AddAttribute` 再挂一条修正器，然后提交
 - **THEN** 只重算一次、只广播一次（与"批内挂两条修正器"行为一致）
 
-### Requirement: 读侧契约
-
-`TcsAttribute` MUST 提供 `ITcsAttributeProvider`（`UINTERFACE(MinimalAPI)`，M2 对外**唯一**契约，02 §2.3）：`GetBaseValue(FTcsAttributeName)` / `GetCurrentValue(FTcsAttributeName)` / `PeekPending(FTcsAttributeName)`，三者为反射可见事件（宿主/适配器可实现）。**单位由实现者自身绑定**（军官组件 / Mass 存储桶适配器各绑自己的单位）——契约签名不含单位参数是刻意的：计算器不关心单位载体，适配在 M6 收敛。本任务**只声明契约**：M2 内部以 `TScriptInterface<ITcsAttributeProvider>` 持有（属性值参数源的扩展上下文），首个实现在 plan2 Task 5 的战斗实体组件。`GetCurrentValue` 的"脏则惰性重算"与 `PeekPending` 的"未提交候选值"语义（D2-5）MUST 由实现者与 Task 5 管线共同保证——本任务不得提供"看起来会重算、实际读脏缓存"的 Store 取值口（Task 4 的 Store 只给 `FindInstance` / `GetBaseValue`）。
-
-#### Scenario: 契约可被宿主实现
-
-- **WHEN** 宿主（C++/UnrealSharp/BP）实现 `ITcsAttributeProvider` 并绑定自己的单位
-- **THEN** 三个读取方法均可在 C++ 与反射面覆写（单位绑定留在实现者内部）
-
-#### Scenario: 本任务无假重算口
-
-- **WHEN** 检查 Task 4 交付的 Store 公开口
-- **THEN** 只有实例查找与基础值读取；惰性重算的当前值读取口随 Task 5 管线一并出现（避免缓存值被误当权威）
+## ADDED Requirements
 
 ### Requirement: 属性冻结暂存区
 
@@ -128,4 +85,3 @@ TBD - created by archiving change add-tcsattribute-types-and-store. Update Purpo
 
 - **WHEN** 单位带着冻结条目被 `UnregisterUnit`
 - **THEN** 该单位的 `Attributes` 与 `FrozenAttributes` 一并释放
-

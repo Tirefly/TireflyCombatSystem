@@ -1,21 +1,4 @@
-# attribute-types Specification
-
-## Purpose
-TBD - created by archiving change add-tcsattribute-types-and-store. Update Purpose after archive.
-## Requirements
-### Requirement: 属性名包装
-
-`TcsAttribute` MUST 提供 `FTcsAttributeName`（USTRUCT，反射可见——Def 资产与属性定义数据行需要承载它）：内含 `FName Name`（默认 `NAME_None`）、默认构造、**`explicit` 单参构造 `FTcsAttributeName(FName)`**（裸 FName/TEXT 传不进属性 API，D2-1）、`IsNone()`、相等比较与 `GetTypeHash`（供 `TMap` 键控）。**MUST NOT** 在本任务落"稠密 int32 id 缓存"字段——该字段的维护者（属性词表注册表）属 M8，零消费者不预建。
-
-#### Scenario: 显式构造拦截裸 FName
-
-- **WHEN** 调用点把裸 `FName` 或字符串字面量直接传给期望 `FTcsAttributeName` 的属性 API
-- **THEN** 编译失败（D2-1 的 token 化保证）
-
-#### Scenario: 作为 TMap 键
-
-- **WHEN** 两个 `FTcsAttributeName` 包装同一 `FName`，分别作 `TMap<FTcsAttributeName, …>` 的键读写
-- **THEN** 命中同一槽位（相等 + 哈希一致）
+## MODIFIED Requirements
 
 ### Requirement: 运算带封闭枚举与带权
 
@@ -37,41 +20,6 @@ TBD - created by archiving change add-tcsattribute-types-and-store. Update Purpo
 
 - **WHEN** 两条 `TAO_Override` 修正器带不同 `OverridePriority`，同时另一条 `TAO_Add` 修正器带任意 `SortKey`
 - **THEN** 前者按优先级选出赢家，后者的 `SortKey` 不影响任何结果（带序仍只由 `Op` 决定）
-
-### Requirement: 操作数双形状
-
-`TcsAttribute` MUST 提供操作数的定义侧与运行侧**两个形状**（D2-13，载体已由 PV 系列取代 D2-12）：
-
-- 定义侧 `FTcsAttrModOperandDef`（USTRUCT）：`Kind: ETcsOperandKind`（`OPK_Literal = 0` 默认 / `OPK_AttributeScaled = 1`，**仅此两种**——D2-11 拒绝清单不破）、`Literal: FTcsParamValue`（可配等级表等源，模板默认值可等级化）、`Attribute: FTcsAttributeName`、`Coefficient: double = 1.0`；
-- 运行侧 `FTcsAttrModOperand`（纯 C++ struct，反射面外）：`Kind` / `Literal: double`（**恒为已解析规范值**——账本零膨胀，物化器单点转换）、`Attribute` / `Coefficient`。
-
-#### Scenario: 定义侧承载参数源
-
-- **WHEN** 模板把 `Literal` 配为等级表源（`FTcsParamValue`）
-- **THEN** 定义侧可容纳该源并参与求值；运行侧 `Literal` 始终是单个已解析 double
-
-#### Scenario: 运算种类封闭
-
-- **WHEN** 试图以第三种 Kind 表达"按时间衰减/随机/跨域引用"的取值
-- **THEN** 无此枚举值可用（D2-11 拒绝清单的编译期体现）
-
-### Requirement: 边界三态与值域模式
-
-`TcsAttribute` MUST 提供：
-
-- `ETcsAttributeBoundMode{ ABM_None = 0, ABM_Static = 1, ABM_Dynamic = 2 }` 与 `FTcsAttributeBound`（USTRUCT：`Mode` / `StaticValue: double` / `DynamicAttribute: FTcsAttributeName`）——Min 与 Max **各自独立三态**（D2-4）；`ABM_Dynamic` 的边界属性按管线求值（"HP ≤ MaxHP"形态），**自引用禁止**；
-- `FTcsAttributeBounds`（USTRUCT：`Min` / `Max`，反射可见——属性定义数据行需要承载它）；
-- `ETcsAttributeValueDomain{ AVD_Clamp = 0, AVD_Custom = 1, AVD_Wrap = 2 }`（D2-6）：`AVD_Custom` 是**逃逸位且固定值 1**（全插件 Custom=1 约定），语义为"IValueDomainPolicy 只接管值域函数，时序/级联/事务仍由引擎守护"。**值域策略接口不在本任务**（R3 未建，收口行为归 Task 5；使用 `AVD_Custom` 而策略接口缺席时的行为 MUST 在 Task 5 的收口点显式可见）。
-
-#### Scenario: 边界两侧独立
-
-- **WHEN** 属性定义 `Min = ABM_Static(0)`、`Max = ABM_Dynamic(MaxHealth)`
-- **THEN** 两个边界各自按自己的模式处理（静态值 / 动态属性求值），互不牵连
-
-#### Scenario: 值域逃逸位取值固定
-
-- **WHEN** 读取 `AVD_Custom` 的枚举值
-- **THEN** 值为 1（全插件 Custom=1 约定，与 Algo 无关）
 
 ### Requirement: 账本修正器与属性实例
 
@@ -170,28 +118,7 @@ MUST 在 `IsDataValid`（`WITH_EDITOR`）实现 **D5-18 v3 约定列白名单**�
 - **THEN** `IsDataValid` 结果为 Valid（无错误）**且**产出一条警告（该值不会参与折叠）
 - **AND** `Op = TAO_Override` 时同配置不再产出该警告
 
-### Requirement: 属性值参数源
-
-`TcsAttribute` MUST 提供 `FTcsParamSource_AttributeScaled : FTcsParamValueSource`（PV-3）：`Attribute: FTcsAttributeName` / `Coefficient: double = 1.0` / `Fallback: double`；求值 = `Coefficient × Current(Attribute)`（**Snapshot 语义——R3 唯一路径**：快照构建时求值一次冻结）。读取经**扩展求值上下文** `FTcsAttributeEvaluateContext : FTcsParamEvaluateContext`（PV-1 扩展机制：结构体继承 + 源内 checked cast，类型标识走 Core 上下文的 `GetScriptStruct()` 虚函数）——持 `Provider: TScriptInterface<ITcsAttributeProvider>`。
-
-**"上下文单位"的落点（实施定案 2026-09-16）**：单位由 `ITcsAttributeProvider` 的实现者绑定（该契约签名不含单位参数，军官组件/Mass 桶适配器各绑自己的单位——02 §2.3），故 R3 上下文以读口本身代表"对谁求值"；PV-1 规划的 `Subject`（`FCombatEntityHandle`）与 `EffectiveLevel` 字段按 PV-1 既定时序随 TcsState 等级源同批进 Core 上下文——本任务**不预建**（该句柄是纯 C++ 值类型，不能作为反射 USTRUCT 的 UPROPERTY，预建即违反本能力的"上下文反射可见"约束）。
-
-checked cast 失败或 Provider 为空 MUST 落 `Fallback`（不崩溃、不 ensure——上下文不匹配由 M8 校验矩阵兜底）。本源 MUST 覆写 `AllowsValueConvention()` 为 `false`（D5-18 v3）。R3 不实现 Live 模式与"读即登记"（已承诺基建，随 Live 化实现）。
-
-#### Scenario: 属性值换算取用
-
-- **WHEN** 扩展上下文的 Provider 给出 `Attribute = AttackPower → 60`，源配 `Coefficient = 2.0`
-- **THEN** 求值为 120
-
-#### Scenario: 上下文不匹配落兜底
-
-- **WHEN** 求值上下文是基础 `FTcsParamEvaluateContext`（无法 cast 为属性扩展上下文）或 Provider 为空
-- **THEN** 返回 `Fallback`，不广播、不崩溃
-
-#### Scenario: 本源禁配约定列
-
-- **WHEN** 查询本源是否允许行级值约定列
-- **THEN** 返回 false（系数若需百分比语义直接写小数）
+## ADDED Requirements
 
 ### Requirement: 覆盖带的优先级与同优先级策略
 
@@ -235,4 +162,3 @@ MUST NOT 提供自定义策略（无 Custom 逃逸位）：这是热路径上的
 
 - **WHEN** 当前生效的 `TAO_Override`（最高优先级）被按其来源撤销（`RemoveBySource`）
 - **THEN** 下一次折叠在剩余条目里重新选优（读侧选优——无需任何"递补/复活"状态）
-
