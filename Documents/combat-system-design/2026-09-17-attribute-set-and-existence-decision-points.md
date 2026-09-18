@@ -152,7 +152,7 @@
 
 ## 五、冻结/解冻兜底（**已裁决 2026-09-18：冻整条属性**；设计定稿，代码待落地）
 
-用户追问"运行时动态增删属性带来的三个麻烦能不能解决"，并**自行提出**"冻结/解冻"方案；agent 复核后建议把冻结单位从"只冻数值效果"提升为"**冻整条属性**"，用户 2026-09-18 选定**冻整条属性**。**实施排期 = plan1 Task 5（聚合管线轮）**——与该轮的 `RemoveBySource` 同批实现（共存规则必须与之同时落地与验证）；提案 `openspec/changes/update-attribute-freeze-thaw/`（届时合并）。
+用户追问"运行时动态增删属性带来的三个麻烦能不能解决"，并**自行提出**"冻结/解冻"方案；agent 复核后建议把冻结单位从"只冻数值效果"提升为"**冻整条属性**"，用户 2026-09-18 选定**冻整条属性**。**实施排期 = plan1 Task 5（聚合管线轮）**——与该轮的 `RemoveBySource` 同批实现（共存规则必须与之同时落地与验证）；规格 delta 草稿见本文档 §附录（Task 5 提案时复制，不另立独立提案）。
 
 ### 三个麻烦长什么样（具体场景）
 
@@ -193,3 +193,37 @@
 2. **A1 的显式化**可立即回写文档（无需代码改动，属"把现状写成规则"）。
 3. **AttributeSet 能力**建议与 **M6（DefLibrary/WorldRegistry 落地轮）** 同轮：它依赖 ①Def 资产按类型发现/加载（`PrimaryAssetTypes` 注册）、②实体注册路径的既有实现，两者都在 M6 面内。R3 竖切（4 属性、2 单位）用不到。
 4. 若选 A3（完整动态），建议**独立一轮设计 + 验收**：它引入"属性下线 vs 在飞 modifier"的新语义，不适合捎带。
+
+---
+
+## 附录：冻结/解冻的规格 delta 草稿（Task 5 轮提案时复制进 `specs/attribute-store/spec.md`）
+
+> 说明（2026-09-18）：曾为此建过一个独立 OpenSpec 提案 `update-attribute-freeze-thaw`，但冻结/解冻与 Task 5 的 `RemoveBySource` **必须同批实现与验证**（扫描面规则），**一轮任务一个提案**才是正确形状——故删掉提案壳，**delta 正文保留在本附录**，Task 5 写提案时直接复制进 `specs/attribute-store/spec.md`（无需重写）。
+
+### MODIFIED：属性定义表与单位侧添加移除（新增冻/解语义）
+
+- `AddAttribute(Unit, FTcsAttributeName)`：**解冻优先**——若暂存区已有同名实例则整条搬回（基础值/边界/值域模式/修正器槽位原样保留，MUST 输出解冻日志）；否则按定义行新建实例（初值 `BaseValue`、`CachedCurrent = BaseValue`、`bDirty = false`、`ModifierSlots` 空，MUST 输出新建日志）。拒绝面（ensure + false）：单位未注册、属性名为空、该单位已持有同名属性、**定义未登记**（仅新建路径需要定义）、定义行的动态边界自引用（D2-4）。
+- `RemoveAttribute(Unit, FTcsAttributeName)`：**冻结**——把整条实例（含基础值/边界/值域模式/槽位内容）从 `Attributes` 搬入暂存区 `FrozenAttributes`，MUST **不销毁、不丢弃槽位内容**，MUST 输出冻结日志（含属性名与槽位数）。拒绝面（ensure + false）：单位未注册、属性名为空、该单位未持有此属性。
+
+**场景**：①*移除属性 = 冻结而非销毁*——返回 true、`FindInstance` 为空、整条实例出现在暂存区（`FindFrozenInstance` 非空且字段保真）、输出冻结日志；②*添加属性 = 解冻优先*——属性被冻结后（期间其基础值可能被宿主改过）再次 `AddAttribute`，暂存区整条搬回：基础值/边界/值域模式/槽位与冻结前一致（**不回落到定义默认值**），并输出解冻日志、暂存区条目消失。
+
+### ADDED：属性冻结暂存区
+
+`FTcsAttributeStore` MUST 持有暂存区 `FrozenAttributes`（`TMap<FTcsAttributeName, FTcsAttributeInstance>`）：
+
+- **整条进出**：冻结与解冻都以**整条实例**为单位（基础值 / 边界 / 值域模式 / 修正器槽位一并保留）——这是"装备穿脱不丢等级加成"与"buff 还在、数值不丢"两条兜底的实现基础。
+- **双态约束**：同一属性名 MUST NOT 同时存在于 `Attributes` 与 `FrozenAttributes`。
+- **查询口**：`FindFrozenInstance(Name)`（mutable/const，未命中返回 nullptr，**不 ensure**）。
+- **与来源撤销的共存（MUST）**：来源撤销（`RemoveBySource`）**MUST 同时扫描实例槽位与暂存区**，否则来源在"属性被冻结"期间结束、其修正器永久滞留，属性恢复时**凭空多出数值**（比丢数值更难查）。
+- **生命周期**：暂存区随单位容器生存——`UnregisterUnit` / `Deinitialize` 释放；MUST NOT 引入条目上限、保质期清理或"解冻时校验来源存活性"（框架判断不了来源死活：`FTcsSourceHandle` 只是编号、无存活性登记，属既有设计）。
+
+**场景**：①*冻结后整条保真*（基础值/边界/值域模式/槽位数逐字段一致）；②*解冻后恢复原值*（基础值为冻结前的值、槽位仍在、`bDirty` 沿用冻结前状态）；③*双态互斥*；④*单位注销释放暂存区*。
+
+### 提案内钉名（沿用，供 Task 5 提案时保留或否决）
+
+| 项 | 钉法 |
+|---|---|
+| 暂存区字段 | `FTcsAttributeStore::FrozenAttributes`（与 `Attributes` 同款键控） |
+| 查询口 | `FindFrozenInstance(Name)`（不 ensure；**不**暴露独立"解冻"API——解冻是 `AddAttribute` 的内部步骤） |
+| 日志级别 | 冻结/解冻各一条 `Log` 级（正常业务流程也走这条路径） |
+| 双态约束 | 同名不同时存在于两处（装置加检查） |

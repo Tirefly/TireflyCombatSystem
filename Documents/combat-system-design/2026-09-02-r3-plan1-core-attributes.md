@@ -513,7 +513,7 @@ public:
 - 消费者：计划二 Damage 公式与扣血、屏显验收信号。
 
 - [ ] **Step 1: recalc 聚合**（单属性：Modifiers 四桶 → 公式 → clamp → CachedCurrent）
-- [ ] **Step 1b（2026-09-18 增补）: 属性冻结暂存区**——`RemoveAttribute` 改"冻结整条实例"（搬进暂存区、不销毁、日志）、`AddAttribute` 解冻优先（整条搬回）、双态约束、单位注销释放暂存区；`RemoveBySource` 扫描面含暂存区（同批实现与验证）
+- [ ] **Step 1b（2026-09-18 增补）: 属性冻结暂存区**（规格 delta 草稿见决策文档 §附录，写本任务提案时复制进 `specs/attribute-store/spec.md`）——`RemoveAttribute` 改"冻结整条实例"（搬进暂存区、不销毁、日志）、`AddAttribute` 解冻优先（整条搬回）、双态约束、单位注销释放暂存区；`RemoveBySource` 扫描面含暂存区（同批实现与验证）
 - [ ] **Step 2: 事务与行内 flush**（Batch 计数；Commit 尾对 bDirty 属性逐个 recalc+广播）
 - [ ] **Step 3: 依赖登记 + Tarjan SCC 环检测**（R3 无派生属性数据，机制先立、有派生数据时复验）
 - [ ] **Step 4: RemoveBySource**（按 Source 过滤移除 → bDirty → recalc）
