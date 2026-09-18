@@ -34,35 +34,35 @@ E:\Projects_Dev\LegendAutoChess\Plugins\Tirefly\TireflyCombatSystem\   ← 仓�
       TcsCoreModule.cpp                           （根：IMPLEMENT_MODULE）
       Public/
         TcsCoreLogChannel.h                       （日志通道 D0-6 v2：DECLARE_LOG_CATEGORY_EXTERN(LogTcsCore, Log, All)）
-        Handle/FTcsSourceHandle.h                 （归属来源标识 + 来源分配）
-        Handle/TTcsInstanceHandle.h               （句柄模板：Index+Generation）
-        Pool/TTcsInstancePool.h                   （池模板，header-only）
-        EventBus/UTcsEventHandler.h               （共享 Handler 基类，UCLASS，Blueprintable）
-        EventBus/FTcsEventBus.h                   （总线内核：订阅表/双通道/泛化动态多播）
-        EventBus/UTcsEventBusSubsystem.h          （门面，UTickableWorldSubsystem）
-        EventBus/UTcsAsyncAction_ListenForCombatEvent.h（BP/CS 订阅入口：Tag 过滤+PayloadType 类型匹配——**A' 反射面组成件，提前铺设**：R3 纯 C++ 无 BP 消费者，BP 节点面/CS 载荷验证留 CS 接入轮实测）
-        Clock/ITcsTimeSource.h                    （可注入时间源接口）
-        Clock/FTcsClock.h                         （唯一取时入口）
-        Clock/FTcsExpiryHeap.h                    （到期最小堆 + FTcsTimeEntryHandle）
-        Clock/UTcsClockSubsystem.h                （泵门面，UTickableWorldSubsystem）
-        Parameter/FTcsParamValue.h               （数值配置载体 PV 系列：{TInstancedStruct<FTcsParamValueSource> Source}，默认 Literal——D2-12 载体被取代）
-        Parameter/FTcsParamValueSource.h         （抽象基类：virtual double Evaluate(const FTcsParamEvaluateContext&)；FTcsParamEvaluateContext 反射可见 USTRUCT——禁 TFunction 成员）
-        Parameter/ITcsParamTableReader.h         （UINTerface：TryGetNumericParam(FName, out double)——上下文参数访问口，反射面，宿主/UnrealSharp 可实现）
-        Parameter/FTcsParamSource_Literal.h      （内置源：Literal{Value}）
-        Parameter/FTcsParamSource_ParamRef.h     （内置源：ParamRef{Key, Fallback}——链式+编辑期 DAG 去重、限同域）
-        UTcsDeveloperSettings.h                   （UDeveloperSettings 壳）
+        Handle/TcsSourceHandle.h                 （归属来源标识 + 来源分配）
+        Handle/TcsInstanceHandle.h               （句柄模板：Index+Generation）
+        Pool/TcsInstancePool.h                   （池模板，header-only）
+        EventBus/TcsEventHandler.h               （共享 Handler 基类，UCLASS，Blueprintable）
+        EventBus/TcsEventBus.h                   （总线内核：订阅表/双通道/泛化动态多播）
+        EventBus/TcsEventBusSubsystem.h          （门面，UTickableWorldSubsystem）
+        EventBus/TcsAsyncAction_ListenForCombatEvent.h（BP/CS 订阅入口：Tag 过滤+PayloadType 类型匹配——**A' 反射面组成件，提前铺设**：R3 纯 C++ 无 BP 消费者，BP 节点面/CS 载荷验证留 CS 接入轮实测）
+        Clock/TcsTimeSource.h                    （可注入时间源接口）
+        Clock/TcsClock.h                         （唯一取时入口）
+        Clock/TcsExpiryHeap.h                    （到期最小堆 + FTcsTimeEntryHandle）
+        Clock/TcsClockSubsystem.h                （泵门面，UTickableWorldSubsystem）
+        Parameter/TcsParamValue.h               （数值配置载体 PV 系列：{TInstancedStruct<FTcsParamValueSource> Source}，默认 Literal——D2-12 载体被取代）
+        Parameter/TcsParamValueSource.h         （抽象基类：virtual double Evaluate(const FTcsParamEvaluateContext&)；FTcsParamEvaluateContext 反射可见 USTRUCT——禁 TFunction 成员）
+        Parameter/TcsParamTableReader.h         （UINTerface：TryGetNumericParam(FName, out double)——上下文参数访问口，反射面，宿主/UnrealSharp 可实现）
+        Parameter/TcsParamSource_Literal.h      （内置源：Literal{Value}）
+        Parameter/TcsParamSource_ParamRef.h     （内置源：ParamRef{Key, Fallback}——链式+编辑期 DAG 去重、限同域）
+        TcsDeveloperSettings.h                   （UDeveloperSettings 壳）
       Private/
         TcsCoreLogChannel.cpp                     （DEFINE_LOG_CATEGORY(LogTcsCore)）
-        EventBus/UTcsEventBusSubsystem.cpp
-        EventBus/UTcsAsyncAction_ListenForCombatEvent.cpp
-        Clock/UTcsClockSubsystem.cpp
-        UTcsDeveloperSettings.cpp
+        EventBus/TcsEventBusSubsystem.cpp
+        EventBus/TcsAsyncAction_ListenForCombatEvent.cpp
+        Clock/TcsClockSubsystem.cpp
+        TcsDeveloperSettings.cpp
     TcsNotation/
       TcsNotation.Build.cs                        （根）
       TcsNotationModule.h / .cpp                  （根：模块类）
       Public/
         TcsNotationLogChannel.h                   （DECLARE_LOG_CATEGORY_EXTERN(LogTcsNotation, Log, All)）
-        FTcsValueConvention.h                     （ETcsValueConventionFlag EnumFlags + 写入点转换助手，D5-18）
+        TcsValueConvention.h                     （ETcsValueConventionFlag EnumFlags + 写入点转换助手，D5-18）
       Private/
         TcsNotationLogChannel.cpp                 （DEFINE_LOG_CATEGORY(LogTcsNotation)）
     TcsAttribute/
@@ -70,22 +70,22 @@ E:\Projects_Dev\LegendAutoChess\Plugins\Tirefly\TireflyCombatSystem\   ← 仓�
       TcsAttributeModule.h / .cpp                 （根：模块类）
       Public/
         TcsAttributeLogChannel.h                  （DECLARE_LOG_CATEGORY_EXTERN(LogTcsAttribute, Log, All)）
-        Attribute/FTcsParamSource_AttributeScaled.h （PV-3 参数取属性值源：{AttributeName, Coefficient, Fallback}——经扩展上下文/ITcsAttributeProvider Evaluate）
-        Attribute/FTcsAttributeName.h             （FName 显式包装，D2-1）
-        Attribute/FTcsAttributeModifier.h         （ETcsAttributeOp 含 TAO_FlatAdd / Bound 三态 / ValueDomain 模式）
-        Attribute/FTcsAttributeInstance.h         （单属性实例：Base/CachedCurrent/Bounds/ValueDomain/ModifierSlots）
-        Attribute/FTcsAttributeStore.h            （句柄键控容器）
-        Attribute/ITcsAttributeProvider.h         （对外唯一契约 UINTerface）
-        Attribute/UTcsAttrModDef.h                （修正器模板资产 D3-19/D2-13：纯模板+OperandDef+ValueConvention 列）
-        UTcsAttributeSubsystem.h                  （门面）
+        Attribute/TcsParamSource_AttributeScaled.h （PV-3 参数取属性值源：{AttributeName, Coefficient, Fallback}——经扩展上下文/ITcsAttributeProvider Evaluate）
+        Attribute/TcsAttributeName.h             （FName 显式包装，D2-1）
+        Attribute/TcsAttrModInstance.h         （ETcsAttributeOp 含 TAO_FlatAdd / Bound 三态 / ValueDomain 模式）
+        Attribute/TcsAttributeInstance.h         （单属性实例：Base/CachedCurrent/Bounds/ValueDomain/ModifierSlots）
+        Attribute/TcsAttributeStore.h            （句柄键控容器）
+        Attribute/TcsAttributeProvider.h         （对外唯一契约 UINTerface）
+        Attribute/TcsAttrModDef.h                （修正器模板资产 D3-19/D2-13：纯模板+OperandDef+ValueConvention 列）
+        TcsAttributeSubsystem.h                  （门面）
       Private/
         TcsAttributeLogChannel.cpp                （DEFINE_LOG_CATEGORY(LogTcsAttribute)）
-        Attribute/FTcsAttributePipeline.h / .cpp  （聚合/依赖登记/SCC/事务——模块内部）
-        Attribute/UTcsAttrModDef.cpp
-        UTcsAttributeSubsystem.cpp
+        Attribute/TcsAttributePipeline.h / .cpp  （聚合/依赖登记/SCC/事务——模块内部）
+        Attribute/TcsAttrModDef.cpp
+        TcsAttributeSubsystem.cpp
 ```
 
-> 拆分规则：`.cpp` 超 300 行按功能拆 `FTcsAttributePipeline_Batch.cpp` 式命名（unreal-cpp-style implementation.md）。头文件 include：公开头以 Public 为根（如 `#include "Attribute/FTcsAttributeName.h"`）；日志分类 include `Tcs<名>LogChannel.h`（Public 根相对）——Module.h 不对外引用。
+> 拆分规则：`.cpp` 超 300 行按功能拆 `TcsAttributePipeline_Batch.cpp` 式命名（unreal-cpp-style implementation.md）。头文件 include：公开头以 Public 为根（如 `#include "Attribute/TcsAttributeName.h"`）；日志分类 include `Tcs<名>LogChannel.h`（Public 根相对）——Module.h 不对外引用。
 
 ---
 
@@ -93,7 +93,7 @@ E:\Projects_Dev\LegendAutoChess\Plugins\Tirefly\TireflyCombatSystem\   ← 仓�
 
 **Files:**
 - Modify: `TireflyCombatSystem.uplugin`（EngineVersion → 5.8；Modules 列表写入 TcsCore/TcsNotation/TcsAttribute）
-- Create: `Source/TcsCore/TcsCore.Build.cs`、`TcsCoreModule.h/.cpp`（根）、`Public/TcsCoreLogChannel.h` + `Private/TcsCoreLogChannel.cpp`（日志通道）、`Public/UTcsDeveloperSettings.h`、`Private/UTcsDeveloperSettings.cpp`、`Public/Parameter/FTcsParamValue.h` + `Public/Parameter/FTcsParamValueSource.h` + `Public/Parameter/ITcsParamTableReader.h` + `Public/Parameter/FTcsParamSource_Literal.h` + `Public/Parameter/FTcsParamSource_ParamRef.h`（PV 系列 2026-09-11）；`Source/TcsNotation/TcsNotation.Build.cs`、`TcsNotationModule.h/.cpp`（根）、`Public/TcsNotationLogChannel.h` + `Private/TcsNotationLogChannel.cpp`、`Public/FTcsValueConvention.h`；`Source/TcsAttribute/TcsAttribute.Build.cs`、`TcsAttributeModule.h/.cpp`（根）、`Public/TcsAttributeLogChannel.h` + `Private/TcsAttributeLogChannel.cpp`
+- Create: `Source/TcsCore/TcsCore.Build.cs`、`TcsCoreModule.h/.cpp`（根）、`Public/TcsCoreLogChannel.h` + `Private/TcsCoreLogChannel.cpp`（日志通道）、`Public/TcsDeveloperSettings.h`、`Private/TcsDeveloperSettings.cpp`、`Public/Parameter/TcsParamValue.h` + `Public/Parameter/TcsParamValueSource.h` + `Public/Parameter/TcsParamTableReader.h` + `Public/Parameter/TcsParamSource_Literal.h` + `Public/Parameter/TcsParamSource_ParamRef.h`（PV 系列 2026-09-11）；`Source/TcsNotation/TcsNotation.Build.cs`、`TcsNotationModule.h/.cpp`（根）、`Public/TcsNotationLogChannel.h` + `Private/TcsNotationLogChannel.cpp`、`Public/TcsValueConvention.h`；`Source/TcsAttribute/TcsAttribute.Build.cs`、`TcsAttributeModule.h/.cpp`（根）、`Public/TcsAttributeLogChannel.h` + `Private/TcsAttributeLogChannel.cpp`
 
 **Interfaces:**
 - Produces: 可编译的三模块空壳（TcsCore/TcsNotation/TcsAttribute）；日志通道文件 `Public/Tcs<名>LogChannel.h`（DECLARE）+ `Private/Tcs<名>LogChannel.cpp`（DEFINE）——Module.h/Module.cpp 只含模块类。
@@ -108,7 +108,7 @@ EngineVersion → "5.8"；Modules 按依赖序写入：TcsCore（Runtime）、Tc
 
 - [x] **Step 3: 三模块骨架**
 
-Build.cs 按 unreal-cpp-style Build.cs 章节格式（`PublicDependencyModuleNames.AddRange` 数组式）；TcsCore 依赖 Core/CoreUObject/GameplayTags；TcsNotation 依赖 Core/CoreUObject（模块类 + `Public/FTcsValueConvention.h`：`ETcsValueConventionFlag{VCF_None=0, VCF_Percent, VCF_OneMinus, VCF_Negate}` EnumFlags + 静态转换助手 ConvertToCanonical——D5-18）；TcsAttribute 依赖 Core/CoreUObject/Engine/GameplayTags + TcsCore + **TcsNotation**（D5-18 v2：UTcsAttrModDef 约定列与物化转换）。目录按收窄口径：**根仅 Build.cs/Module.h/Module.cpp**，其余 Public/Private 分层——`TcsCore/Public/Parameter/` 五文件（PV 系列 2026-09-11 取代 D2-12 FTcsParamScalar）：`FTcsParamValue.h`（`{TInstancedStruct<FTcsParamValueSource> Source}`，默认 Literal）+ `FTcsParamValueSource.h`（抽象基类 `virtual double Evaluate(const FTcsParamEvaluateContext&) const = 0`——D3-7 v3 虚分派；**命名 Evaluate**，Resolve 仅句柄/Id→对象；上下文 = **反射可见 USTRUCT，禁 TFunction 成员**）+ `ITcsParamTableReader.h`（UINTerface 参数访问口——反射面，宿主/UnrealSharp 可实现）+ `FTcsParamSource_Literal.h` + `FTcsParamSource_ParamRef.h`（链式+编辑期 DAG 去重、限同域、Fallback 必填）。**等级表源与 `ITcsEntityLevelProvider` 归 TcsState（评判轮修订），不进 TcsCore。**模块类 `FTcsCoreModule : IModuleInterface` + `IMPLEMENT_MODULE`；**日志分类独立通道**（D0-6 v2）：`Public/Tcs<名>LogChannel.h`（DECLARE_LOG_CATEGORY_EXTERN(LogTcsCore/LogTcsNotation/LogTcsAttribute, Log, All)）+ `Private/Tcs<名>LogChannel.cpp`（DEFINE）——Module.h/Module.cpp 只含模块类，使用日志 include LogChannel 头。`UTcsDeveloperSettings : UDeveloperSettings` 空壳（Config 分类名 `Tcs`）。
+Build.cs 按 unreal-cpp-style Build.cs 章节格式（`PublicDependencyModuleNames.AddRange` 数组式）；TcsCore 依赖 Core/CoreUObject/GameplayTags；TcsNotation 依赖 Core/CoreUObject（模块类 + `Public/TcsValueConvention.h`：`ETcsValueConventionFlag{VCF_None=0, VCF_Percent, VCF_OneMinus, VCF_Negate}` EnumFlags + 静态转换助手 ConvertToCanonical——D5-18）；TcsAttribute 依赖 Core/CoreUObject/Engine/GameplayTags + TcsCore + **TcsNotation**（D5-18 v2：UTcsAttrModDef 约定列与物化转换）。目录按收窄口径：**根仅 Build.cs/Module.h/Module.cpp**，其余 Public/Private 分层——`TcsCore/Public/Parameter/` 五文件（PV 系列 2026-09-11 取代 D2-12 FTcsParamScalar）：`TcsParamValue.h`（`{TInstancedStruct<FTcsParamValueSource> Source}`，默认 Literal）+ `TcsParamValueSource.h`（抽象基类 `virtual double Evaluate(const FTcsParamEvaluateContext&) const = 0`——D3-7 v3 虚分派；**命名 Evaluate**，Resolve 仅句柄/Id→对象；上下文 = **反射可见 USTRUCT，禁 TFunction 成员**）+ `TcsParamTableReader.h`（UINTerface 参数访问口——反射面，宿主/UnrealSharp 可实现）+ `TcsParamSource_Literal.h` + `TcsParamSource_ParamRef.h`（链式+编辑期 DAG 去重、限同域、Fallback 必填）。**等级表源与 `ITcsEntityLevelProvider` 归 TcsState（评判轮修订），不进 TcsCore。**模块类 `FTcsCoreModule : IModuleInterface` + `IMPLEMENT_MODULE`；**日志分类独立通道**（D0-6 v2）：`Public/Tcs<名>LogChannel.h`（DECLARE_LOG_CATEGORY_EXTERN(LogTcsCore/LogTcsNotation/LogTcsAttribute, Log, All)）+ `Private/Tcs<名>LogChannel.cpp`（DEFINE）——Module.h/Module.cpp 只含模块类，使用日志 include LogChannel 头。`UTcsDeveloperSettings : UDeveloperSettings` 空壳（Config 分类名 `Tcs`）。
 
 - [x] **Step 4: 冒烟编译**
 
@@ -123,7 +123,7 @@ Expected: 编译通过。
 ### Task 1: 句柄与池（TTcsInstanceHandle / TTcsInstancePool / FTcsSourceHandle）
 
 **Files:**
-- Create: `Handle/TTcsInstanceHandle.h`、`Handle/FTcsSourceHandle.h`、`Pool/TTcsInstancePool.h`（全 header-only 模板）
+- Create: `Handle/TcsInstanceHandle.h`、`Handle/TcsSourceHandle.h`、`Pool/TcsInstancePool.h`（全 header-only 模板）
 
 **Interfaces:**
 - Produces:
@@ -189,7 +189,7 @@ PIE 临时测试：分配→Free→旧句柄 Resolve → **ensure 命中**（Dev
 ### Task 2: 事件总线（FTcsEventBus + UTcsEventHandler + 双通道）
 
 **Files:**
-- Create: `Public/EventBus/UTcsEventHandler.h`、`Public/EventBus/FTcsEventBus.h`、`Public/EventBus/UTcsEventBusSubsystem.h` + `Private/EventBus/UTcsEventBusSubsystem.cpp`、`Public/EventBus/UTcsAsyncAction_ListenForCombatEvent.h` + `Private/EventBus/UTcsAsyncAction_ListenForCombatEvent.cpp`
+- Create: `Public/EventBus/TcsEventHandler.h`、`Public/EventBus/TcsEventBus.h`、`Public/EventBus/TcsEventBusSubsystem.h` + `Private/EventBus/TcsEventBusSubsystem.cpp`、`Public/EventBus/TcsAsyncAction_ListenForCombatEvent.h` + `Private/EventBus/TcsAsyncAction_ListenForCombatEvent.cpp`
 
 **Interfaces:**
 - Consumes: Task 1 句柄池。
@@ -246,7 +246,7 @@ UCLASS() class UTcsAsyncAction_ListenForCombatEvent : public UBlueprintAsyncActi
 > **2026-09-11 用户 PIE 验证通过**：`Tcs.Test.Bus` 全项 PASS（首轮 2 项 FAIL 经查明为测试装置时序假设错误——`SetTimerForNextTick` 非"下一帧"，改逐 tick 轮询后通过；总线实现本身无缺陷）。
 
 > 2026-09-11 实施注记：
-> - 增设 `Private/EventBus/UTcsEventHandler.cpp`（BlueprintNativeEvent 的 `_Implementation` 需实现体，计划 File 列表未列）。
+> - 增设 `Private/EventBus/TcsEventHandler.cpp`（BlueprintNativeEvent 的 `_Implementation` 需实现体，计划 File 列表未列）。
 > - **帧末冲洗时机**：tickable 子系统的 Tick 位于 `UWorld::Tick` 尾部 `TickObjects`（晚于全部 Actor tick 组）——本帧游戏逻辑期间入队的事件在**本帧末**（非下一帧）派发；"下一帧到达"语义由 Task 3 时钟泵接管实现（PrePhysics：时钟推进 → 总线冲洗 → 到期堆）；**Task 3 接线时须停用本子系统自 tick**（`SetTickableTickType(ETickableTickType::Never)`），否则帧末残留 tick 会抢先冲洗。
 > - 派发健壮性：快照同 Tag 订阅句柄 + 代际校验（派发中订阅/退订不影响本轮）；Handler 弱引用失效时惰性摘除（防僵尸订阅）。
 > - `LogTcsCore` Verbose 日志覆盖订阅/退订/发布/冲洗四点，供本检查点观测。
@@ -260,7 +260,7 @@ UCLASS() class UTcsAsyncAction_ListenForCombatEvent : public UBlueprintAsyncActi
 ### Task 3: 时钟与到期堆（UTcsClockSubsystem / FTcsClock / ITcsTimeSource / FTcsExpiryHeap）
 
 **Files:**
-- Create: `Public/Clock/ITcsTimeSource.h`、`Public/Clock/FTcsClock.h`、`Public/Clock/FTcsExpiryHeap.h`、`Public/Clock/UTcsClockSubsystem.h` + `Private/Clock/UTcsClockSubsystem.cpp`
+- Create: `Public/Clock/TcsTimeSource.h`、`Public/Clock/TcsClock.h`、`Public/Clock/TcsExpiryHeap.h`、`Public/Clock/TcsClockSubsystem.h` + `Private/Clock/TcsClockSubsystem.cpp`
 
 **Interfaces:**
 - Consumes: Task 2 帧末 flush 注册。
@@ -324,7 +324,7 @@ PIE 设 `slomo 0.1`：Output Log 中到期回调的时刻增量随游戏时间�
 ### Task 4: TcsAttribute 类型与存储（FTcsAttributeName / Modifier / Bounds / Instance / Store / Provider；**骨架已在 Task 0 创建——本任务只补类型文件**）
 
 **Files:**
-- Create: `Source/TcsAttribute/TcsAttribute.Build.cs`（Task 0 骨架已建，本任务补依赖与内容）、`Public/Attribute/FTcsAttributeName.h`、`Public/Attribute/FTcsAttributeModifier.h`、`Public/Attribute/FTcsAttributeInstance.h`、`Public/Attribute/FTcsAttributeStore.h`、`Public/Attribute/ITcsAttributeProvider.h`、`Public/Attribute/UTcsAttrModDef.h` + `Private/Attribute/UTcsAttrModDef.cpp`、`Public/UTcsAttributeSubsystem.h` + `Private/UTcsAttributeSubsystem.cpp`
+- Create: `Source/TcsAttribute/TcsAttribute.Build.cs`（Task 0 骨架已建，本任务补依赖与内容）、`Public/Attribute/TcsAttributeDef.h` + `Private/Attribute/TcsAttributeDef.cpp`（定义行 + 运行期资产，同文件）、`Public/Attribute/TcsAttributeBounds.h`（2026-09-17 四次复评拆出的值域词汇：边界三态 + 值域模式）、`Public/Attribute/TcsAttributeName.h`、`Public/Attribute/TcsAttrModInstance.h`、`Public/Attribute/TcsAttributeInstance.h`、`Public/Attribute/TcsAttributeStore.h`、`Public/Attribute/TcsAttributeProvider.h`、`Public/Attribute/TcsAttrModDef.h` + `Private/Attribute/TcsAttrModDef.cpp`、`Public/TcsAttributeSubsystem.h` + `Private/TcsAttributeSubsystem.cpp`
 
 **Interfaces:**
 - Consumes: TcsCore 句柄/FTcsSourceHandle。
@@ -380,7 +380,7 @@ enum class ETcsOperandKind : uint8
 };
 
 // —— 定义侧（模板/Def 配置，D2-13 B 形状；载体 PV 系列换型 FTcsParamValue）——
-struct FTcsAttributeModOperandDef
+struct FTcsAttrModOperandDef
 {
 	ETcsOperandKind Kind = ETcsOperandKind::OPK_Literal;
 	FTcsParamValue Literal;                // PV 系列：TInstancedStruct<FTcsParamValueSource>（Literal/ParamRef/等级表/AttributeScaled 源）——物化时 Evaluate 求值
@@ -392,7 +392,7 @@ struct FTcsAttributeModOperandDef
 USTRUCT() struct FTcsParamSource_AttributeScaled { FTcsAttributeName Attribute; double Coefficient = 1.0; double Fallback = 0.0; };
 
 // —— 运行侧（M2 账本 ModifierSlots，物化后）：Literal 恒为已解析规范值（D2-12 账本纯净、零膨胀） ——
-struct FTcsAttributeModOperand              // D2-11：主属性→派生属性载体（D2-4 动态边界同构）
+struct FTcsAttrModOperand              // D2-11：主属性→派生属性载体（D2-4 动态边界同构）
 {
 	ETcsOperandKind Kind = ETcsOperandKind::OPK_Literal;
 	double Literal = 0.0;                  // 已解析规范值（物化器单点转换保证——D2-13）
@@ -404,16 +404,16 @@ UCLASS(BlueprintType)
 class UTcsAttrModDef : public UDataAsset    // D3-19：修正器模板（纯模板=默认值；引用处零字段覆写）
 {
 	// FTcsAttributeName Target; ETcsAttributeOp Op;
-	// FTcsAttributeModOperandDef Operand;       // D2-13 定义侧形状
+	// FTcsAttrModOperandDef Operand;       // D2-13 定义侧形状
 	// ETcsValueConventionFlag ValueConvention;  // D5-18 v2：默认 Literal 书写约定（物化时 ConvertToCanonical）
 	// int32 SortKey = 0; FName Tag;
 };
 
-struct FTcsAttributeModifier
+struct FTcsAttrModInstance
 {
 	FTcsAttributeName Target;
 	ETcsAttributeOp Op;
-	FTcsAttributeModOperand Operand;   // D2-11：支持属性引用（"1 力量=2 攻击力"= 常驻修正器声明）
+	FTcsAttrModOperand Operand;   // D2-11：支持属性引用（"1 力量=2 攻击力"= 常驻修正器声明）
 	FTcsSourceHandle Source;           // 级联撤销锚点（D2-2）
 	int32 SortKey = 0;                 // 优先级带权（Override 0 / Add 10 / PercentAdd 15 / Mul 20 / FlatAdd 30）
 	FName Tag;                         // 可选：同来源内分组
@@ -427,13 +427,18 @@ struct FTcsAttributeInstance
 	bool bDirty = false;
 	FTcsAttributeBounds Bounds;
 	ETcsAttributeValueDomain ValueDomain = ETcsAttributeValueDomain::AVD_Clamp;
-	TArray<FTcsAttributeModifier> ModifierSlots;
+	TArray<FTcsAttrModInstance> ModifierSlots;
 };
+
+// FTcsAttributeDef（定义载荷，2026-09-17 复评补入）：USTRUCT —— { BaseValue, Bounds, ValueDomain }
+// 双轨制：运行期载体 = UTcsAttributeDef（PrimaryDataAsset，DefId = 属性名 = 解析锚点）
+//         编辑期载体 = FTcsAttributeDefTableRow（DataTable 行：DefId + 载荷，行名即属性名；仅供策划编辑）
+// 运行期零 DataTable 加载路径；两轨同步器属 M8 工具面
 
 // FTcsAttributeStore：单位句柄键控（→ TMap<FTcsAttributeName, FTcsAttributeInstance>）
 UCLASS() class UTcsAttributeSubsystem : public UWorldSubsystem    // M2 不认识时间——非 Tickable（D2-8）
 {
-	// RegisterUnit(FName UnitName) -> 单位句柄；DefineAttribute(单位, FTcsAttributeName, BaseValue, Bounds, ValueDomain)
+	// RegisterUnit(FName UnitName) -> 单位句柄；AddAttribute(单位, FTcsAttributeName, const FTcsAttributeDef&)
 	// GetStore(...)（管线与计划二经门面访问）
 };
 
@@ -447,17 +452,40 @@ class ITcsAttributeProvider
 ```
 - 消费者：Task 5 管线、ITcsAttributeProvider 的实现方、计划二 Damage 读 Armor/Attack、扣血写 Health；UTcsAttrModDef 仅落类型与资产类——物化执行器住 TcsState（状态模块轮），R3 竖切经 ApplyModifier API 直挂（Task 6）。
 
-- [ ] **Step 1: Build.cs 补依赖（TcsCore + TcsNotation——骨架已建）**
-- [ ] **Step 2: 类型头文件**（如上；反射 struct 带 GENERATED_BODY 与各模块 API 宏——UBT 按模块名派生：TcsCore 用 `TCSCORE_API`、TcsAttribute 用 `TCSATTRIBUTE_API` 等，2026-09-10 编译实证修正）
-- [ ] **Step 3: UTcsAttributeSubsystem 门面**（RegisterUnit/DefineAttribute/GetStore）+ ITcsAttributeProvider 声明
-- [ ] **Step 4: 编译验证**
+- [x] **Step 1: Build.cs 补依赖（TcsCore + TcsNotation——骨架已建）**（现状确认：Task 0 已就位，本任务未改）
+- [x] **Step 2: 类型头文件**（如上；反射 struct 带 GENERATED_BODY 与各模块 API 宏——UBT 按模块名派生：TcsCore 用 `TCSCORE_API`、TcsAttribute 用 `TCSATTRIBUTE_API` 等，2026-09-10 编译实证修正；**全内联值类型不加导出宏**——2026-09-16 链接实证）
+- [x] **Step 3: UTcsAttributeSubsystem 门面**（RegisterUnit/AddAttribute/GetStore）+ ITcsAttributeProvider 声明
+- [x] **Step 4: 编译验证**
+
+> **2026-09-16 落地实施注记**（提案：`openspec/changes/add-tcsattribute-types-and-store`，已归档；12 delta / 4 能力）：
+> - **产物**：TcsCore 侧 `Public/Handle/TcsCombatEntityHandle.h`（实体身份句柄 + 发号器，PV-1 边界让步落地）与两处公共面增补（`FTcsParamValueSource::AllowsValueConvention()` 能力位、`FTcsParamEvaluateContext::GetScriptStruct()` 类型标识虚函数）；TcsAttribute 侧 `Public/Attribute/` 八文件（FTcsAttributeName / FTcsAttrModInstance（五带+操作数双形状+边界三态+值域）/ FTcsAttributeInstance / FTcsAttributeStore / ITcsAttributeProvider / UTcsAttrModDef(+.cpp 的 IsDataValid = D5-18 v3 约定白名单) / FTcsParamSource_AttributeScaled（PV-3））+ `UTcsAttributeSubsystem` 门面。
+> - **偏差 1（上下文不持 `Subject`）**：`FTcsCombatEntityHandle` 是纯 C++ 账本面值类型，**不能作反射 USTRUCT 的 UPROPERTY**；而 PV-1 已把 `Subject`/`EffectiveLevel` 的落地时机定为"随 TcsState 等级源同批"。故 `FTcsAttributeEvaluateContext` 只持 `Provider`（单位由读口实现者绑定——02 §2.3 本就是"计算器不关心单位载体"）。已回写提案规格与 design.md。
+> - **偏差 2（Core 上下文 +1 虚函数）**：PV-1 的"结构体继承 + 源内 checked cast"缺载体（USTRUCT 无内建类型查询，已核源码）；按 GAS `FGameplayEffectContext::GetScriptStruct` 同款机制补类型标识虚函数，源侧以 `IsChildOf` 判定（支持多层派生）。属落地期增补，已记入提案钉名表与规格。
+> - **机制发现 1（导出宏边界，Task 1 潜伏缺陷）**：全内联值类型加模块导出宏会让消费方**导入**不存在的符号——MSVC 只为"本模块自己用到的类型"生成导出符号，`FTcsSourceHandle` 的隐式构造与 `FTcsCombatEntityHandleRegistry::Allocate` 在链接期以 LNK2019 炸开。已修为：宏只给"有 out-of-line 成员（TcsCoreStats）或反射符号（USTRUCT/子系统类）"的类型；同时修掉 `FTcsEventSubscriptionHandle` 同类潜伏项。后续模块新增值类型一律照此。
+> - **机制发现 2（UHT 枚举注释）**：枚举值上方的 `//` 注释被 UHT 当作该值的 ToolTip 元数据，与同值 `UMETA(... ToolTip=...)` 并存报 `Metadata key 'ToolTip' first seen ... then ...` 并致编译失败——前缀注记已移入枚举 doc 块（引擎事实，已记入 `unreal-development-workflow` 技能）。
+> - **临时装置**：`Source/TcsAttribute/Private/Testing/`（不入库、清单随 Task 6 删除/并入）`Tcs.Test.Attribute`（15 项正向：属性名语义与哈希 / 带权五带 / 约定能力位 / 属性值源三路径 / 模板校验五例 / 单位注册 / 定义与初值 / 空查询 / 值域回读 / 容器地址稳定性 / 注销清记录）与 `Tcs.Test.Attribute.Dangling`（5 项拒绝面，**故意 ensure 独立 opt-in**——沿用 MEM-20260916-01 纪律）。
+> - **编译**：Development Editor 通过（零警告）。**用户 PIE 实测待跑**（`Tcs.Test.Attribute`；`.Dangling` 按需）。
+> - **给 Task 5 的输入**：折叠器按 Op 分桶（`SortKey` 仅展示位，带权唯一真相在 `GetTcsAttributeBandWeight`）；`AVD_Custom` 收口点须 ensure 提示（值域策略接口 R3 未建）；`GetCurrentValue` 惰性重算口与 `PeekPending` 语义随管线补入 Store/门面。
+
+> **2026-09-17 复评补正**（用户三条疑问驱动；提案 `design.md`「复评定案」5-7 条）：
+> - **补词表行类型**：本 Task 4 的类型清单里漏了"属性定义"这一件——定义数据被内联成 `DefineAttribute(单位, 属性名, BaseValue, Bounds, ValueDomain)` 的 5 个参数，而设计口径是"词表本体 = 项目 DataTable"（02 §2.1；竖切剧本"属性表 4 行 = FName 词表 + 显式包装结构 + DataTable 行"；plan2 Task 6"FName 键 + Base + Bounds"）。已补 `Public/Attribute/TcsAttributeDef.h`（`FTableRowBase` 派生 = DataTable 行类型：`BaseValue` / `Bounds` / `ValueDomain`，**行名即属性名**——名称不进结构体以免双真相），门面改为 **`AddAttribute(Unit, Name, Def)`**。
+> - **命名改 `AddAttribute`**（原 `DefineAttribute`）：动词纪律下 "Define" 易读成"定义词表"（那是 M8 的事），本 API 的动作是"往单位加一条属性实例"。
+> - **`UTcsAttrModDef` 基类 `UDataAsset` → `UPrimaryDataAsset`**（**Def 资产族统一约定**）：查全部 11 篇设计文档 + 决策点文档，`PrimaryDataAsset` 零命中——原基类只是本计划写下、从未被论证；而 Def 的引用语义本就是 "FName Id + 注册表/DefLibrary 解析"（03 §2 命名批 / 06 `ResolveDef`），主资产身份让该解析与按类型发现/加载归引擎。族级约定已回写 **02 §2.2 / 03 §2 / 08 / project.md**；未来 `UTcsStateDef` 家族与 `UTcsSkillDefMod` 同此基类（族内混用两套基类会让 DefLibrary 发现逻辑分叉）。`PrimaryAssetTypes` 注册属 M6 DefLibrary 轮。
+> - **词表装载/注册仍归 M8**（`FAttributeRegistry`：`Resolve(FName) → 稠密 id`、重名/非法引用加载期报错、行名 ↔ 常量映射校验、DevSettings 指路 DataTable）——零消费者不预建；R3 由调用方显式传定义行（plan2 Task 6 建的那张属性 DataTable 在 R3 只验"能被反射承载"）。
+> - 装置增至 **16 项**（新增"词表行 DataTable 承载往返"）；编译再次通过（零警告）；PIE 实测待跑。
+
+> **2026-09-17 二次复评补正：文件名去类型前缀（UE 规范）**：原命名（`UTcsAttrModDef.h` / `FTcsAttributeName.h` / `TTcsInstancePool.h` / `ITcsTimeSource.h` 等）违反 UE「文件名 = 类型名去前缀字母」规范，且**是本计划与 plan2 的 File Structure 系统性写下的**——存量违规含 Task 0-3 既有文件，共 **35 个文件**全量改名（`Public`/`Private` 成对同改）。同步范围：全库 `#include`（含 `.generated.h`——UHT 按头文件名生成产物）、本计划与 plan2 的 File Structure 与各 Task 文件清单（**含尚未创建的文件**，否则后续任务照旧名再犯）、活动规格/设计文档的路径引用；归档提案 `openspec/changes/archive/` 保持原貌（冻结历史）。规范落点：`unreal-cpp-style`（structure.md 新增「文件命名」节 + 检查清单项）与 `openspec/specs/cpp-module-structure`（本提案 ADDED 需求「文件名去类型前缀」）。全量编译通过（零警告），UHT 产物按新名重生。
+
+> **2026-09-17 三次复评补正：属性定义改双轨制（Def 族统一语义）**：用户澄清既定策略——**DataTable 供策划编辑（编辑器阶段），运行期一律用 DataAsset**（资产制扩展性好：未来给 AttributeDef 加 Fragment 之类只动资产与载荷）。故属性的"定义"从单一 `FTcsAttributeDef : FTableRowBase` 拆成三件套：**载荷 `FTcsAttributeDef`（纯 USTRUCT）** + **运行期资产 `UTcsAttributeDef : UPrimaryDataAsset`**（`DefId` = 属性名 = DefLibrary 解析锚点；`IsDataValid` 报空 DefId、提示资产名与 DefId 不一致）+ **编辑期表行 `FTcsAttributeDefTableRow : FTableRowBase`**（`DefId` + 载荷，行名即属性名）。**两轨一致性由编辑器侧同步器维护（资产为权威），运行期零 DataTable 加载路径**；同步器与词表装载属 M8。门面保持只认载荷（`AddAttribute(单位, 属性名, 载荷)`，不依赖资产类型）。族级语义已回写 **02 §2.1 / 03 §2 / 08 §5**（全 Def 族适用，含 `FTcsBuffDefTableRow` 家族）。装置经后续两轮补正增至 **32 项**（PIE 中应 32 项全 PASS——新增运行期资产承载与资产校验，表行检查改 `FTcsAttributeDefTableRow`）；编译通过（零警告）。
+
+> **2026-09-17 四次复评补正（用户五条口径）**：①**形态收口**——载荷层 `FTcsAttributeDef` 删除：`FTcsAttributeDefTableRow`（`DefId` + `BaseValue` + `Bounds` + `ValueDomain`）成为**字段形状唯一声明处**，`UTcsAttributeDef` 组合持有一行（不复制字段集）；两类型同住 `TcsAttributeDef.h`（不拆文件）。②**修正器模板同款**（用户要求，已实现）——新增 `FTcsAttrModDefTableRow : FTableRowBase`（`TemplateId` + 模板字段），`UTcsAttrModDef` 改为 `TemplateId` + 行；**局限在案**：模板行含 `FTcsParamValue`（`TInstancedStruct`）列，CSV/Excel 往返丢该列，只支持编辑器内表格编辑。③**调用面收口**——单位侧只认属性名：`AddAttribute(单位, 属性名)` / `RemoveAttribute(单位, 属性名)`；定义解析移入门面内部（新增**属性定义表** + `RegisterAttributeDef(行)` / `FindAttributeDef`，宿主/DefLibrary 加载定义资产后登记）；`RemoveAttribute` 语义 = 整条属性下线（实例连同槽位内容丢弃；来源级联撤销仍走 `RemoveBySource`，二者不互相替代）。④**AttributeSet（2026-09-17 已裁决为 D2-15，随 M6 轮落地）**——不同情景下同一 CombatEntity 类需要不同属性集合；**形态 B1a+B2+B3a**（实体侧引用 / 资产 GameInstance 级 + 施加 World 级 / diff 替换），内容 `TArray<FName> DefIds`（覆写列首版不做）。裁决与取舍详见决策文档 `2026-09-17-attribute-set-and-existence-decision-points.md`。⑤**文件职责整理与命名归位**——`TcsAttributeModifier.h` 按用户提议改名 `TcsAttrModInstance.h`（族内类型统一短前缀：`FTcsAttrModInstance` / `FTcsAttrModOperand(Def)`），并拆出值域词汇：新增 `TcsAttributeBounds.h`（边界三态 + 值域模式，复评后合并为一个文件），原文件只留运算带 / 运算数双形状 / 账本修正器。⑥ **Def 命名标准**：定义资产 = `<族>Def`（**去 Asset 后缀**）、表行 = `<族>DefTableRow`——`UTcsAttributeDefAsset` → `UTcsAttributeDef`（文件同名 `TcsAttributeDef.h`/`.cpp`），文档侧未实现的 `UTcsStateDefAsset`/`UTcsBuffDefAsset`/`UTcsSkillDefAsset` 同步为 `UTcsStateDef`/`UTcsBuffDef`/`UTcsSkillDef`；标准条文落 `openspec/project.md`。装置改为按名添加/移除并覆盖"定义未登记/重复登记/移除未持有"拒绝面；编译通过（零警告）。
 
 ---
 
 ### Task 5: 聚合管线（recalc + 依赖登记 SCC + clamp + 事务）
 
 **Files:**
-- Create: `Private/Attribute/FTcsAttributePipeline.h/.cpp`（超 300 行按 `FTcsAttributePipeline_Batch.cpp` 拆分）；`UTcsAttributeSubsystem` 暴露入口
+- Create: `Private/Attribute/TcsAttributePipeline.h/.cpp`（超 300 行按 `TcsAttributePipeline_Batch.cpp` 拆分）；`UTcsAttributeSubsystem` 暴露入口
 
 **Interfaces:**
 - Consumes: Task 4 类型。
@@ -469,7 +497,7 @@ public:
 	// 读：按需 recalc（脏标记）——求值语义（非 Resolve：不从句柄取对象）
 	double EvaluateCurrent(单位句柄, FTcsAttributeName);
 	// 写：挂修正器 / 按来源移除（D2-2 级联）
-	void ApplyModifier(单位句柄, FTcsAttributeModifier);
+	void ApplyModifier(单位句柄, FTcsAttrModInstance);
 	void RemoveBySource(单位句柄, FTcsSourceHandle);
 	// 事务：BeginBatch / Commit（提交尾行内 flush：单帧多次变更只算一次，逐属性广播一次）
 	//       PeekPending（不落账读预览）
@@ -485,10 +513,13 @@ public:
 - 消费者：计划二 Damage 公式与扣血、屏显验收信号。
 
 - [ ] **Step 1: recalc 聚合**（单属性：Modifiers 四桶 → 公式 → clamp → CachedCurrent）
+- [ ] **Step 1b（2026-09-18 增补）: 属性冻结暂存区**——`RemoveAttribute` 改"冻结整条实例"（搬进暂存区、不销毁、日志）、`AddAttribute` 解冻优先（整条搬回）、双态约束、单位注销释放暂存区；`RemoveBySource` 扫描面含暂存区（同批实现与验证）
 - [ ] **Step 2: 事务与行内 flush**（Batch 计数；Commit 尾对 bDirty 属性逐个 recalc+广播）
 - [ ] **Step 3: 依赖登记 + Tarjan SCC 环检测**（R3 无派生属性数据，机制先立、有派生数据时复验）
 - [ ] **Step 4: RemoveBySource**（按 Source 过滤移除 → bDirty → recalc）
 - [ ] **Step 5: 编译验证**
+
+> **2026-09-17/18 输入增补（D2-14 裁决折入）**：①`AddAttribute` / `RemoveAttribute` MUST 走与 modifier 同一 store 变更路径与同一事务纪律（批内加属性与批内挂 modifier 行为一致——02 §4 已写明）；②对"modifier 的 Target 已无实例"给出**确定行为**（忽略 + 日志，不 ensure）；③**属性冻结暂存区（2026-09-18 设计定稿，本任务落地）**——`RemoveAttribute` 改为**冻结整条实例**（搬进暂存区、不销毁、输出日志）、`AddAttribute` **解冻优先**（整条搬回，基础值取回冻结前的值）、双态约束（同名不同时存在于容器与暂存区）；④**`RemoveBySource` 的扫描面 MUST 含暂存区**——否则来源在冻结期间结束、其修正器永久滞留、属性恢复后凭空多出数值（本条与本轮的 `RemoveBySource` 同批实现与验证）；⑤装置补检查：逐字段保真 / 解冻取回冻结前的值 / 双态互斥 / 单位注销释放暂存区。⑥AttributeSet（D2-15）不在本任务范围，随 M6 轮。
 
 ---
 

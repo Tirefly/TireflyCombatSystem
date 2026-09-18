@@ -13,24 +13,47 @@
 
 ### 2.1 属性词表（D2-1 终定）
 - `FAttributeName`：FName 包装结构体，**explicit 构造**（裸 FName/TEXT 传不进属性 API）；内部缓存稠密 int32 id（注册表世代号校验失效）。
-- 项目侧常量：`UE_DECLARE_COMBAT_ATTR / UE_DEFINE_COMBAT_ATTR` 宏（仿 GameplayTag 宏模式）；词表本体 = 项目 DataTable（DT_AttributeDefinitions）+ DevSettings 注册，**编辑器即时响应**。
+- 项目侧常量：`UE_DECLARE_COMBAT_ATTR / UE_DEFINE_COMBAT_ATTR` 宏（仿 GameplayTag 宏模式）；词表 + DevSettings 注册，**编辑器即时响应**。
 - `FAttributeRegistry`：启动注册（重名/非法引用**加载期报错**）；`Resolve(FAttributeName) -> int32` 稠密 id；行名 ↔ 常量约定映射校验。
+- **属性定义（2026-09-17 双轨制定案，实现名）**：**表 = 编辑期载体、资产 = 运行期载体**（用户口径：DataTable 便于策划批量编辑，**不作为运行期加载源**；运行期一律走资产——资产制扩展性好，未来给定义加 Fragment 之类只动资产与定义行）：
+  - **定义行 `FTcsAttributeDefTableRow : FTableRowBase`（字段形状的唯一声明处）**：`BaseValue` + `Bounds` + `ValueDomain`（D2-6 值域模式挂定义）——项目词表表 `DT_AttributeDefinitions` 的行类型，**身份 = 行名（= 属性名**，D2-1 的"行名 ↔ 项目侧常量"映射），**行内不带 id**（2026-09-17 用户口径：DataTable 的键就是行名，行内再放一份是双真相）；
+  - **运行期资产 `UTcsAttributeDef : UPrimaryDataAsset`**：持自身 `DefId` 与**组合持有的一行** `Def`（不复制字段集）；**主资产身份 = `[PrimaryAssetType, DefId]`**（显式声明类型常量、覆写 `GetPrimaryAssetId`——名取 DefId 不取资产名，资产文件可自由改名/挪目录）；`IsDataValid` 只报空 DefId（"资产名与 DefId 同名"不再是要求）；两类型**同住 `TcsAttributeDef.h`**；
+  - 两轨一致性由 08 §5 的编辑器同步器维护（资产为权威，M8 工具面）；**运行期零 DataTable 加载路径**。
+  - 单位实例由定义行初始化后**自持**这些字段（实例不持定义引用——热路径不回查定义，D2-1/D2-9）；单位侧调用面 `AddAttribute(单位, 属性名)` / `RemoveAttribute(单位, 属性名)`——**定义解析是门面内部流程**（门面持属性定义表，`RegisterAttributeDef` 由宿主/DefLibrary 加载后登记）。
+- **候选能力：AttributeSet → 已升为正式裁决（D2-15，2026-09-17）**：见 §2.2a 的"AttributeSet"条与决策文档 `2026-09-17-attribute-set-and-existence-decision-points.md`（形态 B1a+B2+B3a：实体侧引用 / 资产 GameInstance 级 + 施加 World 级 / diff 替换；内容 = `DefIds`，覆写列首版不做；实现随 M6 轮）。
+  - 与 `FTcsAttributeStore` 的联动（随 D2-15 一并定）：①**施加/撤离 = roster diff 替换**（旧 Set 独有 → `RemoveAttribute`；新 Set 独有 → `AddAttribute`；共有 → 保留实例）；②**Store 记"当前生效的 Set"**（软引用或 Id）——切换要 diff 谁、屏显"属性来自哪套"均可查；③**实例级溯源不做**（D2-14：动态增删不承诺精确撤销）。
+  - **建议的边界（重要）**：**属性 = 结构（单位注册期/模式切换时确定的 roster），修正器 = 动态**——§2.2a 已写"基础值：属性表默认 → 实体注册时初始化"，即属性集合本就在注册期确定；buff/装备/技能一律走 modifier，不动属性集合。守住这条边界，实例不需要来源追踪，M2 保持简单。**反向情形**（"装备授予一条新属性"这类动态属性增删）才需要溯源机制，属更大的决定，值得单独一轮裁决。
 - **M2 零词汇**：核心不特殊化任何属性（Health 也不例外）；"血量归零死亡"是上层属性条件规则。
 
 ### 2.2 Modifier 与来源（D2-2）
-- `FAttributeModifier`：`Attribute(FAttributeName) / Op(EAttributeOp) / Operand(FTcsAttributeModOperand) / Source(句柄) / SortKey / SourceTag`——**权威完整形状** {Handle, Op, Operand, Source, SortKey, Tag}（实例侧见 §2.2a）。
-- **FTcsAttributeModOperand（D2-11，主属性→派生属性载体）**：`{Kind: OPK_Literal(默认)|OPK_AttributeScaled, Literal, Attribute, Coefficient}`——OPK_AttributeScaled 时 Operand = Coefficient × Current(Attribute)，聚合收集时求值并**读即登记依赖边**（D2-3 现成机制）。"1 力量=2 攻击力" = AttackPower 常驻修正器 `{TAO_Add, AttributeScaled(Strength, 2.0)}`（Source=系统常驻句柄约定）；纯派生属性 = Base 0 + 仅此条。取证：AbilityKit `MagnitudeSourceType`（ContextFloat/TimeDecay）同构【源码：modifiers 包】；其表达式引擎（AttributeExpressionFormula 667 行 DSL）**不采纳**——封闭公式原则（无表达式语言）；非线性派生走判定树①上游算/宿主命令式。流程属性黑板同构适用、按需引入。**仅此两种 Kind**——已考察拒绝的候选（ContextFloat/TimeDecay/随机/跨域引用/Custom Fragment）及三条不变式依据见 D2-11 拒绝清单。
-- **载体与双形状（D2-12/D2-13；载体被 PV 系列取代 2026-09-11）**：定义侧（模板/Def 配置）`FTcsAttributeModOperandDef`——Literal 为 **FTcsParamValue{TInstancedStruct<FTcsParamValueSource>}**（原 FTcsParamScalar；可配 Literal/ParamRef/等级表/AttributeScaled 等源，模板默认值可等级化）；运行侧（M2 账本 ModifierSlots）`FTcsAttributeModOperand`——Literal 恒为已解析 double（物化器单点转换，miss 兜底默认；账本不做二次猜测）。OPK_AttributeScaled 两侧同形（live 求值不物化）。**M2 账本 Operand 保持 `{Literal, AttributeScaled}` 封闭不动**（D2-11 拒绝清单不波及——参数源体系住 M2 之上）。
-- **修正器模板 UTcsAttrModDef（D3-19）**：独立资产（纯模板=默认值+ParamKey 声明+ValueConvention 可选列——模板默认 Literal 策划语言书写、物化时转换）；FStateDefBase.ModifierRows 纯引用（**行仅存 TemplateId FName——不具名任何模板类型，TcsState 零 TcsSkill/TcsAttribute 类型边**）；物化执行器住 TcsState（本模块提供类型）；**UTcsSkillModDef 住 TcsSkill**（技能参数域词汇）。
+- `FAttributeModifier`：`Attribute(FAttributeName) / Op(EAttributeOp) / Operand(FTcsAttrModOperand) / Source(句柄) / SortKey / SourceTag`——**权威完整形状** {Handle, Op, Operand, Source, SortKey, Tag}（实例侧见 §2.2a）。
+- **FTcsAttrModOperand（D2-11，主属性→派生属性载体）**：`{Kind: OPK_Literal(默认)|OPK_AttributeScaled, Literal, Attribute, Coefficient}`——OPK_AttributeScaled 时 Operand = Coefficient × Current(Attribute)，聚合收集时求值并**读即登记依赖边**（D2-3 现成机制）。"1 力量=2 攻击力" = AttackPower 常驻修正器 `{TAO_Add, AttributeScaled(Strength, 2.0)}`（Source=系统常驻句柄约定）；纯派生属性 = Base 0 + 仅此条。取证：AbilityKit `MagnitudeSourceType`（ContextFloat/TimeDecay）同构【源码：modifiers 包】；其表达式引擎（AttributeExpressionFormula 667 行 DSL）**不采纳**——封闭公式原则（无表达式语言）；非线性派生走判定树①上游算/宿主命令式。流程属性黑板同构适用、按需引入。**仅此两种 Kind**——已考察拒绝的候选（ContextFloat/TimeDecay/随机/跨域引用/Custom Fragment）及三条不变式依据见 D2-11 拒绝清单。
+- **载体与双形状（D2-12/D2-13；载体被 PV 系列取代 2026-09-11）**：定义侧（模板/Def 配置）`FTcsAttrModOperandDef`——Literal 为 **FTcsParamValue{TInstancedStruct<FTcsParamValueSource>}**（原 FTcsParamScalar；可配 Literal/ParamRef/等级表/AttributeScaled 等源，模板默认值可等级化）；运行侧（M2 账本 ModifierSlots）`FTcsAttrModOperand`——Literal 恒为已解析 double（物化器单点转换，miss 兜底默认；账本不做二次猜测）。OPK_AttributeScaled 两侧同形（live 求值不物化）。**M2 账本 Operand 保持 `{Literal, AttributeScaled}` 封闭不动**（D2-11 拒绝清单不波及——参数源体系住 M2 之上）。
+- **修正器模板 UTcsAttrModDef（D3-19）**：独立资产（纯模板=默认值+ParamKey 声明+ValueConvention 可选列——模板默认 Literal 策划语言书写、物化时转换）；FStateDefBase.ModifierRows 纯引用（**行仅存 TemplateId FName——不具名任何模板类型，TcsState 零 TcsSkill/TcsAttribute 类型边**）；物化执行器住 TcsState（本模块提供类型）；**UTcsSkillModDef 住 TcsSkill**（技能参数域词汇）。**基类 = `UPrimaryDataAsset`（2026-09-17 定，Def 资产族统一约定）**——Def 的引用语义是"FName Id + 注册表/DefLibrary 解析"，主资产身份让该解析与按类型发现/加载归引擎；未来 `UTcsStateDef` 家族与 `UTcsSkillModDef` 同此基类（族内不混用两套基类）。**同款双轨组织（2026-09-17 三次复评）**：定义字段的唯一声明处是表行 `FTcsAttrModDefTableRow : FTableRowBase`（模板字段；**身份 = 行名 = 模板 Id，行内不带 id**），资产 `UTcsAttrModDef` 组合持有一行 `Def`（不复制字段集）且**主资产身份 = `[PrimaryAssetType, TemplateId]`**（覆写 `GetPrimaryAssetId`，名不取资产名）——表供策划编辑、运行期走资产；**局限在案**：模板行含 `FTcsParamValue`（`TInstancedStruct`）列，CSV/Excel 往返丢该列，只支持编辑器内表格编辑。
 - 优先级带（已定裁决 + D2-10 增带）：`Override(0) > Add(10) > PercentAdd(15) > Mul(20) > FlatAdd(30)`；组内顺序无关公式。**参数链同用此五带与同一折叠器（D5-5 v3，2026-09-14）**——M2 属性聚合 / M5 参数链 / TcsDamage 流程属性三处共用一份纯函数折叠器，语义单一份。
 - **M2 无计时器**：modifier 生死完全绑定来源句柄；`RemoveBySource(unit, Source)` 级联撤销；无来源裸 modifier = 系统级常驻来源句柄约定。
 - `EAttributeOp` **纯封闭五带（D2-7 砍 Custom op、D2-10 增 FlatAdd，M9 收尾轮定稿；实现枚举 `ETcsAttributeOp`，值名 `TAO_*`）**：`Add(0) / Override(1) / PercentAdd(2) / Mul(3) / FlatAdd(4)`——无 Custom 位（计算在上游求值传入终值，聚合无任何代码插点，D0-1 论证彻底干净）；**新运算 = 末尾追加枚举值**（判定树②加带路径，防旧配置失效）。~~带 Custom 逃逸位（值 1）~~为残留旧文已修正。
 
 ### 2.2a 属性数据宿主（AttributeStore / AttributeInstance，2026-09-02 补——用户指出的缺失节）
 
-- **宿主**：`UCombatAttributeSubsystem : UWorldSubsystem`（M2 拥有）→ `FAttributeStore`（per entity，`FCombatEntityHandle` 键控）。与 D3-1 **同型不同类**：中央句柄键控 + 适配器缓存 Store 指针——按域各自实现（TcsAttribute 独立模块不把桶类型放他域）；句柄与代际机制统一在 TcsCore。
+- **宿主**：`UCombatAttributeSubsystem : UWorldSubsystem`（M2 拥有）→ `FAttributeStore`（per entity，`FCombatEntityHandle` 键控）。与 D3-1 **同型不同类**：中央句柄键控 + 适配器缓存 Store 指针——按域各自实现（TcsAttribute 独立模块不把桶类型放他域）；句柄与代际机制统一在 TcsCore。**"缓存 Store 指针"的引擎前提（2026-09-17 实测）**：`TMap`/`TSet` 元素存在连续缓冲里，**扩容即搬移**——按值存容器会让缓存指针悬空，故外层注册表 MUST 经间接层（`TMap<句柄, TUniquePtr<Store>>`）；容器**内部**实例指针不保证跨插入稳定（按名查询），"热路径不重查定义"（D2-9）由实例自持定义字段满足。
 - **FAttributeInstance（每属性一条）**：`{Attr, BaseValue, CachedCurrent, bDirty, Min/Max 边界, ModifierSlots}`。词表 schema 由 `FAttributeName` 稠密序号缓存覆盖（D2-1）——**实例无需 Def 缓存**；实例-定义引用规范同 D2-9（权威=键，热路径走 schema 缓存）。
-- **基础值**：属性表默认 → 实体注册时初始化；**等级成长 = 宿主升级事务 `SetBaseValue`**（等级→数值映射归项目，引擎不内置）。
+- **基础值**：由该单位的 **AttributeSet 在注册期初始化**（见下"属性集合"条）；**等级成长 = 宿主升级事务 `SetBaseValue`**（等级→数值映射归项目，引擎不内置）。
+- **属性集合（D2-14 裁决，2026-09-17——能力与推荐用法分开书写）**：
+  - **推荐用法 = 结构**：roster 由 AttributeSet 在**初始化/重置**时确定；运行期只动 modifier（挂/移除/改基值/来源级联）——属性集合的变更只有一种形式 = **重设 Set**。
+  - **框架能力 = 允许**：`AddAttribute` / `RemoveAttribute` 是常驻能力，引擎**不禁止**运行期动态增删（不替使用者设限）。
+  - **不做溯源**：实例不加来源字段 ⇒ **不承诺动态增删的精确撤销**（不记"谁加的"）。**代价与兜底（2026-09-18 修订：加冻/解兜底）**：
+    1. **撤销粒度仍只能到"整条属性"**：框架不知道有几方在要求某属性存在——两个来源都要 `Health` 时，其中一个撤销只能整条删。**但后果已降级**：属性被**冻结**（见下）而非销毁，数值效果与基础值都留着，属性被加回即恢复；不再是"数值永久丢失"。要精确到"来源级"仍只能由宿主层自行记账。
+    2. ~~`RemoveAttribute` 丢弃槽位内修正器~~ → **已由冻结/解冻消除**（见下"属性冻结暂存区"）。
+    3. ~~重新加回 = 全新实例、基础值回定义默认~~ → **已由冻结/解冻消除**（整条实例进出暂存区，基础值保留）。
+  - **属性冻结暂存区（2026-09-18 用户拍板；设计定稿，代码待落地，见下方实施状态）**：`RemoveAttribute` = **冻结**——把**整条属性实例**（基础值 / 边界 / 值域模式 / 修正器槽位）从单位容器搬进暂存区，不销毁、不丢数据，输出日志；`AddAttribute` = **解冻优先**——暂存区有同名实例则整条搬回（基础值取回冻结前的值、槽位原样保留），否则按定义行新建，两者都输出日志。**双态约束**：同名实例不得同时存在于容器与暂存区（搬移语义保证）。**与来源撤销的共存（硬规则）**：`RemoveBySource`（聚合管线轮落地）**必须同时扫描容器与暂存区**——否则来源在属性被冻结期间结束、其修正器永久滞留，属性恢复时**凭空多出数值**（比丢数值更难查）。**不做**：条目上限、保质期清理、解冻时校验来源存活性（框架判断不了来源死活——`FTcsSourceHandle` 只是编号、无存活性登记，属既有设计）。
+  - **实施状态（2026-09-18）**：本条与"冻结暂存区"均为**设计定稿**，**代码尚未落地**——R3 plan1 Task 4 的交付仍是"销毁"语义；落地排期 = **plan1 Task 5（聚合管线）**，与该轮的 `RemoveBySource` 同批实现与验证（提案见 `openspec/changes/update-attribute-freeze-thaw/`，届时合并）。
+  - **AttributeSet 与运行期动态集合分离**：Set 的职责只有**初始化/重置**，不是"运行期属性集合的唯一入口"，也不承担动态增删语义。
+- **AttributeSet（D2-15 裁决，2026-09-17；实现随 M6 轮）**：`UTcsAttributeSetAsset : UPrimaryDataAsset`——"某情景下该单位用哪些属性"的宿主可配资产，内容 = `TArray<FName> DefIds`（由 DefLibrary 按 `[PrimaryAssetType, DefId]` 解析；**覆写列首版不做**，同属性不同情景不同基础值走宿主 `SetBaseValue`）。
+  - **粒度 = 实体侧引用**（B1a）：引用点在实体 Def / Actor BP 的组件配置上；**引擎不认识"游戏模式"轴**——换情景 = 宿主换实体身上的 Set 引用（或换实体）。
+  - **生命周期与施加**（B2）：Set 资产 = **GameInstance 级 Const 内容**（归 DefLibrary 管辖面）；"某单位当前用哪套 Set" = **World 级**可变状态；施加入口在 `RegisterEntity` 之后、穿过 DefLibrary `IsRuntimeReady()` 门禁之后（06 §2.1/§2.2）。
+  - **切换语义 = diff 替换**（B3a）：`ApplyAttributeSet(单位, Set)` = 把该单位的属性集合置为这套（旧 Set 独有 → 移除、新独有 → 添加、**共有保留实例**——不打断在飞 modifier、不丢 `SetBaseValue`）；`ClearAttributeSet(单位)` = 整组清空（供重生成单位用，在飞 modifier 随之失效）。
+  - 决策文档：`2026-09-17-attribute-set-and-existence-decision-points.md`（含未采纳方案 A2/A3/B1b 的取舍与"动态增删未决语义"记录）。
 - **当前值**：`CachedCurrent` = 派生缓存非权威——聚合管线唯一生产者，惰性重算（脏则算）；永远可由 Base+修正器+公式重建（操作复制+客户端重算的地基）。
 - **FAttributeModifierInstance**：挂在被修饰属性的 **ModifierSlots**（槽位自由链表/数组+freelist，M0 池机制复用；TCS/AbilityKit 同款）：`{Handle, Op, Operand, Source, SortKey/Tag}`；Source 级联移除；聚合收集按属性遍历（零查找）。
 - **三种修正器存放地总表**：实体属性修正器→FAttributeStore 属性槽（Source 级联）；技能参数修正→FLearnedSkillEntry 参数链集（M5）；流程属性修正→FDamageFlowContext 流程属性容器（TcsDamage，流程结束即弃）——同一形状（Source 级联），作用域容器不同。
@@ -59,13 +82,14 @@
 
 ## 4. 事务与 flush（D2-5）
 
-- 单次管线事务：变更（挂/移除/改基值）在事务内完成候选集计算（求值→聚合→clamp 全在内存候选值上），**唯一提交点写回，失败零写入**。
+- 单次管线事务：变更（挂/移除/改基值）在事务内完成候选集计算（求值→聚合→clamp 全在内存候选值上），**唯一提交点写回，失败零写入**。（**D2-14 追加，2026-09-17**：`AddAttribute`/`RemoveAttribute` 作为框架常驻能力，MUST 走同一 store 变更路径与同一事务纪律——批内加属性与批内挂 modifier 行为一致；其事务化随聚合管线轮落地，R3 的 Task 4 为直接路径。）
 - **提交尾行内 flush** 广播变更事件（TCS 同款，核验纠正后确认）；帧末安全点（TG_PostUpdateWork）机制保留、**默认关**——承接跨调用栈脏项与广播期延迟补发。
 - 事务事件：`FAttributeChangedEvent { Unit, Attribute, Old, New, Reason }`——核心词汇 FStruct，走总线（D0-3）。
 
 ## 5. 网络姿态落点（NET-1/2）——**操作复制 + 客户端重算**
 
 - 聚合是纯函数（D0-1 轻量纪律保证可重算），因此 M2 的网络策略定为：**服务器权威、复制 modifier 操作流（挂/移除/来源），客户端镜像侧重放操作 + 本地重算**——不复制数值。
+- **姿态补充（D2-14，2026-09-17）**：属性**集合**的变更（`AddAttribute`/`RemoveAttribute`/Set 施加）在本期**不在复制面内**——原因是推荐用法下它只发生在初始化/重置（注册路径，两端各自确定性重建即可）；若项目在运行期动态增删属性且要联网，需要把"属性增删"作为**可选操作类型**加进操作流与 D6-4 契约载荷表（**留位不实现**——本期如实声明，不含混过去）。
 - 收益：带宽极小；回滚只需重放操作；客户端值与服务端值天然一致（同一纯函数）。
 - 姿态接口位：镜像侧 store 只接受操作流注入（同 M0 镜像模式）；本期不实现。
 - 标注：此为**设计声明**（新推导，依据 D0-1 + D2-5 的纯函数性），非继承结论。

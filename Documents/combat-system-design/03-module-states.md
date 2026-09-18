@@ -22,7 +22,7 @@ FStateDefBase（抽象，编辑器隐藏）          ← 本模块定义
 - **FBuffDef（施加态语义）**：Duration/Period、堆叠五轴、关系表字段。
 - **FSkillDef（施法语义，详见 05）**：施法时段表、冷却、Cost、主链、关系字段（同形状语义映射）。**无堆叠、无时值**。
 - 编辑器只暴露 FBuffDef / FSkillDef（用户 TCS 决策复用：基类不该有派生类的配置）。
-- **Def 资产（2026-09-14 命名批）**：`UTcsStateDefAsset`（基类——对应 `FStateDefBase` 家族，持 `DefId` + `IsDataValid` 校验挂点）→ `UTcsBuffDefAsset`（本模块）/ `UTcsSkillDefAsset`（TcsSkill）；DataTable 双轨行 `FTcsBuffDefTableRow`。**范围澄清**：DefLibrary 管辖的只是 `FStateDefBase` 家族；修正器模板（`UTcsAttrModDef`/`UTcsSkillModDef`）与属性词表（AttributeDef）是并列另一族，**不共用此资产基类**（故基类名不用 `UTcsDefAssetBase`——会暗示覆盖全部 Def）。
+- **Def 资产（2026-09-14 命名批）**：`UTcsStateDef`（基类——对应 `FStateDefBase` 家族，持 `DefId` + `IsDataValid` 校验挂点）→ `UTcsBuffDef`（本模块）/ `UTcsSkillDef`（TcsSkill）；DataTable 双轨行 `FTcsBuffDefTableRow`。**范围澄清**：DefLibrary 管辖的只是 `FStateDefBase` 家族；修正器模板（`UTcsAttrModDef`/`UTcsSkillModDef`）与属性词表（AttributeDef）是并列另一族，**不共用此资产基类**（故基类名不用 `UTcsDefAssetBase`——会暗示覆盖全部 Def）。**基类统一 `UPrimaryDataAsset`（2026-09-17 定）**：`UTcsStateDef` 家族 / `UTcsAttrModDef` / `UTcsSkillModDef` 同此——Def 引用语义本是"FName Id + DefLibrary 解析"，主资产身份让解析与按类型发现/加载归引擎（族内混用两套基类会让 DefLibrary 发现逻辑分叉）；`PrimaryAssetTypes` 注册属 M6 DefLibrary 轮。**双轨制语义（2026-09-17 用户口径，全 Def 族适用）**：**表 = 编辑期载体、资产 = 运行期载体**——DataTable（`FTcsBuffDefTableRow` / `FTcsAttributeDefTableRow` 等）只服务策划批量编辑与编辑器即时响应，**不作为运行期加载源**；运行期一律按 `DefId` 解析资产（资产制扩展性更好，加 Fragment 等只动资产与载荷）。两轨一致性由 08 §5 的编辑器同步器维护。
 
 ## 3. 类型词汇（对外）
 
@@ -112,7 +112,7 @@ FStateDefBase（抽象，编辑器隐藏）          ← 本模块定义
 - v2 增补 5（2026-09-02，策略形态一元化轮）：折入 D3-7 v2——Fragment 形态统一 EditInlineNew Instanced UObject（配置即成员）；FStateInstance 去 FragmentSet 字段（实例零策略/载荷/订阅句柄）；行为 Fragment 订阅契约（兴趣 Tag 数据列表 + 单一泛化回调 + Source 级联退订）；决策 Fragment 按决策种类各自抽象接口不变；per-instance 扩展状态 = Variables 通道按需（零消费者不预建）。
 - v2 增补 6（2026-09-10，D3-7 v3 载体修订）：Fragment 载体 EditInlineNew Instanced UObject → **USTRUCT 反射基类 + C++ 虚函数分派 + `TInstancedStruct<Base>` 持有**（可行性调研后用户拍板——引擎事实与 StateTree 先例见 README 决策日志同日条目）；行为 Fragment UTcs→FTcs；BP 策略扩展通道放弃；编辑器校验挪至 Def 资产 IsDataValid；实例零策略/泛化订阅契约不变。
 - v2 增补 7（2026-09-11，PV 系列）：参数行 Base 换型 **FTcsParamValue{TInstancedStruct<FTcsParamValueSource>}**（D2-12 FTcsParamScalar 被取代）；**等级源住本模块**（D3-11 修订——等级表 def 数据进引擎）：StateLevelArray/Map + InstigatorLevelArray/Map（`ITcsEntityLevelProvider::GetEntityLevel` **定义于本模块**、宿主实现；TargetLevel 系暂不提供——评判轮用户拍板）；快照条目留源引用位（Debug+Live 预留）；DurationTime 等时值字段同批换型。
-- v2 增补 8（2026-09-14，参数折叠与展示轮）：折入 **D5-17 v2**（§2 描述绑定词法族、§3.6 tooltip 索引口径 = 实例快照 Level）、**D5-18 v3**（参数行 Mode 列与约定白名单同参 11 文档）、**命名批**（§2 Def 资产层级 `UTcsStateDefAsset`/`UTcsBuffDefAsset` + 范围澄清、`FTcsNumericParamRow`/`ETcsParamMode`、§3.1 `FTcsParamSnapshot`、§3.6 `FTcsParamSnapshotEntry`）；**PV-10**（等级源后续实现可枚举能力——`FTcsParamEnumerableSource` 基类住 Core，索引解析唯一真相在源，随本模块等级源同批落地）。
+- v2 增补 8（2026-09-14，参数折叠与展示轮）：折入 **D5-17 v2**（§2 描述绑定词法族、§3.6 tooltip 索引口径 = 实例快照 Level）、**D5-18 v3**（参数行 Mode 列与约定白名单同参 11 文档）、**命名批**（§2 Def 资产层级 `UTcsStateDef`/`UTcsBuffDef` + 范围澄清、`FTcsNumericParamRow`/`ETcsParamMode`、§3.1 `FTcsParamSnapshot`、§3.6 `FTcsParamSnapshotEntry`）；**PV-10**（等级源后续实现可枚举能力——`FTcsParamEnumerableSource` 基类住 Core，索引解析唯一真相在源，随本模块等级源同批落地）。
 - v2 增补 9（2026-09-15，D5-17 v3 描述视图策略化）：§2 DescriptionTextKey 单字段 → **Descriptions 配置组**（`FTcsDescriptionEntry` 多描述入口 + `TInstancedStruct<FTcsParamView>` 视图槽位——类型住 TcsNotation，本模块已有 Notation 边零新边）；§3.6 tooltip 索引口径改 Series 视图措辞（口径本身不变：实例快照 Level）。
 
 ## 11. 验收钩子

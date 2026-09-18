@@ -233,6 +233,7 @@ USTRUCT() struct FTcsStepDamage { FName FlowTemplateId;   // 空=默认模板；
 UCLASS(ClassGroup=(Combat), meta=(BlueprintSpawnableComponent))
 class UTcsCombatEntityComponent : public UActorComponent
 	// 身份锚：RegisterUnit 到属性系统；查询门面：GetCurrent(FTcsAttributeName)/ApplyTestModifier(...)/RemoveTestSource(...)——D2-1 裸 FName 不进属性 API
+	// D2-15（2026-09-17 裁决）：本组件是 AttributeSet 的**引用点**（实体侧配置）——注册期按 Set 初始化属性（施加点 = RegisterEntity 之后、DefLibrary Ready 门禁之后），并暴露"当前 Set"查询与切换入口（换情景 = 宿主换引用）。R3 竖切无 Set 资产（属性由测试装置直接添加）。
 	// 触发 API：ExecuteChainById(FName ChainId)（手动触发——R3 不做触发行）
 	// 挂 ITcsEntityQuery 提供方（注册进 Effect 层注入点）
 };

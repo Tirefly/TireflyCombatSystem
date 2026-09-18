@@ -32,7 +32,8 @@ struct FTcsEventSubTag
 
 
 // 事件订阅句柄（退订锚点；句柄配对清理——复用 TTcsInstancePool 机制）
-struct TCSCORE_API FTcsEventSubscriptionHandle
+// 导出宏纪律：全内联值类型不加模块导出宏（加了会在消费方 LNK2019——见 FTcsSourceHandle 注记）
+struct FTcsEventSubscriptionHandle
 {
 	// 池内句柄
 	TTcsInstanceHandle<FTcsEventSubTag> Inner;

@@ -78,7 +78,7 @@
 - 成本：枚举末尾追加（旧配置零迁移）+ 聚合尾段；~~M5 参数链不跟进（有序链式 SortKey 排序即可表达）~~——**2026-09-14 D5-5 v3 修订：M5 参数链改用与 M2 同一套五带（含 `FlatAdd`）与同一份带式折叠器（住 TcsAttribute，M2/M5/TcsDamage 流程属性三处共用），原"不跟进"口径作废**。R3 测试不消费，随计划一 Task 4/5 一并实现。
 
 ### D2-11 AttributeModOperand（M9 收尾轮拍板：主属性→派生属性载体）
-- `FTcsAttributeModOperand{Kind: OPK_Literal(默认)|OPK_AttributeScaled, Literal, Attribute, Coefficient}`——修正器 Operand 属性引用化：OPK_AttributeScaled 时 Operand = Coefficient × Current(Attribute)，聚合收集时求值并**读即登记依赖边**（D2-3 现成）。"1 力量=2 攻击力" = AttackPower 常驻修正器 `{TAO_Add, AttributeScaled(Strength, 2.0)}`；纯派生 = Base 0 + 仅此条；混合/纯派生统一，不需要"公式属性"概念。
+- `FTcsAttrModOperand{Kind: OPK_Literal(默认)|OPK_AttributeScaled, Literal, Attribute, Coefficient}`——修正器 Operand 属性引用化：OPK_AttributeScaled 时 Operand = Coefficient × Current(Attribute)，聚合收集时求值并**读即登记依赖边**（D2-3 现成）。"1 力量=2 攻击力" = AttackPower 常驻修正器 `{TAO_Add, AttributeScaled(Strength, 2.0)}`；纯派生 = Base 0 + 仅此条；混合/纯派生统一，不需要"公式属性"概念。
 - 取证：AbilityKit `MagnitudeSourceType`（ContextFloat/TimeDecay）同构【源码】；其表达式引擎（667 行 DSL）不采纳（封闭公式原则）；非线性派生走判定树①/宿主命令式。命名用户定：AttributeModOperand（非裸 AttributeOperand——语义=修正器的操作数）。
 - 成本：operand 变体 + 求值挂接（计划一 Task 4/5）；流程属性黑板同构适用按需引入。
 - **已考察并拒绝的候选（同轮入档，防回潮）**——拒绝理由收敛到三条不变式：**纯函数性**（操作复制+客户端重算地基）/ **域不透明**（M2 不认识时间·技能·表·世界）/ **封闭公式**（解释权出处唯一）：
@@ -97,7 +97,7 @@
 - **2026-09-11 修订（PV 系列收束）**：本载体被 **`FTcsParamValue{TInstancedStruct<FTcsParamValueSource>}`** 取代（D3-7 v3 形态；基类虚函数 **Evaluate**——用户动词纪律：Resolve 仅句柄/Id→对象；内置 `FTcsParamSource_Literal/ParamRef`，等级表/属性源归各域模块）——详见 `2026-09-10-param-value-source-decision-points.md`；**D2-13 双形状不变式保留**（定义侧换载体，账本侧恒为已解析规范值、零膨胀）。
 
 ### D2-13 Operand 双形状（B 方案，用户拍板，R3 计划审阅轮 5）
-- **定义侧** `FTcsAttributeModOperandDef{Kind, Literal: FTcsParamScalar, Attribute, Coefficient}`——模板/Def 配置用：Literal 可声明"吃施加方参数表哪个键+默认规范值"；**运行侧** `FTcsAttributeModOperand{Kind, Literal: double(已解析), Attribute, Coefficient}`——M2 账本 ModifierSlots 用：物化器保证已解析，**账本零膨胀**。
+- **定义侧** `FTcsAttrModOperandDef{Kind, Literal: FTcsParamScalar, Attribute, Coefficient}`——模板/Def 配置用：Literal 可声明"吃施加方参数表哪个键+默认规范值"；**运行侧** `FTcsAttrModOperand{Kind, Literal: double(已解析), Attribute, Coefficient}`——M2 账本 ModifierSlots 用：物化器保证已解析，**账本零膨胀**。
 - OPK_AttributeScaled 分支两侧同形（Coefficient 留 double——参数化缩放系数未见需求，需要时判定树；live 求值不物化，读即登记不变）。物化器单点转换收敛漂移风险——同 D3-12 ParamSnapshot"定义参数的解析后副本"模式，非旧 TCS 双轨字段镜像（那是需人工同步的字段拷贝）。M5 `FTcsNumericParamModifier.Operand` 同构处理。
 
 ## 已定裁决落地清单（不重议，进设计文档）

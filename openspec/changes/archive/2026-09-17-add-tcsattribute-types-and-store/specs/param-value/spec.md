@@ -1,21 +1,4 @@
-# param-value Specification
-
-## Purpose
-TBD - created by archiving change add-tcscore-param-value. Update Purpose after archive.
-## Requirements
-### Requirement: 统一数值配置载体
-
-TcsCore MUST 提供 header-only 载体 `FTcsParamValue{ TInstancedStruct<FTcsParamValueSource> Source }`（全插件统一"数值配置"载体，取代 D2-12 FTcsParamScalar）：默认构造后 Source 初始化为 `FTcsParamSource_Literal`（值 0）；MUST 提供纯 C++ 求值便利转发 `Evaluate(const FTcsParamEvaluateContext& Ctx)`（不进 UHT 反射面）——`Source.IsValid()` 为假时兜 0（防 Source 失效后误用）。
-
-#### Scenario: 默认载体即字面量源
-
-- **WHEN** 默认构造 `FTcsParamValue` 并以空上下文调用 `Evaluate`
-- **THEN** 返回 Literal 源的 Value（默认 0）
-
-#### Scenario: 空载体兜 0
-
-- **WHEN** `Reset()` 后 Source 为空，调用 `Evaluate`
-- **THEN** 返回 0 且不崩溃
+## MODIFIED Requirements
 
 ### Requirement: 值来源策略基类与内置源
 
@@ -56,4 +39,3 @@ USTRUCT 没有内建类型查询，故 PV-1 的"源内 checked cast"MUST 由**�
 
 - **WHEN** 域侧源收到的是基础 `FTcsParamEvaluateContext`（或另一域的派生上下文），而它期望属性域上下文
 - **THEN** `IsChildOf` 判定为假，源落兜底路径；收到属性域上下文（或其更具体的派生）时判定为真，进入域读取路径
-

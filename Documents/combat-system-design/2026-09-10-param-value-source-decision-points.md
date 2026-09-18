@@ -64,7 +64,7 @@ R3 不实现，**但为已承诺基建——未来必须实现**。且用途不�
 | SkillDef/StateDef 时值字段（DurationTime、冷却等，D2-12 原消费者） | FTcsParamScalar | FTcsParamValue |
 | UTcsAttrModDef / UTcsSkillModDef 的 OperandDef.Literal（D2-13 定义侧） | FTcsParamScalar | FTcsParamValue（模板默认值可等级化；物化上下文含级别位） |
 | 链步骤数值字段 / FlowModify Operand | Param() 引用 | FTcsParamValue；FlowModify 的"黑板键引用"保留为流程域自身 Operand 选项（不进通用参数源族——流程域词汇） |
-| M2 账本运行侧（FTcsAttributeModOperand.Literal） | double | **不动**（账本零膨胀，D2-13 不变式） |
+| M2 账本运行侧（FTcsAttrModOperand.Literal） | double | **不动**（账本零膨胀，D2-13 不变式） |
 
 ## PV-7 伤害值来源（已拍板 2026-09-11：用户否决全部三案，裁定参数解算制）
 

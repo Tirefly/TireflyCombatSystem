@@ -50,4 +50,17 @@ public:
 	}
 
 #pragma endregion
+
+
+// 约定能力位
+#pragma region ValueConvention
+
+public:
+	// 禁配值约定列：引用读到的已是规范值，再转一次 = 二次转换（D5-18 v3 白名单）
+	virtual bool AllowsValueConvention() const override
+	{
+		return false;
+	}
+
+#pragma endregion
 };

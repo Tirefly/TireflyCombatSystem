@@ -33,6 +33,8 @@
 ## 5. DataTable 工具
 
 - 双轨同步继承 TCS 03 模式（Def 资产 ↔ 表行，Row struct 整体赋值）；热重载 → DefLibrary 增量校验（M6/M1 接口）。
+- **双轨制的职责分工（2026-09-17 用户口径，全 Def 族适用）**：**表 = 编辑期载体、资产 = 运行期载体**——DataTable 只服务策划批量编辑（表格/Excel 往返）与编辑器即时响应，**不作为运行期加载源**；运行期一律按 `DefId` 解析资产（资产制扩展性好：给定义加 Fragment 之类只动资产与载荷，消费面不动）。故同步器是**编辑器侧**工具（保存资产 → 刷新行 / 导入表 → 更新资产，冲突以资产为权威）；运行期零 DataTable 加载路径。
+- **Def 资产族统一基类 = `UPrimaryDataAsset`（2026-09-17 定）**：`UTcsStateDef` 家族 / `UTcsAttrModDef` / `UTcsSkillModDef` / `UTcsAttributeDef`——双轨的"资产轨"以主资产身份登记（`PrimaryAssetType` 对应族语义，`GetPrimaryAssetId` 给出"FName Id ↔ 资产"的解析锚点）。**表行轨同款组织（2026-09-17 四次复评）**：定义字段的唯一声明处是表行，资产组合持有它（字段集单份，不复制）——属性词表行 `FTcsAttributeDefTableRow` 与修正器模板行 `FTcsAttrModDefTableRow`，**两者的身份都是行名（行内不带 id 字段）**；对应资产的身份 = `[PrimaryAssetType, DefId/TemplateId]`（显式声明类型常量 + 覆写 `GetPrimaryAssetId`——**资产文件可自由改名/挪目录而不失联**）。**表格编辑局限在案**：修正器模板行含 `FTcsParamValue`（`TInstancedStruct`）列，CSV/Excel 往返不保留该列（引擎 CSV 导入无法表达多态实例结构）——模板行只支持编辑器内表格编辑；标量列仍可表格批量编辑。词表/Def 的装载与注册（含 `PrimaryAssetTypes` 注册）属 M6/M8 轮。**AttributeSet 的编辑面（D2-15，2026-09-17 裁决）**：`UTcsAttributeSetAsset` 是 Def 族新成员（`<族>Def` 命名标准 + `PrimaryAssetType` + 覆写 `GetPrimaryAssetId` 一体适用；命名待定，可作 `UTcsAttributeSetAsset` 或并入 **`TcsAttributeSet`**——按"`<族>Def`=定义资产"标准，Set 不是"Def"而是"组合声明"，故保留 `Set` 词根）；策划在资产里配 `TArray<FName> DefIds`（Def 资产主身份解析），**覆写列首版不做**；"情景 → Set"的对应关系住**实体侧配置**（组件引用），编辑器面只需能跳转/校验 DefId 有效性（与词表同款校验：未登记的 DefId = 保存期报错）。
 
 ## 6. 非目标
 

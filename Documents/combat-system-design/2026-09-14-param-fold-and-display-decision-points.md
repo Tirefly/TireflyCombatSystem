@@ -17,7 +17,7 @@
 - **折叠公式（与 M2 一致）**：
   - `Override` 组存在 → 取组内**最大值**直接作为结果（`FlatAdd` 一并被覆盖，"最强覆盖生效"不变）。
   - 否则 `Final = ((初值 + ΣAdd) × (1 + ΣPercentAdd)) × ΠMul + ΣFlatAdd`。
-- **带权 = M2 同表**：`Override 0 / Add 10 / PercentAdd 15 / Mul 20 / FlatAdd 30`；**SortKey 在参数链中不再承担排序语义**（退化为带权展示位，与 M2 `FTcsAttributeModifier.SortKey` 同义）。
+- **带权 = M2 同表**：`Override 0 / Add 10 / PercentAdd 15 / Mul 20 / FlatAdd 30`；**SortKey 在参数链中不再承担排序语义**（退化为带权展示位，与 M2 `FTcsAttrModInstance.SortKey` 同义）。
 - **折叠初值（新钉）**：**该键参数行的求值结果；该键无参数行则 0**——这是 M2 `Base` 在参数域的对应物（避免了未定义口径）。
 - **CompeteGroup（D5-19）语义保留、位置后移**：仍在折叠前按组分桶、组内取值最大者进折叠；选优后的行**按其 Op 落入对应带**（原"先分组选优后按序折叠"→"先分组选优后按带折叠"）。"取优先级最高"从 `Override+SortKey` 组合表达改为**与 M2 一致的 Override 组取最大值**。
 - **折叠器单份（复用而非并列）**：`(Base + ΣAdd) × (1+ΣPercentAdd) × ΠMul + ΣFlatAdd` + Override 覆盖语义抽为一个纯函数，**住 TcsAttribute（本模块提供类型与词汇）**，三处共用：M2 属性聚合、M5 参数链、TcsDamage 流程属性容器（02 §2.2a 已承认三处"同一形状、作用域容器不同"）。归属理由：三个消费者的编译边都已含 TcsAttribute（零新边），且不把 Op 枚举与带序词汇搬进零语义的 TcsCore。
@@ -134,8 +134,8 @@
 | 布尔开关行 | `FTcsBoolSwitchRow` | TcsState |
 | 参数行 Mode | `ETcsParamMode{ Snapshot, Live }` | TcsState |
 | 参数修正行（原 `FNumericParamModifier`） | `FTcsNumericParamModifier` | TcsSkill |
-| Def 资产基类（DefId + IsDataValid 校验挂点） | `UTcsStateDefAsset`（对应 `FStateDefBase` 家族；备选 `UTcsStateDefAssetBase`） | TcsState |
-| Buff / 技能 Def 资产 | `UTcsBuffDefAsset` / `UTcsSkillDefAsset` | TcsState / TcsSkill |
+| Def 资产基类（DefId + IsDataValid 校验挂点） | `UTcsStateDef`（对应 `FStateDefBase` 家族；备选 `UTcsStateDefBase`） | TcsState |
+| Buff / 技能 Def 资产 | `UTcsBuffDef` / `UTcsSkillDef` | TcsState / TcsSkill |
 | DataTable 双轨行 | `FTcsBuffDefTableRow` / `FTcsSkillDefTableRow{ FName DefId; …Def; }` | 各域 |
 | 参数快照条目（规范值 + 源引用位） | `FTcsParamSnapshotEntry`（**不用 `Resolved*`**——动词纪律） | TcsState |
 | 参数快照容器 | `FTcsParamSnapshot` | TcsState |
@@ -144,6 +144,7 @@
 
 - **范围澄清**：DefLibrary 管辖的是 **`FStateDefBase` 家族**（Buff + Skill）；修正器模板（`UTcsAttrModDef`/`UTcsSkillModDef`）与属性词表（AttributeDef）是**并列的另一族**，不共用该资产基类——故基类名不用 `UTcsDefAssetBase`（会暗示覆盖全部 Def）。
 - **钉法**：设计文档保留概念名，实现名在此表 + 各模块轮的**计划类型清单**里钉（README 惯例"设计文档类型名为概念名，R3 执行以计划为准"）。
+- **修订注记（2026-09-17）**：本批钉的**资产后缀**经用户重新定标准——**定义资产一律 `<族>Def`、不带 `Asset` 后缀**（概念词"Def 资产"已含 Asset 义），表行为 `<族>DefTableRow`。故本表及各文档中的 `UTcsStateDefAsset`/`UTcsBuffDefAsset`/`UTcsSkillDefAsset` 已全库更新为 `UTcsStateDef`/`UTcsBuffDef`/`UTcsSkillDef`（原批钉的 `UTcsAttrModDef`/`UTcsSkillModDef` 本就不带 Asset，未动）；标准条文落 `openspec/project.md`。以本注记为"历史名曾被改写"的凭据。
 
 ---
 
@@ -204,4 +205,4 @@
 | D5-18 v3 | 约定列 = 行级书写口径；**可配白名单**（Literal/表型源可配，ParamRef/AttributeScaled 禁配）；链行 Operand 补约定列；`Literal.Value` 定性为配置态书写值；M8 校验 |
 | PV-10 | `FTcsParamEnumerableSource`（Core，可选能力基类）+ `Enumerate`/`GetIndexForLevel`；**索引解析唯一真相在源**；不可枚举源配序列展示 = M8 报错（v3 起走视图 IsCompatible 探针）；曲线源区间可用、序列待需求 |
 | PV-1 增补 | 上下文补 `Subject`/`EffectiveLevel`（随等级源同批）；`FCombatEntityHandle` 进 Core 的边界让步记录；`FTcsParamValue.Evaluate` 转发；校验矩阵升级为四联 |
-| 命名批 | 见上表（`FTcsNumericParamRow`/`UTcsStateDefAsset`/`FTcsParamSnapshotEntry`/`FTcsParamEnumerableSource` 等） |
+| 命名批 | 见上表（`FTcsNumericParamRow`/`UTcsStateDef`/`FTcsParamSnapshotEntry`/`FTcsParamEnumerableSource` 等） |
