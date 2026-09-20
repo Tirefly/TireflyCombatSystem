@@ -527,16 +527,16 @@ public:
 
 ---
 
-### Task 6: 计划一验收（检查点 2/3/4 + 屏显信号）
+### Task 6: 计划一验收（检查点 2/3/4 + 屏显信号）——**已完成（2026-09-18）**
 
 **Files:**
 - Create: 测试装置最小代码（PIE 测试 GameMode/测试 Actor——C++ 测试装置，非内容资产；**落点 = `Source/TcsIntegration/Testing/` 临时代码目录**——随 plan2 Task 5/6 并入 TcsIntegration 或验收后删除，不进插件正式模块面）
 
-- [ ] **Step 1: 测试装置**：PIE 生成 2 单位；单位 A 定义 Health(0..MaxHealth)/Attack/Armor；验收信号 = 测试装置订阅属性变更广播 → **直调 `GEngine->AddOnScreenDebugMessage`**（屏显）
-- [ ] **Step 2: 检查点 2**：一个测试 Source 挂 2 modifier（Attack+10 / Armor×1.5）→ 屏显确认 **1 次重算 + 1 次广播**；RemoveBySource 后数值还原
-- [ ] **Step 3: 检查点 3**：Batch 内两次改同属性 → 提交尾只 1 次广播；PeekPending 返回未提交值
-- [ ] **Step 4: 检查点 4**：句柄悬空 ensure（Task 1 已验，此处复验于真实单位数据）
-- [ ] **Step 5: 全量编译 + 停点待用户检查**（提交经用户授权）
+- [x] **Step 1: 测试装置**：PIE 生成 2 单位；单位 A 定义 Health(0..MaxHealth)/Attack/Armor；验收信号 = 测试装置订阅属性变更广播 → **直调 `GEngine->AddOnScreenDebugMessage`**（屏显）
+- [x] **Step 2: 检查点 2**：一个测试 Source 挂 2 modifier（Attack+10 / Armor×1.5）→ 屏显确认 **1 次重算 + 1 次广播**；RemoveBySource 后数值还原
+- [x] **Step 3: 检查点 3**：Batch 内两次改同属性 → 提交尾只 1 次广播；PeekPending 返回未提交值
+- [x] **Step 4: 检查点 4**：句柄悬空 ensure（Task 1 已验，此处复验于真实单位数据）
+- [x] **Step 5: 全量编译 + 停点待用户检查**（提交经用户授权）——编译零警告；用户 PIE 两轮（首轮 3/1 → 修夹具 → 次轮 **4/0 全 PASS**，2026-09-18）
 
 > **2026-09-18 落地实施注记**（提案：`openspec/changes/add-tcsattribute-pipeline-and-transaction`，18 delta / 2 新能力 + 3 修订）：
 > - **产物**：`Public/Attribute/TcsAttributeBandFold.h`（折叠纯函数 + `FTcsAttributeBandEntry`，**Public**——M5/TcsDamage 复用；plan1 原清单只列了 Private 的管线文件，规范扫描时补正）、`Public/Attribute/TcsAttributeChangedEvent.h/.cpp`（变更事件 USTRUCT + 原生 Tag `Tcs.Event.Attribute.ValueChanged`——命名公约 `Tcs.Event.<域>.<事件名>`，2026-09-18 用户拍板；由事件所属模块原生声明，TcsCore 不持战斗域词汇）、**`Public/Attribute/TcsAttributePipeline.h`**（管线类声明，2026-09-18 用户拍板从 Private 移出——确认未来有跨模块消费者；PIMPL 前向声明仍由门面持有）+ `Private/Attribute/TcsAttributePipeline.cpp`（recalc/收口/事务/PeekPending/广播/求值栈）、`TcsAttributePipeline_Dependency.cpp`（Tarjan SCC + 读即登记 + 脏传播）、`TcsAttributePipeline_Cascade.cpp`（RemoveBySource + SetBaseValue）；`TcsAttributeStore` 增冻结暂存区 / 依赖边 / 批深度；门面转发六个管线入口 + `SetBaseValue`，`RemoveAttribute` 改冻结、`AddAttribute` 改解冻优先。
@@ -550,3 +550,20 @@ public:
 > - **增补 8（2026-09-18 用户拍板，落地期）：覆盖带强弱口径**——原"Override 组取最大值"隐含"数值大 = 更强"，而数值本身不含方向（承伤倍率/冷却这类"越低越强"的属性会被取到最温和的一条）。定为三级阶梯：①`OverridePriority`（修正器侧，大者胜，唯一第一裁决键）→ ②`OverrideTieBreak`（属性定义侧，封闭四值：取最大/取最小/绝对值最大/绝对值最小，**不开放自定义策略**）→ ③有符号值（补齐全序，"策略下打平"如 `OTB_MaxAbs` 的 ±5 必须有确定答案）。**策略住属性定义而非修正器**（放修正器上会变成"两个来源各说各话"，等于又需要一条规则来裁决规则）；**框架不定义任何其它"谁盖谁"的规则**（用户口径：跨来源协调完全交给 Priority，否则属二次规则）。默认值 = 历史行为（全 0 + 取最大 ≡ 旧口径），已有检查全部保持绿。数据驱动路径（模板行）同步持 `OverridePriority`，`IsDataValid` 对"非覆盖带填了它"给警告。**`SortKey` 与本机制无关**：它在属性折叠里始终是零语义展示位（09-module-damage 里才有"选一"语义），02 §2.2 已补定位说明。
 > - **装置**：`Tcs.Test.Attribute` 增补管线段（折叠四例 / 隐式批广播计数 / 干净零重算 / Clamp·Wrap·动态边界 / AttributeScaled 读即登记传播 / 批内读旧值 + PeekPending 预览 + 提交单次广播 / 来源级联两属性 / 冻结解冻往返与双态约束 / 注销释放暂存区 / **覆盖带六例 + 覆盖带端到端四例**）+ 订阅 Handler（`UTcsTestAttributeChangeHandler`）；拒绝面命令增三条故意 ensure（`AVD_Custom` 回落 / 依赖成环拒边 / 无批提交）+ 模板校验两条（非覆盖带填优先级的警告 / 覆盖带无警告）。装置自身修三处：来源发号器改**单一实例**（原为临时对象，每次构造计数器归零 → 四个来源同 Id → 一次 `RemoveBySource` 摘光全部来源，断言形同虚设）、定义登记改幂等（定义表跨命令调用存活——二次运行同一命令不得重复登记）、管线段加"预热结算"循环（新建属性先读一遍落账，广播计数才只反映真正的变更）。
 > - **编译**：Development Editor 通过（零警告）。**用户 PIE 实测三轮：首轮 46 通过/6 失败、次轮 51/1（Wrap 夹具）、第三轮 `Tcs.Test.Attribute` 67 条全 PASS（2026-09-18）→ 提案已归档为 `openspec/changes/archive/2026-09-18-add-tcsattribute-pipeline-and-transaction`，18 delta 已并入 `openspec/specs/`（11 条规格全部 `validate --strict` 通过）。下一站：Task 6（验收装置：检查点 2/3/4 屏显信号）。**
+
+---
+
+> **2026-09-18 Task 6 落地实施注记**（装置：`Source/TcsAttribute/Private/Testing/TcsAcceptanceRig.h/.cpp`，63 + 457 = 520 行；命令 `Tcs.Test.Acceptance.Plan1`，PIE 中运行）：
+> - **Step 1 装置**：屏显订阅者 `UTcsTestScreenChangeHandler`（订阅 `Tcs.Event.Attribute.ValueChanged` 立即通道 → 到达即直调 `GEngine->AddOnScreenDebugMessage` + 计数/留存载荷）+ 三个检查点段 + 屏显固定行号排版（`FScreenSection`：行键固定 → 重跑覆盖同批行，保留 600 秒）。夹具 = 单位 A（Health 上界动态取 MaxHealth / MaxHealth / Attack / Armor）、单位 B（隔离对照）、单位 C（悬空检查专用）；新建实例"预热结算"后广播计数才只反映真正的变更。
+> - **落点偏差 1**：计划写 `Source/TcsIntegration/Testing/`，实际落 `Source/TcsAttribute/Private/Testing/`（与既有两个临时装置同目录）。理由：①`TcsIntegration` 模块归**计划二 Task 0** 建立，Task 6 时点不存在；②本装置只用 M0（总线）+ M2（属性门面）能力，**不是跨模块装置**；③装置属临时件（用毕即删），为它提前建一个零消费者的模块壳与用户既有口径（"零消费者不预建"，`01-module-m0-core.md:22 ④`）冲突。计划二 Task 6 的 C++ 测试装置不受影响——其落点 `Source/TcsIntegration/Testing/`（`plan2:259`，注明"plan1 Task 6 同款约定"）届时已由计划二 Task 0 建好模块；"同款约定"按"**装置住其所属模块的 Testing 目录**"理解，本装置归属 TcsAttribute（它只用 M0 总线 + M2 门面能力），两处约定不冲突。
+> - **语义澄清 2（检查点 2 的"1 次广播"）**：计划文本"一个测试 Source 挂 2 个 modifier（Attack+10 / Armor×1.5）→ 1 次重算 + 1 次广播"中，两个 modifier 落在**不同属性**上，而广播是**逐属性**的（`attribute-pipeline` 规格："同一提交内同一属性最多广播一次"）——故本条按"**每受影响属性各 1 次重算 + 1 次广播**"落地（两属性 = 本批 2 条），装置屏显直接写明该口径。"同属性两次变更只 1 条"由检查点 3 承担，两处合起来才是完整的"不会重复重算/重复广播"证明。
+> - **装置增补 3**：计划只写"2 单位"，装置用 3 个——单位 C 仅供检查点 4 的"真实单位数据上复验悬空"（注册 → 挂属性 → 注销 → 旧句柄访问）；单位 B 作隔离对照（A 的修正器全程不影响 B），把"2 单位"用成真检查而非装饰。
+> - **实施提醒 4（对计划二同样适用）**：**unity build 会把同模块的多个 `.cpp` 合并成一个翻译单元**——匿名命名空间里的通用符号名会跨文件相撞。本次首编译即中招：装置内的 `MakeLiteralModifier` / `IsClose` 与 Task 5 装置的 **同名函数** 冲突（`error C2084: 已有主体`），报错落在**旧装置**文件里、极易误判方向。修法 = 装置内符号统一加装置前缀（本次 `Acceptance` 前缀），并把该纪律写进装置源文件头。计划二的装置（TcsEffect/TcsDamage/TcsIntegration）落地时同样适用。
+> - **屏显与日志**：屏显 = 人工验收信号（TcsCore 零屏显调用纪律保持——屏显只在装置内）；同批写 `LogTcsAttribute`（Display 汇总行 + Verbose 逐条广播到达）留痕。
+> - **风格例外 5**：装置 `.cpp` 457 行，超"单 `.cpp` ≤300 行、超出按 `<Name>_<Feature>.cpp` 拆分"风格线。不拆的理由：拆分需为一个用毕即删的临时装置引入内部头 + 跨 TU 声明（拆分成本 > 收益），且既有两个临时装置（1023 / 726 行）同款未拆——该风格线的拆分口径按模块正式代码理解。
+> - **编译**：Development Editor 通过（**零警告**）。
+> - **首轮 PIE 实测（2026-09-18，用户执行）**：**通过 3 / 失败 1**——检查点 2（Attack 20→30、Armor 10→15、逐属性各 1 条广播、来源撤销还原）、检查点 3（PeekPending=50、提交尾 1 条广播）、检查点 4（悬空 `AddAttribute` 返回 false + 命中 `Store != nullptr` ensure @ `TcsAttributeSubsystem.cpp:107`，与装置提示一致）全部 PASS；失败项 = 装置自加的"单位隔离性"对照：`单位 B 的 Health=0.0`。**根因 = 装置夹具缺陷，非实现问题**：属性定义是**按属性名全局共享的一行**（词表语义），单位 A 登记的 `Health` 行带 `Max = Dynamic(MaxHealth)`，单位 B 复用同一行却**没有 `MaxHealth`** → 动态上界解析读到 0 → `Clamp(100, 无下界, 0)` = 0。该行为正是 **plan1 偏差 5** 写明的既定口径（"动态边界会读到尚未添加的引用属性（求值 0）→ 把原值钳成 0"，也正是"不在 `AddAttribute` 内立即结算"的理由）。修法：夹具给单位 B 补 `MaxHealth`（+ 隔离断言与屏显同步加该属性）；**记为待复跑项**。
+> - **实测副产品（已登记台账）**：该失败把一个真实风险照出来了——**同一属性名在内容里被多个单位/多套集合共用时，动态边界引用的属性若不在本单位，值会静默钳到 0**（真实内容里就是静默错值，不是夹具问题）。已扩写台账 **R8-2**（定义校验矩阵第二类案例，附本次实测现场）与 **R7-1**（AttributeSet 花名册一致性：含动态边界引用的属性须与被引用属性同集）。
+> - **次轮复跑（2026-09-18，用户执行，夹具修复后）**：**通过 4 / 失败 0**——检查点 2（批内 0 条广播 / 提交后 2 条逐属性各 1 / 撤销还原 20·10）、检查点 3（PeekPending=50 / 提交尾 1 条）、检查点 4（悬空写入 false + ensure 命中 + 读取 0）、隔离性（单位 B Attack=20.0 / Health=100.0 / MaxHealth=100.0）全绿。**Task 6 完成，计划一（Task 0–6）全部交付**。
+> - **待办**：Step 5 停点——**已于 2026-09-18 由用户两轮 PIE 完成**；两个既有临时装置目录（`Source/TcsAttribute/Private/Testing/`、`Source/TcsCore/Private/Testing/`，含本装置）在计划二 Task 6 的内容资产版装置就位后一并退役删除。
+> - **后续修正 6（2026-09-18，用户指正后落地）：故意 ensure 的检查已拆出主命令** ——用户指出"四个都通过了但仍有报错"，复核确认：报错是检查点 4 的**故意** ensure（实现无问题），但**位置错了**——它被混进常规验收命令，于是每次跑验收都付出：Error 日志约 11 行 + 栈回溯 ~0.8s + **错误报告上传 ~1.2s**（`SendNewReport`）+ 附加调试器时的断点停顿。这违反了既有纪律：`unreal-development-workflow` 技能「引擎机制事实」明确写着"测试装置里'故意触发 ensure'的检查 MUST 独立成 opt-in 命令，不混入常规检查命令"（2026-09-16 Task 3 用户实测沉淀），既有装置也是这么分的（`Tcs.Test.Attribute` 干净 / `.Dangling` 单独）——**本装置没照办**。修法：拆为两条命令——主命令 `Tcs.Test.Acceptance.Plan1`（检查点 2/3 + 单位隔离性，**零故意 ensure**，检查点 4 的夹具单位一并移除）+ opt-in 命令 `Tcs.Test.Acceptance.Plan1.Dangling`（自带夹具：注册 → 挂属性 → 预热结算 → 注销 → 旧句柄访问；屏显先声明"本命令会故意命中 ensure"）。编译零警告。**复验待办**：用户复跑两条命令（主命令应 `通过 3 / 失败 0` 且日志无 Error；`.Dangling` 应命中 1 条 ensure 且 `检查点 4 结束：通过`）。

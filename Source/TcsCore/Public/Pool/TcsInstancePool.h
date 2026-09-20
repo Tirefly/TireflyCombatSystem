@@ -99,6 +99,33 @@ public:
 		}
 	}
 
+	/**
+	 * 重置（宿主子系统 Deinitialize 的确定性清空口，与 FTcsExpiryHeap::Reset 同款纪律）：
+	 * 按"当前已分配槽位数"一次性回落占用统计后清空三数组——旧句柄全部代际失配。
+	 * 不逐槽清理实例内容：**持有外部资源的实例由调用方在 Reset 前自行清理**（与 Free 同款零策略）。
+	 */
+	void Reset()
+	{
+		ensure(IsInGameThread());
+
+		int32 LiveCount = 0;
+		for (uint32 SlotIndex = 0; SlotIndex < static_cast<uint32>(Generations.Num()); ++SlotIndex)
+		{
+			if ((Generations[SlotIndex] & 1u) == 1u)
+			{
+				++LiveCount;
+			}
+		}
+		for (int32 Index = 0; Index < LiveCount; ++Index)
+		{
+			FTcsCorePoolStats::RemoveSlotCount();
+		}
+
+		Instances.Reset();
+		Generations.Reset();
+		FreeList.Reset();
+	}
+
 #pragma endregion
 
 // 池存储

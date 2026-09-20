@@ -89,17 +89,19 @@
 
 ---
 
-### Task 0: 四模块骨架
+### Task 0: 四模块骨架——**已完成（2026-09-18）**
 
 **Files:** 四个 Build.cs + 四组 `Tcs<名>Module.h/.cpp`（模块壳，不含日志）+ 四组日志通道 `Public/Tcs<名>LogChannel.h`（DECLARE_LOG_CATEGORY_EXTERN(LogTcsEffect/LogTcsTargeting/LogTcsDamage/LogTcsIntegration, Log, All)）+ `Private/Tcs<名>LogChannel.cpp`（DEFINE）+ .uplugin Modules 追加四模块（顺序 TcsEffect/TcsTargeting/TcsDamage/TcsIntegration）
 
-- [ ] **Step 1:** 建 Build.cs（依赖边照 Global Constraints 最小编译集；TcsIntegration 加 Engine 子模块按需）
-- [ ] **Step 2:** .uplugin Modules 列表追加四模块
-- [ ] **Step 3:** 编译验证（空模块全绿）
+- [x] **Step 1:** 建 Build.cs（依赖边照 Global Constraints 最小编译集；TcsIntegration 加 Engine 子模块按需）
+- [x] **Step 2:** .uplugin Modules 列表追加四模块
+- [x] **Step 3:** 编译验证（空模块全绿）
+
+> **2026-09-18 落地实施注记**：产物 **20 文件**（4 模块 × `Build.cs` + `Module.h/.cpp` + `Public/<名>LogChannel.h` + `Private/<名>LogChannel.cpp`）+ `.uplugin` 追加四模块（顺序 = 依赖序，排在 TcsAttribute 之后）。依赖边实际：`TcsEffect{Core,CoreUObject,Engine,GameplayTags,TcsCore,TcsAttribute}`、`TcsTargeting{…,TcsEffect}`、`TcsDamage{…,TcsCore,TcsAttribute,TcsEffect}`、`TcsIntegration{…, 其下全部战斗模块}`——引擎侧统一 Core/CoreUObject/Engine/GameplayTags（与既有 `TcsCore`/`TcsAttribute` 同款；`TcsCore` 另有 `DeveloperSettings`）。日志通道按 **D0-6 v2** 独立成文件（使用日志只 include LogChannel 头，不 include Module.h），`LogTcsEffect`/`LogTcsTargeting`/`LogTcsDamage`/`LogTcsIntegration` 四条分类就位。编译：Development Editor 通过（**零警告**），四个 DLL 产出。下一站 **Task 1（TcsEffect：步骤/链/注册表/挂起协议）**。
 
 ---
 
-### Task 1: TcsEffect——步骤/链/注册表/挂起协议
+### Task 1: TcsEffect——步骤/链/注册表/挂起协议——**已完成（2026-09-18 实施 / 2026-09-20 验收）**
 
 **Files:** `TcsEffectStep.h / TcsEffectChain.h / TcsEffectContext.h / TcsChainRun.h / TcsEffectStepExecutor.h / TcsEntityQuery.h / TcsStepWaitDelay.h / TcsEffectSubsystem.h(.cpp)`
 
@@ -120,12 +122,20 @@ using FTcsStepExecute = TFunction<ETcsStepResult(const FInstancedStruct&, FTcsEf
 ```
 - 消费者：Task 3/4/5 的步骤执行器、Integration 触发 API。
 
-- [ ] **Step 1: 数据结构四件**（如上；FTcsChainRun 池化走 TcsCore TTcsInstancePool）
-- [ ] **Step 2: 注册表与宏**（`UE_DECLARE_EFFECT_STEP_EXECUTOR` 配对；注册键 = 步骤 struct 类名 FName）
-- [ ] **Step 3: 解释器**（`RunFrom(FTcsChainRun&, 从 PC)`：逐步查注册表 → 执行 → Completed 前进 / Running 返回；MaxStepsPerFrame 熔断 ensure）
-- [ ] **Step 4: WaitDelay 步骤**：`FTcsStepWaitDelay{double Seconds}`；执行器返回 Running 并 Push 到期堆（OwnerId=FTcsChainRunHandle，回调=时钟泵里唤醒重入）
-- [ ] **Step 5: 编译验证**
-- [ ] **Step 6: 人工检查**：PIE 起一条 `[WaitDelay 0.5]` 测试链 → 0.5s 后完成（Output Log `LogTcsEffect` 可见）；挂起期间无每帧重入成本
+- [x] **Step 1: 数据结构四件**（如上；FTcsChainRun 池化走 TcsCore TTcsInstancePool）
+- [x] **Step 2: 注册表与宏**（`UE_DECLARE_EFFECT_STEP_EXECUTOR` 配对；注册键 = 步骤 struct 类名 FName）
+- [x] **Step 3: 解释器**（`RunFrom(FTcsChainRun&, 从 PC)`：逐步查注册表 → 执行 → Completed 前进 / Running 返回；MaxStepsPerFrame 熔断 ensure）
+- [x] **Step 4: WaitDelay 步骤**：`FTcsStepWaitDelay{double Seconds}`；执行器返回 Running 并 Push 到期堆（OwnerId=FTcsChainRunHandle，回调=时钟泵里唤醒重入）
+- [x] **Step 5: 编译验证**
+- [x] **Step 6: 人工检查**：PIE 起一条 `[WaitDelay 0.5]` 测试链 → 0.5s 后完成（Output Log `LogTcsEffect` 可见）；挂起期间无每帧重入成本
+
+> **2026-09-18 落地实施注记**：规格先行——OpenSpec 提案 **`add-tcseffect-chain-interpreter`**（4 新能力 `effect-chain` / `effect-step-dispatch` / `effect-interpreter` / `entity-query-contract` + `instance-handle-pool` MODIFIED × 2），`openspec validate --strict` 通过。产物 **11 文件**：`Public/Chain/` 六件（`TcsEffectStep.h` / `TcsEffectChain.h` / `TcsEffectContext.h` / `TcsChainRun.h` / `TcsEffectStepExecutor.h` / `TcsStepWaitDelay.h`）+ `Public/Host/TcsEntityQuery.h` + `Public/TcsEffectSubsystem.h` + `Private/Chain/TcsEffectStepExecutor.cpp` / `Private/Chain/TcsStepWaitDelay.cpp` + `Private/TcsEffectSubsystem.cpp`；TcsCore 一处修改（`TTcsInstancePool::Reset()`）；另有临时装置 `Private/Testing/TcsEffectTestRig.h/.cpp`（**不入库**）。
+> - **落地口径（相对计划 sketch 的收窄，均已在提案"钉名"表声明）**：①**注册键 = 步骤 struct 反射类型（`const UScriptStruct*`）**，非"类名 FName"——执行期唯一可得的身份就是 `FInstancedStruct::GetScriptStruct()`，指针身份免名字往返且绕开 UHT 对 USTRUCT 反射名去 `F` 前缀的差异；②**静态自注册延迟解析**（静态初始化期只入待解析表，首次 `Find` 才调 `StaticStruct()`）——依据引擎 `FNativeGameplayTag::GetIfAllocated()` 同款纪律；③**运行态持 ChainId 不持链指针**（每步入器按 id 重解析；注销有活动运行态的链被拒）；④**解释器每步入器前与推进 PC 前各重解析运行态指针**（池元素地址不稳定——引擎事实 2026-09-17）；⑤**落点偏差**：WaitDelay 执行器住 `Private/Chain/TcsStepWaitDelay.cpp` 自成一文件（计划写"TcsEffectSubsystem.cpp"）——它是"步骤类型 + 执行器 + 一行宏"的最小完整样本，子系统 `.cpp` 保持解释器单一职责；⑥领域代码住 `Public/Chain/`、宿主契约住 `Public/Host/`（`cpp-module-structure` 规格要求领域子目录），门面与日志通道在 `Public/` 根。
+> - **验证**：UBT Development Editor 编译通过（**零警告**；UHT 首次为 TcsEffect 生成产物，四 DLL 产出）；依赖面核对——`Source/TcsEffect/` 只 include 自身与 TcsCore（零领域模块）。装置两条命令：**`Tcs.Test.Effect`**（正路 4 检查：自注册可查 / 起链即挂起 / 延迟判定到期唤醒续走 / 实体查询注入往返——零故意 ensure）+ **`Tcs.Test.Effect.Reject`**（opt-in 拒绝面 5 检查：未知步骤类型断链 / 重复登记拒绝 / 活动运行态拒绝注销 / 悬空句柄静默 / 单帧步数熔断）。
+> - **顺延（显式交代，不静默漏做）**：①**Context 默认目标初始化**（D4-4 v2"事件载荷 → `Targets`"）——R3 无事件触发源（手动触发）无法实证，顺延到触发行轮（M3/M5），**已入遗留台账**；R3 由调用方预填 `Context.Targets`。②**链资产类**（`UTcsEffectChainDef`，计划未点名落点）与 ③**实体查询的 `GetLocation`/`IsAlive`**（随 RadiusArea 轮）——见 Task 5/6 与 Task 2 注记。
+> - **人工检查（Step 6）已完成——2026-09-20 用户 PIE 两条命令**：**`Tcs.Test.Effect.Reject` → `通过 5 / 失败 0`**（3 条预期 ensure + 2 条预期 Error 一条不多一条不少，五处拒绝面各自命中设计中的代码行：未知步骤类型断链 / 重复登记 @ `RegisterChain:44` / 活动运行态拒绝注销 @ `UnregisterChain:69` / 悬空句柄唤醒静默（无 ensure）/ 单帧步数熔断 @ `RunFrom:197`）；**`Tcs.Test.Effect` → 通过**（起链即挂起 + 延迟判定块给出 Mark 恰好 1 次、运行态已释放，零 Error，`LogTcsEffect` 可见"起链 → 挂起（给出 现在/到期）→ 唤醒 → 完成"）。**装置修复一项**：拒绝面检查 3 刻意留下的挂起运行态会在 ~5s 后自行完成——首轮日志暴露"若该链带 Mark 步，同一会话第二次跑拒绝面时（ensure 不再上报、命令秒回）那次补做会跨命令污染主命令的 Mark 计数"，已改为**只含等待步**。**副产品观测（量化了 opt-in 纪律的理由）**：三条故意 ensure 的栈回溯 + 错误上报实测卡顿约 15s（`StackWalkAndDump` 1.7s + `SendNewReport` 1.8 / 5.9 / 3.5s）。
+> - **提案已归档**：`openspec/changes/archive/2026-09-20-add-tcseffect-chain-interpreter`——4 新能力（`effect-chain` / `effect-step-dispatch` / `effect-interpreter` / `entity-query-contract`）+ `instance-handle-pool` 2 条修改并入规格库，规格库 **15 条** `validate --strict` 全绿。
+> - **下一站**：plan2 **Task 2（TcsTargeting）**——跨模块自注册的第一个实证点（见该节交接注记）。
 
 ---
 
@@ -157,6 +167,8 @@ USTRUCT() struct FTcsStepSelectTargets {   // 链步骤：策略 Resolve → Fil
 
 - [ ] **Step 1: 抽象契约 + 两默认策略 + FTcsStepSelectTargets 执行器（宏注册；单体 = 策略 Resolve → Filter AND → 写 Context.Targets）**
 - [ ] **Step 2: 编译验证**
+
+> **2026-09-18 Task 1 交接注记**：`ITcsEntityQuery` 已随 Task 1 落地（`Source/TcsEffect/Public/Host/TcsEntityQuery.h`），**R3 只声明 `EnumerateEntities(TFunctionRef<void(AActor*)>)`**——竖切的 Self / EventTarget 两条策略都不需要枚举，故本任务**不消费**查询接口（`GetLocation` / `IsAlive` 与 RadiusArea 轮一起补）；注入点已在门面就位（`UTcsEffectSubsystem::SetEntityQuery` / `GetEntityQuery`，`TScriptInterface` GC 安全持有）。执行器形状照 `Private/Chain/TcsStepWaitDelay.cpp`（步骤 struct + 执行器函数 + 一行 `UE_DEFINE_EFFECT_STEP_EXECUTOR`）——**跨模块自注册的第一个实证点就在本任务**。
 
 ---
 
@@ -252,6 +264,10 @@ UCLASS() class UTcsDefLibrary : public UGameInstanceSubsystem   // 定义资产�
 - [ ] **Step 3: UTcsDefLibrary 最小版**（OnReady 单出口；链定义加载）
 - [ ] **Step 4: 编译验证**
 
+> **2026-09-18 Task 1 交接注记（两项需在本任务收口）**：
+> ①**链资产类落点**：Task 1 只交付登记 API（`RegisterChain` / `UnregisterChain` / `FindChain`，键 = `FTcsEffectChain::ChainId`）与执行入口，**没有链资产类**——本计划 File Structure 与本任务清单都未点名 `UTcsEffectChainDef` 的落点。DefLibrary 要做"资产发现与注册"，就需要一个可发现的资产类型 → **建议本任务补 `UTcsEffectChainDef : UPrimaryDataAsset`（字段 `DefId` + `FTcsEffectChain Chain`；`DefId` 登记时写入/校验 `Chain.ChainId`，按 2026-09-17 Def 命名标准与主资产身份规约）**，发现后经 `RegisterChain` 登记；若决定改用 DataTable 行轨（`<族>DefTableRow` 同款），同样在本任务定，勿留到 Task 6 内容创作期才发现没有载体。
+> ②**接口 U 类名撞名**：Task 1 的 UINTERFACE 按 UE 约定占用了 `UTcsEntityQuery` / `ITcsEntityQuery` 这一对名（`ITcsEntityQuery::UClassType` 即 `UTcsEntityQuery`）。本任务 Step 2 原写"`UCLASS() class UTcsEntityQuery : public ITcsEntityQuery`"——**同名将导致两个模块各有一个 `UTcsEntityQuery` U 类**（反射库里重名、同 TU include 两者即重定义）。实现类请改名（如 `UTcsPieEntityQuery`）并同步本行文字。
+
 ---
 
 ### Task 6: 测试装置 + PIE 地图（内容资产）
@@ -262,6 +278,8 @@ UCLASS() class UTcsDefLibrary : public UGameInstanceSubsystem   // 定义资产�
 - [ ] **Step 2: 测试链资产**（链=纯数据资产——检查点 6 的"零 C++ 加链"实证主体）
 - [ ] **Step 3: 测试公式 delegate + 2 个测试单位 + 地图**（编辑器内建，人工步骤；验收信号 = 测试装置订阅属性广播直调 `GEngine->AddOnScreenDebugMessage`）
 - [ ] **Step 4: 编译 + 打开 PIE 就绪**
+
+> **2026-09-18 Task 1 交接注记**：Step 2 的"测试链资产"依赖 Task 5 定下的链资产载体（`UTcsEffectChainDef` 或行轨——见 Task 5 注记①）；检查点 6"零 C++ 加链"的成立条件 = 链资产在编辑器内可创作 + 经 `RegisterChain` 登记，登记 API 已在 Task 1 就位。竖切测试链的步骤形状：`FTcsStepWaitDelay{0.5}` → `FTcsStepSelectTargets`（Task 2）→ `FTcsStepDamage`（Task 4）。**验收信号走测试装置直调 UE API**（插件模块零屏显调用，D0-6 v2）。
 
 ---
 

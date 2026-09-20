@@ -30,6 +30,26 @@
 			"Name": "TcsAttribute",
 			"Type": "Runtime",
 			"LoadingPhase": "Default"
+		},
+		{
+			"Name": "TcsEffect",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
+		},
+		{
+			"Name": "TcsTargeting",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
+		},
+		{
+			"Name": "TcsDamage",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
+		},
+		{
+			"Name": "TcsIntegration",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
 		}
 	]
 }
