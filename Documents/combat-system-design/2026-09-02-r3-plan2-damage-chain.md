@@ -182,7 +182,7 @@ USTRUCT() struct FTcsStepSelectTargets {   // 链步骤：策略 Resolve → Fil
 
 ---
 
-### Task 3: TcsDamage——流程机制层（解释器/黑板/协议/裁决）
+### Task 3: TcsDamage——流程机制层（解释器/黑板/协议/裁决）——**已完成（2026-09-20）**
 
 **Files:** `Flow/TcsDamageFlowContext.h / Flow/TcsFlowAttributes.h / Flow/TcsFlowTemplate.h / Flow/TcsFlowStepExecutor.h / TcsDamageSubsystem.h(.cpp)`
 
@@ -207,10 +207,18 @@ struct FTcsDamageFlowContext
 ```
 - 消耗裁决机制：候选收集（收集≠消费）→ Execute 步裁决（SortKey 选一）→ 成功才 OnConsumed。
 
-- [ ] **Step 1: 三数据结构 + FTcsFlowAttributes**（键→修正链求值；Submit 带 SortKey/消耗策略）
-- [ ] **Step 2: 流程解释器**（按模板顺序执行；步骤执行器注册表+宏；Context 池化）
-- [ ] **Step 3: 收集事件协议**（步骤边界发事件——立即通道同步分发，响应链提交落黑板）
-- [ ] **Step 4: 编译验证**
+- [x] **Step 1: 三数据结构 + FTcsFlowAttributes**（键→修正链求值；Submit 带 SortKey/消耗策略）
+- [x] **Step 2: 流程解释器**（按模板顺序执行；步骤执行器注册表+宏；Context 池化）
+- [x] **Step 3: 收集事件协议**（步骤边界发事件——立即通道同步分发，响应链提交落黑板）
+- [x] **Step 4: 编译验证**
+
+> **2026-09-20 落地实施注记**：规格先行——OpenSpec 提案 **`add-tcsdamage-flow-layer`**（新能力 `damage-flow`，**6 条需求**：模板登记 / 三层值空间上下文 / 流程属性黑板 / 步骤注册表与自注册宏 / 同步单帧解释器 / 收集事件协议；`validate --strict` 通过）。产物 **8 文件**：`Public/Flow/` 五件（`TcsDamageFlowContext.h` / `TcsFlowAttributes.h` / `TcsFlowTemplate.h` / `TcsFlowStepExecutor.h` / `TcsDamageFlowCollectEvent.h`）+ `Public/TcsDamageSubsystem.h` + `Private/Flow/TcsFlowStepExecutor.cpp` / `TcsFlowAttributes.cpp` + `Private/TcsDamageSubsystem.cpp`；另有临时装置 `Private/Testing/TcsDamageTestRig.h/.cpp`（**不入库**）。
+> - **落地口径（相对计划 sketch 的收窄，皆在提案钉名表声明）**：①步骤执行器签名钉为 **`bool` 中止通道**（`FTcsFlowStepExecute = TFunction<bool(const FInstancedStruct&, FTcsDamageFlowContext&)>`——流程无挂起，故不用挂起枚举）；②**收集事件 Tag 改用公约名** `Tcs.Event.Damage.*` + 原生声明（设计文档旧写法 `Combat.Damage.Collect.<Step>` 早于 2026-09-18 Tag 公约；本任务只声明流程开始事件，各步骤收集事件随标准步骤库逐条声明 = Task 4）；③载荷 = **上下文指针包装**（设计写"C++ 引用包装"——总线载荷须反射可见，引用不可反射）；④黑板**只存不裁**（`FTcsConsumePolicy` 落字段；裁决归 Task 4 的 Execute 步骤）；⑤黑板 **R3 无值域收口**（工作值不是角色属性）；⑥**不做 Context 池化**（门面签名即调用方提供上下文）；⑦**不做模板重定向栈**（`FFlowRedirect` 随 M3 状态轮）；⑧`Read` **只调用共享纯函数 `FoldTcsAttributeBands`**（D5-5 v3 三处共用的中间一处——台账 R6-1 已勾销）。
+> - **验证**：编译**零警告**（一次通过）；**折叠器复用自检**（`Source/TcsDamage/` 仅 `TcsFlowAttributes.cpp` 一处调用共享折叠，无私建第二份）；**零改动自检**（`git diff -- Source/TcsEffect Source/TcsTargeting Source/TcsAttribute Source/TcsCore` 为空）；依赖面 grep 零越界。
+> - **人工检查已完成——2026-09-20 用户 PIE 两条命令均通过**：`Tcs.Test.Damage.Flow`（步骤自注册可查 / 模板登记 / 同步单帧执行 / 顺序 A→B / 黑板读数 15 = 提交 10 + 收集响应 5 / 收集事件同步到达 / 收集重置回 0）与 `Tcs.Test.Damage.Flow.Reject`（未登记模板 / 未知步骤类型 / 步骤返回 false 中止——2 Error + 1 Warning 均为预期）。
+> - **提案已归档**：`openspec/changes/archive/2026-09-20-add-tcsdamage-flow-layer`（新能力 `damage-flow` 6 条需求并入规格库）。
+> - **同批句柄化（用户 2026-09-20 审阅后拍板）**：链/流程上下文的参与者与实体查询契约全部改 **`FTcsCombatEntityHandle`**（提案 `switch-combat-contexts-to-entity-handles` → 归档 `2026-09-20-switch-combat-contexts-to-entity-handles`；`effect-chain` 加"效果链上下文"需求、`entity-query-contract` / `targeting-strategy` / `damage-flow` 三份改型；规格库 **17 条** `validate --strict` 全绿）；三套装置（Effect / Targeting / Damage）随之复跑全过。**编辑器授权约束**：句柄 MUST NOT 进内容资产（运行期发号、跨会话/跨机不同；要指定实体用"稳定标识 FName + 运行期宿主解析"）。**过网结构纪律**（禁 `TFunction`/`TMap`/`TSet`、`FInstancedStruct` 内层须可复制）已落 `openspec/project.md`；调研笔记 `2026-09-20-replication-posture-research.md`。
+> - **遗留**：**流程来源发号器与本进程其他发号器的 Id 碰撞面**——已登记台账 **T-6**（触发条件 = M6 宿主适配轮统一为进程唯一发号）。
 
 ---
 
@@ -277,6 +285,7 @@ UCLASS() class UTcsDefLibrary : public UGameInstanceSubsystem   // 定义资产�
 > **2026-09-18 Task 1 交接注记（两项需在本任务收口）**：
 > ①**链资产类落点**：Task 1 只交付登记 API（`RegisterChain` / `UnregisterChain` / `FindChain`，键 = `FTcsEffectChain::ChainId`）与执行入口，**没有链资产类**——本计划 File Structure 与本任务清单都未点名 `UTcsEffectChainDef` 的落点。DefLibrary 要做"资产发现与注册"，就需要一个可发现的资产类型 → **建议本任务补 `UTcsEffectChainDef : UPrimaryDataAsset`（字段 `DefId` + `FTcsEffectChain Chain`；`DefId` 登记时写入/校验 `Chain.ChainId`，按 2026-09-17 Def 命名标准与主资产身份规约）**，发现后经 `RegisterChain` 登记；若决定改用 DataTable 行轨（`<族>DefTableRow` 同款），同样在本任务定，勿留到 Task 6 内容创作期才发现没有载体。
 > ②**接口 U 类名撞名**：Task 1 的 UINTERFACE 按 UE 约定占用了 `UTcsEntityQuery` / `ITcsEntityQuery` 这一对名（`ITcsEntityQuery::UClassType` 即 `UTcsEntityQuery`）。本任务 Step 2 原写"`UCLASS() class UTcsEntityQuery : public ITcsEntityQuery`"——**同名将导致两个模块各有一个 `UTcsEntityQuery` U 类**（反射库里重名、同 TU include 两者即重定义）。实现类请改名（如 `UTcsPieEntityQuery`）并同步本行文字。
+> ③**实体映射点（2026-09-20 句柄化后新增）**：实体查询实现（`ITcsEntityQuery` 三支能力：遍历吐**句柄** / `GetLocation` / `IsAlive`）是**宿主侧唯一的"句柄↔Actor"映射点**——`UTcsCombatEntityComponent` 注册实体时记录"自己拿到的句柄"并在此映射；机制层与内容资产都不碰映射（**句柄不得进内容资产**——授权约束已入规格侧提案钉名表）。装置里已有该写法的最小样板（自建映射 + 三支能力实现）。
 
 ---
 

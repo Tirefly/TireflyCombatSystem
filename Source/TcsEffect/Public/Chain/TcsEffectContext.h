@@ -5,6 +5,8 @@
 #include "CoreMinimal.h"
 #include "StructUtils/InstancedStruct.h"
 
+#include "Handle/TcsCombatEntityHandle.h"
+
 
 
 /**
@@ -20,15 +22,15 @@
  */
 struct FTcsEffectContext
 {
-// 主体
+// 主体（**一律实体身份句柄**——D3-1 Actor 无关性；无 Actor 实体（未来 Mass）同样可表达）
 #pragma region Subjects
 
 public:
 	// 施法者（技能/效果的来源方）
-	AActor* Caster = nullptr;
+	FTcsCombatEntityHandle Caster;
 
-	// 发起者（连续技/连锁的上一环；与 Caster 不同时为 null 时表"谁发起的"）
-	AActor* Instigator = nullptr;
+	// 发起者（连续技/连锁的上一环；表"谁发起的"，可与 Caster 不同）
+	FTcsCombatEntityHandle Instigator;
 
 	// 触发事件载荷（无事件触发时为默认构造——R3 手动触发的常态）
 	FInstancedStruct EventPayload;
@@ -40,8 +42,9 @@ public:
 #pragma region Data
 
 public:
-	// 目标集（**弱引用**——目标 Actor 可能中途销毁；步骤消费前自行判有效性）
-	TArray<TWeakObjectPtr<AActor>> Targets;
+	// 目标集（实体句柄——句柄无生命周期语义："目标还在不在"经注入接口 `IsAlive` 询问宿主，
+	// 框架不持 Actor 生命周期引用）
+	TArray<FTcsCombatEntityHandle> Targets;
 
 	// 链内变量（SetVar / Branch 类步骤的载体；R3 无写入方，留位）
 	TMap<FName, double> Variables;

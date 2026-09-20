@@ -57,7 +57,7 @@
 
 | # | 事项 | 来源锚点 | 现状证据（已核） | 状态 |
 |---|---|---|---|---|
-| R6-1 | **参数链 / 流程属性黑板接入 `FoldTcsAttributeBands`**（D5-5 v3"折叠器单份、三处共用"：M2 属性 / M5 参数链 / TcsDamage 流程属性） | `plan1:550` 增补 8；折叠器已落地于 `Public/Attribute/TcsAttributeBandFold.h` | 折叠器与五带口径已随 Task 5 交付；**消费者尚未接入**（plan2 Task 3 `FTcsFlowAttributes` 的"封闭五带运算（同 M2）"是自然首用点，但未写成显式步骤） | 待触发（就近 = plan2 Task 3；远期 = R6 M5 参数账本） |
+| R6-1 | **参数链 / 流程属性黑板接入 `FoldTcsAttributeBands`**（D5-5 v3"折叠器单份、三处共用"：M2 属性 / M5 参数链 / TcsDamage 流程属性） | `plan1:550` 增补 8；折叠器已落地于 `Public/Attribute/TcsAttributeBandFold.h` | **已消费（2026-09-20，plan2 Task 3）**——落点 = TcsDamage 流程属性黑板 `Private/Flow/TcsFlowAttributes.cpp` 的 `Read`（读时求值 → 摊平 → 调共享纯函数；自检：`Source/TcsDamage/` 仅此一处折叠调用，无私建第二份）。**剩 M5 参数链一处**，随 R6 轮 | 部分消费（M5 侧待 R6 开工） |
 
 ## R7 轮（M6 集成）
 
@@ -85,6 +85,7 @@
 | T-3 | **复制契约实现** `ICombatReplicationProxy`（`InjectOperation(操作流)` / `ExportSnapshot()`） | `06-module-integration.md:35-36`（仅契约不实现，实现推迟到有联网项目） | 仅契约草案 | 等有联网项目 |
 | T-4 | 总线动态层**类型化委托**（增量） | `01-module-m0-core.md:30`（"哪个事件用得痛再单独加"） | 未落地 | 等痛点出现 |
 | T-5 | **`IRelationResolver` 阵营判定注入契约**（`IsHostile` / `IsFriendly(来源, 目标)`——设计名，与 `ICombatEntityQuery` 同族的宿主能力契约） | `10-module-targeting.md:31`（§2.3 注入接口）/`:26`（宿主 Filter 内部可调）；plan2 全篇未点名落点（已核） | 未落地——**R3 零消费者**：框架零默认 Filter，竖切的过滤器由测试装置自带判定，不需要阵营契约 | 等第一个需要阵营判定的宿主实现出现（最近机会 = M6 宿主适配轮，或 LAC 首个敌对判定需求） |
+| T-6 | **来源发号器统一为进程唯一**：`FTcsSourceHandleRegistry` 可实例化，属性侧装置与 TcsDamage 门面各持一份 → **两个分配器的 Id 空间重叠**，"按来源级联摘除"可能误摘他人来源 | plan2 Task 3 实施注记（2026-09-20）；`TcsCore/Public/Handle/TcsSourceHandle.h`（类可实例化） | 未落地——R3 各分配器用途分离、无实际碰撞场景；**流程侧已用门面内实例**（`UTcsDamageSubsystem::FlowSourceRegistry`） | 等 M6 宿主适配轮（届时多来源并存：状态/装备/流程/技能冷却） |
 
 ---
 
@@ -94,3 +95,4 @@
 - **2026-09-18 增补（Task 6 首轮 PIE 实测）**：R8-2 加第二类案例（动态边界引用的属性缺失 → 静默钳 0，附实测现场），R7-1 加"Set 花名册一致性"约束。条目总数不变（扩写既有条目，不新开）。
 - **2026-09-18 增补（plan2 Task 1 收束）**：新增 **R5-1**（Context 默认目标初始化 = 事件目标——R3 只落"调用方预填"，载荷 → 目标的解析通路无事件触发源可实证，随触发行轮落地），新开 R5 轮区段。条目总数 **16**。**不入册（有 Task 归属，判据第三条）**：链资产类 `UTcsEffectChainDef` 的落点、`UTcsEntityQuery` U 类名与计划 Task 5 实现类名撞名——两项均写入 plan2 Task 5/6 交接注记。
 - **2026-09-20 增补（plan2 Task 2 收束）**：新增 **T-5**（`IRelationResolver` 阵营判定注入契约——设计 §2.3 点名、plan2 无 Task 认领、R3 零消费者）。条目总数 **17**。**同批确认**：`FTcsSelSelf` / `FTcsSelEventTarget` 两个默认选择器的"后置"是**用户拍板的 R3 范围收窄**（不是遗漏），已写入 plan2 Task 2 注记，不入台账（有 Task 归属 = 该 Task 自身）。
+- **2026-09-20 增补（plan2 Task 3 收束）**：**R6-1 部分勾销**（流程属性黑板侧已消费——落点 `TcsFlowAttributes.cpp::Read`；剩 M5 参数链一处随 R6 轮）；新增 **T-6**（来源发号器应进程唯一——`FTcsSourceHandleRegistry` 可实例化造成 Id 空间重叠面）。条目总数 **18**。

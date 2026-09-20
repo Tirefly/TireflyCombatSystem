@@ -42,22 +42,17 @@ namespace
 			EntityQuery = Subsystem->GetEntityQuery();
 		}
 
-		// 候选：本步骤（调用方）负责清空，选择器只负责填充
-		TArray<TWeakObjectPtr<AActor>> Candidates;
+		// 候选：本步骤（调用方）负责清空，选择器只负责填充（实体句柄流转——无 Actor 依赖）
+		TArray<FTcsCombatEntityHandle> Candidates;
 		Selector->Resolve(Context, EntityQuery, Candidates);
 
 		// 过滤：AND 全过 + 短路 + 保序（确定性纪律 D0-1）
-		TArray<TWeakObjectPtr<AActor>> PassedTargets;
+		// **不做存活过滤**：候选有效性是宿主语义（由 Filter 表达）——框架不认"存活"，
+		// 无 Filter 时句柄原样传递（消费方自行用 IsAlive 核对）
+		TArray<FTcsCombatEntityHandle> PassedTargets;
 		PassedTargets.Reserve(Candidates.Num());
-		for (const TWeakObjectPtr<AActor>& Candidate : Candidates)
+		for (const FTcsCombatEntityHandle& Candidate : Candidates)
 		{
-			AActor* CandidateActor = Candidate.Get();
-			if (!CandidateActor)
-			{
-				// 悬空候选跳过（Actor 中途销毁是正常竞态，不 ensure）
-				continue;
-			}
-
 			bool bPassedAllFilters = true;
 			for (const TInstancedStruct<FTcsTargetFilterStrategy>& FilterStruct : Step->Filters)
 			{
@@ -68,7 +63,7 @@ namespace
 					continue;
 				}
 
-				if (!Filter->Pass(CandidateActor, Context))
+				if (!Filter->Pass(Candidate, Context))
 				{
 					bPassedAllFilters = false;
 					break;

@@ -172,3 +172,15 @@
   - **归档前规格修正（用户指正）**：初稿曾在规格里写"**R3 范围：框架不提供默认选择器**（MUST NOT）"——与设计文档 10 §2.1"默认实现（框架提供）：Self/EventTarget"冲突，且把"推迟"读成了"取消"。已删除该条，规格只留行为契约；后置事实住 proposal 顺延节 / plan2 注记 / 台账三处。**纪律落档：规格装系统行为真相，"某一轮做到哪儿"归计划注记与台账。**
   - **提案已归档**：`openspec/changes/archive/2026-09-20-add-tcstargeting-strategies`（**3 条需求**并入规格库 → **16 条规格** `validate --strict` 全绿）。
   - **遗留**：`IRelationResolver`（阵营判定契约）设计点名、plan2 无 Task 认领、R3 零消费者 → 入台账 **T-5**。
+
+- **2026-09-20 伤害流程机制层落地（plan2 Task 3，实施完成 / PIE 待跑）**：提案 **`add-tcsdamage-flow-layer`**（新能力 `damage-flow`，6 条需求）。落地内容：①**流程模板与登记表**（`FTcsFlowTemplate`，键 = TemplateId）；②**三层值空间上下文**（`FormulaParams` 只读原料按名取用 / `Blackboard` 工作值 / `FlowSource` 每流程唯一 / `CapturedAttrs` 快照位）；③**流程属性黑板**（`Submit` / `Read` / `Reset`；**`Read` 调共享 `FoldTcsAttributeBands`**——D5-5 v3 三处共用的中间一处；`FTcsConsumePolicy` 只存不裁）；④**流程步骤注册表 + `UE_DEFINE_FLOW_STEP_EXECUTOR`**（与 Effect 侧同构、独立实例、延迟解析）；⑤**同步单帧解释器**（`RunTemplate`，无挂起；中止语义 = 未知类型 / 返回 false → 止于未来）；⑥**收集事件协议**（原生 Tag `Tcs.Event.Damage.*` + 立即通道同步派发 + 上下文指针包装载荷）。
+  - **落地收窄（皆在提案钉名表）**：步骤签名钉为 `bool` 中止通道；收集 Tag 改用公约名（设计旧写法 `Combat.Damage.Collect.*` 早于 2026-09-18 公约）；载荷改指针包装（C++ 引用不可反射）；黑板 R3 无值域收口（工作值不是角色属性）；不做 Context 池化 / 模板重定向栈（后者随 M3 状态轮）。
+  - **验证**：编译**零警告**（一次通过）；折叠器复用自检通过（TcsDamage 内仅一处折叠调用）；**零改动自检通过**（TcsEffect / TcsTargeting / TcsAttribute / TcsCore 无 diff）；依赖面 grep 零越界；**用户 PIE 两条命令均通过**（正路 3 检查 / 拒绝面 3 检查，2 Error + 1 Warning 均为预期）。
+  - **提案已归档**：`openspec/changes/archive/2026-09-20-add-tcsdamage-flow-layer`（能力 `damage-flow` 6 条需求并入规格库）。
+  - **台账**：**R6-1 部分勾销**（流程属性黑板侧已消费，剩 M5 参数链一处）；新增 **T-6**（来源发号器应进程唯一）。
+
+- **2026-09-20 链/流程上下文句柄化（用户审阅后拍板，已完成）**：提案 **`switch-combat-contexts-to-entity-handles`** → 归档 `2026-09-20-switch-combat-contexts-to-entity-handles`（`effect-chain` 加"效果链上下文"需求；`entity-query-contract` / `targeting-strategy` / `damage-flow` 三份 MODIFIED；规格库 **17 条** `validate --strict` 全绿）。**动因**：`AActor*` 是计划二自选的（04 §2.1 / 09 §2.1 都没写字段类型），与 06 §33"注册表 Actor 无关性（D3-1）保留为未来前提、Mass 适配**核心零改动**"冲突；10 §2.3 给 `ICombatEntityQuery` 的原文本就是"遍历（**全量句柄**）/ GetLocation / IsAlive"。
+  - **改型**：`FTcsEffectContext` / `FTcsDamageFlowContext` 的 `Caster`/`Instigator`/`Attacker`/`Targets` 全改 `FTcsCombatEntityHandle`；`ITcsEntityQuery` 三支能力（遍历吐句柄 + 补 `GetLocation`/`IsAlive`）；目标策略契约与执行器全句柄流转，并**移除框架侧"悬空候选跳过"**（存活是宿主语义——由 Filter 表达，无 Filter 时句柄原样传递）。
+  - **两处钉名/纪律**：**句柄 MUST NOT 进内容资产**（运行期发号、跨会话/跨机不同——要指定实体用"稳定标识 FName + 运行期宿主解析"，与 Def 引用规约同款）；**句柄↔Actor 映射唯一归宿主**（装置已给出最小样板）。
+  - **过网结构纪律落档**：`openspec/project.md` 新增"过网结构 MUST 纯反射数据——禁 `TFunction`（UHT 报错）、禁 `TMap`/`TSet`（UHT 报错）、`FInstancedStruct` 内层须可复制（M8 校验器兜）"+ 通道建议（追加流 → FastArray / 低频事件 → RPC / 复制属性 = 状态语义）。调研笔记：`Documents/combat-system-design/2026-09-20-replication-posture-research.md`（含未核验清单）。
+  - **验证**：编译零警告；**无 Actor 残留自检通过**（三处机制面 Public 零命中）；三套装置命令复跑全过（Effect / Targeting / Damage.Flow 及各自 `.Reject`）。

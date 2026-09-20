@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 
 #include "Chain/TcsEffectContext.h"
+#include "Handle/TcsCombatEntityHandle.h"
 #include "Host/TcsEntityQuery.h"
 
 #include "TcsTargetSelectorStrategy.generated.h"
@@ -43,9 +44,10 @@ public:
 	 * @param Context 链黑板（Caster / Instigator / EventPayload / Targets / Variables）。
 	 * @param EntityQuery 宿主注入的实体查询能力；**MAY 为 nullptr**（未注入）——此时 MUST 降级为
 	 *                    可产出的结果并留 Warning 日志，MUST NOT 解引用空指针。
-	 * @param OutTargets 目标集出参（与 `Context.Targets` 同型；**弱引用**——目标 Actor 生命周期归宿主）。
+	 * @param OutTargets 目标集出参（**实体句柄**——与 `Context.Targets` 同型；句柄无生命周期语义，
+	 *                   需要定位/存活时经 `EntityQuery` 询问宿主）。
 	 */
-	virtual void Resolve(const FTcsEffectContext& Context, ITcsEntityQuery* EntityQuery, TArray<TWeakObjectPtr<AActor>>& OutTargets) const
+	virtual void Resolve(const FTcsEffectContext& Context, ITcsEntityQuery* EntityQuery, TArray<FTcsCombatEntityHandle>& OutTargets) const
 	{
 		// 中性默认实现：不产出任何目标（基类不可被编辑器选中；运行侧取到它属代码缺陷）
 	}

@@ -1,8 +1,5 @@
-# entity-query-contract Specification
+## MODIFIED Requirements
 
-## Purpose
-TBD - created by archiving change add-tcseffect-chain-interpreter. Update Purpose after archive.
-## Requirements
 ### Requirement: 实体查询注入契约
 
 `TcsEffect` MUST 以**注入接口**承载宿主侧实体能力（D4-14：反向依赖一律注入接口击穿——机制层定义契约、宿主/上层实现）：
@@ -30,4 +27,3 @@ TBD - created by archiving change add-tcseffect-chain-interpreter. Update Purpos
 
 - **WHEN** 以合法句柄调用 `GetLocation` / `IsAlive`
 - **THEN** 由宿主实现给出结果；未知/已销毁句柄由宿主返回 false（框架不代判）
-

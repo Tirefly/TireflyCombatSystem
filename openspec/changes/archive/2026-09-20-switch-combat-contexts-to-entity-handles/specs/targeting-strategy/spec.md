@@ -1,8 +1,5 @@
-# targeting-strategy Specification
+## MODIFIED Requirements
 
-## Purpose
-TBD - created by archiving change add-tcstargeting-strategies. Update Purpose after archive.
-## Requirements
 ### Requirement: 选择器策略契约
 
 `TcsTargeting` MUST 以**可配置的数据策略基类**承载目标选择（D4-4 v2 策略模式 / D3-7 v3 载体）：
@@ -78,4 +75,3 @@ TBD - created by archiving change add-tcstargeting-strategies. Update Purpose af
 
 - **WHEN** 执行该步骤
 - **THEN** 返回 `TSR_Completed`，链在同一次进入执行中继续走下一步
-

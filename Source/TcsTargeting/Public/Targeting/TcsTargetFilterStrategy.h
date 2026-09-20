@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 
 #include "Chain/TcsEffectContext.h"
+#include "Handle/TcsCombatEntityHandle.h"
 
 #include "TcsTargetFilterStrategy.generated.h"
 
@@ -32,11 +33,11 @@ public:
 	/**
 	 * 候选是否通过过滤（纯判定——MUST NOT 改写候选或上下文）。
 	 *
-	 * @param Candidate 候选目标（非空——执行器已过滤掉悬空候选）。
+	 * @param Candidate 候选目标（**实体句柄**——需要存活/位置语义时由实现自行经注入接口询问宿主）。
 	 * @param Context 链黑板（宿主语义可自取所需；框架不解释其内容）。
 	 * @return 返回是否通过（中性默认实现 = 通过）。
 	 */
-	virtual bool Pass(const AActor* Candidate, const FTcsEffectContext& Context) const
+	virtual bool Pass(FTcsCombatEntityHandle Candidate, const FTcsEffectContext& Context) const
 	{
 		// 中性默认实现：通过（基类不可被编辑器选中；"框架零默认 Filter"指不提供任何有语义的默认实现）
 		return true;
