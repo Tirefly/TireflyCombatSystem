@@ -139,7 +139,7 @@ using FTcsStepExecute = TFunction<ETcsStepResult(const FInstancedStruct&, FTcsEf
 
 ---
 
-### Task 2: TcsTargeting——策略契约与默认实现
+### Task 2: TcsTargeting——策略契约与默认实现——**已完成（2026-09-20）**
 
 **Files:** `TcsTargetSelectorStrategy.h / TcsSelSelf.h / TcsSelEventTarget.h / TcsTargetFilterStrategy.h / TcsStepSelectTargets.h(.cpp)`
 
@@ -165,8 +165,18 @@ USTRUCT() struct FTcsStepSelectTargets {   // 链步骤：策略 Resolve → Fil
 - Context 默认目标初始化 = 事件目标（Effect 侧，单步链零 SelectTargets 直接消费）。
 - 消费者：R3 测试链；Damage 步骤读 Context.Targets（不内嵌 selector）。
 
-- [ ] **Step 1: 抽象契约 + 两默认策略 + FTcsStepSelectTargets 执行器（宏注册；单体 = 策略 Resolve → Filter AND → 写 Context.Targets）**
-- [ ] **Step 2: 编译验证**
+- [x] **Step 1: 抽象契约 + 两默认策略 + FTcsStepSelectTargets 执行器（宏注册；单体 = 策略 Resolve → Filter AND → 写 Context.Targets）**（两默认策略按 2026-09-20 用户拍板**取消**，见注记）
+- [x] **Step 2: 编译验证**
+
+> **2026-09-20 落地实施注记**：规格先行——OpenSpec 提案 **`add-tcstargeting-strategies`**（新能力 `targeting-strategy`，4 条需求；`validate --strict` 通过）。产物 **5 文件**：`Public/Targeting/TcsTargetSelectorStrategy.h` / `Public/Targeting/TcsTargetFilterStrategy.h`（两份抽象契约）+ `Public/Chain/TcsStepSelectTargets.h` + `Private/Chain/TcsStepSelectTargets.cpp`（执行器 + **跨模块自注册**）；另有临时装置 `Private/Testing/TcsTargetingTestRig.h/.cpp`（**不入库**）。
+> - **R3 范围收窄（2026-09-20 用户拍板）**：**框架零默认选择器**——`FTcsSelSelf` 与 `FTcsSelEventTarget` **都不进 R3**（与"框架零默认 Filter"同一条纪律：选谁是宿主/内容语义）。EventTarget 依赖的"事件载荷 → 目标"通路随触发行轮（台账 **R5-1**）；Self 零依赖、随时可补，但不先钉一个可能被竖切实际用法否掉的默认。**R3 竖切的选择器与过滤器均由测试装置提供**。
+> - **抽象手法（相对计划 sketch 的修正，必读）**：计划写"`Resolve` 用 `PURE_VIRTUAL` 纯虚"——**照抄会在 Development 编不过**：`PURE_VIRTUAL` 在 `CHECK_PUREVIRTUALS` 开启时展开为 `= 0`（`CoreMiscDefines.h:100-102`），而 USTRUCT 抽象类会撞 UHT 生成的 `TCppStructOps<T>`（C2259，引擎实证）。落地改用**中性默认实现 + `meta = (Hidden)`**（基类不进编辑器类型 picker——`SInstancedStructPicker.cpp:104` 按 Hidden 过滤）；同款先例 = 本仓 `FTcsParamValueSource`。
+> - **其余落地口径**：`Resolve(Context, ITcsEntityQuery*, OutTargets)` 的**注入查询不进 Context**（走门面注入点，经 `Run.Owner` 取）；`OutTargets` 与 `Context.Targets` **同型**（`TWeakObjectPtr`，弱引用纪律贯通）；**执行器清空、策略只填充**；**未配 Selector ≠ 选中空集**（前者目标集原样 + Warning，不静默清空、不 ensure）；`EntityQuery` **可空**（契约明文，策略降级 + Warning，禁解引用）；悬空候选跳过；遍历/过滤**保序**（D0-1）。
+> - **验证**：UBT Development Editor 编译**零警告**（一次通过）；**机制层零改动自检通过**（`git diff -- Source/TcsEffect` 为空——跨模块自注册不需要动 Task 1 的任何文件，Task 1 的注册契约经受住了首个跨模块消费者）；依赖面 grep 零越界（只 include 自身 + TcsEffect 的 `Chain/`/`Host/` + 引擎）。
+> - **人工检查已完成——2026-09-20 用户 PIE 两条命令均通过**：`Tcs.Test.Targeting`（正路：跨模块自注册可查 / 选择→过滤 AND→保序写回 / 空 Filter 全过——零 ensure、零 Error）与 `Tcs.Test.Targeting.Reject`（opt-in 边界：未配 Selector 目标集原样 / 未注入查询降级空集——只产预期 Warning）。装置夹具用"临时 spawn 3 个 Actor + 注入装置查询"造确定性场景，命令尾自动清理。
+> - **提案已归档**：`openspec/changes/archive/2026-09-20-add-tcstargeting-strategies`——新能力 `targeting-strategy`（**3 条需求**：选择器契约 / 过滤器契约 / SelectTargets 步骤与执行器）并入规格库，规格库 **16 条** `validate --strict` 全绿。
+> - **归档前的一处规格修正（用户指正）**：初稿曾在规格里写一条"**R3 范围：框架不提供默认选择器**"（MUST NOT）——用户指出这与设计文档 `10-module-targeting.md` §2.1"默认实现（框架提供）：Self / EventTarget"**冲突**，且把"推迟"固化成"取消"、将来还得写 MODIFIED 撤销。已删除该条，规格只留行为契约；两个选择器后置的事实住在**非规格载体**三处（proposal 顺延节 / 本注记 / 台账 R5-1）。**纪律**：规格装"系统行为真相"，"某一轮做到哪儿"归计划注记与台账——两边不抢对方的活。
+> - **遗留**：`IRelationResolver`（阵营判定注入契约，10 §2.3 设计名）plan2 全篇未点名落点、R3 零消费者 → **已入台账 T-5**（触发条件 = 第一个需要阵营判定的宿主实现出现）。
 
 > **2026-09-18 Task 1 交接注记**：`ITcsEntityQuery` 已随 Task 1 落地（`Source/TcsEffect/Public/Host/TcsEntityQuery.h`），**R3 只声明 `EnumerateEntities(TFunctionRef<void(AActor*)>)`**——竖切的 Self / EventTarget 两条策略都不需要枚举，故本任务**不消费**查询接口（`GetLocation` / `IsAlive` 与 RadiusArea 轮一起补）；注入点已在门面就位（`UTcsEffectSubsystem::SetEntityQuery` / `GetEntityQuery`，`TScriptInterface` GC 安全持有）。执行器形状照 `Private/Chain/TcsStepWaitDelay.cpp`（步骤 struct + 执行器函数 + 一行 `UE_DEFINE_EFFECT_STEP_EXECUTOR`）——**跨模块自注册的第一个实证点就在本任务**。
 

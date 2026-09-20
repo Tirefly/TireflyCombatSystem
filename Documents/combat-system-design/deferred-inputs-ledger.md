@@ -84,6 +84,7 @@
 | T-2 | **Mass 适配**：新建 `TcsMass` 模块（适配器 + 生成/回收 processor），核心零改动 | `06-module-integration.md:33`（移出当前范围；D3-1 注册表 Actor 无关性保留为未来前提） | 未落地 | 等宿主需要小兵路径 |
 | T-3 | **复制契约实现** `ICombatReplicationProxy`（`InjectOperation(操作流)` / `ExportSnapshot()`） | `06-module-integration.md:35-36`（仅契约不实现，实现推迟到有联网项目） | 仅契约草案 | 等有联网项目 |
 | T-4 | 总线动态层**类型化委托**（增量） | `01-module-m0-core.md:30`（"哪个事件用得痛再单独加"） | 未落地 | 等痛点出现 |
+| T-5 | **`IRelationResolver` 阵营判定注入契约**（`IsHostile` / `IsFriendly(来源, 目标)`——设计名，与 `ICombatEntityQuery` 同族的宿主能力契约） | `10-module-targeting.md:31`（§2.3 注入接口）/`:26`（宿主 Filter 内部可调）；plan2 全篇未点名落点（已核） | 未落地——**R3 零消费者**：框架零默认 Filter，竖切的过滤器由测试装置自带判定，不需要阵营契约 | 等第一个需要阵营判定的宿主实现出现（最近机会 = M6 宿主适配轮，或 LAC 首个敌对判定需求） |
 
 ---
 
@@ -92,3 +93,4 @@
 - **2026-09-18 建立**：首版 **15 条**（R4×2 / M0×1 / R6×1 / R7×2 / R8×5 / 触发条件×4）。来源 = R3 plan1 Task 5 收束后的全库调研（plan1 / plan2 / 01 / 02 / 06 / 2026-09-14 / 2026-09-17 决策文档逐条核对）。核对中查出两处文档口径不一致：`TcsParamValueSource.h:15` 的"M2/M5 轮"已过期（M2 已收束）、`02:54` 的 `UTcsAttributeSetAsset` 与 Def 命名标准冲突——分别登记为 R4-2 与 R7-2。
 - **2026-09-18 增补（Task 6 首轮 PIE 实测）**：R8-2 加第二类案例（动态边界引用的属性缺失 → 静默钳 0，附实测现场），R7-1 加"Set 花名册一致性"约束。条目总数不变（扩写既有条目，不新开）。
 - **2026-09-18 增补（plan2 Task 1 收束）**：新增 **R5-1**（Context 默认目标初始化 = 事件目标——R3 只落"调用方预填"，载荷 → 目标的解析通路无事件触发源可实证，随触发行轮落地），新开 R5 轮区段。条目总数 **16**。**不入册（有 Task 归属，判据第三条）**：链资产类 `UTcsEffectChainDef` 的落点、`UTcsEntityQuery` U 类名与计划 Task 5 实现类名撞名——两项均写入 plan2 Task 5/6 交接注记。
+- **2026-09-20 增补（plan2 Task 2 收束）**：新增 **T-5**（`IRelationResolver` 阵营判定注入契约——设计 §2.3 点名、plan2 无 Task 认领、R3 零消费者）。条目总数 **17**。**同批确认**：`FTcsSelSelf` / `FTcsSelEventTarget` 两个默认选择器的"后置"是**用户拍板的 R3 范围收窄**（不是遗漏），已写入 plan2 Task 2 注记，不入台账（有 Task 归属 = 该 Task 自身）。
