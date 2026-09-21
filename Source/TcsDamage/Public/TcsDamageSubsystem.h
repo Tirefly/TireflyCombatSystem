@@ -7,6 +7,7 @@
 
 #include "Flow/TcsDamageFlowContext.h"
 #include "Flow/TcsDamageFlowCollectEvent.h"
+#include "Flow/TcsDamageRecord.h"
 #include "Flow/TcsFlowTemplate.h"
 #include "Handle/TcsSourceHandle.h"
 
@@ -32,10 +33,13 @@ class TCSDAMAGE_API UTcsDamageSubsystem : public UWorldSubsystem
 #pragma region Lifetime
 
 public:
+	// 初始化：登记**官方默认模板**（`Default`：CollectStart → BaseDamage → Execute → Completed，D7-5 可整表替换）
+	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
+
 	// 世界类型过滤：仅游戏世界（Game/PIE/GamePreview）实例化（对齐时钟/总线/属性/效果链门面）
 	virtual bool DoesSupportWorldType(const EWorldType::Type WorldType) const override;
 
-	// 反初始化：确定性清空模板登记表（模板自持数据，无外部资源待释放）
+	// 反初始化：确定性清空模板登记表与记录缓冲（模板自持数据，无外部资源待释放）
 	virtual void Deinitialize() override;
 
 #pragma endregion
@@ -112,12 +116,34 @@ public:
 // 内核
 #pragma region Core
 
+public:
+	/**
+	 * 追加一条伤害记录（`Completed` 步骤调用）：发号序号 → 写环形缓冲 → 经总线**立即通道**
+	 * 发布原生事件 `Tcs.Event.Damage.Recorded`（载荷 = 记录本身；记录是结果快照，消费方无须上下文）。
+	 *
+	 * @param Record 记录（序号与时刻若为空由本函数补齐——步骤只填业务字段）。
+	 */
+	void AppendRecord(FTcsDamageRecord& Record);
+
+	/**
+	 * 读回最近记录（**旧 → 新序**；用于统计/回放/装置断言）。
+	 *
+	 * @param OutRecords 输出数组（先清空）。
+	 */
+	void GetRecentRecords(TArray<FTcsDamageRecord>& OutRecords) const;
+
 private:
 	// 模板登记表（键 = TemplateId；TUniquePtr 地址稳定持有）
 	TMap<FName, TUniquePtr<FTcsFlowTemplate>> Templates;
 
 	// 流程来源发号器（每流程唯一 FlowSource）
 	FTcsSourceHandleRegistry FlowSourceRegistry;
+
+	// 记录环形缓冲（容量 = GTcsDamageRecordBufferSize；旧→新序读回）
+	TArray<FTcsDamageRecord> RecordBuffer;
+
+	// 记录序号发生器（单调递增——回放依赖序）
+	uint64 NextRecordSequence = 0;
 
 #pragma endregion
 };

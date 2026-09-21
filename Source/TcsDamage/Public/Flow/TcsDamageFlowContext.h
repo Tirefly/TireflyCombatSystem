@@ -12,6 +12,8 @@
 
 #include "Flow/TcsFlowAttributes.h"
 
+class UTcsDamageSubsystem;
+
 
 
 /**
@@ -68,6 +70,38 @@ public:
 	// 属性捕获快照（读默认 Live、捕获命中读快照——流程内读取一致性；
 	// **快照填充归标准步骤（AttrCapture 配置）**，本层只落字段与语义）
 	TMap<FTcsAttributeName, double> CapturedAttrs;
+
+#pragma endregion
+
+
+// 请求（调用方指定——**不随收集重置清除**：输入是"请求"的一部分，不是"收集"的产物）
+#pragma region Request
+
+public:
+	/**
+	 * 基础伤害输入（PV-7：**链步骤的参数账本解算结果**——流程零计算，本字段只承接不推导）。
+	 * `FTcsFlowBaseDamage` 读它作为输入值并写入黑板（以 `Add` 提交）。
+	 */
+	double BaseDamageInput = 0.0;
+
+	/**
+	 * 本次流程要结算的属性键（调用方指定，如 `Health`）。
+	 * `FTcsFlowExecute` 的**步骤级 `AttrKey` 优先**（模板可覆盖）；两者皆空则只记录不扣血 + Warning。
+	 * 存在的理由：插件组装的**官方默认模板不可能知道项目词表**（`Health` 是项目侧的），
+	 * 故"打哪个属性"必须由请求方给出。
+	 */
+	FTcsAttributeName TargetAttrKey;
+
+#pragma endregion
+
+
+// 宿主门面
+#pragma region Owner
+
+public:
+	// 宿主门面弱引用（`RunTemplate` 起流程时填充）——**步骤取世界/子系统的唯一通路**：
+	// 句柄化后上下文里没有 Actor 可借道（`Context.Owner->GetWorld()` → M2 属性门面 / 事件总线 / 时钟）
+	TWeakObjectPtr<UTcsDamageSubsystem> Owner;
 
 #pragma endregion
 };

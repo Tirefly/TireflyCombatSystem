@@ -38,6 +38,7 @@
 |---|---|---|---|---|
 | R4-1 | `FTcsParamEnumerableSource`（PV-10 源可枚举能力：`Enumerate` / `GetIndexForLevel`，索引解析唯一真相在源）；落地随 **TcsState 等级源**同批 | `01-module-m0-core.md:22 ④`；`2026-09-14-param-fold-and-display-decision-points.md:98` | 代码与规格中均无（已 grep `Source/` 与 `openspec/specs/param-value/`）；当初明记"不进 plan1 Task 0——零消费者不预建" | 待触发（R4 开工） |
 | R4-2 | `FTcsParamEvaluateContext` 补 `Subject`（`FCombatEntityHandle`）+ `EffectiveLevel`（int32）；落地随 TcsState 等级源同批 | `01-module-m0-core.md:22 ②`；`plan1:543` 偏差 1（句柄升格反射 USTRUCT 后 Subject 解禁） | 上下文中无这两个字段（`Source/TcsCore/Public/Parameter/TcsParamValueSource.h:15-18`）；**且该头注释仍写"随 M2/M5 轮补齐"——M2 已收束，注释过期，口径待统一为"随 TcsState 等级源"** | 待触发（R4 开工） |
+| R4-3 | **`FFlowRedirect` 模板重定向栈**（D7-7：状态/装备声明换流程——让渡点 + 重定向栈后挂/高优先 + Source 级联回收；三粒度让渡模式升四粒度） | `09-module-damage.md:28`（D7-7）；plan2 Task 3/4 均列为非目标（"随 M3 状态轮"） | 未落地（2026-09-21 plan2 Task 4 实施时确认：流程机制层与步骤库均无重定向入口） | 待触发（**归属 = R4/M3 状态轮**——消费者是"状态/装备声明换流程"，无状态模块即无场景） |
 
 > 两项的共同锚点 = `ITcsEntityLevelProvider` 定义于 TcsState（D3-11 修订：State/Instigator × Array/Map 四源归 TcsState）——该接口属 R4 轮自身范围，不单列条目，此处登记为确保 R4-1/R4-2 的触发点不丢。
 
@@ -52,6 +53,8 @@
 | # | 事项 | 来源锚点 | 现状证据（已核） | 状态 |
 |---|---|---|---|---|
 | R5-1 | **Context 默认目标初始化 = 事件目标**（D4-4 v2：起链时把事件载荷里的目标填进 `Context.Targets`——"单步链零 SelectTargets 直接消费"的成立条件）；含**载荷 → 目标**的解析通路（载荷类型所属模块实现、机制层调用） | `04-module-effects.md:27`（D4-4 v2 改口）；`2026-09-02-m4-effects-decision-points.md:83`；plan2 Task 1 落地注记（2026-09-18） | R3 只落"调用方预填"——`FTcsEffectContext` 的 `Targets` / `EventPayload` 字段与门面 `ExecuteChain(ChainId, Context)` 已就位，但**载荷 → 目标的解析通路未实现**（R3 无事件触发源、无法实证；TcsEffect 侧没有任何载荷类型可作样本） | 待触发（R5 开工——触发行求值器落地时同批） |
+| R5-2 | **TcsEffect 剩余 8 原语整套**：`WaitEvent`（一次性事件订阅挂起 + Payload 写 `LastEvent`）/ `Branch` / `Parallel`（默认不汇合，`bJoin=true` 时 `JoinCount` 计数）/ `Repeat`（带单链单帧熔断）/ `RunSubChain`（默认等待子链完成唤醒父，`bWait=false` 放支线）/ `ModifyAttribute`（机制私有写入原语）/ `SetVar` / `OnError`（软失败接管，默认断链 + 日志 + Explain 线索） | `04-module-effects.md:15`（D4-16 的 15 原语，TcsEffect 9 个）/`:34`（四种唤醒源）/`:41`（解释器行为）/§12 验收钩子（"WaitEvent 挂起唤醒、熔断与打断在竖切后人工检查路径"）；plan2 `:18` 明文"R3 只实现 WaitDelay/SelectTargets/Damage" | 未落地：`Source/TcsEffect/` 只有 `FTcsStepWaitDelay`（2026-09-21 逐处核过 plan1/plan2/台账/README 轮次表/剧本，其余 8 个原语**零命中**——无任何轮次或触发条件认领） | 待触发（**归属 = R5/M4a effects 轮**——触发行求值器与唤醒源同批；其中 `RunSubChain`/`Parallel` 的子链汇合语义与 M5 编排（R6）同批验证；`OnError` 与求值器失败路径同批） |
+| R5-3 | **TcsDamage 的 `Heal` / `ModifyFlow` 执行器**：步骤 struct 与 `Damage` 同批定义（`Chain/TcsStepDamage.h` 三 struct），但 R3 只实现 `Damage` 执行器 | plan2 `:67` 原话"**R3 只实现 Damage 执行器，Heal/ModifyFlow 执行器后续轮**"（未指明哪一轮）；`09-module-damage.md:56`（治疗流程 = 同骨架精简版）；`:58`（ModifyFlow = 修改器唯一通道 D7-6 的提交原语） | 未落地：R3 只落 `FTcsStepDamage` 执行器；`ModifyFlow` 是"伤害修改器"通道的关键一环（D7-6），无它则修改器只能靠宿主自定义步骤提交 | 待触发（**归属 = R5/M4a**——与触发行（修改器的订阅方）同批；治疗可按需后置） |
 
 ## R6 轮（M5 技能/施法）
 
@@ -75,6 +78,7 @@
 | R8-3 | **Def 双轨同步器**（资产为权威，编辑器侧维护两轨一致性）+ 词表装载；运行期零 DataTable 加载路径 | `plan1:482` 三次复评；`02-module-attributes.md`（同步器与词表装载属 M8） | 未落地 | 待触发（R8 开工） |
 | R8-4 | **K2 强类型引脚节点**（总线动态监听层） | `01-module-m0-core.md:30`（未来项，M8 轮） | 未落地 | 待触发（R8 开工） |
 | R8-5 | **总线动态层两条验证项**：BP InstancedStruct 节点面版本覆盖、CS 读 FInstancedStruct 载荷实测 | `01-module-m0-core.md:30`（不阻塞 R3） | 未验证 | 待验证 |
+| R8-6 | **Explain（调试面板 + 钩子）**：策划视角的"这个数怎么算出来的"——数据源 = M0/M2/M4 已埋的 Explain 钩子（D0-6 日志分类 / D2-5 flush / D4-1 静默标记），面板只是消费者 | `08-module-editor-tooling.md:25-31`（§4 Explain 与调试面板）；`04-module-effects.md:43`（`OnError` 的"Explain 线索"）；`09-module-damage.md:73`（非目标明文："不做生产期过程级溯源——'这个数怎么算出来的'走 M8 Explain 开发期回放"） | 未落地（2026-09-21 用户质询"策划怎么看 InputDmg 与 FinalDmg 的差别"时逐处核过：`08 §4` 有定义、无任何计划 Task 认领）。**R3 的临时替代**：入库命令 `Tcs.Damage.DumpRecords`（打印环形缓冲的 Base/Final/差额/Executed）+ `AppendRecord` 的 Log 级记录行 | 待触发（**归属 = R8/M8 轮**） |
 
 ## 触发条件型（不绑轮次）
 
@@ -86,6 +90,7 @@
 | T-4 | 总线动态层**类型化委托**（增量） | `01-module-m0-core.md:30`（"哪个事件用得痛再单独加"） | 未落地 | 等痛点出现 |
 | T-5 | **`IRelationResolver` 阵营判定注入契约**（`IsHostile` / `IsFriendly(来源, 目标)`——设计名，与 `ICombatEntityQuery` 同族的宿主能力契约） | `10-module-targeting.md:31`（§2.3 注入接口）/`:26`（宿主 Filter 内部可调）；plan2 全篇未点名落点（已核） | 未落地——**R3 零消费者**：框架零默认 Filter，竖切的过滤器由测试装置自带判定，不需要阵营契约 | 等第一个需要阵营判定的宿主实现出现（最近机会 = M6 宿主适配轮，或 LAC 首个敌对判定需求） |
 | T-6 | **来源发号器统一为进程唯一**：`FTcsSourceHandleRegistry` 可实例化，属性侧装置与 TcsDamage 门面各持一份 → **两个分配器的 Id 空间重叠**，"按来源级联摘除"可能误摘他人来源 | plan2 Task 3 实施注记（2026-09-20）；`TcsCore/Public/Handle/TcsSourceHandle.h`（类可实例化） | 未落地——R3 各分配器用途分离、无实际碰撞场景；**流程侧已用门面内实例**（`UTcsDamageSubsystem::FlowSourceRegistry`） | 等 M6 宿主适配轮（届时多来源并存：状态/装备/流程/技能冷却） |
+| T-7 | **AttrCapture（属性捕获）整套**：`ETcsAttrCaptureFrom{Instigator/Target}` + FlowStart 捕获填充 `CapturedAttrs` 快照 + "读默认 Live、命中读快照"的读取语义（09 §2.1"流程内读取一致性"；"本次攻击攻击力 +10%"的双路径之一） | `09-module-damage.md:23`；plan2 Task 4 提案顺延节（2026-09-21 实施时确认） | 未落地：`FTcsDamageFlowContext.CapturedAttrs` 字段已就位，但**无填充者、无读取者**（R3 竖切只有字面量 `DamageBase` 链，无属性修正型修改器） | 等 M5 技能账本轮，或第一个属性修正型修改器出现 |
 
 ---
 
@@ -96,3 +101,6 @@
 - **2026-09-18 增补（plan2 Task 1 收束）**：新增 **R5-1**（Context 默认目标初始化 = 事件目标——R3 只落"调用方预填"，载荷 → 目标的解析通路无事件触发源可实证，随触发行轮落地），新开 R5 轮区段。条目总数 **16**。**不入册（有 Task 归属，判据第三条）**：链资产类 `UTcsEffectChainDef` 的落点、`UTcsEntityQuery` U 类名与计划 Task 5 实现类名撞名——两项均写入 plan2 Task 5/6 交接注记。
 - **2026-09-20 增补（plan2 Task 2 收束）**：新增 **T-5**（`IRelationResolver` 阵营判定注入契约——设计 §2.3 点名、plan2 无 Task 认领、R3 零消费者）。条目总数 **17**。**同批确认**：`FTcsSelSelf` / `FTcsSelEventTarget` 两个默认选择器的"后置"是**用户拍板的 R3 范围收窄**（不是遗漏），已写入 plan2 Task 2 注记，不入台账（有 Task 归属 = 该 Task 自身）。
 - **2026-09-20 增补（plan2 Task 3 收束）**：**R6-1 部分勾销**（流程属性黑板侧已消费——落点 `TcsFlowAttributes.cpp::Read`；剩 M5 参数链一处随 R6 轮）；新增 **T-6**（来源发号器应进程唯一——`FTcsSourceHandleRegistry` 可实例化造成 Id 空间重叠面）。条目总数 **18**。
+- **2026-09-21 增补（用户质询"TcsEffect 其余 Step 的落地规划在哪"）**：新增 **R5-2**（TcsEffect 剩余 8 原语整套——控制流 6 + `ModifyAttribute`/`SetVar`/`OnError`）与 **R5-3**（TcsDamage 的 `Heal`/`ModifyFlow` 执行器）。**这是一处台账遗漏的补救**：建台账时只核对了 plan1/plan2/01/02/06 与几份决策文档，**未把 `04 §2.1` 的原语清单逐条对照**——而这正是"决策已拍板、代码未落地、不在任何计划 Task 里"的教科书案例（其余 8 个原语在 plan1/plan2/README 轮次表/剧本中零命中）。条目总数 **20**。
+- **2026-09-21 增补（plan2 Task 4 收束）**：新增 **R4-3**（`FFlowRedirect` 模板重定向栈，D7-7——归属 M3 状态轮）与 **T-7**（AttrCapture 整套——字段已就位、无填充者与读取者，等 M5 账本或第一个属性修正型修改器）。条目总数 **22**。
+- **2026-09-21 增补（用户质询"策划怎么看 InputDmg 与 FinalDmg 的差别"）**：新增 **R8-6**（M8 Explain 调试面板 + 钩子——设计有定义、无 Task 认领；R3 以入库命令 `Tcs.Damage.DumpRecords` 作临时替代）。条目总数 **23**。

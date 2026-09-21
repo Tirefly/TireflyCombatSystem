@@ -13,14 +13,19 @@
 
 
 /**
- * 流程收集协议的事件 Tag（09 §2.2/§3）——按 **`Tcs.Event.<域>.<事件名>` 命名公约**
+ * 流程收集协议的事件 Tag 全集（09 §2.2/§3）——按 **`Tcs.Event.<域>.<事件名>` 命名公约**
  * （2026-09-18 用户拍板）由本模块**原生声明**（不进项目 Tag 表：项目漏配不会让事件静默丢失；
  * TcsCore 不持战斗域词汇）。**设计文档旧写法 `Combat.Damage.Collect.<Step>` 不采用**（早于该公约）。
- *
- * 本任务只声明**流程开始事件**（标准步骤 `CollectStart` 的落点）；各步骤的收集事件
- * （PreHit / AfterDamage / PreExecute 等）随标准步骤库落地时**按 Step 名逐条声明**（Task 4）。
  */
-UE_DECLARE_GAMEPLAY_TAG_EXTERN(Tag_TcsEvent_Damage_FlowStarted);
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(Tag_TcsEvent_Damage_FlowStarted);   // CollectStart
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(Tag_TcsEvent_Damage_PreHit);        // PreHit
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(Tag_TcsEvent_Damage_Hit);           // Hit（宿主可改写 `HitRate` 键）
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(Tag_TcsEvent_Damage_Crit);          // Crit（宿主可改写 `CritRate` 键）
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(Tag_TcsEvent_Damage_Element);       // Element
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(Tag_TcsEvent_Damage_AfterDamage);   // AfterDamage（"伤害 +50" 挂点）
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(Tag_TcsEvent_Damage_PreExecute);    // PreExecute（收集免疫/减伤候选）
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(Tag_TcsEvent_Damage_Completed);     // Completed（记录已产出）
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(Tag_TcsEvent_Damage_Recorded);      // 记录发布（载荷 = FTcsDamageRecord）
 
 
 

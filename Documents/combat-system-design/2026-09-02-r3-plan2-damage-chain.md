@@ -222,7 +222,7 @@ struct FTcsDamageFlowContext
 
 ---
 
-### Task 4: 标准步骤库 + 官方默认模板 + Damage 链步骤
+### Task 4: 标准步骤库 + 官方默认模板 + Damage 链步骤——**已完成（2026-09-21）**
 
 **Files:** `Flow/Steps/（标准步骤库十 struct + FlowModify/FlowDelegate，各 .h，执行器分 .cpp）`、默认模板注册（Subsystem 初始化）、`Flow/TcsDamageFlowDelegate.h / Flow/TcsDamageRecord.h`、`Chain/TcsStepDamage.h(.cpp)`
 
@@ -243,12 +243,22 @@ USTRUCT() struct FTcsStepDamage { FName FlowTemplateId;   // 空=默认模板；
 - R3 默认模板（注册为 Default）：`CollectStart → BaseDamage → Execute → Completed`（Hit/Crit/Element/PreExecute struct 定义、不组装）。
 - **PV-7 R3 落地注记**：竖切无 TcsSkill 参数账本——`FTcsStepDamage.DamageBase` 用 `FTcsParamSource_Literal` 直配测试值；ParamRef/参数链复合（"攻击力×倍率" = Add(AttributeScaled)+Mul(ParamRef)）随 M5/TcsSkill 轮接入（链行来源 = `SkillDef.ParamChainRows`——PV-9 已采纳）。
 
-- [ ] **Step 1: 十标准步骤 struct+执行器**（宏注册；BaseDamage/Execute 为核心，其余最小实现——发事件/写黑板）
-- [ ] **Step 2: FTcsFlowModify/FTcsFlowDelegate 数据步骤**（含 Conditions 求值挂点——R3 实现 HasAllTags/Chance）
-- [ ] **Step 3: 默认模板注册**（Subsystem Initialize 组装并登记 Default）
-- [ ] **Step 4: ITcsDamageFlowDelegate + FTcsStepDamage 链步骤执行器**（宏注册进 **Effect** 注册表——跨模块注册的第一个实证）
-- [ ] **Step 5: FTcsDamageRecord**（Completed 步骤填充 → 总线 Damage.Record 立即事件 + 环形缓冲）
-- [ ] **Step 6: 编译验证**
+- [x] **Step 1: 十标准步骤 struct+执行器**（宏注册；BaseDamage/Execute 为核心，其余最小实现——发事件/写黑板）
+- [x] **Step 2: FTcsFlowModify/FTcsFlowDelegate 数据步骤**（含 Conditions 求值挂点——R3 实现 HasAllTags/Chance）
+- [x] **Step 3: 默认模板注册**（Subsystem Initialize 组装并登记 Default）
+- [x] **Step 4: ITcsDamageFlowDelegate + FTcsStepDamage 链步骤执行器**（宏注册进 **Effect** 注册表——跨模块注册的第一个实证）
+- [x] **Step 5: FTcsDamageRecord**（Completed 步骤填充 → 总线 Damage.Record 立即事件 + 环形缓冲）
+- [x] **Step 6: 编译验证**
+
+> **2026-09-21 落地实施注记**：规格先行——OpenSpec 提案 **`add-tcsdamage-steps-and-primitive`**（两个新能力：`damage-step-library` 4 条需求 / `damage-primitive` 3 条需求；`validate --strict` 通过）。产物 **10 文件**：`Public/Flow/TcsFlowStepConditions.h`（条件助手 + 两个谓词）、`Public/Flow/TcsDamageFlowDelegate.h`、`Public/Flow/TcsDamageRecord.h`、`Public/Flow/Steps/TcsFlowSteps.h`（十步 struct）、`Public/Flow/Steps/TcsFlowDataSteps.h`、`Public/Chain/TcsStepDamage.h` + `Private/Flow/Steps/TcsFlowStepsCore.cpp`（核心四步）/ `TcsFlowStepsRest.cpp`（其余六步 + 两数据步骤）/ `Private/Chain/TcsStepDamage.cpp`（链原语 + 跨模块注册）+ 门面扩（默认模板注册 / 记录环形缓冲 / 8 个收集 Tag）；另有临时装置 `Private/Testing/TcsDamagePrimitiveRig.h/.cpp`（**不入库**）。
+> - **落地口径（相对计划 sketch 的收窄，皆在提案钉名表声明）**：①十步命名 `FTcsFlow<Name>`（`FTcsFlowStep*` 前缀已被 Task 3 注册表族占用）；②**基值以 `Add` 提交**（"基值"在折叠式里就是 `ΣAdd` 的一员——与 M2 属性同式同值；**MUST NOT 用覆盖带**写基值，覆盖带会盖掉收集到的修正）；结果类键（`Executed`/`Absorbed`/`Kill`）才用 `Override`；③`FTcsStepDamage` 收窄为 `{FlowTemplateId, DamageBase, FormulaParams}`——`Delegate`/`HealthAttrKey`/`Conditions` 三字段移除（前者归流程模板配置、后者归 M4a 链侧条件轮；避免双真相与死字段）；④**上下文补 `Owner` 门面弱引用**（句柄化后没有 Actor 可借道取世界——与链运行态同款）；⑤记录 `int64` + `BlueprintType`（UHT 不支持 `uint64` 属性）；⑥`FTcsConsumePolicy` 含 `TFunction` 不可反射 → **数据步骤不带消耗策略**（消耗型提交只能来自 C++ 步骤/事件响应）。
+> - **验证**：编译**零警告**；跨模块注册自检（`FTcsStepDamage` 在 Effect 注册表）；依赖面零越界；零公式自检（唯一命中是"调用宿主 delegate"，正是纪律要求的形态）。装置 `Tcs.Test.Damage.Primitive`（正路 7 检查：12 类执行器自注册 / 链原语跨模块注册 / 默认模板四步 + 扣血 100→70 / 记录事件与环形缓冲 / delegate 逃生口 ×2 + 收集改写 -20% → 16 / Conditions 跳过 / 收集事件逐点触发）+ `.Reject`（opt-in 3 检查：未知条件 / 空键 / 未配 AttrKey——3 条预期 Warning）。
+> - **顺延（显式交代）**：**AttrCapture 整套**（`ETcsAttrCaptureFrom` + 捕获填充/读取）——R3 竖切零消费者（无属性修正型修改器），已入台账（触发条件 = M5 账本轮或第一个属性修正型修改器）；`FTcsFlowRedirect`（模板重定向栈，D7-7）随 M3 状态轮（**已入台账 R4-3**）。
+> - **PIE 首轮（2026-09-21）：通过 3 / 失败 4——4 项全是真缺陷，已修**：①**输入通道错**（链步骤预写黑板 → 被 `CollectStart.Reset()` 冲掉；改为"不写黑板、由 `BaseDamage` 步骤自提交"后又与链侧预写**重复计数**，实测 10+20=30）→ 修法 = **上下文补请求字段** `BaseDamageInput`（输入是"请求"的一部分，不随收集重置清除）；②**默认模板永不扣血**（`FTcsFlowExecute.AttrKey` 留空——插件组装的模板不可能知道项目词表）→ 修法 = 上下文补 `TargetAttrKey` 请求字段 + 属性键解析"步骤级优先、否则用请求键"；③装置缺陷一项（检查 7 只订阅了 2 个收集 Tag，另 5 条无人接收）→ 订阅全量。**方法论**：这三处都属于"设计文档没写到字段级、实现自选通道"的地方——PIE 是唯一能照出来的环节（编译期与静态自检全绿）。
+> - **PIE 次轮（2026-09-21）：通过 6 / 失败 1** ——余下 1 项为**键名不匹配**：装置把减伤候选提交到 `FinalDamage`，而执行步骤读 `BaseDamage`（改键时留下的不一致）；顺带暴露记录里 `Final` 一直读废弃键（日志显示 `Final=0.000`）。**修法 = 统一契约键**：伤害量只有 `BaseDamage` 一个键（基值以 Add 落在它上面、收集修正也叠在它上面），**废除 `FinalDamage` 键**；`Record.Base` = 调用方输入、`Record.Final` = 该键折叠后的最终值。
+> - **PIE 三轮全过（2026-09-21）**：首轮 **3/4**（输入通道错 / 默认模板无属性键 / 装置订阅面窄）、次轮 **6/1**（契约键不匹配：装置提交 `FinalDamage` 而执行读 `BaseDamage`；并暴露记录 `Final` 字段一直读废弃键）、三轮 **7/0** + 拒绝面 **3/0**。**两轮修复的实质**：①**上下文补请求字段** `BaseDamageInput` / `TargetAttrKey`（输入与目标属"请求"，不随收集重置清除——黑板 = 收集产物、请求字段 = 调用方输入）；②**统一契约键**：伤害量只有 `BaseDamage` 一个键（基值以 Add 落在其上、收集修正叠其上），**废除 `FinalDamage` 键**；`Record.Base` = 调用方输入、`Record.Final` = 该键折叠后的最终值。**方法论**：三处缺陷全属"设计文档没写到字段级、实现自选通道"——编译期与静态自检全绿，**只有 PIE 能照出来**。
+> - **同批追加：入库调试命令 `Tcs.Damage.DumpRecords`**（提案 `add-damage-record-inspection` → 归档；新能力 `damage-record-inspection`）——用户质询"策划怎么看 InputDmg 与 FinalDmg 的差别"：现状是"能看见（记录日志）但没有工具（`GetRecentRecords` 是 C++ API、既有命令全在临时装置）"。命令打印环形缓冲表格（序号/Flow/源/目标/**Input**/**Final**/**差额**/Executed/Absorbed/暴击/击杀），差额 = `Final − Input` = 修改器净影响；住**正式模块**（第一条入库的调试命令）。**逐键归因刻意不做**（09 §5 非目标）→ M8 Explain 登记台账 **R8-6**（设计有定义、无 Task 认领的又一处遗漏）。
+> - **待办**：**Task 6 顺带验"宿主自研流程"**（用户 2026-09-21 定：定义一个 2–3 步、完全不用插件默认步骤的新流程——验零插件改动 + 零默认步骤依赖，可选地仍落 M2 扣血）。
 
 ---
 
