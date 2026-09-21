@@ -13,10 +13,11 @@
 ## 2. 类型词汇（对外）
 
 ### 2.1 双层引导（D6-3 v3 终定，用户图鉴反例修正）
-- **`UCombatDefLibrarySubsystem : UGameInstanceSubsystem`**——M1 DefLibrary 的宿主：
+- **`UTcsDefinitionSubsystem : UGameInstanceSubsystem`**——M1 DefLibrary（概念名，沿用设计词汇）的宿主（**类名收口 2026-09-21 两轮**：设计侧原写 `UCombatDefLibrarySubsystem` → 用户先拍 `UTcsDefLibrary` → 再定 `UTcsDefinitionSubsystem`。判据：①与族内风格一致（`Tcs` + 域 + `Subsystem`，如 `UTcsAttributeSubsystem` / `UTcsEffectSubsystem` / `UTcsDamageSubsystem`）；②**避免"Registry"一词**——该词已被**中央注册表**（`UCombatWorldRegistrySubsystem`，可变运行态 per-unit 桶）占用，且设计文档另有"定义注册表"（本类）与"链定义登记表"（领域子系统）两处混用，故新类名不再加重该词负担；`DefLibrary` 保留为**概念名**，与"概念名 `UTcsAttributeSubsystem` ↔ 文档'属性词表'"同款惯例）：
   - 加载（六域三策略：PreloadAll/PreloadSelected/OnDemand，配置继承 TCS 形态）→ 校验（重复/非法引用加载期报错）→ 按名解析；
   - **D3-2 就绪状态机住此**：`Unloaded→Loading→Ready/Failed(失败清单)`，Ready 广播至多一次且以全量成功为前提，**单出口派发**；
   - 服务图鉴/UI：无世界可查（用户 LAC 图鉴反例的直接落点——定义是 Const 内容，生命周期长于世界）。
+  - **装配到世界（2026-09-21 增补，跨级方向纪律）**：DefLibrary 是 GameInstance 级（跨世界存活），而定义**消费方**（如 `UTcsEffectSubsystem`）是 World 级（每世界重建）——故定义 MUST 由 DefLibrary **缓存**，并在**每个世界初始化时装配进该世界**（订阅 `FWorldDelegates::OnPostWorldInitialization`，幂等）。"ready 时对当时的 World 登记一次"会在关卡切换后丢失全部登记。R3 阶段发现机制用 `IAssetRegistry::GetAssetsByClass` 按类扫描（`PrimaryAssetTypesToScan` 注册属 M6 轮，见台账 R7-3）。
 - **`UCombatWorldRegistrySubsystem : UTickableWorldSubsystem`**——M3 中央注册表 + M0 泵接线的宿主：
   - 单位桶、实体状态机（`Unregistered→Registered→Loading→Ready→TornDown`）、到期堆接线；
   - **门禁 = 查询 `DefLibrary.IsRuntimeReady()`**（GameInstance 比 World 长寿，指针方向安全；失败清单透传给实体状态机 Failed 态）。
@@ -66,6 +67,7 @@
 - v1（2026-09-02）：初版决策折入（World 级加载方案）。
 - v2 增补（2026-09-02）：CombatEntity 命名与三职责、Mass 移出、双层引导（图鉴反例）、D6-3 解释增补。
 - v3 增补（2026-09-17，D2-14/D2-15 裁决折入）：组件第 2 职责补"AttributeSet 查询与切换入口"；新增"属性集合的施加时序"条（注册期 + 门禁之后 + 引擎不认识游戏模式）；DefLibrary 管辖面补 `UTcsAttributeSetAsset` 一族；入口服务补"当前 Set"查询。
+- v4 增补（2026-09-21，Task 5 前置讨论落档）：§2.1 DefLibrary 类名收口（`UCombatDefLibrarySubsystem` → **`UTcsDefinitionSubsystem`**，两轮拍板；`DefLibrary` 降为概念名）；新增"装配到世界"跨级方向纪律条（GameInstance 级缓存 + 每世界初始化装配，订阅 `OnPostWorldInitialization`）；R3 发现机制定为 `IAssetRegistry::GetAssetsByClass`（`PrimaryAssetTypesToScan` 注册入台账 R7-3，属 M6 轮）。
 - v2 定稿重写（2026-09-02）：全部增补折入正文（本文）。
 
 ## 9. 验收钩子

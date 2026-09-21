@@ -19,7 +19,11 @@ public class TcsIntegration : ModuleRules
 			"TcsAttribute",
 			"TcsEffect",
 			"TcsTargeting",
-			"TcsDamage"
+			"TcsDamage",
+			// 定义资产发现（UTcsDefinitionSubsystem 按类扫描）——Engine 里的那条是过渡期临时依赖
+			// （Engine.Build.cs:98 "Here until we update all modules using AssetRegistry to add a dependency on it"），
+			// 本模块显式声明，不靠 Engine 转发
+			"AssetRegistry"
 		});
 	}
 }

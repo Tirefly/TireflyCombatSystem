@@ -78,12 +78,12 @@
         TcsIntegrationLogChannel.h             （DECLARE_LOG_CATEGORY_EXTERN(LogTcsIntegration, Log, All)）
         Entity/TcsCombatEntityComponent.h     （身份锚/查询门面/手动触发 API）
         Entity/TcsEntityQuery.h               （ITcsEntityQuery 默认实现：PIE 枚举）
-        TcsDefLibrary.h                       （最小定义加载：链资产/流程模板注册）
+        TcsDefinitionSubsystem.h              （最小定义加载：链资产/流程模板注册）
       Private/
         TcsIntegrationLogChannel.cpp           （DEFINE_LOG_CATEGORY(LogTcsIntegration)）
         Entity/TcsCombatEntityComponent.cpp
         Entity/TcsEntityQuery.cpp
-        TcsDefLibrary.cpp
+        TcsDefinitionSubsystem.cpp
   Content/（PIE 测试地图 + 属性 DataTable + 测试链资产——执行期编辑器内建）
 ```
 
@@ -262,9 +262,9 @@ USTRUCT() struct FTcsStepDamage { FName FlowTemplateId;   // 空=默认模板；
 
 ---
 
-### Task 5: TcsIntegration——CombatEntity 接线与查询
+### Task 5: TcsIntegration——CombatEntity 接线与查询　**【已完成 2026-09-21】**
 
-**Files:** `Entity/TcsCombatEntityComponent.h(.cpp) / Entity/TcsEntityQuery.h(.cpp) / TcsDefLibrary.h(.cpp)`
+**Files:** `Entity/TcsCombatEntityComponent.h(.cpp) / Entity/TcsPieEntityQuery.h(.cpp) / TcsDefinitionSubsystem.h(.cpp) / Chain/TcsEffectChainDef.h(.cpp)`
 
 **Interfaces:**
 - Consumes: 全前序模块。
@@ -272,30 +272,81 @@ USTRUCT() struct FTcsStepDamage { FName FlowTemplateId;   // 空=默认模板；
 ```cpp
 UCLASS(ClassGroup=(Combat), meta=(BlueprintSpawnableComponent))
 class UTcsCombatEntityComponent : public UActorComponent
-	// 身份锚：RegisterUnit 到属性系统；查询门面：GetCurrent(FTcsAttributeName)/ApplyTestModifier(...)/RemoveTestSource(...)——D2-1 裸 FName 不进属性 API
-	// D2-15（2026-09-17 裁决）：本组件是 AttributeSet 的**引用点**（实体侧配置）——注册期按 Set 初始化属性（施加点 = RegisterEntity 之后、DefLibrary Ready 门禁之后），并暴露"当前 Set"查询与切换入口（换情景 = 宿主换引用）。R3 竖切无 Set 资产（属性由测试装置直接添加）。
+	// 身份锚：BeginPlay 门禁（定义库就绪）→ RegisterUnit；EndPlay → 映射摘除 + UnregisterUnit
+	// 查询门面：GetCurrent(FTcsAttributeName)/ApplyModifier(...)/RemoveBySource(...)——D2-1 裸 FName 不进属性 API
+	// D2-15（2026-09-17 裁决）：本组件是 AttributeSet 的**引用点**（实体侧配置）——R3 竖切无 Set 资产
+	//   （属性由测试装置直接添加）；ApplyAttributeSet/ClearAttributeSet 属 R7（台账 R7-1）
 	// 触发 API：ExecuteChainById(FName ChainId)（手动触发——R3 不做触发行）
-	// 挂 ITcsEntityQuery 提供方（注册进 Effect 层注入点）
 };
-UCLASS() class UTcsEntityQuery : public ITcsEntityQuery   // PIE 枚举：遍历带该组件的 Actor，存活过滤
+UCLASS() class UTcsPieEntityQuery : public UObject, public ITcsEntityQuery   // PIE 枚举：遍历带该组件的 Actor
 {
-	virtual void EnumerateEntities(TFunctionRef<void(AActor*)>) override;
+	virtual void EnumerateEntities(TFunctionRef<void(FTcsCombatEntityHandle)>) override;   // 稳定序 = 登记序
+	virtual bool GetLocation(FTcsCombatEntityHandle, FVector& Out) override;
+	virtual bool IsAlive(FTcsCombatEntityHandle) override;
+	// 宿主侧唯一的"句柄 ↔ Actor"映射点（组件注册时登记 / 注销时移除）
+	// **文件名与类名都必须与契约区分**（UHT 全项目头名唯一 + U 类名占用——编译实证见实施注记）
 };
-UCLASS() class UTcsDefLibrary : public UGameInstanceSubsystem   // 定义资产发现/登记（**加载职责边界**：DefLibrary 只做资产发现与注册，UTcsEffectSubsystem.LoadChainDefs 只消费已登记定义执行——链资产发现→DefLibrary，执行→Effect）
+UCLASS() class UTcsDefinitionSubsystem : public UGameInstanceSubsystem   // 概念名 DefLibrary（定义库）
 {
-	virtual void OnDefLibraryReady();   // 单出口 OnReady（M6 双层引导的最小版）
+	// 发现：IAssetRegistry::GetAssetsByClass（不依赖 PrimaryAssetTypesToScan 注册——属 M6 轮，见台账 R7-3）
+	// 缓存：链定义（Const）+ 失败清单；ResolveChain(FName)
+	// 装配：订阅 FWorldDelegates::OnPostWorldInitialization → 每世界装配进该世界 UTcsEffectSubsystem（幂等）
+	// 就绪：IsRuntimeReady / GetFailureList（单出口 = Initialize 内置位并派发——R3 同步版）
+};
+UCLASS(BlueprintType) class UTcsEffectChainDef : public UPrimaryDataAsset   // 链资产（资产轨，2026-09-21 拍板）
+{
+	// { FName ChainId; FTcsEffectChain Chain; } + 显式 PrimaryAssetType + GetPrimaryAssetId() 名取 ChainId
+	// IsDataValid：空 id / 双真相（Chain.ChainId != ChainId）→ Invalid
 };
 ```
 
-- [ ] **Step 1: UTcsCombatEntityComponent**（三职责最小实现）
-- [ ] **Step 2: UTcsEntityQuery**（ITcsEntityQuery 默认实现，注入 Effect 层）
-- [ ] **Step 3: UTcsDefLibrary 最小版**（OnReady 单出口；链定义加载）
-- [ ] **Step 4: 编译验证**
+- [x] **Step 1: UTcsCombatEntityComponent**（三职责最小实现）
+- [x] **Step 2: UTcsPieEntityQuery**（ITcsEntityQuery 默认实现，注入 Effect 层）
+- [x] **Step 3: UTcsDefinitionSubsystem 最小版**（就绪单出口；链资产发现 + 缓存 + 装配到世界）
+- [x] **Step 3b: UTcsEffectChainDef**（链资产类——收口交接注记①）
+- [x] **Step 4: 编译验证**
+
+> **2026-09-21 Task 5 实施注记（落地记录 + 三处引擎事实）**：
+> ①**交付清单**：`Chain/TcsEffectChainDef.h(.cpp)`、`Entity/TcsPieEntityQuery.h(.cpp)`、`Entity/TcsCombatEntityComponent.h(.cpp)`、`TcsDefinitionSubsystem.h(.cpp)`、`TcsIntegration.Build.cs`（加 `AssetRegistry` 依赖）、装置 `Private/Testing/TcsIntegrationTestRig.cpp`（**不入库**）。
+> ②**两处编译实证（均为引擎硬门槛，已入技能库）**：
+>   - **UHT 要求全项目头文件名唯一**：实现头原名 `Entity/TcsEntityQuery.h` 与 TcsEffect 的契约头 `Host/TcsEntityQuery.h` 撞名 → UHT 直接报 `Two headers with the same name is not allowed`（**不是 include 歧义、是 UHT 全局头名注册表去重**）。故实现头改名 `TcsPieEntityQuery.h`（类名 `UTcsPieEntityQuery` 同时避开契约的 U 类占用）。提案原写"同名不同模块、头注释写明即可"——**该判断有误，已修正**。
+>   - **`BlueprintType` 类上不能给"非 BlueprintType 结构体"字段加 `BlueprintReadOnly`**：`UPROPERTY(EditAnywhere, BlueprintReadOnly) FTcsEffectChain Chain` → UHT 报 `Type 'FTcsEffectChain' is not supported by blueprint`。修法 = 去掉 `BlueprintReadOnly` 保留 `EditAnywhere`（细节面板可编辑性只看 `CPF_Edit`，与 BlueprintType 无关——2026-09-20 已核），策划侧零损失、TcsEffect 零改动。
+> ③**运行时注册组件会走 BeginPlay**（装置夹具依赖）：`RegisterComponentWithWorld` → `AActor::HandleRegisterComponentWithWorld` 判 `HasActorBegunPlay() || IsActorBeginningPlay()`（`Actor.cpp:6429`）为真才调 `Component->BeginPlay()`（`:6449`）——故 PIE 运行期动态挂组件可正常完成注册。
+> ④**装置检查面**（`Tcs.Test.Integration`，**2026-09-21 用户 PIE 实测 7/0 全绿 + 零红字**）：定义库就绪 / 查询注入 / 组件身份锚（3 Actor 全注册）/ 查询门面（Health=100）/ 遍历吐句柄（3 个 + 两次顺序一致）/ 句柄解析定位与存活（含未登记句柄返回 false）/ 手动触发链扣血（100→70，`Record` Base=Final=Executed=30）。边界命令 `Tcs.Test.Integration.Reject`（**3/0**）：检查 A 门禁正向对照（定义库就绪 + 就绪时注册通过）；检查 B **故意**未登记链 id → Error 拒绝（红字为预期）。
+> ④b **首轮 8/0 含一条红字（用户两次指出后修正——本轮最值得记的一条）**：检查 7（"未登记链 id → Error 拒绝"）原住**主命令**，于是常规验收每次都有 `Error: UTcsEffectSubsystem::ExecuteChain: 链 ... 未登记——拒绝起链` 刷屏。**这不是缺陷，是设计错误**：故意触发失败输出的检查 MUST 独立成 opt-in 命令——本项目 **2026-09-18 已为"故意 ensure"立过同一原理**（见 README 检查点段），本轮**以 Error 日志形式复犯**。更值得警惕的是我当时的处理：在汇总里写"检查 7 的 Error 日志为**预期**"——**用一句注解把设计缺陷正当化了**，等于承认"常规验收可以有红字"。修正后主命令回归**零红字**（检查项 8 → 7），`.Reject` 自带"红字为预期"屏显声明。**纪律已泛化入 `unreal-development-workflow` 技能**：判据 = "常规验收命令的输出应当零红字，跑完只看 PASS/FAIL 行；任何以'某条 Error 是预期的'为注解的输出，都说明该检查放错了命令"；命名约定 `Tcs.Test.<域>`（零红字）/ `Tcs.Test.<域>.Reject`（自带声明）。
+> ⑤**验证覆盖面缺口（须在 Task 6 补上，勿被"全绿"掩盖）**：**DefLibrary 的自动发现路径未被实证**——`GetAssetsByClass` → 缓存 → 装配到世界这条链，在 R3 **没有内容资产文件**（全库无 `UTcsEffectChainDef` 实例），故装置检查 6 走的是**手动 `RegisterChain`**（与 Task 1-4 同款），而**不是**"资产被发现 → 自动登记 → 触发成功"。受影响的验收面：①本提案的 Scenario「链资产自动登记」与「新世界初始化后链仍可查（跨世界装配）」；②**验收剧本检查点 6（"零 C++ 加链"）**——它正是靠"策划只建资产、不改代码"来验数据驱动线。Task 6（内容资产版装置 + PIE 地图）会创建真实链资产，届时**这两条 Scenario + 检查点 6 应一并验收**（已写入 Task 6 Step 5）；`IsLoadingAssets()` / `WaitForCompletion()` 的异步扫描门也将在那时首次真实生效。
+> ⑥**未在本任务（归属已明）**：AttributeSet 全套（R7-1，含 `ApplyAttributeSet`/`ClearAttributeSet`）；加载层三策略 + 异步（R7-3）；流程模板资产化（T-8）；`PrimaryAssetTypesToScan` 注册（R7-3）。
 
 > **2026-09-18 Task 1 交接注记（两项需在本任务收口）**：
-> ①**链资产类落点**：Task 1 只交付登记 API（`RegisterChain` / `UnregisterChain` / `FindChain`，键 = `FTcsEffectChain::ChainId`）与执行入口，**没有链资产类**——本计划 File Structure 与本任务清单都未点名 `UTcsEffectChainDef` 的落点。DefLibrary 要做"资产发现与注册"，就需要一个可发现的资产类型 → **建议本任务补 `UTcsEffectChainDef : UPrimaryDataAsset`（字段 `DefId` + `FTcsEffectChain Chain`；`DefId` 登记时写入/校验 `Chain.ChainId`，按 2026-09-17 Def 命名标准与主资产身份规约）**，发现后经 `RegisterChain` 登记；若决定改用 DataTable 行轨（`<族>DefTableRow` 同款），同样在本任务定，勿留到 Task 6 内容创作期才发现没有载体。
+> ①**链资产类落点**：Task 1 只交付登记 API（`RegisterChain` / `UnregisterChain` / `FindChain`，键 = `FTcsEffectChain::ChainId`）与执行入口，**没有链资产类**——本计划 File Structure 与本任务清单都未点名 `UTcsEffectChainDef` 的落点。**已于 2026-09-21 拍板（用户）**：采用**资产轨**——`UTcsEffectChainDef : UPrimaryDataAsset`，字段 `{ FName ChainId; FTcsEffectChain Chain; }`，`static const FPrimaryAssetType PrimaryAssetType` 显式声明 + 覆写 `GetPrimaryAssetId()` 使**名取 `ChainId`**（遵 2026-09-17 的 Def 身份/命名标准：`<族>Def` 去 `Asset` 后缀、身份 = `[PrimaryAssetType, DefId]`、资产可改名移动不破坏解析）。**否决**：DataTable 行轨（链带嵌套 `FInstancedStruct` 步骤数组，单元格内嵌多态结构编辑体验差——行轨留给扁平词表）；双轨（M8 的双轨同步器负担不值得）。**登记时机**：**暂定 DefLibrary 发现并加载链资产后自动调 `RegisterChain`**（与"链资产发现 → DefLibrary、执行 → Effect"的既定分工一致）——开发时再议。
 > ②**接口 U 类名撞名**：Task 1 的 UINTERFACE 按 UE 约定占用了 `UTcsEntityQuery` / `ITcsEntityQuery` 这一对名（`ITcsEntityQuery::UClassType` 即 `UTcsEntityQuery`）。本任务 Step 2 原写"`UCLASS() class UTcsEntityQuery : public ITcsEntityQuery`"——**同名将导致两个模块各有一个 `UTcsEntityQuery` U 类**（反射库里重名、同 TU include 两者即重定义）。实现类请改名（如 `UTcsPieEntityQuery`）并同步本行文字。
 > ③**实体映射点（2026-09-20 句柄化后新增）**：实体查询实现（`ITcsEntityQuery` 三支能力：遍历吐**句柄** / `GetLocation` / `IsAlive`）是**宿主侧唯一的"句柄↔Actor"映射点**——`UTcsCombatEntityComponent` 注册实体时记录"自己拿到的句柄"并在此映射；机制层与内容资产都不碰映射（**句柄不得进内容资产**——授权约束已入规格侧提案钉名表）。装置里已有该写法的最小样板（自建映射 + 三支能力实现）。
+
+> **2026-09-21 Task 5 前置讨论落档（四条拍板 + 一条纪律，动工前已定）**：
+> ①**定义库类名 = `UTcsDefinitionSubsystem`**（两轮收口：设计侧原名 `UCombatDefLibrarySubsystem` → 先拍 `UTcsDefLibrary` → 再定本名）。判据：①族内风格一致（`Tcs` + 域 + `Subsystem`）；②**避开"Registry"**——该词已被中央注册表（可变运行态）占用，且文档另有"定义注册表"/"链定义登记表"两处混用，不再加重负担。`DefLibrary` 保留为**概念名**（沿用设计词汇，与"概念名 ↔ 实现类名"既有惯例一致）。06 文档 §2.1 已回写修正（v4 增补条）。
+> ②**发现机制 = `IAssetRegistry::GetAssetsByClass` 按类扫描**（否决"现在就注册 `PrimaryAssetTypesToScan`"与"硬引用清单"）：不提前替 M6 拍板注册时机；扫描失败显式可见（**已核引擎语义**：未注册类型走 AssetManager 的 `GetPrimaryAssetIdList` / `GetPrimaryAssetPath` 会**静默返回空**，无 log 无 ensure——`AssetManager.cpp:2134-2152`；而 `GetPrimaryAssetId()` 本身是纯函数不依赖注册，`DataAsset.cpp:73-122`）。`PrimaryAssetTypesToScan` 注册 + 切换 AssetManager 入台账 **R7-3**（M6 轮，AttributeSet 依赖它）。`Build.cs` 须加 `AssetRegistry` 依赖（`Engine.Build.cs:98` 那条是过渡期临时依赖）。
+> ③**登记时机 = 缓存 + 世界初始化装配**（否决"ready 时登记一次"与"组件惰性触发"）：**跨级方向问题**——DefLibrary 是 GameInstance 级（跨世界存活），而 `UTcsEffectSubsystem` 是 **World 级**（每世界重建）；"ready 时对当时的 World 登记一次"会在关卡切换后丢失全部链登记（R3 单地图 PIE 测不出，宿主首次切关卡必撞）。方案 = DefLibrary 缓存链定义（Const）+ 订阅 `FWorldDelegates::OnPostWorldInitialization` 在每个世界装配（幂等），正是 06 文档职责原话"**把定义库装配到世界**"。**时机已核**：`UWorld::InitWorld` 中 `InitializeSubsystems()`（`World.cpp:2447`）**早于** `OnPostWorldInitialization.Broadcast`（`2601`），故装配时 EffectSubsystem 已可用；委托声明见 `World.h:4488`（`DECLARE_MULTICAST_DELEGATE_TwoParams(FWorldInitializationEvent, UWorld*, const UWorld::InitializationValues)`）/`:4539`。
+> ④**`FInstancedStruct` 承载步骤的资产稳定性已核实**（本任务选资产轨的前提）：类型身份是**包 import 表索引**（`TObjectPtr<const UScriptStruct>` 序列化 → `FPackageIndex`，`InstancedStruct.cpp:199-234` / `:254-276`），解析走 linker 同步 import 路径（`LinkerLoad.cpp:5374`），**非名字字符串**；数据体走 **tagged property stream**（`SerializeItem` → `SerializeTaggedProperties`，`Class.cpp:3338-3421`）→ **加字段取默认值、删字段被 `Tag.Size` 安全跳过**（`Class.cpp:1956-1966`、`:2016-2018`）。**两条纪律**：a) 步骤 struct **MUST NOT** 加 `Atomic` / `Immutable` specifier（会退化成 `SerializeBin` 裸二进制，增删字段不安全）；b) **步骤 struct 类名改名 = 旧资产失联**（该步骤变空 + `LogCore` Warning，`InstancedStruct.cpp:237-248`），补救 = `[CoreRedirects] +StructRedirects`（须在 cook 前生效——cooked 构建下 `FixupLinkerImportMap` 被 `RequiresCookedData()` 短路，`LinkerLoad.cpp:2168`）。落到我们系统里类型失联是**可观测**的：链解释器 `Step.GetScriptStruct()` 空 → 无执行器 → Error + 断链（`TcsEffectSubsystem.cpp:205-215`），不会静默少打一次伤害。
+
+> **2026-09-21 增补：两个解释器、两套资产——对照说明（用户质询"链资产到底用来干嘛"的落档）**
+>
+> 用户的困惑合理：**链资产**与**流程模板**长得像（都是"有序步骤数组 + FInstancedStruct"），但它们是**两个解释器**的两套句子，服务不同问题域：
+>
+> | | **效果链**（`FTcsEffectChain` / `UTcsEffectChainDef`） | **伤害流程模板**（`FTcsFlowTemplate`，待改名 `FTcsDamageFlowTemplate`） |
+> |---|---|---|
+> | 解释器 | `UTcsEffectSubsystem`（World 级，**可挂起/唤醒**、跨帧） | `UTcsDamageSubsystem::RunTemplate`（**同步单帧**、无挂起） |
+> | 步骤集 | **15 原语**（D4-16）：控制流 6 + 战斗 6 + 表现与元 3；R3 只落 `WaitDelay`/`SelectTargets`/`Damage` | **标准十阶段**（D7-5）：CollectStart→PreHit→Hit→Crit→Element→BaseDamage→AfterDamage→PreExecute→Execute→Completed；R3 十步执行器**已全部落地** |
+> | 回答的问题 | **"这个技能/事件要做什么"**——顺序、分支、等待、多目标、多段 | **"一次伤害怎么结算"**——命中/暴击/元素/减伤/免疫/扣血的固定流程 |
+> | 谁的内容 | 策划创作（技能链、触发效果） | 插件自带官方默认模板（项目可整表替换，09 §2.2） |
+> | 资产形态 | **Task 5 落地**（`UTcsEffectChainDef`） | **T-8 台账**（等第一个真实内容需求） |
+>
+> **两者的连接点 = `FTcsStepDamage`（Damage 链原语）**：链走到 Damage 步时，它构造 `FTcsDamageFlowContext`（搬运 `BaseDamageInput` / `TargetAttrKey`）→ 调 `RunTemplate` 起一次伤害结算 → 流程走完返回，链继续下一步（`TcsStepDamage.cpp:24-68`）。所以：
+>
+> - **链是"句子"**："等 0.5 秒 → 选目标 → 造成 30 点伤害"——策划天天改；
+> - **流程模板是"伤害结算的句子"**："先算命中、再算暴击、再算元素、再算减伤、最后扣血"——插件给标准版，项目要改顺序/加阶段时才动；
+> - **步骤是"词汇"**（`FTcsStepDamage` / `FTcsFlowHit` 等）：**不是资产、不可配置**——扩展词汇 = 写新 step struct + 执行器（R0 §8 Authoring 第三层）。
+>
+> 三者关系：**链（技能编排）→ 链原语 Damage（搬运）→ 流程模板（结算编排）→ 流程步骤（结算词汇）**。资产化的合法边界：**句子可资产化**（链资产已做、流程模板待 T-8），**词汇不可资产化**（步骤 struct 恒为 C++）。
 
 ---
 
@@ -307,8 +358,11 @@ UCLASS() class UTcsDefLibrary : public UGameInstanceSubsystem   // 定义资产�
 - [ ] **Step 2: 测试链资产**（链=纯数据资产——检查点 6 的"零 C++ 加链"实证主体）
 - [ ] **Step 3: 测试公式 delegate + 2 个测试单位 + 地图**（编辑器内建，人工步骤；验收信号 = 测试装置订阅属性广播直调 `GEngine->AddOnScreenDebugMessage`）
 - [ ] **Step 4: 编译 + 打开 PIE 就绪**
+- [ ] **Step 5（2026-09-21 Task 5 追加）：DefLibrary 自动发现路径验收**——Step 2 建好真实链资产后，验：①资产**自动**被发现并登记（不调 `RegisterChain`，仅靠资产存在 → `FindChain` 可查）；②**跨世界装配**（切关卡/重开 PIE 后新世界的 `FindChain` 仍可查——Task 5 的 `OnPostWorldInitialization` 装配路径）；③双真相资产（`Chain.ChainId != ChainId`）被拒并进失败清单；④**检查点 6"零 C++ 加链"**端到端（建资产 → PIE 触发 → 生效，全程零代码改动）。**背景**：Task 5 装置全绿（8/0）但走的是**手动登记**——R3 无内容资产文件，自动路径未被实证（详见 Task 5 实施注记⑤）。
 
 > **2026-09-18 Task 1 交接注记**：Step 2 的"测试链资产"依赖 Task 5 定下的链资产载体（`UTcsEffectChainDef` 或行轨——见 Task 5 注记①）；检查点 6"零 C++ 加链"的成立条件 = 链资产在编辑器内可创作 + 经 `RegisterChain` 登记，登记 API 已在 Task 1 就位。竖切测试链的步骤形状：`FTcsStepWaitDelay{0.5}` → `FTcsStepSelectTargets`（Task 2）→ `FTcsStepDamage`（Task 4）。**验收信号走测试装置直调 UE API**（插件模块零屏显调用，D0-6 v2）。
+>
+> **2026-09-21 Task 5 收口注记（载体已定，本注记的前置问题已解）**：链资产载体 = **`UTcsEffectChainDef`（资产轨）**，类已落地（`Source/TcsIntegration/Public/Chain/TcsEffectChainDef.h`）；创作方式 = 编辑器内建 `UTcsEffectChainDef` 资产、填 `ChainId`（与 `Chain.ChainId` 一致）、在 `Chain.Steps` 里配步骤；**登记无需代码**——`UTcsDefinitionSubsystem` 在 GameInstance 初始化时自动发现（`GetAssetsByClass`）并缓存，每个世界初始化时装配进该世界的 `UTcsEffectSubsystem`。故本 Task 的"零 C++"是**真的零代码**：策划建资产即可，连 `RegisterChain` 都不用调（见 Step 5）。**注意**：Task 5 的装置命令走的是手动登记，自动路径由本 Task Step 5 首次实证。
 
 ---
 
