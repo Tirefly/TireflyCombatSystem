@@ -14,8 +14,9 @@
 /**
  * 伤害记录**已产出**事件 Tag（09 §2.4；按 `Tcs.Event.<域>.<事件名>` 公约原生声明，
  * 不进项目 Tag 表）——载荷 = `FTcsDamageRecord`，经总线**立即通道**同步派发（回放/统计/UI 数据源）。
+ * 带模块导出宏（宿主订阅必需——`UE_DECLARE_GAMEPLAY_TAG_EXTERN` 是裸 `extern`，见 `TcsDamageFlowCollectEvent.h` 说明）。
  */
-UE_DECLARE_GAMEPLAY_TAG_EXTERN(Tag_TcsEvent_Damage_Recorded);
+extern TCSDAMAGE_API FNativeGameplayTag Tag_Tcs_Event_Damage_Recorded;
 
 
 

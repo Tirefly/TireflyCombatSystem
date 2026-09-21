@@ -18,7 +18,12 @@
 // 属"框架协议"而非游戏词汇，由事件所属模块原生声明（TcsCore 不持战斗域词汇，见 01 §M0-min 的 Core 边界）。
 // 同域后续事件（属性上线/下线等）挂在本标签的父节点 `Tcs.Event.Attribute` 下。
 // 总线现状提示：**原生订阅为精确匹配**——父标签订阅需等原生层级匹配落地（已列总线开放项）；BP/CS 动态层已支持部分匹配。
-UE_DECLARE_GAMEPLAY_TAG_EXTERN(Tag_TcsEvent_Attribute_ValueChanged);
+//
+// **导出宏（2026-09-21 跨模块实证）**：`UE_DECLARE_GAMEPLAY_TAG_EXTERN` 展开为**裸 `extern`**（无
+// `__declspec(dllexport)`，`NativeGameplayTags.h:31`）——宿主/其他模块引用本变量会**链接失败**
+// （实测 `LNK2001 无法解析的外部符号 Tag_Tcs_Event_...`）。框架事件 Tag 的设计意图正是"供宿主订阅"，
+// 故本模块的 Tag 声明 MUST 带模块导出宏（同模块内的定义 TU 见到 dllexport 声明即导出符号，定义处零改动）。
+extern TCSATTRIBUTE_API FNativeGameplayTag Tag_Tcs_Event_Attribute_ValueChanged;
 
 
 

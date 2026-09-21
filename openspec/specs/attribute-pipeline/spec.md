@@ -119,7 +119,7 @@ TBD - created by archiving change add-tcsattribute-pipeline-and-transaction. Upd
 
 - 比较阈值 **epsilon = 1e-5**：`|NewValue - OldValue| <= 1e-5` 视为未变，**不广播**；
 - 事件形状 `FTcsAttributeChangedEvent{ Unit, Attribute, OldValue, NewValue }`（核心词汇 FStruct，走 TcsCore 总线；`Reason` 字段待有消费者再加）——语义是**当前值（对外可读值）变了**，不是"某次写操作发生了"：改基值 / 挂摘修正器 / 依赖连带变化都只在**当前值确实动了**时产生这一条事件，因此它 MUST NOT 被当作"基础值变更日志"（基础值改了但被值域收口吃掉 = 对外没变 = 不广播，与"未变不广播"一致）；
-- **事件 Tag 为原生 Tag `Tcs.Event.Attribute.ValueChanged`**（常量 `Tag_TcsEvent_Attribute_ValueChanged`，TcsAttribute 内声明——订阅方按它过滤）：命名公约 **`Tcs.Event.<域>.<事件名>`**（域段是真层级节点，同域后续事件如属性上线/下线挂 `Tcs.Event.Attribute` 下）；**原生**而非项目 Tag 表（插件自足、项目漏配不会静默丢事件）；由事件所属模块声明（TcsCore 不持战斗域词汇）。注意**原生订阅路径当前为精确匹配**——父标签订阅需等原生层级匹配落地（已列总线输入），期间原生消费者按叶子逐条订阅；BP/CS 动态层已支持部分匹配；
+- **事件 Tag 为原生 Tag `Tcs.Event.Attribute.ValueChanged`**（常量 `Tag_Tcs_Event_Attribute_ValueChanged`，TcsAttribute 内声明——订阅方按它过滤）：命名公约 **`Tcs.Event.<域>.<事件名>`**（域段是真层级节点，同域后续事件如属性上线/下线挂 `Tcs.Event.Attribute` 下）；**原生**而非项目 Tag 表（插件自足、项目漏配不会静默丢事件）；由事件所属模块声明（TcsCore 不持战斗域词汇）。注意**原生订阅路径当前为精确匹配**——父标签订阅需等原生层级匹配落地（已列总线输入），期间原生消费者按叶子逐条订阅；BP/CS 动态层已支持部分匹配；
 - 广播时机由事务控制（提交尾、行内 flush）——见 `attribute-transaction` 能力；同一提交内同一属性**最多广播一次**。
 
 #### Scenario: 变化才广播

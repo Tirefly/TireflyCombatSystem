@@ -325,7 +325,7 @@ void FTcsAttributePipeline::BroadcastChange(
 	Event.OldValue = OldValue;
 	Event.NewValue = NewValue;
 
-	BusSubsystem->PublishImmediate(Tag_TcsEvent_Attribute_ValueChanged, FInstancedStruct::Make(Event));
+	BusSubsystem->PublishImmediate(Tag_Tcs_Event_Attribute_ValueChanged, FInstancedStruct::Make(Event));
 }
 
 bool FTcsAttributePipeline::PushEvalStack(const FTcsAttributeName& Attribute)

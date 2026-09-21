@@ -350,15 +350,61 @@ UCLASS(BlueprintType) class UTcsEffectChainDef : public UPrimaryDataAsset   // �
 
 ---
 
-### Task 6: 测试装置 + PIE 地图（内容资产）
+### Task 6: 测试装置 + PIE 地图（内容资产）　**【已完成 2026-09-22：内容资产 + PIE 验收全项通过】**
 
-**Files:** `Content/R3_TestMap.umap`、测试单位 Actor BP（挂组件）、`属性表 R3_Attributes`（DataTable：Health/MaxHealth/Attack/Armor）、测试公式 delegate（**C++ 测试实现，落点 = `Source/TcsIntegration/Testing/` 测试装置目录**（plan1 Task 6 同款约定）：`max(1, Attack−Armor)`）、测试链资产（`WaitDelay 0.5 → SelectTargets(单体) → Damage`，纯数据）
+**Files（落地后的实际形态——与计划原文有四处偏离，见实施注记①）**：内容资产住**宿主项目** `Content/TcsDev/`（4 条 `UTcsAttributeDef` 属性资产 / 1 条 `UTcsEffectChainDef` 链资产 / 1 张地图 + 2 单位）；切片代码住**宿主项目独立模块** `Source/TcsDev/`（公式 delegate / 自研流程 2 步 / 装配 / 屏显观测 / `Tcs.Test.Slice.*` 命令）；插件侧仅新增 `FTcsSelSelf` 选择器 + 三处导出宏修正。
 
-- [ ] **Step 1: 属性 DataTable 4 行**（FName 键 + Base + Bounds——验 D2-1 数据行形态）
-- [ ] **Step 2: 测试链资产**（链=纯数据资产——检查点 6 的"零 C++ 加链"实证主体）
-- [ ] **Step 3: 测试公式 delegate + 2 个测试单位 + 地图**（编辑器内建，人工步骤；验收信号 = 测试装置订阅属性广播直调 `GEngine->AddOnScreenDebugMessage`）
-- [ ] **Step 4: 编译 + 打开 PIE 就绪**
-- [ ] **Step 5（2026-09-21 Task 5 追加）：DefLibrary 自动发现路径验收**——Step 2 建好真实链资产后，验：①资产**自动**被发现并登记（不调 `RegisterChain`，仅靠资产存在 → `FindChain` 可查）；②**跨世界装配**（切关卡/重开 PIE 后新世界的 `FindChain` 仍可查——Task 5 的 `OnPostWorldInitialization` 装配路径）；③双真相资产（`Chain.ChainId != ChainId`）被拒并进失败清单；④**检查点 6"零 C++ 加链"**端到端（建资产 → PIE 触发 → 生效，全程零代码改动）。**背景**：Task 5 装置全绿（8/0）但走的是**手动登记**——R3 无内容资产文件，自动路径未被实证（详见 Task 5 实施注记⑤）。
+- [x] **Step 1: 属性定义资产 4 条**（`UTcsAttributeDef` 资产轨——**非**计划原文的 DataTable，见注记①）——*已建并实测装载 4/4*
+- [x] **Step 2: 测试链资产**（`UTcsEffectChainDef`：`WaitDelay 0.5 → SelectTargets(Self) → Damage`——检查点 6 的"零 C++ 加链"实证主体）——*已建；检查 3 实测 3/3 步类型全可解析*
+- [x] **Step 3: 测试公式 delegate + 2 个测试单位 + 地图**（公式落宿主 `Source/TcsDev/`；验收信号 = `UTcsDevScreenObserver` 订阅属性/记录广播直调 `GEngine->AddOnScreenDebugMessage`）——*地图 `L_TcsDev_Slice` 已建（含 2 个单位）；屏显观测实测生效*
+- [x] **Step 4: 编译 + 打开 PIE 就绪**（插件与宿主各一次 UBT Development Editor，**零警告**）
+- [x] **Step 5（2026-09-21 Task 5 追加）：DefLibrary 自动发现路径验收**——命令 `Tcs.Test.Slice.Run` 的检查 1b/2/3 已就位；拒绝面（瞬态双真相资产 / 空身份 / 未登记链）在 `.Reject`。**PIE 实测通过（见注记⑨）**。
+
+> **2026-09-21 Task 6 实施注记（落地记录：四处口径收窄 + 两处框架缺陷 + 一处装置缺陷）**
+>
+> **① 四处落点/形态偏离计划原文（均经用户 2026-09-21 拍板）**：
+> - **切片代码落宿主独立模块 `Source/TcsDev/`**（用户指令："所有写入宿主项目 LAC 的代码，都统一放到 `TcsDev` 目录下，不作为 LAC 正式内容"）——计划原文写 `Source/TcsIntegration/Testing/`（装置目录）。**判据**：独立模块 = 可整体不构建/可整体删除/**LAC 正式模块零改动**（`git diff -- Source/LegendAutoChess/` 实测为空）；若落 `Source/LegendAutoChess/TcsDev/` 子目录，则 LAC 正式模块 `Build.cs` 必须加 TCS 依赖，与"不作为正式内容"相悖。
+> - **属性定义走资产轨（`UTcsAttributeDef`），非计划原文的 DataTable**：2026-09-17 双轨制定案后，DataTable 是**编辑期载体**、**运行期一律走资产**（`attribute-types` 规格明文"运行期零 DataTable 加载路径"）。计划原文写于该定案之前。
+> - **内容资产住宿主 `Content/TcsDev/`**（非插件 `Content/`）：竖切是宿主项目的样例；且内容引用的类型必须长于内容（链资产引用 `FTcsSelSelf` 等插件类型，成立）。
+> - **`FTcsSelSelf` 提前进 R3**（Task 2 曾拍"R3 框架零默认选择器"）：**动因 = 内容资产的类型稳定性**——`TInstancedStruct` 存类型身份（包 import 表索引），链资产若引用切片类型则切片退役后该步**静默变空**（降级只剩一条 `LogCore` Warning）。Task 2 那条口径当年**被明确排除在规格之外**（用户要求"规格只装系统真相"），故本任务是**纯 ADDED**、无需撤销任何已归档规格文字；设计 `10 §2.2` 本就写"框架提供 Self/EventTarget"（EventTarget 仍留 R5，依赖载荷→目标通路）。
+>
+> **② 两处跨模块链接缺陷（本任务照出的真实框架缺陷，已修）**——共同根因：**此前从无跨模块消费者**，故潜伏至今。
+> - **原生 Tag 声明缺导出宏**：`UE_DECLARE_GAMEPLAY_TAG_EXTERN` 展开为**裸 `extern`**（`NativeGameplayTags.h:31`，无 dllexport）→ 宿主引用即 `LNK2001`。修法：`TcsAttributeChangedEvent.h`（1）+ `TcsDamageFlowCollectEvent.h`（9）+ `TcsDamageRecord.h`（1）改 `extern TCS<模块>_API FNativeGameplayTag ...`（定义处零改动）。**判据**：框架事件 Tag 的设计意图正是"供宿主订阅"。
+> - **`FTcsFlowAttributes` 缺导出宏**：`Submit`/`Read` 是**宿主自研流程步骤的公共调用面**（既定用法）→ `LNK2019`。修法：`FTcsFlowAttributes` 与 `FTcsFlowAttributeSubmit` 加 `TCSDAMAGE_API`。
+> - **存量面**：其余公共 struct（`FTcsDamageFlowContext` / `FTcsConsumePolicy` / `FTcsAttributeStore` 等）纯内联或仅同模块使用，暂无需导出——**随首个跨模块消费者出现再逐个补**（已登记台账 **T-9**）。
+>
+> **③ 一处装置设计缺陷（自查发现，非编译报错）**：拒绝面检查 A 初稿拿 `RegisterChain` 的返回值当"双真相被拒"判据——**错**：`RegisterChain` 只校验 `ChainId` 非空与重复，**不做双真相校验**（双真相是**资产层**纪律，由 `UTcsEffectChainDef::IsDataValid` 与 `DefLibrary::DiscoverChainDefs` 承担）。该写法会**真的登记一条坏链并报 false pass**。修法：改为断言 `IsDataValid` 返回 `Invalid` 且错误数 > 0，并注释写明两条校验路径的分工。
+>
+> **④ 屏显接线（规格要求，初稿漏做）**：`UTcsDevScreenObserver` 初稿只定义类**没订阅**。修法：`UTcsDevBootstrap::SubscribeScreenObserver` 订阅两个原生事件（立即通道），观测者由 Bootstrap 持 `UPROPERTY` 强引用（总线订阅表持**弱引用**，不阻止 GC——`TcsEventBus.h:65`）。
+>
+> **⑤ 内容资产的 `FlowTemplateId` 与公式的关系（会误导验收的坑，已写进建立指南 §4.4）**：切片装配登记的 `Default_Slice` 带公式 delegate → `CalculateBaseDamage` 把链上 `DamageBase` **替换**为 `max(1, Attack−Armor)`。故**带公式模板下改 `DamageBase` 不改变扣血量**——检查点 6 的"改数值零 C++ 生效"须把链指向**无公式的 `Default`**（或改属性资产走公式输入）。指南给两种做法并建议各跑一次。
+>
+> **⑥ 装置退役的执行（用户 2026-09-21 拍板"六套全删"）**：`Source/*/Private/Testing/` 六套 12 文件已删（该目录本就不入库，故 git 无删除痕迹——与"临时件不入库"约束一致）。**显式代价（不藏）**：其中 `TcsCoreTestRig` / `TcsAcceptanceRig`（TcsAttribute）属 plan1，覆盖检查点 2/3/4 与核心句柄/事件/时钟——**内容版装置替代不了**这些覆盖（它们测的是"批内 0 条广播""同属性两次变更只 1 条广播"这类机制内省），删除后 R3 内**无回归网**；其结论已随 plan1 归档，Task 7 不重验。
+>
+> **⑦ 验证状态**：**编译零警告**（插件 + 宿主，Development Editor）；**LAC 正式模块零改动**（`git diff -- Source/LegendAutoChess/` 实测为空）。**内容资产与 PIE 验收已于 2026-09-22 全项通过**（见注记⑨）——本注记原记的"未执行"状态已失效，保留以见演进。
+>
+> **⑧ 未在本任务**：AttributeSet 全套（R7-1）；加载层三策略 + `PrimaryAssetTypesToScan`（R7-3）；流程模板资产化 + 模板登记表 GC 持有（T-8）；属性资产的 DefLibrary 多族发现（**决策点已定**：本任务走"切片侧自行扫描装载"，DefLibrary 保持只管链资产的既有规格——若将来纳入需开 `integration-entity` 增量提案）。
+>
+> **⑨ 2026-09-22 内容资产 + PIE 验收（全项通过；含一处装置缺陷修复 + 两处新实证）**：
+>
+> **验收结果（全部实测，非推断）**：
+> - **`Tcs.Test.Slice.Run`：10/10 全绿、零红字**（检查 0/1a/1b/2/3/4/5/6/7a + 延迟判定 7b）。关键读数：属性装载 4/4；链资产发现 1 个；`Attack=30.0 / Armor=5.0 / Health=100.0`；宿主自研流程扣血 `100.0 → 75.0`（`max(1, 30−5)`）；链起链成功且 `WaitDelay` 到期后续走扣血生效。
+> - **`Tcs.Test.Slice.Reject`：3/3 全过**——双真相资产被 `IsDataValid` 拒（1 条错误）/ 空 `ChainId` 被登记 API 拒 / 未登记链 id 触发被拒（Error 日志 + 无效句柄，不崩溃）。三条预期红字均命中，且**只**出现在本 opt-in 命令内。
+> - **检查点 6 端到端（零 C++ 改数值）：通过**——链资产 `FlowTemplateId` 改指无公式的 `Default`、`DamageBase` 30 → 45，重跑后扣血 **25.0 → 45.0**（严格跟随资产数值）。对照：带公式的 `Default_Slice` 下 `DamageBase` 被 `max(1, Attack−Armor)` 替换，故改它不影响扣血（注记⑤预告的坑，实测复现）。
+> - **§4.3 跨世界装配：通过**——PIE 运行中控制台 `open L_TbnsShowcase` 切到另一插件的地图，重跑 `Tcs.Test.Slice.Run` **10/10 全绿**，检查 1b/2 仍通过。**决定性证据**：切图后日志只有 `已装配到世界 L_TbnsShowcase——链定义 1/1 条`，**没有**"发现链资产"行 → 定义库（GameInstance 级）未重扫、直接拿缓存装配进新世界（旧世界 `CleanupWorld` → 新世界装配，同进程同 GameInstance）。
+>
+> **⑨-A 一处装置缺陷（读码自查发现，已修 + 编译 + 实证）——检查 7b 读错实体**：链上的 `SelectTargets(Self)` 执行器是"**清空后写回**"（`TcsStepSelectTargets.cpp`：`Context.Targets = MoveTemp(PassedTargets)`），会把目标集**替换**为施法者自身；故该链的扣血落在**施法者**身上。而初稿的延迟判定读的是**目标**的 Health——**7b 会恒 FAIL**（目标的生命只被检查 6 改过，本链一点没碰它），且 7a 文案已写"目标 = 施法者自身"、7b 却读目标，**断言与语义自相矛盾**。修法：`ChainHealthBefore` 与延迟回调的读取对象由 `TargetHandle` 改为 `CasterHandle`，文案同步改为"施法者"。**实证**：修复后 7b 读到 `施法者 Health 100.0 → 55.0（实际扣 45.0）`——修复前该行必然显示 0 伤害。
+> - **教训归属**：这是"装置全绿 ≠ 新能力已验证"的**镜像情形**——装置**恒红**同样不是被测对象的问题。判据：断言读的实体必须与"被测语义"一致；链上选择器改写了目标集时，判定点必须跟着改写。
+>
+> **⑨-B 两处新实证（Task 5 遗留缺口已闭合）**：
+> - **DefLibrary 自动发现路径首次真实生效**：Task 5 注记⑤列的三条受影响验收面（Scenario「链资产自动登记」/「新世界初始化后链仍可查」/ 检查点 6）**全部随本轮验收闭合**——检查 1b 实证"未调 `RegisterChain` 而链被缓存"，检查 2 实证"世界装配可查"，且 `IsLoadingAssets()` / `WaitForCompletion()` 异步扫描门首次在有资产的真实场景下生效。
+> - **关卡加载期组件注册路径（装置走不到的路径）**：用户在地图 `L_TcsDev_Slice` 里摆了 2 个单位，日志实测 `已注册实体 StaticMeshActor_1/2（句柄 1/2）`——**关卡加载期 `BeginPlay` 注册**，与装置"运行时 `SpawnActor` + `AddInstanceComponent`"是**两条不同路径**。该路径通了，且**就绪门禁在真实路径上成立**（装配 `18.15.42.567` 早于组件注册 `:595`，无 Warning 跳过）。这是本轮验收中"装置永远覆盖不到"的覆盖面增量。
+>
+> **⑨-C 验收操作方式（可复用）**：本轮由 agent 经 **UE MCP** 直接驱动——`DataAssetTools.create` + `ObjectTools.set_properties` 建资产（`FInstancedStruct` 用 `{"_structType": "/Script/<模块>.<StructName>", ...}` 写入），`EditorAppToolset.StartPIE/StopPIE` 控 PIE，命令经 Output Log 底部 `Cmd` 输入行（Slate ref）提交，结果读 `LogsToolset.GetLogEntries`。**注意**：编辑器内**原生模态对话框（如 Save Level As）会阻塞游戏线程 → 所有 MCP 调用超时**，须由人工操作或绕 Win32 输入。
+>
+> **⑨-D 归档**：`openspec archive add-content-slice-rig --yes` 已执行——delta（`targeting-strategy` ADDED × 1：内置 Self 选择器）应用到 `openspec/specs/targeting-strategy/spec.md`；归档目录 `openspec/changes/archive/2026-09-21-add-content-slice-rig/`。规格库自检 `openspec validate --specs --strict` **22/22 全绿**。
+>
+> **⑨-E 一条验收判据需修正（记录在案，不藏）**：任务清单 5.5 原写"宿主自研流程生效 **且插件 `git diff --stat` 为空**"——**该字面判据已失效**：本轮照出两处真实框架缺陷（原生 Tag 与 `FTcsFlowAttributes` 缺导出宏）并新增 `FTcsSelSelf`，插件 diff **不空**。判据的**真实意图**（"宿主自研流程无需插件为它改动"）**已达成**——检查 6 实证 `Slice_Flow` 两个宿主自研步骤零插件默认步骤依赖生效；插件侧的改动是**框架存量缺陷修复**（宿主作为首个跨模块消费者照出），与"宿主自研能力"无关。教训：**判据要写它真正要拦的东西**——"diff 为空"拦的是"框架被迫为宿主特化"，而不是"框架有 bug 要修"。
 
 > **2026-09-18 Task 1 交接注记**：Step 2 的"测试链资产"依赖 Task 5 定下的链资产载体（`UTcsEffectChainDef` 或行轨——见 Task 5 注记①）；检查点 6"零 C++ 加链"的成立条件 = 链资产在编辑器内可创作 + 经 `RegisterChain` 登记，登记 API 已在 Task 1 就位。竖切测试链的步骤形状：`FTcsStepWaitDelay{0.5}` → `FTcsStepSelectTargets`（Task 2）→ `FTcsStepDamage`（Task 4）。**验收信号走测试装置直调 UE API**（插件模块零屏显调用，D0-6 v2）。
 >

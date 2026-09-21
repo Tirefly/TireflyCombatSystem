@@ -15,17 +15,17 @@
 
 
 // 流程收集事件 Tag 全集（原生声明——不进项目 Tag 表）
-UE_DEFINE_GAMEPLAY_TAG(Tag_TcsEvent_Damage_FlowStarted, "Tcs.Event.Damage.FlowStarted");
-UE_DEFINE_GAMEPLAY_TAG(Tag_TcsEvent_Damage_PreHit, "Tcs.Event.Damage.PreHit");
-UE_DEFINE_GAMEPLAY_TAG(Tag_TcsEvent_Damage_Hit, "Tcs.Event.Damage.Hit");
-UE_DEFINE_GAMEPLAY_TAG(Tag_TcsEvent_Damage_Crit, "Tcs.Event.Damage.Crit");
-UE_DEFINE_GAMEPLAY_TAG(Tag_TcsEvent_Damage_Element, "Tcs.Event.Damage.Element");
-UE_DEFINE_GAMEPLAY_TAG(Tag_TcsEvent_Damage_AfterDamage, "Tcs.Event.Damage.AfterDamage");
-UE_DEFINE_GAMEPLAY_TAG(Tag_TcsEvent_Damage_PreExecute, "Tcs.Event.Damage.PreExecute");
-UE_DEFINE_GAMEPLAY_TAG(Tag_TcsEvent_Damage_Completed, "Tcs.Event.Damage.Completed");
+UE_DEFINE_GAMEPLAY_TAG(Tag_Tcs_Event_Damage_FlowStarted, "Tcs.Event.Damage.FlowStarted");
+UE_DEFINE_GAMEPLAY_TAG(Tag_Tcs_Event_Damage_PreHit, "Tcs.Event.Damage.PreHit");
+UE_DEFINE_GAMEPLAY_TAG(Tag_Tcs_Event_Damage_Hit, "Tcs.Event.Damage.Hit");
+UE_DEFINE_GAMEPLAY_TAG(Tag_Tcs_Event_Damage_Crit, "Tcs.Event.Damage.Crit");
+UE_DEFINE_GAMEPLAY_TAG(Tag_Tcs_Event_Damage_Element, "Tcs.Event.Damage.Element");
+UE_DEFINE_GAMEPLAY_TAG(Tag_Tcs_Event_Damage_AfterDamage, "Tcs.Event.Damage.AfterDamage");
+UE_DEFINE_GAMEPLAY_TAG(Tag_Tcs_Event_Damage_PreExecute, "Tcs.Event.Damage.PreExecute");
+UE_DEFINE_GAMEPLAY_TAG(Tag_Tcs_Event_Damage_Completed, "Tcs.Event.Damage.Completed");
 
 // 伤害记录事件 Tag（原生声明；载荷 = FTcsDamageRecord）
-UE_DEFINE_GAMEPLAY_TAG(Tag_TcsEvent_Damage_Recorded, "Tcs.Event.Damage.Recorded");
+UE_DEFINE_GAMEPLAY_TAG(Tag_Tcs_Event_Damage_Recorded, "Tcs.Event.Damage.Recorded");
 
 // 记录环形缓冲容量（R3 常量；改容量随统计需求轮）
 namespace
@@ -224,7 +224,7 @@ void UTcsDamageSubsystem::AppendRecord(FTcsDamageRecord& Record)
 		{
 			FInstancedStruct PayloadStruct;
 			PayloadStruct.InitializeAs<FTcsDamageRecord>(Record);
-			BusSubsystem->PublishImmediate(Tag_TcsEvent_Damage_Recorded, PayloadStruct);
+			BusSubsystem->PublishImmediate(Tag_Tcs_Event_Damage_Recorded, PayloadStruct);
 		}
 	}
 

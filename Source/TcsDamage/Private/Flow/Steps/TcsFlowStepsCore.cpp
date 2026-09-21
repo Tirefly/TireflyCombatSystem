@@ -72,7 +72,7 @@ namespace
 
 		if (UTcsDamageSubsystem* Owner = ResolveFlowOwner(Context))
 		{
-			Owner->PublishCollectEvent(Tag_TcsEvent_Damage_FlowStarted, Context);
+			Owner->PublishCollectEvent(Tag_Tcs_Event_Damage_FlowStarted, Context);
 		}
 		return true;
 	}
@@ -235,7 +235,7 @@ namespace
 		// 完成收集事件（宿主挂点：结算后表现/统计——记录事件在 AppendRecord 内已发）
 		if (UTcsDamageSubsystem* CompletedOwner = ResolveFlowOwner(Context))
 		{
-			CompletedOwner->PublishCollectEvent(Tag_TcsEvent_Damage_Completed, Context);
+			CompletedOwner->PublishCollectEvent(Tag_Tcs_Event_Damage_Completed, Context);
 		}
 
 		return true;

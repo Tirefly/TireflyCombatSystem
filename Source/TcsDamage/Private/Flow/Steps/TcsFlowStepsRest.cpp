@@ -58,7 +58,7 @@ namespace
 			return true;
 		}
 
-		BroadcastFlowRestCollect(Context, Tag_TcsEvent_Damage_PreHit);
+		BroadcastFlowRestCollect(Context, Tag_Tcs_Event_Damage_PreHit);
 		return true;
 	}
 
@@ -79,7 +79,7 @@ namespace
 		}
 
 		// 修改器可在收集事件后改写 `HitRate` 键（宿主挂点）
-		BroadcastFlowRestCollect(Context, Tag_TcsEvent_Damage_Hit);
+		BroadcastFlowRestCollect(Context, Tag_Tcs_Event_Damage_Hit);
 		const double Modified = Context.Blackboard.Read(TEXT("HitRate")) > 0.0
 			? Context.Blackboard.Read(TEXT("HitRate"))
 			: HitRate;
@@ -104,7 +104,7 @@ namespace
 			CritRate = Step->Delegate->GetBaseCritRate(Context.Attacker, Target, Context);
 		}
 
-		BroadcastFlowRestCollect(Context, Tag_TcsEvent_Damage_Crit);
+		BroadcastFlowRestCollect(Context, Tag_Tcs_Event_Damage_Crit);
 		const double Modified = Context.Blackboard.Read(TEXT("CritRate")) > 0.0
 			? Context.Blackboard.Read(TEXT("CritRate"))
 			: CritRate;
@@ -132,7 +132,7 @@ namespace
 			}
 		}
 
-		BroadcastFlowRestCollect(Context, Tag_TcsEvent_Damage_Element);
+		BroadcastFlowRestCollect(Context, Tag_Tcs_Event_Damage_Element);
 		return true;
 	}
 
@@ -145,7 +145,7 @@ namespace
 			return true;
 		}
 
-		BroadcastFlowRestCollect(Context, Tag_TcsEvent_Damage_AfterDamage);
+		BroadcastFlowRestCollect(Context, Tag_Tcs_Event_Damage_AfterDamage);
 		return true;
 	}
 
@@ -159,7 +159,7 @@ namespace
 		}
 
 		// 候选（免疫/减伤）落进 `Step->CandidateKey`——⑨ 按 SortKey 裁决、成功才消费
-		BroadcastFlowRestCollect(Context, Tag_TcsEvent_Damage_PreExecute);
+		BroadcastFlowRestCollect(Context, Tag_Tcs_Event_Damage_PreExecute);
 		return true;
 	}
 

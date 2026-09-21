@@ -36,9 +36,8 @@ struct FTcsConsumePolicy
  * 与 M2 账本同款纪律（D2-13：运行侧账本恒为已解析规范值，但求值发生在重算/读取时点，
  * 以便引用型操作数先读到最新依赖值）。
  */
-struct FTcsFlowAttributeSubmit
-{
-	// 运算带（带序唯一真相）
+struct TCSDAMAGE_API FTcsFlowAttributeSubmit
+{	// 运算带（带序唯一真相）
 	ETcsAttributeOp Op = ETcsAttributeOp::TAO_Add;
 
 	// 操作数（提交态书写值/引用；读时求值）
@@ -60,8 +59,12 @@ struct FTcsFlowAttributeSubmit
  *
  * 键 = 项目词表（内建步骤读写的键名是标准步骤库的契约；项目键自由 FName，无注册表）。
  * 生命周期 = 每流程一份（随上下文释放；无跨流程状态）。
+ *
+ * **导出宏（2026-09-21 跨模块实证）**：本容器的 `Submit` / `Read` 是**宿主自研流程步骤的公共调用面**
+ * （宿主在自己的步骤里读写黑板是既定用法）——无导出宏则宿主模块链接失败（实测 `LNK2019`）。
+ * 同文件的 `FTcsFlowAttributeSubmit`（被 `FindSubmits` 返回）同此。
  */
-struct FTcsFlowAttributes
+struct TCSDAMAGE_API FTcsFlowAttributes
 {
 // 提交与读取
 #pragma region Access
