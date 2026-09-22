@@ -412,11 +412,80 @@ UCLASS(BlueprintType) class UTcsEffectChainDef : public UPrimaryDataAsset   // �
 
 ---
 
-### Task 7: 端到端验收（检查点 1/5/6/7 + 日志附加）
+### Task 7: 端到端验收（检查点 1/5/6/7 + 日志附加）　**【已完成 2026-09-22：六步全通过】**
 
-- [ ] **Step 1: 检查点 1 数值**：触发链 → 屏显 `damage = max(1, Attack−Armor)`；Health clamp 到 0
-- [ ] **Step 2: 检查点 5 铁律 grep**：反向 include 逐模块枚举——`Select-String -Path Source\TcsCore\* -Pattern 'TcsAttribute|TcsNotation|TcsEffect|TcsTargeting|TcsDamage|TcsIntegration'` 应零命中；同法抽查 TcsEffect 不得含 TcsDamage/TcsTargeting；实例数据文件无 TSubclassOf；依赖边对照 R0 §9 表（最小编译集口径）
-- [ ] **Step 3: 检查点 6 数据驱动线**：复制测试链资产改 Damage 参数数值 → 触发生效，**零 C++ 改动**
-- [ ] **Step 4: 检查点 7 ScaledDt**：`slomo 0.1` 下 WaitDelay 到期减速；pause 冻结（Output Log `LogTcsCore`/`LogTcsEffect` 时间戳对照）
-- [ ] **Step 5: 日志附加**：UE 原生分类控制生效（`log LogTcsDamage Verbose` 开启流程追踪、恢复默认）；屏显仅测试装置产生（插件模块零屏显调用）
-- [ ] **Step 6: 全量编译（Development + Shipping 配置各一次）→ 停点交付人工检查单全项**（提交经用户授权）
+- [x] **Step 1: 检查点 1 数值**：触发链 → 屏显 `damage = max(1, Attack−Armor)`；Health clamp 到 0——***通过**（见注记①；公式数值与 clamp 到 0 两个半边均实证，多链按 id 选链亦实证）*
+- [x] **Step 2: 检查点 5 铁律 grep**：反向 include 逐模块枚举——`Select-String -Path Source\TcsCore\* -Pattern 'TcsAttribute|TcsNotation|TcsEffect|TcsTargeting|TcsDamage|TcsIntegration'` 应零命中；同法抽查 TcsEffect 不得含 TcsDamage/TcsTargeting；实例数据文件无 TSubclassOf；依赖边对照 R0 §9 表（最小编译集口径）——***通过**（见注记②）*
+- [x] **Step 3: 检查点 6 数据驱动线**：复制测试链资产改 Damage 参数数值 → 触发生效，**零 C++ 改动**——*Task 6 已验（扣血 25→45），本轮标为已覆盖*
+- [x] **Step 4: 检查点 7 ScaledDt**：`slomo 0.1` 下 WaitDelay 到期减速；pause 冻结（Output Log `LogTcsCore`/`LogTcsEffect` 时间戳对照）——***通过**（见注记④；两半边均实证——`slomo 0.1` 实测实时:战斗 = 10:1，`pause` 实测 `Elapsed` 完全冻结）*
+- [x] **Step 5: 日志附加**：UE 原生分类控制生效（`log LogTcsDamage Verbose` 开启流程追踪、恢复默认）；屏显仅测试装置产生（插件模块零屏显调用）——***通过**（判据需修正，见注记③）*
+- [x] **Step 6: 全量编译（Development + Shipping 配置各一次）→ 停点交付人工检查单全项**（提交经用户授权）——***两配置均通过**：Shipping 首跑照出 2 个真实缺陷（已修，见注记⑤）；Development 最终一次真实 UBT 编译写回基线 DLL（见注记⑥）*
+
+> **2026-09-22 Task 7 执行注记（Step 2/3/5/6 完成 + Step 1 核心结论 + 两处判据修正）**
+>
+> **① Step 1（检查点 1）通过**——新建 `DA_FormulaChain`（`ChainId` = `Formula_Chain`，步骤 `WaitDelay(0.5)` → `SelectTargets(Self)` → **5×**`Damage`，模板 `Default_Slice` 带公式）后跑 `Tcs.Test.Slice.Run Formula_Chain`，**10/10 全绿（即时 9/0 + 7b PASS）**：
+>
+> **判读点逐条命中（干净重跑，装置与源码一致）**：
+>
+> | 判读点 | 实测 | 证明 |
+> |---|---|---|
+> | 「受测链 = Formula_Chain」提示行 | 出现 | 新命令签名（`FAutoConsoleCommandWithWorldAndArgs`）生效 |
+> | 链名 = `Formula_Chain` | 正确 | **按 id 精确选链**生效（不再是"取第一条"的 TSet 哈希序） |
+> | 7b 读**施法者**（非"目标"） | `链 Formula_Chain：施法者 Health 100.0 → 0.0` | Task 6 的 7b 修复生效 |
+> | 实际扣 **100.0** 而非 125 | 钳住 | **clamp 到 0 生效**（5×25=125 被钳在 0） |
+> | `DamageBase = 30.0` 而扣 100 | 一致 | **公式替换生效**（`max(1,30−5)=25`，非原样 30） |
+> | 7b `[PASS]` | ✓ | 装置与语义一致 |
+>
+> **伤害记录（5 次全同，即公式的逐次证据）**：
+>
+> | # | 输入 | 最终 | 执行 | 施法者 Health |
+> |---|---|---|---|---|
+> | 1 | 30.000 | **25.000** | 25.000 | 100 → 75 |
+> | 2 | 30.000 | **25.000** | 25.000 | 75 → 50 |
+> | 3 | 30.000 | **25.000** | 25.000 | 50 → 25 |
+> | 4 | 30.000 | **25.000** | 25.000 | 25 → **0** `[击杀]` |
+> | 5 | 30.000 | **25.000** | 25.000 | **0**（钳住）`[击杀]` |
+>
+> - **公式 `max(1, Attack−Armor)` 生效**：输入 30 但执行 **25**（差额 −5 = 护甲）✓
+> - **Health clamp 到 0 生效**：第 4 次落到 **0**，第 5 次**仍为 0**（未变 −25）✓
+> - **多链共存 + 按 id 选链**（原验收只有单链）：同会话两跑对照——`Formula_Chain` → 扣 100.0、`Slice_Chain`（默认参数）→ 扣 45.0，**各自与自己的资产配置一致**；检查 1a `2 个` / 1b `2/2` / 2 `2/2` / 3 `10/10 步` ✓
+> - **未验到的半边（如实记）**：公式的**下限**半边（`Attack ≤ Armor` 时取 1）本链验不到——`Self` 选择器把目标集换成施法者，而施法者 Attack=30 / Armor=5 恒得 25；要验下限需让 Armor > Attack（动共享属性资产），**留待需要时单做**。
+>
+> **② Step 2（检查点 5 铁律）通过**——精确 `grep "^#include"` 复验：`TcsCore` 零反向 include、`TcsEffect` 零 `TcsDamage`/`TcsTargeting`、`TcsAttribute` 零上层模块、全库零 `TSubclassOf`；依赖边与 R0 §9 表一致。**方法要点**：粗 grep（不限 `^#include`）会把**注释文本**里提到的模块名当成违规命中（本次初跑各命中 2–3 处，全是文档注释），必须用 `^#include` 精确匹配——否则会误判。
+>
+> **③ Step 5 的判据需修正（原文与已归档规格冲突）**——原判据"屏显仅测试装置产生（**插件模块零屏显调用**）"**与 `damage-record-inspection` 规格冲突**：该规格**明文要求** `Tcs.Damage.DumpRecords` 走屏显（`MUST ... + 屏显（GEngine->AddOnScreenDebugMessage）`）。判据写于该命令入库之前（Task 4 追加交付），未随规格更新。**判据的真实意图** = "竖切验收信号不得由插件代劳"；按此重验**通过**：插件三处屏显调用**全在 `DumpDamageRecords` 一个函数内**（规格要求），验收信号由装置产生（`TcsDevScreenObserver` 订阅总线 + `TcsDevSliceRig` 判定行各自打屏显）。——**同 `MEM-20260922-02`（判据要写它真正要拦的东西）**。
+>
+> **④ Step 4（检查点 7 ScaledDt）通过——观测方法 = 日志时间戳对照（零新代码）**：plan1 验检查点 7 用的 `Tcs.Test.Clock` 装置**已随六套临时装置退役删除**（Task 6 注记⑥只记了"检查点 2/3/4 回归网消失"，**漏记检查点 7 的观测工具也一并消失**）。本轮改用**零新代码**方案：开 `log LogTcsCore Verbose`，日志每条自带**实时时间戳**、正文含 `Elapsed`（战斗时间），两者对照即验 ScaledDt。
+>
+> **观测载体**：`UTcsClockSubsystem::HandleWorldTickStart`（`TcsClockSubsystem.cpp:54-74`）的 Verbose 日志 `泵推进 Frame=N DeltaSeconds=X Elapsed=Y`——其中 `:63` 是 pause 语义的显式实现：`const double RawDeltaSeconds = World->IsPaused() ? 0.0 : DeltaSeconds;`
+>
+> **slomo 半边（实测，`slomo 0.1`）**：
+>
+> | 实时时间戳 | 实时增量 | `DeltaSeconds` | `Elapsed` 增量 |
+> |---|---|---|---|
+> | 05:21:24:137 | — | 0.033336 | 47.067995 |
+> | 05:21:25:805 | 1.668s | 0.033333 | +0.066666 |
+> | 05:21:26:804 | 0.999s | 0.033333 | +0.033333 |
+> | 05:21:27:805 | 1.001s | 0.033333 | +0.033333 |
+>
+> **换算**：实时每秒 3 帧（帧间隔 ≈0.333s），每帧战斗时间 0.033333s → 实时 1.0s = 战斗 **0.1s** → **实时:战斗 = 10:1** ✓ 与 `slomo 0.1`（`TimeDilation = 0.1`）严格一致——**`ScaledDt` 语义成立**（战斗时钟按时间膨胀缩放，而非按实时推进）。
+>
+> **pause 半边（实测）**：
+>
+> | 时间戳 | `DeltaSeconds` | `Elapsed` | Frame |
+> |---|---|---|---|
+> | 05:22:28:805 | **0.000000** | 49.601378 | 472 |
+> | 05:22:32:471 | **0.000000** | **49.601378**（一字未变） | 483 |
+>
+> **跨 12 帧 / 3.7 秒实时，`Elapsed` 完全冻结**（`DeltaSeconds` 全 0），而 `Frame` 仍递增——正是 `:63` 的实现语义：**泵仍在走（帧号推进），但战斗时间冻结** ✓
+>
+> **副产物**：`WaitDelay` 的到期基准就是 `Clock.Elapsed`（`PushExpiry` 用它算 DueTime），故时钟冻结 ⇒ **到期队列同步冻结**（剧本原文要验的正是这条链：World 暂停/降速 → 到期队列同步冻结/减速，消费者 = 测试链的 WaitDelay 步骤）。
+>
+> **方法评价**：本方案零新代码、不需重启编辑器、精度足够（每帧一条日志）；代价是需人工对照时间戳。**比新写观测命令更划算**——后者要写码 + 真实编译 + 重启。将来若需自动化判定，再考虑把它做成 opt-in 命令。
+>
+> **⑤ Step 6 双配置编译——Shipping 照出 2 个真实缺陷（已修）**：两者都住 `Source/TcsDev/Private/Dev/TcsDevSliceRig.cpp`，**都是 Task 6 引入、Development 下不可能发现**（`WITH_EDITOR=1` 时成员存在）：
+> - **`IsDataValid` 无 `WITH_EDITOR` 保护**（`:568`）→ Shipping 报 `C2737「必须初始化 const 对象」`——**真因被诊断掩盖**（`IsDataValid` 是 `#if WITH_EDITOR` 成员，Shipping 下不存在，调用点解析失败后被报成 const 未初始化）。修法：整块加 `#if WITH_EDITOR` + `#else` 屏显"检查 A 跳过"。
+> - **`SetActorLabel` 无保护**（`:132`）→ 报 `C2039「不是 AActor 的成员」`。修法：加 `#if WITH_EDITOR`（只影响编辑器显示名，Shipping 跳过即可）。
+> - **插件侧零问题**（三处 `IsDataValid` 定义都正确包在 `#if WITH_EDITOR` 内）。**教训**：Shipping 编译是**唯一**能照出"编辑器专用 API 泄漏"的检查——两轮 PIE 全绿也照不出。
+>
+> **⑥ 陈旧二进制的陷阱（首跑假 FAIL → 真实编译后全绿，值得记）**：首跑 7b 报 `[FAIL] 目标 Health 75.0 → 75.0`，**不是装置逻辑错、也不是被测对象错**——是**编辑器重启后加载的基线 DLL 比源码旧**。机制：`Live Coding` 的 patch（`*.patch_N.exe`）是**运行时内存补丁、不写回基线 DLL**（`Binaries/Win64/UnrealEditor-TcsDev.dll` 仍是 00:34 版），故**重启后 patch 作废、回到更旧的基线**；而"改命令注册（`FAutoConsoleCommand` → `WithWorldAndArgs`）"这类**静态初始化期改动 Live Coding 本就应用不了**（它只替换函数体）。**处置**：关闭编辑器 → 跑一次真实 UBT Development 编译（写回基线 DLL，`13:08` > 源码 `11:38`）→ 重启编辑器 → 重跑，**10/10 全绿**。**判据**：装置行为与源码不符时，先核对**基线 DLL 时间戳 vs 源码时间戳**，别急着怀疑逻辑——与 `MEM-20260826-03`（陈旧构建信号）同源。**要跑通须一次真实 UBT 编译**，Live Coding 不够。
