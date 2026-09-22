@@ -115,7 +115,7 @@ void UTcsCombatEntityComponent::EndPlay(const EEndPlayReason::Type EndPlayReason
 
 
 
-double UTcsCombatEntityComponent::GetCurrent(const FTcsAttributeName& Attribute) const
+double UTcsCombatEntityComponent::GetCurrent(const FGameplayTag& Attribute) const
 {
 	if (!EntityHandle.IsValid())
 	{
@@ -153,7 +153,7 @@ int32 UTcsCombatEntityComponent::RemoveBySource(const FTcsSourceHandle& Source) 
 
 
 
-FTcsChainRunHandle UTcsCombatEntityComponent::ExecuteChainById(FName ChainId) const
+FTcsChainRunHandle UTcsCombatEntityComponent::ExecuteChainById(FGameplayTag ChainId) const
 {
 	if (!EntityHandle.IsValid())
 	{

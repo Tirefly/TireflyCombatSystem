@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "Parameter/TcsParamValueSource.h"
 
-#include "Attribute/TcsAttributeName.h"
+#include "GameplayTagContainer.h"
 #include "Attribute/TcsAttributeProvider.h"
 
 #include "TcsParamSource_AttributeScaled.generated.h"
@@ -69,7 +69,7 @@ struct TCSATTRIBUTE_API FTcsParamSource_AttributeScaled : public FTcsParamValueS
 public:
 	// 被读取的属性
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Param Value")
-	FTcsAttributeName Attribute;
+	FGameplayTag Attribute;
 
 	// 换算系数（Value = Coefficient × Current(Attribute)）
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Param Value")

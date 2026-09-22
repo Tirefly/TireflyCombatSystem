@@ -6,7 +6,7 @@
 #include "GameplayTagContainer.h"
 #include "NativeGameplayTags.h"
 
-#include "Attribute/TcsAttributeName.h"
+#include "GameplayTagContainer.h"
 #include "Handle/TcsCombatEntityHandle.h"
 
 #include "TcsAttributeChangedEvent.generated.h"
@@ -52,7 +52,7 @@ public:
 
 	// 发生变更的属性名
 	UPROPERTY(BlueprintReadOnly, Category = "Attribute Event")
-	FTcsAttributeName Attribute;
+	FGameplayTag Attribute;
 
 	// 变更前当前值
 	UPROPERTY(BlueprintReadOnly, Category = "Attribute Event")

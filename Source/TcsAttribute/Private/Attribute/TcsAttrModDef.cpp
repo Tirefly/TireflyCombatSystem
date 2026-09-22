@@ -4,15 +4,16 @@
 
 
 
-// 定义主资产类型标识（Def 资产族统一：类型稳定、名取 TemplateId——见头文件说明）
+// 定义主资产类型标识（Def 资产族统一：类型稳定、名取 TemplateTag 的 FName 形态——见头文件说明）
 const FPrimaryAssetType UTcsAttrModDef::PrimaryAssetType = FPrimaryAssetType(TEXT("TcsAttrModDef"));
 
 
 
 FPrimaryAssetId UTcsAttrModDef::GetPrimaryAssetId() const
 {
-	// 名取 TemplateId 而非资产名：资产文件可自由改名/挪目录而不失联
-	return FPrimaryAssetId(PrimaryAssetType, TemplateId);
+	// 名取 TemplateTag 的 FName 形态而非资产名：资产文件可自由改名/挪目录而不失联。
+	// FPrimaryAssetId 的 name 位是 FName（引擎类型约束），tag 须经 GetTagName() 转换。
+	return FPrimaryAssetId(PrimaryAssetType, TemplateTag.GetTagName());
 }
 
 
@@ -23,26 +24,26 @@ EDataValidationResult UTcsAttrModDef::IsDataValid(
 {
 	EDataValidationResult Result = Super::IsDataValid(Context);
 
-	// 身份非空（TemplateId 是状态/技能定义引用本模板的唯一依据，也是主资产身份的名）
-	if (TemplateId.IsNone())
+	// 身份有效（TemplateTag 是状态/技能定义引用本模板的唯一依据，也是主资产身份的名）
+	if (!TemplateTag.IsValid())
 	{
-		Context.AddError(FText::FromString(TEXT("修正器模板缺少 TemplateId：状态/技能定义按它引用模板")));
+		Context.AddError(FText::FromString(TEXT("修正器模板缺少有效的 TemplateTag：状态/技能定义按它引用模板")));
 		Result = EDataValidationResult::Invalid;
 	}
 
-	// 验证被修饰属性名（空名无法路由到任何属性实例）
-	if (Def.Target.IsNone())
+	// 验证被修饰属性 tag（无效 tag 无法路由到任何属性实例）
+	if (!Def.Target.IsValid())
 	{
-		Context.AddError(FText::FromString(TEXT("修正器模板缺少被修饰的属性名：Target 为空，物化后无法路由到属性实例")));
+		Context.AddError(FText::FromString(TEXT("修正器模板缺少被修饰的属性 tag：Target 无效，物化后无法路由到属性实例")));
 		Result = EDataValidationResult::Invalid;
 	}
 
-	// 验证运算数：属性换算必须给出属性名，字面量必须有数值来源
+	// 验证运算数：属性换算必须给出属性 tag，字面量必须有数值来源
 	if (Def.Operand.Kind == ETcsOperandKind::OPK_AttributeScaled)
 	{
-		if (Def.Operand.Attribute.IsNone())
+		if (!Def.Operand.Attribute.IsValid())
 		{
-			Context.AddError(FText::FromString(TEXT("运算数种类为属性换算，但未指定被读取的属性名：请填写 Operand.Attribute")));
+			Context.AddError(FText::FromString(TEXT("运算数种类为属性换算，但未指定被读取的属性 tag：请填写 Operand.Attribute")));
 			Result = EDataValidationResult::Invalid;
 		}
 	}

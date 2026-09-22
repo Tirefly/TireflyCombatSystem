@@ -98,7 +98,7 @@ void UTcsDefinitionSubsystem::DiscoverChainDefs()
 		}
 
 		// 校验一：身份非空（空 id 无法按 [PrimaryAssetType, ChainId] 解析，且登记必被拒）
-		if (ChainDef->ChainId.IsNone())
+		if (!ChainDef->ChainId.IsValid())
 		{
 			FailureList.Add(FString::Printf(TEXT("%s: ChainId 为空"), *AssetPath));
 			continue;
@@ -148,7 +148,7 @@ void UTcsDefinitionSubsystem::SeedWorld(UWorld* World)
 	}
 
 	int32 Registered = 0;
-	for (const TPair<FName, TUniquePtr<FTcsEffectChain>>& Pair : ChainDefs)
+	for (const TPair<FGameplayTag, TUniquePtr<FTcsEffectChain>>& Pair : ChainDefs)
 	{
 		if (Pair.Value.IsValid() && EffectSubsystem->RegisterChain(*Pair.Value))
 		{
@@ -169,7 +169,7 @@ void UTcsDefinitionSubsystem::HandlePostWorldInitialization(UWorld* World, const
 
 
 
-const FTcsEffectChain* UTcsDefinitionSubsystem::ResolveChain(FName ChainId) const
+const FTcsEffectChain* UTcsDefinitionSubsystem::ResolveChain(FGameplayTag ChainId) const
 {
 	const TUniquePtr<FTcsEffectChain>* Found = ChainDefs.Find(ChainId);
 	return (Found && Found->IsValid()) ? Found->Get() : nullptr;

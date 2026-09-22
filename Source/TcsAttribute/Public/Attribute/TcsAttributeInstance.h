@@ -6,7 +6,7 @@
 
 #include "Attribute/TcsAttributeBounds.h"
 #include "Attribute/TcsAttrModInstance.h"
-#include "Attribute/TcsAttributeName.h"
+#include "GameplayTagContainer.h"
 
 
 
@@ -19,7 +19,7 @@
 struct FTcsAttributeInstance
 {
 	// 属性名（实例与定义的连接键；实例无需 Def 缓存，词表 schema 由属性名侧覆盖——D2-1）
-	FTcsAttributeName Attr;
+	FGameplayTag Attr;
 
 	// 基础值（属性表默认 → 注册时初始化；等级成长由宿主升级事务改写，等级→数值映射归项目）
 	double BaseValue = 0.0;

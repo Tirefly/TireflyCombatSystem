@@ -6,7 +6,7 @@
 
 #include "Attribute/TcsAttributeBandFold.h"
 #include "Attribute/TcsAttributeInstance.h"
-#include "Attribute/TcsAttributeName.h"
+#include "GameplayTagContainer.h"
 #include "Attribute/TcsAttributeStore.h"
 #include "Handle/TcsCombatEntityHandle.h"
 #include "Handle/TcsSourceHandle.h"
@@ -59,7 +59,7 @@ public:
 	 * @param Attribute 属性名。
 	 * @return 返回当前值；单位未注册或属性未定义时返回 0（不 ensure——读取是正常查询路径）。
 	 */
-	double EvaluateCurrent(FTcsCombatEntityHandle Unit, const FTcsAttributeName& Attribute);
+	double EvaluateCurrent(FTcsCombatEntityHandle Unit, const FGameplayTag& Attribute);
 
 	/**
 	 * 读未提交候选值（不落账预览，D2-5）：批进行中返回"若此刻提交会是多少"，不做写回/标脏/广播；
@@ -69,7 +69,7 @@ public:
 	 * @param Attribute 属性名。
 	 * @return 返回候选值。
 	 */
-	double PeekPending(FTcsCombatEntityHandle Unit, const FTcsAttributeName& Attribute);
+	double PeekPending(FTcsCombatEntityHandle Unit, const FGameplayTag& Attribute);
 
 #pragma endregion
 
@@ -97,7 +97,7 @@ public:
 	 * @param NewBaseValue 新的基础值。
 	 * @return 返回是否改写成功。
 	 */
-	bool SetBaseValue(FTcsCombatEntityHandle Unit, const FTcsAttributeName& Attribute, double NewBaseValue);
+	bool SetBaseValue(FTcsCombatEntityHandle Unit, const FGameplayTag& Attribute, double NewBaseValue);
 
 	/**
 	 * 按来源级联摘除（D2-2）：扫描该单位全部属性的修正器槽位**与冻结暂存区**，
@@ -147,27 +147,27 @@ private:
 	double ApplyValueDomain(FTcsCombatEntityHandle Unit, FTcsAttributeStore& Store, const FTcsAttributeInstance& Instance, double Value);
 
 	// 边界解析（ABM_Static 取静态值；ABM_Dynamic 先按管线求值——其依赖同样"读即登记"）
-	void ResolveBound(FTcsCombatEntityHandle Unit, FTcsAttributeStore& Store, const FTcsAttributeName& ForAttribute,
+	void ResolveBound(FTcsCombatEntityHandle Unit, FTcsAttributeStore& Store, const FGameplayTag& ForAttribute,
 		const FTcsAttributeBound& Bound, bool& bOutHasValue, double& OutValue);
 
 	// 读即登记依赖边（被读者 → 读者）；成环则拒绝该边并 ensure
-	void RegisterDependency(FTcsAttributeStore& Store, const FTcsAttributeName& ReadAttribute, const FTcsAttributeName& ReaderAttribute);
+	void RegisterDependency(FTcsAttributeStore& Store, const FGameplayTag& ReadAttribute, const FGameplayTag& ReaderAttribute);
 
 	// 依赖传播：被读属性变化 → 把其读者全部标脏
-	void MarkDependentsDirty(FTcsAttributeStore& Store, const FTcsAttributeName& ChangedAttribute);
+	void MarkDependentsDirty(FTcsAttributeStore& Store, const FGameplayTag& ChangedAttribute);
 
 	// 变更广播（epsilon 1e-5 判定；未变不广播）
-	void BroadcastChange(FTcsCombatEntityHandle Unit, const FTcsAttributeName& Attribute, double OldValue, double NewValue) const;
+	void BroadcastChange(FTcsCombatEntityHandle Unit, const FGameplayTag& Attribute, double OldValue, double NewValue) const;
 
 	// 求值栈防重入（同一属性在单次求值链中只允许出现一次；命中 = 环）
-	bool PushEvalStack(const FTcsAttributeName& Attribute);
-	void PopEvalStack(const FTcsAttributeName& Attribute);
+	bool PushEvalStack(const FGameplayTag& Attribute);
+	void PopEvalStack(const FGameplayTag& Attribute);
 
 	// 所属门面（数据宿主与单位注册表）
 	UTcsAttributeSubsystem& Owner;
 
 	// 求值栈（防重入：AttributeScaled 链上的环会在 RegisterDependency 处被拒，此处为兜底）
-	TArray<FTcsAttributeName> EvalStack;
+	TArray<FGameplayTag> EvalStack;
 
 #pragma endregion
 };

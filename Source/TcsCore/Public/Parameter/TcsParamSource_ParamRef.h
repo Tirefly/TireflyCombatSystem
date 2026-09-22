@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "GameplayTagContainer.h"
 #include "Parameter/TcsParamValueSource.h"
 #include "TcsParamSource_ParamRef.generated.h"
 
@@ -24,7 +25,7 @@ struct TCSCORE_API FTcsParamSource_ParamRef : public FTcsParamValueSource
 public:
 	// 引用的参数键（限同域参数表——PV-2.b）
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Param Value")
-	FName Key = NAME_None;
+	FGameplayTag Key;
 
 	// 兜底值（键 miss 或上下文无参数表时取用；必填——PV-2.c，编辑期校验兜底缺失）
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Param Value")

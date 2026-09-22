@@ -5,7 +5,7 @@ TBD - created by archiving change add-tcseffect-chain-interpreter. Update Purpos
 ## Requirements
 ### Requirement: 链执行与池化运行态
 
-`UTcsEffectSubsystem` MUST 提供 `ExecuteChain(FName ChainId, FTcsEffectContext Context) -> FTcsChainRunHandle`（起链：立即执行至首个挂起点或走完）：
+`UTcsEffectSubsystem` MUST 提供 `ExecuteChain(FGameplayTag ChainId, FTcsEffectContext Context) -> FTcsChainRunHandle`（起链：立即执行至首个挂起点或走完；**2026-09-22 改造：`ChainId` 类型 `FName` → `FGameplayTag`**）：
 
 - 运行态 `FTcsChainRun` **池化**（`TTcsInstancePool`，D0-2 代际句柄防悬空）——控制流状态住数据、**不活在调用栈里**（D4-3 异步语义）；
 - `FTcsChainRun` MUST 自持：`ChainId`（**不是链定义指针**——每步入器按 id 重解析；登记表变更不得使运行中链悬空）、`PC`、`Context`（黑板）、宿主门面弱引用与自身句柄（唤醒回入口）、挂起锚；
@@ -20,7 +20,7 @@ TBD - created by archiving change add-tcseffect-chain-interpreter. Update Purpos
 
 #### Scenario: 未登记链被拒
 
-- **WHEN** 执行一个未登记的 ChainId
+- **WHEN** 执行一个未登记的 ChainId（有效 tag 但未登记）
 - **THEN** 返回无效句柄 + Error 日志（不崩溃、不 ensure）
 
 #### Scenario: 挂起期间登记新链不影响续走

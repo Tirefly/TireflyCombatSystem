@@ -34,7 +34,7 @@ bool UTcsEffectSubsystem::RegisterChain(const FTcsEffectChain& Chain)
 {
 	ensure(IsInGameThread());
 
-	if (!ensureMsgf(!Chain.ChainId.IsNone(), TEXT("UTcsEffectSubsystem::RegisterChain: 链 id 为空——拒绝登记")))
+	if (!ensureMsgf(Chain.ChainId.IsValid(), TEXT("UTcsEffectSubsystem::RegisterChain: 链 id 无效——拒绝登记")))
 	{
 		return false;
 	}
@@ -53,11 +53,11 @@ bool UTcsEffectSubsystem::RegisterChain(const FTcsEffectChain& Chain)
 	return true;
 }
 
-bool UTcsEffectSubsystem::UnregisterChain(FName ChainId)
+bool UTcsEffectSubsystem::UnregisterChain(FGameplayTag ChainId)
 {
 	ensure(IsInGameThread());
 
-	if (ChainId.IsNone() || !ChainDefs.Contains(ChainId))
+	if (!ChainId.IsValid() || !ChainDefs.Contains(ChainId))
 	{
 		// 未登记属正常路径（重复注销/清理时序），不 ensure
 		UE_LOG(LogTcsEffect, Warning, TEXT("UTcsEffectSubsystem::UnregisterChain: 链 %s 未登记——忽略"), *ChainId.ToString());
@@ -77,7 +77,7 @@ bool UTcsEffectSubsystem::UnregisterChain(FName ChainId)
 	return true;
 }
 
-const FTcsEffectChain* UTcsEffectSubsystem::FindChain(FName ChainId) const
+const FTcsEffectChain* UTcsEffectSubsystem::FindChain(FGameplayTag ChainId) const
 {
 	const TUniquePtr<FTcsEffectChain>* Found = ChainDefs.Find(ChainId);
 	return (Found && Found->IsValid()) ? Found->Get() : nullptr;
@@ -86,7 +86,7 @@ const FTcsEffectChain* UTcsEffectSubsystem::FindChain(FName ChainId) const
 
 
 // 执行
-FTcsChainRunHandle UTcsEffectSubsystem::ExecuteChain(FName ChainId, FTcsEffectContext Context)
+FTcsChainRunHandle UTcsEffectSubsystem::ExecuteChain(FGameplayTag ChainId, FTcsEffectContext Context)
 {
 	ensure(IsInGameThread());
 
@@ -246,7 +246,7 @@ void UTcsEffectSubsystem::ReleaseRun(FTcsChainRunHandle Handle)
 	FTcsChainRun* Run = RunPool.Resolve(Handle.Inner);
 
 	// 清黑板与唤醒锚：槽位内容不跨生命周期残留（池 Free 不清零——池零策略纪律）
-	Run->ChainId = NAME_None;
+	Run->ChainId = FGameplayTag();
 	Run->PC = 0;
 	Run->Context = FTcsEffectContext();
 	Run->Owner = nullptr;
@@ -257,7 +257,7 @@ void UTcsEffectSubsystem::ReleaseRun(FTcsChainRunHandle Handle)
 	RunPool.Free(Handle.Inner);
 }
 
-bool UTcsEffectSubsystem::HasActiveRunForChain(FName ChainId)
+bool UTcsEffectSubsystem::HasActiveRunForChain(FGameplayTag ChainId)
 {
 	bool bFound = false;
 	RunPool.ForEach([ChainId, &bFound](FTcsChainRun& Run)

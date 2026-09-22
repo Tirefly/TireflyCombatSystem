@@ -71,7 +71,7 @@ public:
 	 * @param ChainId 链 id。
 	 * @return 返回是否注销成功。
 	 */
-	bool UnregisterChain(FName ChainId);
+	bool UnregisterChain(FGameplayTag ChainId);
 
 	/**
 	 * 查询链定义（未登记返回 nullptr——正常查询路径，不 ensure）。
@@ -79,7 +79,7 @@ public:
 	 * @param ChainId 链 id。
 	 * @return 返回链定义；未登记返回 nullptr。
 	 */
-	const FTcsEffectChain* FindChain(FName ChainId) const;
+	const FTcsEffectChain* FindChain(FGameplayTag ChainId) const;
 
 #pragma endregion
 
@@ -97,7 +97,7 @@ public:
 	 * @return 返回运行态句柄；**仅在链未走完时有效**（全即时链在返回前即释放运行态，句柄随之失效——
 	 *         用 `IsRunActive` 判活性）。
 	 */
-	FTcsChainRunHandle ExecuteChain(FName ChainId, FTcsEffectContext Context);
+	FTcsChainRunHandle ExecuteChain(FGameplayTag ChainId, FTcsEffectContext Context);
 
 	/**
 	 * 唤醒重入（唤醒源入口：到期堆回调 / 事件 / 子链完成）：从运行态 PC 续走，直至再次挂起或走完。
@@ -153,10 +153,10 @@ private:
 	void ReleaseRun(FTcsChainRunHandle Handle);
 
 	// 是否存在引用该链的活动运行态（注销前校验）
-	bool HasActiveRunForChain(FName ChainId);
+	bool HasActiveRunForChain(FGameplayTag ChainId);
 
 	// 链定义表（键 = ChainId；TUniquePtr 持有——解释器在一次进入执行期间持定义引用，登记表增长不得使其悬空）
-	TMap<FName, TUniquePtr<FTcsEffectChain>> ChainDefs;
+	TMap<FGameplayTag, TUniquePtr<FTcsEffectChain>> ChainDefs;
 
 	// 链运行态池（D0-2 代际句柄防悬空；池元素地址不稳定——解释器每步入器前按句柄重解析，见 TcsChainRun.h）
 	TTcsInstancePool<FTcsChainRun, FTcsChainRunTag> RunPool;

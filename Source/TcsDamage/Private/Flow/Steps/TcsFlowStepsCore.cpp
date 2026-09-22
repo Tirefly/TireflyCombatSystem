@@ -6,6 +6,7 @@
 #include "EventBus/TcsEventBusSubsystem.h"
 #include "Flow/TcsDamageFlowCollectEvent.h"
 #include "Flow/TcsDamageRecord.h"
+#include "Flow/TcsFlowKeys.h"
 #include "Flow/TcsFlowStepConditions.h"
 #include "Flow/TcsFlowStepExecutor.h"
 #include "Parameter/TcsParamSource_Literal.h"
@@ -21,10 +22,14 @@ namespace
 	// 黑板保留键（标准步骤库的契约键名——M8 校验/Explain 认识；项目自定义键自由 FName）
 	// **伤害量只有一个契约键 `BaseDamage`**：基值以 Add 落在它上面、收集到的 PercentAdd/Mul 也叠在它上面
 	// （不再有 `FinalDamage` 键——记录里的"最终值"直接读该键的折叠结果）
-	const FName TcsFlowKey_BaseDamage(TEXT("BaseDamage"));
-	const FName TcsFlowKey_Executed(TEXT("Executed"));
-	const FName TcsFlowKey_Absorbed(TEXT("Absorbed"));
-	const FName TcsFlowKey_Kill(TEXT("Kill"));
+	// 黑板契约键 = **框架词汇**（步骤之间的接口），由本模块原生声明（`Flow/TcsFlowKeys.h`）——
+	// 零项目配置依赖、编译期一致（不再有跨文件裸字面量耦合）。
+	//
+	// **MUST NOT 写 `const FGameplayTag& Alias = Tag_X;`**（2026-09-22 实测踩坑）：
+	// `FNativeGameplayTag::operator FGameplayTag()` **按值返回**，绑定 const 引用 = 延长一个
+	// **静态初始化期创建的临时量**的寿命——那时 tag 尚未加载，别名会**永远持空 tag**，
+	// 而 `FTcsFlowAttributes::Submit` 拒绝空键（`ensureMsgf(Key.IsValid())`）→ 写入被静默拒绝。
+	// 正确做法 = **每次使用点直接用原生全局量**（隐式转换发生在运行期，那时 tag 已就绪）。
 
 	// 取宿主门面（步骤取世界/子系统的唯一通路——句柄化后上下文里没有 Actor 可借道）
 	UTcsDamageSubsystem* ResolveFlowOwner(const FTcsDamageFlowContext& Context)
@@ -45,14 +50,14 @@ namespace
 	//   "基值"天然就是 `ΣAdd` 的一员（与 M2 属性"基础值 + Add 带"同式同值）。
 	//   **MUST NOT 用覆盖带**——覆盖带盖掉一切，会把收集到的修正（如"受火伤 +20%"）整笔抹掉。
 	// - **结果类走 `Override`**：`Executed`/`Absorbed`/`Kill` 是本次执行的事实值，不含修正带语义。
-	void SubmitAddValue(FTcsFlowAttributes& Blackboard, FName Key, double Value)
+	void SubmitAddValue(FTcsFlowAttributes& Blackboard, FGameplayTag Key, double Value)
 	{
 		FTcsParamValue Operand;
 		Operand.Source.GetMutable<FTcsParamSource_Literal>().Value = Value;
 		Blackboard.Submit(Key, ETcsAttributeOp::TAO_Add, Operand);
 	}
 
-	void SubmitOverrideValue(FTcsFlowAttributes& Blackboard, FName Key, double Value)
+	void SubmitOverrideValue(FTcsFlowAttributes& Blackboard, FGameplayTag Key, double Value)
 	{
 		FTcsParamValue Operand;
 		Operand.Source.GetMutable<FTcsParamSource_Literal>().Value = Value;
@@ -99,7 +104,9 @@ namespace
 		}
 
 		// 基值以 **Add** 提交（见上：基值 = ΣAdd 的一员；后续收集到的 PercentAdd/Mul 自然叠在它上面）
-		SubmitAddValue(Context.Blackboard, Step->OutputKey, BaseDamage);
+		// 键无效 = 未配置 -> 落契约键 `BaseDamage`（原默认值语义，2026-09-22 tag 化改造后显式化）
+		const FGameplayTag OutputKey = Step->OutputKey.IsValid() ? Step->OutputKey : FGameplayTag(Tag_Tcs_Flow_Key_BaseDamage);
+		SubmitAddValue(Context.Blackboard, OutputKey, BaseDamage);
 		return true;
 	}
 
@@ -112,12 +119,15 @@ namespace
 			return true;
 		}
 
-		const double Candidate = Context.Blackboard.Read(Step->DamageKey);
+		// 键无效 = 未配置 -> 落契约键（同上）
+		const FGameplayTag DamageKey = Step->DamageKey.IsValid() ? Step->DamageKey : FGameplayTag(Tag_Tcs_Flow_Key_BaseDamage);
+		const FGameplayTag CandidateKey = Step->CandidateKey.IsValid() ? Step->CandidateKey : FGameplayTag(Tag_Tcs_Flow_Key_ExecuteCandidates);
+		const double Candidate = Context.Blackboard.Read(DamageKey);
 
 		// 裁决：候选中按消耗策略的 SortKey 选一（收集 ≠ 消费——未被选中者完全不动）
 		int32 BestIndex = INDEX_NONE;
 		int32 BestSortKey = TNumericLimits<int32>::Lowest();
-		if (const TArray<FTcsFlowAttributeSubmit>* Submits = Context.Blackboard.FindSubmits(Step->CandidateKey))
+		if (const TArray<FTcsFlowAttributeSubmit>* Submits = Context.Blackboard.FindSubmits(CandidateKey))
 		{
 			for (int32 Index = 0; Index < Submits->Num(); ++Index)
 			{
@@ -144,21 +154,20 @@ namespace
 		// M2 事务扣血：**改基值**（伤害是"生命被削减"，不是可被来源级联撤销的修正器——见 plan2 Task 4 注记）
 		// 属性键解析：**步骤级 AttrKey 优先**（模板可覆盖）；否则用调用方在上下文里指定的请求键
 		// （插件组装的官方默认模板不可能知道项目词表——`Health` 是项目侧的）
-		const FName ResolvedAttrKey = !Step->AttrKey.IsNone() ? Step->AttrKey : Context.TargetAttrKey.Name;
+		// 两处都是 FGameplayTag（2026-09-22 tag 化改造）——不再有 FName 与包装互转
+		const FGameplayTag ResolvedAttrKey = Step->AttrKey.IsValid() ? Step->AttrKey : Context.TargetAttrKey;
 
 		bool bApplied = false;
 		if (UTcsAttributeSubsystem* AttributeSubsystem = ResolveAttributeSubsystem(Context))
 		{
-			if (!ResolvedAttrKey.IsNone())
+			if (ResolvedAttrKey.IsValid())
 			{
 				for (const FTcsCombatEntityHandle& Target : Context.Targets)
 				{
-					const FTcsAttributeName Attribute(ResolvedAttrKey);
-
 					AttributeSubsystem->BeginBatch(Target);
-					const double Current = AttributeSubsystem->EvaluateCurrent(Target, Attribute);
+					const double Current = AttributeSubsystem->EvaluateCurrent(Target, ResolvedAttrKey);
 					const double NewValue = FMath::Max(0.0, Current - Executed);
-					AttributeSubsystem->SetBaseValue(Target, Attribute, NewValue);
+					AttributeSubsystem->SetBaseValue(Target, ResolvedAttrKey, NewValue);
 					AttributeSubsystem->Commit(Target);
 					bApplied = true;
 				}
@@ -169,18 +178,18 @@ namespace
 			}
 		}
 
-		SubmitOverrideValue(Context.Blackboard, TcsFlowKey_Executed, bApplied ? Executed : 0.0);
-		SubmitOverrideValue(Context.Blackboard, TcsFlowKey_Absorbed, Absorbed);
+		SubmitOverrideValue(Context.Blackboard, FGameplayTag(Tag_Tcs_Flow_Key_Executed), bApplied ? Executed : 0.0);
+		SubmitOverrideValue(Context.Blackboard, FGameplayTag(Tag_Tcs_Flow_Key_Absorbed), Absorbed);
 
 		// 记账语义：本次事务提交后目标生命 ≤ 0（死亡规则仍归宿主）
 		double bKill = 0.0;
 		if (UTcsAttributeSubsystem* AttributeSubsystem = ResolveAttributeSubsystem(Context))
 		{
-			if (!ResolvedAttrKey.IsNone())
+			if (ResolvedAttrKey.IsValid())
 			{
 				for (const FTcsCombatEntityHandle& Target : Context.Targets)
 				{
-					if (AttributeSubsystem->EvaluateCurrent(Target, FTcsAttributeName(ResolvedAttrKey)) <= 0.0)
+					if (AttributeSubsystem->EvaluateCurrent(Target, ResolvedAttrKey) <= 0.0)
 					{
 						bKill = 1.0;
 						break;
@@ -188,7 +197,7 @@ namespace
 				}
 			}
 		}
-		SubmitOverrideValue(Context.Blackboard, TcsFlowKey_Kill, bKill);
+		SubmitOverrideValue(Context.Blackboard, FGameplayTag(Tag_Tcs_Flow_Key_Kill), bKill);
 
 		return true;
 	}
@@ -220,13 +229,13 @@ namespace
 			Record.Target = Target;
 			Record.Element = FGameplayTag();
 			Record.bHit = true;
-			Record.bCrit = Context.Blackboard.Read(TEXT("Crit")) > 0.0;
+			Record.bCrit = Context.Blackboard.Read(FGameplayTag(Tag_Tcs_Flow_Key_Crit)) > 0.0;
 			// Base = 调用方输入（原始解算结果）；Final = 该键折叠后的最终值（基值 + 收集到的修正）
 			Record.Base = Context.BaseDamageInput;
-			Record.Final = Context.Blackboard.Read(TcsFlowKey_BaseDamage);
-			Record.Executed = Context.Blackboard.Read(TcsFlowKey_Executed);
-			Record.Absorbed = Context.Blackboard.Read(TcsFlowKey_Absorbed);
-			Record.bKill = Context.Blackboard.Read(TcsFlowKey_Kill) > 0.0;
+			Record.Final = Context.Blackboard.Read(FGameplayTag(Tag_Tcs_Flow_Key_BaseDamage));
+			Record.Executed = Context.Blackboard.Read(FGameplayTag(Tag_Tcs_Flow_Key_Executed));
+			Record.Absorbed = Context.Blackboard.Read(FGameplayTag(Tag_Tcs_Flow_Key_Absorbed));
+			Record.bKill = Context.Blackboard.Read(FGameplayTag(Tag_Tcs_Flow_Key_Kill)) > 0.0;
 			Record.Timestamp = Now;
 
 			Owner->AppendRecord(Record);

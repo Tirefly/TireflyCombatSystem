@@ -7,6 +7,7 @@
 #include "EventBus/TcsEventBusSubsystem.h"
 #include "Flow/Steps/TcsFlowSteps.h"
 #include "Flow/TcsDamageFlowCollectEvent.h"
+#include "Flow/TcsFlowKeys.h"
 #include "Flow/TcsDamageRecord.h"
 #include "Flow/TcsFlowStepExecutor.h"
 #include "HAL/IConsoleManager.h"
@@ -44,7 +45,7 @@ void UTcsDamageSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	// R3 组装四步：CollectStart → BaseDamage → Execute → Completed
 	// （Hit/Crit/Element/PreHit/AfterDamage/PreExecute 的 struct 与执行器已就位，本模板不组装）
 	FTcsFlowTemplate DefaultTemplate;
-	DefaultTemplate.TemplateId = FName(TEXT("Default"));
+	DefaultTemplate.TemplateId = Tag_Tcs_Flow_Template_Default;
 	DefaultTemplate.Steps.AddDefaulted_GetRef().InitializeAs<FTcsFlowCollectStart>();
 	DefaultTemplate.Steps.AddDefaulted_GetRef().InitializeAs<FTcsFlowBaseDamage>();
 	DefaultTemplate.Steps.AddDefaulted_GetRef().InitializeAs<FTcsFlowExecute>();
@@ -81,7 +82,7 @@ bool UTcsDamageSubsystem::RegisterTemplate(const FTcsFlowTemplate& Template)
 {
 	ensure(IsInGameThread());
 
-	if (!ensureMsgf(!Template.TemplateId.IsNone(), TEXT("UTcsDamageSubsystem::RegisterTemplate: 模板 id 为空——拒绝登记")))
+	if (!ensureMsgf(Template.TemplateId.IsValid(), TEXT("UTcsDamageSubsystem::RegisterTemplate: 模板 id 无效——拒绝登记")))
 	{
 		return false;
 	}
@@ -100,11 +101,11 @@ bool UTcsDamageSubsystem::RegisterTemplate(const FTcsFlowTemplate& Template)
 	return true;
 }
 
-bool UTcsDamageSubsystem::UnregisterTemplate(FName TemplateId)
+bool UTcsDamageSubsystem::UnregisterTemplate(FGameplayTag TemplateId)
 {
 	ensure(IsInGameThread());
 
-	if (TemplateId.IsNone() || !Templates.Contains(TemplateId))
+	if (!TemplateId.IsValid() || !Templates.Contains(TemplateId))
 	{
 		UE_LOG(LogTcsDamage, Warning, TEXT("UTcsDamageSubsystem::UnregisterTemplate: 模板 %s 未登记——忽略"), *TemplateId.ToString());
 		return false;
@@ -116,7 +117,7 @@ bool UTcsDamageSubsystem::UnregisterTemplate(FName TemplateId)
 	return true;
 }
 
-const FTcsFlowTemplate* UTcsDamageSubsystem::FindTemplate(FName TemplateId) const
+const FTcsFlowTemplate* UTcsDamageSubsystem::FindTemplate(FGameplayTag TemplateId) const
 {
 	const TUniquePtr<FTcsFlowTemplate>* Found = Templates.Find(TemplateId);
 	return (Found && Found->IsValid()) ? Found->Get() : nullptr;
@@ -125,7 +126,7 @@ const FTcsFlowTemplate* UTcsDamageSubsystem::FindTemplate(FName TemplateId) cons
 
 
 // 执行
-bool UTcsDamageSubsystem::RunTemplate(FName TemplateId, FTcsDamageFlowContext& Context)
+bool UTcsDamageSubsystem::RunTemplate(FGameplayTag TemplateId, FTcsDamageFlowContext& Context)
 {
 	ensure(IsInGameThread());
 

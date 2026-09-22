@@ -7,14 +7,16 @@ TBD - created by archiving change add-tcsdamage-flow-layer. Update Purpose after
 
 `TcsDamage` MUST 以**数据模板**承载瞬时流程（D7-5 流程管线宿主化：阶段构成本身是项目知识，插件不预设）：
 
-- `FTcsFlowTemplate{ FName TemplateId; TArray<FInstancedStruct> Steps; }`（USTRUCT）——有序步骤数组，元素形状同 `FEffectStep`（步骤无公共基类，类型合法性由执行器注册表在执行期判定）；
-- `UTcsDamageSubsystem`（世界级子系统门面）MUST 提供登记表：`RegisterTemplate` / `UnregisterTemplate` / `FindTemplate`，**键 = `TemplateId`**；拒绝面（ensure + false）：`TemplateId` 为空、同 id 重复登记（不得静默覆写）；`FindTemplate` 未登记返回 nullptr（**不 ensure**——正常查询路径）；
+- `FTcsFlowTemplate{ FGameplayTag TemplateId; TArray<FInstancedStruct> Steps; }`（USTRUCT；**2026-09-22 改造：`TemplateId` 类型 `FName` → `FGameplayTag`**）——有序步骤数组，元素形状同 `FEffectStep`（步骤无公共基类，类型合法性由执行器注册表在执行期判定）；
+- `UTcsDamageSubsystem`（世界级子系统门面）MUST 提供登记表：`RegisterTemplate` / `UnregisterTemplate` / `FindTemplate`，**键 = `TemplateId`**；拒绝面（ensure + false）：`TemplateId` **无效**（`!TemplateId.IsValid()`）、同 id 重复登记（不得静默覆写）；`FindTemplate` 未登记返回 nullptr（**不 ensure**——正常查询路径）；
 - `RunTemplate` 遇未登记模板 MUST 拒绝：Error 日志 + 不执行（执行期配置错误，不 ensure）；
-- 登记表 MUST 以地址稳定方式持有模板（`TMap<FName, TUniquePtr<…>>` 或同效手段）——解释器在一次执行期间持模板引用。
+- 登记表 MUST 以地址稳定方式持有模板（`TMap<FGameplayTag, TUniquePtr<…>>` 或同效手段；**2026-09-22 改造：键类型改 tag**）——解释器在一次执行期间持模板引用。
+
+**模板 id 的来源（2026-09-22）**：流程模板是**项目知识**（D7-5"阶段构成本身是项目知识"），故 `TemplateId` 属**项目词汇**——由项目 `Config/DefaultGameplayTags.ini` 声明（`Tcs.Flow.Template.<Id>`）。**例外**：插件自登记的官方默认模板 `Default` 属**框架词汇**，由插件原生声明（`Tag_Tcs_Flow_Template_Default`）。
 
 #### Scenario: 登记后可按 id 查到
 
-- **WHEN** `RegisterTemplate` 一条 `TemplateId = "Flow_Test"` 的模板后 `FindTemplate("Flow_Test")`
+- **WHEN** `RegisterTemplate` 一条 `TemplateId = Tcs.Flow.Template.Flow_Test` 的模板后 `FindTemplate`（同一 tag）
 - **THEN** 返回该模板，步骤数组与登记内容一致
 
 #### Scenario: 重复登记被拒
@@ -24,40 +26,27 @@ TBD - created by archiving change add-tcsdamage-flow-layer. Update Purpose after
 
 #### Scenario: 未登记模板被拒绝执行
 
-- **WHEN** `RunTemplate` 一个未登记的 `TemplateId`
+- **WHEN** `RunTemplate` 一个未登记的 `TemplateId`（有效 tag 但未登记）
 - **THEN** 不执行任何步骤 + Error 日志（不崩溃、不 ensure）
 
 ### Requirement: 流程上下文（三层值空间）
 
-`FTcsDamageFlowContext`（黑板，**纯运行态结构**）MUST 承载 09 §2.1 的三层值空间定位：
+`FTcsDamageFlowContext` MUST 承载三层值空间（09 §2.1）：账本（技能参数，**不住这里**——由链步骤解算后经请求字段传入）、**公式参数初值**、**流程属性黑板**。
 
-- **参与者一律为实体身份句柄**（`FTcsCombatEntityHandle`）——`Attacker` / `Instigator` 为单句柄，`Targets` 为句柄数组；**MUST NOT 使用 `AActor*` / `TWeakObjectPtr<AActor>`**（D3-1 Actor 无关性；06 §33"Mass 适配核心零改动"的前提）；"目标还在不在"经注入接口 `IsAlive` 询问宿主，框架不持有 Actor 生命周期引用；
-- **公式参数初值**：`TMap<FName, FTcsParamValue> FormulaParams`——**只读原料**（键 = 项目词表，**MUST NOT 用下标**；宿主公式按名取用）；
-- **流程属性黑板**：`FTcsFlowAttributes Blackboard`（伤害计算的工作值）；
-- `TArray<FGameplayTag> ClassificationTags`（来源标签启动写入 / 元素标签由 Element 步骤写入——词表归项目，插件只搬运与匹配）；
-- `FTcsSourceHandle FlowSource`——**每流程唯一**的作用域修改器归属锚点（**MUST 由 `RunTemplate` 在起流程时分配**；流程结束 `RemoveBySource` 级联摘除）；
-- `TMap<FTcsAttributeName, double> CapturedAttrs`——属性捕获快照（读默认 Live、命中读快照；**快照填充归标准步骤**，本层只落字段与语义）；
-- 生命期：由调用方构造、`RunTemplate` 就地使用，**MUST NOT 跨帧持有**；R3 MUST NOT 引入上下文池化（零消费者不预建）。
+- **公式参数初值**：`TMap<FGameplayTag, FTcsParamValue> FormulaParams`——**只读原料**（键 = 项目词表，**MUST NOT 用下标**；宿主公式按名取用；**2026-09-22 改造：键类型 `FName` → `FGameplayTag`**）；
+- **请求字段**（上下文请求，不随收集重置清除）：`BaseDamageInput: double`（链步骤解算结果）与 `TargetAttrKey: FGameplayTag`（扣血属性键；**2026-09-22 改造：原 `FTcsAttributeName`**）；
+- `TMap<FGameplayTag, double> CapturedAttrs`——属性捕获快照（读默认 Live、命中读快照；**快照填充归标准步骤**，本层只落字段与语义；**2026-09-22 改造：键类型改 tag**）。
 
-#### Scenario: 参与者是句柄而非 Actor
+#### Scenario: 请求字段不随收集重置
 
-- **WHEN** 检查 `FTcsDamageFlowContext` 的参与者字段
-- **THEN** 全部为 `FTcsCombatEntityHandle`（无任何 Actor 类型）——无 Actor 实体（未来 Mass）同样可跑流程
-
-#### Scenario: 起流程分配唯一来源锚点
-
-- **WHEN** 连续执行两次 `RunTemplate`
-- **THEN** 两次的 `Context.FlowSource` 互异且有效（非零）——作用域修改器可被精确级联摘除
-
-#### Scenario: 公式参数按名取用
-
-- **WHEN** 上下文里 `FormulaParams` 含键 `DmgCoeff`
-- **THEN** 消费方按名取值（结构上不存在下标访问路径）
+- **WHEN** 流程跑过 `CollectStart`（重置黑板）后读取 `BaseDamageInput`
+- **THEN** 值仍在（请求字段不受收集重置影响——这是"输入 vs 收集产物"分离的落点）
 
 ### Requirement: 流程属性黑板
 
 `FTcsFlowAttributes`（流程工作值的容器：键 + 每键修正链）MUST 提供：
 
+- **键类型 = `FGameplayTag`**（**2026-09-22 改造：`FName` → `FGameplayTag`**）——契约键（`BaseDamage` / `Executed` / `Absorbed` / `Kill` / `Hit` / `Crit` / `ExecuteCandidates`）属**标准步骤库的契约**，由**插件原生声明**（`Tcs.Flow.Key.*`，常量名逐点换下划线）；项目自定义键自由，由**项目 ini** 声明；
 - **提交**：`Submit(Key, Op, Operand, SortKey, ConsumePolicy)`——Operand 为 `FTcsParamValue`（PV 系列载体；黑板键引用保留为流程域自身 Operand 选项）；`SortKey` **只用于消耗裁决、MUST NOT 参与求值顺序**；
 - **读取**：`Read(Key)` 按 **M2 同款带式语义**求值——**折叠 MUST 调用 TcsAttribute 的共享纯函数 `FoldTcsAttributeBands`**（D5-5 v3：M2 属性聚合 / M5 参数链 / 本容器**三处共用，MUST NOT 私建第二份**）；
 - **收集重置**：`Reset()`——清空全部键的收集（标准步骤 `CollectStart` 的落点）；
@@ -105,7 +94,7 @@ TBD - created by archiving change add-tcsdamage-flow-layer. Update Purpose after
 
 ### Requirement: 流程解释器（同步单帧）
 
-`UTcsDamageSubsystem::RunTemplate(FName TemplateId, FTcsDamageFlowContext& Context)` MUST：
+`UTcsDamageSubsystem::RunTemplate(FGameplayTag TemplateId, FTcsDamageFlowContext& Context)` MUST（**2026-09-22 改造：`TemplateId` 类型 `FName` → `FGameplayTag`**）：
 
 - 按模板顺序**同步执行全部步骤、单帧内完成**——MUST NOT 挂起（瞬时流程无异步语义，区别于效果链的挂起点；09 §3）；
 - 门面 MUST NOT 是 Tickable（流程无每帧成本）；

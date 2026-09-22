@@ -11,13 +11,15 @@
 
 ## 2. 类型词汇（对外）
 
-### 2.1 属性词表（D2-1 终定）
-- `FAttributeName`：FName 包装结构体，**explicit 构造**（裸 FName/TEXT 传不进属性 API）；内部缓存稠密 int32 id（注册表世代号校验失效）。
-- 项目侧常量：`UE_DECLARE_COMBAT_ATTR / UE_DEFINE_COMBAT_ATTR` 宏（仿 GameplayTag 宏模式）；词表 + DevSettings 注册，**编辑器即时响应**。
-- `FAttributeRegistry`：启动注册（重名/非法引用**加载期报错**）；`Resolve(FAttributeName) -> int32` 稠密 id；行名 ↔ 常量约定映射校验。
+### 2.1 属性词表（**D2-1 于 2026-09-22 被 tag 化改造取代**）
+- **属性身份 = `FGameplayTag`**（2026-09-22 用户拍板"全部替换"；提案 `switch-identifiers-to-gameplay-tags`）：~~`FAttributeName`：FName 包装结构体，explicit 构造~~ → **`FTcsAttributeName` 整体删除**，属性名直接用 `FGameplayTag`。
+  **保护更强而非更弱**：`FGameplayTag(const FName&)` 是 **`protected`**（`GameplayTagContainer.h:219`）→ 裸 FName 同样传不进属性 API，且只能走 `RequestGameplayTag`（默认 `ErrorIfNotFound=true` → **ensure**）或原生 tag 常量 → **拼错的 tag 在解析处即暴露**，而非运行期静默降级。`IsValid()` / `operator==` / `GetTypeHash` 与包装的三个手写成员**逐字等价**（`FGameplayTag` 内部即 `FName`）。
+- **项目侧词表 = 项目 tag 表**：~~`UE_DECLARE_COMBAT_ATTR / UE_DEFINE_COMBAT_ATTR` 宏~~ → 项目 `Config/DefaultGameplayTags.ini` 声明（`Tcs.Attr.<Name>`），编辑器获得 **tag picker**（下拉选择）+ **重命名自动修引用**（引擎 `GameplayTagRedirects`）。**代码侧 MUST 缓存解析**（`RequestGameplayTag` 带 `TScopeLock(GameplayTagMapCritical)`，不可进热路径）。
+- `FAttributeRegistry`（**收窄**）：启动注册（重名/非法引用**加载期报错**）；~~`Resolve(FAttributeName) -> int32` 稠密 id~~ → 按 tag 解析；~~行名 ↔ 常量约定映射校验~~ **作废**（tag 方案下无"行名"概念——见下）。
 - **属性定义（2026-09-17 双轨制定案，实现名）**：**表 = 编辑期载体、资产 = 运行期载体**（用户口径：DataTable 便于策划批量编辑，**不作为运行期加载源**；运行期一律走资产——资产制扩展性好，未来给定义加 Fragment 之类只动资产与定义行）：
-  - **定义行 `FTcsAttributeDefTableRow : FTableRowBase`（字段形状的唯一声明处）**：`BaseValue` + `Bounds` + `ValueDomain`（D2-6 值域模式挂定义）——项目词表表 `DT_AttributeDefinitions` 的行类型，**身份 = 行名（= 属性名**，D2-1 的"行名 ↔ 项目侧常量"映射），**行内不带 id**（2026-09-17 用户口径：DataTable 的键就是行名，行内再放一份是双真相）；
-  - **运行期资产 `UTcsAttributeDef : UPrimaryDataAsset`**：持自身 `DefId` 与**组合持有的一行** `Def`（不复制字段集）；**主资产身份 = `[PrimaryAssetType, DefId]`**（显式声明类型常量、覆写 `GetPrimaryAssetId`——名取 DefId 不取资产名，资产文件可自由改名/挪目录）；`IsDataValid` 只报空 DefId（"资产名与 DefId 同名"不再是要求）；两类型**同住 `TcsAttributeDef.h`**；
+  - **定义数据 `FTcsAttributeDefData`（字段形状的唯一声明处，2026-09-22 抽出）**：`BaseValue` + `Bounds` + `ValueDomain`（D2-6 值域模式挂定义）+ `OverrideTieBreak`。抽出的理由：行必须携带 `DefTag`（tag 是内容身份），而"字段集只声明一次"不能破——故行与资产各持 `{身份, 数据}` 两段。
+  - **定义行 `FTcsAttributeDefTableRow : FTableRowBase`（编辑期载体）**：`DefTag: FGameplayTag` + `Def: FTcsAttributeDefData`。**身份分工（分工而非双真相）**：`DefTag` = **内容身份**；**RowName（`FName`）= 编辑期定位**（`FTableRowBase` 的键类型是引擎硬约束的 `FName`，无法承载 tag）——二者 **MUST NOT 被要求同名**，一致性由 M8 同步器维护；
+  - **运行期资产 `UTcsAttributeDef : UPrimaryDataAsset`**：持自身 `DefTag` 与**组合持有的定义数据** `Def`（不复制字段集）；**主资产身份 = `[PrimaryAssetType, DefTag.GetTagName()]`**（显式声明类型常量、覆写 `GetPrimaryAssetId`——名取 tag 的 FName 形态不取资产名，资产文件可自由改名/挪目录；`FPrimaryAssetId` 的 name 位是 `FName`，属引擎类型约束）；`IsDataValid` 只报无效 `DefTag`；两类型**同住 `TcsAttributeDef.h`**；
   - 两轨一致性由 08 §5 的编辑器同步器维护（资产为权威，M8 工具面）；**运行期零 DataTable 加载路径**。
   - 单位实例由定义行初始化后**自持**这些字段（实例不持定义引用——热路径不回查定义，D2-1/D2-9）；单位侧调用面 `AddAttribute(单位, 属性名)` / `RemoveAttribute(单位, 属性名)`——**定义解析是门面内部流程**（门面持属性定义表，`RegisterAttributeDef` 由宿主/DefLibrary 加载后登记）。
 - **候选能力：AttributeSet → 已升为正式裁决（D2-15，2026-09-17）**：见 §2.2a 的"AttributeSet"条与决策文档 `2026-09-17-attribute-set-and-existence-decision-points.md`（形态 B1a+B2+B3a：实体侧引用 / 资产 GameInstance 级 + 施加 World 级 / diff 替换；内容 = `DefIds`，覆写列首版不做；实现随 M6 轮）。

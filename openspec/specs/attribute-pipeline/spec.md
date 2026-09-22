@@ -40,7 +40,7 @@ TBD - created by archiving change add-tcsattribute-pipeline-and-transaction. Upd
 
 ### Requirement: 按需重算与脏标记
 
-管线 MUST 提供 `EvaluateCurrent(Unit, FTcsAttributeName)`（动词 = 求值，不是 `Resolve`——不从标识符取对象）：
+管线 MUST 提供 `EvaluateCurrent(Unit, FGameplayTag)`（动词 = 求值，不是 `Resolve`——不从标识符取对象；**2026-09-22 改造：属性参数从 `FTcsAttributeName` 改为 `FGameplayTag`**）：
 
 - 目标属性**不脏** → 直接返回 `CachedCurrent`（零重算）；
 - 目标属性**脏** → 重算：收集该属性的修正器（按 `Op` 分桶）→ 求值各操作数 → 折叠 → 值域收口 → 写回 `CachedCurrent` → 清脏标记；

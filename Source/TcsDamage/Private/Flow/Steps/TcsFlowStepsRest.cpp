@@ -5,6 +5,7 @@
 #include "EventBus/TcsEventBusSubsystem.h"
 #include "Flow/Steps/TcsFlowDataSteps.h"
 #include "Flow/TcsDamageFlowCollectEvent.h"
+#include "Flow/TcsFlowKeys.h"
 #include "Flow/TcsFlowStepConditions.h"
 #include "Flow/TcsFlowStepExecutor.h"
 #include "Parameter/TcsParamSource_Literal.h"
@@ -16,9 +17,10 @@
 // ===== 其余六步 + 两个数据步骤的执行器（默认模板不组装；宿主/项目按需启用）=====
 namespace
 {
-	// 黑板契约键（标准步骤库认识；**本文件与 Core 文件在 unity build 下可能同 TU——符号带本文件前缀**）
-	const FName TcsFlowRestKey_HitRate(TEXT("HitRate"));
-	const FName TcsFlowRestKey_CritRate(TEXT("CritRate"));
+	// 黑板契约键（标准步骤库认识）：原生 tag 常量，编译期一致。
+	// **MUST NOT 写引用别名**——理由见 TcsFlowStepsCore.cpp 同处注释
+	// （`operator FGameplayTag()` 按值返回，静态期绑定会永远持空 tag）。
+
 
 	UTcsDamageSubsystem* ResolveFlowRestOwner(const FTcsDamageFlowContext& Context)
 	{
@@ -26,14 +28,14 @@ namespace
 	}
 
 	// 以 **Add** 提交输入/基值类；以 **Override** 提交结果类（见 TcsFlowStepsCore.cpp 的语义说明）
-	void SubmitFlowRestAdd(FTcsFlowAttributes& Blackboard, FName Key, double Value)
+	void SubmitFlowRestAdd(FTcsFlowAttributes& Blackboard, FGameplayTag Key, double Value)
 	{
 		FTcsParamValue Operand;
 		Operand.Source.GetMutable<FTcsParamSource_Literal>().Value = Value;
 		Blackboard.Submit(Key, ETcsAttributeOp::TAO_Add, Operand);
 	}
 
-	void SubmitFlowRestOverride(FTcsFlowAttributes& Blackboard, FName Key, double Value)
+	void SubmitFlowRestOverride(FTcsFlowAttributes& Blackboard, FGameplayTag Key, double Value)
 	{
 		FTcsParamValue Operand;
 		Operand.Source.GetMutable<FTcsParamSource_Literal>().Value = Value;
@@ -80,11 +82,11 @@ namespace
 
 		// 修改器可在收集事件后改写 `HitRate` 键（宿主挂点）
 		BroadcastFlowRestCollect(Context, Tag_Tcs_Event_Damage_Hit);
-		const double Modified = Context.Blackboard.Read(TEXT("HitRate")) > 0.0
-			? Context.Blackboard.Read(TEXT("HitRate"))
+		const double Modified = Context.Blackboard.Read(FGameplayTag(Tag_Tcs_Flow_Key_HitRate)) > 0.0
+			? Context.Blackboard.Read(FGameplayTag(Tag_Tcs_Flow_Key_HitRate))
 			: HitRate;
 
-		SubmitFlowRestOverride(Context.Blackboard, FName(TEXT("Hit")), Modified >= 1.0 ? 1.0 : 0.0);
+		SubmitFlowRestOverride(Context.Blackboard, FGameplayTag(Tag_Tcs_Flow_Key_Hit), Modified >= 1.0 ? 1.0 : 0.0);
 		return true;
 	}
 
@@ -105,11 +107,11 @@ namespace
 		}
 
 		BroadcastFlowRestCollect(Context, Tag_Tcs_Event_Damage_Crit);
-		const double Modified = Context.Blackboard.Read(TEXT("CritRate")) > 0.0
-			? Context.Blackboard.Read(TEXT("CritRate"))
+		const double Modified = Context.Blackboard.Read(FGameplayTag(Tag_Tcs_Flow_Key_CritRate)) > 0.0
+			? Context.Blackboard.Read(FGameplayTag(Tag_Tcs_Flow_Key_CritRate))
 			: CritRate;
 
-		SubmitFlowRestOverride(Context.Blackboard, FName(TEXT("Crit")), Modified > 0.0 ? 1.0 : 0.0);
+		SubmitFlowRestOverride(Context.Blackboard, FGameplayTag(Tag_Tcs_Flow_Key_Crit), Modified > 0.0 ? 1.0 : 0.0);
 		return true;
 	}
 
@@ -172,7 +174,7 @@ namespace
 			return true;
 		}
 
-		if (Step->TargetKey.IsNone())
+		if (!Step->TargetKey.IsValid())
 		{
 			UE_LOG(LogTcsDamage, Warning, TEXT("FlowModify: TargetKey 为空——跳过（不静默写错键）"));
 			return true;
@@ -191,7 +193,7 @@ namespace
 			return true;
 		}
 
-		if (Step->TargetKey.IsNone())
+		if (!Step->TargetKey.IsValid())
 		{
 			UE_LOG(LogTcsDamage, Warning, TEXT("FlowDelegate: TargetKey 为空——跳过"));
 			return true;

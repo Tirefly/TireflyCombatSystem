@@ -6,7 +6,7 @@
 #include "StructUtils/InstancedStruct.h"
 #include "UObject/ScriptInterface.h"
 
-#include "Attribute/TcsAttributeName.h"
+#include "GameplayTagContainer.h"
 #include "Flow/TcsDamageFlowDelegate.h"
 #include "Parameter/TcsParamValue.h"
 
@@ -36,7 +36,7 @@ struct TCSDAMAGE_API FTcsStepDamage
 public:
 	// 流程模板 id（**空 = 官方默认模板** `Default`）
 	UPROPERTY(EditAnywhere, Category = "Tcs|Damage|Chain")
-	FName FlowTemplateId;
+	FGameplayTag FlowTemplateId;
 
 	// 基础伤害值输入（参数账本解算结果；R3 用 Literal 直配）——经上下文请求字段传入流程
 	UPROPERTY(EditAnywhere, Category = "Tcs|Damage|Chain")
@@ -45,11 +45,11 @@ public:
 	// 扣血目标属性键（项目词表，如 `Health`）——**必须由请求方指定**：插件组装的官方默认模板
 	// 不可能知道项目词表（流程步骤的 `AttrKey` 为空时即用本键）
 	UPROPERTY(EditAnywhere, Category = "Tcs|Damage|Chain")
-	FTcsAttributeName TargetAttrKey;
+	FGameplayTag TargetAttrKey;
 
 	// 公式参数初值（只读原料，键 = 项目词表；宿主公式按名取用）
 	UPROPERTY(EditAnywhere, Category = "Tcs|Damage|Chain")
-	TMap<FName, FTcsParamValue> FormulaParams;
+	TMap<FGameplayTag, FTcsParamValue> FormulaParams;
 
 	// 注：**委托配置不在链步骤**——它属**流程模板**（D7-5"流程阶段构成 = 项目知识"）：
 	// 公式/护盾 hook 配在模板的 `FTcsFlowBaseDamage` / `FTcsFlowExecute` 步骤上。

@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "GameplayTagContainer.h"
 #include "StructUtils/InstancedStruct.h"
 
 #include "TcsEffectChain.generated.h"
@@ -29,7 +30,7 @@ struct TCSEFFECT_API FTcsEffectChain
 public:
 	// 链唯一标识（= 登记表键；空 id 拒绝登记）
 	UPROPERTY(EditAnywhere, Category = "Tcs|Effect")
-	FName ChainId;
+	FGameplayTag ChainId;
 
 	// 有序步骤数组（步骤类型由执行器注册表分派；未知类型在执行期断链并留日志）
 	UPROPERTY(EditAnywhere, Category = "Tcs|Effect")

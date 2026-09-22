@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "Parameter/TcsParamValue.h"
 
-#include "Attribute/TcsAttributeName.h"
+#include "GameplayTagContainer.h"
 #include "Handle/TcsSourceHandle.h"
 
 #include "TcsAttrModInstance.generated.h"
@@ -131,7 +131,7 @@ public:
 	// 被读取的属性（OPK_AttributeScaled 时生效）
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Operand",
 		Meta = (EditCondition = "Kind == ETcsOperandKind::OPK_AttributeScaled", EditConditionHides))
-	FTcsAttributeName Attribute;
+	FGameplayTag Attribute;
 
 	// 换算系数（OPK_AttributeScaled 时生效；百分比语义直接写小数——本种类禁配约定列）
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Operand",
@@ -157,7 +157,7 @@ struct FTcsAttrModOperand
 	double Literal = 0.0;
 
 	// 被读取的属性（OPK_AttributeScaled；取值 = Coefficient × Current(Attribute)，收集时求值）
-	FTcsAttributeName Attribute;
+	FGameplayTag Attribute;
 
 	// 换算系数（OPK_AttributeScaled）
 	double Coefficient = 1.0;
@@ -183,7 +183,7 @@ struct FTcsAttrModOperand
 struct FTcsAttrModInstance
 {
 	// 被修饰的属性
-	FTcsAttributeName Target;
+	FGameplayTag Target;
 
 	// 运算带
 	ETcsAttributeOp Op = ETcsAttributeOp::TAO_Add;

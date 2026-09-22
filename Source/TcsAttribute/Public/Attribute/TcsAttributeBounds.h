@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 
-#include "Attribute/TcsAttributeName.h"
+#include "GameplayTagContainer.h"
 
 #include "TcsAttributeBounds.generated.h"
 
@@ -66,7 +66,7 @@ public:
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Bound",
 		Meta = (EditCondition = "Mode == ETcsAttributeBoundMode::ABM_Dynamic", EditConditionHides))
-	FTcsAttributeName DynamicAttribute;
+	FGameplayTag DynamicAttribute;
 
 #pragma endregion
 };

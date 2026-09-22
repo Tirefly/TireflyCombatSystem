@@ -64,7 +64,7 @@ public:
 	 * @param TemplateId 模板 id。
 	 * @return 返回是否注销成功。
 	 */
-	bool UnregisterTemplate(FName TemplateId);
+	bool UnregisterTemplate(FGameplayTag TemplateId);
 
 	/**
 	 * 查询流程模板（未登记返回 nullptr——正常查询路径，不 ensure）。
@@ -72,7 +72,7 @@ public:
 	 * @param TemplateId 模板 id。
 	 * @return 返回模板；未登记返回 nullptr。
 	 */
-	const FTcsFlowTemplate* FindTemplate(FName TemplateId) const;
+	const FTcsFlowTemplate* FindTemplate(FGameplayTag TemplateId) const;
 
 #pragma endregion
 
@@ -91,7 +91,7 @@ public:
 	 * @param Context 流程上下文（调用方提供；本函数就地使用，不持引用跨帧）。
 	 * @return 返回流程是否走完全部步骤。
 	 */
-	bool RunTemplate(FName TemplateId, FTcsDamageFlowContext& Context);
+	bool RunTemplate(FGameplayTag TemplateId, FTcsDamageFlowContext& Context);
 
 #pragma endregion
 
@@ -134,7 +134,7 @@ public:
 
 private:
 	// 模板登记表（键 = TemplateId；TUniquePtr 地址稳定持有）
-	TMap<FName, TUniquePtr<FTcsFlowTemplate>> Templates;
+	TMap<FGameplayTag, TUniquePtr<FTcsFlowTemplate>> Templates;
 
 	// 流程来源发号器（每流程唯一 FlowSource）
 	FTcsSourceHandleRegistry FlowSourceRegistry;

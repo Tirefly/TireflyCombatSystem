@@ -30,7 +30,7 @@ int32 FTcsAttributePipeline::RemoveBySource(FTcsCombatEntityHandle Unit, const F
 	bool bAnyInstanceChanged = false;
 
 	// ① 实例槽位（正常路径：来源级联撤销 D2-2）
-	for (TPair<FTcsAttributeName, FTcsAttributeInstance>& Pair : Store->Attributes)
+	for (TPair<FGameplayTag, FTcsAttributeInstance>& Pair : Store->Attributes)
 	{
 		const int32 Removed = StripBySource(Pair.Value.ModifierSlots);
 		if (Removed > 0)
@@ -43,7 +43,7 @@ int32 FTcsAttributePipeline::RemoveBySource(FTcsCombatEntityHandle Unit, const F
 
 	// ② 冻结暂存区（**必须扫描**：来源可能在属性被冻结期间结束——只在槽位里找会让其修正器永久滞留，
 	//    属性被解冻时凭空多出数值，比丢数值更难查）
-	for (TPair<FTcsAttributeName, FTcsAttributeInstance>& Pair : Store->FrozenAttributes)
+	for (TPair<FGameplayTag, FTcsAttributeInstance>& Pair : Store->FrozenAttributes)
 	{
 		const int32 Removed = StripBySource(Pair.Value.ModifierSlots);
 		if (Removed > 0)
@@ -53,7 +53,7 @@ int32 FTcsAttributePipeline::RemoveBySource(FTcsCombatEntityHandle Unit, const F
 			RemovedCount += Removed;
 			UE_LOG(LogTcsAttribute, Log,
 				TEXT("FTcsAttributePipeline::RemoveBySource: 命中冻结暂存区（单位 %lld，属性 %s 摘除 %d 条——来源在冻结期结束）"),
-				Unit.Id, *Pair.Key.Name.ToString(), Removed);
+				Unit.Id, *Pair.Key.GetTagName().ToString(), Removed);
 		}
 	}
 
@@ -75,7 +75,7 @@ int32 FTcsAttributePipeline::RemoveBySource(FTcsCombatEntityHandle Unit, const F
 
 
 bool FTcsAttributePipeline::SetBaseValue(
-	FTcsCombatEntityHandle Unit, const FTcsAttributeName& Attribute, double NewBaseValue)
+	FTcsCombatEntityHandle Unit, const FGameplayTag& Attribute, double NewBaseValue)
 {
 	FTcsAttributeStore* Store = Owner.ResolveStore(Unit);
 	if (!Store)
@@ -89,7 +89,7 @@ bool FTcsAttributePipeline::SetBaseValue(
 	if (!Instance)
 	{
 		UE_LOG(LogTcsAttribute, Log, TEXT("FTcsAttributePipeline::SetBaseValue: 属性无实例（单位 %lld，属性 %s）——忽略"),
-			Unit.Id, *Attribute.Name.ToString());
+			Unit.Id, *Attribute.GetTagName().ToString());
 		return false;
 	}
 

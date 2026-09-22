@@ -98,7 +98,7 @@ public:
 	 * @param ChainId 链 id。
 	 * @return 返回链定义；未缓存返回 nullptr。
 	 */
-	const FTcsEffectChain* ResolveChain(FName ChainId) const;
+	const FTcsEffectChain* ResolveChain(FGameplayTag ChainId) const;
 
 #pragma endregion
 
@@ -120,7 +120,7 @@ private:
 	TWeakObjectPtr<UWorld> SeededWorld;
 
 	// 链定义缓存（Const 内容；键 = ChainId）——`TUniquePtr` 持有使解析返回的指针地址稳定
-	TMap<FName, TUniquePtr<FTcsEffectChain>> ChainDefs;
+	TMap<FGameplayTag, TUniquePtr<FTcsEffectChain>> ChainDefs;
 
 	// 定义资产缓存（GC 锚定：缓存的是定义内容，但资产对象本身也需存活以免重载）
 	UPROPERTY()

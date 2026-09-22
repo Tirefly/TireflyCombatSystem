@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "GameplayTagContainer.h"
 #include "StructUtils/InstancedStruct.h"
 
 #include "TcsFlowTemplate.generated.h"
@@ -28,7 +29,7 @@ struct TCSDAMAGE_API FTcsFlowTemplate
 public:
 	// 模板唯一标识（= 登记表键）
 	UPROPERTY(EditAnywhere, Category = "Tcs|Damage|Flow")
-	FName TemplateId;
+	FGameplayTag TemplateId;
 
 	// 有序步骤数组（模板只读：执行过程 MUST NOT 改写）
 	UPROPERTY(EditAnywhere, Category = "Tcs|Damage|Flow")

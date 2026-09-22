@@ -3,6 +3,7 @@
 #include "Chain/TcsStepDamage.h"
 
 #include "Chain/TcsEffectStepExecutor.h"
+#include "Flow/TcsFlowKeys.h"
 #include "Flow/TcsDamageFlowContext.h"
 #include "Parameter/TcsParamSource_Literal.h"
 #include "TcsDamageLogChannel.h"
@@ -56,8 +57,11 @@ namespace
 		// 扣血目标属性键（请求方指定——插件组装的默认模板不可能知道项目词表）
 		FlowContext.TargetAttrKey = Step->TargetAttrKey;
 
-		// 起流程（空模板 id → 官方默认模板 `Default`；流程单帧同步完成，无挂起）
-		const FName TemplateId = Step->FlowTemplateId.IsNone() ? FName(TEXT("Default")) : Step->FlowTemplateId;
+		// 起流程（无效模板 tag → 官方默认模板；流程单帧同步完成，无挂起）
+		// 默认模板 tag 是**框架词汇**（插件自带），由本模块原生声明（`TcsFlowKeys.h`）——零项目配置依赖。
+		const FGameplayTag TemplateId = Step->FlowTemplateId.IsValid()
+			? Step->FlowTemplateId
+			: FGameplayTag(Tag_Tcs_Flow_Template_Default);
 		if (!Owner->RunTemplate(TemplateId, FlowContext))
 		{
 			UE_LOG(LogTcsDamage, Warning, TEXT("Damage[%s]: 流程 %s 未走完（中止路径见上文日志）"),

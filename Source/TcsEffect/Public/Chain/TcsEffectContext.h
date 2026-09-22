@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "GameplayTagContainer.h"
 #include "StructUtils/InstancedStruct.h"
 
 #include "Handle/TcsCombatEntityHandle.h"
@@ -47,7 +48,7 @@ public:
 	TArray<FTcsCombatEntityHandle> Targets;
 
 	// 链内变量（SetVar / Branch 类步骤的载体；R3 无写入方，留位）
-	TMap<FName, double> Variables;
+	TMap<FGameplayTag, double> Variables;
 
 #pragma endregion
 };

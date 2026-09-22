@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "GameplayTagContainer.h"
 
-#include "Attribute/TcsAttributeName.h"
+#include "GameplayTagContainer.h"
 #include "Handle/TcsCombatEntityHandle.h"
 #include "Handle/TcsSourceHandle.h"
 #include "Parameter/TcsParamValue.h"
@@ -48,7 +48,7 @@ public:
 
 public:
 	// 公式参数初值（只读原料；键 = 项目词表，永不用下标）
-	TMap<FName, FTcsParamValue> FormulaParams;
+	TMap<FGameplayTag, FTcsParamValue> FormulaParams;
 
 	// 流程属性黑板（工作值；折叠走 TcsAttribute 共享纯函数）
 	FTcsFlowAttributes Blackboard;
@@ -69,7 +69,7 @@ public:
 
 	// 属性捕获快照（读默认 Live、捕获命中读快照——流程内读取一致性；
 	// **快照填充归标准步骤（AttrCapture 配置）**，本层只落字段与语义）
-	TMap<FTcsAttributeName, double> CapturedAttrs;
+	TMap<FGameplayTag, double> CapturedAttrs;
 
 #pragma endregion
 
@@ -90,7 +90,7 @@ public:
 	 * 存在的理由：插件组装的**官方默认模板不可能知道项目词表**（`Health` 是项目侧的），
 	 * 故"打哪个属性"必须由请求方给出。
 	 */
-	FTcsAttributeName TargetAttrKey;
+	FGameplayTag TargetAttrKey;
 
 #pragma endregion
 

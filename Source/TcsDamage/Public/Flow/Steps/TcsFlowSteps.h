@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "GameplayTagContainer.h"
 #include "StructUtils/InstancedStruct.h"
 #include "UObject/ScriptInterface.h"
 
@@ -96,7 +97,7 @@ struct TCSDAMAGE_API FTcsFlowBaseDamage
 
 	// 输出键（输入值以 **Add** 提交到该键；收集到的 PercentAdd/Mul 修正自然叠在其上）
 	UPROPERTY(EditAnywhere, Category = "Tcs|Damage|Flow")
-	FName OutputKey = FName(TEXT("BaseDamage"));
+	FGameplayTag OutputKey;
 
 	// delegate 降级逃生口（宿主特殊公式；未配置则原样使用输入值）
 	UPROPERTY(EditAnywhere, Category = "Tcs|Damage|Flow")
@@ -124,7 +125,7 @@ struct TCSDAMAGE_API FTcsFlowPreExecute
 
 	// 候选落点键（默认 `ExecuteCandidates`——⑨ 裁决步骤按此读回）
 	UPROPERTY(EditAnywhere, Category = "Tcs|Damage|Flow")
-	FName CandidateKey = FName(TEXT("ExecuteCandidates"));
+	FGameplayTag CandidateKey;
 
 	UPROPERTY(EditAnywhere, Category = "Tcs|Damage|Flow")
 	TArray<FInstancedStruct> Conditions;
@@ -138,15 +139,15 @@ struct TCSDAMAGE_API FTcsFlowExecute
 
 	// 扣血目标属性键（项目词表，如 `Health`）
 	UPROPERTY(EditAnywhere, Category = "Tcs|Damage|Flow")
-	FName AttrKey;
+	FGameplayTag AttrKey;
 
 	// 待执行伤害量键（默认 `BaseDamage`——⑥ 以 **Add** 提交输入值，收集到的 PercentAdd/Mul 自然叠在其上）
 	UPROPERTY(EditAnywhere, Category = "Tcs|Damage|Flow")
-	FName DamageKey = FName(TEXT("BaseDamage"));
+	FGameplayTag DamageKey;
 
 	// 免疫/减伤候选键（默认 `ExecuteCandidates`——与 ⑧ 配对）
 	UPROPERTY(EditAnywhere, Category = "Tcs|Damage|Flow")
-	FName CandidateKey = FName(TEXT("ExecuteCandidates"));
+	FGameplayTag CandidateKey;
 
 	UPROPERTY(EditAnywhere, Category = "Tcs|Damage|Flow")
 	TScriptInterface<ITcsDamageFlowDelegate> Delegate;

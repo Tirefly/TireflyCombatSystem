@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 
 #include "Attribute/TcsAttributeInstance.h"
-#include "Attribute/TcsAttributeName.h"
+#include "GameplayTagContainer.h"
 
 
 
@@ -21,44 +21,44 @@
 struct FTcsAttributeStore
 {
 	// 属性实例表（键 = 属性名；每属性一条，实例自持边界与修正器槽位）
-	TMap<FTcsAttributeName, FTcsAttributeInstance> Attributes;
+	TMap<FGameplayTag, FTcsAttributeInstance> Attributes;
 
 	// 冻结暂存区（键 = 属性名；**整条实例进出**——RemoveAttribute 冻结、AddAttribute 解冻优先）
 	// 双态约束：同一属性名不得同时存在于 Attributes 与此处（搬移语义保证；两处都有 = 双份真相）
-	TMap<FTcsAttributeName, FTcsAttributeInstance> FrozenAttributes;
+	TMap<FGameplayTag, FTcsAttributeInstance> FrozenAttributes;
 
 	// 依赖边（键 = 被读属性；值 = 读者属性列表——求值期"读即登记"，被读者变化时把读者标脏）
-	TMap<FTcsAttributeName, TArray<FTcsAttributeName>> Dependents;
+	TMap<FGameplayTag, TArray<FGameplayTag>> Dependents;
 
 	// 事务批深度（0 = 无进行中的批；>0 = 批内——重算与广播延后到最外层提交）
 	int32 BatchDepth = 0;
 
 	// 查找属性实例（属性未定义时返回 nullptr——正常查询路径，不视为错误）
-	FTcsAttributeInstance* FindInstance(const FTcsAttributeName& Attribute)
+	FTcsAttributeInstance* FindInstance(const FGameplayTag& Attribute)
 	{
 		return Attributes.Find(Attribute);
 	}
 
 	// 查找属性实例（只读）
-	const FTcsAttributeInstance* FindInstance(const FTcsAttributeName& Attribute) const
+	const FTcsAttributeInstance* FindInstance(const FGameplayTag& Attribute) const
 	{
 		return Attributes.Find(Attribute);
 	}
 
 	// 查找冻结实例（未冻结返回 nullptr——正常查询路径，不视为错误）
-	FTcsAttributeInstance* FindFrozenInstance(const FTcsAttributeName& Attribute)
+	FTcsAttributeInstance* FindFrozenInstance(const FGameplayTag& Attribute)
 	{
 		return FrozenAttributes.Find(Attribute);
 	}
 
 	// 查找冻结实例（只读）
-	const FTcsAttributeInstance* FindFrozenInstance(const FTcsAttributeName& Attribute) const
+	const FTcsAttributeInstance* FindFrozenInstance(const FGameplayTag& Attribute) const
 	{
 		return FrozenAttributes.Find(Attribute);
 	}
 
 	// 读取属性基础值（不受修正器影响；属性未定义时返回 0）
-	double GetBaseValue(const FTcsAttributeName& Attribute) const
+	double GetBaseValue(const FGameplayTag& Attribute) const
 	{
 		const FTcsAttributeInstance* Instance = FindInstance(Attribute);
 		return Instance ? Instance->BaseValue : 0.0;

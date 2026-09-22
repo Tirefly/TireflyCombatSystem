@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "GameplayTagContainer.h"
 #include "Clock/TcsExpiryHeap.h"
 #include "Handle/TcsInstanceHandle.h"
 
@@ -52,7 +53,7 @@ struct FTcsChainRun
 
 public:
 	// 链 id（登记表键；每步入器按 id 重解析定义）
-	FName ChainId;
+	FGameplayTag ChainId;
 
 	// 下一待执行步序号（挂起时停驻原值——重入即"再来一次本步"）
 	int32 PC = 0;

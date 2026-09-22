@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "GameplayTagContainer.h"
 #include "Engine/DataAsset.h"
 
 #include "Chain/TcsEffectChain.h"
@@ -48,7 +49,7 @@ public:
 public:
 	// 链身份（= 链登记表键；与 `Chain.ChainId` 必须一致——双真相禁令）
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Tcs|Effect Chain")
-	FName ChainId = NAME_None;
+	FGameplayTag ChainId;
 
 public:
 	/**

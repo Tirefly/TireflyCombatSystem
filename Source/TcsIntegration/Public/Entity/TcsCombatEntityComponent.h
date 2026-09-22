@@ -6,7 +6,7 @@
 #include "Components/ActorComponent.h"
 
 #include "Attribute/TcsAttrModInstance.h"
-#include "Attribute/TcsAttributeName.h"
+#include "GameplayTagContainer.h"
 #include "Chain/TcsChainRun.h"
 #include "Handle/TcsCombatEntityHandle.h"
 
@@ -96,7 +96,7 @@ public:
 	 * @param Attribute 属性名。
 	 * @return 返回当前值。
 	 */
-	double GetCurrent(const FTcsAttributeName& Attribute) const;
+	double GetCurrent(const FGameplayTag& Attribute) const;
 
 	/**
 	 * 施加修正器（宿主/调试入口；R3 无 AttributeSet——D2-15 属 R7）。
@@ -131,7 +131,7 @@ public:
 	 * @param ChainId 链 id（调用方给出——组件不认识具体链）。
 	 * @return 返回运行态句柄（仅在链未走完时有效）。
 	 */
-	FTcsChainRunHandle ExecuteChainById(FName ChainId) const;
+	FTcsChainRunHandle ExecuteChainById(FGameplayTag ChainId) const;
 
 #pragma endregion
 };

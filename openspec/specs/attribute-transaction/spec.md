@@ -38,7 +38,7 @@ TBD - created by archiving change add-tcsattribute-pipeline-and-transaction. Upd
 
 ### Requirement: 未提交候选值预览
 
-`PeekPending(Unit, FTcsAttributeName)` MUST 返回**不落账**的候选值预览（D2-5，供表现层预览）：
+`PeekPending(Unit, FGameplayTag)` MUST 返回**不落账**的候选值预览（D2-5，供表现层预览；**2026-09-22 改造：属性参数从 `FTcsAttributeName` 改为 `FGameplayTag`**）：
 
 - 批进行中：返回该属性在当前批内**候选集**上算出的值（含尚未提交的变更）；
 - 无进行中的批：返回与 `EvaluateCurrent` 相同的当前值；

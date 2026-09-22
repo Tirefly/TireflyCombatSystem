@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "GameplayTagContainer.h"
 #include "Attribute/TcsAttrModInstance.h"
 #include "Attribute/TcsAttributeBandFold.h"
 #include "Parameter/TcsParamValue.h"
@@ -79,7 +80,7 @@ public:
 	 * @param Consume 消耗策略（只存不裁）。
 	 * @return 返回提交是否成功（键为空 → false，不静默记账）。
 	 */
-	bool Submit(FName Key, ETcsAttributeOp Op, const FTcsParamValue& Operand, const FTcsConsumePolicy& Consume = FTcsConsumePolicy());
+	bool Submit(FGameplayTag Key, ETcsAttributeOp Op, const FTcsParamValue& Operand, const FTcsConsumePolicy& Consume = FTcsConsumePolicy());
 
 	/**
 	 * 读取键的当前值：对该键全部提交**逐一求值**后按共享折叠函数求值。
@@ -88,7 +89,7 @@ public:
 	 * @param EvalContext 操作数求值上下文（引用型操作数按此取依赖；Literal 源忽略）。
 	 * @return 返回折叠结果；键无提交时返回 0（折叠初值）。
 	 */
-	double Read(FName Key, const FTcsParamEvaluateContext& EvalContext) const;
+	double Read(FGameplayTag Key, const FTcsParamEvaluateContext& EvalContext) const;
 
 	/**
 	 * 便捷读取（无上下文的场景——如只含 Literal 源的键）。
@@ -96,7 +97,7 @@ public:
 	 * @param Key 黑板键。
 	 * @return 返回折叠结果。
 	 */
-	double Read(FName Key) const;
+	double Read(FGameplayTag Key) const;
 
 	// 收集重置（标准步骤 `CollectStart` 的落点）：清空全部键的提交
 	void Reset();
@@ -114,7 +115,7 @@ public:
 	 * @param Key 黑板键。
 	 * @return 返回该键的提交数组；键不存在返回 nullptr。
 	 */
-	const TArray<FTcsFlowAttributeSubmit>* FindSubmits(FName Key) const;
+	const TArray<FTcsFlowAttributeSubmit>* FindSubmits(FGameplayTag Key) const;
 
 #pragma endregion
 
@@ -124,7 +125,7 @@ public:
 
 private:
 	// 键 → 提交链（每次提交追加；Reset 清空）
-	TMap<FName, TArray<FTcsFlowAttributeSubmit>> Submits;
+	TMap<FGameplayTag, TArray<FTcsFlowAttributeSubmit>> Submits;
 
 #pragma endregion
 };

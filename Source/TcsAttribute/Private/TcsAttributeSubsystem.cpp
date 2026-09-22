@@ -69,10 +69,10 @@ FName UTcsAttributeSubsystem::GetUnitName(FTcsCombatEntityHandle Unit) const
 }
 
 bool UTcsAttributeSubsystem::RegisterAttributeDef(
-	const FTcsAttributeName& Attribute,
-	const FTcsAttributeDefTableRow& DefRow)
+	const FGameplayTag& Attribute,
+	const FTcsAttributeDefData& DefData)
 {
-	if (!ensureMsgf(!Attribute.IsNone(),
+	if (!ensureMsgf(Attribute.IsValid(),
 		TEXT("UTcsAttributeSubsystem::RegisterAttributeDef: 属性名为空（属性名即定义表的键）")))
 	{
 		return false;
@@ -80,27 +80,27 @@ bool UTcsAttributeSubsystem::RegisterAttributeDef(
 
 	if (!ensureMsgf(!DefTable.Contains(Attribute),
 		TEXT("UTcsAttributeSubsystem::RegisterAttributeDef: 属性定义重复登记（属性 %s）——词表重名属加载期错误"),
-		*Attribute.Name.ToString()))
+		*Attribute.GetTagName().ToString()))
 	{
 		return false;
 	}
 
-	DefTable.Add(Attribute, DefRow);
+	DefTable.Add(Attribute, DefData);
 
 	UE_LOG(LogTcsAttribute, Log, TEXT("UTcsAttributeSubsystem: 属性定义登记 Attribute=%s BaseValue=%.6f Domain=%d"),
-		*Attribute.Name.ToString(), DefRow.BaseValue, static_cast<int32>(DefRow.ValueDomain));
+		*Attribute.GetTagName().ToString(), DefData.BaseValue, static_cast<int32>(DefData.ValueDomain));
 
 	return true;
 }
 
-const FTcsAttributeDefTableRow* UTcsAttributeSubsystem::FindAttributeDef(const FTcsAttributeName& Attribute) const
+const FTcsAttributeDefData* UTcsAttributeSubsystem::FindAttributeDef(const FGameplayTag& Attribute) const
 {
 	return DefTable.Find(Attribute);
 }
 
 bool UTcsAttributeSubsystem::AddAttribute(
 	FTcsCombatEntityHandle Unit,
-	const FTcsAttributeName& Attribute)
+	const FGameplayTag& Attribute)
 {
 	// 直接查表而非走 GetStore：拒绝面只在此处报一次 ensure（避免同一违规双站点触发）
 	FTcsAttributeStore* Store = ResolveStore(Unit);
@@ -110,7 +110,7 @@ bool UTcsAttributeSubsystem::AddAttribute(
 		return false;
 	}
 
-	if (!ensureMsgf(!Attribute.IsNone(),
+	if (!ensureMsgf(Attribute.IsValid(),
 		TEXT("UTcsAttributeSubsystem::AddAttribute: 属性名为空（单位 Id=%lld）"), Unit.Id))
 	{
 		return false;
@@ -118,7 +118,7 @@ bool UTcsAttributeSubsystem::AddAttribute(
 
 	if (!ensureMsgf(!Store->Attributes.Contains(Attribute),
 		TEXT("UTcsAttributeSubsystem::AddAttribute: 属性重复添加（单位 Id=%lld，属性 %s）"),
-		Unit.Id, *Attribute.Name.ToString()))
+		Unit.Id, *Attribute.GetTagName().ToString()))
 	{
 		return false;
 	}
@@ -132,27 +132,27 @@ bool UTcsAttributeSubsystem::AddAttribute(
 
 		UE_LOG(LogTcsAttribute, Log,
 			TEXT("UTcsAttributeSubsystem: 属性解冻 Unit=%llu Attribute=%s 槽位=%d（基础值取回冻结前的值）"),
-			Unit.Id, *Attribute.Name.ToString(), SlotCount);
+			Unit.Id, *Attribute.GetTagName().ToString(), SlotCount);
 
 		return true;
 	}
 
 	// 定义解析在门面内部完成（2026-09-17 用户口径：单位侧只认属性名，不传定义数据）
-	const FTcsAttributeDefTableRow* DefRow = DefTable.Find(Attribute);
-	if (!ensureMsgf(DefRow != nullptr,
+	const FTcsAttributeDefData* DefData = DefTable.Find(Attribute);
+	if (!ensureMsgf(DefData != nullptr,
 		TEXT("UTcsAttributeSubsystem::AddAttribute: 属性定义未登记（属性 %s——宿主须先 RegisterAttributeDef）"),
-		*Attribute.Name.ToString()))
+		*Attribute.GetTagName().ToString()))
 	{
 		return false;
 	}
 
 	// 动态边界自引用禁止（D2-4：以自身为边界 = 循环依赖）
 	const bool bSelfReferencedBound =
-		(DefRow->Bounds.Min.Mode == ETcsAttributeBoundMode::ABM_Dynamic && DefRow->Bounds.Min.DynamicAttribute == Attribute) ||
-		(DefRow->Bounds.Max.Mode == ETcsAttributeBoundMode::ABM_Dynamic && DefRow->Bounds.Max.DynamicAttribute == Attribute);
+		(DefData->Bounds.Min.Mode == ETcsAttributeBoundMode::ABM_Dynamic && DefData->Bounds.Min.DynamicAttribute == Attribute) ||
+		(DefData->Bounds.Max.Mode == ETcsAttributeBoundMode::ABM_Dynamic && DefData->Bounds.Max.DynamicAttribute == Attribute);
 	if (!ensureMsgf(!bSelfReferencedBound,
 		TEXT("UTcsAttributeSubsystem::AddAttribute: 动态边界自引用（单位 Id=%lld，属性 %s 以自身为边界）"),
-		Unit.Id, *Attribute.Name.ToString()))
+		Unit.Id, *Attribute.GetTagName().ToString()))
 	{
 		return false;
 	}
@@ -160,23 +160,23 @@ bool UTcsAttributeSubsystem::AddAttribute(
 	// 定义字段在实例内展开（实例不持定义行引用——热路径不回查定义，D2-1/D2-9）
 	FTcsAttributeInstance Instance;
 	Instance.Attr = Attribute;
-	Instance.BaseValue = DefRow->BaseValue;
-	Instance.CachedCurrent = DefRow->BaseValue;	// 占位值（结算前不对外承诺——缓存值的唯一生产者仍是聚合管线）
+	Instance.BaseValue = DefData->BaseValue;
+	Instance.CachedCurrent = DefData->BaseValue;	// 占位值（结算前不对外承诺——缓存值的唯一生产者仍是聚合管线）
 	Instance.bDirty = true;	// 新建即脏：初值在批外读取/提交时由管线结算——值域收口、既有修正器、动态边界都在那一刻生效
-	Instance.Bounds = DefRow->Bounds;
-	Instance.ValueDomain = DefRow->ValueDomain;
-	Instance.OverrideTieBreak = DefRow->OverrideTieBreak;
+	Instance.Bounds = DefData->Bounds;
+	Instance.ValueDomain = DefData->ValueDomain;
+	Instance.OverrideTieBreak = DefData->OverrideTieBreak;
 	Store->Attributes.Add(Attribute, MoveTemp(Instance));
 
 	UE_LOG(LogTcsAttribute, Log, TEXT("UTcsAttributeSubsystem: 属性新建 Unit=%llu Attribute=%s BaseValue=%.6f"),
-		Unit.Id, *Attribute.Name.ToString(), DefRow->BaseValue);
+		Unit.Id, *Attribute.GetTagName().ToString(), DefData->BaseValue);
 
 	return true;
 }
 
 bool UTcsAttributeSubsystem::RemoveAttribute(
 	FTcsCombatEntityHandle Unit,
-	const FTcsAttributeName& Attribute)
+	const FGameplayTag& Attribute)
 {
 	FTcsAttributeStore* Store = ResolveStore(Unit);
 	if (!ensureMsgf(Store != nullptr,
@@ -185,7 +185,7 @@ bool UTcsAttributeSubsystem::RemoveAttribute(
 		return false;
 	}
 
-	if (!ensureMsgf(!Attribute.IsNone(),
+	if (!ensureMsgf(Attribute.IsValid(),
 		TEXT("UTcsAttributeSubsystem::RemoveAttribute: 属性名为空（单位 Id=%lld）"), Unit.Id))
 	{
 		return false;
@@ -195,7 +195,7 @@ bool UTcsAttributeSubsystem::RemoveAttribute(
 	FTcsAttributeInstance* Instance = Store->Attributes.Find(Attribute);
 	if (!ensureMsgf(Instance != nullptr,
 		TEXT("UTcsAttributeSubsystem::RemoveAttribute: 该单位未持有此属性（单位 Id=%lld，属性 %s）"),
-		Unit.Id, *Attribute.Name.ToString()))
+		Unit.Id, *Attribute.GetTagName().ToString()))
 	{
 		return false;
 	}
@@ -206,19 +206,19 @@ bool UTcsAttributeSubsystem::RemoveAttribute(
 
 	UE_LOG(LogTcsAttribute, Log,
 		TEXT("UTcsAttributeSubsystem: 属性冻结 Unit=%llu Attribute=%s 槽位=%d（可被同名添加解冻恢复）"),
-		Unit.Id, *Attribute.Name.ToString(), SlotCount);
+		Unit.Id, *Attribute.GetTagName().ToString(), SlotCount);
 
 	return true;
 }
 
-double UTcsAttributeSubsystem::EvaluateCurrent(FTcsCombatEntityHandle Unit, const FTcsAttributeName& Attribute)
+double UTcsAttributeSubsystem::EvaluateCurrent(FTcsCombatEntityHandle Unit, const FGameplayTag& Attribute)
 {
 	return Pipeline.IsValid() ? Pipeline->EvaluateCurrent(Unit, Attribute) : 0.0;
 }
 
 bool UTcsAttributeSubsystem::SetBaseValue(
 	FTcsCombatEntityHandle Unit,
-	const FTcsAttributeName& Attribute,
+	const FGameplayTag& Attribute,
 	double NewBaseValue)
 {
 	FTcsAttributeStore* Store = ResolveStore(Unit);
@@ -228,7 +228,7 @@ bool UTcsAttributeSubsystem::SetBaseValue(
 		return false;
 	}
 
-	if (!ensureMsgf(!Attribute.IsNone(),
+	if (!ensureMsgf(Attribute.IsValid(),
 		TEXT("UTcsAttributeSubsystem::SetBaseValue: 属性名为空（单位 Id=%lld）"), Unit.Id))
 	{
 		return false;
@@ -237,7 +237,7 @@ bool UTcsAttributeSubsystem::SetBaseValue(
 	FTcsAttributeInstance* Instance = Store->FindInstance(Attribute);
 	if (!ensureMsgf(Instance != nullptr,
 		TEXT("UTcsAttributeSubsystem::SetBaseValue: 该单位未持有此属性（单位 Id=%lld，属性 %s）"),
-		Unit.Id, *Attribute.Name.ToString()))
+		Unit.Id, *Attribute.GetTagName().ToString()))
 	{
 		return false;
 	}
@@ -246,7 +246,7 @@ bool UTcsAttributeSubsystem::SetBaseValue(
 	return Pipeline.IsValid() ? Pipeline->SetBaseValue(Unit, Attribute, NewBaseValue) : false;
 }
 
-double UTcsAttributeSubsystem::PeekPending(FTcsCombatEntityHandle Unit, const FTcsAttributeName& Attribute)
+double UTcsAttributeSubsystem::PeekPending(FTcsCombatEntityHandle Unit, const FGameplayTag& Attribute)
 {
 	return Pipeline.IsValid() ? Pipeline->PeekPending(Unit, Attribute) : 0.0;
 }

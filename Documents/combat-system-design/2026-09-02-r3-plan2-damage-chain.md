@@ -489,3 +489,40 @@ UCLASS(BlueprintType) class UTcsEffectChainDef : public UPrimaryDataAsset   // �
 > - **插件侧零问题**（三处 `IsDataValid` 定义都正确包在 `#if WITH_EDITOR` 内）。**教训**：Shipping 编译是**唯一**能照出"编辑器专用 API 泄漏"的检查——两轮 PIE 全绿也照不出。
 >
 > **⑥ 陈旧二进制的陷阱（首跑假 FAIL → 真实编译后全绿，值得记）**：首跑 7b 报 `[FAIL] 目标 Health 75.0 → 75.0`，**不是装置逻辑错、也不是被测对象错**——是**编辑器重启后加载的基线 DLL 比源码旧**。机制：`Live Coding` 的 patch（`*.patch_N.exe`）是**运行时内存补丁、不写回基线 DLL**（`Binaries/Win64/UnrealEditor-TcsDev.dll` 仍是 00:34 版），故**重启后 patch 作废、回到更旧的基线**；而"改命令注册（`FAutoConsoleCommand` → `WithWorldAndArgs`）"这类**静态初始化期改动 Live Coding 本就应用不了**（它只替换函数体）。**处置**：关闭编辑器 → 跑一次真实 UBT Development 编译（写回基线 DLL，`13:08` > 源码 `11:38`）→ 重启编辑器 → 重跑，**10/10 全绿**。**判据**：装置行为与源码不符时，先核对**基线 DLL 时间戳 vs 源码时间戳**，别急着怀疑逻辑——与 `MEM-20260826-03`（陈旧构建信号）同源。**要跑通须一次真实 UBT 编译**，Live Coding 不够。
+
+> **⑦ 标识体系 tag 化改造（2026-09-22，用户拍板"全部替换"；提案 `switch-identifiers-to-gameplay-tags`）**：把**全部配置引用**从 `FName` 迁到 `FGameplayTag`——属性名 / 参数键 / 黑板键 / 链 id / 模板 id / DefId 六类；**删除 `FTcsAttributeName` 包装结构**。
+>
+> **动因（用户指出）**：六类引用点**零个有编辑器期存在性校验**（全库仅 3 个 `IsDataValid`，都只查自身字段非空/双真相），填错的后果是**静默降级**（`FlowTemplateId` 空值静默兜底 `Default`、`ParamRef::Key` 静默落 `Fallback`、属性名/黑板键静默读 0）。tag 提供三样收益：①**编辑器 tag picker**（下拉选择，源头防拼错）；②**重命名自动修引用**（引擎 `GameplayTagRedirects`，FName 无此能力）；③**存在性校验前移**（`FGameplayTag(const FName&)` 是 **`protected`**，`GameplayTagContainer.h:219` → 只能走 `RequestGameplayTag`（默认 ensure）或原生常量 → 拼错的 tag **在构造那一刻就炸**）。
+>
+> **D2-1 重开的正当性**：`2026-09-02-m0min-m2-decision-points.md:48` 当年否决"FGameplayTag 当属性 ID"，三条理由是"无编译期检查、字符串比较开销、易拼错"。逐条核实：**"无编译期检查"**——FName 同样没有，平手（且 tag 的 protected 构造 + ensure 更强）；**"字符串比较开销"**——`FGameplayTag` 内部就是 `FName`，`GetTypeHash` 实现是 `GetTypeHash(Tag.TagName)`（`GameplayTagContainer.h:168`），**逐字相同，平手**；**"易拼错"**——tag 反超（picker + 重定向 + ensure）。故属**有据重开**。
+>
+> **落点口径（丙方案：框架原生 + 项目 ini）**——判据"**谁拥有那个词，谁声明**"：
+> | 词汇类别 | 实例 | 声明处 |
+> |---|---|---|
+> | **框架词汇** | 事件 tag `Tcs.Event.*`（10 个，不变）+ **黑板契约键** `Tcs.Flow.Key.*`（9 个，**新增**）+ 官方默认模板 `Tcs.Flow.Template.Default` | **插件原生**（`UE_DEFINE_GAMEPLAY_TAG`，零项目配置依赖） |
+> | **项目词汇** | 属性名 / 参数键 / 链 id / 模板 id / DefId | **项目 `Config/DefaultGameplayTags.ini`**（8 个 tag） |
+>
+> **关键澄清**：`project.md:18` 的"never in the project's tag table"**只管事件 tag**（标题即 `Event tag naming standard`，理由原文 `a missing project config entry would silently drop events`——该失败模式只对事件成立）。本次改造**不推翻该禁令**，而是在它之外为项目词汇开通道。契约键归框架的理由同款：它是**步骤之间的接口**，项目漏配会导致上下游**静默读到 0**。
+>
+> **定义资产结构拆分（用户方案）**：`RowName` = DA 资产名（引擎硬约束的 `FName`，无法承载 tag）；行内 `DefTag + DefStruct`（新增 `FTcsAttributeDefData` 承载定义字段——**字段集仍只声明一次**）。行身份与内容身份**分工而非双真相**（不要求同名）。
+>
+> **实测踩到的三个坑（全部只在运行时暴露、编译完全通过）**——共同根因：`FName` 常量能作 `UPROPERTY` 默认值，**`FGameplayTag` 不能**（原生 tag 是运行期注册的全局量）：
+> 1. **`const FGameplayTag& Alias = Tag_X;` 是陷阱**（最隐蔽）：`FNativeGameplayTag::operator FGameplayTag()` **按值返回**（`NativeGameplayTags.h:74`），绑定 const 引用 = 延长一个**静态初始化期创建的临时量**的寿命——那时 tag 未加载 → **别名永远持空 tag** → `FTcsFlowAttributes::Submit` 拒绝空键（`ensureMsgf`）→ 黑板空 → 读回 0。**修法**：删别名，使用点直接 `FGameplayTag(Tag_X)`（转换发生在运行期）。
+> 2. **宿主步骤字段默认值丢失**：`FTcsDevFlowGather::OutputKey` 等原默认 `FName(TEXT("BaseDamage"))` → 无效 tag → 检查 6 FAIL。**修法**：执行器内兜底（无效 → 落契约键）。
+> 3. **公式 delegate 词表字段未装配**：`UTcsDevDamageFormula::AttackAttribute` / `ArmorAttribute` 无人赋值 → 读 0 → 公式走下限 `max(1,0−0)=1` → 检查点 1 扣血 1.0（应 100.0）。**修法**：`RegisterSliceTemplates` 组装时显式装配。
+> **处置**：做了一次**全库 35 个 `FGameplayTag` 字段审计**（逐一核对装配点），确认仅上述三处。
+>
+> **资产迁移**：`DA_SliceChain` / `DA_FormulaChain` 含已删除的 `FTcsAttributeName` 字段 → `SerializeFromMismatchedTag`（`GameplayTagContainer.cpp:1284`）**只支持裸 `FName` 属性 → tag**，**不覆盖结构体字段** → 2 个链资产 + 4 个属性资产（`def` 内容因结构拆分而失配）**全部重建**。
+>
+> **验收（全绿）**：
+> | 项 | 结果 |
+> |---|---|
+> | `Tcs.Test.Slice.Run`（`Tcs.Chain.Slice_Chain`） | **10/10**（扣血 45.0） |
+> | `Tcs.Test.Slice.Run Tcs.Chain.Formula_Chain` | **10/10**（扣血 **100.0** = 5×25 被 clamp 到 0） |
+> | `Tcs.Test.Slice.Reject` | **3/3** |
+> | 检查点 5 依赖铁律 | 通过（零反向 include、零 `TSubclassOf`、依赖边与 R0 §9 一致） |
+> | 检查点 7 ScaledDt | 通过（`slomo 0.1` 实测实时:战斗 = 10:1；`pause` 实测 `Elapsed` 跨 8 帧完全冻结） |
+> | **picker 人工检查** | 通过——`Chain Id` 字段控件为 **`combobox`**（下拉选择器），值为 `Tcs.Chain.Slice_Chain`（tag 形态）；同窗口 `Search` 仍为 `textbox`（对照） |
+> | 双配置编译 | Development + **Shipping** 均通过 |
+>
+> **改造规模**：插件侧 20 文件（含删 `TcsAttributeName.h` + 新增 `TcsFlowKeys.h/.cpp`）、宿主侧 6 文件（含新增 `TcsDevTags.h/.cpp`）、11 份规格 delta、1 个项目 ini、6 个资产重建。

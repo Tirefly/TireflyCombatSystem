@@ -221,3 +221,13 @@
   - **Step 5 屏显纪律**：原判据"插件模块零屏显调用"**与已归档规格冲突**——`damage-record-inspection` 规格**明文要求** `Tcs.Damage.DumpRecords` 走屏显。按修正判据（真实意图 = "验收信号不得由插件代劳"）通过。
   - **Step 6 双配置编译**：**Shipping 首跑照出 2 个真实缺陷**（都在 `TcsDevSliceRig.cpp`、都是 Task 6 引入、**Development 下不可能发现**）：①`IsDataValid` 无 `WITH_EDITOR` 保护 → `C2737`（真因被诊断掩盖）；②`SetActorLabel` 无保护 → `C2039`。已修，两配置均通过。**Shipping 是唯一能照出"编辑器专用 API 泄漏"的检查**。
   - **陈旧二进制陷阱（首跑假 FAIL）**：`Live Coding` 的 patch **不写回基线 DLL**（重启后作废、回到更旧基线），且**静态初始化期改动（命令注册）它本就应用不了**——首跑 7b 因此报假 FAIL。**处置**：关编辑器 → 真实 UBT 编译写回基线 DLL → 重启 → 重跑全绿。**判据**：装置行为与源码不符时，先核对**基线 DLL 时间戳 vs 源码时间戳**。
+
+
+- **2026-09-22 标识体系 tag 化改造（提案 `switch-identifiers-to-gameplay-tags`）**：把**全部配置引用**从 `FName` 迁到 `FGameplayTag`（属性名 / 参数键 / 黑板键 / 链 id / 模板 id / DefId 六类），**删除 `FTcsAttributeName` 包装**。
+  - **动因**：六类引用点**零个有编辑器期存在性校验**，填错即**静默降级**（静默兜底 `Default` / 静默落 `Fallback` / 静默读 0）。tag 提供：**编辑器 picker**（下拉选择）+ **重命名自动修引用**（`GameplayTagRedirects`）+ **存在性校验前移**（`FGameplayTag(const FName&)` 是 **`protected`**，只能走 `RequestGameplayTag`（默认 ensure）或原生常量）。
+  - **D2-1 有据重开**：当年否决 tag 的三条理由逐条核实——"无编译期检查"平手、"字符串比较开销"平手（`FGameplayTag` 内部即 `FName`，`GetTypeHash` 逐字相同）、"易拼错"被 picker 反超。
+  - **落点（丙方案）**：判据"**谁拥有那个词，谁声明**"——框架词汇（事件 tag + **黑板契约键** `Tcs.Flow.Key.*` + 官方默认模板）**插件原生声明**；项目词汇（属性名 / 参数键 / 链 id / 模板 id / DefId）**项目 `Config/DefaultGameplayTags.ini`**（8 个 tag）。**澄清**：`project.md` 的"never in the project's tag table"**只管事件 tag**（其理由"漏配即静默丢事件"只对事件成立），本次不推翻它。
+  - **定义资产结构拆分**：`RowName` = DA 资产名（引擎硬约束 FName）；行内 `DefTag + DefStruct`（新增 `FTcsAttributeDefData`）；行身份与内容身份**分工而非双真相**。
+  - **三个实测坑（全部只在运行时暴露、编译完全通过）**——共同根因：`FName` 常量能作 `UPROPERTY` 默认值，**`FGameplayTag` 不能**（运行期注册）：①`const FGameplayTag& Alias = Tag_X;` **是陷阱**（`operator FGameplayTag()` 按值返回，引用绑定静态初始化期的临时量 → 永远持空 tag → `Submit` 静默拒绝）；②宿主步骤字段默认值丢失（执行器内兜底）；③公式 delegate 词表字段未装配（装配期显式赋值）。已做全库 35 字段审计确认仅此三处。
+  - **资产迁移**：`SerializeFromMismatchedTag` 只支持裸 `FName` 属性 → tag，**不覆盖结构体字段** → 2 个链资产 + 4 个属性资产**全部重建**。
+  - **验收全绿**：`Tcs.Test.Slice.Run` 10/10 ×2（`Slice_Chain` 扣 45.0 / `Formula_Chain` 扣 100.0 = 5×25 钳到 0）+ `.Reject` 3/3 + 检查点 5/7 + **picker 人工检查**（`Chain Id` 字段控件为 `combobox`，值为 `Tcs.Chain.Slice_Chain`）+ Development/Shipping 双配置编译。

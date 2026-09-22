@@ -8,7 +8,7 @@
 #include "TcsValueConvention.h"
 
 #include "Attribute/TcsAttrModInstance.h"
-#include "Attribute/TcsAttributeName.h"
+#include "GameplayTagContainer.h"
 
 #if WITH_EDITOR
 #include "Misc/DataValidation.h"
@@ -22,9 +22,11 @@
  * 修正器模板定义行（**唯一字段形状** + **编辑期载体**，08 §5 双轨同步的"表行轨"）：
  * 修正器模板表的行类型（`FTableRowBase` 是 DataTable 行结构的 UHT 前提）。
  *
- * **身份 = RowName（= 模板 Id）**——行内 MUST NOT 再存一份 id（2026-09-17 用户口径：
- * DataTable 的键本就是行名）；状态/技能定义的 `ModifierRows` 按该 FName 引用模板（D3-19），
- * 运行期资产按 `[PrimaryAssetType, TemplateId]` 解析（资产侧 `TemplateId` 与行名取同一值）。
+ * **身份分工（2026-09-22 tag 化改造）**——两者**分工而非双真相**：
+ * - **`TemplateTag`（`FGameplayTag`）= 内容身份**（状态/技能定义的 `ModifierRows` 按它引用模板，D3-19）；
+ * - **RowName（`FName`）= 编辑期定位**（DataTable 的键，引擎硬约束的 `FName`）。
+ *
+ * 二者 MUST NOT 被要求同名；一致性由 M8 同步器维护。
  * 模板字段 MUST 只在本结构声明一次，资产侧组合持有（不得复制字段集）。
  *
  * 表格编辑局限（记录在案）：`Operand.Literal` 是 `FTcsParamValue`（`TInstancedStruct` 载荷），
@@ -36,13 +38,24 @@ struct TCSATTRIBUTE_API FTcsAttrModDefTableRow : public FTableRowBase
 {
 	GENERATED_BODY()
 
+// 身份
+#pragma region Identity
+
+public:
+	// 模板身份 tag（内容身份；状态/技能定义按它引用，资产按 `[PrimaryAssetType, TemplateTag.GetTagName()]` 解析）
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Modifier Template")
+	FGameplayTag TemplateTag;
+
+#pragma endregion
+
+
 // 模板默认值
 #pragma region Defaults
 
 public:
 	// 被修饰的属性
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Modifier Template")
-	FTcsAttributeName Target;
+	FGameplayTag Target;
 
 	// 运算带（封闭五带；带序由 Op 决定——见 TcsAttrModInstance.h 的带权助手）
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Modifier Template")
@@ -109,16 +122,17 @@ public:
 	static const FPrimaryAssetType PrimaryAssetType;
 
 public:
-	// 模板身份（= 模板 Id，与表行名取同一值；状态/技能定义按 `[PrimaryAssetType, TemplateId]` 引用）
+	// 模板身份 tag（2026-09-22 tag 化改造：原 `FName TemplateId`；状态/技能定义按 `[PrimaryAssetType, TemplateTag.GetTagName()]` 引用）
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Modifier Template")
-	FName TemplateId = NAME_None;
+	FGameplayTag TemplateTag;
 
 public:
 	/**
-	 * 覆写主资产身份：**名取 `TemplateId`**（不取资产名）——"FName Id ↔ 资产"的解析与资产文件
+	 * 覆写主资产身份：**名取 `TemplateTag.GetTagName()`**（不取资产名）——"tag ↔ 资产"的解析与资产文件
 	 * 叫什么无关（引擎 `UPrimaryDataAsset` 文档亦指向"要改行为就在原生类里覆写本函数"）。
+	 * **`FPrimaryAssetId` 的 name 位是 `FName`**（引擎类型约束）——tag 须经 `GetTagName()` 转换。
 	 *
-	 * @return 返回本资产的主资产身份 `[PrimaryAssetType, TemplateId]`。
+	 * @return 返回本资产的主资产身份 `[PrimaryAssetType, TemplateTag.GetTagName()]`。
 	 */
 	virtual FPrimaryAssetId GetPrimaryAssetId() const override;
 

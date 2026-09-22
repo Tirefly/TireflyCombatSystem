@@ -8,7 +8,7 @@
 #include "Attribute/TcsAttributeDef.h"
 #include "Attribute/TcsAttributeInstance.h"
 #include "Attribute/TcsAttrModInstance.h"
-#include "Attribute/TcsAttributeName.h"
+#include "GameplayTagContainer.h"
 #include "Attribute/TcsAttributeStore.h"
 #include "Handle/TcsCombatEntityHandle.h"
 
@@ -95,21 +95,21 @@ public:
 	 * 拒绝面（ensure 提示 + 返回 false）：属性名为空、同属性名重复登记
 	 * （D2-1：词表重名 = 加载期错误，不得静默覆写）。
 	 *
-	 * @param Attribute 属性名（= 定义资产 DefId = 词表行名）。
-	 * @param DefRow 属性定义行（字段形状唯一声明处）。
+	 * @param Attribute 属性身份 tag（= 定义资产 DefTag）。
+	 * @param DefData 属性定义数据（字段形状唯一声明处；2026-09-22 改造：行与数据分离，本口只收数据）。
 	 * @return 返回是否登记成功。
 	 */
 	bool RegisterAttributeDef(
-		const FTcsAttributeName& Attribute,
-		const FTcsAttributeDefTableRow& DefRow);
+		const FGameplayTag& Attribute,
+		const FTcsAttributeDefData& DefData);
 
 	/**
 	 * 查询已登记定义（未登记返回 nullptr；正常查询路径，不触发 ensure）。
 	 *
 	 * @param Attribute 属性名。
-	 * @return 返回该属性的定义行；未登记返回 nullptr。
+	 * @return 返回该属性的定义数据；未登记返回 nullptr。
 	 */
-	const FTcsAttributeDefTableRow* FindAttributeDef(const FTcsAttributeName& Attribute) const;
+	const FTcsAttributeDefData* FindAttributeDef(const FGameplayTag& Attribute) const;
 
 #pragma endregion
 
@@ -132,7 +132,7 @@ public:
 	 */
 	bool AddAttribute(
 		FTcsCombatEntityHandle Unit,
-		const FTcsAttributeName& Attribute);
+		const FGameplayTag& Attribute);
 
 	/**
 	 * 改写属性基础值（等级成长等宿主升级事务的落点，02 §2.2a）：标脏并按事务纪律重算/广播
@@ -146,7 +146,7 @@ public:
 	 */
 	bool SetBaseValue(
 		FTcsCombatEntityHandle Unit,
-		const FTcsAttributeName& Attribute,
+		const FGameplayTag& Attribute,
 		double NewBaseValue);
 
 	/**
@@ -162,7 +162,7 @@ public:
 	 */
 	bool RemoveAttribute(
 		FTcsCombatEntityHandle Unit,
-		const FTcsAttributeName& Attribute);
+		const FGameplayTag& Attribute);
 
 #pragma endregion
 
@@ -179,7 +179,7 @@ public:
 	 * @param Attribute 属性名。
 	 * @return 返回当前值。
 	 */
-	double EvaluateCurrent(FTcsCombatEntityHandle Unit, const FTcsAttributeName& Attribute);
+	double EvaluateCurrent(FTcsCombatEntityHandle Unit, const FGameplayTag& Attribute);
 
 	/**
 	 * 读未提交候选值（预览；不落账、不广播）。无进行中的批时等同求值当前值。
@@ -188,7 +188,7 @@ public:
 	 * @param Attribute 属性名。
 	 * @return 返回候选值。
 	 */
-	double PeekPending(FTcsCombatEntityHandle Unit, const FTcsAttributeName& Attribute);
+	double PeekPending(FTcsCombatEntityHandle Unit, const FGameplayTag& Attribute);
 
 	/**
 	 * 挂修正器（标脏；未开批时立即重算 + 广播 = 隐式批）。
@@ -245,7 +245,7 @@ public:
 
 private:
 	// 属性定义表（键 = 属性名 = DefId；值 = 定义行——AddAttribute 的解析源）
-	TMap<FTcsAttributeName, FTcsAttributeDefTableRow> DefTable;
+	TMap<FGameplayTag, FTcsAttributeDefData> DefTable;
 
 	// 单位注册表（键 = 实体身份句柄；值 = 该单位的属性容器）
 	// 存 TUniquePtr：容器指针因此不随"新增其他单位"失效（TMap 元素地址会随扩容搬移——引擎事实）

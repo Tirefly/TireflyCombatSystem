@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "GameplayTagContainer.h"
 #include "UObject/Interface.h"
 #include "TcsParamTableReader.generated.h"
 
@@ -35,7 +36,7 @@ public:
 	 * @return 返回是否命中；false = miss，源落 Fallback。
 	 */
 	UFUNCTION(BlueprintNativeEvent)
-	bool TryGetNumericParam(FName Key, double& OutValue);
+	bool TryGetNumericParam(FGameplayTag Key, double& OutValue);
 
 #pragma endregion
 };

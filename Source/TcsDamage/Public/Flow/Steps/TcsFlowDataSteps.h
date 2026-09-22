@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "GameplayTagContainer.h"
 #include "StructUtils/InstancedStruct.h"
 #include "UObject/ScriptInterface.h"
 
@@ -30,7 +31,7 @@ struct TCSDAMAGE_API FTcsFlowModify
 
 	// 目标黑板键
 	UPROPERTY(EditAnywhere, Category = "Tcs|Damage|Flow")
-	FName TargetKey;
+	FGameplayTag TargetKey;
 
 	// 运算带（带序唯一真相；SortKey 不参与求值顺序）
 	UPROPERTY(EditAnywhere, Category = "Tcs|Damage|Flow")
@@ -56,7 +57,7 @@ struct TCSDAMAGE_API FTcsFlowDelegate
 
 	// 目标黑板键
 	UPROPERTY(EditAnywhere, Category = "Tcs|Damage|Flow")
-	FName TargetKey;
+	FGameplayTag TargetKey;
 
 	// 委托（宿主实现；与 `FTcsStepDamage` 同款降级位）
 	UPROPERTY(EditAnywhere, Category = "Tcs|Damage|Flow")

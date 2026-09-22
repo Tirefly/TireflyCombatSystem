@@ -27,7 +27,7 @@ namespace
 
 
 double FTcsAttributePipeline::EvaluateCurrent(
-	FTcsCombatEntityHandle Unit, const FTcsAttributeName& Attribute)
+	FTcsCombatEntityHandle Unit, const FGameplayTag& Attribute)
 {
 	FTcsAttributeStore* Store = Owner.ResolveStore(Unit);
 	if (!Store)
@@ -59,7 +59,7 @@ double FTcsAttributePipeline::EvaluateCurrent(
 }
 
 double FTcsAttributePipeline::PeekPending(
-	FTcsCombatEntityHandle Unit, const FTcsAttributeName& Attribute)
+	FTcsCombatEntityHandle Unit, const FGameplayTag& Attribute)
 {
 	FTcsAttributeStore* Store = Owner.ResolveStore(Unit);
 	if (!Store)
@@ -99,7 +99,7 @@ bool FTcsAttributePipeline::ApplyModifier(
 		// 目标属性无实例（宿主动态删过属性）：忽略 + 留日志，不 ensure——
 		// 框架允许动态增删且不做来源追溯（D2-14）
 		UE_LOG(LogTcsAttribute, Log, TEXT("FTcsAttributePipeline::ApplyModifier: 目标属性无实例（单位 %llu，属性 %s）——忽略本次挂载"),
-			Unit.Id, *Modifier.Target.Name.ToString());
+			Unit.Id, *Modifier.Target.GetTagName().ToString());
 		return false;
 	}
 
@@ -162,8 +162,8 @@ void FTcsAttributePipeline::FlushDirty(FTcsCombatEntityHandle Unit, FTcsAttribut
 	// 多轮扫描直到无脏（依赖传播可能在本轮后再标脏；环已在登记期被拒，收敛有界）
 	for (int32 Pass = 0; Pass < MaxFlushPasses; ++Pass)
 	{
-		TArray<FTcsAttributeName> DirtyAttributes;
-		for (const TPair<FTcsAttributeName, FTcsAttributeInstance>& Pair : Store.Attributes)
+		TArray<FGameplayTag> DirtyAttributes;
+		for (const TPair<FGameplayTag, FTcsAttributeInstance>& Pair : Store.Attributes)
 		{
 			if (Pair.Value.bDirty)
 			{
@@ -176,7 +176,7 @@ void FTcsAttributePipeline::FlushDirty(FTcsCombatEntityHandle Unit, FTcsAttribut
 			return;
 		}
 
-		for (const FTcsAttributeName& Attribute : DirtyAttributes)
+		for (const FGameplayTag& Attribute : DirtyAttributes)
 		{
 			FTcsAttributeInstance* Instance = Store.FindInstance(Attribute);
 			if (Instance && Instance->bDirty && PushEvalStack(Attribute))
@@ -234,7 +234,7 @@ double FTcsAttributePipeline::ComputeFoldedValue(
 
 		// 属性换算操作数（D2-11/D2-3）：收集时求值 + 读即登记（主属性变化自动把本属性标脏）
 		if (Modifier.Operand.Kind == ETcsOperandKind::OPK_AttributeScaled &&
-			!Modifier.Operand.Attribute.IsNone())
+			Modifier.Operand.Attribute.IsValid())
 		{
 			RegisterDependency(Store, Modifier.Operand.Attribute, Instance.Attr);
 			Value = Modifier.Operand.Coefficient * EvaluateCurrent(Unit, Modifier.Operand.Attribute);
@@ -290,9 +290,9 @@ double FTcsAttributePipeline::ApplyValueDomain(
 		// + 每次命中留 Verbose 痕迹，然后按 Clamp 收口（确定性优先于未实现策略）
 		ensureMsgf(false,
 			TEXT("值域模式 AVD_Custom 的值域策略接口不在 R3 范围（属性 %s）——本次按 Clamp 收口"),
-			*Instance.Attr.Name.ToString());
+			*Instance.Attr.GetTagName().ToString());
 		UE_LOG(LogTcsAttribute, Verbose, TEXT("AVD_Custom 未实现策略接口，按 Clamp 收口（属性 %s）"),
-			*Instance.Attr.Name.ToString());
+			*Instance.Attr.GetTagName().ToString());
 		[[fallthrough]];
 
 	case ETcsAttributeValueDomain::AVD_Clamp:
@@ -310,7 +310,7 @@ double FTcsAttributePipeline::ApplyValueDomain(
 }
 
 void FTcsAttributePipeline::BroadcastChange(
-	FTcsCombatEntityHandle Unit, const FTcsAttributeName& Attribute, double OldValue, double NewValue) const
+	FTcsCombatEntityHandle Unit, const FGameplayTag& Attribute, double OldValue, double NewValue) const
 {
 	const UWorld* World = Owner.GetWorld();
 	UTcsEventBusSubsystem* BusSubsystem = World ? World->GetSubsystem<UTcsEventBusSubsystem>() : nullptr;
@@ -328,12 +328,12 @@ void FTcsAttributePipeline::BroadcastChange(
 	BusSubsystem->PublishImmediate(Tag_Tcs_Event_Attribute_ValueChanged, FInstancedStruct::Make(Event));
 }
 
-bool FTcsAttributePipeline::PushEvalStack(const FTcsAttributeName& Attribute)
+bool FTcsAttributePipeline::PushEvalStack(const FGameplayTag& Attribute)
 {
 	if (EvalStack.Contains(Attribute))
 	{
 		// 求值链上重复出现同一属性 = 依赖成环（登记期已拒边，此处为兜底）
-		ensureMsgf(false, TEXT("属性求值链上重复出现同一属性（%s）——依赖成环"), *Attribute.Name.ToString());
+		ensureMsgf(false, TEXT("属性求值链上重复出现同一属性（%s）——依赖成环"), *Attribute.GetTagName().ToString());
 		return false;
 	}
 
@@ -341,7 +341,7 @@ bool FTcsAttributePipeline::PushEvalStack(const FTcsAttributeName& Attribute)
 	return true;
 }
 
-void FTcsAttributePipeline::PopEvalStack(const FTcsAttributeName& Attribute)
+void FTcsAttributePipeline::PopEvalStack(const FGameplayTag& Attribute)
 {
 	EvalStack.RemoveSingleSwap(Attribute, EAllowShrinking::No);
 }
@@ -351,7 +351,7 @@ void FTcsAttributePipeline::PopEvalStack(const FTcsAttributeName& Attribute)
 void FTcsAttributePipeline::ResolveBound(
 	FTcsCombatEntityHandle Unit,
 	FTcsAttributeStore& Store,
-	const FTcsAttributeName& ForAttribute,
+	const FGameplayTag& ForAttribute,
 	const FTcsAttributeBound& Bound,
 	bool& bOutHasValue,
 	double& OutValue)
@@ -364,7 +364,7 @@ void FTcsAttributePipeline::ResolveBound(
 		bOutHasValue = true;
 		OutValue = Bound.StaticValue;
 	}
-	else if (Bound.Mode == ETcsAttributeBoundMode::ABM_Dynamic && !Bound.DynamicAttribute.IsNone())
+	else if (Bound.Mode == ETcsAttributeBoundMode::ABM_Dynamic && Bound.DynamicAttribute.IsValid())
 	{
 		// 动态边界：先按管线求值（读即登记——边界属性变化同样把本属性标脏）
 		RegisterDependency(Store, Bound.DynamicAttribute, ForAttribute);

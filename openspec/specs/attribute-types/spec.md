@@ -3,20 +3,6 @@
 ## Purpose
 TBD - created by archiving change add-tcsattribute-types-and-store. Update Purpose after archive.
 ## Requirements
-### Requirement: 属性名包装
-
-`TcsAttribute` MUST 提供 `FTcsAttributeName`（USTRUCT，反射可见——Def 资产与属性定义数据行需要承载它）：内含 `FName Name`（默认 `NAME_None`）、默认构造、**`explicit` 单参构造 `FTcsAttributeName(FName)`**（裸 FName/TEXT 传不进属性 API，D2-1）、`IsNone()`、相等比较与 `GetTypeHash`（供 `TMap` 键控）。**MUST NOT** 在本任务落"稠密 int32 id 缓存"字段——该字段的维护者（属性词表注册表）属 M8，零消费者不预建。
-
-#### Scenario: 显式构造拦截裸 FName
-
-- **WHEN** 调用点把裸 `FName` 或字符串字面量直接传给期望 `FTcsAttributeName` 的属性 API
-- **THEN** 编译失败（D2-1 的 token 化保证）
-
-#### Scenario: 作为 TMap 键
-
-- **WHEN** 两个 `FTcsAttributeName` 包装同一 `FName`，分别作 `TMap<FTcsAttributeName, …>` 的键读写
-- **THEN** 命中同一槽位（相等 + 哈希一致）
-
 ### Requirement: 运算带封闭枚举与带权
 
 `TcsAttribute` MUST 提供封闭五带运算枚举 `ETcsAttributeOp`：`TAO_Add = 0`（默认）、`TAO_Override = 1`、`TAO_PercentAdd = 2`、`TAO_Mul = 3`、`TAO_FlatAdd = 4`；**无 Custom 逃逸位**（D2-7：计算一律在上游求值传入终值，聚合无代码插点）；新运算 = 末尾追加枚举值（D2-10 首例；追加需论证与既有带的交换性）。MUST 提供带权助手 `GetTcsAttributeBandWeight(ETcsAttributeOp)`（Override 0 / Add 10 / PercentAdd 15 / Mul 20 / FlatAdd 30，header-only）——**带序唯一真相在 Op**；账本修正器的 `SortKey` 仅为展示/审计位，折叠 MUST NOT 依赖它。
@@ -42,8 +28,8 @@ TBD - created by archiving change add-tcsattribute-types-and-store. Update Purpo
 
 `TcsAttribute` MUST 提供操作数的定义侧与运行侧**两个形状**（D2-13，载体已由 PV 系列取代 D2-12）：
 
-- 定义侧 `FTcsAttrModOperandDef`（USTRUCT）：`Kind: ETcsOperandKind`（`OPK_Literal = 0` 默认 / `OPK_AttributeScaled = 1`，**仅此两种**——D2-11 拒绝清单不破）、`Literal: FTcsParamValue`（可配等级表等源，模板默认值可等级化）、`Attribute: FTcsAttributeName`、`Coefficient: double = 1.0`；
-- 运行侧 `FTcsAttrModOperand`（纯 C++ struct，反射面外）：`Kind` / `Literal: double`（**恒为已解析规范值**——账本零膨胀，物化器单点转换）、`Attribute` / `Coefficient`。
+- 定义侧 `FTcsAttrModOperandDef`（USTRUCT）：`Kind: ETcsOperandKind`（`OPK_Literal = 0` 默认 / `OPK_AttributeScaled = 1`，**仅此两种**——D2-11 拒绝清单不破）、`Literal: FTcsParamValue`（可配等级表等源，模板默认值可等级化）、`Attribute: FGameplayTag`、`Coefficient: double = 1.0`；
+- 运行侧 `FTcsAttrModOperand`（纯 C++ struct，反射面外）：`Kind` / `Literal: double`（**恒为已解析规范值**——账本零膨胀，物化器单点转换）、`Attribute: FGameplayTag` / `Coefficient`。
 
 #### Scenario: 定义侧承载参数源
 
@@ -59,13 +45,13 @@ TBD - created by archiving change add-tcsattribute-types-and-store. Update Purpo
 
 `TcsAttribute` MUST 提供：
 
-- `ETcsAttributeBoundMode{ ABM_None = 0, ABM_Static = 1, ABM_Dynamic = 2 }` 与 `FTcsAttributeBound`（USTRUCT：`Mode` / `StaticValue: double` / `DynamicAttribute: FTcsAttributeName`）——Min 与 Max **各自独立三态**（D2-4）；`ABM_Dynamic` 的边界属性按管线求值（"HP ≤ MaxHP"形态），**自引用禁止**；
+- `ETcsAttributeBoundMode{ ABM_None = 0, ABM_Static = 1, ABM_Dynamic = 2 }` 与 `FTcsAttributeBound`（USTRUCT：`Mode` / `StaticValue: double` / `DynamicAttribute: FGameplayTag`）——Min 与 Max **各自独立三态**（D2-4）；`ABM_Dynamic` 的边界属性按管线求值（"HP ≤ MaxHP"形态），**自引用禁止**；
 - `FTcsAttributeBounds`（USTRUCT：`Min` / `Max`，反射可见——属性定义数据行需要承载它）；
 - `ETcsAttributeValueDomain{ AVD_Clamp = 0, AVD_Custom = 1, AVD_Wrap = 2 }`（D2-6）：`AVD_Custom` 是**逃逸位且固定值 1**（全插件 Custom=1 约定），语义为"IValueDomainPolicy 只接管值域函数，时序/级联/事务仍由引擎守护"。**值域策略接口不在本任务**（R3 未建，收口行为归 Task 5；使用 `AVD_Custom` 而策略接口缺席时的行为 MUST 在 Task 5 的收口点显式可见）。
 
 #### Scenario: 边界两侧独立
 
-- **WHEN** 属性定义 `Min = ABM_Static(0)`、`Max = ABM_Dynamic(MaxHealth)`
+- **WHEN** 属性定义 `Min = ABM_Static(0)`、`Max = ABM_Dynamic(Tcs.Attr.MaxHealth)`
 - **THEN** 两个边界各自按自己的模式处理（静态值 / 动态属性求值），互不牵连
 
 #### Scenario: 值域逃逸位取值固定
@@ -77,8 +63,8 @@ TBD - created by archiving change add-tcsattribute-types-and-store. Update Purpo
 
 `TcsAttribute` MUST 提供账本侧两个**纯 C++ struct**（不进反射面——D2-13 账本形状只为聚合热路径服务）：
 
-- `FTcsAttrModInstance{ Target: FTcsAttributeName, Op: ETcsAttributeOp, Operand: FTcsAttrModOperand, Source: FTcsSourceHandle, OverridePriority: int32, SortKey: int32, Tag: FName }`——`Source` 是级联撤销锚点（D2-2：来源注销 → 按 Source 全量移除），`Tag` 为可选同来源内分组；`OverridePriority` **仅 `TAO_Override` 读**（其余带忽略），`SortKey` 始终不参与折叠；
-- `FTcsAttributeInstance{ Attr: FTcsAttributeName, BaseValue: double, CachedCurrent: double, bDirty: bool, Bounds: FTcsAttributeBounds, ValueDomain: ETcsAttributeValueDomain, OverrideTieBreak: ETcsAttrOverrideTieBreak, ModifierSlots: TArray<FTcsAttrModInstance> }`——`CachedCurrent` 是**派生缓存非权威**（聚合管线唯一生产者、惰性重算，D2-8）；`OverrideTieBreak` 由定义侧展开（热路径不回查定义）。
+- `FTcsAttrModInstance{ Target: FGameplayTag, Op: ETcsAttributeOp, Operand: FTcsAttrModOperand, Source: FTcsSourceHandle, OverridePriority: int32, SortKey: int32, Tag: FName }`——`Source` 是级联撤销锚点（D2-2：来源注销 → 按 Source 全量移除），`Tag` 为可选同来源内分组（**注意：此 `Tag` 是 `FName` 型分组标签，与 `FGameplayTag` 同名不同物**）；`OverridePriority` **仅 `TAO_Override` 读**（其余带忽略），`SortKey` 始终不参与折叠；
+- `FTcsAttributeInstance{ Attr: FGameplayTag, BaseValue: double, CachedCurrent: double, bDirty: bool, Bounds: FTcsAttributeBounds, ValueDomain: ETcsAttributeValueDomain, OverrideTieBreak: ETcsAttrOverrideTieBreak, ModifierSlots: TArray<FTcsAttrModInstance> }`——`CachedCurrent` 是**派生缓存非权威**（聚合管线唯一生产者、惰性重算，D2-8）；`OverrideTieBreak` 由定义侧展开（热路径不回查定义）。
 
 #### Scenario: 修正器携带级联锚点
 
@@ -95,54 +81,24 @@ TBD - created by archiving change add-tcsattribute-types-and-store. Update Purpo
 - **WHEN** 属性实例被新建
 - **THEN** 实例带 `bDirty` 标记位且**新建即脏**——初值由聚合管线在"批外读取或提交"时结算（值域收口与既有修正器在该次结算生效）并清零脏标记（见 `attribute-store` 与 `attribute-pipeline` 能力）
 
-### Requirement: 属性定义（双轨制）
-
-`TcsAttribute` MUST 以**双轨制**承载属性定义（2026-09-17 用户拍板）：**表 = 编辑期载体、资产 = 运行期载体**——DataTable 只服务策划批量编辑与编辑器即时响应，**不作为运行期加载源**；运行期按主资产身份解析资产。两个类型，同住 `Attribute/TcsAttributeDef.h`：
-
-- **`FTcsAttributeDefTableRow : FTableRowBase`**（`FTableRowBase` 是 DataTable 行结构的 UHT 前提）——**定义字段的唯一声明处**：`BaseValue` + `Bounds` + `ValueDomain`（值域模式挂定义，D2-6）+ `OverrideTieBreak`（覆盖带同优先级策略，2026-09-18 增补）——`OverrideTieBreak` 与本行的其它字段同款：只在本结构声明一次、随实例展开、不在修正器侧重复声明。**身份 = RowName（= 属性名，D2-1 的"行名 ↔ 项目侧常量"映射）——行内 MUST NOT 再存 id 字段**（2026-09-17 用户口径：DataTable 的键本就是行名，行内再放一份只会制造"行名与字段谁为准"的双真相）。
-- **`UTcsAttributeDef : UPrimaryDataAsset`**（Def 资产族统一基类）：持自身身份 `DefId` 与**组合持有的一行** `Def`（`FTcsAttributeDefTableRow`）——MUST NOT 复制定义字段集（字段形状单份）。MUST **显式声明主资产类型** `static const FPrimaryAssetType PrimaryAssetType`（族语义固定，不靠类名派生）并**覆写 `GetPrimaryAssetId()` 返回 `[PrimaryAssetType, DefId]`**（名取 `DefId` 而非资产名——资产文件可自由改名/挪目录而不失联；引擎 `UPrimaryDataAsset` 文档亦指向此覆写路径）。
-
-MUST 在资产 `IsDataValid`（`WITH_EDITOR`）报错：`DefId` 为空（主资产身份随之失去意义）。资产名与 `DefId` 不一致**不再校验**（身份的名不取资产名，二者无需同名）。
-两轨一致性 MUST 由编辑器侧同步器维护（资产为权威，按"行名 = DefId"配对），运行期**零 DataTable 加载路径**；同步器与词表装载属 M8/M6 工具面，不在本能力范围。
-
-#### Scenario: 运行期资产持有定义行且身份按 DefId 解析
-
-- **WHEN** 读取 `UTcsAttributeDef` 的 `DefId`、其组合行 `Def` 与 `GetPrimaryAssetId()`
-- **THEN** 定义字段来自该行，且主资产身份等于 `[PrimaryAssetType, DefId]`（与资产文件叫什么无关）
-
-#### Scenario: 编辑期表行以行名为身份
-
-- **WHEN** 以 `FTcsAttributeDefTableRow` 作 `UDataTable::RowStruct` 并以属性名为行名写入一行
-- **THEN** 该行可被读出且字段往返保真（含 `OverrideTieBreak`）；行结构内无 id 字段
-
-#### Scenario: 空身份被拦截
-
-- **WHEN** 资产 `DefId` 为空时执行 `IsDataValid`
-- **THEN** 报错（Invalid）
-
-#### Scenario: 实例自持定义数据
-
-- **WHEN** 单位由定义行添加属性后再读取实例
-- **THEN** 实例的边界、值域模式与覆盖带同优先级策略来自定义行，但实例不持有定义行或资产的引用（改定义不影响已建实例）
-
 ### Requirement: 修正器模板资产与约定列白名单
 
 `TcsAttribute` MUST 以**同款双轨组织**提供修正器模板（D3-19 纯模板=默认值，引用处零字段覆写）：两个类型同住 `Attribute/TcsAttrModDef.h`——
 
-- **`FTcsAttrModDefTableRow : FTableRowBase`**（**定义字段的唯一声明处** + **编辑期载体**）：`Target` / `Op` / `Operand: FTcsAttrModOperandDef` / `ValueConvention: ETcsValueConventionFlag`（D5-18 约定列，物化边界经 `FTcsValueConvention::ConvertToCanonical` 转规范值）/ `OverridePriority`（`TAO_Override` 用，2026-09-18 增补）/ `SortKey` / `Tag`——**身份 = RowName（= 模板 Id）**，行内 MUST NOT 再存 id 字段（同属性定义行口径）；
-- **`UTcsAttrModDef : UPrimaryDataAsset`**（Def 资产族统一基类）：持自身 `TemplateId` 与**组合持有的一行** `Def`——MUST NOT 复制模板字段集；MUST 同款**显式声明 `PrimaryAssetType` + 覆写 `GetPrimaryAssetId()` 返回 `[PrimaryAssetType, TemplateId]`**。
+- **`FTcsAttrModDefTableRow : FTableRowBase`**（**定义字段的唯一声明处** + **编辑期载体**）：`TemplateTag: FGameplayTag`（身份，2026-09-22 改造——原 `FName TemplateId`）+ `Target: FGameplayTag` / `Op` / `Operand: FTcsAttrModOperandDef` / `ValueConvention: ETcsValueConventionFlag`（D5-18 约定列，物化边界经 `FTcsValueConvention::ConvertToCanonical` 转规范值）/ `OverridePriority`（`TAO_Override` 用，2026-09-18 增补）/ `SortKey` / `Tag`（`FName` 型分组，同属性账本口径）。**行身份 = RowName（= DA 资产名）**，`TemplateTag` 是内容身份；
+- **`UTcsAttrModDef : UPrimaryDataAsset`**（Def 资产族统一基类）：持自身 `TemplateTag` 与**组合持有的一行** `Def`——MUST NOT 复制模板字段集；MUST 同款**显式声明 `PrimaryAssetType` + 覆写 `GetPrimaryAssetId()` 返回 `[PrimaryAssetType, TemplateTag.GetTagName()]`**。
 
 **表格编辑局限（记录在案）**：`Operand.Literal` 是 `FTcsParamValue`（`TInstancedStruct` 载荷），CSV/Excel 往返不保留该列（引擎 CSV 导入无法表达多态实例结构）——本表行只支持**编辑器内表格编辑**，标量列仍可表格批量编辑。
 
-基类取 `UPrimaryDataAsset` 是 **Def 资产族的统一约定**（2026-09-17 拍板）——Def 引用语义本就是"FName Id + 注册表/DefLibrary 解析"，主资产身份让"FName ↔ 资产"解析、按类型发现/加载与打包分块归属由引擎提供（未来 `UTcsStateDef` 家族与 `UTcsSkillModDef` 同此基类）。
+基类取 `UPrimaryDataAsset` 是 **Def 资产族的统一约定**（2026-09-17 拍板）——Def 引用语义本是"id + 注册表/DefLibrary 解析"，主资产身份让"id ↔ 资产"解析、按类型发现/加载与打包分块归属由引擎提供（未来 `UTcsStateDef` 家族与 `UTcsSkillModDef` 同此基类）。
 
-MUST 在 `IsDataValid`（`WITH_EDITOR`）实现 **D5-18 v3 约定列白名单**：约定列非 `VCF_None` 时，其数值来源 MUST 允许约定（判据由源自身声明——见 `param-value` 能力的约定能力位）；`ParamRef` 与 `AttributeScaled` 禁配（前者二次转换、后者约定作用对象有歧义）——违者报错且**错误挂该配置元素**（可操作建议，非仅日志）。同时 MUST 校验：`TemplateId` 为空、资产 `TemplateId` 与行内不一致（各为错误）、数值来源为空、`OPK_AttributeScaled` 而属性名为空、`Target` 为空。
+MUST 在 `IsDataValid`（`WITH_EDITOR`）实现 **D5-18 v3 约定列白名单**：约定列非 `VCF_None` 时，其数值来源 MUST 允许约定（判据由源自身声明——见 `param-value` 能力的约定能力位）；`ParamRef` 与 `AttributeScaled` 禁配（前者二次转换、后者约定作用对象有歧义）——违者报错且**错误挂该配置元素**（可操作建议，非仅日志）。同时 MUST 校验：`TemplateTag` 无效、数值来源为空、`OPK_AttributeScaled` 而属性 tag 无效、`Target` 无效。
 **覆盖优先级的适用范围 MUST 给警告（非错误）**：`Op != TAO_Override` 而行内 `OverridePriority != 0` 时，该值不参与折叠——配置本身无害，但**不得静默**（2026-09-18 增补）。
 
 #### Scenario: 模板双轨同款组织
 
 - **WHEN** 检查修正器模板的资产与表行
-- **THEN** 资产持 `TemplateId` + 一行 `Def`，字段集只在表行声明一次（资产不复制字段）
+- **THEN** 资产持 `TemplateTag` + 一行 `Def`，字段集只在表行声明一次（资产不复制字段）
 
 #### Scenario: 字面量源可配约定
 
@@ -159,9 +115,9 @@ MUST 在 `IsDataValid`（`WITH_EDITOR`）实现 **D5-18 v3 约定列白名单**�
 - **WHEN** 模板配 `OPK_AttributeScaled`（或 `AttributeScaled` 参数源）+ `VCF_Percent`
 - **THEN** `IsDataValid` 报错（约定作用在系数还是乘积上无定义）
 
-#### Scenario: 空来源与空名字报错
+#### Scenario: 空来源与无效身份报错
 
-- **WHEN** 模板的数值来源为空，或 `OPK_AttributeScaled` 而属性名为 `None`，或 `Target` 为 `None`
+- **WHEN** 模板的数值来源为空，或 `OPK_AttributeScaled` 而属性 tag 无效，或 `Target` 无效
 - **THEN** `IsDataValid` 各自报错（编辑器保存期即见，策划即配即报）
 
 #### Scenario: 覆盖优先级填错带只警告不报错
@@ -172,7 +128,7 @@ MUST 在 `IsDataValid`（`WITH_EDITOR`）实现 **D5-18 v3 约定列白名单**�
 
 ### Requirement: 属性值参数源
 
-`TcsAttribute` MUST 提供 `FTcsParamSource_AttributeScaled : FTcsParamValueSource`（PV-3）：`Attribute: FTcsAttributeName` / `Coefficient: double = 1.0` / `Fallback: double`；求值 = `Coefficient × Current(Attribute)`（**Snapshot 语义——R3 唯一路径**：快照构建时求值一次冻结）。读取经**扩展求值上下文** `FTcsAttributeEvaluateContext : FTcsParamEvaluateContext`（PV-1 扩展机制：结构体继承 + 源内 checked cast，类型标识走 Core 上下文的 `GetScriptStruct()` 虚函数）——持 `Provider: TScriptInterface<ITcsAttributeProvider>`。
+`TcsAttribute` MUST 提供 `FTcsParamSource_AttributeScaled : FTcsParamValueSource`（PV-3）：`Attribute: FGameplayTag`（2026-09-22 改造——原 `FTcsAttributeName`）/ `Coefficient: double = 1.0` / `Fallback: double`；求值 = `Coefficient × Current(Attribute)`（**Snapshot 语义——R3 唯一路径**：快照构建时求值一次冻结）。读取经**扩展求值上下文** `FTcsAttributeEvaluateContext : FTcsParamEvaluateContext`（PV-1 扩展机制：结构体继承 + 源内 checked cast，类型标识走 Core 上下文的 `GetScriptStruct()` 虚函数）——持 `Provider: TScriptInterface<ITcsAttributeProvider>`。
 
 **"上下文单位"的落点（实施定案 2026-09-16）**：单位由 `ITcsAttributeProvider` 的实现者绑定（该契约签名不含单位参数，军官组件/Mass 桶适配器各绑自己的单位——02 §2.3），故 R3 上下文以读口本身代表"对谁求值"；PV-1 规划的 `Subject`（`FCombatEntityHandle`）与 `EffectiveLevel` 字段按 PV-1 既定时序随 TcsState 等级源同批进 Core 上下文——本任务**不预建**（该句柄是纯 C++ 值类型，不能作为反射 USTRUCT 的 UPROPERTY，预建即违反本能力的"上下文反射可见"约束）。
 
@@ -180,7 +136,7 @@ checked cast 失败或 Provider 为空 MUST 落 `Fallback`（不崩溃、不 ens
 
 #### Scenario: 属性值换算取用
 
-- **WHEN** 扩展上下文的 Provider 给出 `Attribute = AttackPower → 60`，源配 `Coefficient = 2.0`
+- **WHEN** 扩展上下文的 Provider 给出 `Attribute = Tcs.Attr.AttackPower → 60`，源配 `Coefficient = 2.0`
 - **THEN** 求值为 120
 
 #### Scenario: 上下文不匹配落兜底
@@ -198,7 +154,7 @@ checked cast 失败或 Provider 为空 MUST 落 `Fallback`（不崩溃、不 ens
 `TcsAttribute` MUST 为 `TAO_Override` 带提供**显式的强弱排座次**（2026-09-18 用户拍板）——理由是数值大小本身不含方向："取最大值"对护甲类属性（越大越强）成立，对承伤倍率/冷却类属性（越小越强）则取到最温和的一条，而框架无从知道语义方向。裁决阶梯 MUST 为：
 
 1. **`OverridePriority`（修正器侧 `FTcsAttrModInstance`）**——大者胜，**唯一的第一裁决键**；数值大小不参与第一级。
-2. **`OverrideTieBreak`（属性定义侧 `FTcsAttributeDefTableRow` → 实例展开）**——优先级打平时按策略比较数值，封闭四值 `ETcsAttrOverrideTieBreak`：`OTB_Max = 0`（默认，取最大值）/ `OTB_Min = 1`（取最小值）/ `OTB_MaxAbs = 2`（取绝对值最大、符号保留）/ `OTB_MinAbs = 3`（取绝对值最小、符号保留）。
+2. **`OverrideTieBreak`（属性定义侧 `FTcsAttributeDefData` → 实例展开）**——优先级打平时按策略比较数值，封闭四值 `ETcsAttrOverrideTieBreak`：`OTB_Max = 0`（默认，取最大值）/ `OTB_Min = 1`（取最小值）/ `OTB_MaxAbs = 2`（取绝对值最大、符号保留）/ `OTB_MinAbs = 3`（取绝对值最小、符号保留）。
 3. **有符号值**——策略下仍不可区分时（如 `OTB_MaxAbs` 下的 +5 与 -5）取有符号值大者，补齐**全序**。
 
 MUST NOT 提供自定义策略（无 Custom 逃逸位）：这是热路径上的比较函数，必须全域且确定（赢家与遍历顺序无关）；开放自定义会把"谁说了算"重新变成不可静态推演的东西（与 `AVD_Custom` 区别：后者是值域语义、另有按 Clamp 的确定性回落）。
@@ -235,4 +191,69 @@ MUST NOT 提供自定义策略（无 Custom 逃逸位）：这是热路径上的
 
 - **WHEN** 当前生效的 `TAO_Override`（最高优先级）被按其来源撤销（`RemoveBySource`）
 - **THEN** 下一次折叠在剩余条目里重新选优（读侧选优——无需任何"递补/复活"状态）
+
+### Requirement: 属性身份 = GameplayTag
+
+`TcsAttribute` MUST 以 **`FGameplayTag`** 承载属性身份（2026-09-22 用户拍板，**重开 D2-1**）：属性名、参数键、DefTag 统一为 tag；**MUST NOT 再提供 `FTcsAttributeName` 包装结构**（该类型整体移除）。
+
+**删除包装的正当性**（逐项核实）：`FTcsAttributeName` 的全部能力由 `FGameplayTag` 以等价或更强形式提供——
+- **`explicit` 构造保护 → 更强**：`FGameplayTag(const FName&)` 是 **`protected`**（`GameplayTagContainer.h:219`，注释 `Intentionally private so only the tag manager can use`）——外部无法从 FName 直接构造 tag，只能走 `RequestGameplayTag(FName, bool ErrorIfNotFound = true)`（`:57`，**默认 ensure**）或原生 tag 常量。故"裸 FName 传不进属性 API"这条纪律以**引擎机制**提供，且**多一层存在性校验**（包装的 explicit 只拦隐式转换，拦不住"包装一个拼错的 FName"）。
+- **`IsNone()` → `IsValid()`**：`GameplayTagContainer.h:138`，语义等价（`TagName != NAME_None`）。
+- **`operator==` → 逐字相同**：`GameplayTagContainer.h:69`（`TagName == Other.TagName`）。
+- **`GetTypeHash` → 逐字相同**：`GameplayTagContainer.h:168`（`GetTypeHash(Tag.TagName)`）——`FGameplayTag` 内部即 `FName`，**比较与哈希成本与现实现一致**。
+
+**tag 来源（框架原生 + 项目 ini，用户 2026-09-22 拍板）**：属性名属**项目词汇**（插件 MUST NOT 持有战斗域词汇），故由**项目侧声明**——项目 `Config/DefaultGameplayTags.ini` 的 `+GameplayTagList=(Tag="Tcs.Attr.Health",…)`，代码侧经**缓存解析**取用（`RequestGameplayTag` 带 `TScopeLock(GameplayTagMapCritical)` + 重定向查询，`GameplayTagsManager.cpp:2372`，**MUST NOT 进热路径**）。
+
+**属性名命名约定**：`Tcs.Attr.<Name>`（与事件 tag 的 `Tcs.Event.*` 并列，共用 `Tcs` 命名空间但域段隔离）。
+
+#### Scenario: 属性 API 只接受 tag
+
+- **WHEN** 调用点把裸 `FName` 或字符串字面量直接传给期望 `FGameplayTag` 的属性 API
+- **THEN** 编译失败（`FGameplayTag(const FName&)` 是 protected，无法隐式构造）
+
+#### Scenario: 拼错的属性 tag 在解析处即被拦截
+
+- **WHEN** 项目 ini 未声明 `Tcs.Attr.Nonexistent` 而代码侧解析它
+- **THEN** `RequestGameplayTag` 的默认 `ErrorIfNotFound = true` 触发 ensure（**不静默产空 tag**）——失败点前移到解析处，而非运行期查表 miss
+
+#### Scenario: 作为 TMap 键
+
+- **WHEN** 两个 `FGameplayTag` 承载同一 tag，分别作 `TMap<FGameplayTag, …>` 的键读写
+- **THEN** 命中同一槽位（相等 + 哈希一致——由引擎实现保证）
+
+### Requirement: 属性定义（双轨制 + tag 身份）
+
+`TcsAttribute` MUST 以**双轨制**承载属性定义（2026-09-17 用户拍板）：**表 = 编辑期载体、资产 = 运行期载体**——DataTable 只服务策划批量编辑与编辑器即时响应，**不作为运行期加载源**；运行期按主资产身份解析资产。
+
+**身份改为 tag（2026-09-22 改造）**：属性身份从 `FName DefId` 改为 **`FGameplayTag DefTag`**；定义内容抽为独立的**数据 struct**，两个载体各自持有 `DefTag + DefData`（用户 2026-09-22 方案："DA 里 `DefTag + DefStruct`；DT 表里，DA 资产名为 RowName，TableRow 为 `DefTag + DefStruct`"）。
+
+三个类型，同住 `Attribute/TcsAttributeDef.h`：
+
+- **`FTcsAttributeDefData`**（USTRUCT）——**定义字段的唯一声明处**：`BaseValue` + `Bounds` + `ValueDomain`（值域模式挂定义，D2-6）+ `OverrideTieBreak`（覆盖带同优先级策略，2026-09-18 增补）。抽出的理由是 **DataTable 行必须携带 `DefTag`**（tag 是内容身份），而字段集 MUST 仍只声明一次（资产组合持有、不复制）。
+- **`FTcsAttributeDefTableRow : FTableRowBase`**（`FTableRowBase` 是 DataTable 行结构的 UHT 前提）：`DefTag: FGameplayTag` + `Def: FTcsAttributeDefData`。**行身份 = RowName（= DA 资产名）**——RowName 是引擎硬约束的 `FName`，无法承载 tag；`DefTag` 是**内容身份**、RowName 是**编辑期定位**，两者**分工而非双真相**（MUST NOT 要求二者同名；一致性由 M8 同步器维护）。
+- **`UTcsAttributeDef : UPrimaryDataAsset`**（Def 资产族统一基类）：持自身身份 `DefTag: FGameplayTag` 与**组合持有的定义数据** `Def: FTcsAttributeDefData`——MUST NOT 复制定义字段集（字段形状单份）。MUST **显式声明主资产类型** `static const FPrimaryAssetType PrimaryAssetType`（族语义固定，不靠类名派生）并**覆写 `GetPrimaryAssetId()` 返回 `[PrimaryAssetType, DefTag.GetTagName()]`**（名取 tag 的 FName 形态而非资产名——资产文件可自由改名/挪目录而不失联；`FPrimaryAssetId` 的 name 位是 `FName`，tag 须经 `GetTagName()` 转换，这是引擎类型约束下的必要一步）。
+
+MUST 在资产 `IsDataValid`（`WITH_EDITOR`）报错：`DefTag` 无效（`!DefTag.IsValid()`——主资产身份随之失去意义）。资产名与 `DefTag` 不一致**不再校验**（身份的名不取资产名，二者无需同名）。
+
+两轨一致性 MUST 由编辑器侧同步器维护（资产为权威），运行期**零 DataTable 加载路径**；同步器与词表装载属 M8/M6 工具面，不在本能力范围。
+
+#### Scenario: 运行期资产持有定义数据且身份按 tag 解析
+
+- **WHEN** 读取 `UTcsAttributeDef` 的 `DefTag`、其组合数据 `Def` 与 `GetPrimaryAssetId()`
+- **THEN** 定义字段来自 `Def`，且主资产身份等于 `[PrimaryAssetType, DefTag.GetTagName()]`（与资产文件叫什么无关）
+
+#### Scenario: 编辑期表行以 RowName 为定位、以 DefTag 为身份
+
+- **WHEN** 以 `FTcsAttributeDefTableRow` 作 `UDataTable::RowStruct`，以资产名写入行名、行内填 `DefTag = Tcs.Attr.Health`
+- **THEN** 该行可被读出且字段往返保真（含 `OverrideTieBreak` 与 `DefTag`）；RowName 与 `DefTag` 不要求同名
+
+#### Scenario: 空身份被拦截
+
+- **WHEN** 资产 `DefTag` 无效时执行 `IsDataValid`
+- **THEN** 报错（Invalid）
+
+#### Scenario: 实例自持定义数据
+
+- **WHEN** 单位由定义行添加属性后再读取实例
+- **THEN** 实例的边界、值域模式与覆盖带同优先级策略来自定义行，但实例不持有定义行或资产的引用（改定义不影响已建实例）
 

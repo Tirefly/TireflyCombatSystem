@@ -5,30 +5,23 @@ TBD - created by archiving change add-tcsdamage-steps-and-primitive. Update Purp
 ## Requirements
 ### Requirement: 标准步骤库（十步）
 
-`TcsDamage` MUST 以内建步骤 struct + 执行器提供 `09 §2.2` 的标准十阶段，**全部经 `UE_DEFINE_FLOW_STEP_EXECUTOR` 自注册**（住 `Public/Flow/Steps/` 与 `Private/Flow/Steps/`）：
+`TcsDamage` MUST 提供十阶段标准步骤库（09 §2.2；D7-5"流程 = 数据模板 + 标准件"），全部为**数据 struct**（无公共基类，D4-16），MUST 经 `UE_DEFINE_FLOW_STEP_EXECUTOR` 自注册。
 
-- `FTcsFlowCollectStart`：发流程开始事件（原生 Tag `Tcs.Event.Damage.FlowStarted`）+ **重置收集**（`Blackboard.Reset()`）；
-- `FTcsFlowPreHit`：发收集事件 → 应用（宿主挂点：修改命中率/注册免疫候选）；
-- `FTcsFlowHit`：基础命中率（delegate `GetBaseHitRate`）→ 修改器 → 判定，结果写黑板（键 `Hit`，1/0）；
-- `FTcsFlowCrit`：基础暴击率（`GetBaseCritRate`）→ 修改器 → 判定（键 `Crit`）；
-- `FTcsFlowElement`：delegate `ResolveElement` 解析元素 → 写入 `ClassificationTags`；
-- `FTcsFlowBaseDamage`：**接收输入值**（`Context.BaseDamageInput`——**请求字段，不随 `CollectStart` 的收集重置清除**；链步骤解算结果经此传入，PV-7/D7-2：基础值来源 = 链步骤配置，流程不得自行推导）→ 可经 delegate 逃生口 → 以 **`Add`** 提交到 `OutputKey`（默认 `BaseDamage`）——**MUST NOT 用覆盖带写基值**（覆盖带盖掉一切，会抹掉收集到的修正）；
-- `FTcsFlowAfterDamage`：发收集事件 → 应用（宿主挂点："伤害 +50"）；
-- `FTcsFlowPreExecute`：发收集事件 → **只收集**免疫/减伤候选（收集 ≠ 消费，D7-4）；
-- `FTcsFlowExecute`：免疫/减伤**裁决**（按消耗策略的 `SortKey` 选一）→ 宿主护盾 hook（delegate `ModifyShield`）→ **M2 事务扣血**（属性键 = **步骤级 `AttrKey` 优先、否则用 `Context.TargetAttrKey`**——插件组装的官方默认模板不可能知道项目词表（`Health` 是项目侧的），故"打哪个属性"必须由请求方给出；两者皆空 → 不扣血 + Warning）→ **成功才消费**（调用命中候选的 `OnConsumed`）；
-- `FTcsFlowCompleted`：发完成事件 + 填充并发布 `FTcsDamageRecord`（见 `damage-primitive`）。
+**执行期行为契约**：正路共用的黑板键名（`BaseDamage` / `Executed` / `Absorbed` / `Kill` / `Hit` / `Crit` / `ExecuteCandidates`）属**标准步骤库的契约**（M8 校验与 Explain 认识）——**2026-09-22 改造：这些契约键从"自由 FName"改为"插件原生声明的 GameplayTag"**（`Tcs.Flow.Key.*`，常量名逐点换下划线，如 `Tcs.Flow.Key.BaseDamage` → `Tag_Tcs_Flow_Key_BaseDamage`）；**项目自定义键仍自由**，但类型同为 `FGameplayTag`、由**项目 ini** 声明。步骤 MUST NOT 自行推导基础伤害（零公式纪律）。
 
-**执行期行为契约**：正路共用的黑板键名（`Hit` / `Crit` / `BaseDamage` / `FinalDamage`）属**标准步骤库的契约**（M8 校验与 Explain 认识），项目自定义键自由 `FName`；步骤 MUST NOT 自行推导基础伤害（零公式纪律）。
+**契约键原生声明的理由**（与事件 tag 同款判据"谁拥有那个词，谁声明"）：契约键是**步骤之间的接口**，属**框架词汇**——若让项目声明，项目漏配即导致上下游步骤对不上（**静默读到 0**），框架契约被项目配置破坏。故 MUST 插件原生声明（`UE_DEFINE_GAMEPLAY_TAG`，随模块加载生效、零项目配置依赖）。
 
-#### Scenario: 默认四步跑通
+**MUST NOT 再用裸字面量**：现状中 `TcsFlowStepsRest.cpp` 的 `FName(TEXT("Crit"))` / `FName(TEXT("Hit"))` 等内联字面量 MUST 改为引用原生 tag 常量（消除跨文件裸字面量耦合）；`TcsFlowStepsRest.cpp` 中声明后从未使用的死常量（`TcsFlowRestKey_HitRate` / `TcsFlowRestKey_CritRate`）MUST 一并清理或改为 tag 常量并实际使用。
 
-- **WHEN** 执行 `CollectStart → BaseDamage → Execute → Completed`
-- **THEN** 收集被重置、`BaseDamage` 取到输入值、`Execute` 对目标属性做了事务扣血、完成事件与记录都已产出
+#### Scenario: 契约键跨文件一致
 
-#### Scenario: 十步均可被解释器分派
+- **WHEN** 生产者步骤与消费者步骤分别在不同 cpp 里读写同一契约键
+- **THEN** 二者引用**同一个原生 tag 常量**（编译期保证一致，不存在"两处字面量各写一遍"的失配可能）
 
-- **WHEN** 查询流程步骤注册表
-- **THEN** 十步的执行器全部可查（模块加载即自注册，零启动代码）
+#### Scenario: 项目自定义键仍自由
+
+- **WHEN** 项目侧步骤要用一个契约键之外的键
+- **THEN** 该项目 tag 由项目 ini 声明后即可用（插件不预设、不校验其存在性——归 M8 校验矩阵）
 
 ### Requirement: 步骤 Conditions 挂点
 
@@ -51,16 +44,15 @@ TBD - created by archiving change add-tcsdamage-steps-and-primitive. Update Purp
 
 ### Requirement: 通用数据步骤
 
-`TcsDamage` MUST 提供两个"编辑器拼流程零 C++"的数据步骤（D7-5）：
+`TcsDamage` MUST 提供两个**数据化**步骤（把"宿主挂点"变成可配置数据；09 §2.2 的两处）：
 
-- `FTcsFlowModify{ FName TargetKey; ETcsAttributeOp Op; FTcsParamValue Operand; TArray<FInstancedStruct> Conditions; }`——数据化黑板写入（"破甲阶段" = 一个数据步骤）；Operand 为 `FTcsParamValue`（黑板键引用保留为流程域自身的 Operand 选项，随其来源策略轮落地）。**MUST NOT 携带消耗策略**：`FTcsConsumePolicy` 含 `TFunction OnConsumed` 回调（纯 C++、不可反射、不可作 UPROPERTY）——消耗型提交只能来自 C++ 步骤或事件响应；数据步骤只做纯数值写入；
-- `FTcsFlowDelegate{ FName TargetKey; TScriptInterface<UTcsDamageFlowDelegate> Delegate; ... }`——数据化委托调用（轻量公式挂法）；
-- 两者的执行器 MUST 同样遵守 Conditions 契约与自注册契约。
+- `FTcsFlowModify{ FGameplayTag TargetKey; ETcsAttributeOp Op; FTcsParamValue Operand; TArray<FInstancedStruct> Conditions; }`——数据化黑板写入（"破甲阶段" = 一个数据步骤；**2026-09-22 改造：`TargetKey` 类型 `FName` → `FGameplayTag`**）；Operand 为 `FTcsParamValue`（黑板键引用保留为流程域自身的 Operand 选项，随其来源策略轮落地）。**MUST NOT 携带消耗策略**：`FTcsConsumePolicy` 含 `TFunction OnConsumed` 回调（纯 C++、不可反射、不可作 UPROPERTY）——消耗型提交只能来自 C++ 步骤或事件响应；数据步骤只做纯数值写入；
+- `FTcsFlowDelegate{ FGameplayTag TargetKey; TScriptInterface<UTcsDamageFlowDelegate> Delegate; ... }`——数据化委托调用（轻量公式挂法；**2026-09-22 改造：`TargetKey` 类型改 tag**）。
 
-#### Scenario: 数据步骤无需 C++ 即可改黑板
+#### Scenario: 数据步骤可配可跑
 
-- **WHEN** 模板里放一个 `FTcsFlowModify{TargetKey=FinalDamage, Op=Mul, Operand=1.2}`
-- **THEN** 该键的后续读取带上这一笔（无任何 C++ 改动）
+- **WHEN** 模板里放一个 `FTcsFlowModify`（TargetKey = 某 tag、Op = `TAO_Add`、Operand = Literal 5）
+- **THEN** 该步执行后黑板对应键多出 5 的贡献（无需任何 C++ 步骤）
 
 ### Requirement: 官方默认模板
 

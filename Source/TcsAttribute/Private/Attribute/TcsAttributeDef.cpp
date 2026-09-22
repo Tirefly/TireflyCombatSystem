@@ -4,15 +4,16 @@
 
 
 
-// 定义主资产类型标识（Def 资产族统一：类型稳定、名取 DefId——见头文件说明）
+// 定义主资产类型标识（Def 资产族统一：类型稳定、名取 tag 的 FName 形态——见头文件说明）
 const FPrimaryAssetType UTcsAttributeDef::PrimaryAssetType = FPrimaryAssetType(TEXT("TcsAttributeDef"));
 
 
 
 FPrimaryAssetId UTcsAttributeDef::GetPrimaryAssetId() const
 {
-	// 名取 DefId 而非资产名：资产文件可自由改名/挪目录而不失联
-	return FPrimaryAssetId(PrimaryAssetType, DefId);
+	// 名取 DefTag 的 FName 形态而非资产名：资产文件可自由改名/挪目录而不失联。
+	// FPrimaryAssetId 的 name 位是 FName（引擎类型约束），tag 须经 GetTagName() 转换。
+	return FPrimaryAssetId(PrimaryAssetType, DefTag.GetTagName());
 }
 
 
@@ -23,10 +24,10 @@ EDataValidationResult UTcsAttributeDef::IsDataValid(
 {
 	EDataValidationResult Result = Super::IsDataValid(Context);
 
-	// 验证身份（空 DefId 会让 [PrimaryAssetType, DefId] 失去意义——DefLibrary 无法按名解析到本资产）
-	if (DefId.IsNone())
+	// 验证身份（无效 DefTag 会让 [PrimaryAssetType, DefTag] 失去意义——DefLibrary 无法按 tag 解析到本资产）
+	if (!DefTag.IsValid())
 	{
-		Context.AddError(FText::FromString(TEXT("属性定义资产缺少 DefId：它是主资产身份的名，也是属性名")));
+		Context.AddError(FText::FromString(TEXT("属性定义资产缺少有效的 DefTag：它是主资产身份的名，也是属性身份")));
 		Result = EDataValidationResult::Invalid;
 	}
 

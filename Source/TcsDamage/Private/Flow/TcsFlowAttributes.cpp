@@ -4,9 +4,9 @@
 
 
 
-bool FTcsFlowAttributes::Submit(FName Key, ETcsAttributeOp Op, const FTcsParamValue& Operand, const FTcsConsumePolicy& Consume)
+bool FTcsFlowAttributes::Submit(FGameplayTag Key, ETcsAttributeOp Op, const FTcsParamValue& Operand, const FTcsConsumePolicy& Consume)
 {
-	if (!ensureMsgf(!Key.IsNone(), TEXT("FTcsFlowAttributes::Submit: 黑板键为空——拒绝提交")))
+	if (!ensureMsgf(Key.IsValid(), TEXT("FTcsFlowAttributes::Submit: 黑板键无效——拒绝提交")))
 	{
 		return false;
 	}
@@ -18,7 +18,7 @@ bool FTcsFlowAttributes::Submit(FName Key, ETcsAttributeOp Op, const FTcsParamVa
 	return true;
 }
 
-double FTcsFlowAttributes::Read(FName Key, const FTcsParamEvaluateContext& EvalContext) const
+double FTcsFlowAttributes::Read(FGameplayTag Key, const FTcsParamEvaluateContext& EvalContext) const
 {
 	const TArray<FTcsFlowAttributeSubmit>* KeySubmits = Submits.Find(Key);
 	if (!KeySubmits)
@@ -45,7 +45,7 @@ double FTcsFlowAttributes::Read(FName Key, const FTcsParamEvaluateContext& EvalC
 	return FoldTcsAttributeBands(0.0, Entries);
 }
 
-double FTcsFlowAttributes::Read(FName Key) const
+double FTcsFlowAttributes::Read(FGameplayTag Key) const
 {
 	return Read(Key, FTcsParamEvaluateContext());
 }
@@ -55,7 +55,7 @@ void FTcsFlowAttributes::Reset()
 	Submits.Reset();
 }
 
-const TArray<FTcsFlowAttributeSubmit>* FTcsFlowAttributes::FindSubmits(FName Key) const
+const TArray<FTcsFlowAttributeSubmit>* FTcsFlowAttributes::FindSubmits(FGameplayTag Key) const
 {
 	return Submits.Find(Key);
 }

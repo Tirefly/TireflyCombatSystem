@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "UObject/Interface.h"
 
-#include "Attribute/TcsAttributeName.h"
+#include "GameplayTagContainer.h"
 
 #include "TcsAttributeProvider.generated.h"
 
@@ -39,7 +39,7 @@ public:
 	 * @return 返回基础值；属性未定义时返回 0。
 	 */
 	UFUNCTION(BlueprintNativeEvent)
-	double GetBaseValue(FTcsAttributeName Attribute);
+	double GetBaseValue(FGameplayTag Attribute);
 
 	/**
 	 * 读取属性当前值（聚合 + 值域收口后的权威值）。
@@ -49,7 +49,7 @@ public:
 	 * @return 返回当前值；属性未定义时返回 0。
 	 */
 	UFUNCTION(BlueprintNativeEvent)
-	double GetCurrentValue(FTcsAttributeName Attribute);
+	double GetCurrentValue(FGameplayTag Attribute);
 
 	/**
 	 * 读取属性待提交候选值（事务预览，D2-5；供表现层预览用）。
@@ -59,7 +59,7 @@ public:
 	 * @return 返回候选值；无事务或属性未定义时返回当前值。
 	 */
 	UFUNCTION(BlueprintNativeEvent)
-	double PeekPending(FTcsAttributeName Attribute);
+	double PeekPending(FGameplayTag Attribute);
 
 #pragma endregion
 };
