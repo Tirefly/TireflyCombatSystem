@@ -260,3 +260,12 @@
   - **命名**（用户拍板"参考已有几个 Def 的命名规则"）：`FTcsEffectTriggerDef` / `FTcsEffectTriggerInstance` / `FTcsEffectTriggerHandle`（与 `UTcsEffectChainDef` / `FTcsAttributeDefData` 族内一致）。
   - **验证**：Development 编译**零警告零错误**（一次通过）；旧类型名零残留。**无行为实证**（本批零调用方——登记表/求值器属 Task 2），验证全是静态检查。
   - **R4 扩容（用户拍板）**：增 **Task 2.5**（独立资产载体 `UTcsEffectTriggerDefAsset` + DefLibrary 发现）与 **Task 3.5**（追加 4 个原语 `SetVar`/`Branch`/`RunSubChain`/`WaitEvent`）；`ModifyAttribute` 与 `ApplyState` 后置 R5（需属性访问注入位 / 是 TcsState 领域步骤）。
+- **2026-09-23 触发行登记表与求值器（plan3 Task 2 收束）**：提案 `add-effect-trigger-registry` → 归档 `2026-09-23-add-effect-trigger-registry`（`effect-trigger`：MODIFIED × 1 + ADDED × 3；规格库 **23/23** 全绿）。**"事件 → 触发行 → 效果链"的订阅侧自此通了**——此前只有数据形状与条件注册表（Task 1），零调用方。
+  - **交付**：`FTcsTriggerRegistry`（纯逻辑类，照 `UTcsEventBusSubsystem` 持 `FTcsEventBus` 的分工）+ `UTcsTriggerEvaluator`（`UTcsEventHandler` 共享 Handler）+ `FTcsTriggerPayloadReaderRegistry` + 门面 API（登记/摘除/按来源级联摘除/点灯/行数/随机种子）。**四道门** `事件 Tag 路由 → ExecutionGate → GateTags → Conditions → 起链` 严格按序；`Priority` 大者先、同级按登记序（显式全序，不依赖输入序）；**同 `EventTag` 多行共用一个订阅**（计数配对）。
+  - **三处计划错误在实施期纠正（均已回写 plan3 与规格）**：
+    - **①`Caster` 解析规则不可实现**：原注记写"从载荷内已知类型取（流程收集事件 → `Context->Attacker`）"——但 `TcsEffect` MUST NOT 认识领域载荷类型（依赖铁律），不可能写 `GetPtr<FTcsDamageFlowCollectEvent>()`。**且若不管**：`ClassificationTags` 无来源 → 空集 → R4 随规格交付的 `HasAllTags` **恒不过**（出厂即不可用的条件）。**处置** = 新增**触发载荷读取器注册表**（由载荷类型的属主模块自登记；TcsDamage 的读取器随 Task 3 同批）。
+    - **②"值语义 `TArray` → 无需 ARO"判据错误（GC 地雷）**：是否需要 GC 补引用与值/指针语义**无关**，只取决于**容器是否 GC 可见**。`FTcsTriggerRegistry` 是门面的非 `UPROPERTY` 成员 → GC 的 `RefLink` 走不到，行内 `FInstancedStruct`（`Conditions`/`EventPayloadFilter`）内层可放宿主自定义 struct 的 `UPROPERTY` 对象引用 → **静默回收**。**这与 T-8 是同一类缺口**（缺口在容器，不在载荷）。**处置** = 门面 `AddReferencedObjects` 逐行补引用。
+    - **③"代际校验不适用"错误**：登记表用空闲链表复用槽位后，**陈旧句柄会静默改指另一行**（`UnregisterTriggerRow(旧句柄)` 摘掉无辜的行）。**处置** = 自持代际计数（仍不引入 `TTcsInstancePool` 类型——池的挂起锚/占用统计在此零收益）。
+  - **订阅通道 = 立即**（计划未写，实施期从 Task 3 的时序约束反推）：收集协议要求"修正提交落在事件发布返回之前"，订帧末会让修正晚一拍。
+  - **验证**：Development **零警告零错误** + **Shipping 也补跑通过**（新增 `UCLASS`/`UPROPERTY` 面）；依赖面零领域模块；订阅计数配对/代际校验为**读码自检**。
+  - **无行为实证（如实记）**：验收路径在 Task 4（端到端"破甲"修改器）——触发行要真跑起来需要 Task 3 的 `ModifyFlow`（否则触发了也没有能改黑板的步骤）。**故本批验证全是静态检查**。触发行 GC 场景亦未实测（与 T-8 同款：无合适夹具）。

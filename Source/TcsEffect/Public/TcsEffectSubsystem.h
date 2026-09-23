@@ -12,8 +12,12 @@
 #include "Chain/TcsEffectStep.h"
 #include "Host/TcsEntityQuery.h"
 #include "Pool/TcsInstancePool.h"
+#include "Trigger/TcsEffectTriggerInstance.h"
+#include "Trigger/TcsTriggerRegistry.h"
 
 #include "TcsEffectSubsystem.generated.h"
+
+class UTcsTriggerEvaluator;
 
 
 
@@ -103,6 +107,66 @@ public:
 #pragma endregion
 
 
+// 触发行登记
+#pragma region Trigger
+
+public:
+	/**
+	 * 登记触发行（M4a 订阅侧；宿主/上层登记，门面持有并按 `Def.EventTag` 装配总线订阅）。
+	 *
+	 * **订阅计数配对**：同一 `EventTag` 的多行**共用一条订阅**——首次出现该 Tag 时订阅一次，
+	 * 该 Tag 的行数归零时才退订（`MUST NOT` 每行各订一次）。
+	 * **通道 = 立即**：收集协议要求"修正提交落在事件发布返回之前"。
+	 *
+	 * 拒绝面（ensure 提示 + 返回无效句柄）：`Def.EventTag` 或 `Def.EffectChainId` 无效；
+	 * 总线不可得（世界拆解期）→ Warning + 无效句柄（时序而非配置错误）。
+	 *
+	 * @param Instance 触发实例（填 `Def` 与 `Source`；`Self` 由登记表覆写）。
+	 * @return 返回行句柄；拒绝时返回无效句柄。
+	 */
+	FTcsEffectTriggerHandle RegisterTriggerRow(const FTcsEffectTriggerInstance& Instance);
+
+	/**
+	 * 摘除单行（**先校验代际**——陈旧句柄被拒且不误伤复用该槽位的新行；失配不 ensure）。
+	 *
+	 * @param Handle 行句柄。
+	 * @return 返回是否摘除成功。
+	 */
+	bool UnregisterTriggerRow(FTcsEffectTriggerHandle Handle);
+
+	/**
+	 * 按来源全量摘除（级联退订锚点——与 M2 `RemoveBySource` 同款语义）。
+	 *
+	 * @param Source 来源句柄。
+	 * @return 返回摘除的行数。
+	 */
+	int32 UnregisterTriggerRowsBySource(const FTcsSourceHandle& Source);
+
+	/**
+	 * 点灯/灭灯（行级开关；`GateTags` **全部**点亮才通过该道门）。
+	 *
+	 * @param GateTag 开关 Tag。
+	 * @param bLit 是否点亮。
+	 */
+	void SetTriggerGateTag(FGameplayTag GateTag, bool bLit);
+
+	// 开关是否点亮
+	bool IsTriggerGateTagLit(FGameplayTag GateTag) const;
+
+	// 登记行数（观测/装置断言用）
+	int32 GetTriggerRowCount() const;
+
+	/**
+	 * 设置求值随机流种子（D0-1 确定性纪律：概率条件的随机值由门面供给——
+	 * 条件求值器内部 MUST NOT 取随机数）。默认 0 = 确定的固定序列（可复现）。
+	 *
+	 * @param Seed 随机流种子。
+	 */
+	void SetTriggerRandomSeed(int32 Seed);
+
+#pragma endregion
+
+
 // 执行
 #pragma region Execution
 
@@ -165,6 +229,24 @@ public:
 #pragma region Core
 
 private:
+	// 求值器内部面（求值器不住本类，但需读登记表/点灯/随机流——故经 friend 开放最小集）
+	friend class UTcsTriggerEvaluator;
+
+	// 收集某事件 Tag 的全部行句柄（快照；求值器用）
+	void CollectTriggerRowsForTag(FGameplayTag EventTag, TArray<FTcsEffectTriggerHandle>& OutHandles) const;
+
+	// 行句柄按 Priority 降序 + 登记序稳定排序（求值器用）
+	void SortTriggerRowsByPriority(TArray<FTcsEffectTriggerHandle>& Handles) const;
+
+	// 按句柄解析行（代际校验；悬空返回 nullptr——求值器用）
+	const FTcsEffectTriggerInstance* FindTriggerRow(FTcsEffectTriggerHandle Handle) const;
+
+	// 取下一个 [0,1) 随机值（仅概率类条件用；每行各取一次——求值器用）
+	double NextTriggerRandomValue();
+
+	// 取事件总线门面（登记/退订装配用；世界拆解期可能为 nullptr）
+	class UTcsEventBusSubsystem* GetEventBus() const;
+
 	// 解释器：从运行态 PC 推进至挂起/走完（逐步查执行器注册表分派；越界熔断与未知类型断链在此处置）
 	void RunFrom(FTcsChainRunHandle Handle);
 
@@ -183,6 +265,14 @@ private:
 	// 实体查询实现（UPROPERTY：实现是 UObject，须经 GC 持有）
 	UPROPERTY()
 	TScriptInterface<ITcsEntityQuery> EntityQuery;
+
+	// 触发求值器（**UPROPERTY 持有是必需的**：总线订阅表持弱引用——不 root 会被 GC 掉、
+	// 订阅静默失效。宿主 `UTcsDevScreenObserver` 的既有注释即该现象的先例）
+	UPROPERTY()
+	TObjectPtr<UTcsTriggerEvaluator> TriggerEvaluator;
+
+	// 触发行登记表（纯逻辑类；值语义持有行 + 订阅计数配对 + 点灯集 + 随机流）
+	FTcsTriggerRegistry TriggerRegistry;
 
 #pragma endregion
 };

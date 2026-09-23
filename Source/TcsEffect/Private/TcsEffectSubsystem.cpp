@@ -20,6 +20,9 @@ void UTcsEffectSubsystem::Deinitialize()
 {
 	// 确定性清理：运行态池整体重置（占用统计回落、旧句柄凭代际失配失效）+ 链定义表与注入引用清空。
 	// 已在到期堆里的挂起条目不再撤销——到期时按句柄代际校验静默丢弃（条目由堆在回调后回收，无泄漏）。
+	// 触发行：登记表清空 + **全量退订**（不留跨世界残留订阅）；求值器随门面一起回收。
+	TriggerRegistry.Reset(GetEventBus());
+	TriggerEvaluator = nullptr;
 	RunPool.Reset();
 	ChainDefs.Empty();
 	EntityQuery = TScriptInterface<ITcsEntityQuery>();
@@ -41,6 +44,10 @@ void UTcsEffectSubsystem::AddReferencedObjects(UObject* InThis, FReferenceCollec
 			Collector.AddPropertyReferencesWithStructARO(FTcsEffectChain::StaticStruct(), const_cast<FTcsEffectChain*>(Chain), This);
 		}
 	}
+
+	// 触发行登记表同理（非 UPROPERTY 成员；行内 FInstancedStruct 的内层可放对象引用——
+	// 与链定义同款缺口，判据是"容器是否 GC 可见"而非"值语义还是指针语义"）
+	This->TriggerRegistry.AddReferencedObjects(Collector, This);
 
 	Super::AddReferencedObjects(InThis, Collector);
 }

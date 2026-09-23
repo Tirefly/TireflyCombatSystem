@@ -52,7 +52,7 @@
 
 | 轮次 | 主题 | 主要交付 | 前置 | 台账消费 |
 |---|---|---|---|---|
-| **R4（本计划）** | **M4a 触发行 + 伤害修改器通道 + 原语补齐（一批）** | ①触发行定义/条件注册表（Task 1 已完成）；②登记表与求值器（Task 2）；③**独立资产载体 `UTcsEffectTriggerDef` + DefLibrary 发现**（Task 2.5）；④`ModifyFlow` 链原语（Task 3）；⑤**追加 4 个原语**：`SetVar` / `Branch` / `RunSubChain` / `WaitEvent`（Task 3.5）；⑥端到端验收（Task 4）；⑦收束（Task 5） | R3 已收束 | **R5-3 部分**（ModifyFlow）；**R5-1 部分**（载荷装填）；**R5-2 部分**（4 个原语——2026-09-23 用户拍板提前） |
+| **R4（本计划）** | **M4a 触发行 + 伤害修改器通道 + 原语补齐（一批）** | ①触发行定义/条件注册表（Task 1 已完成）；②登记表与求值器 + **载荷读取器注册表**（Task 2 **已完成**）；③**独立资产载体 `UTcsEffectTriggerDef` + DefLibrary 发现**（Task 2.5）；④`ModifyFlow` 链原语（Task 3）；⑤**追加 4 个原语**：`SetVar` / `Branch` / `RunSubChain` / `WaitEvent`（Task 3.5）；⑥端到端验收（Task 4）；⑦收束（Task 5） | R3 已收束 | **R5-3 部分**（ModifyFlow）；**R5-1 部分**（载荷装填）；**R5-2 部分**（4 个原语——2026-09-23 用户拍板提前） |
 | R5 | **M3 状态层（TcsState）** | `UTcsStateDef` 家族 / `FStateInstance` + 中央注册表 / 五轴堆叠 / 关系表 + 级联重评 / Duration-Period + 到期堆 / `ParamSnapshot` / **修正器物化（D3-19）** / **`ApplyState` 链原语（随 M3 同批——否则 Buff 有事件却施加不了状态）** / 生命周期事件全集 / **`Heal` 原语** / `ModifyAttribute`（属性访问注入位与 `ApplyState` 同批） | R4（行为面验收） | **R4-1**、**R4-2**、**R4-3**、**R5-2 余**（`Repeat`/`Parallel`/`OnError`）、**R5-3 余**（`Heal`） |
 | R6 | **M5 技能层（TcsSkill）** | `UTcsSkillDef` / 账本 `FLearnedSkillEntry` / 六道门禁 / **时段驱动 `FPhaseSpan` + 打断** / 冷却多轨道 + 三事件 / Cost 策略 / **参数链（带式聚合，折叠器复用）** / 链重定向栈 / `FEntrySelector` | R5（`FSkillDef` 继承 `FStateDefBase`） | **R6-1**（参数链接入折叠器）、**M0-1**（若全域订阅需求成立） |
 | R7 | **M6 集成层** | 两级单位（Mass 小兵 + 全功能军官）/ StateTree 决策接线 / **AttributeSet 全套** / `PrimaryAssetTypesToScan` + 发现机制切换 AssetManager + 加载层三策略 | R6 | **R7-1**、**R7-2**、**R7-3**、**T-2**、**T-5**、**T-6**、**T-8 余**（模板资产化） |
@@ -174,90 +174,98 @@ bool EvaluateTriggerConditions(const TArray<FInstancedStruct>& Conditions, const
 
 ---
 
-## Task 2: 触发行登记表与求值器（订阅生命周期）
+## Task 2: 触发行登记表与求值器（订阅生命周期） —— **已完成（2026-09-23）**
 
-**Files:**
-- Create: `Source/TcsEffect/Public/Trigger/TcsTriggerEvaluator.h`
-- Create: `Source/TcsEffect/Private/Trigger/TcsTriggerEvaluator.cpp`
-- Modify: `Source/TcsEffect/Public/TcsEffectSubsystem.h`（登记表 + 点灯 API + 生命周期）
-- Modify: `Source/TcsEffect/Private/TcsEffectSubsystem.cpp`
+**Files（实际落点）:**
+- Create: `Source/TcsEffect/Public/Trigger/TcsTriggerEvaluator.h` + `Private/Trigger/TcsTriggerEvaluator.cpp`
+- Create: `Source/TcsEffect/Public/Trigger/TcsTriggerRegistry.h` + `Private/Trigger/TcsTriggerRegistry.cpp` + `_Query.cpp`（**实施时追加**——登记表拆为纯逻辑类，理由见下）
+- Create: `Source/TcsEffect/Public/Trigger/TcsTriggerPayloadReader.h` + `Private/Trigger/TcsTriggerPayloadReader.cpp`（**实施时追加**——见下"载荷读取器"）
+- Modify: `Source/TcsEffect/Public/TcsEffectSubsystem.h`（登记表 API + 点灯 + 生命周期 + ARO 转发）
+- Modify: `Source/TcsEffect/Private/TcsEffectSubsystem.cpp` + `Private/TcsEffectSubsystem_Trigger.cpp`（**实施时拆分**——门面 `.cpp` 实施前已 289 行，塞不下）
+- 规格：`openspec/changes/archive/2026-09-23-add-effect-trigger-registry/`（MODIFIED × 1 + ADDED × 3，规格库 23/23）
 
-**Interfaces:**
-- Consumes: Task 1 的 `FTcsTriggerRow` / `FTcsTriggerContext` / `EvaluateTriggerConditions`；TcsCore 的 `UTcsEventHandler` / `UTcsEventBusSubsystem`。
-- Produces:
+**实施期发现的三处计划错误（均已纠正并回写规格）:**
+
+1. **`Caster` 解析规则不可实现（计划内部矛盾）**：原注记写"从载荷内已知类型取（流程收集事件 → `Context->Attacker`）"——`TcsEffect` MUST NOT 认识任何领域载荷类型（依赖铁律），不可能写 `GetPtr<FTcsDamageFlowCollectEvent>()`。**且若不管**：`ClassificationTags` 无来源 → 空集 → R4 随规格交付的 `HasAllTags` **恒不过**（出厂即不可用的条件）。**处置** = 新增**触发载荷读取器注册表**（`FTcsTriggerPayloadReaderRegistry`），由载荷类型的属主模块自登记（TcsDamage 的收集事件读取器随 Task 3 登记）。
+2. **"值语义 `TArray` → 无需 ARO"判据错误（GC 地雷）**：是否需要 ARO 与值/指针语义**无关**，只取决于**容器是否 GC 可见**。`FTcsTriggerRegistry` 是门面的**非 `UPROPERTY` 成员** → GC 的 `RefLink` 走不到它，而行内 `FInstancedStruct`（`Conditions`/`EventPayloadFilter`）内层可放宿主自定义 struct 的 `UPROPERTY` 对象引用（D4-16 类型不设限）→ **静默回收**。这与 T-8 是同一类缺口（**缺口在容器，不在载荷**）。**处置** = 门面 `AddReferencedObjects` 逐行补引用（与 `ChainDefs` 同款手法）。
+3. **"代际校验不适用"错误**：登记表用空闲链表复用槽位后，**陈旧句柄会静默改指另一行**（`UnregisterTriggerRow(旧句柄)` 摘掉无辜的行）。**处置** = 自持代际计数（**仍不引入 `TTcsInstancePool` 类型**——池的挂起锚/占用统计在此确无收益）。
+
+**Interfaces（实际交付）:**
 ```cpp
-// —— 共享 Handler（裁决 2a：事件类型 → Handler CDO；事件 struct 上不自绑 delegate）——
+// —— 共享 Handler（裁决 2a）——
 UCLASS()
 class TCSEFFECT_API UTcsTriggerEvaluator : public UTcsEventHandler
 {
 	GENERATED_BODY()
 public:
-	// 事件入口：Tag 路由 → 取匹配行（Priority 降序）→ 四道门 → 起链
 	virtual void HandleEvent_Implementation(FGameplayTag EventTag, const FInstancedStruct& Payload) override;
-
-	// 装配：求值器由门面创建并持弱引用回指（起链要经门面）
 	void Initialize(UTcsEffectSubsystem* InOwner);
-
 private:
+	FTcsTriggerPayloadInfo ReadPayloadInfo(const FInstancedStruct& Payload) const;
+	static bool PassesExecutionGate(const FTcsEffectTriggerDef& Def);          // 门②
+	bool PassesGateTags(const FTcsEffectTriggerDef& Def) const;                // 门③
+	bool PassesConditions(const FTcsEffectTriggerDef& Def, const FTcsTriggerContext& Context);  // 门④（非 const：推进随机流）
 	TWeakObjectPtr<UTcsEffectSubsystem> Owner;
 };
-```
 
-```cpp
-// —— 触发行句柄（复用 TcsCore 的句柄范式；见 TcsChainRun.h 的同款形态）——
-// 说明：本计划**不引入池**——触发行是"登记期写入、运行期只读"的静态内容，
-// 无高频增删，故登记表用 `TArray<FTcsTriggerRow>`（值语义）+ 索引句柄即可（零 GC 面）。
-struct FTcsTriggerRowTag {};   // 类型区分标签（防与链运行态句柄互换）
-
-struct FTcsTriggerRowHandle
+// —— 登记表（纯逻辑类，照 UTcsEventBusSubsystem 持 FTcsEventBus 的分工）——
+class TCSEFFECT_API FTcsTriggerRegistry
 {
-	TTcsInstanceHandle<FTcsTriggerRowTag> Inner;
-
-	bool IsValid() const { return Inner.IsValid(); }
+public:
+	void SetEvaluator(UTcsTriggerEvaluator* InEvaluator);   // 弱引用持有
+	FTcsEffectTriggerHandle RegisterRow(const FTcsEffectTriggerInstance&, UTcsEventBusSubsystem*);
+	bool UnregisterRow(FTcsEffectTriggerHandle, UTcsEventBusSubsystem*);
+	int32 UnregisterRowsBySource(const FTcsSourceHandle&, UTcsEventBusSubsystem*);
+	void Reset(UTcsEventBusSubsystem*);
+	int32 GetRowCount() const;
+	void CollectRowsForTag(FGameplayTag, TArray<FTcsEffectTriggerHandle>&) const;
+	const FTcsEffectTriggerInstance* FindRow(FTcsEffectTriggerHandle) const;
+	void SortRowsByPriority(TArray<FTcsEffectTriggerHandle>&) const;
+	void SetGateTagLit(FGameplayTag, bool);  bool IsGateTagLit(FGameplayTag) const;
+	void SetRandomSeed(int32);  double NextRandomValue();
+	void AddReferencedObjects(FReferenceCollector&, UObject* ReferencingObject);   // GC 补引用
+private:
+	TArray<FTcsEffectTriggerInstance> Rows;   TArray<uint32> RowGenerations;   TArray<uint32> FreeSlots;
+	TMap<FGameplayTag, FTcsEventSubscriptionHandle> TagSubscriptions;   // 同 Tag 共用一个订阅
+	TSet<FGameplayTag> LitGateTags;   FRandomStream RandomStream;
+	TWeakObjectPtr<UTcsTriggerEvaluator> Evaluator;
 };
+
+// —— 载荷读取器（实施时追加）——
+USTRUCT() struct FTcsTriggerPayloadInfo { FTcsCombatEntityHandle Caster; TArray<FGameplayTag> ClassificationTags; };
+using FTcsTriggerPayloadRead = TFunction<FTcsTriggerPayloadInfo(const FInstancedStruct& Payload)>;
+class TCSEFFECT_API FTcsTriggerPayloadReaderRegistry { /* AddPending / Register / Find，与条件注册表同构 */ };
+#define UE_DECLARE_TRIGGER_PAYLOAD_READER(ReaderFn) ...
+#define UE_DEFINE_TRIGGER_PAYLOAD_READER(PayloadType, ReaderFn) ...
+
+// —— 门面新增公共面（带导出宏）——
+FTcsEffectTriggerHandle RegisterTriggerRow(const FTcsEffectTriggerInstance&);
+bool UnregisterTriggerRow(FTcsEffectTriggerHandle);
+int32 UnregisterTriggerRowsBySource(const FTcsSourceHandle&);
+void SetTriggerGateTag(FGameplayTag, bool);  bool IsTriggerGateTagLit(FGameplayTag) const;
+int32 GetTriggerRowCount() const;   void SetTriggerRandomSeed(int32);
 ```
 
-```cpp
-// —— UTcsEffectSubsystem 新增公共面（登记表 / 点灯 / 生命周期）——
-	/**
-	 * 登记触发行：登记表持有 + 按 `Row.EventTag` 装配总线订阅（首次出现该 Tag 时订阅一次，
-	 * 末行摘除时退订——订阅计数配对，不给总线留死订阅）。
-	 *
-	 * @param Row 触发行（按值拷入）。
-	 * @return 返回行句柄；`EventTag` 无效或 `Effects` 无效时 ensure + 返回无效句柄。
-	 */
-	FTcsTriggerRowHandle RegisterTriggerRow(const FTcsTriggerRow& Row);
+- [x] **Step 1: OpenSpec 提案**（`effect-trigger`：MODIFIED × 1 + ADDED × 3）——`add-effect-trigger-registry`，已归档
+- [x] **Step 2: 实施求值器 + 登记表 + 点灯 API**（+ 载荷读取器 + ARO）
+- [x] **Step 3: 编译验证**（Development 零警告；**Shipping 也补跑**——新增 `UCLASS`/`UPROPERTY` 面）
+- [x] **Step 4: 定向人工检查**——依赖面零领域模块 ✅；订阅计数配对自检 ✅；代际校验自检 ✅
 
-	/** 摘除单行（订阅计数归零时退订）。 */
-	bool UnregisterTriggerRow(FTcsTriggerRowHandle Handle);
+> **实施注记（必读；原注记保留，实施结论附于各项之后）**：
+> - **求值顺序 MUST 严格照 04 §3 的"四道门"**：`事件 Tag 路由 → ExecutionGate → GateTags → Conditions → 起链`。顺序有意义：`ExecutionGate`（网络闸）最廉价先判；`Conditions` 最贵最后判。**✅ 已按此实现**（求值器四个私有函数一一对应）。
+> - **`Priority` 是"大者先"**。同 `Priority` 时**按登记序**。**✅ 已实现**：`SortRowsByPriority` 显式以 `(Priority 降序, 槽位下标升序)` 作全序（快排不稳定，故不依赖输入序）。
+> - **订阅计数配对**：同一 `EventTag` 的多行**共用一个订阅**。**✅ 已实现**：`TagSubscriptions` 是 `TMap<FGameplayTag, 句柄>`（天然一 Tag 一条）；`EnsureSubscription` 首行判重；`DropSubscriptionIfUnused` 首行 `HasRowForTag` 提前返回。**行数经扫描登记表得出**（而非维护行句柄索引表——后者会与真相同步漂移）。
+> - **起链装配**：`FTcsEffectContext{Caster = 行上下文解析, EventPayload = 原事件载荷, Targets = 空}` → `ExecuteChain(...)`。**✅ 已实现**。**`Caster` 的解析规则已改**（原注记的规则不可实现，见上文错误 1）——改走载荷读取器。
+> - **链未登记时**：`ExecuteChain` 已有拒绝面，本轮**不重复校验**。**✅ 遵守**（求值器注释明文）。
+> - **`bConditionMissIsSilent`**：`true` = 静默跳过；`false` = 记 `Verbose`（**MUST NOT 用 Warning/Error**）。**✅ 已实现**。
+> - **`UTcsTriggerEvaluator` 的生命周期**：由门面在首次登记时 `NewObject` 创建并 `UPROPERTY` 持有。**✅ 已实现**（懒建在 `RegisterTriggerRow` 内）。门面 `Deinitialize` 时清空登记表并退订全部。**✅ 已实现**。
+> - **GC 补引用**：**❌ 原判据错误，已纠正**（见上文错误 2）——值语义**也要**补。
+> - **订阅通道 = 立即**（原注记未写，实施期从 Task 3 的时序约束反推得出）：收集协议要求"修正提交落在事件发布返回之前"。**✅ 已实现**（`EED_Immediate`）。
+> - **`TcsEffectSubsystem.cpp` 行数**：实施前已 289 行，逼近 300 行上限——故登记表拆为纯逻辑类、门面触发 API 拆到 `TcsEffectSubsystem_Trigger.cpp`。**✅ 已按仓规拆分**（所有 `.cpp` ≤ 296 行）。
 
-	/** 按来源全量摘除（级联退订锚点——与 M2 `RemoveBySource` 同款语义）。 */
-	int32 UnregisterTriggerRowsBySource(const FTcsSourceHandle& Source);
-
-	/** 点灯/灭灯（行级开关；`GateTags` 全部点亮才通过）。 */
-	void SetTriggerGateTag(FGameplayTag GateTag, bool bLit);
-	bool IsTriggerGateTagLit(FGameplayTag GateTag) const;
-
-	/** 登记行数（观测/装置断言用）。 */
-	int32 GetTriggerRowCount() const;
-```
-
-> **持有形态说明（实施前必读）**：登记表用 **`TArray<FTcsTriggerRow>`（值语义）+ 索引句柄**，**不用 `TTcsInstancePool`**——触发行无高频增删、无挂起语义，池的代际校验在这里是零收益的复杂度。**代价**：`TArray` 扩容会搬移元素地址，故**MUST NOT 跨帧持有行指针**（回调内即取即用；求值器每次从登记表按索引重解析——与解释器"每步入器前重解析"同款纪律）。
-
-- [ ] **Step 1: OpenSpec 提案**（`effect-trigger` 追加：登记表与订阅生命周期 / 求值器四道门）
-- [ ] **Step 2: 实施求值器 + 登记表 + 点灯 API**
-- [ ] **Step 3: 编译验证**（Development）
-- [ ] **Step 4: 定向人工检查**——依赖面零领域模块；**订阅计数配对自检**（登记 N 行 → 退订 N 行 → 总线订阅表为空）
-
-> **实施注记（必读）**：
-> - **求值顺序 MUST 严格照 04 §3 的"四道门"**：`事件 Tag 路由 → ExecutionGate → GateTags → Conditions → 起链`。顺序有意义：`ExecutionGate`（网络闸）最廉价先判；`Conditions` 最贵最后判。
-> - **`Priority` 是"大者先"**（与覆盖带 `OverridePriority` 同向，避免两套"谁更强"的相反约定）。同 `Priority` 时**按登记序**（确定性——遍历顺序不得依赖容器哈希序；`TSet` 哈希序不确定的坑见 2026-09-22 plan2 Task 7 Step 1）。
-> - **订阅计数配对**：同一 `EventTag` 的多行**共用一个订阅**（订阅一次，回调内遍历该 Tag 的全部行）。**MUST NOT** 每行各订一次——那会让总线订阅表随行数膨胀且退订易漏。计数归零时 `Unsubscribe`。
-> - **起链装配**：`FTcsEffectContext{Caster = 行上下文解析, EventPayload = 原事件载荷, Targets = 空}` → `ExecuteChain(Row.Effects, Context)`。**`Targets` 本轮留空**——"事件载荷 → 目标"通路（台账 R5-1）的完整形态需要真实带目标的载荷类型，R4 的消费者（`ModifyFlow`）不需要目标。`Caster` 的解析规则：从载荷内已知类型取（流程收集事件 → `Context->Attacker`），取不到则默认构造（记 Verbose 日志，不 ensure——载荷类型未知不是契约违规）。
-> - **链未登记时**：`ExecuteChain` 已有拒绝面（Error + 不起链），本轮**不重复校验**——但那会让常规验收出红字，故**装置侧 MUST 保证被测链已登记**（见 Task 3 验收）。
-> - **`bConditionMissIsSilent`**：`true` = 静默跳过（默认）；`false` = 记一条 `LogTcsEffect` 的 `Verbose` 行（**MUST NOT 用 Warning/Error**——条件未过是正常业务路径，不是故障；M8 Explain 面板将消费这些线索）。
-> - **`UTcsTriggerEvaluator` 的生命周期**：由门面在首次登记时 `NewObject` 创建并 `UPROPERTY` 持有（总线订阅表持**弱引用**——不 root 会被 GC 掉，订阅静默失效；宿主 `UTcsDevScreenObserver` 的既有注释即为实证）。门面 `Deinitialize` 时清空登记表并退订全部。
-> - **GC 补引用**：若登记表用 `TArray<FTcsTriggerRow>`（值语义）则**无需** ARO 覆写；若改用 `TUniquePtr` 持行（为地址稳定）则**必须**补（本计划采用值语义 + 句柄，故不需要——但实施时若改变持有形态，此条立即生效）。
+> **实施注记（保留原注记的其余部分）**：
+> - **求值器内部访问面**：门面以 `friend class UTcsTriggerEvaluator` 开放最小集（收集行/排序/解析/取随机值/取总线），**MUST NOT** 把登记表本身暴露为公共面（外部只该经门面 API 动行）。
+> - **持有形态**：登记表用**值语义 `TArray` + 索引句柄**（不引入 `TTcsInstancePool` 类型），**但**必须自持代际计数（见上文错误 3）与 GC 补引用（见上文错误 2）。**代价**：`TArray` 扩容会搬移元素地址，故**MUST NOT 跨帧持有行指针**——求值器每次按句柄重解析（与解释器"每步入器前重解析"同款纪律）。
 
 ---
 
