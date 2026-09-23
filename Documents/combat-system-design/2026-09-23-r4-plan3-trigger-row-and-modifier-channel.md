@@ -52,14 +52,17 @@
 
 | 轮次 | 主题 | 主要交付 | 前置 | 台账消费 |
 |---|---|---|---|---|
-| **R4（本计划）** | **M4a 触发行 + 伤害修改器通道** | 触发行数据形状/条件/求值器/登记表与订阅生命周期 + `ModifyFlow` 链原语 | R3 已收束 | **R5-3 部分**（ModifyFlow）；**R5-1 部分**（载荷装填） |
-| R5 | **M3 状态层（TcsState）** | `UTcsStateDef` 家族 / `FStateInstance` + 中央注册表 / 五轴堆叠 / 关系表 + 级联重评 / Duration-Period + 到期堆 / `ParamSnapshot` / **修正器物化（D3-19）** / `ApplyState` 链原语 / 生命周期事件全集 | R4（行为面验收） | **R4-1**（`FTcsParamEnumerableSource`）、**R4-2**（上下文补 `Subject`/`EffectiveLevel`）、**R4-3**（`FFlowRedirect` 模板重定向栈）、**R5-3 余**（`Heal`） |
-| R6 | **M5 技能层（TcsSkill）+ 控制流原语** | `UTcsSkillDef` / 账本 `FLearnedSkillEntry` / 六道门禁 / 时段驱动 + 打断 / 冷却多轨道 + 三事件 / Cost 策略 / **参数链（带式聚合，折叠器复用）** / 链重定向栈 / `FEntrySelector` / **`WaitEvent`/`Branch`/`Parallel`/`Repeat`/`RunSubChain` + `ModifyAttribute`/`SetVar`/`OnError`** | R5（`FSkillDef` 继承 `FStateDefBase`） | **R6-1**（参数链接入折叠器）、**R5-2**（剩余 8 原语）、**M0-1**（若全域订阅需求成立） |
+| **R4（本计划）** | **M4a 触发行 + 伤害修改器通道 + 原语补齐（一批）** | ①触发行定义/条件注册表（Task 1 已完成）；②登记表与求值器（Task 2）；③**独立资产载体 `UTcsEffectTriggerDef` + DefLibrary 发现**（Task 2.5）；④`ModifyFlow` 链原语（Task 3）；⑤**追加 4 个原语**：`SetVar` / `Branch` / `RunSubChain` / `WaitEvent`（Task 3.5）；⑥端到端验收（Task 4）；⑦收束（Task 5） | R3 已收束 | **R5-3 部分**（ModifyFlow）；**R5-1 部分**（载荷装填）；**R5-2 部分**（4 个原语——2026-09-23 用户拍板提前） |
+| R5 | **M3 状态层（TcsState）** | `UTcsStateDef` 家族 / `FStateInstance` + 中央注册表 / 五轴堆叠 / 关系表 + 级联重评 / Duration-Period + 到期堆 / `ParamSnapshot` / **修正器物化（D3-19）** / **`ApplyState` 链原语（随 M3 同批——否则 Buff 有事件却施加不了状态）** / 生命周期事件全集 / **`Heal` 原语** / `ModifyAttribute`（属性访问注入位与 `ApplyState` 同批） | R4（行为面验收） | **R4-1**、**R4-2**、**R4-3**、**R5-2 余**（`Repeat`/`Parallel`/`OnError`）、**R5-3 余**（`Heal`） |
+| R6 | **M5 技能层（TcsSkill）** | `UTcsSkillDef` / 账本 `FLearnedSkillEntry` / 六道门禁 / **时段驱动 `FPhaseSpan` + 打断** / 冷却多轨道 + 三事件 / Cost 策略 / **参数链（带式聚合，折叠器复用）** / 链重定向栈 / `FEntrySelector` | R5（`FSkillDef` 继承 `FStateDefBase`） | **R6-1**（参数链接入折叠器）、**M0-1**（若全域订阅需求成立） |
 | R7 | **M6 集成层** | 两级单位（Mass 小兵 + 全功能军官）/ StateTree 决策接线 / **AttributeSet 全套** / `PrimaryAssetTypesToScan` + 发现机制切换 AssetManager + 加载层三策略 | R6 | **R7-1**、**R7-2**、**R7-3**、**T-2**、**T-5**、**T-6**、**T-8 余**（模板资产化） |
-| R8 | **M7 表现 + M8 编辑器与工具** | `TcsCue`（Cue 契约 + PlayCue + 默认适配）/ 校验矩阵（四联 + 定义校验）/ Def 双轨同步器 / Explain 调试面板 / K2 强类型引脚 | R7 | **R8-1**~**R8-6**、**T-1**、**T-4**、**T-9 全量审计**、**T-10** |
+| R8 | **M7 表现 + M8 编辑器与工具** | `TcsCue`（Cue 契约 + PlayCue + 默认适配）/ 校验矩阵（四联 + 定义校验）/ Def 双轨同步器 / Explain 调试面板 / K2 强引脚 | R7 | **R8-1**~**R8-6**、**T-1**、**T-4**、**T-9 全量审计**、**T-10** |
 
 **说明**：
-- **R6 可能需拆两轮**（M5 与剩余原语都是重活）——届时按 `M5 账本/施法` 与 `控制流原语` 分拆，前置关系不变。
+- **R4 扩容（2026-09-23 用户拍板）**：原 5 Task 扩为 7 个 Task（增 Task 2.5 载体 + Task 3.5 原语批次）。理由——触发行落地后"事件 → 条件 → 链"就通了，但链里只有 3 个原语（等待/选目标/扣血）**能触发却做不了什么**；`SetVar`/`Branch`/`RunSubChain`/`WaitEvent` 四个**零新依赖**（或仅需扩唤醒源），与触发行同轮交付最经济。
+- **`ModifyAttribute` 与 `ApplyState` 后置到 R5（2026-09-23 用户拍板）**：两者都需要"属性访问注入位"（`FTcsEffectContext` 今天没有属性读/写口），且 `ApplyState` 本身就是 TcsState 的领域步骤——**与 M3 同批落地**最自然（M3 不落地就没有状态可施加）。
+- **`Repeat`/`Parallel`/`OnError` 留 R5**：分别需熔断游标、`JoinCount` 汇合、错误路径语义——三者都比上述四个重。
+- **R6 可能需拆两轮**（M5 与时段/打断都是重活）——届时按 `M5 账本/施法` 与 `时段与冷却` 分拆，前置关系不变。
 - **不绑轮次的触发条件型条目**（T-2/T-3/T-5 等）在其触发条件成立时随当轮消费，不单独排期。
 - **R7-3 的加载层**是 R7 内最重的一块（三策略 + 异步默认/同步逃生口），若 R7 超载可拆出独立轮。
 
@@ -90,113 +93,84 @@ Plugins/Tirefly/TireflyCombatSystem/
 
 ---
 
-## Task 1: 触发行数据形状与条件求值器
+## Task 1: 触发行数据形状与条件求值器 —— **已完成（2026-09-23，含一次形态精修）**
 
 **Files:**
-- Create: `Source/TcsEffect/Public/Trigger/TcsTriggerRow.h`
-- Create: `Source/TcsEffect/Public/Trigger/TcsTriggerConditions.h`
-- Create: `Source/TcsEffect/Private/Trigger/TcsTriggerConditions.cpp`
+- Create: `Source/TcsEffect/Public/Trigger/TcsEffectTrigger.h`（`FTcsEffectTriggerDef` + `ETcsExecutionGate`）
+- Create: `Source/TcsEffect/Public/Trigger/TcsEffectTriggerInstance.h`（`FTcsEffectTriggerInstance` + `FTcsEffectTriggerHandle`）
+- Create: `Source/TcsEffect/Public/Trigger/TcsTriggerCondition.h` + `Private/Trigger/TcsTriggerCondition.cpp`（条件注册表 + 自注册宏 + 内置条件 + 求值助手）
 
 **Interfaces:**
-- Consumes: TcsCore（`FGameplayTag` / `FTcsSourceHandle` / `FInstancedStruct`）。
+- Consumes: TcsCore（`FGameplayTag` / `FTcsSourceHandle` / `FTcsCombatEntityHandle` / `TTcsInstanceHandle` / `FInstancedStruct`）。
 - Produces:
 ```cpp
-// —— 触发条件（D4-5 最小集的首批两项；求值上下文是**触发期**而非流程期）——
-USTRUCT() struct TCSEFFECT_API FTcsTriggerCondition_HasAllTags
+// —— 执行闸 ——
+UENUM() enum class ETcsExecutionGate : uint8 { TEG_Always = 0, TEG_AuthorityOnly = 1 /*未实现*/ };
+
+// —— 触发定义（纯配置；可进资产 / 可内联）——
+USTRUCT(BlueprintType)
+struct TCSEFFECT_API FTcsEffectTriggerDef
 {
 	GENERATED_BODY()
-	// 事件上下文分类 Tag 集须含全部（空数组 = 无条件通过）
-	UPROPERTY(EditAnywhere, Category = "Tcs|Effect|Trigger") TArray<FGameplayTag> Tags;
+	UPROPERTY(...) FGameplayTag EventTag;                     // ① 订阅哪个事件
+	UPROPERTY(...) FInstancedStruct EventPayloadFilter;       // ② 载荷预筛（只存不裁）
+	UPROPERTY(...) TArray<FInstancedStruct> Conditions;       // ③ 门禁条件（走条件注册表）
+	UPROPERTY(...) FGameplayTag EffectChainId;                // ④ 触发后执行的链 id
+	UPROPERTY(...) int32 Priority = 0;                        // ⑤ 大者先
+	UPROPERTY(...) ETcsExecutionGate ExecutionGate = ...;     // ⑥ 执行闸
+	UPROPERTY(...) int32 InterruptPriority = 0;               // ⑦ 只存不裁
+	UPROPERTY(...) TArray<FGameplayTag> GateTags;             // ⑧ 行级点灯开关
+	UPROPERTY(...) bool bConditionMissIsSilent = true;        // ⑨ 条件未过是否静默
+	// 已删：Cues（TcsCue 未敲定，无消费者——TcsCue 落地时加回）
+	// 已砍：Scope / HandlerClass（D4-1 v2）
 };
 
-USTRUCT() struct TCSEFFECT_API FTcsTriggerCondition_Chance
+// —— 触发实例（运行期 = 定义 + 簿记）——
+USTRUCT() struct TCSEFFECT_API FTcsEffectTriggerInstance
 {
 	GENERATED_BODY()
-	// 通过概率 [0,1]；**随机值由调用方注入**（确定性纪律 D0-1——求值内部 MUST NOT 取随机数）
-	UPROPERTY(EditAnywhere, Category = "Tcs|Effect|Trigger", meta = (ClampMin = "0.0", ClampMax = "1.0"))
-	double Probability = 0.0;
+	UPROPERTY() FTcsEffectTriggerDef Def;      // 定义
+	FTcsSourceHandle Source;                   // 级联退订锚点（非 UPROPERTY——句柄不进资产）
+	UPROPERTY() FTcsEffectTriggerHandle Self;  // 自身句柄
 };
 
-// 触发期上下文（条件求值面；**最小集**——只含条件需要的字段，不搬整个链上下文）
-USTRUCT()
-struct TCSEFFECT_API FTcsTriggerContext
+// —— 条件注册表（按类型分派；与步骤执行器同构）——
+using FTcsTriggerConditionTest = TFunction<bool(
+	const FInstancedStruct& ConditionData, const FTcsTriggerContext& Context, double RandomValue)>;
+class TCSEFFECT_API FTcsTriggerConditionRegistry
 {
-	GENERATED_BODY()
-	UPROPERTY() FGameplayTag EventTag;                    // 命中的事件 Tag
-	UPROPERTY() TArray<FGameplayTag> ClassificationTags;  // 事件携带的分类标签（如伤害流程的 分类Tag集）
-	UPROPERTY() FTcsCombatEntityHandle Caster;            // 施法者（触发行解析出的主体）
+	static FTcsTriggerConditionRegistry& Get();
+	void AddPending(FTcsTriggerConditionEntry Entry);                          // 静态自注册
+	void Register(const UScriptStruct*, FTcsTriggerConditionTest);             // 动态入口
+	const FTcsTriggerConditionTest* Find(const UScriptStruct*);                // 未命中 nullptr
 };
+#define UE_DECLARE_TRIGGER_CONDITION_EVALUATOR(TestFn) ...
+#define UE_DEFINE_TRIGGER_CONDITION_EVALUATOR(ConditionType, TestFn) ...
 
-// 条件求值助手（**同名字段 + 各求值点首行调用**的纪律，与流程步骤侧同款——
-// 步骤/条件类型之间无公共基类 D4-16，没有基类虚函数可挂）
-bool EvaluateTriggerConditions(
-	const TArray<FInstancedStruct>& Conditions,
-	const FTcsTriggerContext& Context,
-	double RandomValue = 0.0);   // 未知条件类型 → 视为不过 + Warning（不静默通过）
+// —— 触发期上下文（最小集）+ 内置条件 + 求值助手 ——
+USTRUCT() struct FTcsTriggerContext { FGameplayTag EventTag; TArray<FGameplayTag> ClassificationTags; FTcsCombatEntityHandle Caster; };
+USTRUCT() struct FTcsTriggerCondition_HasAllTags { TArray<FGameplayTag> Tags; };
+USTRUCT() struct FTcsTriggerCondition_Chance { double Probability = 0.0; };
+bool EvaluateTriggerConditions(const TArray<FInstancedStruct>& Conditions, const FTcsTriggerContext& Context, double RandomValue = 0.0);
 ```
 
-```cpp
-// —— 触发行（D4-1 终版 10 字段）——
-USTRUCT()
-struct TCSEFFECT_API FTcsTriggerRow
-{
-	GENERATED_BODY()
-
-	// ① 订阅哪个事件（Tag 路由，裁决 2a）
-	UPROPERTY(EditAnywhere, Category = "Tcs|Effect|Trigger") FGameplayTag EventTag;
-
-	// ② 载荷预筛（廉价字段匹配，先于条件求值；R4 留位——载荷类型目前只有流程收集事件）
-	UPROPERTY(EditAnywhere, Category = "Tcs|Effect|Trigger") FInstancedStruct EventPayloadFilter;
-
-	// ③ 门禁条件（不求值即不触发；未过按 ⑩ 决定是否静默）
-	UPROPERTY(EditAnywhere, Category = "Tcs|Effect|Trigger") TArray<FInstancedStruct> Conditions;
-
-	// ④ 触发后执行的链（引用已登记的 ChainId；内联链后置）
-	UPROPERTY(EditAnywhere, Category = "Tcs|Effect|Trigger") FGameplayTag Effects;
-
-	// ⑤ 同 Tag 多行触发顺序（**大者先**——与覆盖带"大者胜"同向）
-	UPROPERTY(EditAnywhere, Category = "Tcs|Effect|Trigger") int32 Priority = 0;
-
-	// ⑥ 执行闸（网络姿态挂点；R4 只有默认值 0 = 恒通过——R4 无联网）
-	UPROPERTY(EditAnywhere, Category = "Tcs|Effect|Trigger") ETcsExecutionGate ExecutionGate = ETcsExecutionGate::TEG_Always;
-
-	// ⑦ 可打断哪些正在跑的链（**R4 只存不裁**——链打断语义尚无实现）
-	UPROPERTY(EditAnywhere, Category = "Tcs|Effect|Trigger") int32 InterruptPriority = 0;
-
-	// ⑧ 行级开关 Tag（运行时点灯控制整行——未点亮的行直接跳过）
-	UPROPERTY(EditAnywhere, Category = "Tcs|Effect|Trigger") TArray<FGameplayTag> GateTags;
-
-	// ⑨ CueId 引用列表（帧末通道；**R4 只存不裁**——TcsCue 属 R8）
-	UPROPERTY(EditAnywhere, Category = "Tcs|Effect|Trigger") TArray<FGameplayTag> Cues;
-
-	// ⑩ 条件未过时是否静默（false = 记录一条日志线索——M8 Explain 的数据源）
-	UPROPERTY(EditAnywhere, Category = "Tcs|Effect|Trigger") bool bConditionMissIsSilent = true;
-
-	// —— 登记侧字段（不属 D4-1 的 10 字段，是登记表所需的簿记）——
-	// 来源（级联退订锚点；`UnregisterTriggerRowsBySource` 按它全量摘除——与 M2 RemoveBySource 同款）
-	UPROPERTY(EditAnywhere, Category = "Tcs|Effect|Trigger") FTcsSourceHandle Source;
-};
-
-// 执行闸（D4-1 ⑥；R4 无联网 → 只有恒通过值，其余值留给网络姿态轮）
-UENUM()
-enum class ETcsExecutionGate : uint8
-{
-	TEG_Always = 0		UMETA(DisplayName = "恒通过（R4 唯一实现）"),
-	TEG_AuthorityOnly = 1	UMETA(DisplayName = "仅权威侧（未实现，留位）"),
-};
-```
-
-- [ ] **Step 1: OpenSpec 提案**（新能力 `effect-trigger`，两条需求：触发行数据形状 / 触发条件最小集）
-- [ ] **Step 2: 实施三个文件**（头文件含完整 Doxygen 注释；条件求值助手住 `.cpp`）
-- [ ] **Step 3: 编译验证**（Development；本轮无 `WITH_EDITOR` 面，暂不需 Shipping）
-- [ ] **Step 4: 定向人工检查**——`openspec validate effect-trigger --strict` 通过；依赖面 `grep "^#include"` 零领域模块
+- [x] **Step 1: OpenSpec 提案**——**两次**：`add-effect-trigger-row`（首次落地）→ `refine-effect-trigger-shape`（形态精修）。均归档，规格库 **23/23** 全绿
+- [x] **Step 2: 实施**（见上 Interfaces；三个新头文件 + 一个 `.cpp`）
+- [x] **Step 3: 编译验证**——Development Editor **零警告零错误**
+- [x] **Step 4: 定向人工检查**——依赖面 `grep "^#include"` 零领域模块；旧类型名零残留
 
 > **实施注记（必读）**：
-> - **条件类型与流程侧重名风险**：`TcsDamage` 已有 `FTcsConditionHasAllTags` / `FTcsConditionChance`（流程步骤用）。本轮在 `TcsEffect` 建的是**触发期**版本（求值上下文不同：`FTcsTriggerContext` vs `FTcsDamageFlowContext`）。**这不是重复实现而是必要分化**——TcsEffect 不能 include TcsDamage（依赖铁律），且两者上下文形状本就不同。命名上用 `FTcsTriggerCondition_*` 前缀区分。
-> - **`FTcsTriggerContext` 是"最小集"**：只含条件求值真正需要的字段。**MUST NOT** 为将来可能的条件预建字段（零消费者不预建）——`AttributeCompare`/`VariableCompare`/`GateCheck` 落地时再各自扩上下文（那时它们有真实消费者）。
-> - **D4-5 剩余条件**（`AttributeCompare` / `VariableCompare` / `GateCheck` / Custom）**不在本轮**：`AttributeCompare` 需要属性读取注入、`GateCheck` 读 M5 的 `BoolSwitches`、`VariableCompare` 需要变量存储——三者今天都零消费者。**已记台账**（见文末）。
-> - **`EventPayloadFilter` 与 `Cues` 只存不裁**：前者载荷类型单一（流程收集事件无字段可筛）、后者 TcsCue 属 R8。**MUST NOT** 造空转的匹配器。
-> - **`Source` 字段说明**：D4-1 的 10 字段不含它，但设计明文"来源注销自动退订"需要锚点——它是**登记簿记**不是触发语义，故与 10 字段分列并注明。
+> - **⚠️ 形态精修（2026-09-23 用户审阅后）——四处修正**：
+>   ①**Def/Instance 分层**：原 `FTcsTriggerRow` 把"能进资产的配置"与"绝对不能进资产的 `Source` 句柄"混在一个 struct 里（用户指出）→ 拆为 `FTcsEffectTriggerDef`（纯配置）+ `FTcsEffectTriggerInstance`（定义 + 簿记）；
+>   ②`Effects` → **`EffectChainId`**（用户：更直观）；
+>   ③**删 `Cues`**（用户：TcsCue 整体未敲定，留字段 = 假控件）；
+>   ④**条件改注册表**（下条详述）。
+> - **⚠️ 条件形态：注册表而非虚分派基类（我的一次建议被调研结论推翻）**：评审时我曾建议"改成 `USTRUCT` 虚分派基类"（理由：逻辑内聚、与既有策略位同构）。`2026-09-23-scripting-language-ustruct-research.md` §5–§6 的引擎级论证**推翻**该方向：虚分派依赖 vtable，vtable 来自 UHT 为 C++ 类型生成的 `TCppStructOps<T>`（`Class.h:2265`）；C# 定义的结构体没有 C++ 类型 → `CppStructOps == nullptr`（`Class.cpp:3120-3144`）→ 实例内存 `Memzero` 起步、vtable 指针位为 0 → **野调用崩溃**。故虚分派在脚本侧**物理不可达**，注册表分派**可达**。**已按注册表实现**（内置条件也走同一注册表——不分内外两套路径）。
+> - **一处 UHT 实证**：`Source: FTcsSourceHandle` **不能作 `UPROPERTY`**（非反射纯 C++ struct，UHT 报 `Unable to find 'class', ... with name 'FTcsSourceHandle'`）。同款先例 = `FTcsAttrModInstance.Source`。**不序列化是正确语义**（句柄运行期发号，本就不该进资产）。
+> - **命名与流程侧的分化**：`TcsDamage` 已有 `FTcsConditionHasAllTags` / `FTcsConditionChance`（流程步骤用）。本轮建的是**触发期**版本（上下文 `FTcsTriggerContext`）——TcsEffect 不能 include TcsDamage（依赖铁律），故各持一份，命名用 `FTcsTriggerCondition_*` 前缀区分。
+> - **`FTcsTriggerContext` 是最小集**：只含本批条件需要的三个字段。**MUST NOT** 为将来条件预建字段——Buff 生命周期参数（`StateHandle`/`Stacks`/`Level`）要等 M3 落地才有真实数据源。
+> - **反射注册入口欠账**：`Register` 是纯 C++ 面（`TFunction` 不可反射）。这是与步骤执行器注册表**共享**的欠账（CS 调研 §7.6 的 G-2），**同批**解决——不在此处单独开一个反射入口（否则两处口径不一）。
+> - **无行为实证（如实记）**：本批只落形状与注册表**机制**，零调用方（登记表/求值器属 Task 2）——验证全是静态检查（编译 + grep + validate）。
 
 ---
 
@@ -343,6 +317,105 @@ struct TCSDAMAGE_API FTcsStepModifyFlow
 > - **`Consume` 的 `OnConsumed` 回调**（`TFunction`）**不可反射**（UHT 实证，`TcsFlowAttributes.h:31`）→ 本 struct 的 `Consume` **不能**作为 `UPROPERTY` 全量序列化。处置二选一：(a) `Consume` 不标 `UPROPERTY`（纯 C++ 面，编辑器不可配消耗策略——与 `FTcsFlowModify` 的既有注释同款限制）；(b) 拆出可反射的数值子集。**本计划采用 (a)**，并在注释写明"编辑器配消耗策略需 C++ 步骤"。
 > - **提交时机**：`PublishCollectEvent` 是**立即通道同步派发**（`TcsDamageSubsystem.cpp`），触发行回调内 `ExecuteChain` 同步执行完（无挂起步骤时），故 `Submit` 落在 `PublishCollectEvent` 返回前——**在 `Execute` 步骤读黑板之前**。这是本通道成立的关键时序，注释 MUST 写明。
 > - **`Heal` 原语不在本轮**：它需要治疗流程模板 + `IHealFlowDelegate`（09 §2.4"同骨架精简版"），是独立一块。**台账 R5-3 部分消费**（ModifyFlow 已落，Heal 留 R5）。
+
+---
+
+## Task 3.5: 追加 4 个链原语（`SetVar` / `Branch` / `RunSubChain` / `WaitEvent`）
+
+**Files:**
+- Create: `Source/TcsEffect/Public/Chain/TcsStepSetVar.h` + `Private/Chain/TcsStepSetVar.cpp`
+- Create: `Source/TcsEffect/Public/Chain/TcsStepBranch.h` + `Private/Chain/TcsStepBranch.cpp`
+- Create: `Source/TcsEffect/Public/Chain/TcsStepRunSubChain.h` + `Private/Chain/TcsStepRunSubChain.cpp`
+- Create: `Source/TcsEffect/Public/Chain/TcsStepWaitEvent.h` + `Private/Chain/TcsStepWaitEvent.cpp`
+- Modify: `Source/TcsEffect/Public/Chain/TcsChainRun.h`（`WaitEvent` 需挂起锚：一次性订阅句柄）
+- Modify: `Source/TcsEffect/Public/TcsEffectSubsystem.h`（`WaitEvent` 需"事件匹配唤醒源"入口）
+
+**背景（为什么本轮追加）**：触发行落地后"事件 → 条件 → 链"就通了，但链里只有 3 个原语（`WaitDelay`/`SelectTargets`/`Damage`）——**能触发却做不了什么**。本批四个**零新依赖**（或仅需扩唤醒源），与触发行同轮交付最经济（2026-09-23 用户拍板）。
+
+**Interfaces:**
+```cpp
+// ① SetVar（D4-3 元原语）：写链内变量（`FTcsEffectContext::Variables` 字段已就位）
+USTRUCT() struct TCSEFFECT_API FTcsStepSetVar
+{
+	UPROPERTY(EditAnywhere) FGameplayTag VarKey;      // 变量键（项目词表）
+	UPROPERTY(EditAnywhere) FTcsParamValue Value;     // 值（PV 载体——可 Literal，可 ParamRef 等）
+};  // 即时步骤（TSR_Completed）
+
+// ② Branch（D4-3 控制流）：按条件选分支——条件走**条件注册表**（复用 Task 1 的求值器）
+USTRUCT() struct TCSEFFECT_API FTcsStepBranch
+{
+	UPROPERTY(EditAnywhere) TArray<FInstancedStruct> Conditions;   // 条件（全过 → 走 Then，否则走 Else）
+	UPROPERTY(EditAnywhere) FGameplayTag ThenChainId;              // 条件通过时执行的链（空 = 不执行）
+	UPROPERTY(EditAnywhere) FGameplayTag ElseChainId;              // 条件未过时执行的链（空 = 不执行）
+	UPROPERTY(EditAnywhere) bool bWait = true;                     // 是否等分支链完成（同 RunSubChain 语义）
+};  // 分支链走"子链完成唤醒源"
+
+// ③ RunSubChain（D4-3 控制流；2026-09-23 用户确认命名）
+USTRUCT() struct TCSEFFECT_API FTcsStepRunSubChain
+{
+	UPROPERTY(EditAnywhere) FGameplayTag ChainId;   // 要起的链（引用已登记链）
+	UPROPERTY(EditAnywhere) bool bWait = true;      // 默认等待子链完成唤醒父；false = 放支线（父继续）
+};  // 子链完成 → 唤醒父（JoinCount 机制的雏形）
+
+// ④ WaitEvent（D4-3 控制流）：一次性订阅，命中即退订，Payload 写入运行态
+USTRUCT() struct TCSEFFECT_API FTcsStepWaitEvent
+{
+	UPROPERTY(EditAnywhere) FGameplayTag EventTag;   // 等哪个事件（空 = 立即完成并 Warning）
+	UPROPERTY(EditAnywhere) double TimeoutSeconds = 0.0;  // 超时（0 = 不超时；>0 时走到期堆）
+};  // 首入：订阅 + 返回 TSR_Running；命中/超时 → 唤醒重入 → 退订 + 完成
+```
+
+- [ ] **Step 1: OpenSpec 提案**（`effect-chain` MODIFIED：追加四个原语需求；`effect-interpreter` 若唤醒源契约需改则一并）
+- [ ] **Step 2: 实施**——按"零前置 → 有前置"顺序：`SetVar` → `RunSubChain` → `Branch` → `WaitEvent`
+- [ ] **Step 3: 编译验证**（Development；`WaitEvent` 改 `TcsChainRun` 结构，须补 **Shipping**——结构改动是 Shipping 能照出的类型）
+- [ ] **Step 4: 定向人工检查**——依赖面零领域模块；**熔断自检**（`RunSubChain` 递归起链 + `Repeat` 类自激——`MaxStepsPerFrame` 是否够）
+
+> **实施注记（必读）**：
+> - **⚠️ `WaitEvent` 是本批最难的一个**：它需要**新增唤醒源**（`04 §2.4` 四种唤醒源之"事件匹配"）。`WaitDelay` 已实证"到期堆唤醒"路径（`PendingExpiry` 锚 + 代际校验重入），`WaitEvent` 需要同款的"订阅句柄锚"——`FTcsChainRun` 要加字段（建议 `FTcsEventSubscriptionHandle PendingSubscription`），且**退订时机**必须覆盖三条路径：①事件命中；②超时（若配）；③运行态被释放（`ReleaseRun` 必须退订——否则订阅泄漏且回调打到已回收的运行态）。
+> - **`Branch` 与 `RunSubChain` 共用"子链完成唤醒源"**：先做 `RunSubChain`（单一形态），`Branch` 的 `bWait` 直接复用其机制。**MUST NOT** 为两者各写一套唤醒逻辑。
+> - **递归深度**：`RunSubChain` 允许子链再起子链——**已有的 `MaxStepsPerFrame` 熔断只管"单帧步数"，不管"嵌套深度"**。本批 MUST 明确：嵌套深度靠什么护栏（建议复用熔断计数——子链步数计入父链的帧内步数），并在注记里写明实测值。
+> - **`SetVar` 的 `Value` 用 `FTcsParamValue`**：与链步骤其它数值字段一致（PV 载体，可 Literal/ParamRef）——**MUST NOT** 另造一个 double 字段（那会让"变量只能用字面量"成为隐式限制）。
+> - **`Branch` 的条件复用 Task 1 的条件注册表**：`Conditions` 求值走 `EvaluateTriggerConditions`——但**上下文不同**（那是 `FTcsTriggerContext`，需要 `ClassificationTags`）。链侧没有该上下文，故本批要么①构造一个最小 `FTcsTriggerContext`（从 `FTcsEffectContext` 映射），要么②为链侧条件另立签名。**建议①**（一套条件类型两处可用，零重复），实施时确认映射字段（`EventTag` 取运行态记录的上次事件、`ClassificationTags` 从哪来——**若链侧无来源则本批 `Branch` 只支持不依赖分类标签的条件**，并在注记写明）。
+
+---
+
+## Task 2.5: 触发行独立资产载体（`UTcsEffectTriggerDef` + DefLibrary 发现）
+
+**Files:**
+- Create: `Source/TcsIntegration/Public/Trigger/TcsEffectTriggerDefAsset.h` + `Private/Trigger/TcsEffectTriggerDefAsset.cpp`
+- Modify: `Source/TcsIntegration/Public/TcsDefinitionSubsystem.h` + `Private/TcsDefinitionSubsystem.cpp`（加一条发现路径）
+
+**为什么住 TcsIntegration**：链资产 `UTcsEffectChainDef` 就在那里——**资产载体类需要同时看到"定义类型"（TcsEffect）与"DefLibrary 的发现机制"（TcsIntegration）**，而 TcsIntegration 是唯一依赖 TcsEffect 的上层。放 TcsEffect 会形成反向依赖。
+
+**Interfaces:**
+```cpp
+// 触发定义资产（Def 资产族统一约定：显式 PrimaryAssetType + 覆写 GetPrimaryAssetId + IsDataValid）
+UCLASS(BlueprintType)
+class TCSINTEGRATION_API UTcsEffectTriggerDefAsset : public UPrimaryDataAsset
+{
+	static const FPrimaryAssetType PrimaryAssetType;   // 值 = 类名 "TcsEffectTriggerDefAsset"
+	UPROPERTY(EditAnywhere, BlueprintReadOnly) FGameplayTag TriggerTag;   // 内容身份（非资产名）
+	UPROPERTY(EditAnywhere) FTcsEffectTriggerDef Def;                     // 定义（纯配置）
+	virtual FPrimaryAssetId GetPrimaryAssetId() const override;           // [PrimaryAssetType, TriggerTag.GetTagName()]
+#if WITH_EDITOR
+	virtual EDataValidationResult IsDataValid(FDataValidationContext&) const override;  // TriggerTag 有效 + 定义非空
+#endif
+};
+
+// DefLibrary 新增（与 DiscoverChainDefs 同款）
+void DiscoverTriggerDefs();                                  // AssetRegistry 按类扫描
+const FTcsEffectTriggerDef* ResolveTriggerDef(FGameplayTag TriggerTag) const;
+```
+
+- [ ] **Step 1: OpenSpec 提案**（`integration-entity` MODIFIED：加触发定义资产的发现与解析；`effect-trigger` 若需则补"资产载体"需求）
+- [ ] **Step 2: 实施**（资产类 + DefLibrary 发现/缓存/装配）
+- [ ] **Step 3: 编译验证**（Development + **Shipping**——含 `IsDataValid` 的 `WITH_EDITOR` 面，Shipping 必跑）
+- [ ] **Step 4: 定向人工检查**——依赖面：`TcsEffect` 零反向依赖（资产类住 TcsIntegration）；DefLibrary 的失败清单能报出空 `TriggerTag`
+
+> **实施注记（必读）**：
+> - **GC 补引用**：DefLibrary 的缓存若用 `TMap<FGameplayTag, TUniquePtr<...>>` 持**定义内容**（值语义 struct）则无需 ARO；但**资产对象本身**必须 `UPROPERTY` 锚定（照 `ChainDefAssets` 的既有做法）——否则重载后资产被回收、`ResolveTriggerDef` 返回的指针指向已释放内容。
+> - **内联位（SkillDef/BuffDef）本批不做**：`SkillDef`/`BuffDef` 今天都不存在（M3/M5 未落地）。**本批只做独立资产**，内联位在 R5/R6 给那两个 Def 加 `TArray<FTcsEffectTriggerDef>` 字段时自然成立（定义类型已是纯配置，可直接内联——**这正是 Task 1 分层的收益**）。
+> - **"系统级规则"是本资产的业务场景**（用户 2026-09-23 确认）：全局常驻、与任何 Def 无关的触发规则（如"任何单位死亡时触发某链"）。Buff/Skill 的行为走**内联**（施加时注册、Source = 状态实例句柄）。
 
 ---
 

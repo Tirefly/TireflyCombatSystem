@@ -251,3 +251,12 @@
   - **为什么不改成 tag**：2026-09-22 改造的口径是"**内容引用**改 tag"，而该字段不承担任何引用语义（不指向 Def / 参数键 / 黑板键）——给零消费者的字段换类型只是把问题包起来。规格已写明：将来若真需要"同来源内分组"，MUST 以 `FGameplayTag` 形态重新引入。
   - **规格缺口（本次补上）**：`attribute-types` 原文把该字段写进权威形状且**明写"与 `FGameplayTag` 同名不同物"**——即规格此前把它当作一个真实能力登记着，而代码里从无消费者。本次两条需求各删字段，并各加一个"无分组标签字段"场景钉住。
   - **验证**：Development + **Shipping** 双配置编译通过，零警告零错误。**编辑器内控件消失未亲眼验**（`UPROPERTY` 删除后控件必然消失，无运行期中间态）——如实标注。**兼容性**：R3 内容资产（`Content/TcsDev/`）中无任何修正器模板资产，故已存资产零影响。
+
+- **2026-09-23 触发行形态精修（Task 1 二次修订）**：提案 `refine-effect-trigger-shape` → 归档 `2026-09-23-refine-effect-trigger-shape`（`effect-trigger`：MODIFIED × 2 + ADDED × 1；规格库 **23/23** 全绿）。**四处修正**（前三处用户审阅指出）：
+  - **①Def/Instance 分层**：原 `FTcsTriggerRow` 把"能进资产的配置"与"绝对不能进资产的 `Source` 句柄"混在一个 struct 里 → 拆为 **`FTcsEffectTriggerDef`（纯配置）** + **`FTcsEffectTriggerInstance`（定义 + 簿记）**。**副产品**：`Source` 的语义随之清晰——它取决于"行怎么被登记"（定义加载期 → 系统来源句柄；**施加状态时 → 状态实例句柄**，这正是 `09 §2.3`"状态在，行为就在"的机制落点）。
+  - **②`Effects` → `EffectChainId`**（用户：更直观）。
+  - **③删 `Cues`**：TcsCue 模块整体未敲定（`Source/TcsCue` 不存在），留字段 = 给策划假控件（与同批删除的修正器族死字段 `Tag` 同款理由）；TcsCue 落地时加回。
+  - **④条件改注册表（一次被推翻的建议）**：评审时我曾建议"改成 `USTRUCT` 虚分派基类"（逻辑内聚、与既有策略位同构）——`2026-09-23-scripting-language-ustruct-research.md` §5–§6 的引擎级论证**推翻**该方向：虚分派依赖 vtable，vtable 来自 UHT 为 C++ 类型生成的 `TCppStructOps<T>`；C# 定义的结构体没有 C++ 类型 → `CppStructOps == nullptr` → 实例内存 `Memzero` 起步、vtable 位为 0 → **野调用崩溃**。故虚分派在脚本侧**物理不可达**，注册表分派可达。**已实现为注册表**（`FTcsTriggerConditionRegistry` + 自注册宏，内置条件也走同一注册表——不分内外两套路径）。
+  - **命名**（用户拍板"参考已有几个 Def 的命名规则"）：`FTcsEffectTriggerDef` / `FTcsEffectTriggerInstance` / `FTcsEffectTriggerHandle`（与 `UTcsEffectChainDef` / `FTcsAttributeDefData` 族内一致）。
+  - **验证**：Development 编译**零警告零错误**（一次通过）；旧类型名零残留。**无行为实证**（本批零调用方——登记表/求值器属 Task 2），验证全是静态检查。
+  - **R4 扩容（用户拍板）**：增 **Task 2.5**（独立资产载体 `UTcsEffectTriggerDefAsset` + DefLibrary 发现）与 **Task 3.5**（追加 4 个原语 `SetVar`/`Branch`/`RunSubChain`/`WaitEvent`）；`ModifyAttribute` 与 `ApplyState` 后置 R5（需属性访问注入位 / 是 TcsState 领域步骤）。
