@@ -38,7 +38,7 @@
 
 ## 3. 入口服务
 
-- DefLibrary：`LoadAll/LoadSelected/EnsureLoaded(DefId)`、`IsRuntimeReady()/GetFailureList()`、`ResolveDef(FName)`；**并管辖 `UTcsAttributeSetAsset` 一族**（D2-15：Set 是 Const 内容、GameInstance 级，**无世界也要可查**——与图鉴/UI 同款消费场景）。
+- DefLibrary：`LoadAll/LoadSelected/EnsureLoaded(DefTag)`、`IsRuntimeReady()/GetFailureList()`、`ResolveDef(FGameplayTag)`；**并管辖 `UTcsAttributeSetAsset` 一族**（D2-15：Set 是 Const 内容、GameInstance 级，**无世界也要可查**——与图鉴/UI 同款消费场景）。**身份 2026-09-22 tag 化**：Def 引用键由 `FName` 改 `FGameplayTag`（`ResolveDef(FName)` → `ResolveDef(FGameplayTag)`）。
 - WorldRegistry：`RegisterEntity/UnregisterEntity`、`GetEntityState(handle)`、`ForEachEntity(谓词)`（RadiusArea 的遍历源）、`ResolveProvider(handle)`。
 - Entity 组件：`GetHandle()`、`GetAttributes()`（含"当前 Set"查询）、可选 `GetBrain()`。
 

@@ -89,10 +89,10 @@ public:
 public:
 	/**
 	 * 登记属性定义（宿主 / DefLibrary 加载定义资产后调用——`UTcsAttributeDef::Def` 即行载荷、
-	 * `DefId` 即属性名）。
-	 * 属性名由调用方显式给出：定义行内**不带 id**（2026-09-17 用户口径——DataTable 的身份是
-	 * 行名、运行期身份是资产的 `[PrimaryAssetType, DefId]`，行内再存一份只会造成双真相）。
-	 * 拒绝面（ensure 提示 + 返回 false）：属性名为空、同属性名重复登记
+	 * `DefTag` 即属性身份）。
+	 * 属性身份由调用方显式给出：定义行内**不再单独存一份"行名 id"**（2026-09-17 用户口径 + 2026-09-22
+	 * tag 化——`RowName` 降为编辑期定位，内容身份是资产的 `[PrimaryAssetType, DefTag.GetTagName()]`）。
+	 * 拒绝面（ensure 提示 + 返回 false）：属性身份无效、同身份重复登记
 	 * （D2-1：词表重名 = 加载期错误，不得静默覆写）。
 	 *
 	 * @param Attribute 属性身份 tag（= 定义资产 DefTag）。
@@ -127,7 +127,7 @@ public:
 	 * 定义未登记（仅新建路径需要）、定义行的动态边界自引用（以自身为边界 = 循环依赖，D2-4）。
 	 *
 	 * @param Unit 单位句柄。
-	 * @param Attribute 属性名（= 定义行 DefId）。
+	 * @param Attribute 属性身份 tag（= 定义资产 `DefTag`）。
 	 * @return 返回是否添加成功。
 	 */
 	bool AddAttribute(
@@ -244,7 +244,7 @@ public:
 #pragma region Storage
 
 private:
-	// 属性定义表（键 = 属性名 = DefId；值 = 定义行——AddAttribute 的解析源）
+	// 属性定义表（键 = 属性身份 tag；值 = 定义数据——AddAttribute 的解析源）
 	TMap<FGameplayTag, FTcsAttributeDefData> DefTable;
 
 	// 单位注册表（键 = 实体身份句柄；值 = 该单位的属性容器）

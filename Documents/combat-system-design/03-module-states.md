@@ -22,12 +22,12 @@ FStateDefBase（抽象，编辑器隐藏）          ← 本模块定义
 - **FBuffDef（施加态语义）**：Duration/Period、堆叠五轴、关系表字段。
 - **FSkillDef（施法语义，详见 05）**：施法时段表、冷却、Cost、主链、关系字段（同形状语义映射）。**无堆叠、无时值**。
 - 编辑器只暴露 FBuffDef / FSkillDef（用户 TCS 决策复用：基类不该有派生类的配置）。
-- **Def 资产（2026-09-14 命名批）**：`UTcsStateDef`（基类——对应 `FStateDefBase` 家族，持 `DefId` + `IsDataValid` 校验挂点）→ `UTcsBuffDef`（本模块）/ `UTcsSkillDef`（TcsSkill）；DataTable 双轨行 `FTcsBuffDefTableRow`。**范围澄清**：DefLibrary 管辖的只是 `FStateDefBase` 家族；修正器模板（`UTcsAttrModDef`/`UTcsSkillModDef`）与属性词表（AttributeDef）是并列另一族，**不共用此资产基类**（故基类名不用 `UTcsDefAssetBase`——会暗示覆盖全部 Def）。**基类统一 `UPrimaryDataAsset`（2026-09-17 定）**：`UTcsStateDef` 家族 / `UTcsAttrModDef` / `UTcsSkillModDef` 同此——Def 引用语义本是"FName Id + DefLibrary 解析"，主资产身份让解析与按类型发现/加载归引擎（族内混用两套基类会让 DefLibrary 发现逻辑分叉）；`PrimaryAssetTypes` 注册属 M6 DefLibrary 轮。**双轨制语义（2026-09-17 用户口径，全 Def 族适用）**：**表 = 编辑期载体、资产 = 运行期载体**——DataTable（`FTcsBuffDefTableRow` / `FTcsAttributeDefTableRow` 等）只服务策划批量编辑与编辑器即时响应，**不作为运行期加载源**；运行期一律按 `DefId` 解析资产（资产制扩展性更好，加 Fragment 等只动资产与载荷）。两轨一致性由 08 §5 的编辑器同步器维护。
+- **Def 资产（2026-09-14 命名批；身份 2026-09-22 tag 化）**：`UTcsStateDef`（基类——对应 `FStateDefBase` 家族，持 `DefTag: FGameplayTag` + `IsDataValid` 校验挂点）→ `UTcsBuffDef`（本模块）/ `UTcsSkillDef`（TcsSkill）；DataTable 双轨行 `FTcsBuffDefTableRow`。**范围澄清**：DefLibrary 管辖的只是 `FStateDefBase` 家族；修正器模板（`UTcsAttrModDef`/`UTcsSkillModDef`）与属性词表（AttributeDef）是并列另一族，**不共用此资产基类**（故基类名不用 `UTcsDefAssetBase`——会暗示覆盖全部 Def）。**基类统一 `UPrimaryDataAsset`（2026-09-17 定）**：`UTcsStateDef` 家族 / `UTcsAttrModDef` / `UTcsSkillModDef` 同此——Def 引用语义本是"**身份 tag + DefLibrary 解析**"，主资产身份让解析与按类型发现/加载归引擎（族内混用两套基类会让 DefLibrary 发现逻辑分叉）；`PrimaryAssetTypes` 注册属 M6 DefLibrary 轮。**双轨制语义（2026-09-17 用户口径，全 Def 族适用）**：**表 = 编辑期载体、资产 = 运行期载体**——DataTable（`FTcsBuffDefTableRow` / `FTcsAttributeDefTableRow` 等）只服务策划批量编辑与编辑器即时响应，**不作为运行期加载源**；运行期一律按 `DefTag` 解析资产（资产制扩展性更好，加 Fragment 等只动资产与载荷）。两轨一致性由 08 §5 的编辑器同步器维护。**身份字段与主资产身份（2026-09-22 改造）**：`DefTag` 取代原 `FName DefId`；主资产身份 = `[PrimaryAssetType, DefTag.GetTagName()]`（`FPrimaryAssetId` 的 name 位是引擎硬约束的 `FName`，tag 经 `GetTagName()` 转换）。表行侧 **`RowName` 降为编辑期定位**、行内 `DefTag` 才是内容身份，二者 **MUST NOT 被要求同名**（分工而非双真相；口径见 02 §2.1）。
 
 ## 3. 类型词汇（对外）
 
 ### 3.1 实例与存储（D3-1/D3-12）
-- `FStateInstance`（USTRUCT，池化）：`DefId / Handle / Source / Stacks / Level / Phase / ParamSnapshot`（**快照类型 `FTcsParamSnapshot`，2026-09-14 命名批**；**v3：FragmentSet 移除**——Fragment 配置归 Def，实例零策略/载荷/订阅句柄，D3-7 v2）。**实例-定义引用规范（D3-18）**：权威=DefId；热路径=`GetDef()` 解析缓存（const 指针+DefLibrary 版本校验；重定向/热重载自动失效）；**运行期零回查 Def**（数值类基础信息在快照构建时消化——发现"执行中查 Def"即设计漏洞）。无 UObject、无每实例 StateTree（D3-5）。
+- `FStateInstance`（USTRUCT，池化）：`DefTag / Handle / Source / Stacks / Level / Phase / ParamSnapshot`（**快照类型 `FTcsParamSnapshot`，2026-09-14 命名批**；**v3：FragmentSet 移除**——Fragment 配置归 Def，实例零策略/载荷/订阅句柄，D3-7 v2）。**实例-定义引用规范（D3-18；身份 2026-09-22 tag 化）**：权威=`DefTag`（`FGameplayTag`）；热路径=`GetDef()` 解析缓存（const 指针+DefLibrary 版本校验；重定向/热重载自动失效）；**运行期零回查 Def**（数值类基础信息在快照构建时消化——发现"执行中查 Def"即设计漏洞）。无 UObject、无每实例 StateTree（D3-5）。
 - **`FStateInstance.ParamSnapshot`（D3-12）**：apply 时把全部生效参数一次性求值冻结（强度/Duration/Period/Level——施加上下文覆盖值优先，Def 默认兜底）；实例生命周期内读快照；**修改 = 按刷新政策重新施加（快照重建，新 payload 覆盖）**。
 - **live 通道分界**：实例施加的持续修正器（Source=状态句柄，走 M2 账本）实时生效、随驱散/强化级联——与快照通道正交（灼烧幅度=快照；灼烧附带的-20% 火抗=live）。修正器来自 Def 的 ModifierRows 模板引用，apply 物化时可变值从 ParamSnapshot 解析（D3-19）——账本内纯规范值。
 - `UCombatStateRegistry`（命名与 06 文档统一待办，见 06 `UCombatWorldRegistrySubsystem`）：中央注册表 per-unit 桶（`FCombatEntityHandle → 桶`）；军官组件与 Mass 桶只是访问适配器（桶指针缓存+代际校验）；桶只存数据与索引，操作全在引擎函数 `FStateOps`。
@@ -68,7 +68,7 @@ FStateDefBase（抽象，编辑器隐藏）          ← 本模块定义
 
 ## 4. 入口服务
 
-- `ApplyState(目标, DefId, Source, Overrides?) -> EApplyResult`（Overrides = 施加方传入的参数覆盖，进快照）
+- `ApplyState(目标, DefTag, Source, Overrides?) -> EApplyResult`（Overrides = 施加方传入的参数覆盖，进快照）
 - `ExtendDuration(handle, Δ) / SetRemaining(handle, T)`（D3-15：运行实例生命周期操作——"灼烧延长"，到期堆同步）；**MaxStacks 无运行时修改**（政策常量；成长=变体+重定向）
 - `RemoveState / ExpireState(handle, Cause)`、`GetState(handle)`、`ForEachState(unit, 谓词)`
 - `SetLevel / GetLevel`（Custom 增长模式的项目入口；FollowStacks 之类由项目实现）
@@ -91,7 +91,7 @@ FStateDefBase（抽象，编辑器隐藏）          ← 本模块定义
 
 ## 7. 网络姿态落点（NET-1/2）
 
-- 权威侧跑全流程；**操作复制**：状态操作流（Apply{DefId,Source,ParamSnapshot}/Refresh/StackChange/Remove{Handle,Reason}）复制到客户端镜像桶重放——**ParamSnapshot 随操作流走 = 回放输入完备**；客户端到期推算仅作表现。
+- 权威侧跑全流程；**操作复制**：状态操作流（Apply{DefTag,Source,ParamSnapshot}/Refresh/StackChange/Remove{Handle,Reason}）复制到客户端镜像桶重放——**ParamSnapshot 随操作流走 = 回放输入完备**；客户端到期推算仅作表现。
 - 士兵层服务器权威、无本地预测；镜像接口位本期不实现。
 
 ## 8. 非目标
@@ -114,6 +114,7 @@ FStateDefBase（抽象，编辑器隐藏）          ← 本模块定义
 - v2 增补 7（2026-09-11，PV 系列）：参数行 Base 换型 **FTcsParamValue{TInstancedStruct<FTcsParamValueSource>}**（D2-12 FTcsParamScalar 被取代）；**等级源住本模块**（D3-11 修订——等级表 def 数据进引擎）：StateLevelArray/Map + InstigatorLevelArray/Map（`ITcsEntityLevelProvider::GetEntityLevel` **定义于本模块**、宿主实现；TargetLevel 系暂不提供——评判轮用户拍板）；快照条目留源引用位（Debug+Live 预留）；DurationTime 等时值字段同批换型。
 - v2 增补 8（2026-09-14，参数折叠与展示轮）：折入 **D5-17 v2**（§2 描述绑定词法族、§3.6 tooltip 索引口径 = 实例快照 Level）、**D5-18 v3**（参数行 Mode 列与约定白名单同参 11 文档）、**命名批**（§2 Def 资产层级 `UTcsStateDef`/`UTcsBuffDef` + 范围澄清、`FTcsNumericParamRow`/`ETcsParamMode`、§3.1 `FTcsParamSnapshot`、§3.6 `FTcsParamSnapshotEntry`）；**PV-10**（等级源后续实现可枚举能力——`FTcsParamEnumerableSource` 基类住 Core，索引解析唯一真相在源，随本模块等级源同批落地）。
 - v2 增补 9（2026-09-15，D5-17 v3 描述视图策略化）：§2 DescriptionTextKey 单字段 → **Descriptions 配置组**（`FTcsDescriptionEntry` 多描述入口 + `TInstancedStruct<FTcsParamView>` 视图槽位——类型住 TcsNotation，本模块已有 Notation 边零新边）；§3.6 tooltip 索引口径改 Series 视图措辞（口径本身不变：实例快照 Level）。
+- v2 增补 10（2026-09-23，标识体系 tag 化改造回写）：§2 Def 资产身份 `FName DefId` → **`FGameplayTag DefTag`**（主资产身份 = `[PrimaryAssetType, DefTag.GetTagName()]`；表行 `RowName` 降为编辑期定位，与 `DefTag` 分工而非双真相）；§3.1 实例权威字段、§4 `ApplyState` 签名、§7 操作复制载荷同步改 tag 口径。落点 = 提案 `switch-identifiers-to-gameplay-tags`（2026-09-22 归档）。
 
 ## 11. 验收钩子
 
@@ -123,7 +124,7 @@ FStateDefBase（抽象，编辑器隐藏）          ← 本模块定义
 
 - **Duration 拆分（用户提案采纳）**：`EDurationPolicy{Finite, Infinite}` + `DurationTime`（Finite 时有效，FTcsParamValue——原"字面量|Param"，PV 系列 2026-09-11 换型）——替换"≤0=永久"魔法值；None 场景收敛：瞬发走链直接表达、永久=Infinite（GAS 三值习惯不适用——伤害系统已独立成模块）。
 - **Period 联动**：Period 独立可配（Finite+Period=标准 DoT、Infinite+Period=光环、四组合全合法；Policy 联动仅为编辑器显示逻辑）；**`PeriodRefresh{Keep(默认)/Reset(重置周期计时)/Immediate(立即执行一次并重置)}`**——堆叠刷新对周期计时器的影响（用户提案采纳）。
-- **Overflow 升级替换：引擎不内建**（用户确认）：事件组合三步表达（`StackChanged 满仓` 触发行 → `ApplyState{更强}` + `RemoveState{原}`）；状态级重定向（DefId 存在期解析选路）留未来扩展；引擎保证 StackChanged 时序与同帧合并。
+- **Overflow 升级替换：引擎不内建**（用户确认）：事件组合三步表达（`StackChanged 满仓` 触发行 → `ApplyState{更强}` + `RemoveState{原}`）；状态级重定向（DefTag 存在期解析选路）留未来扩展；引擎保证 StackChanged 时序与同帧合并。
 - **运行实例生命周期操作**：`FStateOps::ExtendDuration(handle, Δ) / SetRemaining(handle, T)` 进 API（"灼烧延长"类）；**MaxStacks 无运行时修改**（政策常量；"层数上限+2"成长 = 变体 BuffDef + 技能/状态级重定向）。
 - **关系表/槽位竞争表组织（用户提案采纳）**：两者**并存**（槽位竞争管施法运行/动作状态，关系表管 Buff 施加态，互相影响）；组织 = **统一 DataTable/DataAsset 行**（行 = 单个 StateDef **或一类**——StatusTag 匹配）；**解析栈**：全局默认表（插件）→ 游戏模式表 → 角色覆盖表（Boss）——让渡点模式再次应用；关系字段引用走 Tag（StateTag/SkillTag 子域）；**槽位竞争不用 StateTree**（数据行 + 引擎抢占规则；StateTree 只做单位级决策）。
 - **堆叠轴命名**：~~DurationMerge~~ 撤回——值名回 TCS（{None, RefreshRemainingToTotal}），**轴名 StackDurationPolicy 已终定（D3-17，已回写 §3.2）**。

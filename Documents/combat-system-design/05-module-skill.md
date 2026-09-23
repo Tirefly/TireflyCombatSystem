@@ -34,7 +34,7 @@ FStateDefBase（抽象，M3 定义：词表/FragmentSet/通用默认参数 Level
 ## 3. 类型词汇（对外）
 
 ### 3.1 账本与运行（D5-2/D3-11/D5-12）
-- `FLearnedSkillEntry`（struct，中央注册表桶内）：`DefId / Level(持久) / LearnSource / 冷却轨道状态（每轨 Remaining/Total，D5-15）/ 运行句柄集 / 参数修正链集`。**实例-定义引用规范（D5-13；2026-09-11 随 D5-9 修订收窄）**：权威=DefId（EffectiveDefId=形态解析，技能级重定向已撤）；`GetDef()` 解析缓存（const+版本校验）；**FCastRun 执行期零回查 Def**（ParamSnapshot 已冻结一切）。
+- `FLearnedSkillEntry`（struct，中央注册表桶内）：`DefTag / Level(持久) / LearnSource / 冷却轨道状态（每轨 Remaining/Total，D5-15）/ 运行句柄集 / 参数修正链集`。**实例-定义引用规范（D5-13；2026-09-11 随 D5-9 修订收窄；身份 2026-09-22 tag 化）**：权威=`DefTag: FGameplayTag`（原 `FName DefId`；EffectiveDefId 概念已整体移除）；`GetDef()` 解析缓存（const+版本校验）；**FCastRun 执行期零回查 Def**（ParamSnapshot 已冻结一切）。
 - `FCastRun`（struct，池化）：`EntryHandle / Level(激活时快照 EffectiveLevel) / PhaseIndex / ChainRunHandle / **ParamSnapshot**`。**无 UObject 壳**（TCS 8 转发 override 壳税不迁移）；索引先只留主表（YAGNI）。
 - **StateParamSnapshot（D5-12）**：activate 那一刻一次性解析全部生效参数（逐参数 Mode：Snapshot 走账本冻结 / Live 标记跳过）+ EffectiveLevel + 各时段 Duration（字段引用从快照解析）——链/时段/门禁读快照；**live 修正器通道不受影响**（持续效果实时）；opt-in 实时为唯一例外。
 
@@ -50,7 +50,7 @@ FStateDefBase（抽象，M3 定义：词表/FragmentSet/通用默认参数 Level
 - `FEntrySelector{Mode: All/ByTag/ById/Custom, Params}`——外部来源选择作用于哪些已学条目。
 - **Def 自带参数修正行（PV-9，2026-09-11 采纳）**：`SkillDef.ParamChainRows`——声明作用域恒为本条目自身的 `FTcsNumericParamModifier` 行（可内联或引用 UTcsSkillModDef 模板），**无 FEntrySelector**（该选择器保持专属外部施加场景）；激活期物化进本条目参数链，Source=施法运行句柄，结算/打断级联摘除（与 ModifierRows 同生命周期语义）。**复合参数 = 链行带式折叠**（"攻击力×倍率 + y" = {Add, AttributeScaled(AttackPower)} + {Mul, ParamRef(DamageRate)} + {FlatAdd, ParamRef(DamageAddition)}，PV-7 + D5-5 v3 带式口径，任意书写顺序）；State/Buff 侧参数为快照单值、无账本链，暂不需要对应机制。
 - **技能级替换（D5-9 修订 2026-09-11：移除 EffectiveDefId 技能级重定向）**：~~`FSkillRedirect` 重定向栈~~ 撤除——整体逻辑替换 = **直接换成新 Skill（新学习身份/Entry：Grant/Revoke，或 ReplaceSkill 链步骤原语判定树候补）**，不做同 Entry 跨 Def 漂移。动机（用户）：Entry↔Def 一对一后参数键空间绝对纯净，SkillDef 内 ParamRef 同域解析零歧义（PV-2.d 收束）；旧方案"保留身份、跨 Def 漂移"会让 Entry 上按旧 Def 键空间声明的参数修正器全部悬空。**让渡模式由三粒度收窄**：参数级（NumericSkillModifier/BoolSwitchModifier）→ 链级（链重定向栈，保留）→ 技能级 = 新 Skill。等级/冷却进度/形态进度不跨替换继承（需要则宿主显式迁移）。
-- **多形态路由（D5-14 移除后的组合范式，2026-09-11）**：无内建形态解析——各形态是独立 Entry；"当前形态" = 阶段标识 StateInstance（Tag 门禁）；**ParamRef 恒解析于 Entry 自身 DefId 参数表**（PV-2.d 终版钉死——无条件）。
+- **多形态路由（D5-14 移除后的组合范式，2026-09-11）**：无内建形态解析——各形态是独立 Entry；"当前形态" = 阶段标识 StateInstance（Tag 门禁）；**ParamRef 恒解析于 Entry 自身 `DefTag` 参数表**（PV-2.d 终版钉死——无条件）。
 
 ### 3.5 冷却（D5-15/D5-16）
 - 多轨道模型（D5-15）：Tracks 数组（自身轨道/共享组轨道），Timing 保留 policy 级；CDR = 参数链 `CooldownPct` 键，**快照于冷却触发时刻**（中途变化不追溯），作用于各轨 Duration；到期堆驱动；真值在 Entry（每轨 Remaining/Total 可查，UI 轮询）；默认无冷却（空 Tracks）。
@@ -62,7 +62,7 @@ FStateDefBase（抽象，M3 定义：词表/FragmentSet/通用默认参数 Level
 
 ## 4. 入口服务
 
-- `GrantSkill / RevokeSkill(unit, DefId, Source)`
+- `GrantSkill / RevokeSkill(unit, DefTag, Source)`
 - `TryActivate(unit, SkillId, Context) -> ESkillActivateResult`：**显式门禁序列**（实体 Ready → 已学 → 冷却 → Instancing 顶替/并存判定 → CanAfford → Def 校验；每道门具名原因——修 TCS 门禁内联缺陷）
 - `CancelCast(run, Reason)`；`ApplyParamModifiers(unit, FEntrySelector, TArrayView<FParamModifier>)`；`MaterializeModifiers(unit, TemplateIds, ParamContext, Source)`（D5-19 宿主命令式入口——与声明式 ModifierRows 共用同一物化器）；`AdjustCooldown / ResetCooldown(unit, EntryHandle, Track, Delta|Clear)`（D5-16 事件源——改动轨状态发 OnCooldownUpdated）；`GetNumericParam / IsSwitchSet / GetLevel`
 
@@ -72,7 +72,7 @@ FStateDefBase（抽象，M3 定义：词表/FragmentSet/通用默认参数 Level
 - **时段驱动**：进入时段 → 到期堆注册（Duration 从 ParamSnapshot 取）→ `OnCastPhaseChanged`；`IsInterruptibleNow` 按三级实现解析；时段参数在快照构建时已定。
 - **打断**：来源优先级 vs `IsInterruptibleNow()` → CancelCast(Cancelled) → `OnCastInterrupted`；止于未来不追溯（M4 约定）。
 - **冷却触发（D5-15/D5-16）**：Timing 枚举到达 → CDR 快照 → 各轨到期堆注册（组轨写单位级组槽）→ Entry 轨道状态翻转 → `OnCooldownStarted`；`AdjustCooldown/ResetCooldown` 改动轨状态 → 重挂到期堆 → `OnCooldownUpdated`；到期出队 → `OnCooldownEnded`。
-- **起链解析**（D5-7；链级让渡保留）：`CastChainId` 解析 = 全局定义 → 链重定向栈 → Custom Fragment；生效 Def（= Entry 自身 DefId，EffectiveDefId 已移除）决定用哪套参数。
+- **起链解析**（D5-7；链级让渡保留）：`CastChainId` 解析 = 全局定义 → 链重定向栈 → Custom Fragment；生效 Def（= Entry 自身 `DefTag`，EffectiveDefId 已移除）决定用哪套参数。
 - **ParamSnapshot 构建时序**：门禁全过 → BuildSkillSnapshot（按 Entry 自身 Def 账本求值一次）→ FCastRun 绑定 → 后续一切读快照。
 
 ## 6. 网络姿态落点（NET-1/2）
@@ -101,6 +101,7 @@ FStateDefBase（抽象，M3 定义：词表/FragmentSet/通用默认参数 Level
 - v2 增补 7（2026-09-11，D5-14 移除 + EffectiveDefId 移除——用户拍板）：形态组内建机制（FFormGroup/FCastSequenceState/AdvancePolicy/ResetPolicy）撤除——**多形态 = 多学习 Entry + 阶段标识 StateInstance + 关系字段门禁 + 触发行推进**（零新机制组合；等级/冷却/进度跨形态同步归宿主：SkillModifier/状态标识）；**EffectiveDefId 概念整体移除**（重定向已撤、形态解析归组合——无消费者）；描述绑定/ParamSnapshot/ParamRef 全部按 Entry 自身 Def。
 - v2 增补 8（2026-09-14，参数折叠与展示轮）：折入 **D5-5 v3**（§3.4 参数链 = 带式聚合——五带同 M2、顺序无关、SortKey 退化为带权、折叠初值 = 参数行求值结果否则 0、Override 组取最大值、CompeteGroup 选优后按带折叠、折叠器单份住 TcsAttribute 三处共用）、**D5-18 v3**（链行 Operand 补约定列）、**D5-17 v2**（§2 描述绑定词法族 + 索引口径 + 绑定链）、命名批（`FTcsNumericParamModifier`/`FTcsNumericParamRow`）；§2 参数行源落点删去"TargetLevel"残留（PV-4 评判轮暂不提供）。
 - v2 增补 9（2026-09-15，D5-17 v3 描述视图策略化——用户重设计）：§2 描述绑定改**视图策略体系**——`Descriptions: TArray<FTcsDescriptionEntry>` 取代单字段 DescriptionTextKey；StringTable 只含槽名（零语法）；视图 = `FTcsParamView` 策略基类 + `TInstancedStruct` 持有（内置 Value/Series/Range/Attribute——v2 词法转世）；编辑器预警四层（探针拦截挂配置元素/槽名交叉扫描/运行期降级）；索引口径与展示政策归开发者原则不变。
+- v2 增补 10（2026-09-23，标识体系 tag 化改造回写）：§3.1 Entry 身份 `FName DefId` → **`FGameplayTag DefTag`**；§3.4/§4/§5 同步（ParamRef 解析锚点、`GrantSkill/RevokeSkill` 签名、起链解析生效 Def）。落点 = 提案 `switch-identifiers-to-gameplay-tags`（2026-09-22 归档）。§2 参数行 Key 与冷却 GroupTag 本就是 tag/词表口径，未动。
 
 ## 10. 验收钩子
 

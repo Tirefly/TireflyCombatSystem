@@ -17,15 +17,15 @@
 - `FDamageFlowContext`（黑板，可池化）：`Attacker / Instigator / Targets / 分类 Tag 集 / 公式参数初值 / 流程属性黑板 / FlowSource / **CapturedAttrs**`。**黑板即上下文**——天然同构于 FEffectContext。
 - **三层值空间**：
   1. **技能参数**（账本，Entry 级持久）——SkillDef 参数+修正链求值，不进流程；
-  2. **公式参数初值**：`TMap<FName, FFlowParamValue>`（数值为主 + FInstancedStruct 扩展位）——Damage 步骤配置的值（**FTcsParamValue**，PV 系列 2026-09-11 换型——Literal/ParamRef 等源，原 Param() 引用技能参数归 ParamRef）注入，**只读原料**，delegate 按名取用；键=项目词表，**永不用下标**；
-  3. **流程属性黑板**（容器=`FFlowAttributes`：键+每键修正链+封闭五带运算（同 M2，Custom op 砍除——D2-7；值域策略逃逸走 IValueDomainPolicy 同款形态），M2 语义复用——**折叠统一调用 TcsAttribute 共享带式折叠纯函数（D5-5 v3：M2 属性聚合 / M5 参数链 / 本容器三处共用，勿私建第二份）**，作用域=流程用完即弃）——**伤害计算的工作值**（BaseHitRate/BaseDamage/FinalDamage 等就是临时变量）；内建步骤读写的键名是**标准步骤库的契约**（M8 校验/Explain 认识），**项目键自由 FName，无注册表**；也是 ModifyFlow 提交的落点。
+  2. **公式参数初值**：`TMap<FGameplayTag, FTcsParamValue>`（数值为主 + FInstancedStruct 扩展位）——Damage 步骤配置的值（**FTcsParamValue**，PV 系列 2026-09-11 换型——Literal/ParamRef 等源，原 Param() 引用技能参数归 ParamRef）注入，**只读原料**，delegate 按名取用；键=项目词表 tag，**永不用下标**（**2026-09-22 tag 化：原 `TMap<FName, FFlowParamValue>`**）；
+  3. **流程属性黑板**（容器=`FTcsFlowAttributes`：键+每键修正链+封闭五带运算（同 M2，Custom op 砍除——D2-7；值域策略逃逸走 IValueDomainPolicy 同款形态），M2 语义复用——**折叠统一调用 TcsAttribute 共享带式折叠纯函数（D5-5 v3：M2 属性聚合 / M5 参数链 / 本容器三处共用，勿私建第二份）**，作用域=流程用完即弃）——**伤害计算的工作值**（BaseHitRate/BaseDamage/FinalDamage 等就是临时变量）；内建步骤读写的键名是**标准步骤库的契约**（M8 校验/Explain 认识）——**契约键归框架**（`Tcs.Flow.Key.*` 原生声明，2026-09-22 tag 化），**项目键自由 tag、无注册表**；也是 ModifyFlow 提交的落点。
 - **分类 Tag 集**：来源标签（流程启动时由 Damage 步骤配置写入）+ 元素标签（Element 步骤由 delegate 解析后写入，修改器可改）——修改器匹配键（"受火伤+20%"按 Tag 过滤收集事件）、免疫/减伤候选匹配（"免疫火焰"）、FDamageRecord 记录维度；词表归项目，插件只搬运与匹配。
 - **AttrCapture**：`FDamageFlowConfig.AttrCaptureList{AttrKey, From: Instigator/Target}`——FlowStart 时从 M2 捕获进 CapturedAttrs 快照；属性读默认 Live、捕获命中读快照（**流程内读取一致性**——中途 buff 过期不追溯）；"本次攻击攻击力+10%"双路径：捕获命中→改 CapturedAttrs（随流程消失，零账本污染）／未捕获→FlowSource 临时修正器挂真实账本。
 - `FlowSource`：**每流程唯一 FSourceHandle——作用域修改器的归属锚点**："本次攻击+X%"类临时修改挂 M2 账本、Source=FlowSource，流程结束 `RemoveBySource` 级联摘除（O(1)，复用 D2-2）；替代文章 CopyOnWrite（零拷贝）。
 
 ### 2.2 流程模板：标准步骤库 + 官方默认模板（D7-5）
-- **流程模板** `FCombatFlowTemplate`：有序步骤数组（FInstancedStruct，同 FEffectStep 形状）；**多预设 = 多模板资产**（不同游戏模式/角色配不同模板）。模板选择链：Damage 步骤配置指定 → Def 覆盖 → 全局默认。
-- **模板重定向** `FFlowRedirect{TargetTemplateId, ReplacementTemplateId}`（D7-7，用户拍板一步到位）：状态/装备声明换流程，让渡点+重定向栈后挂/高优先+Source 级联回收——**三粒度让渡模式升四粒度**（参数→链→技能→流程）。
+- **流程模板** `FTcsDamageFlowTemplate`（概念名 `FCombatFlowTemplate`；实现名 2026-09-21 定 `FTcsFlowTemplate`，T-8 资产化轮改现名）：有序步骤数组（FInstancedStruct，同 FEffectStep 形状）+ `TemplateId: FGameplayTag`（2026-09-22 tag 化）；**多预设 = 多模板资产**（不同游戏模式/角色配不同模板）。模板选择链：Damage 步骤配置指定 → Def 覆盖 → 全局默认（官方默认 = `Tcs.Flow.Template.Default`）。
+- **模板重定向** `FFlowRedirect{TargetTemplateId, ReplacementTemplateId}`（D7-7，用户拍板一步到位；字段为 tag）：状态/装备声明换流程，让渡点+重定向栈后挂/高优先+Source 级联回收——**三粒度让渡模式升四粒度**（参数→链→技能→流程）。
 - **标准步骤库**（内建 struct+执行器，自注册；官方默认模板 = 下表组装，宿主可整表替换）：
 
 | 标准步骤 | 引擎行为 | 项目挂点 |
@@ -88,3 +88,4 @@
 - v3（2026-09-02，M9 追问轮重构）：**流程管线宿主化**（D7-5——阶段表降级为标准步骤库+官方默认模板，流程=数据模板；通用数据步骤 FlowModify/FlowDelegate + 每步骤 Conditions）；§2.1 重写为三层值空间（技能参数/公式参数初值 Map/流程属性黑板契约键名）+ 分类 Tag 集/FlowSource/CapturedAttrs 定位澄清；§2.3 修改器唯一通道（D7-6）；D7-7 模板重定向（四粒度让渡）。
 - v4（2026-09-11，PV 系列 D7-2 收窄）：**基础伤害值来源 = 链步骤数据配置（StateParam 参数账本解算——复合运算由参数链承载），结果输入流程，流程零基础值计算**（用户否决流程域拼装/表达式源/双字段三案）；`CalculateBaseDamage` 从 ★主公式 **降级逃生口**（普通项目零 delegate）；公式参数初值/FlowModify Operand 换型 FTcsParamValue（黑板键引用保留为流程域自身选项）；流程中途公式贡献 = 伤害修改器自实现（D7-6 通道，不开 BaseDamage 公式口）。
 - v4 增补（2026-09-15，D5-5 v3 交叉引用补齐）：§2.1/§2.3 流程属性黑板的折叠口径显式化——统一调用 TcsAttribute 共享带式折叠纯函数（三处共用之一），实现落点指向补齐；顺带移除无出处的旧词"三域三制"。
+- v4 增补 2（2026-09-23，标识体系 tag 化改造回写）：§2.1 公式参数初值键 `TMap<FName, …>` → **`TMap<FGameplayTag, FTcsParamValue>`**；黑板容器名对齐实现（`FFlowAttributes` → **`FTcsFlowAttributes`**）；**契约键归框架**（`Tcs.Flow.Key.*` 原生声明）与项目键自由 tag 的分工写明；§2.2 模板身份补 `TemplateId: FGameplayTag`、模板类型名对齐实现（`FTcsDamageFlowTemplate`，T-8 轮改名）；重定向字段为 tag。落点 = 提案 `switch-identifiers-to-gameplay-tags`（2026-09-22 归档）。

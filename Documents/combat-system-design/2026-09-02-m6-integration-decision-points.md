@@ -58,3 +58,5 @@ D6-1~D6-5 五项，逐项或"按推荐"。
 | 项 | 状态 |
 |---|---|
 | D6-1 / D6-2 / D6-3(v3) / D6-4 / D6-5 | ✅ 全部拍板（2026-09-02） |
+
+**身份载体修订（2026-09-22）**：本文档出现的 `DefId` 一律读作 `DefTag: FGameplayTag`（如"重复 DefId 判定加缓冲"= 重复 `DefTag` 判定）；DefLibrary 的 `ResolveDef(FName)` → `ResolveDef(FGameplayTag)`。原 `FName` 载体被有据重开（提案 `switch-identifiers-to-gameplay-tags`）。

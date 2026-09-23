@@ -75,6 +75,24 @@ void UTcsDamageSubsystem::Deinitialize()
 	Super::Deinitialize();
 }
 
+void UTcsDamageSubsystem::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector)
+{
+	UTcsDamageSubsystem* This = CastChecked<UTcsDamageSubsystem>(InThis);
+
+	// 模板登记表非 UPROPERTY（TUniquePtr 容器）——GC 只走 RefLink 看不见它，故在此手动补引用。
+	// 逐模板递归收集：AddPropertyReferencesWithStructARO 会进 FInstancedStruct 内层实例内存
+	// （引擎 UDataTable::AddReferencedObjects 对 RowMap 用的同一招，见头文件说明）。
+	for (const TPair<FGameplayTag, TUniquePtr<FTcsFlowTemplate>>& Pair : This->Templates)
+	{
+		if (const FTcsFlowTemplate* Template = Pair.Value.Get())
+		{
+			Collector.AddPropertyReferencesWithStructARO(FTcsFlowTemplate::StaticStruct(), const_cast<FTcsFlowTemplate*>(Template), This);
+		}
+	}
+
+	Super::AddReferencedObjects(InThis, Collector);
+}
+
 
 
 // 模板登记表

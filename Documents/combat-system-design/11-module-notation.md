@@ -35,6 +35,8 @@ TArray<FTcsDescriptionEntry> Descriptions;
 // 文案原文引用槽位："对目标造成 {Rate} 的火焰伤害"——零语法，FText::Format 命名参数白拿（重排/复用/同槽多次引用）
 ```
 
+**这三个 `FName` 是 2026-09-22 tag 化改造的明确例外（不是漏网）**：`TextKey` 是 StringTable 键（`FText::FromStringTable` 的引擎约束就是 `FName`）；`DescriptionId` / `SlotName` 是**展示侧的命名标签**（"哪段文案"、"文案里哪个槽"），不参与任何内容引用与解析——它们不指向 Def / 参数键 / 黑板键，故不在"配置引用"范围内，改 tag 只会让文案作者多一层无收益的约束。
+
 - **视图 = 策略形态（D3-7 v3 同构）**：USTRUCT 反射基类 + 虚函数分派 + `TInstancedStruct` 持有（用户认同 Kind+FInstancedStruct——它与策略形态同物，取策略形态：零 Kind 维护、灭"类型与载荷配对"bug 类、编辑器类型 picker 开箱、与全插件策略位同构）；每个视图自带配置参数（读哪个参数键、样式键、分隔符）。
 - **内置视图最小集（v2 词法族的转世——语义不变，载体从 token 变类型）**：
 

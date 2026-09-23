@@ -20,7 +20,7 @@
 - **B1a 粒度**：Set 是资产，**引用点在实体侧配置**（实体 Def / Actor BP 上的组件引用）；引擎**不认识"游戏模式"轴**——换情景 = 宿主换实体身上的 Set 引用（或换实体）。
 - **B2 持有与施加**：Set 资产 = **GameInstance 级 Const 内容**（归 DefLibrary 管辖面，与 Def 族同款主资产身份）；"某单位当前用哪套 Set" = **World 级**可变状态；施加动作 = World 级，入口在 `RegisterEntity` 之后、穿过 DefLibrary `IsRuntimeReady()` 门禁之后（06 §2.1/§2.2）。
 - **B3a 切换语义**：`ApplyAttributeSet(Unit, Set)` = 把该单位的属性集合**置为这套**（diff 替换：旧 Set 独有 → 移除、新 Set 独有 → 添加、**共有保留实例**——不打断在飞 modifier、不丢 `SetBaseValue` 改过的 base value）；`ClearAttributeSet(Unit)` = 整组清空（供重生成单位用，显式声明"在飞 modifier 随之失效"）。
-- **引用形状**：`TArray<FName> DefIds`（与"Def 资产文件可改名/挪目录、按 `[PrimaryAssetType, DefId]` 解析"一致），由 DefLibrary 解析；**覆写列首版不做**（"同属性不同情景不同基础值"走宿主 `SetBaseValue`，日后要数据驱动再加列，向后兼容）。
+- **引用形状**：`TArray<FGameplayTag> DefTags`（与"Def 资产文件可改名/挪目录、按 `[PrimaryAssetType, DefTag.GetTagName()]` 解析"一致），由 DefLibrary 解析；**覆写列首版不做**（"同属性不同情景不同基础值"走宿主 `SetBaseValue`，日后要数据驱动再加列，向后兼容）。**身份载体 2026-09-22 由 `TArray<FName> DefIds` 改 tag**（提案 `switch-identifiers-to-gameplay-tags`）。
 
 **落地时机**：AttributeSet 随 **M6（DefLibrary/WorldRegistry 落地轮）** 同批；D2-14 的"能力/推荐用法"姿态**可立即回写文档**（无代码改动）。
 
@@ -125,7 +125,7 @@
 - **B3b 全清重建**：清空后按新 Set 重建。
   - 代价：**在飞 modifier 全部失效**（Target 指向被销毁的实例），且丢运行期缓存的 base value 变化（等级成长会被重置）——除非宿主显式搬运。
   - 判断：不建议作为默认语义；可作为显式 `ClearAttributeSet(Unit)` 单独提供（供"重生成单位"用）。
-- 未定细节（建议一并钉）：**Set 内引用用 `TArray<FName> DefIds`**（与 Def 资产"文件可改名/挪目录"的主资产身份一致，由 DefLibrary 按 `[类型, DefId]` 解析），而非直接软引用 Def 资产；**覆写列（同一属性在不同模式不同基础值）首版不做**——需要时走宿主 `SetBaseValue` 事务，日后要数据驱动再加一列（向后兼容）。
+- 未定细节（建议一并钉）：**Set 内引用用 `TArray<FGameplayTag> DefTags`**（与 Def 资产"文件可改名/挪目录"的主资产身份一致，由 DefLibrary 按 `[类型, DefTag.GetTagName()]` 解析），而非直接软引用 Def 资产；**覆写列（同一属性在不同模式不同基础值）首版不做**——需要时走宿主 `SetBaseValue` 事务，日后要数据驱动再加一列（向后兼容）。
 
 ---
 

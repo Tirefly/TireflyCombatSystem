@@ -25,11 +25,11 @@
 ## PV-2 TcsCore 内置源最小集（已拍板 2026-09-11）
 
 - **`FTcsParamSource_Literal{ Value: double }`**——原 FTcsParamScalar.Literal 模式；**命名用户拍板用 Literal 不用 Constant**（与全系统既有词汇一致），恒 Evaluate 成功。
-- **`FTcsParamSource_ParamRef{ Key: FName, Fallback: double }`**——引用同参数空间另一键（参数嵌套）；Evaluate 经上下文递归取值。细则（均已拍板）：
+- **`FTcsParamSource_ParamRef{ Key: FGameplayTag, Fallback: double }`**——引用同参数空间另一键（参数嵌套）；Evaluate 经上下文递归取值。**键类型 2026-09-22 由 `FName` 改 tag**（提案 `switch-identifiers-to-gameplay-tags`；"同参数空间"= 同一 Def 的 tag 参数表）。细则（均已拍板）：
   - a) **允许链式引用（A→B→C）**；**编辑器期间杜绝无限递归**——去重机制：自己无法引用自己、引用链上不允许成环（DAG），环 = 编辑期/加载期报错，杜绝运行期死循环；
   - b) **只能引用同域参数表**（StateDef 引用自身参数行 / SkillDef 引用自身参数行）——跨域引用维持 D2-11 拒绝理由（域不透明）；
   - c) Fallback = 引用键不存在/求值失败时的兜底值，必填；
-  - d) **引用解析目标（终版钉死 2026-09-11——D5-9/D5-14 修订）**：**EffectiveDefId 概念整体移除**（技能级重定向撤、形态组改多 Entry 组合范式）——ParamRef **无条件解析于 Entry 自身 DefId 的参数表**，零跨 Def 漂移、零解析链；环检测在单 Def 引用图上做。"同槽位队列"议题消解。
+  - d) **引用解析目标（终版钉死 2026-09-11——D5-9/D5-14 修订）**：**EffectiveDefId 概念整体移除**（技能级重定向撤、形态组改多 Entry 组合范式）——ParamRef **无条件解析于 Entry 自身 `DefTag` 的参数表**，零跨 Def 漂移、零解析链；环检测在单 Def 引用图上做。"同槽位队列"议题消解。
 - 原 FTcsParamScalar 处置：**删除**（Task 0 壳改造为 FTcsParamValue + Literal 源；plan1 Task 4 未动工，零返工窗口）。
 
 ## PV-3 TcsAttribute 属性值源（已拍板 2026-09-11）

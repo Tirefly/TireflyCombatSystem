@@ -42,6 +42,28 @@ public:
 	// 反初始化：确定性清空模板登记表与记录缓冲（模板自持数据，无外部资源待释放）
 	virtual void Deinitialize() override;
 
+	/**
+	 * GC 引用收集（**模板登记表的 GC 可见持有**，2026-09-23 修复 T-8）。
+	 *
+	 * 为什么必须自己实现：`Templates` 是 `TMap<FGameplayTag, TUniquePtr<FTcsFlowTemplate>>`——
+	 * **裸 C++ 容器不经 GC 的 `RefLink`**，`TUniquePtr` 更不是 GC 可见持有，故 GC 看不见
+	 * 模板步骤里的对象引用（`FTcsFlowModify::Delegate` / `FTcsFlowDelegate::Delegate` 等
+	 * `TScriptInterface<ITcsDamageFlowDelegate>`）。后果是**静默 GC**：delegate 被回收后
+	 * 流程跑到该步取到空接口，表现为"公式不生效"而非崩溃，极难排查。
+	 *
+	 * 手法 = 逐个模板调 `FReferenceCollector::AddPropertyReferencesWithStructARO`
+	 * （引擎 `UDataTable::AddReferencedObjects` 对 `RowMap` 用的同一招，`DataTable.cpp:300`）——
+	 * 它递归走步骤 struct 的反射属性，且对带 `WithAddStructReferencedObjects` 的
+	 * `FInstancedStruct` 会**继续递归进内层实例内存**（`InstancedStruct.cpp:506`），
+	 * 故 `TArray<FInstancedStruct>` 里任意深度的对象引用都能被保活。
+	 *
+	 * 登记时机不受影响：本函数在 GC 期间被调，与 `RegisterTemplate` 的登记顺序无关。
+	 *
+	 * @param InThis 本对象（引擎静态 ARO 签名约定，须自行 Cast）。
+	 * @param Collector GC 引用收集器。
+	 */
+	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
+
 #pragma endregion
 
 

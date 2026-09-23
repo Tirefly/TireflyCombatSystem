@@ -136,9 +136,9 @@
 | 布尔开关行 | `FTcsBoolSwitchRow` | TcsState |
 | 参数行 Mode | `ETcsParamMode{ Snapshot, Live }` | TcsState |
 | 参数修正行（原 `FNumericParamModifier`） | `FTcsNumericParamModifier` | TcsSkill |
-| Def 资产基类（DefId + IsDataValid 校验挂点） | `UTcsStateDef`（对应 `FStateDefBase` 家族；备选 `UTcsStateDefBase`） | TcsState |
+| Def 资产基类（**身份 tag** + IsDataValid 校验挂点） | `UTcsStateDef`（对应 `FStateDefBase` 家族；备选 `UTcsStateDefBase`） | TcsState |
 | Buff / 技能 Def 资产 | `UTcsBuffDef` / `UTcsSkillDef` | TcsState / TcsSkill |
-| DataTable 双轨行 | `FTcsBuffDefTableRow` / `FTcsSkillDefTableRow{ FName DefId; …Def; }` | 各域 |
+| DataTable 双轨行 | `FTcsBuffDefTableRow` / `FTcsSkillDefTableRow{ FGameplayTag DefTag; …Def; }` | 各域 |
 | 参数快照条目（规范值 + 源引用位） | `FTcsParamSnapshotEntry`（**不用 `Resolved*`**——动词纪律） | TcsState |
 | 参数快照容器 | `FTcsParamSnapshot` | TcsState |
 | 源的可枚举能力基类 | `FTcsParamEnumerableSource` | **TcsCore** |

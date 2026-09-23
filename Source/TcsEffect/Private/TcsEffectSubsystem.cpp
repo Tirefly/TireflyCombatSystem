@@ -27,6 +27,24 @@ void UTcsEffectSubsystem::Deinitialize()
 	Super::Deinitialize();
 }
 
+void UTcsEffectSubsystem::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector)
+{
+	UTcsEffectSubsystem* This = CastChecked<UTcsEffectSubsystem>(InThis);
+
+	// 链定义登记表非 UPROPERTY（TUniquePtr 容器）——GC 只走 RefLink 看不见它，故在此手动补引用。
+	// 链步骤可放任意宿主自定义 struct（D4-16），其中的 UPROPERTY 对象引用须靠本函数保活
+	// （引擎 UDataTable::AddReferencedObjects 对 RowMap 用的同一招，见头文件说明）。
+	for (const TPair<FGameplayTag, TUniquePtr<FTcsEffectChain>>& Pair : This->ChainDefs)
+	{
+		if (const FTcsEffectChain* Chain = Pair.Value.Get())
+		{
+			Collector.AddPropertyReferencesWithStructARO(FTcsEffectChain::StaticStruct(), const_cast<FTcsEffectChain*>(Chain), This);
+		}
+	}
+
+	Super::AddReferencedObjects(InThis, Collector);
+}
+
 
 
 // 链定义登记表

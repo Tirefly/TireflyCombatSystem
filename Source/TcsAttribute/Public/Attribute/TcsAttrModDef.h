@@ -31,7 +31,7 @@
  *
  * 表格编辑局限（记录在案）：`Operand.Literal` 是 `FTcsParamValue`（`TInstancedStruct` 载荷），
  * CSV/Excel 往返**不会**保留该列（引擎 CSV 导入无法表达多态实例结构）——本表行只支持
- * **编辑器内表格编辑**；标量列（Target/Op/ValueConvention/SortKey/Tag）仍可表格批量编辑。
+ * **编辑器内表格编辑**；标量列（Target/Op/ValueConvention/SortKey）仍可表格批量编辑。
  */
 USTRUCT(BlueprintType)
 struct TCSATTRIBUTE_API FTcsAttrModDefTableRow : public FTableRowBase
@@ -87,9 +87,10 @@ public:
 		Meta = (EditCondition = "Op == ETcsAttributeOp::TAO_Override", EditConditionHides))
 	int32 OverridePriority = 0;
 
-	// 同来源内分组标签（可选）
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Modifier Template")
-	FName Tag = NAME_None;
+	// 注（2026-09-23 删除）：原有一个 `FName Tag`（"同来源内分组标签"）字段——它从旧 TCS 搬来，
+	// 全库**零消费者**（折叠/物化/级联撤销都不读），却因 `EditAnywhere` 让配置者以为填了有用。
+	// 用户 2026-09-23 拍板删除。若将来真需要"同来源内分组"，那时它应是 `FGameplayTag`
+	// （与全系统标识体系统一），而非 FName。
 
 #pragma endregion
 };

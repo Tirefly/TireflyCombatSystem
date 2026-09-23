@@ -14,7 +14,7 @@
 | `2026-09-02-m0min-m2-decision-points.md` | M0-min 与 M2 的 12 项（D0×5+D2×7：含 D2-6 值域模式、D2-7 Custom op 砍除） | 已拍板 |
 | `2026-09-02-m3-states-decision-points.md` | M3 状态层的 7 个决策点（已按 2026-09-02 证据核验；提前起草，顺序无关） | 已消费 |
 | `01-module-m0-core.md` | M0 内核正式设计：句柄/池/总线/时钟/诊断 + 网络姿态接口位 | v1 |
-| `02-module-attributes.md` | M2 属性层正式设计：FName 词表/聚合管线/事务/操作复制网络策略 | v1 |
+| `02-module-attributes.md` | M2 属性层正式设计：**属性身份 = `FGameplayTag`**（2026-09-22 tag 化）/聚合管线/事务/操作复制网络策略 | v1 |
 | `03-module-states.md` | M3 状态层正式设计：Def 类层级/中央注册表/五轴堆叠(MaxStacks)/关系表+Cancels/Level/ParamSnapshot/Fragment | v2 |
 | `2026-09-02-m4-effects-decision-points.md` | M4 决策点 v2 **已拍板**：触发行 10 字段/事件分类表/原语集 17+3/目标选择每步骤挂载 + Authoring 三层模型（**原语集终版 15 见 D4-16/04 文档；目标选择 v2 策略化见 D4-4 v2/10 文档**） | 已拍板 2026-09-02 |
 | `04-module-effects.md` | M4 效果执行层正式设计：15 原语（注册制分派归属）/触发行求值器/异步四唤醒源/Damage 委托化/Authoring 边界/端到端走查 | v2 |
@@ -28,6 +28,7 @@
 | `2026-09-02-r3-vertical-slice-script.md` | R3 竖切验收剧本 v2：六模块口径（Core/Attribute/Effect/Targeting/Damage/Integration）/7 人工检查点/D0-6 屏显验收信号 | v2 |
 | `2026-09-10-param-value-source-decision-points.md` | Parameter 值来源策略体系决策点（PV-0~10）：FTcsParamValue{TInstancedStruct} 取代 FTcsParamScalar（D2-12 修订）/等级表参数进引擎（D3-11 修订：State/Instigator × Array/Map 四源归 TcsState，ITcsEntityLevelProvider 定义于 TcsState）/D7-2 收窄（基础伤害值=参数账本解算输入、流程零计算、delegate=逃生口）/基类虚函数 Evaluate、Literal+ParamRef 内置 TcsCore、AttributeScaled 归 Attribute；Live 与 Formula 为已承诺基建；PV-10 源的可枚举能力（2026-09-14） | 已全部拍板（已折入） |
 | `2026-09-14-param-fold-and-display-decision-points.md` | 参数折叠与展示决策点：**D5-5 v3**（参数链 = 带式聚合，五带同 M2、顺序无关、折叠器单份住 TcsAttribute 三处共用）/ **D5-17 v2→v3**（v2 词法族 → v3 描述视图策略化：视图=结构化策略配置 `FTcsParamView`、StringTable 只含槽名、探针校验、展示政策归开发者）/ **D5-18 v3**（约定可配白名单 + 链行约定列 + Literal 书写值定性）/ **PV-10**（源可枚举能力）/ **PV-1 增补**（上下文补齐 + Evaluate 转发 + 句柄边界让步）/ 命名批（v3 增补视图族） | 已拍板（2026-09-14 / 09-15 增补） |
+| `2026-09-23-r4-plan3-trigger-row-and-modifier-channel.md` | **R4 实施计划三**（M4a 触发行 + 伤害修改器通道）：含 **R4–R8 轮次路线图**（本轮起偏离原序——触发行先行，理由是它是 M3 行为面的验收前置）；5 Task（触发行形状与条件 / 登记表与求值器 / ModifyFlow 链原语 / 端到端验收 / 收束） | **待执行**（2026-09-23 产出） |
 | `deferred-inputs-ledger.md` | **跨轮遗留输入台账**：登记「决策已拍板、代码未落地/未验证」且不在任何现有计划 Task 里的输入（R4×2 / M0 总线×1 / R6×1 / R7×2 / R8×5 / 触发条件×4）。含入册判据（三条全中）与生命周期纪律（轮次开工通读 → 折进该轮计划 → 收束勾销、不删条目） | 活文档（2026-09-18 建立） |
 
 ## 决策日志
@@ -231,3 +232,22 @@
   - **三个实测坑（全部只在运行时暴露、编译完全通过）**——共同根因：`FName` 常量能作 `UPROPERTY` 默认值，**`FGameplayTag` 不能**（运行期注册）：①`const FGameplayTag& Alias = Tag_X;` **是陷阱**（`operator FGameplayTag()` 按值返回，引用绑定静态初始化期的临时量 → 永远持空 tag → `Submit` 静默拒绝）；②宿主步骤字段默认值丢失（执行器内兜底）；③公式 delegate 词表字段未装配（装配期显式赋值）。已做全库 35 字段审计确认仅此三处。
   - **资产迁移**：`SerializeFromMismatchedTag` 只支持裸 `FName` 属性 → tag，**不覆盖结构体字段** → 2 个链资产 + 4 个属性资产**全部重建**。
   - **验收全绿**：`Tcs.Test.Slice.Run` 10/10 ×2（`Slice_Chain` 扣 45.0 / `Formula_Chain` 扣 100.0 = 5×25 钳到 0）+ `.Reject` 3/3 + 检查点 5/7 + **picker 人工检查**（`Chain Id` 字段控件为 `combobox`，值为 `Tcs.Chain.Slice_Chain`）+ Development/Shipping 双配置编译。
+- **2026-09-23 设计文档 tag 口径回写（agent 执行，用户指示）**：把全部设计文档里**仍是 `FName` 身份载体**的现行口径更新为 `FGameplayTag`。**判据 = 该 `FName` 是否承担"内容引用"**：
+  - **改**（模块文档 01–11 + 决策点文档）：属性名 / 参数键 / 黑板键 / 链 id / 模板 id / DefId 六类内容引用一律改 tag 口径——`DefTag`（属性与状态族）、`TemplateTag`（修正器模板）、`ChainId`/`TemplateId`（`FGameplayTag`）、`ParamRef::Key`、`TMap<FGameplayTag, …>` 参数键、`ResolveDef(FGameplayTag)`、`DefTags`（AttributeSet 内容）、`CueId`。**引用规范本身不变**（权威=身份、热路径解析缓存、运行期零回查），只改身份载体——已在各文档写明。
+  - **不改（明确例外，写进 11 文档）**：`FTcsDescriptionEntry` 的 `TextKey`（StringTable 键——`FText::FromStringTable` 的引擎约束就是 `FName`）、`DescriptionId` / `SlotName`（展示侧命名标签，不参与任何内容引用与解析）。改 tag 只会给文案作者加无收益约束。
+  - **处理手法分两档**：①**模块设计文档（01–11）= 现行真相** → 直接改正文 + 各加一条修订记录（`v2 增补 10` 式）；②**决策点文档（m0min-m2 / m3 / m5 / m6 / PV / 09-14 / 09-17）= 历史拍板留痕** → **不改原文**，各加一行"身份载体修订（2026-09-22）"注记说明"本文档 `DefId` 应读作 `DefTag`"，理由指向 m0min-m2 的 D2-1 修订行。
+  - **未动**：`2026-09-02-r3-plan1/plan2/竖切剧本`（已交付的冻结计划，Task 已完成、计划文本是当时口径的历史留痕）、`README` 决策日志的历史条目（同理由）、`2026-09-20-replication-posture-research`（调研笔记）。**台账 `deferred-inputs-ledger.md` 单列处理**（R7-1/R7-3/R8-3/T-8/T-10 的条目描述随本次一并更新为 tag 口径）。
+
+- **2026-09-23 T-8 GC 地雷修复（登记表持有对 GC 可见）**：提案 `fix-registry-gc-visible-holding` → 归档 `2026-09-22-fix-registry-gc-visible-holding`（`damage-flow` / `effect-chain` 各并入一条"对 GC 可见"要求 + 一个场景；规格库 **22/22** `validate --strict` 全绿）。
+  - **问题**：`UTcsDamageSubsystem::Templates` 与 `UTcsEffectSubsystem::ChainDefs` 都是 `TMap<FGameplayTag, TUniquePtr<…>>` —— **裸 C++ 容器不经 GC 的 `RefLink`**，`TUniquePtr` 更不是 GC 可见持有，故步骤里的 `UPROPERTY` 对象引用（`TScriptInterface<ITcsDamageFlowDelegate>` 等）**不被保活**。失败形态是**静默回收**：跑到那一步取到空接口，表现为"公式不生效"而非崩溃。宿主被迫绕过（`UTcsDevBootstrap.h:135` 用 `UPROPERTY TObjectPtr` 强引用公式 delegate）即为实证。
+  - **规格缺口（本次补上）**：原规格只要求"地址稳定"（防 `TMap` 扩容搬移导致解释器持有的 C++ 引用悬空）——**地址稳定与 GC 可见是两件正交的事**，后者从未被写明。本次两条需求各补一句并声明正交关系。
+  - **修法**：两个子系统各覆写 `AddReferencedObjects`（**静态签名** `static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector)`），逐个定义调 `FReferenceCollector::AddPropertyReferencesWithStructARO`。**先例 = 引擎 `UDataTable::AddReferencedObjects` 对 `RowMap` 用的正是这一招**（`DataTable.cpp:300-318`）——同为"非 UPROPERTY 容器持 struct"场景。该 API 是 public（`UObjectGlobals.h:2929`），且能**递归进 `FInstancedStruct` 内层实例内存**（`InstancedStruct.cpp:506-524`），故 `TArray<FInstancedStruct>` 任意深度的引用都保得住。
+  - **验证**：Development + **Shipping** 双配置编译通过，零警告零错误。**⚠️ GC 场景未实证**：宿主当前用 `UPROPERTY` 强引用绕过（现成冗余保险），R3 无"无其他强引用的 delegate"夹具；规格新增的两个 Scenario 成立依据是**引擎源码机制**而非实测——台账 T-8 内已如实标注，待第一个不绕过的消费者或资产化轮补验。
+  - **未改**：登记/注销/查询 API、容器类型（`TUniquePtr` 保留——地址稳定仍需要）、宿主侧绕过（保留为冗余保险）。`FTcsAttributeStore` 已核不持对象引用，无需处理。
+
+- **2026-09-23 删除修正器族死字段 `Tag`（用户拍板）**：提案 `remove-dead-modifier-tag-field` → 归档 `2026-09-22-remove-dead-modifier-tag-field`（`attribute-types` 两条需求并入；规格库 **22/22** 全绿）。
+  - **字段**：`FTcsAttrModInstance` 与 `FTcsAttrModDefTableRow` 各有一个 `FName Tag`（注释"同来源内分组标签（可选）"），从旧 TCS 搬来（plan1 sketch `:422`）。用户 2026-09-23："之前是想着给 Attribute 加一些标签方便归类，但现在确实不需要。"
+  - **删除依据（两条）**：①**零消费者**——全库对 `Source/TcsAttribute/` 的 `.Tag` / `->Tag` 搜索**一处命中都没有**（命中的全是 `DefTag`/`TemplateTag`/`GetTagName()`）；折叠器不接收它、物化器不读它、级联撤销不读它。②**留着有害**——模板侧那份带 `UPROPERTY(EditAnywhere, BlueprintReadOnly)`，配置者在编辑器里看得见"同来源内分组标签"、填了却无任何效果；**死字段比缺字段更难查**（配置者会以为是自己用法不对）。
+  - **为什么不改成 tag**：2026-09-22 改造的口径是"**内容引用**改 tag"，而该字段不承担任何引用语义（不指向 Def / 参数键 / 黑板键）——给零消费者的字段换类型只是把问题包起来。规格已写明：将来若真需要"同来源内分组"，MUST 以 `FGameplayTag` 形态重新引入。
+  - **规格缺口（本次补上）**：`attribute-types` 原文把该字段写进权威形状且**明写"与 `FGameplayTag` 同名不同物"**——即规格此前把它当作一个真实能力登记着，而代码里从无消费者。本次两条需求各删字段，并各加一个"无分组标签字段"场景钉住。
+  - **验证**：Development + **Shipping** 双配置编译通过，零警告零错误。**编辑器内控件消失未亲眼验**（`UPROPERTY` 删除后控件必然消失，无运行期中间态）——如实标注。**兼容性**：R3 内容资产（`Content/TcsDev/`）中无任何修正器模板资产，故已存资产零影响。

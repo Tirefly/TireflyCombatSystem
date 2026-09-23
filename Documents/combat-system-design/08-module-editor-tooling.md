@@ -11,11 +11,11 @@
 
 ## 2. 校验器（编辑器期静态模拟）
 
-- **词表引用校验**：链内 `Param()` 键 ∈ 该技能 NumericParameters/BoolSwitches（D2-1/D5-5 注册表桥接）；触发行 EventTag ∈ 事件词汇；StateDefId ∈ 状态词表。
+- **词表引用校验**：链内 `Param()` 键 ∈ 该技能 NumericParameters/BoolSwitches（D2-1/D5-5 注册表桥接）；触发行 EventTag ∈ 事件词汇；`DefTag` ∈ 状态词表。**2026-09-22 tag 化后收窄**：拼写/存在性由 `FGameplayTag::IsValid()` 与 `RequestGameplayTag` 的 ensure 前移覆盖；本校验器剩的是"**已注册却指向不存在实体**"那一层（台账 T-10）。
 - **参数源四联矩阵（D5-18 v3 / D5-17 v3 / PV-10 合并交付物）**：`源类型 × 上下文类型 × 可配约定 × 视图兼容`——①可配约定白名单（Literal/表型源可配；`ParamRef`/`AttributeScaled` 禁配）；②**视图兼容 = 视图 `IsCompatible(Probe)` 虚函数**（内置 Series 要求可枚举源；宿主视图自声明需要什么）；③可失败源 Fallback 必填、等级表非空、ParamRef 禁自引用/成环（PV-8）；④上下文扩展 cast 合法性。**错误挂具体配置元素（可点击定位）+ 可操作建议**（如"此键源不支持整表，建议 InstigatorLevelArray"）；编辑器保存期即报。
 - **关系表静态检查**：Blocks/Requires 闭环与死锁预检（运行期 D2-3 的 SCC 是兜底，这里是前端）。
 - **濒死配置扫描**：定义了但永不可达的行/链/CueId（无事件源、条件恒假——`AttributeCompare` 用编译期已知常量判假）。
-- **孤儿扫描（orphan-scan 修复清单，TCS 实证缺陷）**：DefAsset 清理 = ①受管范围**白名单显式声明**（禁递归子目录隐式纳入）；②删除前必须**触发回写确认**；③重复 DefId 判孤儿**加缓冲期**（标记→人工复核→二次确认才删）。
+- **孤儿扫描（orphan-scan 修复清单，TCS 实证缺陷）**：DefAsset 清理 = ①受管范围**白名单显式声明**（禁递归子目录隐式纳入）；②删除前必须**触发回写确认**；③重复 `DefTag` 判孤儿**加缓冲期**（标记→人工复核→二次确认才删）。
 - 校验时机：保存期 + 手动"全量体检"按钮；结果 = 错误（阻断）/警告（放行+线索）。
 
 ## 3. 可视化（裁决 3：跟随数据形状，不做通用图编辑器）
@@ -33,8 +33,8 @@
 ## 5. DataTable 工具
 
 - 双轨同步继承 TCS 03 模式（Def 资产 ↔ 表行，Row struct 整体赋值）；热重载 → DefLibrary 增量校验（M6/M1 接口）。
-- **双轨制的职责分工（2026-09-17 用户口径，全 Def 族适用）**：**表 = 编辑期载体、资产 = 运行期载体**——DataTable 只服务策划批量编辑（表格/Excel 往返）与编辑器即时响应，**不作为运行期加载源**；运行期一律按 `DefId` 解析资产（资产制扩展性好：给定义加 Fragment 之类只动资产与载荷，消费面不动）。故同步器是**编辑器侧**工具（保存资产 → 刷新行 / 导入表 → 更新资产，冲突以资产为权威）；运行期零 DataTable 加载路径。
-- **Def 资产族统一基类 = `UPrimaryDataAsset`（2026-09-17 定）**：`UTcsStateDef` 家族 / `UTcsAttrModDef` / `UTcsSkillModDef` / `UTcsAttributeDef`——双轨的"资产轨"以主资产身份登记（`PrimaryAssetType` 对应族语义，`GetPrimaryAssetId` 给出"FName Id ↔ 资产"的解析锚点）。**表行轨同款组织（2026-09-17 四次复评）**：定义字段的唯一声明处是表行，资产组合持有它（字段集单份，不复制）——属性词表行 `FTcsAttributeDefTableRow` 与修正器模板行 `FTcsAttrModDefTableRow`，**两者的身份都是行名（行内不带 id 字段）**；对应资产的身份 = `[PrimaryAssetType, DefId/TemplateId]`（显式声明类型常量 + 覆写 `GetPrimaryAssetId`——**资产文件可自由改名/挪目录而不失联**）。**表格编辑局限在案**：修正器模板行含 `FTcsParamValue`（`TInstancedStruct`）列，CSV/Excel 往返不保留该列（引擎 CSV 导入无法表达多态实例结构）——模板行只支持编辑器内表格编辑；标量列仍可表格批量编辑。词表/Def 的装载与注册（含 `PrimaryAssetTypes` 注册）属 M6/M8 轮。**AttributeSet 的编辑面（D2-15，2026-09-17 裁决）**：`UTcsAttributeSetAsset` 是 Def 族新成员（`<族>Def` 命名标准 + `PrimaryAssetType` + 覆写 `GetPrimaryAssetId` 一体适用；命名待定，可作 `UTcsAttributeSetAsset` 或并入 **`TcsAttributeSet`**——按"`<族>Def`=定义资产"标准，Set 不是"Def"而是"组合声明"，故保留 `Set` 词根）；策划在资产里配 `TArray<FName> DefIds`（Def 资产主身份解析），**覆写列首版不做**；"情景 → Set"的对应关系住**实体侧配置**（组件引用），编辑器面只需能跳转/校验 DefId 有效性（与词表同款校验：未登记的 DefId = 保存期报错）。
+- **双轨制的职责分工（2026-09-17 用户口径，全 Def 族适用）**：**表 = 编辑期载体、资产 = 运行期载体**——DataTable 只服务策划批量编辑（表格/Excel 往返）与编辑器即时响应，**不作为运行期加载源**；运行期一律按 `DefTag` 解析资产（资产制扩展性好：给定义加 Fragment 之类只动资产与载荷，消费面不动）。故同步器是**编辑器侧**工具（保存资产 → 刷新行 / 导入表 → 更新资产，冲突以资产为权威）；运行期零 DataTable 加载路径。
+- **Def 资产族统一基类 = `UPrimaryDataAsset`（2026-09-17 定）**：`UTcsStateDef` 家族 / `UTcsAttrModDef` / `UTcsSkillModDef` / `UTcsAttributeDef`——双轨的"资产轨"以主资产身份登记（`PrimaryAssetType` 对应族语义，`GetPrimaryAssetId` 给出"**身份 tag ↔ 资产**"的解析锚点）。**表行轨同款组织（2026-09-17 四次复评；身份 2026-09-22 tag 化）**：定义字段的唯一声明处是表行，资产组合持有它（字段集单份，不复制）——属性词表行 `FTcsAttributeDefTableRow`（`DefTag + Def`）与修正器模板行 `FTcsAttrModDefTableRow`（`TemplateTag + 模板字段`）；**行内身份字段（`DefTag` / `TemplateTag`）才是内容身份，`RowName` 降为编辑期定位**（`FTableRowBase` 的键类型是引擎硬约束的 `FName`），二者 **MUST NOT 被要求同名**——同步器维护的是"两轨指向同一身份"，不再是"行名 ↔ 常量映射"；对应资产的身份 = `[PrimaryAssetType, DefTag.GetTagName()]`（显式声明类型常量 + 覆写 `GetPrimaryAssetId`——**资产文件可自由改名/挪目录而不失联**）。**表格编辑局限在案**：修正器模板行含 `FTcsParamValue`（`TInstancedStruct`）列，CSV/Excel 往返不保留该列（引擎 CSV 导入无法表达多态实例结构）——模板行只支持编辑器内表格编辑；标量列仍可表格批量编辑。词表/Def 的装载与注册（含 `PrimaryAssetTypes` 注册）属 M6/M8 轮。**AttributeSet 的编辑面（D2-15，2026-09-17 裁决）**：`UTcsAttributeSetAsset` 是 Def 族新成员（`<族>Def` 命名标准 + `PrimaryAssetType` + 覆写 `GetPrimaryAssetId` 一体适用；命名待定，可作 `UTcsAttributeSetAsset` 或并入 **`TcsAttributeSet`**——按"`<族>Def`=定义资产"标准，Set 不是"Def"而是"组合声明"，故保留 `Set` 词根）；策划在资产里配 `TArray<FGameplayTag> DefTags`（Def 资产主身份解析；2026-09-22 由 `TArray<FName> DefIds` 改 tag），**覆写列首版不做**；"情景 → Set"的对应关系住**实体侧配置**（组件引用），编辑器面只需能跳转/校验 `DefTag` 有效性（与词表同款校验：未登记的 tag = 保存期报错）。
 
 ## 6. 非目标
 

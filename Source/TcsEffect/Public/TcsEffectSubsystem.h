@@ -46,6 +46,25 @@ public:
 	// 已在到期堆里的挂起条目到期时按代际校验静默丢弃（无泄漏——条目由堆在回调后回收）
 	virtual void Deinitialize() override;
 
+	/**
+	 * GC 引用收集（**链定义登记表的 GC 可见持有**，2026-09-23 与 TcsDamage 同批修复 T-8）。
+	 *
+	 * 为什么必须自己实现：`ChainDefs` 是 `TMap<FGameplayTag, TUniquePtr<FTcsEffectChain>>`——
+	 * **裸 C++ 容器不经 GC 的 `RefLink`**，`TUniquePtr` 更不是 GC 可见持有。链步骤里可以放
+	 * **任意宿主自定义 struct**（D4-16 无公共基类、picker 不设限），只要那个 struct 带
+	 * `UPROPERTY` 对象引用（如 `TScriptInterface` 委托 / `TObjectPtr` 资产引用），GC 就看不见它，
+	 * 表现为**静默回收**——步骤跑到那里取到空引用，而非崩溃。
+	 *
+	 * 手法 = 逐链调 `FReferenceCollector::AddPropertyReferencesWithStructARO`
+	 * （引擎 `UDataTable::AddReferencedObjects` 对 `RowMap` 用的同一招，`DataTable.cpp:300`）——
+	 * 递归走步骤 struct 的反射属性，对带 `WithAddStructReferencedObjects` 的 `FInstancedStruct`
+	 * 会继续进内层实例内存（`InstancedStruct.cpp:506`）。
+	 *
+	 * @param InThis 本对象（引擎静态 ARO 签名约定，须自行 Cast）。
+	 * @param Collector GC 引用收集器。
+	 */
+	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
+
 #pragma endregion
 
 

@@ -12,7 +12,7 @@
 
 ## 2. 类型词汇（对外）
 
-- `FCueEvent`：`CueId(FName) + 上下文{Source/Target/位置/变量快照(FInstancedStruct)}`——**CueId 是引用不是配置**（D4-1 定案）：Niagara UserParam、Decal、MaterialParamCollection、程序化控制的参数映射全部住宿主适配层。
+- `FCueEvent`：`CueId(FGameplayTag) + 上下文{Source/Target/位置/变量快照(FInstancedStruct)}`——**CueId 是引用不是配置**（D4-1 定案）：Niagara UserParam、Decal、MaterialParamCollection、程序化控制的参数映射全部住宿主适配层。**身份 2026-09-22 tag 化**：CueId 由 `FName` 改 `FGameplayTag`（与全插件标识体系统一；Cue 词汇归项目，走项目 tag 表）。
 - `ICuePresenter`（UINTerface，宿主实现）：`OnCue(FCueEvent)`——宿主把 CueId 映射到具体表现资产与参数；**插件提供的是词汇，宿主提供的是演绎**。
 - 可合并标记：CueId 声明 `bMergeable`——帧末派发时同帧同类合并（一帧 5 次掉血 = 一个汇总飘字）。
 
