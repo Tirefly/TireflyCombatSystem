@@ -13,12 +13,12 @@
 ## 2. 类型词汇（对外）
 
 ### 2.1 选择器策略（策略模式取代枚举模式，用户拍板）
-- `FTcsTargetSelectorStrategy`（USTRUCT 反射基类，**纯虚 `Resolve(Context, 注入查询, OutTargets)`**——解析目标集写入 Context.Targets。**载体（D3-7 v3）**：USTRUCT 基类 + C++ 虚函数分派（StateTree 同构），Def/步骤以 `TInstancedStruct<FTcsTargetSelectorStrategy>` 成员持有；BP 策略扩展通道放弃（R0 §9"蓝图不承诺"承责），宿主扩展 = C++ 新 struct 子类）。
+- `FTcsTargetSelectorStrategy`（USTRUCT 反射基类，**纯虚 `Resolve(Context, 注入查询, OutTargets)`**——解析目标集写入 Context.Targets。**载体（D3-7 v3）**：USTRUCT 基类 + C++ 虚函数分派（StateTree 同构），Def/步骤以**裸 `FInstancedStruct`** 成员持有（2026-09-24 换型）；BP 策略扩展通道放弃（R0 §9"蓝图不承诺"承责），宿主扩展 = C++ 新 struct 子类）。
 - **默认实现（框架提供）**：
   - `FTcsSelSelf`——Context.Caster；
   - `FTcsSelEventTarget`——Context 事件载荷目标。
 - **后置项**：RadiusArea（范围选择）与 FTargetingShape（形状单一来源）整体后置——竖切剧本（单体选择）无消费者；形态（裸半径 vs 形状参数化）待真实需求出现时再定（走查样例 04 §9 例二为预演形态）。TagQuery/Instigator 同批后置。
-- **宿主扩展 = 新策略 struct 子类**（策略模式核心收益）：准星指向、链接目标等宿主本体论语义零框架改动；配置面 = `TInstancedStruct` 内嵌编辑（StructUtilsEditor 开箱：类型 picker + 内嵌展开 + TArray 专用 details，非 TSubclassOf 下拉）。
+- **宿主扩展 = 新策略 struct 子类**（策略模式核心收益）：准星指向、链接目标等宿主本体论语义零框架改动；配置面 = `FInstancedStruct` 内嵌编辑（StructUtilsEditor 开箱：类型 picker + 内嵌展开 + TArray 专用 details，非 TSubclassOf 下拉；2026-09-24 换型——`BaseStruct` 限定改由手写 metadata 提供）。
 - **与 FEntrySelector 的边界（D4-4 纠正记录）**：`FEntrySelector` 是 M5 域——选择技能参数修正器作用到哪些已学条目；不是目标选择器。两个词汇不混用。
 
 ### 2.2 过滤器策略（存活/敌对语义 = 宿主本体论）

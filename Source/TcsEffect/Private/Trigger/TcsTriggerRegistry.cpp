@@ -37,7 +37,7 @@ FTcsEffectTriggerHandle FTcsTriggerRegistry::RegisterRow(const FTcsEffectTrigger
 	check(Row != nullptr);
 
 	*Row = Instance;
-	Row->Self.Inner = Inner;
+	Row->Self.SetInner(Inner);
 
 	// 订阅装配：同 Tag 已有订阅则复用（计数配对的"首次出现才订"）
 	EnsureSubscription(Row->Def.EventTag, Bus);
@@ -47,33 +47,33 @@ FTcsEffectTriggerHandle FTcsTriggerRegistry::RegisterRow(const FTcsEffectTrigger
 		*Row->Def.EffectChainId.ToString(), Row->Def.Priority);
 
 	FTcsEffectTriggerHandle Result;
-	Result.Inner = Inner;
+	Result.SetInner(Inner);
 	return Result;
 }
 
 bool FTcsTriggerRegistry::UnregisterRow(FTcsEffectTriggerHandle Handle, UTcsEventBusSubsystem* Bus)
 {
 	// 代际校验：陈旧句柄是正常竞态（不 ensure），但 MUST 拒绝——否则会摘掉复用该槽位的新行
-	if (!Handle.IsValid() || !Rows.IsValidIndex(static_cast<int32>(Handle.Inner.Index)))
+	if (!Handle.IsValid() || !Rows.IsValidIndex(static_cast<int32>(Handle.Index)))
 	{
 		return false;
 	}
 
-	if (RowGenerations[Handle.Inner.Index] != Handle.Inner.Generation)
+	if (static_cast<int32>(RowGenerations[Handle.Index]) != Handle.Generation)
 	{
 		UE_LOG(LogTcsEffect, Verbose, TEXT("触发摘除：句柄 %u/%u 代际失配（当前 %u）——忽略"),
-			Handle.Inner.Index, Handle.Inner.Generation, RowGenerations[Handle.Inner.Index]);
+			Handle.Index, Handle.Generation, static_cast<int32>(RowGenerations[Handle.Index]));
 		return false;
 	}
 
-	const FGameplayTag EventTag = Rows[Handle.Inner.Index].Def.EventTag;
+	const FGameplayTag EventTag = Rows[Handle.Index].Def.EventTag;
 
 	// 清槽内容后归还（槽位内容不跨生命周期残留——与池的零策略纪律同款：调用方在归还前自行清理）
-	Rows[Handle.Inner.Index] = FTcsEffectTriggerInstance();
-	FreeSlot(Handle.Inner);
+	Rows[Handle.Index] = FTcsEffectTriggerInstance();
+	FreeSlot(Handle.GetInner());
 
 	UE_LOG(LogTcsEffect, Log, TEXT("触发摘除：行=%u/%u 事件=%s"),
-		Handle.Inner.Index, Handle.Inner.Generation, *EventTag.ToString());
+		Handle.Index, Handle.Generation, *EventTag.ToString());
 
 	// 订阅计数归零才退订
 	DropSubscriptionIfUnused(EventTag, Bus);
@@ -95,8 +95,8 @@ int32 FTcsTriggerRegistry::UnregisterRowsBySource(const FTcsSourceHandle& Source
 		if ((RowGenerations[SlotIndex] & 1u) == 1u && Rows[SlotIndex].Source == Source)
 		{
 			FTcsEffectTriggerHandle Handle;
-			Handle.Inner.Index = SlotIndex;
-			Handle.Inner.Generation = RowGenerations[SlotIndex];
+			Handle.Index = static_cast<int32>(SlotIndex);
+			Handle.Generation = static_cast<int32>(RowGenerations[SlotIndex]);
 			Targets.Add(Handle);
 		}
 	}
@@ -156,8 +156,8 @@ TTcsInstanceHandle<FTcsEffectTriggerTag> FTcsTriggerRegistry::AllocateSlot()
 	}
 
 	TTcsInstanceHandle<FTcsEffectTriggerTag> Handle;
-	Handle.Index = SlotIndex;
-	Handle.Generation = RowGenerations[SlotIndex];
+	Handle.Index = static_cast<int32>(SlotIndex);
+	Handle.Generation = static_cast<int32>(RowGenerations[SlotIndex]);
 	return Handle;
 }
 

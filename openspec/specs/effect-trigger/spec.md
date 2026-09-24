@@ -125,7 +125,8 @@ TBD - created by archiving change add-effect-trigger-row. Update Purpose after a
 - **点灯 API**：`SetTriggerGateTag(FGameplayTag, bool)` / `IsTriggerGateTagLit(FGameplayTag) const`——行级开关（`GateTags` 全部点亮才通过该道门）；
 - **观测 API**：`GetTriggerRowCount() const`（装置断言用）；
 - **求值器生命周期**：由门面在首次登记时创建并 **`UPROPERTY` 持有**——总线订阅表持**弱引用**（`FTcsEventSubscription::Handler` 是 `TWeakObjectPtr`），不 root 会被 GC 掉、订阅静默失效；
-- `Deinitialize` MUST 清空登记表 + **全量退订**（不留跨世界残留订阅）。
+- `Deinitialize` MUST 清空登记表 + **全量退订**（不留跨世界残留订阅）；
+- **脚本层可达（2026-09-24 补）**：上列方法中形参全为反射类型的部分（`RegisterTriggerRow` / `UnregisterTriggerRow` / `SetTriggerGateTag` / `IsTriggerGateTagLit` / `GetTriggerRowCount` / `SetTriggerRandomSeed`）MUST 标记 `UFUNCTION()`（无 specifier，口径见 `effect-interpreter` 的「门面反射面」需求）——这是"宿主用 C# 写技能/Buff 逻辑"的登记入口。**形参含非反射裸 struct 的 `UnregisterTriggerRowsBySource(const FTcsSourceHandle&)` 不在其列**（需先反射化 `FTcsSourceHandle`）。
 
 #### Scenario: 同一事件 Tag 的多行共用一个订阅
 
@@ -151,6 +152,11 @@ TBD - created by archiving change add-effect-trigger-row. Update Purpose after a
 
 - **WHEN** 门面 `Deinitialize`（世界销毁 / PIE 结束）
 - **THEN** 登记表清空且全部订阅被退订
+
+#### Scenario: 脚本层可登记触发行
+
+- **WHEN** 宿主脚本层（C#）调 `RegisterTriggerRow` 并传入一个 `FTcsEffectTriggerInstance`
+- **THEN** 调用成立（方法反射可见、形参类型 `FTcsEffectTriggerInstance` 反射可见），登记表行数 +1
 
 ### Requirement: 触发求值器与四道门
 
@@ -214,4 +220,22 @@ TBD - created by archiving change add-effect-trigger-row. Update Purpose after a
 
 - **WHEN** 对同一载荷类型再次 `Register`
 - **THEN** 拒绝并保留首个登记，留 ensure 提示
+
+### Requirement: 触发行句柄的反射性
+
+`FTcsEffectTriggerHandle` MUST 是**反射可见类型**（`USTRUCT()`）且**值可跨语言往返**——脚本层调 `RegisterTriggerRow` 接住行句柄、再把它传回 `UnregisterTriggerRow` 摘除该行（2026-09-24 随门面反射面同批落地）。
+
+- **字段 MUST 展平**（2026-09-24 实测修正，与 `FTcsChainRunHandle` 同根因同修法）：句柄 MUST 直接持有 `Index`/`Generation` 两个 `UPROPERTY int32` 字段，**MUST NOT** 内嵌 `TTcsInstanceHandle<T>`——后者是模板类型、无法作 `UPROPERTY`，会让绑定产物生成**空壳**（`ToNative`/`FromNative` 函数体为空）⇒ 脚本层接住句柄时读不到值、传回时写全零 ⇒ **代际失配、往返失效**（该缺陷在门面反射面打通前不可见——C# 此前根本调不到这些方法）；
+- `Index` MUST 为 `int32`（UHT 不支持 `uint32` 作属性类型）；**无效值 `-1` 与 `TTcsInstanceHandle::InvalidIndex(0xFFFFFFFF)` 位模式相同**——MUST 经唯一转换点（`GetInner`/`SetInner`）与登记表内句柄互转，保证往返无损；
+- **MUST NOT** 加 `BlueprintType`（口径同 `FTcsChainRunHandle`：运行期身份词、非配置数据；R0 §9 蓝图不承诺）。
+
+#### Scenario: 行句柄值可跨语言往返
+
+- **WHEN** 脚本层调 `RegisterTriggerRow` 接住返回的行句柄，随后原样传回 `UnregisterTriggerRow`
+- **THEN** 摘除成功（句柄值完整往返：`Index`/`Generation` 均保持，代际校验通过）
+
+#### Scenario: 行句柄字段可被脚本层读出
+
+- **WHEN** 脚本层读取接住的行句柄的 `Index` / `Generation`
+- **THEN** 读到的是登记表的真实值——绑定产物 MUST 为这两个字段生成真实的读写代码（非空壳）
 

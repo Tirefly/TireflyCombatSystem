@@ -25,7 +25,7 @@
  * 引擎实证 `SInstancedStructPicker.cpp:104`）。同款先例：本仓 `FTcsParamValueSource`。
  *
  * 扩展方式 = **C++ 新 struct 子类**（宿主本体论语义零框架改动；BP 通道放弃，R0 §9"蓝图不承诺"承责）。
- * 配置面经 `TInstancedStruct<FTcsTargetSelectorStrategy>` 内嵌编辑——`BaseStruct` 限定由 UHT 从模板实参
+ * 配置面经 `FInstancedStruct` 内嵌编辑（2026-09-24 换型）——`BaseStruct` 限定由手写 metadata 提供
  * 自动写入（引擎实证 `UhtStructProperty.cs:634`；属性上再显式写 `meta=(BaseStruct=…)` 会报错）。
  */
 USTRUCT(meta = (Hidden))

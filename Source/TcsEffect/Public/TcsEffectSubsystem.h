@@ -81,9 +81,15 @@ public:
 	 * 拒绝面（ensure 提示 + 返回 false）：`ChainId` 为空、同 id 重复登记
 	 * （定义重名 = 加载期错误，**不得静默覆写**——与属性词表登记同款口径）。
 	 *
+	 * **反射面（2026-09-24）**：`UFUNCTION()` **无 specifier** 是有意的——形参 `FTcsEffectChain`
+	 * 是 `USTRUCT()` 非 `BlueprintType`，加 `BlueprintCallable` 会被 UHT 拒（蓝图参数校验）；
+	 * 无 specifier 时 UHT 不校验参数，而宿主脚本层（UnrealSharp）照常可达。蓝图侧不可见属接受项
+	 * （R0 §9"蓝图不承诺"）。
+	 *
 	 * @param Chain 链定义（按值拷入登记表；TUniquePtr 持有使解释器持有的定义引用不随登记表增长而悬空）。
 	 * @return 返回是否登记成功。
 	 */
+	UFUNCTION()
 	bool RegisterChain(const FTcsEffectChain& Chain);
 
 	/**
@@ -91,18 +97,36 @@ public:
 	 * 运行中的链不因定义被抽走而悬空（定义释放与运行态解耦）。
 	 * 未登记的 id 属正常路径：Warning 日志 + 返回 false（不 ensure）。
 	 *
+	 * **反射面（2026-09-24）**：`UFUNCTION()` 无 specifier（理由同 `RegisterChain`）。
+	 *
 	 * @param ChainId 链 id。
 	 * @return 返回是否注销成功。
 	 */
+	UFUNCTION()
 	bool UnregisterChain(FGameplayTag ChainId);
 
 	/**
 	 * 查询链定义（未登记返回 nullptr——正常查询路径，不 ensure）。
 	 *
+	 * **无反射面（2026-09-24）**：返回**裸 struct 指针** `const FTcsEffectChain*`——UHT 不支持
+	 * struct 指针作反射返回（引擎全仓零先例），故本方法**仅 C++ 可用**。脚本层查"链是否已登记"
+	 * 走 `IsChainRegistered`（下）；脚本层**不需要**读链定义内容（链是它自己登记的）。
+	 *
 	 * @param ChainId 链 id。
 	 * @return 返回链定义；未登记返回 nullptr。
 	 */
 	const FTcsEffectChain* FindChain(FGameplayTag ChainId) const;
+
+	/**
+	 * 链定义是否已登记（**脚本层可达的查询口**——`FindChain` 返回裸指针，反射层表达不了）。
+	 *
+	 * **反射面（2026-09-24）**：`UFUNCTION()` 无 specifier；形参/返回全反射，无类型约束问题。
+	 *
+	 * @param ChainId 链 id。
+	 * @return 返回是否已登记。
+	 */
+	UFUNCTION()
+	bool IsChainRegistered(FGameplayTag ChainId) const;
 
 #pragma endregion
 
@@ -124,6 +148,7 @@ public:
 	 * @param Instance 触发实例（填 `Def` 与 `Source`；`Self` 由登记表覆写）。
 	 * @return 返回行句柄；拒绝时返回无效句柄。
 	 */
+	UFUNCTION()
 	FTcsEffectTriggerHandle RegisterTriggerRow(const FTcsEffectTriggerInstance& Instance);
 
 	/**
@@ -132,10 +157,14 @@ public:
 	 * @param Handle 行句柄。
 	 * @return 返回是否摘除成功。
 	 */
+	UFUNCTION()
 	bool UnregisterTriggerRow(FTcsEffectTriggerHandle Handle);
 
 	/**
 	 * 按来源全量摘除（级联退订锚点——与 M2 `RemoveBySource` 同款语义）。
+	 *
+	 * **无反射面（2026-09-24）**：形参 `FTcsSourceHandle` 是非反射纯 C++ struct（无 `USTRUCT` 宏）
+	 * ⇒ 反射层表达不了。脚本层若要按来源级联摘除，需先反射化该 struct（属台账 S-1 的 B 类未覆盖项）。
 	 *
 	 * @param Source 来源句柄。
 	 * @return 返回摘除的行数。
@@ -145,23 +174,39 @@ public:
 	/**
 	 * 点灯/灭灯（行级开关；`GateTags` **全部**点亮才通过该道门）。
 	 *
+	 * **反射面（2026-09-24）**：`UFUNCTION()` 无 specifier；形参全反射（tag + bool）。
+	 *
 	 * @param GateTag 开关 Tag。
 	 * @param bLit 是否点亮。
 	 */
+	UFUNCTION()
 	void SetTriggerGateTag(FGameplayTag GateTag, bool bLit);
 
-	// 开关是否点亮
+	/**
+	 * 开关是否点亮。
+	 *
+	 * **反射面（2026-09-24）**：`UFUNCTION()` 无 specifier。
+	 */
+	UFUNCTION()
 	bool IsTriggerGateTagLit(FGameplayTag GateTag) const;
 
-	// 登记行数（观测/装置断言用）
+	/**
+	 * 登记行数（观测/装置断言用）。
+	 *
+	 * **反射面（2026-09-24）**：`UFUNCTION()` 无 specifier。
+	 */
+	UFUNCTION()
 	int32 GetTriggerRowCount() const;
 
 	/**
 	 * 设置求值随机流种子（D0-1 确定性纪律：概率条件的随机值由门面供给——
 	 * 条件求值器内部 MUST NOT 取随机数）。默认 0 = 确定的固定序列（可复现）。
 	 *
+	 * **反射面（2026-09-24）**：`UFUNCTION()` 无 specifier。
+	 *
 	 * @param Seed 随机流种子。
 	 */
+	UFUNCTION()
 	void SetTriggerRandomSeed(int32 Seed);
 
 #pragma endregion
@@ -183,21 +228,53 @@ public:
 	FTcsChainRunHandle ExecuteChain(FGameplayTag ChainId, FTcsEffectContext Context);
 
 	/**
+	 * 脚本层起链入口（2026-09-24，提案 `add-scripting-reflection-surface`）：形参**全反射**——
+	 * 上下文由门面按 `Caster` 装配默认值（`Caster` = `Instigator` = 传入句柄，`Targets` = 仅该句柄）。
+	 *
+	 * **为什么需要它**：`ExecuteChain` 的形参 `FTcsEffectContext` 是**非反射纯 C++ struct**
+	 * （`Chain/TcsEffectContext.h:24`，无 `USTRUCT` 宏）⇒ 反射层表达不了、该方法的 `UFUNCTION`
+	 * 标记会让 UHT 报 `Unable to find 'struct' with name 'FTcsEffectContext'`（同款先例 =
+	 * `FTcsEffectTriggerInstance.Source` 与 `FTcsAttrModInstance.Source` 的既有编译实证）。
+	 * 故脚本层起链走本入口；**完整黑板**（自定义 `EventPayload` / `Variables` / 多目标）待上下文
+	 * 反射化落地后开放（台账 S-3）。
+	 *
+	 * 与 `UTcsCombatEntityComponent::ExecuteChainById` 的分工：那个从组件自持的实体句柄取 `Caster`
+	 * （有组件时更顺手）；本入口用于**没有组件、只持实体句柄**的纯逻辑脚本（如 Buff 系统）。
+	 *
+	 * **反射面**：`UFUNCTION()` 无 specifier（理由同 `RegisterChain`——`FTcsCombatEntityHandle`
+	 * 虽是 `BlueprintType`，但 `FTcsChainRunHandle` 不是，蓝图参数校验会拦）。
+	 *
+	 * @param ChainId 链 id。
+	 * @param Caster 施法者实体句柄（同时作为 `Instigator` 与默认目标）。
+	 * @return 返回运行态句柄；仅在链未走完时有效。
+	 */
+	UFUNCTION()
+	FTcsChainRunHandle ExecuteChainForCaster(FGameplayTag ChainId, FTcsCombatEntityHandle Caster);
+
+	/**
 	 * 唤醒重入（唤醒源入口：到期堆回调 / 事件 / 子链完成）：从运行态 PC 续走，直至再次挂起或走完。
 	 * 悬空、已释放、世界将拆的句柄**静默返回 false**——挂起条目与运行态的竞态是正常路径
 	 * （代际校验拦截），不是契约违规。
 	 *
+	 * **反射面（2026-09-24）**：`UFUNCTION()` 无 specifier；形参 `FTcsChainRunHandle` 已升格
+	 * `USTRUCT()`（见 `TcsChainRun.h`）。
+	 *
 	 * @param Handle 运行态句柄。
 	 * @return 返回是否处理了唤醒（句柄有效）。
 	 */
+	UFUNCTION()
 	bool ResumeRun(FTcsChainRunHandle Handle);
 
 	/**
 	 * 运行态是否仍活动（句柄经池代际校验；无效/已释放句柄返回 false）。
 	 *
+	 * **反射面（2026-09-24）**：`UFUNCTION()` 无 specifier；形参 `FTcsChainRunHandle` 已升格
+	 * `USTRUCT()`——这是脚本层"接住句柄 → 传回查询"闭环的另一半。
+	 *
 	 * @param Handle 运行态句柄。
 	 * @return 返回是否活动。
 	 */
+	UFUNCTION()
 	bool IsRunActive(FTcsChainRunHandle Handle) const;
 
 #pragma endregion
@@ -217,6 +294,11 @@ public:
 
 	/**
 	 * 取实体查询实现（未注入返回 nullptr——"能力尚未注入"是配置状态，不 ensure）。
+	 *
+	 * **无反射面（2026-09-24）**：本对（`SetEntityQuery`/`GetEntityQuery`）与实体查询契约
+	 * `ITcsEntityQuery` 一起归台账 **S-5**——该接口三方法零 `UFUNCTION` 且形参含 `TFunctionRef`
+	 * （头文件自注"C++ 专用面：蓝图不可表达"），须先换签名。在 `ITcsEntityQuery` 反射化之前，
+	 * 脚本层无法实现实体查询、故也无需经反射注入它。**本对方法保持纯 C++**。
 	 *
 	 * @return 返回实体查询实现；未注入返回 nullptr。
 	 */

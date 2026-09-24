@@ -23,7 +23,7 @@
 - **条件最小集（D4-5 已拍板）**：`HasAllTags / AttributeCompare(Attr,Op,Value|Attr) / VariableCompare / GateCheck(读 BoolSwitches) / Chance(概率)` + Custom 逃逸位——无表达式语言。
 
 ### 2.3 目标选择（D4-4 终定；**v2 策略化**——D4-4 v2/D4-15 v2，规格详见 10-module-targeting.md）
-- **策略模式（D4-4 v2，2026-09-02 审阅轮 5 后用户拍板；载体经 D3-7 v3 修订）**：`FTcsTargetSelectorStrategy` / `FTcsTargetFilterStrategy` USTRUCT 纯虚基类 + `TInstancedStruct` 持有（StateTree 同构，规格见 10 文档 v3）；默认实现 Self/EventTarget；Filter 语义宿主实现（存活/敌对=宿主本体论）；RadiusArea/FTargetingShape 后置（竖切无消费者）。
+- **策略模式（D4-4 v2，2026-09-02 审阅轮 5 后用户拍板；载体经 D3-7 v3 修订）**：`FTcsTargetSelectorStrategy` / `FTcsTargetFilterStrategy` USTRUCT 纯虚基类 + **裸 `FInstancedStruct`** 持有（2026-09-24 换型；StateTree 同构，规格见 10 文档 v3）；默认实现 Self/EventTarget；Filter 语义宿主实现（存活/敌对=宿主本体论）；RadiusArea/FTargetingShape 后置（竖切无消费者）。
 - **战斗步骤不内嵌 selector（D4-4 v2 改口）**：目标消费 `Context.Targets`——**Context 默认目标初始化=事件目标**（单步链零 SelectTargets 直接消费）；"一个技能多效果、各有目标"用顺序 SelectTargets 步骤表达（目标集=链上显式数据流）。
 - **归属（D4-15）**：策略契约+默认实现+SelectTargets 执行器住 TcsTargeting 模块（实体查询注入 ICombatEntityQuery）；指示器渲染归宿主/LAC。
 - §9 走查样例中的 RadiusArea 等为**全量预演形态**（M5 世界）；R3 竖切目标选择形态见 10 文档 v2 验收钩子。
@@ -52,7 +52,7 @@
 ## 5. Authoring 边界与代码路径（分离宪法 R0 §8 落地）
 
 - **链的修改三通道**：①开启分支 = BoolSwitches/参数 → 链内 Branch/GateCheck；②幅度 = 字段写成 Param() → 参数账本；③结构变化 = 变体链（策划预创作）+ 链重定向选路。**不做运行时步骤级补丁**（Insert/Remove/PatchField）——链是 Const 共享数据，补丁合并语义是 bug 温床。
-- **Authoring 纪律**：可预见会被修改的字段，创作时写成 ParamRef 源（载体 = **FTcsParamValue{TInstancedStruct<FTcsParamValueSource>}**，PV 系列 2026-09-11 取代 D2-12 FTcsParamScalar）——参数覆盖度是策划的创作自由度决策。
+- **Authoring 纪律**：可预见会被修改的字段，创作时写成 ParamRef 源（载体 = **FTcsParamValue{FInstancedStruct}**，PV 系列 2026-09-11 取代 D2-12 FTcsParamScalar（载体 2026-09-24 换裸））——参数覆盖度是策划的创作自由度决策。
 - **语言无关执行器（D4-17 终定）**：插件**不内嵌任何脚本引擎**（AngelScript/C#/TS 是宿主选择，插件不关注）；注册**双入口**——C++ 静态自注册宏 + **反射可达动态委托入口**（脚本层调用同一注册表）；蓝图理论可行（动态委托）不作为设计目标；**R3 纯 C++、无脚本集成**。
 - **Skill Logic 需要代码的四条路径**（代码技能是一等公民）：①Custom 原语类型；②决策 Fragment；③链外代码 + 事件协作；④整技能代码化（单 Custom 步骤链，账本/冷却/门禁/打断照常）。框架不强制策划化。
 
@@ -62,7 +62,13 @@
 
 ## 7. 非目标
 
-不做 K2/脚本调用层；不做 Timeline（曲线参数留活口）；不做图编辑器（M8 只读视图先行）；不做条件表达式语言；不做公式；**不内嵌任何脚本引擎**（宿主选择 AS/C#/TS，插件只保证注册入口反射可达）。
+不做 Timeline（曲线参数留活口）；不做图编辑器（M8 只读视图先行）；不做条件表达式语言；不做公式；**不内嵌任何脚本引擎**（宿主选择 AS/C#/TS）。
+
+**脚本调用层（2026-09-24 更新）**：门面 API 的**反射面已落地**（提案 `add-scripting-reflection-surface`，PIE 实测通过）——`UTcsEffectSubsystem` 的链登记/触发登记/执行查询/点灯等门面方法、以及 `UTcsAttributeSubsystem` 的实体注册与属性读写，均以 `UFUNCTION()`（**无 specifier**）标记，宿主脚本层（UnrealSharp/C#）可直接调用。
+
+- **无 specifier 是有意的**：形参含 `FTcsEffectChain` / `FTcsEffectTriggerInstance` 等 `USTRUCT()` 非 `BlueprintType` 载体，加 `BlueprintCallable` 会被 UHT 的蓝图参数校验拒绝；无 specifier 时 UHT 不校验参数、脚本层照常可达。
+- **蓝图侧仍不承诺**（R0 §9）：本批标记**不**扩大蓝图承诺面——这是"语言无关执行器"预留的兑现，不是蓝图支持。
+- **仍未落地**：三张注册表的**反射注册入口**（`Register` 形参是 `TFunction`，不可反射——台账 S-2）；上下文/运行态反射化（台账 S-3，含 `FTcsDamageFlowContext` 深处 `TFunction` 的物理约束）；`ITcsEntityQuery` / `ITcsDamageFlowDelegate` 反射化（台账 S-5 / S-4）。**（台账 S-6 已消费：`TInstancedStruct<T>` 字段的脚本侧可配性已由 2026-09-24 换型解决）**
 
 ## 8. 依据
 

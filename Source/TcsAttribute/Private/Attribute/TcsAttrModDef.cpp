@@ -62,8 +62,12 @@ EDataValidationResult UTcsAttrModDef::IsDataValid(
 			Context.AddError(FText::FromString(TEXT("配了值约定列，但数值来源为空：约定无从作用，请先配置 Operand.Literal 的数值来源")));
 			Result = EDataValidationResult::Invalid;
 		}
-		else if (!Def.Operand.Literal.Source.Get().AllowsValueConvention())
+		else if (const FTcsParamValueSource* Source = Def.Operand.Literal.Source.GetPtr<FTcsParamValueSource>();
+			!Source || !Source->AllowsValueConvention())
 		{
+			// 换型连带（2026-09-24，提案 switch-strategy-carrier-to-plain-instanced-struct）：
+			// 裸 FInstancedStruct 无编译期类型限定 ⇒ 用 GetPtr 判空（异族赋值不再编译报错，
+			// 运行期 IsChildOf 校验失败返回 nullptr——按"不允许约定"处理，与"源为空"区分见上一条分支）
 			const UScriptStruct* SourceStruct = Def.Operand.Literal.Source.GetScriptStruct();
 			const FString SourceName = SourceStruct ? SourceStruct->GetName() : TEXT("<未知来源>");
 

@@ -63,26 +63,26 @@ void FTcsTriggerRegistry::CollectRowsForTag(FGameplayTag EventTag, TArray<FTcsEf
 		}
 
 		FTcsEffectTriggerHandle Handle;
-		Handle.Inner.Index = SlotIndex;
-		Handle.Inner.Generation = RowGenerations[SlotIndex];
+		Handle.Index = static_cast<int32>(SlotIndex);
+		Handle.Generation = static_cast<int32>(RowGenerations[SlotIndex]);
 		OutHandles.Add(Handle);
 	}
 }
 
 const FTcsEffectTriggerInstance* FTcsTriggerRegistry::FindRow(FTcsEffectTriggerHandle Handle) const
 {
-	if (!Handle.IsValid() || !Rows.IsValidIndex(static_cast<int32>(Handle.Inner.Index)))
+	if (!Handle.IsValid() || !Rows.IsValidIndex(static_cast<int32>(Handle.Index)))
 	{
 		return nullptr;
 	}
 
 	// 代际校验：悬空/已摘除返回 nullptr（正常竞态，不 ensure）
-	if (RowGenerations[Handle.Inner.Index] != Handle.Inner.Generation)
+	if (static_cast<int32>(RowGenerations[Handle.Index]) != Handle.Generation)
 	{
 		return nullptr;
 	}
 
-	return &Rows[Handle.Inner.Index];
+	return &Rows[Handle.Index];
 }
 
 bool FTcsTriggerRegistry::HasRowForTag(FGameplayTag EventTag) const
@@ -111,7 +111,7 @@ void FTcsTriggerRegistry::SortRowsByPriority(TArray<FTcsEffectTriggerHandle>& Ha
 		if (!InstanceA || !InstanceB)
 		{
 			// 快照后被摘除的行：排序期无定义序，退化为下标序（随后求值期代际校验会跳过它）
-			return A.Inner.Index < B.Inner.Index;
+			return A.Index < B.Index;
 		}
 
 		if (InstanceA->Def.Priority != InstanceB->Def.Priority)
@@ -119,7 +119,7 @@ void FTcsTriggerRegistry::SortRowsByPriority(TArray<FTcsEffectTriggerHandle>& Ha
 			return InstanceA->Def.Priority > InstanceB->Def.Priority;
 		}
 
-		return A.Inner.Index < B.Inner.Index;
+		return A.Index < B.Index;
 	});
 }
 

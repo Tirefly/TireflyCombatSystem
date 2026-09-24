@@ -91,7 +91,11 @@ bool UTcsEffectSubsystem::UnregisterChain(FGameplayTag ChainId)
 
 	if (HasActiveRunForChain(ChainId))
 	{
-		ensureMsgf(false, TEXT("UTcsEffectSubsystem::UnregisterChain: 链 %s 仍有活动运行态——拒绝注销（运行态不因定义被抽走而悬空）"),
+		// 有活动运行态 = **时序竞态**（链还在跑就要求摘定义），不是配置错误——
+		// 故与"未登记"同口径用 Warning + 返回 false，不 ensure（本函数内两种拒绝面口径统一）。
+		// 理由：脚本层"起一条挂起链后想注销"是完全正常的调用序列（实测先例 2026-09-24：
+		// 会产出红字噪音，而红字应留给真实缺陷——见 D0-6 日志纪律）。
+		UE_LOG(LogTcsEffect, Warning, TEXT("UTcsEffectSubsystem::UnregisterChain: 链 %s 仍有活动运行态——拒绝注销（运行态不因定义被抽走而悬空）"),
 			*ChainId.ToString());
 		return false;
 	}
@@ -106,6 +110,11 @@ const FTcsEffectChain* UTcsEffectSubsystem::FindChain(FGameplayTag ChainId) cons
 {
 	const TUniquePtr<FTcsEffectChain>* Found = ChainDefs.Find(ChainId);
 	return (Found && Found->IsValid()) ? Found->Get() : nullptr;
+}
+
+bool UTcsEffectSubsystem::IsChainRegistered(FGameplayTag ChainId) const
+{
+	return FindChain(ChainId) != nullptr;
 }
 
 
@@ -123,9 +132,9 @@ FTcsChainRunHandle UTcsEffectSubsystem::ExecuteChain(FGameplayTag ChainId, FTcsE
 	}
 
 	FTcsChainRunHandle Handle;
-	Handle.Inner = RunPool.Allocate();
+	Handle.SetInner(RunPool.Allocate());
 
-	FTcsChainRun* Run = RunPool.Resolve(Handle.Inner);
+	FTcsChainRun* Run = RunPool.Resolve(Handle.GetInner());
 	Run->ChainId = ChainId;
 	Run->PC = 0;
 	Run->Context = MoveTemp(Context);
@@ -143,17 +152,29 @@ FTcsChainRunHandle UTcsEffectSubsystem::ExecuteChain(FGameplayTag ChainId, FTcsE
 	return Handle;
 }
 
+FTcsChainRunHandle UTcsEffectSubsystem::ExecuteChainForCaster(FGameplayTag ChainId, FTcsCombatEntityHandle Caster)
+{
+	// 上下文装配：Caster = Instigator = 传入句柄，Targets = 仅该句柄
+	// （D4-4 v2"默认目标 = 事件目标"；脚本层入口无事件载荷，故以 Caster 为默认目标）
+	FTcsEffectContext Context;
+	Context.Caster = Caster;
+	Context.Instigator = Caster;
+	Context.Targets.Add(Caster);
+
+	return ExecuteChain(ChainId, MoveTemp(Context));
+}
+
 bool UTcsEffectSubsystem::ResumeRun(FTcsChainRunHandle Handle)
 {
 	ensure(IsInGameThread());
 
 	// 代际校验：句柄悬空 / 运行态已释放 / 世界将拆 = 正常竞态，静默返回（不 ensure）
-	if (!RunPool.IsValid(Handle.Inner))
+	if (!RunPool.IsValid(Handle.GetInner()))
 	{
 		return false;
 	}
 
-	if (FTcsChainRun* Run = RunPool.Resolve(Handle.Inner))
+	if (FTcsChainRun* Run = RunPool.Resolve(Handle.GetInner()))
 	{
 		UE_LOG(LogTcsEffect, Log, TEXT("UTcsEffectSubsystem: 链 %s 唤醒（PC=%d）"), *Run->ChainId.ToString(), Run->PC);
 	}
@@ -164,7 +185,7 @@ bool UTcsEffectSubsystem::ResumeRun(FTcsChainRunHandle Handle)
 
 bool UTcsEffectSubsystem::IsRunActive(FTcsChainRunHandle Handle) const
 {
-	return RunPool.IsValid(Handle.Inner);
+	return RunPool.IsValid(Handle.GetInner());
 }
 
 
@@ -193,7 +214,7 @@ void UTcsEffectSubsystem::RunFrom(FTcsChainRunHandle Handle)
 	while (true)
 	{
 		// 池元素住连续缓冲、扩容即搬移（引擎事实 2026-09-17）——每步入器前按句柄重解析
-		FTcsChainRun* Run = RunPool.Resolve(Handle.Inner);
+		FTcsChainRun* Run = RunPool.Resolve(Handle.GetInner());
 		if (!Run)
 		{
 			return;
@@ -252,7 +273,7 @@ void UTcsEffectSubsystem::RunFrom(FTcsChainRunHandle Handle)
 		}
 
 		// 步骤执行期间可能新增运行态（池扩容即搬移）——推进 PC 前重新解析
-		FTcsChainRun* AdvancedRun = RunPool.Resolve(Handle.Inner);
+		FTcsChainRun* AdvancedRun = RunPool.Resolve(Handle.GetInner());
 		if (!AdvancedRun)
 		{
 			return;
@@ -263,12 +284,12 @@ void UTcsEffectSubsystem::RunFrom(FTcsChainRunHandle Handle)
 
 void UTcsEffectSubsystem::ReleaseRun(FTcsChainRunHandle Handle)
 {
-	if (!RunPool.IsValid(Handle.Inner))
+	if (!RunPool.IsValid(Handle.GetInner()))
 	{
 		return;
 	}
 
-	FTcsChainRun* Run = RunPool.Resolve(Handle.Inner);
+	FTcsChainRun* Run = RunPool.Resolve(Handle.GetInner());
 
 	// 清黑板与唤醒锚：槽位内容不跨生命周期残留（池 Free 不清零——池零策略纪律）
 	Run->ChainId = FGameplayTag();
@@ -279,7 +300,7 @@ void UTcsEffectSubsystem::ReleaseRun(FTcsChainRunHandle Handle)
 	Run->PendingExpiry = FTcsTimeEntryHandle();
 	Run->bHasPendingExpiry = false;
 
-	RunPool.Free(Handle.Inner);
+	RunPool.Free(Handle.GetInner());
 }
 
 bool UTcsEffectSubsystem::HasActiveRunForChain(FGameplayTag ChainId)

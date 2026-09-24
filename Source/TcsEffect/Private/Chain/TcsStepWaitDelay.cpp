@@ -60,7 +60,8 @@ namespace
 		const TWeakObjectPtr<UTcsEffectSubsystem> WeakOwner = Run.Owner;
 
 		// 到期唤醒：按运行态句柄重入（门面做代际校验——运行态已释放则静默丢弃）
-		Run.PendingExpiry = Clock->PushExpiry(DueTime, Self.Inner.Index,
+		// OwnerId 取池内槽位索引（句柄已展平为 int32 字段，经 GetInner 保位模式一致）
+		Run.PendingExpiry = Clock->PushExpiry(DueTime, Self.GetInner().Index,
 			[WeakOwner, Self](uint64 /*OwnerId*/)
 			{
 				if (UTcsEffectSubsystem* Subsystem = WeakOwner.Get())

@@ -128,9 +128,15 @@ public:
 	 * 未注册的链 id → Error 日志 + 无效句柄（不崩溃）；全即时链在返回前已走完，句柄活性由
 	 * `UTcsEffectSubsystem::IsRunActive` 判定。
 	 *
+	 * **反射面（2026-09-24，提案 `add-scripting-reflection-surface`）**：`UFUNCTION()` **无 specifier**
+	 * 是有意的——返回 `FTcsChainRunHandle` 是 `USTRUCT()` 非 `BlueprintType`，加 `BlueprintCallable`
+	 * 会被 UHT 拒（蓝图参数校验）；无 specifier 时宿主脚本层（UnrealSharp）照常可达。
+	 * 蓝图侧不可见属接受项（R0 §9"蓝图不承诺"）。
+	 *
 	 * @param ChainId 链 id（调用方给出——组件不认识具体链）。
 	 * @return 返回运行态句柄（仅在链未走完时有效）。
 	 */
+	UFUNCTION()
 	FTcsChainRunHandle ExecuteChainById(FGameplayTag ChainId) const;
 
 #pragma endregion

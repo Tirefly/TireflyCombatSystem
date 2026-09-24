@@ -21,19 +21,50 @@ struct FTcsEffectTriggerTag {};
 /**
  * 触发实例句柄（登记表内定位；见 `TcsEffectTriggerInstance` 的持有形态说明）。
  * 句柄**无池上下文**（登记表是 `TArray` 非池），故只判"是否曾被赋值"——代际校验不适用。
+ *
+ * **展平形态（2026-09-24，与 `FTcsChainRunHandle` 同批修正）**：字段**直接存 `Index`/`Generation`**，
+ * 不内嵌 `TTcsInstanceHandle<T>`——后者是模板类型、**无法作 `UPROPERTY`**，会让 C# 侧生成空壳
+ * （`ToNative`/`FromNative` 空函数体）⇒ 脚本层 `RegisterTriggerRow` 接住句柄、传回
+ * `UnregisterTriggerRow` 时值全为零 ⇒ **句柄往返失效**（同 `FTcsChainRunHandle` 的实测缺陷，
+ * 同根因同修法）。展平后可反射 ⇒ 往返成立。
  */
 USTRUCT()
 struct TCSEFFECT_API FTcsEffectTriggerHandle
 {
 	GENERATED_BODY()
 
-	// 登记表内下标句柄
-	TTcsInstanceHandle<FTcsEffectTriggerTag> Inner;
+	// 登记表内槽位索引（-1 = 无效）
+	UPROPERTY()
+	int32 Index = -1;
+
+	// 代际计数（槽位复用时 +1，旧句柄凭失配判悬空）
+	UPROPERTY()
+	int32 Generation = 0;
 
 	// 句柄有效性
 	bool IsValid() const
 	{
-		return Inner.IsValid();
+		return Index != -1;
+	}
+
+	/**
+	 * 转为登记表内句柄（唯一转换点——避免各处自行拼装）。
+	 *
+	 * `static_cast` 保证位模式一致：`-1` → `0xFFFFFFFF`（`TTcsInstanceHandle::InvalidIndex`）。
+	 */
+	TTcsInstanceHandle<FTcsEffectTriggerTag> GetInner() const
+	{
+		TTcsInstanceHandle<FTcsEffectTriggerTag> Inner;
+		Inner.Index = static_cast<uint32>(Index);
+		Inner.Generation = static_cast<uint32>(Generation);
+		return Inner;
+	}
+
+	// 从登记表内句柄赋值（唯一转换点，与 GetInner 对称）
+	void SetInner(const TTcsInstanceHandle<FTcsEffectTriggerTag>& Inner)
+	{
+		Index = static_cast<int32>(Inner.Index);
+		Generation = static_cast<int32>(Inner.Generation);
 	}
 };
 

@@ -60,16 +60,25 @@ public:
 	 * 注册单位：发放实体身份句柄并建空属性容器。
 	 * 发号说明：R3 由本门面发号；M6 世界注册表落地后移交发号（句柄类型与消费者签名不变）。
 	 *
+	 * **反射面（2026-09-24，提案 `add-scripting-reflection-surface`）**：`UFUNCTION()` 无 specifier
+	 * 是有意的——形参/返回全反射，但同批口径统一（避免蓝图参数校验带来的隐式承诺面）。
+	 * 本方法是**脚本层起链的必要前置**：没有注册实体就没有合法的 `Caster` 句柄，
+	 * 伤害流程会因"单位未注册"而 ensure（实测先例）。
+	 *
 	 * @param UnitName 单位名（调试/屏显用，不参与键控——同名单位可共存）。
 	 * @return 返回新单位的实体句柄（永不为无效值）。
 	 */
+	UFUNCTION()
 	FTcsCombatEntityHandle RegisterUnit(FName UnitName);
 
 	/**
 	 * 注销单位：释放该单位的全部属性实例与注册记录。
 	 *
+	 * **反射面（2026-09-24）**：`UFUNCTION()` 无 specifier（口径同上）。
+	 *
 	 * @param Unit 单位句柄；未注册或已注销的句柄 ensure 拦截并忽略。
 	 */
+	UFUNCTION()
 	void UnregisterUnit(FTcsCombatEntityHandle Unit);
 
 	/**
@@ -130,6 +139,7 @@ public:
 	 * @param Attribute 属性身份 tag（= 定义资产 `DefTag`）。
 	 * @return 返回是否添加成功。
 	 */
+	UFUNCTION()
 	bool AddAttribute(
 		FTcsCombatEntityHandle Unit,
 		const FGameplayTag& Attribute);
@@ -144,6 +154,7 @@ public:
 	 * @param NewBaseValue 新的基础值。
 	 * @return 返回是否改写成功。
 	 */
+	UFUNCTION()
 	bool SetBaseValue(
 		FTcsCombatEntityHandle Unit,
 		const FGameplayTag& Attribute,
@@ -178,16 +189,22 @@ public:
 	 * @param Unit 单位句柄。
 	 * @param Attribute 属性名。
 	 * @return 返回当前值。
+	 * **反射面（2026-09-24）**：`UFUNCTION()` 无 specifier（口径同 `RegisterUnit`）——
+	 * 脚本层读属性当前值是常见需求（写 Buff 逻辑要按血量分支）。
 	 */
+	UFUNCTION()
 	double EvaluateCurrent(FTcsCombatEntityHandle Unit, const FGameplayTag& Attribute);
 
 	/**
 	 * 读未提交候选值（预览；不落账、不广播）。无进行中的批时等同求值当前值。
 	 *
+	 * **反射面（2026-09-24）**：`UFUNCTION()` 无 specifier（口径同上）。
+	 *
 	 * @param Unit 单位句柄。
 	 * @param Attribute 属性名。
 	 * @return 返回候选值。
 	 */
+	UFUNCTION()
 	double PeekPending(FTcsCombatEntityHandle Unit, const FGameplayTag& Attribute);
 
 	/**

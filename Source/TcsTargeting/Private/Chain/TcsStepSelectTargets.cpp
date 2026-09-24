@@ -54,7 +54,7 @@ namespace
 		for (const FTcsCombatEntityHandle& Candidate : Candidates)
 		{
 			bool bPassedAllFilters = true;
-			for (const TInstancedStruct<FTcsTargetFilterStrategy>& FilterStruct : Step->Filters)
+			for (const FInstancedStruct& FilterStruct : Step->Filters)
 			{
 				const FTcsTargetFilterStrategy* Filter = FilterStruct.GetPtr<FTcsTargetFilterStrategy>();
 				if (!Filter)

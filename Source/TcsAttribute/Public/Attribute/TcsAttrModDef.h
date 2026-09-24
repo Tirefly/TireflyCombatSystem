@@ -29,7 +29,7 @@
  * 二者 MUST NOT 被要求同名；一致性由 M8 同步器维护。
  * 模板字段 MUST 只在本结构声明一次，资产侧组合持有（不得复制字段集）。
  *
- * 表格编辑局限（记录在案）：`Operand.Literal` 是 `FTcsParamValue`（`TInstancedStruct` 载荷），
+ * 表格编辑局限（记录在案）：`Operand.Literal` 是 `FTcsParamValue`（`FInstancedStruct` 载荷），
  * CSV/Excel 往返**不会**保留该列（引擎 CSV 导入无法表达多态实例结构）——本表行只支持
  * **编辑器内表格编辑**；标量列（Target/Op/ValueConvention/SortKey）仍可表格批量编辑。
  */

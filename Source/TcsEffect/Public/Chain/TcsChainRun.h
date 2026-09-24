@@ -9,6 +9,8 @@
 
 #include "Chain/TcsEffectContext.h"
 
+#include "TcsChainRun.generated.h"
+
 class UTcsEffectSubsystem;
 
 
@@ -20,16 +22,61 @@ struct FTcsChainRunTag
 
 
 
-// 链运行态句柄（唤醒回入口锚点；句柄配对清理——复用 TTcsInstancePool 机制）
-struct FTcsChainRunHandle
+/**
+ * 链运行态句柄（唤醒回入口锚点；句柄配对清理——复用 TTcsInstancePool 机制）。
+ *
+ * **反射性（2026-09-24 升格，提案 `add-scripting-reflection-surface`）**：本句柄是脚本层与宿主
+ * 消费"起链结果"的唯一身份词——脚本层调 `ExecuteChain` 接住它、再传回 `IsRunActive`/`ResumeRun`
+ * 查询与唤醒。
+ *
+ * **展平形态（2026-09-24 实测修正）**：字段**直接存 `Index`/`Generation`**，不内嵌
+ * `TTcsInstanceHandle<T>`——原因是后者**是模板类型、无法作 `UPROPERTY`**，导致 C# 侧生成空壳
+ * （`ToNative`/`FromNative` 函数体为空）⇒ 脚本层接住句柄时读不到值、传回时写全零 ⇒
+ * **代际失配、句柄往返失效**（实测：`Allocate()` 给 `{Index=0, Generation=1}`，C# 传回
+ * `{0, 0}`，`IsValid` 判 false）。展平后可反射 ⇒ 往返成立。
+ * 先例 = `FTcsCombatEntityHandle`（同为展平的 `int64 Id`）。
+ *
+ * **`Index` 用 `int32` 而非 `uint32`**：UHT 不支持 `uint32` 作属性类型（`int64` 亦同源约束），
+ * 故取 `int32`；**无效值 `-1` 与 `TTcsInstanceHandle::InvalidIndex(0xFFFFFFFF)` 位模式相同**，
+ * 经 `GetInner`/`SetInner` 转换无损。
+ */
+USTRUCT()
+struct TCSEFFECT_API FTcsChainRunHandle
 {
-	// 池内句柄
-	TTcsInstanceHandle<FTcsChainRunTag> Inner;
+	GENERATED_BODY()
+
+	// 池内槽位索引（-1 = 无效）
+	UPROPERTY()
+	int32 Index = -1;
+
+	// 代际计数（Free 时 +1，旧句柄凭失配判悬空）
+	UPROPERTY()
+	int32 Generation = 0;
 
 	// 句柄有效性（代际校验由池在解析/释放时执行）
 	bool IsValid() const
 	{
-		return Inner.IsValid();
+		return Index != -1;
+	}
+
+	/**
+	 * 转为池句柄（唯一转换点——避免各处自行拼装）。
+	 *
+	 * `static_cast` 保证位模式一致：`-1` → `0xFFFFFFFF`（池的 InvalidIndex）。
+	 */
+	TTcsInstanceHandle<FTcsChainRunTag> GetInner() const
+	{
+		TTcsInstanceHandle<FTcsChainRunTag> Inner;
+		Inner.Index = static_cast<uint32>(Index);
+		Inner.Generation = static_cast<uint32>(Generation);
+		return Inner;
+	}
+
+	// 从池句柄赋值（唯一转换点，与 GetInner 对称）
+	void SetInner(const TTcsInstanceHandle<FTcsChainRunTag>& Inner)
+	{
+		Index = static_cast<int32>(Inner.Index);
+		Generation = static_cast<int32>(Inner.Generation);
 	}
 };
 
