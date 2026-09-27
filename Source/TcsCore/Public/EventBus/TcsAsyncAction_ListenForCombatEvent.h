@@ -24,7 +24,7 @@ enum class ETcsEventMatchType : uint8
 
 
 /**
- * 战斗事件监听节点（A' 反射面 / BP/CS 订阅入口，D0-2 的"绑定即过滤"）：绑定门面全量事件多播，
+ * 战斗事件监听节点（BP/CS 订阅入口——蓝图暴露面，`BlueprintAsyncActionBase`；D0-2 的"绑定即过滤"）：绑定门面全量事件多播，
  * 在回调内按 Tag 匹配 + 载荷类型匹配过滤，命中才广播自身 OnEvent（子集流）。
  * 空 Tag 过滤 = 不限 Tag；空载荷类型 = 不限类型。
  */

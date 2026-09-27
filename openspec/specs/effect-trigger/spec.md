@@ -35,7 +35,7 @@ TBD - created by archiving change add-effect-trigger-row. Update Purpose after a
 - `FTcsTriggerCondition_HasAllTags`：`Tags: TArray<FGameplayTag>`——触发上下文分类 Tag 集须含**全部**给定 Tag（空数组 = 无条件通过）；
 - `FTcsTriggerCondition_Chance`：`Probability: double`（[0,1]）——**随机值由调用方注入**（D0-1 确定性纪律：求值器内部 MUST NOT 取随机数，否则同输入不同输出、回放失效）；
 - `FTcsTriggerContext`（USTRUCT，**触发期最小上下文**）：`EventTag` / `ClassificationTags` / `Caster`——只含本批条件真正需要的字段；
-- **分派走注册表** `FTcsTriggerConditionRegistry`：`Register(const UScriptStruct*, FTcsTriggerConditionTest)` 动态入口 + `UE_DECLARE/DEFINE_TRIGGER_CONDITION_EVALUATOR` 自注册宏对；键 = 条件 struct 的反射类型；`Find` 未命中返回 nullptr（**不 ensure**——由求值助手处置）；同类型重复登记 MUST 拒绝（ensure + 保留首个）；
+- **分派走注册表** `FTcsTriggerConditionRegistry`：`Register(const UScriptStruct*, FTcsTriggerConditionTest)` 动态入口 + `UE_DECLARE/DEFINE_TRIGGER_CONDITION_EVALUATOR` 自注册宏对；键 = 条件 struct 的 `const UScriptStruct*`（**按 struct 类型分派**）；`Find` 未命中返回 nullptr（**不 ensure**——由求值助手处置）；同类型重复登记 MUST 拒绝（ensure + 保留首个）；
 - **内置条件 MUST 走同一注册表**（经宏自登记）——**MUST NOT 存在"内置 if-else + 宿主注册表"两套路径**（两套路径必然导致行为分歧）；
 - `EvaluateTriggerConditions(Conditions, Context, RandomValue = 0.0) -> bool`：全部条件通过 → `true`；任一不过 → `false`（**短路**）；**未注册的条件类型 → 视为不过 + Warning 日志**（MUST NOT 静默通过——静默会让"条件类型未注册/写错"表现成"条件通过"）；
 - 条件类型之间**无公共基类、零虚函数**（D4-16 纯数据）——这是**脚本友好的必要条件**：虚分派在脚本侧物理不可达（见下）。
@@ -44,7 +44,7 @@ TBD - created by archiving change add-effect-trigger-row. Update Purpose after a
 
 **与流程侧条件的分工（MUST NOT 混用）**：`TcsDamage` 的 `FTcsConditionHasAllTags` / `FTcsConditionChance` 服务于**流程步骤**（上下文 `FTcsDamageFlowContext`）；本能力的 `FTcsTriggerCondition_*` 服务于**触发行**（上下文 `FTcsTriggerContext`）。`TcsEffect` MUST NOT 依赖 `TcsDamage`（依赖铁律 `Core←Attribute←Effect←{Damage,…}`），故两侧各自持有条件类型。
 
-**反射面欠账（明示，非遗漏）**：`Register` 目前是纯 C++ 面（`FTcsTriggerConditionTest` 是 `TFunction`，不可反射）。设计意图（D4-17 双入口之反射面）要求它可被脚本层触达——该欠账与步骤执行器注册表**同批**解决，**MUST NOT** 在此处单独开一个反射入口（否则两处口径不一）。
+**脚本可达面欠账（明示，非遗漏）**：`Register` 目前是纯 C++ 面（`FTcsTriggerConditionTest` 是 `TFunction`——**无 `USTRUCT` 宏、无法进 UHT 签名面**，故方法无法标 `UFUNCTION()`）。设计意图（D4-17 双入口之脚本可达面）要求它可被脚本层触达——该欠账与步骤执行器注册表**同批**解决，**MUST NOT** 在此处单独开一个脚本可达入口（否则两处口径不一）。
 
 #### Scenario: 全部条件通过才触发
 
@@ -126,7 +126,7 @@ TBD - created by archiving change add-effect-trigger-row. Update Purpose after a
 - **观测 API**：`GetTriggerRowCount() const`（装置断言用）；
 - **求值器生命周期**：由门面在首次登记时创建并 **`UPROPERTY` 持有**——总线订阅表持**弱引用**（`FTcsEventSubscription::Handler` 是 `TWeakObjectPtr`），不 root 会被 GC 掉、订阅静默失效；
 - `Deinitialize` MUST 清空登记表 + **全量退订**（不留跨世界残留订阅）；
-- **脚本层可达（2026-09-24 补）**：上列方法中形参全为反射类型的部分（`RegisterTriggerRow` / `UnregisterTriggerRow` / `SetTriggerGateTag` / `IsTriggerGateTagLit` / `GetTriggerRowCount` / `SetTriggerRandomSeed`）MUST 标记 `UFUNCTION()`（无 specifier，口径见 `effect-interpreter` 的「门面反射面」需求）——这是"宿主用 C# 写技能/Buff 逻辑"的登记入口。**形参含非反射裸 struct 的 `UnregisterTriggerRowsBySource(const FTcsSourceHandle&)` 不在其列**（需先反射化 `FTcsSourceHandle`）。
+- **脚本层可达（2026-09-24 补）**：上列方法中**形参均可作 `UFUNCTION` 形参**（即形参类型为 `USTRUCT()` 或原生可承载类型）的部分（`RegisterTriggerRow` / `UnregisterTriggerRow` / `SetTriggerGateTag` / `IsTriggerGateTagLit` / `GetTriggerRowCount` / `SetTriggerRandomSeed`）MUST 标记 `UFUNCTION()`（无 specifier，口径见 `effect-interpreter` 的「门面脚本可达面」需求——该需求旧标题为「门面反射面」，S-8 归档后以新名为准）——这是"宿主用 C# 写技能/Buff 逻辑"的登记入口。**形参含无 `USTRUCT` 宏的裸 struct 的 `UnregisterTriggerRowsBySource(const FTcsSourceHandle&)` 不在其列**（需先给 `FTcsSourceHandle` 加 `USTRUCT()`）。措辞口径见 `Documents/combat-system-design/reflection-terminology.md`。
 
 #### Scenario: 同一事件 Tag 的多行共用一个订阅
 

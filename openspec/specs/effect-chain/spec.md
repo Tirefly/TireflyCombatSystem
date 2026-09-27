@@ -60,7 +60,8 @@ TBD - created by archiving change add-tcseffect-chain-interpreter. Update Purpos
 - `Variables`（`TMap<FGameplayTag, double>`——链内变量，SetVar/Branch 类步骤的载体；**2026-09-22 改造：键类型 `FName` → `FGameplayTag`**）；
 - **属性捕获（CapturedAttrs）与宿主能力引用不住这里**：前者归 TcsDamage 流程上下文（09 §2.1），后者经门面注入点取得（`GetEntityQuery` 等）——黑板只持本次执行的数据；
 - 生命期：随链运行态（`FTcsChainRun`）自持，**MUST NOT 跨帧持有**（运行态释放即失效）；
-- 结构 MUST NOT 为反射类型（纯运行态，非配置数据）。
+- **MUST NOT 作配置数据载体**（纯运行态）：MUST NOT 加 `BlueprintType`、MUST NOT 出现在任何 Def 资产的可编辑字段里、MUST NOT 加 `EditAnywhere` 类 specifier（措辞口径见 `Documents/combat-system-design/reflection-terminology.md`）；
+- **本约束不涉及类型反射可见性**（`USTRUCT()` 宏的有无）：类型是否反射可见与"能否作配置数据"是两件独立的事——前者由本需求不约束，若未来需让宿主脚本**直接持有/构造**本 struct（而非经门面按句柄访问器读写），须另行评估（台账 S-3）。
 
 #### Scenario: 参与者是句柄而非 Actor
 
@@ -73,8 +74,8 @@ TBD - created by archiving change add-tcseffect-chain-interpreter. Update Purpos
 
 - **字段 MUST 展平**（2026-09-24 实测修正）：句柄 MUST 直接持有 `Index`/`Generation` 两个 `UPROPERTY` 字段，**MUST NOT** 内嵌 `TTcsInstanceHandle<T>`——后者是模板类型、无法作 `UPROPERTY`，会让绑定产物生成**空壳**（`ToNative`/`FromNative` 函数体为空）⇒ 脚本层接住句柄时读不到值、传回时写全零 ⇒ **代际失配、往返失效**（实测：池给 `{Index=0, Generation=1}`，C# 传回 `{0, 0}`，`IsValid` 判 false）；
 - `Index` MUST 为 `int32`（UHT 不支持 `uint32` 作属性类型）；**无效值 `-1` 与 `TTcsInstanceHandle::InvalidIndex(0xFFFFFFFF)` 位模式相同**——MUST 经唯一的转换点（`GetInner`/`SetInner`）与池句柄互转，保证往返无损；
-- **MUST NOT** 加 `BlueprintType`：句柄是运行期身份词、非配置数据；加 `BlueprintType` 会让它成为 `BlueprintCallable` 的合法形参，从而**意外扩大蓝图承诺面**（R0 §9 蓝图不承诺）；
-- 先例 = `FTcsCombatEntityHandle`（同为展平字段的反射句柄）。
+- **MUST 为 `BlueprintType`（2026-09-24 放宽，台账 S-8 连带）**：原"MUST NOT 加 `BlueprintType`"的顾虑是"成为 `BlueprintCallable` 的合法形参 ⇒ 意外扩大蓝图承诺面"；插槽路线（`effect-step-dispatch` 的"步骤执行器插槽"）需要句柄出现在 **`BlueprintNativeEvent` 签名**里，而 UHT 对 `BlueprintEvent` 强制全部形参蓝图可表达（`UhtFunction.cs:859`/`:1043-1053`）⇒ 非 `BlueprintType` 则插槽**编译不过**。放宽的**承诺面代价为零**：消费句柄的门面方法仍为 `UFUNCTION()` 无 specifier（蓝图不可见），蓝图能"看见类型"却**无任何可调用的门面**；插槽接口确实蓝图可实现，但那是 R0 §9 已接受的"恰好蓝图也能用"（台账 S-8），**不是新增承诺**；
+- 先例 = `FTcsCombatEntityHandle`（同为展平字段的**反射 + `BlueprintType`** 句柄）——两条句柄分道扬镳无技术依据。
 
 #### Scenario: 句柄可作反射方法的返回与参数
 
@@ -90,4 +91,9 @@ TBD - created by archiving change add-tcseffect-chain-interpreter. Update Purpos
 
 - **WHEN** 脚本层读取接住句柄的 `Index` / `Generation`
 - **THEN** 读到的是池/登记表的真实值（非零值）——绑定产物 MUST 为这两个字段生成真实的读写代码（非空壳）
+
+#### Scenario: 句柄可作插槽接口的形参
+
+- **WHEN** 检查 `UTcsStepExecutor::Execute` 的反射签名（含 `FTcsChainRunHandle Run` 形参）
+- **THEN** UHT 编译通过（句柄为 `BlueprintType`，满足 `BlueprintNativeEvent` 的形参校验）
 

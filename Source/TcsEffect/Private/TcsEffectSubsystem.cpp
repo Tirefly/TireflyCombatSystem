@@ -117,6 +117,50 @@ bool UTcsEffectSubsystem::IsChainRegistered(FGameplayTag ChainId) const
 	return FindChain(ChainId) != nullptr;
 }
 
+bool UTcsEffectSubsystem::RegisterStepExecutor(const UScriptStruct* StepStruct, UTcsStepExecutor* Executor)
+{
+	ensure(IsInGameThread());
+
+	// 拒绝面（配置错误 → ensure + false）
+	if (!StepStruct)
+	{
+		ensureMsgf(false, TEXT("UTcsEffectSubsystem::RegisterStepExecutor: StepStruct 为空"));
+		return false;
+	}
+	if (!Executor)
+	{
+		ensureMsgf(false, TEXT("UTcsEffectSubsystem::RegisterStepExecutor: Executor 为空（步骤类型 %s）"),
+			*StepStruct->GetName());
+		return false;
+	}
+
+	// 包成 TFunction 转发进既有注册表（键与查表逻辑零改动——C++ 快路径原样保留）
+	// 捕获裸指针而非 TWeakObjectPtr：本对象已被下面的 UPROPERTY 数组强持有，
+	// 生命周期不短于本子系统（GC 可见持有见 RegisteredStepExecutors）
+	FTcsStepExecute Forwarder = [Executor](const FInstancedStruct& StepData, FTcsEffectContext& Context, FTcsChainRun& Run)
+	{
+		// 转发到脚本/UObject 执行器（**反射分派**——脚本层可达）
+		// 传运行态句柄而非上下文：上下文是非反射纯 C++ struct，不能作 UFUNCTION 形参；
+		// 脚本侧需要上下文时经门面按句柄访问器取（GetRunTargets / SetRunVariable 一组）
+		//
+		// 直接调命名函数（**不是** `Execute_Execute`——那是 UINTERFACE 才生成的静态助手）：
+		// UHT 为 UCLASS 的 BlueprintNativeEvent 生成的命名函数自带分派——非原生类走 ProcessEvent
+		// （脚本覆写经此抵达）、原生类直调 `_Implementation`（虚分派抵达 C++ 覆写）。
+		// 生成代码形态见 `TcsEventHandler.gen.cpp` 的 `HandleEvent`（同款 BlueprintNativeEvent）。
+		return Executor->Execute(Run.ChainId, Run.Self, StepData);
+	};
+
+	// 注册表对同类型重复登记会 ensure + 保留首个（此处不重复实现该判定）
+	FTcsEffectStepExecutorRegistry::Get().Register(StepStruct, MoveTemp(Forwarder));
+
+	// GC 可见持有（T-8 教训：裸注册表持不住对象引用 ⇒ 静默回收 ⇒ 表现为"步骤不生效"而非崩溃）
+	RegisteredStepExecutors.AddUnique(Executor);
+
+	UE_LOG(LogTcsEffect, Log, TEXT("UTcsEffectSubsystem: 步骤类型 %s 已登记宿主执行器（%s）"),
+		*StepStruct->GetName(), *Executor->GetClass()->GetName());
+	return true;
+}
+
 
 
 // 执行
@@ -186,6 +230,123 @@ bool UTcsEffectSubsystem::ResumeRun(FTcsChainRunHandle Handle)
 bool UTcsEffectSubsystem::IsRunActive(FTcsChainRunHandle Handle) const
 {
 	return RunPool.IsValid(Handle.GetInner());
+}
+
+
+
+// 运行态按句柄访问（脚本层插槽的"传句柄、不传上下文"手法，2026-09-24 台账 S-8）
+//
+// **为什么需要这一组**：插槽接口的形参只能是反射类型，而 `FTcsEffectContext` 是非反射纯 C++
+// struct（含 `FInstancedStruct` 事件载荷与 `TMap` 变量表）——脚本层拿不到它。故改为"传句柄 +
+// 按句柄访问器读写"，**绕开上下文反射化（台账 S-3）**。
+//
+// **悬空句柄语义统一**（口径同 `ResumeRun`，S-7 先例）：代际失配/已释放是**正常时序竞态**，
+// 不是配置错误 ⇒ 读口返回空值/无效句柄、写口返回 false + Warning，**一律不 ensure**。
+TArray<FTcsCombatEntityHandle> UTcsEffectSubsystem::GetRunTargets(FTcsChainRunHandle Handle)
+{
+	ensure(IsInGameThread());
+
+	// 代际校验先于解析（Resolve 对悬空句柄会 ensure——本组方法按"竞态不 ensure"口径自行前置校验）
+	if (!RunPool.IsValid(Handle.GetInner()))
+	{
+		return TArray<FTcsCombatEntityHandle>();
+	}
+
+	const FTcsChainRun* Run = RunPool.Resolve(Handle.GetInner());
+	return Run ? Run->Context.Targets : TArray<FTcsCombatEntityHandle>();
+}
+
+bool UTcsEffectSubsystem::SetRunTargets(FTcsChainRunHandle Handle, const TArray<FTcsCombatEntityHandle>& InTargets)
+{
+	ensure(IsInGameThread());
+
+	if (!RunPool.IsValid(Handle.GetInner()))
+	{
+		UE_LOG(LogTcsEffect, Warning, TEXT("UTcsEffectSubsystem::SetRunTargets: 句柄悬空或已释放（Index=%d, Generation=%d）——拒绝写入"),
+			Handle.Index, Handle.Generation);
+		return false;
+	}
+
+	if (FTcsChainRun* Run = RunPool.Resolve(Handle.GetInner()))
+	{
+		Run->Context.Targets = InTargets;
+		UE_LOG(LogTcsEffect, Verbose, TEXT("UTcsEffectSubsystem: 链 %s 目标集被改写为 %d 个（脚本层访问器）"),
+			*Run->ChainId.ToString(), InTargets.Num());
+		return true;
+	}
+
+	return false;
+}
+
+bool UTcsEffectSubsystem::TryGetRunVariable(FTcsChainRunHandle Handle, FGameplayTag Key, double& OutValue)
+{
+	ensure(IsInGameThread());
+
+	if (!RunPool.IsValid(Handle.GetInner()))
+	{
+		return false;
+	}
+
+	const FTcsChainRun* Run = RunPool.Resolve(Handle.GetInner());
+	if (!Run)
+	{
+		return false;
+	}
+
+	// miss 时出参内容未定义（调用方不得使用——契约同 ITcsParamTableReader::TryGetNumericParam）
+	if (const double* Found = Run->Context.Variables.Find(Key))
+	{
+		OutValue = *Found;
+		return true;
+	}
+
+	return false;
+}
+
+bool UTcsEffectSubsystem::SetRunVariable(FTcsChainRunHandle Handle, FGameplayTag Key, double Value)
+{
+	ensure(IsInGameThread());
+
+	if (!RunPool.IsValid(Handle.GetInner()))
+	{
+		UE_LOG(LogTcsEffect, Warning, TEXT("UTcsEffectSubsystem::SetRunVariable: 句柄悬空或已释放（Index=%d, Generation=%d）——拒绝写入"),
+			Handle.Index, Handle.Generation);
+		return false;
+	}
+
+	if (FTcsChainRun* Run = RunPool.Resolve(Handle.GetInner()))
+	{
+		Run->Context.Variables.Add(Key, Value);
+		return true;
+	}
+
+	return false;
+}
+
+FTcsCombatEntityHandle UTcsEffectSubsystem::GetRunCaster(FTcsChainRunHandle Handle)
+{
+	ensure(IsInGameThread());
+
+	if (!RunPool.IsValid(Handle.GetInner()))
+	{
+		return FTcsCombatEntityHandle();
+	}
+
+	const FTcsChainRun* Run = RunPool.Resolve(Handle.GetInner());
+	return Run ? Run->Context.Caster : FTcsCombatEntityHandle();
+}
+
+FTcsCombatEntityHandle UTcsEffectSubsystem::GetRunInstigator(FTcsChainRunHandle Handle)
+{
+	ensure(IsInGameThread());
+
+	if (!RunPool.IsValid(Handle.GetInner()))
+	{
+		return FTcsCombatEntityHandle();
+	}
+
+	const FTcsChainRun* Run = RunPool.Resolve(Handle.GetInner());
+	return Run ? Run->Context.Instigator : FTcsCombatEntityHandle();
 }
 
 

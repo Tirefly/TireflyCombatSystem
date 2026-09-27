@@ -11,7 +11,7 @@
 
 
 
-// 实体查询契约（TcsEffect 反射面；宿主/上层实现以承接实体能力——D4-14 反向依赖击穿）
+// 实体查询契约（宿主/上层实现以承接实体能力——D4-14 反向依赖击穿；**C++ 专用面**，见类注释）
 UINTERFACE(MinimalAPI)
 class UTcsEntityQuery : public UInterface
 {

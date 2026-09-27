@@ -53,8 +53,54 @@
 
 - **链的修改三通道**：①开启分支 = BoolSwitches/参数 → 链内 Branch/GateCheck；②幅度 = 字段写成 Param() → 参数账本；③结构变化 = 变体链（策划预创作）+ 链重定向选路。**不做运行时步骤级补丁**（Insert/Remove/PatchField）——链是 Const 共享数据，补丁合并语义是 bug 温床。
 - **Authoring 纪律**：可预见会被修改的字段，创作时写成 ParamRef 源（载体 = **FTcsParamValue{FInstancedStruct}**，PV 系列 2026-09-11 取代 D2-12 FTcsParamScalar（载体 2026-09-24 换裸））——参数覆盖度是策划的创作自由度决策。
-- **语言无关执行器（D4-17 终定）**：插件**不内嵌任何脚本引擎**（AngelScript/C#/TS 是宿主选择，插件不关注）；注册**双入口**——C++ 静态自注册宏 + **反射可达动态委托入口**（脚本层调用同一注册表）；蓝图理论可行（动态委托）不作为设计目标；**R3 纯 C++、无脚本集成**。
+- **语言无关执行器（D4-17 终定）**：插件**不内嵌任何脚本引擎**（AngelScript/C#/TS 是宿主选择，插件不关注）；注册**双入口**——C++ 静态自注册宏 + **反射可达动态委托入口**（脚本层调用同一注册表）；蓝图理论可行（动态委托）不作为设计目标。
 - **Skill Logic 需要代码的四条路径**（代码技能是一等公民）：①Custom 原语类型；②决策 Fragment；③链外代码 + 事件协作；④整技能代码化（单 Custom 步骤链，账本/冷却/门禁/打断照常）。框架不强制策划化。
+
+## 5b. 宿主扩展路线：插槽（2026-09-24 确立并落地，台账 S-8）
+
+> **证据状态（2026-09-27 收束）**：代码与 glue 静态实现已核对；UnrealSharp/C# PIE 已验证模板登记、伤害公式抵达、句柄访问器往返和挂起链唤醒。GC、选择器/过滤器、脚本步骤执行器、悬空句柄及其他脚本语言仍未验证，本文的“已落地”不外推为全插槽 E2E。
+
+**问题**：客制化、只服务宿主业务、不值得进插件的语义（"选最近的敌人"、宿主专属伤害公式、读宿主独有状态的新步骤）——**不该写 C++ 进插件仓**，但框架必须给它们一个入口。
+
+**方案：框架只提供"插座"抽象，宿主用任意 UE 脚本语言填实现。**
+
+- **机制 = UObject 接口 + `UFUNCTION(BlueprintNativeEvent)`**——这是 **UE 原生反射分发**（`UFunction::Invoke`），**不是 C# 专属**：AngelScript / Luau / Puerts(TS) / 蓝图全部支持它 ⇒ **天然语言无关**，正是 D4-17"宿主选择脚本引擎"承诺的落地形态。
+- **本项目已有活先例**（非推测）：`UTcsEventHandler`（C# 覆写 `HandleEvent_Implementation` 生效）与 `ITcsAttributeProvider`（3 个 `BlueprintNativeEvent`，C++ 经 `Execute_GetCurrentValue` 调到）——**同代码库内已实测**。
+- **★ 扩展点的脚本可达性由分发机制决定，三类分明**（本路线的方法论内核）：
+
+| 机制 | 现状用于 | 脚本可达 | 处置 |
+|---|---|---|---|
+| **虚分派（vtable）** | 选择器 / 过滤器 / 参数源 | ❌ **物理不可达**（脚本 struct 无 C++ 类型 ⇒ `CppStructOps == nullptr` ⇒ vtable 位为 0 ⇒ 野调用；**引擎层面无解**） | 加"宿主委托"插槽类型**转发** |
+| **注册表 + `TFunction`** | 步骤执行器 / 条件求值器 | ⚠️ **差一层签名**（键可反射、值不可） | 加 UObject 执行器基类替代注册值 |
+| **UObject + `BlueprintNativeEvent`** | `UTcsEventHandler` / `ITcsAttributeProvider` | ✅ **可达**（已实测） | **插槽路线的底座** |
+
+- **三类插槽（已落地，台账 S-8）**：
+  - **①目标选择/过滤**：`ITcsTargetSelectorHost` / `ITcsTargetFilterHost`（`UINTERFACE + Blueprintable`）+ 转发器 `FTcsSelHostDelegate` / `FTcsFilterHostDelegate`（USTRUCT 策略子类，持 `TScriptInterface` 纯转发）。**转发是必需的**——选择器族走虚分派，脚本物理不可达。
+  - **②步骤执行器**：`UTcsStepExecutor`（`UCLASS(Abstract, Blueprintable)`，`BlueprintNativeEvent Execute(FGameplayTag, FTcsChainRunHandle, const FInstancedStruct&)`）——门面 `RegisterStepExecutor` 把它包成 `TFunction` 转发进既有注册表（**键与查表逻辑零改动**）。流程侧同款：`UTcsFlowStepExecutor`。
+  - **③伤害流程**：`ITcsDamageFlowDelegate` 5 方法换签名（上下文 → `FTcsDamageFlowContextView` 反射视图）+ `BlueprintNativeEvent` + C++ 调用点改 `Execute_`；流程模板登记面（`RegisterTemplate`）反射化。
+- **★ 关键设计手法：传句柄、不传上下文**——插槽签名用 `FTcsChainRunHandle` 等**句柄**，上下文经**门面按句柄访问器**（`GetRunTargets` / `SetRunTargets` / `TryGetRunVariable` / `SetRunVariable` / `GetRunCaster` / `GetRunInstigator`）读写。**收益**：绕开"上下文反射化"（`FTcsDamageFlowContext` 深处嵌 `TFunction`，**物理不可能整体反射化**）——台账 S-3 因此从必经之路降为可选。
+- **双轨并存**：框架内置语义走 **C++ 快路径**（`TFunction` / 虚分派），插槽只服务**宿主扩展**。理由：`UFunction::Invoke` 比 `TFunction` 慢，而宿主客制化语义不在热路径上。
+
+**判据（哪些写 C++、哪些走插槽）**：
+
+| 情形 | 归属 |
+|---|---|
+| 框架内置语义 / 热路径 / 需引擎级不变式 | **C++**（进插件） |
+| 客制化 / 只服务宿主业务 / 不值得进插件 / 非热路径 | **插槽**（宿主脚本） |
+
+**约束（实施期两条硬约束 + 一条 GC 纪律）**：
+
+- 插槽接口的所有形参 MUST 全反射（"C# 四问"硬约束——这也是为什么传句柄而非 struct）；`BlueprintNativeEvent` 会触发 UHT 的蓝图参数校验（`UhtFunction.cs:859`/`:1043-1053`）⇒ 形参/返回**连句柄都必须 `BlueprintType`**（故 `FTcsChainRunHandle` 于 2026-09-24 放宽——理由与零代价论证见 `effect-chain` 规格）。
+- **非反射纯 C++ struct 不能作 `UFUNCTION` 形参**（UHT 报 `Unable to find 'struct'`）⇒ 需要"上下文"时必须做**反射视图**（`FTcsDamageFlowContextView` 只摘可反射数据面；黑板因含 `TFunction` 物理不可反射而**不在**视图内）。**这修正了台账 S-8 的原设想**（原写"`ITcsDamageFlowDelegate` 5 方法补 `UFUNCTION`"——做不到，必须换签名）。
+- **GC 可见持有**：门面 MUST 以 `UPROPERTY` 数组持有已登记的脚本执行器——裸 C++ 注册表不经 GC 的 `RefLink`，不持有则脚本执行器被**静默回收**，表现为"步骤不生效"而非崩溃（与模板登记表的 T-8 缺陷同款形态）。
+- 插槽**不扩大蓝图承诺面**（蓝图恰好也能用，但不是承诺项，R0 §9）。
+
+**★ C# 侧覆写写法（实测，两类不同）**：
+
+| 插槽载体 | C# 写法 |
+|---|---|
+| **UINTERFACE**（`ITcsDamageFlowDelegate` / `ITcsTargetSelectorHost` / …） | 写**两半**：①签名分部声明（无体、**无 attribute**）②`<名>_Implementation` 分部方法（带体）。给①加 `[UFunction]` 会让生成器再发一份 ⇒ CS0102/CS0111 |
+| **UCLASS**（`UTcsStepExecutor` / `UTcsFlowStepExecutor`） | 直接 `override` 生成器发出的 `public virtual` 方法 |
 
 ## 6. 网络姿态落点（NET-1/2）
 
@@ -68,7 +114,11 @@
 
 - **无 specifier 是有意的**：形参含 `FTcsEffectChain` / `FTcsEffectTriggerInstance` 等 `USTRUCT()` 非 `BlueprintType` 载体，加 `BlueprintCallable` 会被 UHT 的蓝图参数校验拒绝；无 specifier 时 UHT 不校验参数、脚本层照常可达。
 - **蓝图侧仍不承诺**（R0 §9）：本批标记**不**扩大蓝图承诺面——这是"语言无关执行器"预留的兑现，不是蓝图支持。
-- **仍未落地**：三张注册表的**反射注册入口**（`Register` 形参是 `TFunction`，不可反射——台账 S-2）；上下文/运行态反射化（台账 S-3，含 `FTcsDamageFlowContext` 深处 `TFunction` 的物理约束）；`ITcsEntityQuery` / `ITcsDamageFlowDelegate` 反射化（台账 S-5 / S-4）。**（台账 S-6 已消费：`TInstancedStruct<T>` 字段的脚本侧可配性已由 2026-09-24 换型解决）**
+- **证据分级（2026-09-27，见 §5b 与台账 S 系列）**：
+  - **静态实现 + glue 已完成**：S-8 三类插槽、反射视图、门面 6 个按句柄访问器和流程模板登记面均已落地；`TcsDamageFlowDelegate.generated.cs` 已从零方法空壳变为 5 个可覆写方法。
+  - **C# PIE 已验证子集**：脚本模板登记、`CalculateBaseDamage` 经 `Execute_*` 抵达、句柄访问器往返以及挂起链唤醒完成。
+  - **仍未由本次证据覆盖**：GC 强保活、脚本选择器/过滤器、脚本步骤执行器、悬空句柄安全语义和 AS/Luau/TS 往返；不得把“插槽已实现”外推成上述行为均已 E2E 验证。
+  - **定位**：S-3 上下文反射化降为可选；S-2 三张注册表换签名低于 S-8；S-5 的“脚本遍历全世界”仍是 C++ 专用边界；S-1、S-4、S-6、S-7 已消费。
 
 ## 8. 依据
 

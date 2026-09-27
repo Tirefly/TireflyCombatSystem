@@ -89,12 +89,12 @@ TBD - created by archiving change add-tcsattribute-types-and-store. Update Purpo
 
 ### Requirement: 读侧契约
 
-`TcsAttribute` MUST 提供 `ITcsAttributeProvider`（`UINTERFACE(MinimalAPI)`，M2 对外**唯一**契约，02 §2.3）：`GetBaseValue(FGameplayTag)` / `GetCurrentValue(FGameplayTag)` / `PeekPending(FGameplayTag)`（**2026-09-22 改造：三签名的属性参数从 `FTcsAttributeName` 改为 `FGameplayTag`**），三者为反射可见事件（宿主/适配器可实现）。**单位由实现者自身绑定**（军官组件 / Mass 存储桶适配器各绑自己的单位）——契约签名不含单位参数是刻意的：计算器不关心单位载体，适配在 M6 收敛。本任务**只声明契约**：M2 内部以 `TScriptInterface<ITcsAttributeProvider>` 持有（属性值参数源的扩展上下文），首个实现在 plan2 Task 5 的战斗实体组件。`GetCurrentValue` 的"脏则惰性重算"与 `PeekPending` 的"未提交候选值"语义（D2-5）MUST 由实现者与 Task 5 管线共同保证——本任务不得提供"看起来会重算、实际读脏缓存"的 Store 取值口（Task 4 的 Store 只给 `FindInstance` / `GetBaseValue`）。
+`TcsAttribute` MUST 提供 `ITcsAttributeProvider`（`UINTERFACE(MinimalAPI)`，M2 对外**唯一**契约，02 §2.3）：`GetBaseValue(FGameplayTag)` / `GetCurrentValue(FGameplayTag)` / `PeekPending(FGameplayTag)`（**2026-09-22 改造：三签名的属性参数从 `FTcsAttributeName` 改为 `FGameplayTag`**），三者均为 `UFUNCTION(BlueprintNativeEvent)`（宿主/适配器可覆写实现；调用点走 `Execute_*`）。**单位由实现者自身绑定**（军官组件 / Mass 存储桶适配器各绑自己的单位）——契约签名不含单位参数是刻意的：计算器不关心单位载体，适配在 M6 收敛。本任务**只声明契约**：M2 内部以 `TScriptInterface<ITcsAttributeProvider>` 持有（属性值参数源的扩展上下文），首个实现在 plan2 Task 5 的战斗实体组件。`GetCurrentValue` 的"脏则惰性重算"与 `PeekPending` 的"未提交候选值"语义（D2-5）MUST 由实现者与 Task 5 管线共同保证——本任务不得提供"看起来会重算、实际读脏缓存"的 Store 取值口（Task 4 的 Store 只给 `FindInstance` / `GetBaseValue`）。
 
 #### Scenario: 契约可被宿主实现
 
 - **WHEN** 宿主（C++/UnrealSharp/BP）实现 `ITcsAttributeProvider` 并绑定自己的单位
-- **THEN** 三个读取方法均可在 C++ 与反射面覆写（单位绑定留在实现者内部）
+- **THEN** 三个读取方法均可在 C++ 与脚本层覆写（`UFUNCTION(BlueprintNativeEvent)` + `Execute_*` 分发；单位绑定留在实现者内部）
 
 #### Scenario: 本任务无假重算口
 

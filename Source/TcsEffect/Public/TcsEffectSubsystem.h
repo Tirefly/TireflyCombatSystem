@@ -10,6 +10,7 @@
 #include "Chain/TcsEffectChain.h"
 #include "Chain/TcsEffectContext.h"
 #include "Chain/TcsEffectStep.h"
+#include "Chain/TcsStepExecutor.h"
 #include "Host/TcsEntityQuery.h"
 #include "Pool/TcsInstancePool.h"
 #include "Trigger/TcsEffectTriggerInstance.h"
@@ -127,6 +128,33 @@ public:
 	 */
 	UFUNCTION()
 	bool IsChainRegistered(FGameplayTag ChainId) const;
+
+	/**
+	 * 登记**宿主脚本步骤执行器**（2026-09-24，台账 S-8 的步骤执行器插槽）。
+	 *
+	 * 内部把 `Executor` 包成 `TFunction` 转发进既有执行器注册表——**键与查表逻辑零改动**，
+	 * C++ 静态自注册宏路径（`UE_DEFINE_EFFECT_STEP_EXECUTOR`）原样保留（**双轨并存**）。
+	 *
+	 * **为什么需要它**：既有注册值 `FTcsStepExecute` 是 `TFunction`（不可反射）⇒ 脚本层无法登记执行器
+	 * （台账 S-2 的"差一层签名"）。本入口以 **UObject 基类替代 `TFunction` 作注册值**，
+	 * 比"换 `TFunction` 签名"改动面小得多。
+	 *
+	 * **GC 可见持有**：本函数把 `Executor` 加进 `RegisteredStepExecutors`（`UPROPERTY` 数组）——
+	 * **裸 C++ 注册表持不住对象引用**（不经 GC 的 `RefLink`），不持有则脚本执行器被静默回收，
+	 * 表现为"步骤不生效"而非崩溃（T-8 缺陷形态）。
+	 *
+	 * 拒绝面（配置错误 → ensure + 返回 false）：`StepStruct` 为空、`Executor` 为空、
+	 * 同类型重复登记（由注册表判定，保留首个）。
+	 *
+	 * **反射面**：`UFUNCTION()` 无 specifier——形参 `UScriptStruct*` 与 `UTcsStepExecutor*` 本身
+	 * 均可反射，但口径与门面其余方法统一（蓝图不承诺，R0 §9）。
+	 *
+	 * @param StepStruct 步骤 struct 的反射类型（注册表键）。
+	 * @param Executor 宿主执行器（须为 `UTcsStepExecutor` 派生）。
+	 * @return 返回是否登记成功。
+	 */
+	UFUNCTION()
+	bool RegisterStepExecutor(const UScriptStruct* StepStruct, UTcsStepExecutor* Executor);
 
 #pragma endregion
 
@@ -280,6 +308,91 @@ public:
 #pragma endregion
 
 
+// 运行态按句柄访问（脚本层插槽）
+#pragma region RunAccess
+
+public:
+	/**
+	 * 读运行态目标集（2026-09-24，台账 S-8 的"传句柄、不传上下文"手法）。
+	 *
+	 * **为什么需要这一组**：宿主脚本插槽（步骤执行器 / 选择器 / 过滤器）的形参只能是反射类型，
+	 * 而 `FTcsEffectContext` 是非反射纯 C++ struct（`TcsEffectContext.h:24`）——脚本层拿不到它。
+	 * 故改为"传运行态句柄 + 按句柄访问器读写"，**绕开上下文反射化**（台账 S-3 因此降为可选）。
+	 *
+	 * **悬空句柄语义**（口径同 `ResumeRun`，S-7 先例）：代际失配/已释放是**正常时序竞态**，
+	 * 读口返回空值/无效句柄、写口返回 false + Warning，**一律不 ensure**。
+	 *
+	 * **反射面**：`UFUNCTION()` 无 specifier（理由同 `RegisterChain`）。
+	 *
+	 * @param Handle 运行态句柄。
+	 * @return 返回目标集副本；悬空句柄返回空数组（不 ensure）。
+	 */
+	UFUNCTION()
+	TArray<FTcsCombatEntityHandle> GetRunTargets(FTcsChainRunHandle Handle);
+
+	/**
+	 * 写运行态目标集（覆盖写）。
+	 *
+	 * **反射面**：`UFUNCTION()` 无 specifier。
+	 *
+	 * @param Handle 运行态句柄。
+	 * @param InTargets 新目标集。
+	 * @return 返回是否写入成功（悬空句柄 false + Warning）。
+	 */
+	UFUNCTION()
+	bool SetRunTargets(FTcsChainRunHandle Handle, const TArray<FTcsCombatEntityHandle>& InTargets);
+
+	/**
+	 * 读链内变量（`Context.Variables`）。
+	 *
+	 * **反射面**：`UFUNCTION()` 无 specifier。
+	 *
+	 * @param Handle 运行态句柄。
+	 * @param Key 变量键。
+	 * @param OutValue 输出读到的值（**miss 时内容未定义**，调用方不得使用——契约同 `ITcsParamTableReader`）。
+	 * @return 返回是否命中（悬空句柄 / 键不存在均返回 false）。
+	 */
+	UFUNCTION()
+	bool TryGetRunVariable(FTcsChainRunHandle Handle, FGameplayTag Key, double& OutValue);
+
+	/**
+	 * 写链内变量（键不存在则新增）。
+	 *
+	 * **反射面**：`UFUNCTION()` 无 specifier。
+	 *
+	 * @param Handle 运行态句柄。
+	 * @param Key 变量键。
+	 * @param Value 变量值。
+	 * @return 返回是否写入成功（悬空句柄 false + Warning）。
+	 */
+	UFUNCTION()
+	bool SetRunVariable(FTcsChainRunHandle Handle, FGameplayTag Key, double Value);
+
+	/**
+	 * 读施法者句柄（`Context.Caster`）。
+	 *
+	 * **反射面**：`UFUNCTION()` 无 specifier。
+	 *
+	 * @param Handle 运行态句柄。
+	 * @return 返回施法者句柄；悬空句柄返回无效句柄。
+	 */
+	UFUNCTION()
+	FTcsCombatEntityHandle GetRunCaster(FTcsChainRunHandle Handle);
+
+	/**
+	 * 读发起者句柄（`Context.Instigator`——表"谁发起的"，可与 Caster 不同）。
+	 *
+	 * **反射面**：`UFUNCTION()` 无 specifier。
+	 *
+	 * @param Handle 运行态句柄。
+	 * @return 返回发起者句柄；悬空句柄返回无效句柄。
+	 */
+	UFUNCTION()
+	FTcsCombatEntityHandle GetRunInstigator(FTcsChainRunHandle Handle);
+
+#pragma endregion
+
+
 // 宿主能力注入
 #pragma region Injection
 
@@ -347,6 +460,12 @@ private:
 	// 实体查询实现（UPROPERTY：实现是 UObject，须经 GC 持有）
 	UPROPERTY()
 	TScriptInterface<ITcsEntityQuery> EntityQuery;
+
+	// 宿主脚本步骤执行器（**UPROPERTY 持有是必需的**：执行器注册表是裸 C++ 容器，
+	// 不经 GC 的 RefLink——不持有则脚本执行器被静默回收，表现为"步骤不生效"而非崩溃。
+	// 与 Templates 的 T-8 修复同款形态）
+	UPROPERTY()
+	TArray<TObjectPtr<UTcsStepExecutor>> RegisteredStepExecutors;
 
 	// 触发求值器（**UPROPERTY 持有是必需的**：总线订阅表持弱引用——不 root 会被 GC 掉、
 	// 订阅静默失效。宿主 `UTcsDevScreenObserver` 的既有注释即该现象的先例）

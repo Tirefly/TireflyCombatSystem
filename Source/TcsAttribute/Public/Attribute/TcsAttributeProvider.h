@@ -11,7 +11,7 @@
 
 
 
-// 属性读侧契约接口（TcsAttribute 反射面；宿主/适配器可实现以承接属性读取——02 §2.3）
+// 属性读侧契约接口（宿主/适配器可实现以承接属性读取——02 §2.3；UINTERFACE + UFUNCTION(BlueprintNativeEvent)，脚本可覆写）
 UINTERFACE(MinimalAPI)
 class UTcsAttributeProvider : public UInterface
 {

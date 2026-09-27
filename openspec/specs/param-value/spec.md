@@ -5,7 +5,7 @@ TBD - created by archiving change add-tcscore-param-value. Update Purpose after 
 ## Requirements
 ### Requirement: 统一数值配置载体
 
-TcsCore MUST 提供 header-only 载体 `FTcsParamValue{ FInstancedStruct Source }`（全插件统一"数值配置"载体，取代 D2-12 FTcsParamScalar）：默认构造后 Source 初始化为 `FTcsParamSource_Literal`（值 0）；MUST 提供纯 C++ 求值便利转发 `Evaluate(const FTcsParamEvaluateContext& Ctx)`（不进 UHT 反射面）——`Source.IsValid()` 为假时兜 0（防 Source 失效后误用）。
+TcsCore MUST 提供 header-only 载体 `FTcsParamValue{ FInstancedStruct Source }`（全插件统一"数值配置"载体，取代 D2-12 FTcsParamScalar）：默认构造后 Source 初始化为 `FTcsParamSource_Literal`（值 0）；MUST 提供纯 C++ 求值便利转发 `Evaluate(const FTcsParamEvaluateContext& Ctx)`（**不标 `UFUNCTION()`**——不进脚本可达面）——`Source.IsValid()` 为假时兜 0（防 Source 失效后误用）。
 
 - **载体形态（2026-09-24 换型，提案 `switch-strategy-carrier-to-plain-instanced-struct`）**：字段 MUST 为**裸 `FInstancedStruct`**（**MUST NOT** 用 `TInstancedStruct<FTcsParamValueSource>`），并以 `meta = (BaseStruct = "/Script/TcsCore.TcsParamValueSource")` 限定编辑器 picker；
 - **换型理由**：`TInstancedStruct<T>` 字段在宿主脚本层（UnrealSharp/C#）**导出为空壳**（绑定产物无字段读写代码）⇒ 脚本层配不了任何数值（台账 S-6）；裸 `FInstancedStruct` 是引擎官方文档注释给出的写法（`InstancedStruct.h:20-27`），且 **StateTree 用的正是裸形态**（D3-7 v3 宣称的"StateTree 同构"以裸形态才成立）；
@@ -65,14 +65,14 @@ TcsCore MUST 提供抽象基类 `FTcsParamValueSource`（USTRUCT，`Evaluate(con
 
 ### Requirement: 反射可见求值上下文
 
-`FTcsParamEvaluateContext` MUST 是反射可见 USTRUCT——**禁止 TFunction/std::function 等不可反射成员**（宿主脚本扩展通道，PV-1）；当前仅持参数表只读访问 `TScriptInterface<ITcsParamTableReader> ParamTable`（可空）；领域扩展 = 结构体继承 + 源内 checked cast（PV-1，cast 失败面由 M8 校验覆盖）；`Subject`（FCombatEntityHandle）与 `EffectiveLevel`（int32）随 TcsState 等级源同批补齐（既定偏差——等级源/属性源是其唯一消费者）。
+`FTcsParamEvaluateContext` MUST 是 `USTRUCT(BlueprintType)`（**类型反射可见 + 蓝图可配置**）——**禁止 `TFunction`/`std::function` 等无 `USTRUCT` 宏的成员**（宿主脚本扩展通道，PV-1；含这类成员会让宿主类型无法加 `USTRUCT()`——UHT 报错）；当前仅持参数表只读访问 `TScriptInterface<ITcsParamTableReader> ParamTable`（可空）；领域扩展 = 结构体继承 + 源内 checked cast（PV-1，cast 失败面由 M8 校验覆盖）；`Subject`（FCombatEntityHandle）与 `EffectiveLevel`（int32）随 TcsState 等级源同批补齐（既定偏差——等级源/属性源是其唯一消费者）。措辞口径见 `Documents/combat-system-design/reflection-terminology.md`。
 
 USTRUCT 没有内建类型查询，故 PV-1 的"源内 checked cast"MUST 由**类型标识虚函数**承载：`virtual const UScriptStruct* GetScriptStruct() const { return StaticStruct(); }`（GAS `FGameplayEffectContext::GetScriptStruct` 同款机制，2026-09-16 实证）——派生上下文覆写为自身类型，域侧源取上下文后以 `GetScriptStruct()->IsChildOf(<域上下文>::StaticStruct())` 判定（**支持多层派生**：更具体的上下文不被拒），不匹配即落兜底（不崩溃、不 ensure）。
 
 #### Scenario: 上下文可被宿主脚本读写
 
 - **WHEN** 宿主（UnrealSharp/BP）构造或检查求值上下文
-- **THEN** 全部字段反射可见可读写（无闭包类成员阻断）
+- **THEN** 全部字段均可经脚本层读写（无闭包类成员阻断 `USTRUCT()` 生成）
 
 #### Scenario: 派生上下文的类型判定
 

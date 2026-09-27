@@ -13,18 +13,28 @@
 ## 2. 类型词汇（对外）
 
 ### 2.1 选择器策略（策略模式取代枚举模式，用户拍板）
-- `FTcsTargetSelectorStrategy`（USTRUCT 反射基类，**纯虚 `Resolve(Context, 注入查询, OutTargets)`**——解析目标集写入 Context.Targets。**载体（D3-7 v3）**：USTRUCT 基类 + C++ 虚函数分派（StateTree 同构），Def/步骤以**裸 `FInstancedStruct`** 成员持有（2026-09-24 换型）；BP 策略扩展通道放弃（R0 §9"蓝图不承诺"承责），宿主扩展 = C++ 新 struct 子类）。
+
+> **证据状态（2026-09-27）**：宿主选择器/过滤器插槽与转发器已完成静态/glue 核对；本次 C# PIE 只覆盖伤害流程和运行态访问器，未运行脚本选择器/过滤器，因此其端到端选择/AND 组合行为仍待实证；实体世界查询仍是 C++ 专用能力。
+- `FTcsTargetSelectorStrategy`（USTRUCT 反射基类，**纯虚 `Resolve(Context, 注入查询, OutTargets)`**——解析目标集写入 Context.Targets。**载体（D3-7 v3）**：USTRUCT 基类 + C++ 虚函数分派（StateTree 同构），Def/步骤以**裸 `FInstancedStruct`** 成员持有（2026-09-24 换型）；BP 策略扩展通道放弃（R0 §9"蓝图不承诺"承责）；宿主扩展 = **C++ 新 struct 子类（框架级通用语义）或宿主脚本插槽（客制化语义）**——见 §2.1 末条与台账 S-8）。
 - **默认实现（框架提供）**：
   - `FTcsSelSelf`——Context.Caster；
   - `FTcsSelEventTarget`——Context 事件载荷目标。
 - **后置项**：RadiusArea（范围选择）与 FTargetingShape（形状单一来源）整体后置——竖切剧本（单体选择）无消费者；形态（裸半径 vs 形状参数化）待真实需求出现时再定（走查样例 04 §9 例二为预演形态）。TagQuery/Instigator 同批后置。
-- **宿主扩展 = 新策略 struct 子类**（策略模式核心收益）：准星指向、链接目标等宿主本体论语义零框架改动；配置面 = `FInstancedStruct` 内嵌编辑（StructUtilsEditor 开箱：类型 picker + 内嵌展开 + TArray 专用 details，非 TSubclassOf 下拉；2026-09-24 换型——`BaseStruct` 限定改由手写 metadata 提供）。
+- **宿主扩展（2026-09-24 修正：两条路，按判据选）**：
+  - **① C++ 新 struct 子类**——适合"框架级通用语义"（准星指向、链接目标这类可能被多个项目复用的）；零框架改动、走快路径（虚分派）。
+  - **② 宿主脚本插槽（台账 S-8，✅ 已落地）**——适合"客制化、只服务本项目业务"的语义。机制 = **宿主委托策略类型** `FTcsSelHostDelegate : FTcsTargetSelectorStrategy`（内部持 `TScriptInterface<ITcsTargetSelectorHost>` 转发给 UObject 实现）；宿主用**任意 UE 脚本语言**（C#/AS/Luau/TS/蓝图）实现该接口。**为什么必须有这条**：选择器族走**虚分派**，而 C# 定义的 struct **没有 C++ 类型 ⇒ 无 vtable ⇒ 野调用**（物理不可达）——插槽是绕过该约束的唯一路径。**先例**：`FTcsFlowDelegate` 步骤已持 `TScriptInterface<ITcsDamageFlowDelegate>`，形态现成。
+    - **接口签名**：`ITcsTargetSelectorHost::ResolveTargets(FTcsCombatEntityHandle Caster, FTcsCombatEntityHandle Instigator, TArray<FTcsCombatEntityHandle>& OutTargets)`（只填充不清空——同基类契约）；`BlueprintNativeEvent` ⇒ 形参 MUST 全反射 ⇒ **传句柄而非上下文**（上下文经门面按句柄访问器取，见 `04-module-effects.md` §5b）。
+    - **空 Host 降级**：选择器产出**空集 + Warning**（不崩溃、不静默通过——空集与"配好了但选不中"在日志里可区分）。
+    - **双轨并存**：`FTcsSelSelf` 等内置策略走虚分派快路径、原样保留；插槽只服务宿主扩展。
+  - **判据**：框架内置 / 热路径 / 需引擎级不变式 → ①；客制化 / 只服务宿主业务 / 非热路径 → ②。
+  - 配置面 = `FInstancedStruct` 内嵌编辑（StructUtilsEditor 开箱：类型 picker + 内嵌展开 + TArray 专用 details，非 TSubclassOf 下拉；2026-09-24 换型——`BaseStruct` 限定改由手写 metadata 提供）。
 - **与 FEntrySelector 的边界（D4-4 纠正记录）**：`FEntrySelector` 是 M5 域——选择技能参数修正器作用到哪些已学条目；不是目标选择器。两个词汇不混用。
 
 ### 2.2 过滤器策略（存活/敌对语义 = 宿主本体论）
 - `FTcsTargetFilterStrategy`（USTRUCT 反射基类，**纯虚 `Pass(Candidate, Context)`**——候选通过判定；载体同 D3-7 v3）。
 - **框架零默认 Filter**：怎么算存活、怎么算敌人是宿主语义（原枚举 TTF_Alive/TTF_Hostile 是框架假装认识宿主语义再转手委托——v2 改为直接暴露契约）；R3 竖切由测试装置/宿主实现（内部可调 ICombatEntityQuery.IsAlive / IRelationResolver.IsHostile）。
 - 组合语义：SelectTargets 步骤持 Filter 策略实例数组，**AND 全过**。
+- **宿主脚本插槽（✅ 2026-09-24 落地）**：`ITcsTargetFilterHost::PassTarget(Candidate, Caster, Instigator)`（`BlueprintNativeEvent`）+ 转发器 `FTcsFilterHostDelegate`——同 §2.1 的②（虚分派物理不可达，故必须转发）。**空 Host 的语义 = 通过**（与基类中性默认实现同口径——"框架零默认 Filter"指不提供**有语义**的默认实现，而非把"未配置"变成"淘汰全部候选"；后者会让配置遗漏表现成"打不到人"，比放过更难排查）。
 
 ### 2.3 注入接口（宿主实现，M6 适配）
 - `ICombatEntityQuery`（UINTerface，TcsEffect 定义——机制层对宿主能力的契约）：实体遍历（稳定序全量句柄）/ GetLocation / IsAlive。实现适配：军官组件 / Mass 桶（M6）——内部可转发中央注册表（M3 拥有；命名统一待办，R3 执行期定）。

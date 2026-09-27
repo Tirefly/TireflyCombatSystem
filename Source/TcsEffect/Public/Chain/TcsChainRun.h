@@ -39,18 +39,26 @@ struct FTcsChainRunTag
  * **`Index` 用 `int32` 而非 `uint32`**：UHT 不支持 `uint32` 作属性类型（`int64` 亦同源约束），
  * 故取 `int32`；**无效值 `-1` 与 `TTcsInstanceHandle::InvalidIndex(0xFFFFFFFF)` 位模式相同**，
  * 经 `GetInner`/`SetInner` 转换无损。
+ *
+ * **`BlueprintType`（2026-09-24 放宽，台账 S-8 连带）**：本句柄要出现在**宿主脚本插槽**的签名里
+ * （`UTcsStepExecutor::Execute` 的形参），而 UHT 对 `BlueprintNativeEvent` 强制全部形参蓝图可表达
+ * （`UhtFunction.cs:859`/`:1043-1053`）——非 `BlueprintType` 则插槽编译不过。
+ * 原"MUST NOT 加"的顾虑是"成为 `BlueprintCallable` 的合法形参 ⇒ 意外扩大蓝图承诺面"，**代价为零**：
+ * 消费本句柄的门面方法仍为 `UFUNCTION()` 无 specifier（蓝图不可见），蓝图能"看见类型"却**无门面可调**；
+ * 插槽接口确实蓝图可实现，但那是 R0 §9 已接受的"恰好蓝图也能用"，不是新增承诺。
+ * 先例 = `FTcsCombatEntityHandle`（同为展平字段的反射 + `BlueprintType` 句柄）。
  */
-USTRUCT()
+USTRUCT(BlueprintType)
 struct TCSEFFECT_API FTcsChainRunHandle
 {
 	GENERATED_BODY()
 
 	// 池内槽位索引（-1 = 无效）
-	UPROPERTY()
+	UPROPERTY(BlueprintReadOnly, Category = "Tcs|Effect|Run")
 	int32 Index = -1;
 
 	// 代际计数（Free 时 +1，旧句柄凭失配判悬空）
-	UPROPERTY()
+	UPROPERTY(BlueprintReadOnly, Category = "Tcs|Effect|Run")
 	int32 Generation = 0;
 
 	// 句柄有效性（代际校验由池在解析/释放时执行）

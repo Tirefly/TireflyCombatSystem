@@ -5,7 +5,7 @@ TBD - created by archiving change add-tcscore-clock-expiry-heap. Update Purpose 
 ## Requirements
 ### Requirement: 唯一取时入口与可注入时间源
 
-TcsCore MUST 提供 `FTcsClock`（唯一"取时间"入口：`Frame` 帧号 uint64、`Elapsed` 累计 ScaledDt、`DeltaSeconds` 本帧步长；由门面 const 暴露，时间只经泵推进、封装内无旁路取时）与可注入时间源接口 `ITcsTimeSource`（抽象 C++ 接口，非反射——时间源是引擎管道设施而非 Def 配置数据）：`GetDeltaSeconds(World, RawDeltaSeconds)`；默认实现 = `RawDeltaSeconds × World.GetTimeDilation()`（slomo 减速语义）。确定性纪律（D0-1）落地：时钟封装内禁 wall-clock API（`FDateTime::UtcNow` / `FPlatformTime`——review 检查点）；回合制宿主可注入"回合即时间"源替换默认源。
+TcsCore MUST 提供 `FTcsClock`（唯一"取时间"入口：`Frame` 帧号 uint64、`Elapsed` 累计 ScaledDt、`DeltaSeconds` 本帧步长；由门面 const 暴露，时间只经泵推进、封装内无旁路取时）与可注入时间源接口 `ITcsTimeSource`（抽象 C++ 接口，**无 `USTRUCT` 宏、不作 Def 配置数据**——时间源是引擎管道设施）：`GetDeltaSeconds(World, RawDeltaSeconds)`；默认实现 = `RawDeltaSeconds × World.GetTimeDilation()`（slomo 减速语义）。确定性纪律（D0-1）落地：时钟封装内禁 wall-clock API（`FDateTime::UtcNow` / `FPlatformTime`——review 检查点）；回合制宿主可注入"回合即时间"源替换默认源。
 
 #### Scenario: slomo 按比例减速
 

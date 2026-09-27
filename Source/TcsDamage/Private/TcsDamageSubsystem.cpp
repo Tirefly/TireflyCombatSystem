@@ -10,6 +10,7 @@
 #include "Flow/TcsFlowKeys.h"
 #include "Flow/TcsDamageRecord.h"
 #include "Flow/TcsFlowStepExecutor.h"
+#include "Flow/TcsFlowStepExecutorObject.h"
 #include "HAL/IConsoleManager.h"
 #include "TcsDamageLogChannel.h"
 
@@ -139,6 +140,46 @@ const FTcsFlowTemplate* UTcsDamageSubsystem::FindTemplate(FGameplayTag TemplateI
 {
 	const TUniquePtr<FTcsFlowTemplate>* Found = Templates.Find(TemplateId);
 	return (Found && Found->IsValid()) ? Found->Get() : nullptr;
+}
+
+bool UTcsDamageSubsystem::RegisterStepExecutor(const UScriptStruct* StepStruct, UTcsFlowStepExecutor* Executor)
+{
+	ensure(IsInGameThread());
+
+	// 拒绝面（配置错误 → ensure + false）
+	if (!StepStruct)
+	{
+		ensureMsgf(false, TEXT("UTcsDamageSubsystem::RegisterStepExecutor: StepStruct 为空"));
+		return false;
+	}
+	if (!Executor)
+	{
+		ensureMsgf(false, TEXT("UTcsDamageSubsystem::RegisterStepExecutor: Executor 为空（步骤类型 %s）"),
+			*StepStruct->GetName());
+		return false;
+	}
+
+	// 包成 TFunction 转发进既有注册表（键与查表逻辑零改动——C++ 快路径原样保留）
+	// 捕获裸指针而非 TWeakObjectPtr：本对象已被下面的 UPROPERTY 数组强持有
+	FTcsFlowStepExecute Forwarder = [Executor](const FInstancedStruct& StepData, FTcsDamageFlowContext& Context)
+	{
+		// 转发到脚本/UObject 执行器（**反射分派**——脚本层可达）
+		// 传**反射视图**而非上下文：`FTcsDamageFlowContext` 是纯 C++ struct，不能作 UFUNCTION 形参。
+		// 视图是只读投影——脚本步骤要修正流程值走收集事件协议的 Submit，不是改视图。
+		//
+		// 直接调命名函数（**不是** `Execute_Execute`——那是 UINTERFACE 才生成的静态助手）：
+		// UHT 为 UCLASS 的 BlueprintNativeEvent 生成的命名函数自带分派（同 Effect 侧）。
+		return Executor->Execute(StepData, Context.MakeView());
+	};
+
+	FTcsFlowStepExecutorRegistry::Get().Register(StepStruct, MoveTemp(Forwarder));
+
+	// GC 可见持有（T-8 教训：裸注册表持不住对象引用 ⇒ 静默回收 ⇒ 表现为"步骤不生效"而非崩溃）
+	RegisteredFlowStepExecutors.AddUnique(Executor);
+
+	UE_LOG(LogTcsDamage, Log, TEXT("UTcsDamageSubsystem: 流程步骤类型 %s 已登记宿主执行器（%s）"),
+		*StepStruct->GetName(), *Executor->GetClass()->GetName());
+	return true;
 }
 
 

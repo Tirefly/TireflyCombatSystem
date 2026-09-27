@@ -32,7 +32,7 @@
 |---|---|---|
 | CollectStart | 发流程开始事件，重置收集 | — |
 | PreHit | 发收集事件 → 应用 | 修改命中率/注册免疫候选 |
-| Hit | delegate 基础命中率 → 修改器 → 判定 Hit/Miss/Invalid | `ICombatDamageFlowDelegate.GetBaseHitRate` |
+| Hit | delegate 基础命中率 → 修改器 → 判定 Hit/Miss/Invalid | `ITcsDamageFlowDelegate.GetBaseHitRate` |
 | Crit | delegate 基础暴击率 → 修改器 → 判定 | `GetBaseCritRate` |
 | Element | delegate 解析元素 → 修改器可改 → 元素标签写入分类 Tag 集 | `ResolveElement` |
 | BaseDamage | **接收输入值**（链步骤 DamageBase = 参数账本解算结果——PV-7 2026-09-11：流程零基础值计算）→ 修改器可改 | `CalculateBaseDamage`（**降级逃生口**——D7-2 收窄，宿主特殊公式才实现） |
@@ -52,7 +52,20 @@
 - 创作糖：一条修改器 = 触发行+单步链（比文章一行重）——M8 编辑器提供"伤害修改器"模板自动生成，**机制唯一、界面给糖**。
 
 ### 2.4 接口与记录
-- `ICombatDamageFlowDelegate`（纯 C++ 接口，宿主实现）：`GetBaseHitRate / GetBaseCritRate / ResolveElement / CalculateBaseDamage（**降级逃生口**——PV-7 D7-2 收窄后仅宿主特殊公式实现，普通项目零 delegate） / ModifyShield`。
+
+> **证据状态（2026-09-27）**：DamageFlow 反射接口、视图和 `Execute_*` 调用路径已完成静态/glue 核对；UnrealSharp/C# PIE 已验证模板登记、C# 公式抵达（`Final=7`）和运行态访问器往返。脚本选择器/过滤器、脚本步骤执行器、GC 强保活、悬空句柄及其他脚本语言仍未由本次证据覆盖。
+- `ITcsDamageFlowDelegate`（UINTERFACE，宿主实现；`ICombatDamageFlowDelegate` 是早期命名，实现类名已统一到 `ITcs…` 前缀）：`GetBaseHitRate / GetBaseCritRate / ResolveElement / CalculateBaseDamage（**降级逃生口**——PV-7 D7-2 收窄后仅宿主特殊公式实现，普通项目零 delegate） / ModifyShield`。
+  - **✅ 宿主脚本可达性已打通（静态实现；2026-09-27 C# PIE 子集已验证，提案 `add-host-scripting-slots`）**：5 方法带 `UFUNCTION(BlueprintNativeEvent)`，C++ 调用点改走 `ITcsDamageFlowDelegate::Execute_*` ⇒ 机制形状可由任意 UE 脚本语言承载；本仓当前行为实测只覆盖 UnrealSharp/C#，AS / Luau / TS / 蓝图仍需各自验证。
+    - **`Execute_` 是必需的，不是风格选择**：虚表直调（`Step->Delegate->GetBaseHitRate(...)`）会**静默跳过**脚本层实现（脚本覆写走 `ProcessEvent`），表现为"公式不生效"而非崩溃——这正是改造前的形态（`TcsDamageFlowDelegate.generated.cs` 当时是**零方法空壳**，实测存档）。
+    - **C++ 实现与脚本实现双轨并存**：`Execute_` 内部先查 `UFunction` 走反射、查不到才回落原生 `_Implementation`（生成代码先例 `TcsAttributeProvider.gen.cpp:141-157`）⇒ 既有 C++ 宿主实现（如 LAC 的 `UTcsDevDamageFormula`）无须改语义，只改签名。
+  - **★ 形参不是 `FTcsDamageFlowContext`，而是 `FTcsDamageFlowContextView`（反射只读视图）**：前者是**纯 C++ struct（无 `USTRUCT`）**，出现在 `UFUNCTION` 签名里会让 UHT 报 `Unable to find 'struct' with name ...` ⇒ **不能只"补 UFUNCTION"，必须换签名**（这条修正了台账 S-8 的原设想）。
+    - 视图只摘**可反射数据面**：参与者句柄（`Attacker`/`Instigator`/`Targets`）、`FormulaParams`、`ClassificationTags`、请求字段（`BaseDamageInput`/`TargetAttrKey`）。
+    - **不含黑板**——`FTcsFlowAttributes` 的提交项深处嵌 `FTcsConsumePolicy::OnConsumed`（`TFunction<void()>`），**物理不可反射**（`TcsFlowAttributes.h` 自注 + UHT 实证）；真前置是"上下文/黑板分层"（台账 S-3），成本高一个数量级，而插槽只需读参与者与参数。
+    - **不含 `Owner` 弱引用**——脚本实现本身是 UObject，可经自身 `GetWorld()` 取门面（LAC 侧实现的机械修复即此路）。
+    - **单向投影、无反向写回**：脚本要修正流程值走收集事件协议的 `Submit`，不是改视图（避免双真相）。
+  - **中性默认实现住接口声明处**（`virtual <名>_Implementation(...)`）：UHT 检测到声明则**不生成默认 stub**（`UhtFunction.cs:681` 的 `ImplFound`）⇒ "普通项目零 delegate"（PV-7）不受影响。先例 = 引擎 `ISequencerAnimationOverride`（`SequencerAnimationOverride.h:31-44`）。
+  - **流程模板登记面同步反射化**：`UTcsDamageSubsystem::RegisterTemplate` / `UnregisterTemplate` 加 `UFUNCTION()`（**无 specifier**，口径同 `UTcsEffectSubsystem` 的 S-1 批次）——否则脚本"能写公式却注册不了模板"。
+  - **流程步骤执行器插槽**：`UTcsFlowStepExecutor`（UObject 基类）+ 门面 `RegisterStepExecutor`——让宿主脚本定义**流程阶段**（"流程阶段构成 = 项目知识"，D7-5 的直接兑现）。详见 `04-module-effects.md` §5b。
 - 治疗流程：同骨架精简版（无 Hit/免疫；Crit 可选），`IHealFlowDelegate.GetBaseHeal`。
 - `FDamageRecord`：`FlowId / Source / Target / 元素 / Hit / Crit / Base / Final / Executed / Absorbed / Kill / 序号 / 时刻`——完成/打断时发 `Damage.Record` 事件（立即，回放依赖序）+ 环形缓冲（统计）。
 - 提交原语：**`ModifyFlow{键, 运算, 操作数, 消耗策略?}`（战斗组；步骤类型+执行器住本模块——D4-14）**——触发行订阅阶段收集事件后在响应里提交流程属性修正；`消耗策略`（MaxUses/Cooldown/OnConsumed）挂在提交上，实现"免疫一次"类效果。

@@ -9,7 +9,7 @@
 
 
 
-// 参数表只读访问接口（TcsCore 反射面；宿主/UnrealSharp 可实现以提供自定义参数表——PV-1）
+// 参数表只读访问接口（宿主/UnrealSharp 可实现以提供自定义参数表——PV-1；UINTERFACE + UFUNCTION(BlueprintNativeEvent)）
 UINTERFACE(MinimalAPI)
 class UTcsParamTableReader : public UInterface
 {

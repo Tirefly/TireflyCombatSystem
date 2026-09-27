@@ -8,6 +8,7 @@
 #include "Flow/TcsDamageFlowContext.h"
 #include "Flow/TcsDamageFlowCollectEvent.h"
 #include "Flow/TcsDamageRecord.h"
+#include "Flow/TcsFlowStepExecutorObject.h"
 #include "Flow/TcsFlowTemplate.h"
 #include "Handle/TcsSourceHandle.h"
 
@@ -75,18 +76,51 @@ public:
 	 * 登记流程模板（键 = `Template.TemplateId`）。
 	 * 拒绝面（ensure 提示 + 返回 false）：TemplateId 为空、同 id 重复登记（不得静默覆写）。
 	 *
+	 * **反射面（2026-09-24，台账 S-8）**：`UFUNCTION()` **无 specifier** 是有意的——形参
+	 * `FTcsFlowTemplate` 是 `USTRUCT()` 非 `BlueprintType`，加 `BlueprintCallable` 会被 UHT
+	 * 的蓝图参数校验拒；无 specifier 时 UHT 不校验参数，而宿主脚本层照常可达（口径同
+	 * `UTcsEffectSubsystem` 的 S-1 批次）。蓝图侧不可见属接受项（R0 §9"蓝图不承诺"）。
+	 *
 	 * @param Template 流程模板（按值拷入登记表；TUniquePtr 持有使执行期持有的引用不随登记表增长而悬空）。
 	 * @return 返回是否登记成功。
 	 */
+	UFUNCTION()
 	bool RegisterTemplate(const FTcsFlowTemplate& Template);
 
 	/**
 	 * 注销流程模板（未登记时 Warning + false，不 ensure——正常清理路径）。
 	 *
+	 * **反射面（2026-09-24）**：`UFUNCTION()` 无 specifier（理由同 `RegisterTemplate`）。
+	 *
 	 * @param TemplateId 模板 id。
 	 * @return 返回是否注销成功。
 	 */
+	UFUNCTION()
 	bool UnregisterTemplate(FGameplayTag TemplateId);
+
+	/**
+	 * 登记**宿主脚本流程步骤执行器**（2026-09-24，台账 S-8 的流程侧插槽）。
+	 *
+	 * 内部把 `Executor` 包成 `TFunction` 转发进既有流程步骤注册表——**键与查表逻辑零改动**，
+	 * C++ 静态自注册宏路径（`UE_DEFINE_FLOW_STEP_EXECUTOR`）原样保留（**双轨并存**）。
+	 *
+	 * **为什么需要它**："流程阶段构成 = 项目知识"（D7-5）——宿主自研阶段是最典型的"客制化、
+	 * 只服务宿主业务、不值得进插件"的语义；而既有注册值 `TFunction` 不可反射（脚本登记不了）。
+	 *
+	 * **GC 可见持有**：本函数把 `Executor` 加进 `RegisteredFlowStepExecutors`（`UPROPERTY` 数组）——
+	 * 同 `Templates` 的 T-8 教训（裸容器持不住对象引用 ⇒ 静默回收 ⇒ "步骤不生效"而非崩溃）。
+	 *
+	 * 拒绝面（配置错误 → ensure + 返回 false）：`StepStruct` 为空、`Executor` 为空、
+	 * 同类型重复登记（由注册表判定，保留首个）。
+	 *
+	 * **反射面**：`UFUNCTION()` 无 specifier（口径同 `RegisterTemplate`）。
+	 *
+	 * @param StepStruct 步骤 struct 的反射类型（注册表键）。
+	 * @param Executor 宿主执行器（须为 `UTcsFlowStepExecutor` 派生）。
+	 * @return 返回是否登记成功。
+	 */
+	UFUNCTION()
+	bool RegisterStepExecutor(const UScriptStruct* StepStruct, UTcsFlowStepExecutor* Executor);
 
 	/**
 	 * 查询流程模板（未登记返回 nullptr——正常查询路径，不 ensure）。
@@ -157,6 +191,12 @@ public:
 private:
 	// 模板登记表（键 = TemplateId；TUniquePtr 地址稳定持有）
 	TMap<FGameplayTag, TUniquePtr<FTcsFlowTemplate>> Templates;
+
+	// 宿主脚本流程步骤执行器（**UPROPERTY 持有是必需的**：流程步骤注册表是裸 C++ 容器，
+	// 不经 GC 的 RefLink——不持有则脚本执行器被静默回收，表现为"步骤不生效"而非崩溃。
+	// 与 Templates 的 T-8 修复同款形态）
+	UPROPERTY()
+	TArray<TObjectPtr<UTcsFlowStepExecutor>> RegisteredFlowStepExecutors;
 
 	// 流程来源发号器（每流程唯一 FlowSource）
 	FTcsSourceHandleRegistry FlowSourceRegistry;

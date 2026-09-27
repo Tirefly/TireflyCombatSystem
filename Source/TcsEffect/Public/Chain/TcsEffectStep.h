@@ -13,7 +13,14 @@
  * 步骤结果（D4-17 步内挂起协议）：执行器向解释器表达"本步是否完成"。
  * 与 PC 挂起（WaitEvent 类）、事件订阅并列为三种挂起形态的一种——挂起状态住运行态（FTcsChainRun），
  * 不活在调用栈里（D4-3 异步语义）。
+ *
+ * **反射化（2026-09-24 升格，台账 S-8）**：本枚举是**步骤执行器插槽**
+ * （`UTcsStepExecutor::Execute` 的返回类型，`UFUNCTION(BlueprintNativeEvent)`）的必要条件——
+ * UHT 对 `BlueprintEvent` 强制全部形参与返回值蓝图可表达（`UhtFunction.cs:859`/`:1043-1053`），
+ * 非反射枚举拿不到该 cap（`UhtEnumProperty.cs:68-69`）⇒ 不升格则插槽编译不过。
+ * **枚举值不变**（`TSR_Completed=0` / `TSR_Running=1`）——升格只加反射标记，零行为影响。
  */
+UENUM(BlueprintType)
 enum class ETcsStepResult : uint8
 {
 	// 本步已完成——解释器 PC 前进

@@ -11,6 +11,7 @@
 #include "Parameter/TcsParamValue.h"
 
 #include "Flow/TcsFlowAttributes.h"
+#include "Flow/TcsDamageFlowContextView.h"
 
 class UTcsDamageSubsystem;
 
@@ -102,6 +103,37 @@ public:
 	// 宿主门面弱引用（`RunTemplate` 起流程时填充）——**步骤取世界/子系统的唯一通路**：
 	// 句柄化后上下文里没有 Actor 可借道（`Context.Owner->GetWorld()` → M2 属性门面 / 事件总线 / 时钟）
 	TWeakObjectPtr<UTcsDamageSubsystem> Owner;
+
+#pragma endregion
+
+
+// 反射视图投影
+#pragma region View
+
+public:
+	/**
+	 * 投影为**反射视图**（2026-09-24，台账 S-8）：宿主脚本层在 `ITcsDamageFlowDelegate` 实现里
+	 * 读流程状态用（`FTcsDamageFlowContext` 本身是纯 C++ struct，不能作 `UFUNCTION` 形参）。
+	 *
+	 * **单向**：只拷贝可反射数据面，不改动本上下文（视图无反向写回——宿主修正流程值走
+	 * 收集事件协议的 `Submit`，不是改视图）。
+	 *
+	 * **不含黑板/门面/簿记面**——理由见 `TcsDamageFlowContextView.h` 的类注释。
+	 *
+	 * @return 返回本次流程状态的反射只读投影。
+	 */
+	FTcsDamageFlowContextView MakeView() const
+	{
+		FTcsDamageFlowContextView View;
+		View.Attacker = Attacker;
+		View.Instigator = Instigator;
+		View.Targets = Targets;
+		View.FormulaParams = FormulaParams;
+		View.ClassificationTags = ClassificationTags;
+		View.BaseDamageInput = BaseDamageInput;
+		View.TargetAttrKey = TargetAttrKey;
+		return View;
+	}
 
 #pragma endregion
 };

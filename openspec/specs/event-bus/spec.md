@@ -52,7 +52,7 @@ TcsCore MUST 提供 `UTcsEventHandler`（Abstract、Blueprintable）：处理入
 
 ### Requirement: BP/CS 动态监听面
 
-TcsCore MUST 提供 A' 反射面（Lyra GMS 形态）：动态多播 `FTcsOnCombatEvent(FGameplayTag EventTag, FInstancedStruct Payload)`（BlueprintAssignable，全量事件流——每笔派发均触发，绑定者按 Tag 自行过滤），以及 `UTcsAsyncAction_ListenForCombatEvent` 监听节点（"绑定即过滤"）：绑定门面多播后在回调内按 **Tag 匹配（精确/部分——层级含）+ PayloadType 结构类型匹配（空 = 不限；非空要求载荷结构为其自身或子类）**过滤，命中才广播节点自身的 `OnEvent` 子集流；Activate 绑定（重复激活先解绑再绑定）、BeginDestroy 退订。
+TcsCore MUST 提供 **BP/CS 动态监听面**（Lyra GMS 形态；`A'` 为历史代号，此处指**蓝图暴露面**——`BlueprintAssignable`，与 `effect-interpreter` 的「门面脚本可达面」是**互补相反**的两面，措辞口径见 `Documents/combat-system-design/reflection-terminology.md`）：动态多播 `FTcsOnCombatEvent(FGameplayTag EventTag, FInstancedStruct Payload)`（BlueprintAssignable，全量事件流——每笔派发均触发，绑定者按 Tag 自行过滤），以及 `UTcsAsyncAction_ListenForCombatEvent` 监听节点（"绑定即过滤"）：绑定门面多播后在回调内按 **Tag 匹配（精确/部分——层级含）+ PayloadType 结构类型匹配（空 = 不限；非空要求载荷结构为其自身或子类）**过滤，命中才广播节点自身的 `OnEvent` 子集流；Activate 绑定（重复激活先解绑再绑定）、BeginDestroy 退订。
 
 #### Scenario: 监听节点输出子集流
 

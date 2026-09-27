@@ -46,7 +46,7 @@ TBD - created by archiving change add-tcsdamage-steps-and-primitive. Update Purp
 
 `TcsDamage` MUST 提供两个**数据化**步骤（把"宿主挂点"变成可配置数据；09 §2.2 的两处）：
 
-- `FTcsFlowModify{ FGameplayTag TargetKey; ETcsAttributeOp Op; FTcsParamValue Operand; TArray<FInstancedStruct> Conditions; }`——数据化黑板写入（"破甲阶段" = 一个数据步骤；**2026-09-22 改造：`TargetKey` 类型 `FName` → `FGameplayTag`**）；Operand 为 `FTcsParamValue`（黑板键引用保留为流程域自身的 Operand 选项，随其来源策略轮落地）。**MUST NOT 携带消耗策略**：`FTcsConsumePolicy` 含 `TFunction OnConsumed` 回调（纯 C++、不可反射、不可作 UPROPERTY）——消耗型提交只能来自 C++ 步骤或事件响应；数据步骤只做纯数值写入；
+- `FTcsFlowModify{ FGameplayTag TargetKey; ETcsAttributeOp Op; FTcsParamValue Operand; TArray<FInstancedStruct> Conditions; }`——数据化黑板写入（"破甲阶段" = 一个数据步骤；**2026-09-22 改造：`TargetKey` 类型 `FName` → `FGameplayTag`**）；Operand 为 `FTcsParamValue`（黑板键引用保留为流程域自身的 Operand 选项，随其来源策略轮落地）。**MUST NOT 携带消耗策略**：`FTcsConsumePolicy` 含 `TFunction OnConsumed` 回调（纯 C++、**无 `USTRUCT` 宏**、不可作 `UPROPERTY`）——消耗型提交只能来自 C++ 步骤或事件响应；数据步骤只做纯数值写入；
 - `FTcsFlowDelegate{ FGameplayTag TargetKey; TScriptInterface<UTcsDamageFlowDelegate> Delegate; ... }`——数据化委托调用（轻量公式挂法；**2026-09-22 改造：`TargetKey` 类型改 tag**）。
 
 #### Scenario: 数据步骤可配可跑

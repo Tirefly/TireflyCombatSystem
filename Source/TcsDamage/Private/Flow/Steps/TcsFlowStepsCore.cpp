@@ -100,7 +100,14 @@ namespace
 		if (Step->Delegate && Step->Delegate.GetObject())
 		{
 			// 降级逃生口：宿主特殊公式（默认实现即原样返回）
-			BaseDamage = Step->Delegate->CalculateBaseDamage(IncomingBase, Context.Attacker, Context.Targets.Num() > 0 ? Context.Targets[0] : FTcsCombatEntityHandle(), Context);
+			// **走 Execute_ 而非虚表直调**（2026-09-24，台账 S-8）：脚本层实现走 ProcessEvent，
+			// 虚表直调会静默跳过它（表现为"公式不生效"而非崩溃）；Execute_ 内部查不到脚本覆写时
+			// 回落原生 _Implementation ⇒ C++ 实现与脚本实现双轨并存。
+			// 上下文经**反射视图**传入（`FTcsDamageFlowContext` 是纯 C++ struct，不能作 UFUNCTION 形参）。
+			const FTcsDamageFlowContextView ContextView = Context.MakeView();
+			BaseDamage = ITcsDamageFlowDelegate::Execute_CalculateBaseDamage(
+				Step->Delegate.GetObject(), IncomingBase, Context.Attacker,
+				Context.Targets.Num() > 0 ? Context.Targets[0] : FTcsCombatEntityHandle(), ContextView);
 		}
 
 		// 基值以 **Add** 提交（见上：基值 = ΣAdd 的一员；后续收集到的 PercentAdd/Mul 自然叠在它上面）
@@ -140,12 +147,15 @@ namespace
 		}
 
 		// 护盾 hook（宿主；默认 0 = 无护盾）
+		// **走 Execute_**（同 BaseDamage 步的理由：脚本层实现必须经反射分发抵达）
 		double Absorbed = 0.0;
 		if (Step->Delegate && Step->Delegate.GetObject())
 		{
+			const FTcsDamageFlowContextView ContextView = Context.MakeView();
 			for (const FTcsCombatEntityHandle& Target : Context.Targets)
 			{
-				Absorbed += Step->Delegate->ModifyShield(Target, Candidate, Context);
+				Absorbed += ITcsDamageFlowDelegate::Execute_ModifyShield(
+					Step->Delegate.GetObject(), Target, Candidate, ContextView);
 			}
 		}
 

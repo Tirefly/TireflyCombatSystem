@@ -82,7 +82,7 @@ struct FTcsQueuedEvent
 
 /**
  * 事件总线内核（裁决 2a）：Tag 路由 + 订阅表 + 池化订阅记录 + 双通道派发。
- * 纯逻辑类（非 UObject）——门面 UTcsEventBusSubsystem 持有其实例并接入动态多播反射面。
+ * 纯逻辑类（非 UObject）——门面 UTcsEventBusSubsystem 持有其实例并接入动态多播监听面（BlueprintAssignable）。
  *
  * 派发纪律：
  * - 派发前快照同 Tag 订阅句柄，逐目标校验代际——派发中订阅/退订不影响本轮遍历（退订者被跳过）；
@@ -231,7 +231,7 @@ public:
 #pragma endregion
 
 
-// 反射面桥接
+// 动态多播监听面桥接（BlueprintAssignable）
 #pragma region Observer
 
 public:

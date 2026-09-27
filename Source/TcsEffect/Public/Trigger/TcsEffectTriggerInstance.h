@@ -27,18 +27,21 @@ struct FTcsEffectTriggerTag {};
  * （`ToNative`/`FromNative` 空函数体）⇒ 脚本层 `RegisterTriggerRow` 接住句柄、传回
  * `UnregisterTriggerRow` 时值全为零 ⇒ **句柄往返失效**（同 `FTcsChainRunHandle` 的实测缺陷，
  * 同根因同修法）。展平后可反射 ⇒ 往返成立。
+ *
+ * **`BlueprintType`（2026-09-24，与 `FTcsChainRunHandle` 同批放宽）**：口径统一——两条展平句柄
+ * 不因"是否恰好被插槽用到"而分道扬镳（理由详见 `TcsChainRun.h` 的同名字段注释）。
  */
-USTRUCT()
+USTRUCT(BlueprintType)
 struct TCSEFFECT_API FTcsEffectTriggerHandle
 {
 	GENERATED_BODY()
 
 	// 登记表内槽位索引（-1 = 无效）
-	UPROPERTY()
+	UPROPERTY(BlueprintReadOnly, Category = "Tcs|Effect|Trigger")
 	int32 Index = -1;
 
 	// 代际计数（槽位复用时 +1，旧句柄凭失配判悬空）
-	UPROPERTY()
+	UPROPERTY(BlueprintReadOnly, Category = "Tcs|Effect|Trigger")
 	int32 Generation = 0;
 
 	// 句柄有效性

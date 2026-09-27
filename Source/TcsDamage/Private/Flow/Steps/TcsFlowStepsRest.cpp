@@ -77,7 +77,9 @@ namespace
 		if (Step->Delegate && Step->Delegate.GetObject())
 		{
 			const FTcsCombatEntityHandle Target = Context.Targets.Num() > 0 ? Context.Targets[0] : FTcsCombatEntityHandle();
-			HitRate = Step->Delegate->GetBaseHitRate(Context.Attacker, Target, Context);
+			// **走 Execute_**（2026-09-24，台账 S-8）：脚本层实现走 ProcessEvent，虚表直调会静默跳过它
+			HitRate = ITcsDamageFlowDelegate::Execute_GetBaseHitRate(
+				Step->Delegate.GetObject(), Context.Attacker, Target, Context.MakeView());
 		}
 
 		// 修改器可在收集事件后改写 `HitRate` 键（宿主挂点）
@@ -103,7 +105,9 @@ namespace
 		if (Step->Delegate && Step->Delegate.GetObject())
 		{
 			const FTcsCombatEntityHandle Target = Context.Targets.Num() > 0 ? Context.Targets[0] : FTcsCombatEntityHandle();
-			CritRate = Step->Delegate->GetBaseCritRate(Context.Attacker, Target, Context);
+			// **走 Execute_**（同 Hit 步的理由）
+			CritRate = ITcsDamageFlowDelegate::Execute_GetBaseCritRate(
+				Step->Delegate.GetObject(), Context.Attacker, Target, Context.MakeView());
 		}
 
 		BroadcastFlowRestCollect(Context, Tag_Tcs_Event_Damage_Crit);
@@ -127,7 +131,9 @@ namespace
 		if (Step->Delegate && Step->Delegate.GetObject())
 		{
 			const FTcsCombatEntityHandle Target = Context.Targets.Num() > 0 ? Context.Targets[0] : FTcsCombatEntityHandle();
-			const FGameplayTag Element = Step->Delegate->ResolveElement(Context.Attacker, Target, Context);
+			// **走 Execute_**（同 Hit 步的理由）
+			const FGameplayTag Element = ITcsDamageFlowDelegate::Execute_ResolveElement(
+				Step->Delegate.GetObject(), Context.Attacker, Target, Context.MakeView());
 			if (Element.IsValid())
 			{
 				Context.ClassificationTags.AddUnique(Element);
@@ -203,7 +209,10 @@ namespace
 		if (Step->Delegate && Step->Delegate.GetObject())
 		{
 			const FTcsCombatEntityHandle Target = Context.Targets.Num() > 0 ? Context.Targets[0] : FTcsCombatEntityHandle();
-			Value = Step->Delegate->CalculateBaseDamage(Context.Blackboard.Read(Step->TargetKey), Context.Attacker, Target, Context);
+			// **走 Execute_**（同 Hit 步的理由）
+			Value = ITcsDamageFlowDelegate::Execute_CalculateBaseDamage(
+				Step->Delegate.GetObject(), Context.Blackboard.Read(Step->TargetKey),
+				Context.Attacker, Target, Context.MakeView());
 		}
 
 		SubmitFlowRestOverride(Context.Blackboard, Step->TargetKey, Value);
