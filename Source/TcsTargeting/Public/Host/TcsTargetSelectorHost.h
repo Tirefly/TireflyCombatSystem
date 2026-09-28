@@ -54,10 +54,10 @@ public:
 	 *
 	 * @param Caster 施法者实体句柄。
 	 * @param Instigator 发起者实体句柄（可与 Caster 不同）。
-	 * @param OutTargets 目标集出参（实体句柄——句柄无生命周期语义，需要存活/定位时经宿主自身能力询问）。
+	 * @param OutTargets 输入输出目标集（`UPARAM(ref)` 使脚本绑定保留引用语义；实体句柄无生命周期语义，需要存活/定位时经宿主自身能力询问）。
 	 */
 	UFUNCTION(BlueprintNativeEvent, Category = "Tcs|Targeting")
-	void ResolveTargets(FTcsCombatEntityHandle Caster, FTcsCombatEntityHandle Instigator, TArray<FTcsCombatEntityHandle>& OutTargets);
+	void ResolveTargets(FTcsCombatEntityHandle Caster, FTcsCombatEntityHandle Instigator, UPARAM(ref) TArray<FTcsCombatEntityHandle>& OutTargets);
 
 #pragma endregion
 };

@@ -320,7 +320,7 @@ TCS 里恰好有两个结构相同、反射标记相反的接口，构成**同�
 
 ## 12. ★ 能力边界总表与宿主脚本插槽（2026-09-24 收束）
 
-> **证据状态（2026-09-27）**：本节的 S-8 结论分为三层：插槽类型、反射视图、句柄访问器和 glue 形态已完成静态核对；UnrealSharp/C# PIE 已验证模板登记、C# 公式抵达、运行态访问器往返和挂起链唤醒；GC 保活、脚本选择器/过滤器、脚本步骤执行器、悬空句柄、AS/Luau/TS 往返仍未验证。`ITcsEntityQuery` 仍是 C++ 专用接口，不属于已完成的脚本世界查询能力。
+> **证据状态（2026-09-28 增量）**：S-8 插槽与 glue 静态实现已核；UnrealSharp/C# PIE 已验证伤害公式、selector/filter 转发及空 Host、Effect 步骤同步与挂起/唤醒、Damage Flow 步骤继续/中止、悬空/代际失配句柄。同次 PIE 的 `Obj GC` 后四类宿主对象仍能执行（完整证据见 `tcs-contract-traceability.md`）。跨 PIE 动态注册表仍有进程级旧对象寿命缺陷；AS/Luau/TS 未独立验证，`ITcsEntityQuery` 仍为 C++ 专用。
 
 ### 12.1 判据：先分清"两个问题"
 
@@ -339,17 +339,17 @@ TCS 里恰好有两个结构相同、反射标记相反的接口，构成**同�
 | **注册表 + `TFunction`** | 步骤 / 条件 / 载荷读取器 | ⚠️ **差一层签名** | 键（`UScriptStruct*`）可反射，但值（`TFunction`）不可反射 | **加 UObject 执行器基类**（S-8）或换签名（S-2） |
 | **UObject + `BlueprintNativeEvent`** | `UTcsEventHandler` / `ITcsAttributeProvider` | ✅ **可达（已实测）** | UE 原生反射分发（`UFunction::Invoke`） | **插槽路线的底座** |
 
-**关键认识**：第三种机制是 **UE 自己的反射系统**，**不是 C# 专属**——AngelScript / Luau / Puerts(TS) / 蓝图**全部**支持 ⇒ 建在它上面的插槽**天然语言无关**，正是 D4-17"宿主选择脚本引擎"的落地形态。
+**关键认识**：第三种机制是 **UE 自己的反射系统**，**不是 C# 专属**，因此插槽形态不绑定某一种语言；但 AS、Luau、Puerts(TS) 的实际绑定/接口实现质量要分别验证，本工程目前只具备 UnrealSharp/C# 的独立行为证据。
 
 ### 12.3 四个能力域的边界（逐个）
 
 | 域 | 用原语拼（现在） | 造新词汇 |
 |---|---|---|
-| **技能效果** | ✅ 能——链 + `Damage`/`SelectTargets`/`WaitDelay` 已实测 | ⚠️ 步骤执行器插槽已静态实现；脚本步骤 E2E 与 GC 保活仍未验证 |
+| **技能效果** | ✅ 能——链 + `Damage`/`SelectTargets`/`WaitDelay` 已实测 | ✅ C# 自定义 Effect 步骤同步与 `TSR_Running → ResumeRun` 已 PIE 实证；同次 PIE 原生 GC 后仍能执行；跨 PIE 寿命缺陷未解决 |
 | **技能本体**（冷却/消耗/等级/时段） | ❌ **功能未做**——`TcsSkill` 在 R6 | 同上 |
 | **Buff 逻辑** | ❌ **功能未做**——`TcsState` 模块不存在、`ApplyState` 未实现（R5） | 同上 |
-| **伤害流程** | ✅ 能触发；C# PIE 已证明自定义公式可抵达（`Final=7`） | ✅ **C# 路径已实证**（RegisterTemplate + `Execute_*` + 句柄访问器）；GC、其他语言和非 C# 插槽仍未验证 |
-| **TargetSelector** | ✅ 能**用**现成的（`FTcsSelSelf` 已实测） | ⚠️ 宿主选择器/过滤器插槽已静态实现，但脚本端到端选择与 AND 组合尚未实证 |
+| **伤害流程** | ✅ 能触发；C# PIE 已证明自定义公式可抵达（`Final=7`） | ✅ C# Flow 步骤执行器的继续/中止、delegate 公式及同次 PIE GC 后再次执行已实证；其他语言未验证 |
+| **TargetSelector** | ✅ 能**用**现成的（`FTcsSelSelf` 已实测） | ✅ C# 宿主 selector/filter 的目标顺序、AND 短路、空 Host 和 GC 后再次调用已实证；脚本遍历实体世界仍不可达 |
 
 **注意**：`TcsState` / `TcsSkill` 的缺口**不是"脚本能不能"的问题**——是模块还没建（R5/R6）；届时它们会自动享受到 S-1/S-6 已打通的通道。
 
@@ -363,7 +363,7 @@ TCS 里恰好有两个结构相同、反射标记相反的接口，构成**同�
 
 | 插槽 | 形状 | 说明 |
 |---|---|---|
-| **① 目标选择/过滤** | 新增 `FTcsSelHostDelegate : FTcsTargetSelectorStrategy`（持 `TScriptInterface<ITcsTargetSelector>` 转发）+ 对应 Filter 版 | **必须先例**：`FTcsFlowDelegate` 步骤已持 `TScriptInterface<ITcsDamageFlowDelegate>`，形态现成 |
+| **① 目标选择/过滤** | 新增 `FTcsSelHostDelegate : FTcsTargetSelectorStrategy`（持 `TScriptInterface<ITcsTargetSelectorHost>` 转发）+ 对应 Filter 版 | **必须先例**：`FTcsFlowDelegate` 步骤已持 `TScriptInterface<ITcsDamageFlowDelegate>`，形态现成 |
 | **② 步骤执行器** | 新增 `UTcsStepExecutor : UObject` 基类（`UFUNCTION(BlueprintNativeEvent) Execute(...)`），脚本子类注册进现有注册表 | 键仍是步骤 struct 类型（C# 可定义纯数据 struct 并真进反射，已实测） |
 | **③ 伤害流程** | `ITcsDamageFlowDelegate` 5 方法补 `UFUNCTION(BlueprintNativeEvent)` + C++ 调用点改 `Execute_` + `UTcsDamageSubsystem::RegisterTemplate` 补 `UFUNCTION` | **最便宜**——流程侧 12 执行器已全实现，只差反射标记 |
 
@@ -385,3 +385,10 @@ TCS 里恰好有两个结构相同、反射标记相反的接口，构成**同�
 | 客制化 / 只服务宿主业务 / 不值得进插件 / 非热路径 | **插槽**（宿主脚本，S-8） |
 
 **这条不松"词汇归代码、句子归数据"的边界**（R0 §8）——它只明确了"代码"**可以由宿主以脚本形式提供**（经反射插槽），而不必每次进插件 C++。**仍然禁止**的是"数据里长出新语义"（链内嵌表达式/脚本片段）。
+
+### 12.6 2026-09-28 端到端验证增量
+
+- **行为证据**：`BP_TcsHostScriptingE2EProbe` 在单次 PIE 内实测 selector/filter 顺序与 AND 短路、空 Host；`FTcsProbeEffectStep` 变量写入读回、`TSR_Running → ResumeRun → Completed`；`FTcsProbeFlowStep` 返回 false 时后续步骤不执行，true 时两步依序执行；已释放句柄读写降级与同索引 Generation 1→3 隔离。
+- **Unreal GC 证据**：持久化摘录 `Documents/combat-system-design/evidence/2026-09-28-host-scripting-e2e-pie.md` 对应原始日志 `Saved/Logs/LegendAutoChess.log:2656–2707`，记录 `GC_READY`、`Cmd: Obj GC`、同步 `CollectGarbage(..., true)` 的命令入口/哈希压缩、随后 `GC_CHECK_BEGIN` 与四类宿主回调；Damage delegate 保持 `Final=7`、Health 100→93。粘贴的 155 行日志省略了原生命令行，须结合完整 Editor 日志判定 GC。
+- **边界**：这次只测同一个 PIE 世界；Effect/Flow 执行器注册表为进程级，跨 PIE 保留旧世界转发器及裸指针，用户此前裁定在 R-2 后续提案中优先设计 TCS 自身兜底。测试对象 `UTcsProbeDamageFormula` 的瞬态 Outer 触发 `No world was found` 打印 Warning，公式行为与 GC 保活仍成立，夹具日志上下文留待清理。
+- **其他语言**：项目级插件/`.uproject` 只有 UnrealSharp/C# 宿主测试入口；AS/Luau/Puerts(TS) 均无本仓可运行的独立 TCS 夹具，继续标记未验证。`ITcsEntityQuery` 的 `TFunctionRef` 接口仍为 C++ 专用。

@@ -53,7 +53,7 @@
 
 ### 2.4 接口与记录
 
-> **证据状态（2026-09-27）**：DamageFlow 反射接口、视图和 `Execute_*` 调用路径已完成静态/glue 核对；UnrealSharp/C# PIE 已验证模板登记、C# 公式抵达（`Final=7`）和运行态访问器往返。脚本选择器/过滤器、脚本步骤执行器、GC 强保活、悬空句柄及其他脚本语言仍未由本次证据覆盖。
+> **证据状态（2026-09-28 增量）**：DamageFlow 反射视图与 `Execute_*` 静态/glue 证据不变；本次 C# PIE 验证脚本流程步骤返回 false 时中止、true 时两步继续，原生 `Obj GC` 后 Flow executor 和模板中的 C# Damage delegate 均再次执行，公式得到 `Final=7`、Health 100→93（见 `evidence/2026-09-28-host-scripting-e2e-pie.md`）。仅覆盖同一 PIE 世界；跨 PIE 注册表寿命问题与其他语言仍未验证。
 - `ITcsDamageFlowDelegate`（UINTERFACE，宿主实现；`ICombatDamageFlowDelegate` 是早期命名，实现类名已统一到 `ITcs…` 前缀）：`GetBaseHitRate / GetBaseCritRate / ResolveElement / CalculateBaseDamage（**降级逃生口**——PV-7 D7-2 收窄后仅宿主特殊公式实现，普通项目零 delegate） / ModifyShield`。
   - **✅ 宿主脚本可达性已打通（静态实现；2026-09-27 C# PIE 子集已验证，提案 `add-host-scripting-slots`）**：5 方法带 `UFUNCTION(BlueprintNativeEvent)`，C++ 调用点改走 `ITcsDamageFlowDelegate::Execute_*` ⇒ 机制形状可由任意 UE 脚本语言承载；本仓当前行为实测只覆盖 UnrealSharp/C#，AS / Luau / TS / 蓝图仍需各自验证。
     - **`Execute_` 是必需的，不是风格选择**：虚表直调（`Step->Delegate->GetBaseHitRate(...)`）会**静默跳过**脚本层实现（脚本覆写走 `ProcessEvent`），表现为"公式不生效"而非崩溃——这正是改造前的形态（`TcsDamageFlowDelegate.generated.cs` 当时是**零方法空壳**，实测存档）。

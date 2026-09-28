@@ -14,7 +14,7 @@
 
 ### 2.1 选择器策略（策略模式取代枚举模式，用户拍板）
 
-> **证据状态（2026-09-27）**：宿主选择器/过滤器插槽与转发器已完成静态/glue 核对；本次 C# PIE 只覆盖伤害流程和运行态访问器，未运行脚本选择器/过滤器，因此其端到端选择/AND 组合行为仍待实证；实体世界查询仍是 C++ 专用能力。
+> **证据状态（2026-09-28 增量）**：宿主选择器改用 `UPARAM(ref)` 后，生成 C# 签名为 `ref IList`；当前 PIE 已验证 selector 目标顺序 `[1,2]`、过滤器 AND 短路、空 selector Host 的空集 + Warning、空 filter Host 的全通过，并在原生 `Obj GC` 后再次调用脚本 selector/filter（新签名证据见 `evidence/2026-09-28-selector-ref-pie.md`；旧签名证据见 `evidence/2026-09-28-host-scripting-e2e-pie.md`）。实体世界查询仍是 C++ 专用，其他语言未独立实测。
 - `FTcsTargetSelectorStrategy`（USTRUCT 反射基类，**纯虚 `Resolve(Context, 注入查询, OutTargets)`**——解析目标集写入 Context.Targets。**载体（D3-7 v3）**：USTRUCT 基类 + C++ 虚函数分派（StateTree 同构），Def/步骤以**裸 `FInstancedStruct`** 成员持有（2026-09-24 换型）；BP 策略扩展通道放弃（R0 §9"蓝图不承诺"承责）；宿主扩展 = **C++ 新 struct 子类（框架级通用语义）或宿主脚本插槽（客制化语义）**——见 §2.1 末条与台账 S-8）。
 - **默认实现（框架提供）**：
   - `FTcsSelSelf`——Context.Caster；
@@ -23,7 +23,8 @@
 - **宿主扩展（2026-09-24 修正：两条路，按判据选）**：
   - **① C++ 新 struct 子类**——适合"框架级通用语义"（准星指向、链接目标这类可能被多个项目复用的）；零框架改动、走快路径（虚分派）。
   - **② 宿主脚本插槽（台账 S-8，✅ 已落地）**——适合"客制化、只服务本项目业务"的语义。机制 = **宿主委托策略类型** `FTcsSelHostDelegate : FTcsTargetSelectorStrategy`（内部持 `TScriptInterface<ITcsTargetSelectorHost>` 转发给 UObject 实现）；宿主用**任意 UE 脚本语言**（C#/AS/Luau/TS/蓝图）实现该接口。**为什么必须有这条**：选择器族走**虚分派**，而 C# 定义的 struct **没有 C++ 类型 ⇒ 无 vtable ⇒ 野调用**（物理不可达）——插槽是绕过该约束的唯一路径。**先例**：`FTcsFlowDelegate` 步骤已持 `TScriptInterface<ITcsDamageFlowDelegate>`，形态现成。
-    - **接口签名**：`ITcsTargetSelectorHost::ResolveTargets(FTcsCombatEntityHandle Caster, FTcsCombatEntityHandle Instigator, TArray<FTcsCombatEntityHandle>& OutTargets)`（只填充不清空——同基类契约）；`BlueprintNativeEvent` ⇒ 形参 MUST 全反射 ⇒ **传句柄而非上下文**（上下文经门面按句柄访问器取，见 `04-module-effects.md` §5b）。
+    - **接口签名**：`ITcsTargetSelectorHost::ResolveTargets(FTcsCombatEntityHandle Caster, FTcsCombatEntityHandle Instigator, UPARAM(ref) TArray<FTcsCombatEntityHandle>& OutTargets)`（只填充不清空——同基类契约）；`BlueprintNativeEvent` ⇒ 形参 MUST 全反射 ⇒ **传句柄而非上下文**（上下文经门面按句柄访问器取，见 `04-module-effects.md` §5b）。
+    - **C# `ref` 路径验证**：UHT/UnrealSharp 导出 `ref IList<FTcsCombatEntityHandle>`；LAC 探针追加目标后，PIE 验证原生回写与 GC 后重入（见 `evidence/2026-09-28-selector-ref-pie.md`）。原版 UnrealSharp 生成器重建、LAC 程序集重新发布和第二轮 PIE 已通过；仍未验证 C# 主动调用同名方法的反向回写，也未做全新克隆构建。
     - **空 Host 降级**：选择器产出**空集 + Warning**（不崩溃、不静默通过——空集与"配好了但选不中"在日志里可区分）。
     - **双轨并存**：`FTcsSelSelf` 等内置策略走虚分派快路径、原样保留；插槽只服务宿主扩展。
   - **判据**：框架内置 / 热路径 / 需引擎级不变式 → ①；客制化 / 只服务宿主业务 / 非热路径 → ②。
