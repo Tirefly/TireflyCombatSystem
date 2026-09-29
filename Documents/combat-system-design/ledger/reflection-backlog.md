@@ -27,10 +27,10 @@
 |---|---|---|---|---|---|
 | **R-1** | **参数源族宿主插槽**（`FTcsParamValueSource` 虚分派脚本不可达） | ② 虚分派 | 未解决（SCRIPT-8 只覆盖选择器族，参数源族无转发器） | **SCRIPT-8 归档后独立小提案**（用户 2026-09-24 拍板） | **✅ 已调研并拍板**（2026-09-24；三项开放问题全定，待落地） |
 | **R-2** | **条件求值器 / 载荷读取器注册表反射入口**（SCRIPT-2 未被 SCRIPT-8 替代的部分） | ③ 签名 | 部分被 SCRIPT-8 替代（步骤执行器有 UObject 基类，条件/载荷读取器没有）；**另含跨世界寿命缺陷**（SCRIPT-8 已落地的步骤执行器即存在） | **R-1 紧邻独立提案**（用户 2026-09-27 拍板） | **✅ 已调研并拍板**（2026-09-27；含寿命缺陷记录，待落地） |
-| **R-3** | **`ITcsEntityQuery` 反射化**（`EnumerateEntities` 的 `TFunctionRef` 形参 + 门面 `SetEntityQuery` 无 `UFUNCTION`） | ③ 签名 | 并入 SCRIPT-8 但 SCRIPT-8 非目标明示"不做" | 台账 SCRIPT-5 | 待调研 |
-| **R-4** | **上下文整体反射化**（SCRIPT-3：`FTcsEffectContext` 可做 / `FTcsChainRun` 需包壳 / `FTcsDamageFlowContext` 依赖 OnConsumed 分层） | ① 不可反射成员 + 结构形状 | 降为可选（SCRIPT-8"传句柄"已绕过主要场景） | 台账 SCRIPT-3 + DAMAGE-4（前置） | 待调研（前置 = R-6 落定） |
+| **R-3** | **`ITcsEntityQuery` 反射化**（`EnumerateEntities` 的 `TFunctionRef` 形参 + 门面 `SetEntityQuery` 无 `UFUNCTION`） | ③ 签名 | 并入 SCRIPT-8 但 SCRIPT-8 非目标明示"不做" | 台账 SCRIPT-5 | **⚖ 已裁决：不换**（2026-09-29，`DEC-04` 裁定 ③）——`TFunctionRef` = 宿主提供回调、框架遍历中同步调用且**不持有**；UObject 化会把契约由"拉"改"推"、把分配推进热路径，且 R0 §9 明文"蓝图不承诺"。**不再调研、不再挂待办** |
+| **R-4** | **上下文整体反射化**（SCRIPT-3：`FTcsEffectContext` 可做 / `FTcsChainRun` 需包壳 / `FTcsDamageFlowContext` 依赖 OnConsumed 分层） | ① 不可反射成员 + 结构形状 | 降为可选（SCRIPT-8"传句柄"已绕过主要场景） | 台账 SCRIPT-3 + DAMAGE-4（前置） | 待调研（**前置 = R-6 落定**）——R-6 已由 `DEC-04` 裁定 ④ 定向：走"`OnConsumed` 改事件/原语语义"，**与 DAMAGE-4 同批** |
 | **R-5** | **`FTcsSourceHandle` 反射化 + `FindChain` 裸指针**（SCRIPT-1 未覆盖项） | ③ 签名 | SCRIPT-1 已消费但明示"未覆盖留待后续" | 台账 SCRIPT-1 未覆盖 | 待调研 |
-| **R-6** | **OnConsumed / 消耗语义**（规格欠账；`TFunction` 是 `FTcsDamageFlowContext` 反射化的唯一根因） | ① 不可反射成员 | 已登记台账 DAMAGE-4（含完整证据链） | 台账 DAMAGE-4（R5/M4a） | 已登记待办；形状待 DAMAGE-4 落定时定（本册收录为 R-4 的前置关联项） |
+| **R-6** | **OnConsumed / 消耗语义**（规格欠账；`TFunction` 是 `FTcsDamageFlowContext` 反射化的唯一根因） | ① 不可反射成员 | 已登记台账 DAMAGE-4（含完整证据链） | 台账 DAMAGE-4（R5/M4a） | **⚖ 已裁决（2026-09-29，`DEC-04` 裁定 ④）**：`FTcsConsumePolicy::OnConsumed` 的 `TFunction<void()>` **改为事件/原语语义**（可反射、可复制、可脚本可达），**与 DAMAGE-4 同批**；形状待 DAMAGE-4 落定时定。`DEC-04` §3.3 补齐了本条此前缺的量化证据（三个字段全库零消费者、`BestIndex` 赋值后无使用点） |
 
 **根因类**（沿用 S 系列判据表）：
 - ① **不可反射成员**——`TFunction`/闭包作 struct 成员 ⇒ 递归传染，宿主类型无法加 `USTRUCT()`；
@@ -328,3 +328,4 @@ bool AllowsValueConvention();                                // 第二个虚函�
 
 - **2026-09-24 建立**：用户拍板"未解决项留档 + 逐项专项调研，每项调研完评审、讨论完再落档"。收录 **R-1 ~ R-6** 六项（R-1 参数源族为本次讨论新发现；R-2~R-6 为既有台账条目的反射专项视图）。启动**调研 R-1**（待评审）。
 - **2026-09-27 R-2 评审完成（用户确认）**：需求边界 = 必需项（宿主需专属条件类型，甚至专属 SkillCost）；载荷读取器零登记并入 plan3 Task 3；R-2 与 R-1 紧邻独立提案；寿命缺陷先实测只记录 + TCS 侧兜底优先；开放问题 ⑤ 撤掉（伪问题）。解法 A 通过（用户点出其与初版 UObject-CDO 策略模式同族）、解法 B 否。**发现跨世界寿命缺陷**（SCRIPT-8 已落地代码中即存在，注册表进程级 vs 持有世界级）——已记录待实测。
+- **2026-09-29 `DEC-04` 裁定落定（用户拍板 §7 五项全接受）**：本册 **3 行改判**——**R-3 由"待调研"改为"⚖ 已裁决：不换"**（`TFunctionRef` 的语义/热路径/蓝图不承诺三条判据不随时间改变，不再挂待办）；**R-6 由"已登记待办"改为"⚖ 已裁决"**（`OnConsumed` 改事件/原语语义，与 `DAMAGE-4` 同批）；**R-4 的前置获定向**（R-6 已裁定，待 `DAMAGE-4` 落定后启动）。**R-1 / R-2 状态不变**（仍"已调研并拍板，待落地"），但落地顺序获确认：**先做 A 类值语义改造**（`DEC-04` 裁定 ⑤），它是 R-2 跨世界寿命兜底的前置护栏。条目总数不变（6 项）。

@@ -31,7 +31,7 @@ TCS 战斗系统设计已完成 **M0–M9 全部决策拍板**，实施进行到
 | **要知道某能力现在到底通没通** | `SPEC-TRACE`（契约追踪矩阵）+ `EVID-*`（证据） | 矩阵区分"静态实现 / glue / PIE 已验证 / 未验证" |
 | **要接着干活（实施）** | `PLN-R4`（当前的实施计划，含 R4–R8 路线图） | 已完成轮次的计划：`PLN-R3-1`、`PLN-R3-2` |
 | **写涉及"反射"字样的文本** | `LEDGER-terminology`（**MUST 先通读**） | 该词在本仓承载 5 种含义，有唯一处方措辞 |
-| **要查某个缩写/编号** | `GLOSSARY.md` | 12 个编号族 + 逐条注册表 |
+| **要查某个缩写/编号** | `GLOSSARY.md` | 15 个编号族 + 逐条注册表 |
 | **要新增或改写文档** | `CONVENTION` | 类型/状态词/身份块/引用格式 |
 | **想了解本轮重构做了什么** | 勘察报告：`docs/2026-09-29-tcs-docs-recon.md`（仓库根 `docs/` 目录） | 45 篇文档的结构与关系体检 |
 
@@ -46,7 +46,7 @@ combat-system-design/
 ├── spec/               ← 模块规格 SPEC-00-core ~ SPEC-10-presentation + SPEC-TRACE（12 篇）
 │                          ⚠ 编号与文件序不同轨：SPEC-06-targeting→`10-…`、SPEC-07-notation→`11-…`、
 │                            SPEC-08-damage→`09-…`、SPEC-09-editor→`08-…`、SPEC-10-presentation→`07-…`
-├── decisions/          ← 决策记录 DEC-*（9 篇：立场书 + 4 篇早期裁决 + PV/折叠/AttributeSet）
+├── decisions/          ← 决策记录 DEC-*（10 篇：立场书 + 4 篇早期裁决 + PV/折叠/AttributeSet/回调载体）
 ├── log/                ← 决策日志 LOG-*（8 篇：按模块轮次分片 + 拍板流水 + 实施记录）
 ├── plans/              ← 实施计划 PLN-*（5 篇：R3 计划一二 + 竖切剧本 + 内容指南 + R4 计划）
 ├── research/           ← 调研 RSCH-*（6 篇：AbilityKit 三路 + 复制 + 脚本 + C#）
@@ -113,6 +113,7 @@ combat-system-design/
 | `DEC-01-pv` | PV 系列：参数值来源策略体系（`PV-0`~`PV-10`） | 冻结（已拍板） |
 | `DEC-02-fold-display` | 参数折叠与展示（`D5-5` v3 / `D5-17` v2→v3 / `D5-18` v3 / `PV-1`、`PV-10` 增补） | 冻结（已拍板） |
 | `DEC-03-attribute-set` | 属性存在性与 AttributeSet（`D2-14` / `D2-15`） | 冻结（已拍板） |
+| `DEC-04-callback-carriers` | **回调载体**：全仓 `TFunction` 用途分类与替换边界（A 类注册值可换 / B 类 `TFunctionRef` 不可换 / C 类内部回调不动、其中 `OnConsumed` 重做 / D 类静态自注册禁止换）+ 各角色生命周期策略（CDO vs 每执行实例）——[`decisions/dec-04-callback-carriers.md`](decisions/dec-04-callback-carriers.md) | **待落地**（**决策已拍板** 2026-09-29，五项裁定见其 §0；实现未开始） |
 | `LOG-99-misc` | Mass 连续内存备忘 | 冻结（**未拍板**，未来优化抽屉） |
 | `DEC-2026-09-02-module-map` | 模块拆分地图提案 v1 | **历史存档**（被 `DEC-00-constitution` §9 取代） |
 

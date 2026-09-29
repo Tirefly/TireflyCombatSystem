@@ -33,7 +33,7 @@
 
 ---
 
-## 2. 编号族总表（十二族）
+## 2. 编号族总表（十五族）
 
 | 族 | 写法 | 含义 | 权威定义处 | 规模 |
 |---|---|---|---|---|
@@ -50,7 +50,7 @@
 | 参数值来源 | `PV-0`–`PV-10` | Parameter 值来源策略体系（载体/内置源/属性源/等级表/逃生口/消费面/伤害值来源/校验/链行来源/可枚举） | `DEC-01-pv`（`2026-09-10-param-value-source-decision-points.md`） | 11 |
 | 脚本缺口 | `G-1`–`G-4` | C# 脚本化缺口（G-1 上下文反射化、G-2 注册表反射入口、G-3 原语缺口、G-4 策略虚分派） | `RSCH-scripting-ustruct` §7.6；`RSCH-csharp-authoring` §7 | 4 |
 | 脚本化条目 | `SCRIPT-1`–`SCRIPT-8`（旧 `S-1`–`S-8`） | 脚本化工作流条目（门面反射化 → 宿主脚本插槽） | `LEDGER-deferred` §脚本化工作流 | 8 |
-| 跨轮遗留 | `TRIG-n` / `STAT-n` / `SKILL-n` / `INTEG-n` / `PRES-n` / `TOOLS-n` / `SCRIPT-n` / `CORE-n` / `DAMAGE-n` / `TARGET-n` | 台账条目（见 §5） | `LEDGER-deferred` | 37 |
+| 跨轮遗留 | `CORE-n` / `DAMAGE-n` / `INTEG-n` / `PRES-n` / `SCRIPT-n` / `STAT-n` / `TOOLS-n` / `WAIT-n`（**实测 8 个前缀族**，2026-09-29 核） | 台账条目（见 §5） | `LEDGER-deferred` | 37 |
 | 触发条件型 | `WAIT-1`–`WAIT-10`（旧 `T-1`–`T-10`） | 不绑轮次、等真实消费者的条目 | `LEDGER-deferred` §触发条件型 | 10 |
 | 反射未解决项 | `R-1`–`R-6` | 反射可达性专项待办 | `LEDGER-reflection` | 6 |
 
@@ -302,6 +302,7 @@
 | `DEC-01-pv` | `decisions/dec-01-pv-param-value-source.md` | 决策记录（PV 系列） |
 | `DEC-02-fold-display` | `decisions/dec-02-fold-display.md` | 决策记录（参数折叠与展示） |
 | `DEC-03-attribute-set` | `decisions/dec-03-attribute-set.md` | 决策记录（属性存在性与 AttributeSet） |
+| `DEC-04-callback-carriers` | `decisions/dec-04-callback-carriers.md` | 决策记录（回调载体：`TFunction` 去留与替换边界；**决策已拍板 2026-09-29，实现待落地**） |
 | `LOG-00-core` | `log/log-00-core-m0m2.md` | 决策日志（M0-min + M2；`D0-*`/`D2-*`/`MD-*`/`NET-*`） |
 | `LOG-01-states` | `log/log-01-states-m3.md` | 决策日志（M3） |
 | `LOG-02-effects` | `log/log-02-effects-m4-d7.md` | 决策日志（M4 + `D7-*` 增补） |
@@ -374,7 +375,8 @@
 | 4 | `MD-1` 的模块地图已被 `R0 §9` 取代，编号未废 | 保留编号作历史，标注"地图部分已被 §9 取代" |
 | 5 | `NET-1/2` 落点不齐（`SPEC-09-editor`/`SPEC-10-presentation` 无《网络姿态落点》节，其余模块规格均有） | **本轮只修编号歧义**：原写作裸号 `SPEC-09`/`SPEC-10`，按本表会读成"伤害/表现"两个模块；已改回带主题词的 `SPEC-09-editor`/`SPEC-10-presentation`。**落点不齐本身仍待办**（视需要补节或显式声明"不涉及"） |
 | 7 | **裸编号引用有歧义**（`SPEC-09`、`SPEC-10` 等不带主题词的写法） | **✅ 已修（2026-09-29）**：`NET-1/2` 行两处裸号已改带主题词；并新增纪律——**引用 `SPEC-*` MUST 写全「编号-主题词」**（如 `SPEC-09-editor`），禁止裸号（`SPEC-09` 会被读成"第 9 篇编号"，而 `SPEC-09` 的主题词是 `editor`、文件却是 `spec/09-module-damage.md`——三种口径互不相同，见下条） |
-| 8 | **编号与文件名/篇序三轨错位**（本册 §2「12 编号族」与 `INDEX.md` §4 已按编号列，但读者仍易按文件序号理解） | **✅ 已在本文 §2 与 `GLOSSARY` §5.1 双表并列**（ID ↔ 路径）——`SPEC-09` 主题词 = `editor`（文件 `spec/08-…`）、`SPEC-10` 主题词 = `presentation`（文件 `spec/07-…`）、`SPEC-08` 主题词 = `damage`（文件 `spec/09-…`）。**不改编号**：ID 是稳定键，动它要同步 5 份 openspec 生效规格（见 `CONVENTION` §5）。 |
+| 8 | **编号与文件名/篇序三轨错位**（本册 §2 的十五族总表与 `INDEX.md` §4 已按编号列，但读者仍易按文件序号理解） | **✅ 已在本文 §2 与 `GLOSSARY` §5.1 双表并列**（ID ↔ 路径）——`SPEC-09` 主题词 = `editor`（文件 `spec/08-…`）、`SPEC-10` 主题词 = `presentation`（文件 `spec/07-…`）、`SPEC-08` 主题词 = `damage`（文件 `spec/09-…`）。**不改编号**：ID 是稳定键，动它要同步 5 份 openspec 生效规格（见 `CONVENTION` §5）。 |
+| 9 | **§2 表头计数与表体不符**（写"十二族"，实际 15 行） | **✅ 已修（2026-09-29）**：表头改"十五族"；`INDEX.md` §2 的交叉引用同步。**并修正台账族的清单**——原列 `TRIG-n`/`SKILL-n`/`TARGET-n` 三种前缀**在台账中不存在**（实测 8 个前缀族），已按实测改写 |
 | 6 | 台账旧编号残留引用 | 批次 1 已全库替换；验证见重构报告 |
 
 ---
