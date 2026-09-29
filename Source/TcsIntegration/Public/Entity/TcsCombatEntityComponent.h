@@ -36,7 +36,7 @@ class UTcsPieEntityQuery;
  * **不自 TickComponent**（D6-5：M0 泵唯一驱动）。
  *
  * 与未来 Mass 的关系（D3-1）：本组件只是**军官侧适配器**——战斗核心（注册表/管线/解释器/流程）
- * 只认 `FTcsCombatEntityHandle`，不认识 Actor；Mass 小兵经桶适配器实现同一契约，核心零改动（台账 T-2）。
+ * 只认 `FTcsCombatEntityHandle`，不认识 Actor；Mass 小兵经桶适配器实现同一契约，核心零改动（台账 WAIT-2）。
  */
 UCLASS(ClassGroup = (Combat), meta = (BlueprintSpawnableComponent))
 class TCSINTEGRATION_API UTcsCombatEntityComponent : public UActorComponent

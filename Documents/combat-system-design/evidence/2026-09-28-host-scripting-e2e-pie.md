@@ -1,5 +1,11 @@
 # TCS 宿主脚本插槽 E2E：单次 PIE 与 Unreal GC 证据
 
+- **文档 ID**：`EVID-2026-09-28-scripting-e2e`
+- **类型**：EVID / 证据
+- **状态**：FROZEN
+- **权威范围**：宿主脚本插槽单次 PIE 与原生 GC 后执行证据（SCRIPT-8 验收）
+- **最后更新**：2026-09-28
+
 - 验证日期：2026-09-28；地图 `L_UnrealSharpDev`，夹具 `BP_TcsHostScriptingE2EProbe`。
 - 原始日志：`E:/Projects_Dev/LegendAutoChess/Saved/Logs/LegendAutoChess.log`；本证据从该文件一次读取中摘录。读取时大小 369893 字节，SHA-256 `b7dd472a70f6263e2f89497f274c89acd402f3d369766dcf35fc2d1940019140`。编辑器继续运行可能追加原始日志，不影响下述带原始行号的摘录。
 - 用户粘贴片段：`C:/Users/TireflyPC/.codex/attachments/1ab5b86e-9434-452e-85b8-0f8cea257090/已粘贴的文本.txt`，只含 TCS 等筛选行，省略了原生 GC 命令/引擎输出。

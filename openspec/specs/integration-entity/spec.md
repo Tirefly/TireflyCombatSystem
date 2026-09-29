@@ -1,7 +1,7 @@
 # integration-entity Specification
 
 ## Purpose
-TBD - created by archiving change add-tcsintegration-entity-layer. Update Purpose after archive.
+定义集成层的实体接线：三职责封顶的战斗实体组件、PIE 环境下的实体查询实现，以及 GameInstance 级的定义库（发现、装载、按 tag 解析与装配到世界）。
 ## Requirements
 ### Requirement: 战斗实体组件（三职责封顶）
 
@@ -60,4 +60,3 @@ TBD - created by archiving change add-tcsintegration-entity-layer. Update Purpos
 
 - **WHEN** 某链资产 `ChainId` 无效或其 `Chain.ChainId` 与自身不一致
 - **THEN** 该资产被跳过、失败清单含其路径与原因、其余资产仍可用
-

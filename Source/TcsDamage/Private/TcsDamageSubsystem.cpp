@@ -174,7 +174,7 @@ bool UTcsDamageSubsystem::RegisterStepExecutor(const UScriptStruct* StepStruct, 
 
 	FTcsFlowStepExecutorRegistry::Get().Register(StepStruct, MoveTemp(Forwarder));
 
-	// GC 可见持有（T-8 教训：裸注册表持不住对象引用 ⇒ 静默回收 ⇒ 表现为"步骤不生效"而非崩溃）
+	// GC 可见持有（WAIT-8 教训：裸注册表持不住对象引用 ⇒ 静默回收 ⇒ 表现为"步骤不生效"而非崩溃）
 	RegisteredFlowStepExecutors.AddUnique(Executor);
 
 	UE_LOG(LogTcsDamage, Log, TEXT("UTcsDamageSubsystem: 流程步骤类型 %s 已登记宿主执行器（%s）"),
@@ -300,7 +300,7 @@ void UTcsDamageSubsystem::GetRecentRecords(TArray<FTcsDamageRecord>& OutRecords)
 
 
 
-// 记录浏览命令（**入库的正式调试口**——不是测试装置；R8-6 Explain 落地前的临时替代）
+// 记录浏览命令（**入库的正式调试口**——不是测试装置；TOOLS-6 Explain 落地前的临时替代）
 namespace
 {
 	// 屏显行键基址（固定行号——重跑覆盖同一批行）
@@ -373,5 +373,5 @@ namespace
 
 static FAutoConsoleCommandWithWorldAndArgs GTcsDamageDumpRecordsCommand(
 	TEXT("Tcs.Damage.DumpRecords"),
-	TEXT("打印最近若干笔伤害记录（默认 10；含输入值 / 最终值 / 差额 = 修改器净影响 / 执行量）——Explain（R8-6）落地前的临时浏览口"),
+	TEXT("打印最近若干笔伤害记录（默认 10；含输入值 / 最终值 / 差额 = 修改器净影响 / 执行量）——Explain（TOOLS-6）落地前的临时浏览口"),
 	FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&DumpDamageRecords));

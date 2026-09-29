@@ -1,7 +1,7 @@
 # targeting-strategy Specification
 
 ## Purpose
-TBD - created by archiving change add-tcstargeting-strategies. Update Purpose after archive.
+定义目标选择层的策略契约：选择器与过滤器两组策略基类、`SelectTargets` 步骤与执行器、内置 Self 选择器，以及供宿主脚本实现的选择器/过滤器插槽。
 ## Requirements
 ### Requirement: 选择器策略契约
 
@@ -10,8 +10,8 @@ TBD - created by archiving change add-tcstargeting-strategies. Update Purpose af
 - **抽象由约定达成，MUST NOT 使用纯虚（`= 0` / `PURE_VIRTUAL`）**：UHT 对每个 USTRUCT 生成 `TCppStructOps<T>`（需可默认构造），抽象类报 C2259；`PURE_VIRTUAL` 在 `CHECK_PUREVIRTUALS` 下展开为 `= 0`（`CoreMiscDefines.h:100-102`）。故基类 MUST 提供**中性默认实现** + `meta = (Hidden)`（编辑器 picker 不可选基类；先例 `FTcsParamValueSource`）；
 - **填充纪律**：`Resolve` 只**填充** `OutTargets`（调用方先清空），MUST NOT 假设其为空；
 - **注入可空**：`EntityQuery` MAY 为 `nullptr`——策略 MUST 容忍（降级 + Warning），MUST NOT 解引用空指针；
-- **宿主扩展 = C++ 新 struct 子类**（零框架改动）：配置面经**裸 `FInstancedStruct`** 内嵌编辑（**2026-09-24 换型**，提案 `switch-strategy-carrier-to-plain-instanced-struct`），`BaseStruct` 限定由**手写 metadata** 提供（`meta = (BaseStruct = "/Script/TcsTargeting.TcsTargetSelectorStrategy")`）——**MUST NOT** 用 `TInstancedStruct<T>`（其字段在宿主脚本层导出为空壳，脚本层配不了，台账 S-6）；BP 策略扩展通道放弃（R0 §9）。
-- **换型代价（明示接受）**：丢编译期类型限定 ⇒ 改由运行期校验兜底（`GetPtr<T>()` 的 `IsChildOf` 检查 + 调用点判空）；且 `BaseStruct` metadata **写错则 picker 静默不限**（`TryFindTypeSlow` 找不到返回 nullptr 不报错）——故该 metadata 的存在性与正确性 MUST 进 M8 校验矩阵（台账 R8-1 范围）。
+- **宿主扩展 = C++ 新 struct 子类**（零框架改动）：配置面经**裸 `FInstancedStruct`** 内嵌编辑（**2026-09-24 换型**，提案 `switch-strategy-carrier-to-plain-instanced-struct`），`BaseStruct` 限定由**手写 metadata** 提供（`meta = (BaseStruct = "/Script/TcsTargeting.TcsTargetSelectorStrategy")`）——**MUST NOT** 用 `TInstancedStruct<T>`（其字段在宿主脚本层导出为空壳，脚本层配不了，台账 SCRIPT-6）；BP 策略扩展通道放弃（R0 §9）。
+- **换型代价（明示接受）**：丢编译期类型限定 ⇒ 改由运行期校验兜底（`GetPtr<T>()` 的 `IsChildOf` 检查 + 调用点判空）；且 `BaseStruct` metadata **写错则 picker 静默不限**（`TryFindTypeSlow` 找不到返回 nullptr 不报错）——故该 metadata 的存在性与正确性 MUST 进 M8 校验矩阵（台账 TOOLS-1 范围）。
 
 #### Scenario: 基类不可被编辑器选中
 
@@ -151,4 +151,3 @@ TBD - created by archiving change add-tcstargeting-strategies. Update Purpose af
 
 - **WHEN** `FTcsFilterHostDelegate.Host` 为空而该转发器在 `Filters` 数组里
 - **THEN** 候选通过（与"无 Filter"同效）
-

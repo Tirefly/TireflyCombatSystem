@@ -77,7 +77,7 @@ namespace
 		if (Step->Delegate && Step->Delegate.GetObject())
 		{
 			const FTcsCombatEntityHandle Target = Context.Targets.Num() > 0 ? Context.Targets[0] : FTcsCombatEntityHandle();
-			// **走 Execute_**（2026-09-24，台账 S-8）：脚本层实现走 ProcessEvent，虚表直调会静默跳过它
+			// **走 Execute_**（2026-09-24，台账 SCRIPT-8）：脚本层实现走 ProcessEvent，虚表直调会静默跳过它
 			HitRate = ITcsDamageFlowDelegate::Execute_GetBaseHitRate(
 				Step->Delegate.GetObject(), Context.Attacker, Target, Context.MakeView());
 		}

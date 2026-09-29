@@ -1,5 +1,11 @@
 # TCS selector ref 容器小范围验证证据
 
+- **文档 ID**：`EVID-2026-09-28-selector-ref`
+- **类型**：EVID / 证据
+- **状态**：FROZEN
+- **权威范围**：selector ref 容器回写两轮 PIE 证据（含撤销修补复测）
+- **最后更新**：2026-09-28
+
 - 验证范围：TCS `ResolveTargets(..., UPARAM(ref) TArray<...>&)`；LAC C# `ResolveTargets_Implementation(..., ref IList<...>)` 依次追加 caster、secondary。地图 `L_UnrealSharpDev`，夹具 `BP_TcsHostScriptingE2EProbe`。
 - 用户粘贴：`C:/Users/TireflyPC/.codex/attachments/ed6ed291-e1cd-4b72-ac49-563ee4eadbd1/已粘贴的文本.txt`；筛选片段省略原生 GC 命令。
 - 完整来源：`E:/Projects_Dev/LegendAutoChess/Saved/Logs/LegendAutoChess.log`。取证时读取 364517 字节，SHA-256 `fc81b979ba42e4d1cb4364ec6aae07ef7f5d78f9ba14f119667e825c2ffad8c9`；这是首轮快照；编辑器重启后同名日志可能被覆盖，下面的第二轮独立记录另有哈希。以下行号来自取证时的完整日志，单次 PIE 窗口为 2511–2661 行。

@@ -153,7 +153,7 @@ bool UTcsEffectSubsystem::RegisterStepExecutor(const UScriptStruct* StepStruct, 
 	// 注册表对同类型重复登记会 ensure + 保留首个（此处不重复实现该判定）
 	FTcsEffectStepExecutorRegistry::Get().Register(StepStruct, MoveTemp(Forwarder));
 
-	// GC 可见持有（T-8 教训：裸注册表持不住对象引用 ⇒ 静默回收 ⇒ 表现为"步骤不生效"而非崩溃）
+	// GC 可见持有（WAIT-8 教训：裸注册表持不住对象引用 ⇒ 静默回收 ⇒ 表现为"步骤不生效"而非崩溃）
 	RegisteredStepExecutors.AddUnique(Executor);
 
 	UE_LOG(LogTcsEffect, Log, TEXT("UTcsEffectSubsystem: 步骤类型 %s 已登记宿主执行器（%s）"),
@@ -234,13 +234,13 @@ bool UTcsEffectSubsystem::IsRunActive(FTcsChainRunHandle Handle) const
 
 
 
-// 运行态按句柄访问（脚本层插槽的"传句柄、不传上下文"手法，2026-09-24 台账 S-8）
+// 运行态按句柄访问（脚本层插槽的"传句柄、不传上下文"手法，2026-09-24 台账 SCRIPT-8）
 //
 // **为什么需要这一组**：插槽接口的形参只能是反射类型，而 `FTcsEffectContext` 是非反射纯 C++
 // struct（含 `FInstancedStruct` 事件载荷与 `TMap` 变量表）——脚本层拿不到它。故改为"传句柄 +
-// 按句柄访问器读写"，**绕开上下文反射化（台账 S-3）**。
+// 按句柄访问器读写"，**绕开上下文反射化（台账 SCRIPT-3）**。
 //
-// **悬空句柄语义统一**（口径同 `ResumeRun`，S-7 先例）：代际失配/已释放是**正常时序竞态**，
+// **悬空句柄语义统一**（口径同 `ResumeRun`，SCRIPT-7 先例）：代际失配/已释放是**正常时序竞态**，
 // 不是配置错误 ⇒ 读口返回空值/无效句柄、写口返回 false + Warning，**一律不 ensure**。
 TArray<FTcsCombatEntityHandle> UTcsEffectSubsystem::GetRunTargets(FTcsChainRunHandle Handle)
 {

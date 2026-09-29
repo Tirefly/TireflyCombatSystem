@@ -1,14 +1,14 @@
 # param-value Specification
 
 ## Purpose
-TBD - created by archiving change add-tcscore-param-value. Update Purpose after archive.
+定义全插件统一的数值配置载体与其值来源策略（内置 Literal / ParamRef），以及宿主脚本可承载的反射可见求值上下文——它是链步骤数值、修正器操作数与流程操作数的共同底座。
 ## Requirements
 ### Requirement: 统一数值配置载体
 
 TcsCore MUST 提供 header-only 载体 `FTcsParamValue{ FInstancedStruct Source }`（全插件统一"数值配置"载体，取代 D2-12 FTcsParamScalar）：默认构造后 Source 初始化为 `FTcsParamSource_Literal`（值 0）；MUST 提供纯 C++ 求值便利转发 `Evaluate(const FTcsParamEvaluateContext& Ctx)`（**不标 `UFUNCTION()`**——不进脚本可达面）——`Source.IsValid()` 为假时兜 0（防 Source 失效后误用）。
 
 - **载体形态（2026-09-24 换型，提案 `switch-strategy-carrier-to-plain-instanced-struct`）**：字段 MUST 为**裸 `FInstancedStruct`**（**MUST NOT** 用 `TInstancedStruct<FTcsParamValueSource>`），并以 `meta = (BaseStruct = "/Script/TcsCore.TcsParamValueSource")` 限定编辑器 picker；
-- **换型理由**：`TInstancedStruct<T>` 字段在宿主脚本层（UnrealSharp/C#）**导出为空壳**（绑定产物无字段读写代码）⇒ 脚本层配不了任何数值（台账 S-6）；裸 `FInstancedStruct` 是引擎官方文档注释给出的写法（`InstancedStruct.h:20-27`），且 **StateTree 用的正是裸形态**（D3-7 v3 宣称的"StateTree 同构"以裸形态才成立）；
+- **换型理由**：`TInstancedStruct<T>` 字段在宿主脚本层（UnrealSharp/C#）**导出为空壳**（绑定产物无字段读写代码）⇒ 脚本层配不了任何数值（台账 SCRIPT-6）；裸 `FInstancedStruct` 是引擎官方文档注释给出的写法（`InstancedStruct.h:20-27`），且 **StateTree 用的正是裸形态**（D3-7 v3 宣称的"StateTree 同构"以裸形态才成立）；
 - **代价（明示接受）**：丢编译期类型限定（原本 `TInstancedStruct` 的 `enable_if` 拦异族赋值）⇒ 改由**运行期**校验兜底（`FInstancedStruct::GetPtr<T>()` 做 `IsChildOf` 检查、不符返回 nullptr，调用点 MUST 判空）——TCS 既有调用点已按该模式书写；
 - **兼容性**：换型**不破坏已存资产**——引擎保证 `TInstancedStruct` 与 `FInstancedStruct` 同尺寸且"反射层视为同一物"（`InstancedStruct.h:538`），UHT 产出的属性结构逐字段相同（`FStructProperty` → `FInstancedStruct`），资产序列化的是**内层类型身份**（`Ar << TObjectPtr<UScriptStruct>`）而非容器类型。
 
@@ -65,7 +65,7 @@ TcsCore MUST 提供抽象基类 `FTcsParamValueSource`（USTRUCT，`Evaluate(con
 
 ### Requirement: 反射可见求值上下文
 
-`FTcsParamEvaluateContext` MUST 是 `USTRUCT(BlueprintType)`（**类型反射可见 + 蓝图可配置**）——**禁止 `TFunction`/`std::function` 等无 `USTRUCT` 宏的成员**（宿主脚本扩展通道，PV-1；含这类成员会让宿主类型无法加 `USTRUCT()`——UHT 报错）；当前仅持参数表只读访问 `TScriptInterface<ITcsParamTableReader> ParamTable`（可空）；领域扩展 = 结构体继承 + 源内 checked cast（PV-1，cast 失败面由 M8 校验覆盖）；`Subject`（FCombatEntityHandle）与 `EffectiveLevel`（int32）随 TcsState 等级源同批补齐（既定偏差——等级源/属性源是其唯一消费者）。措辞口径见 `Documents/combat-system-design/reflection-terminology.md`。
+`FTcsParamEvaluateContext` MUST 是 `USTRUCT(BlueprintType)`（**类型反射可见 + 蓝图可配置**）——**禁止 `TFunction`/`std::function` 等无 `USTRUCT` 宏的成员**（宿主脚本扩展通道，PV-1；含这类成员会让宿主类型无法加 `USTRUCT()`——UHT 报错）；当前仅持参数表只读访问 `TScriptInterface<ITcsParamTableReader> ParamTable`（可空）；领域扩展 = 结构体继承 + 源内 checked cast（PV-1，cast 失败面由 M8 校验覆盖）；`Subject`（FCombatEntityHandle）与 `EffectiveLevel`（int32）随 TcsState 等级源同批补齐（既定偏差——等级源/属性源是其唯一消费者）。措辞口径见 `Documents/combat-system-design/ledger/reflection-terminology.md`。
 
 USTRUCT 没有内建类型查询，故 PV-1 的"源内 checked cast"MUST 由**类型标识虚函数**承载：`virtual const UScriptStruct* GetScriptStruct() const { return StaticStruct(); }`（GAS `FGameplayEffectContext::GetScriptStruct` 同款机制，2026-09-16 实证）——派生上下文覆写为自身类型，域侧源取上下文后以 `GetScriptStruct()->IsChildOf(<域上下文>::StaticStruct())` 判定（**支持多层派生**：更具体的上下文不被拒），不匹配即落兜底（不崩溃、不 ensure）。
 
@@ -78,4 +78,3 @@ USTRUCT 没有内建类型查询，故 PV-1 的"源内 checked cast"MUST 由**�
 
 - **WHEN** 域侧源收到的是基础 `FTcsParamEvaluateContext`（或另一域的派生上下文），而它期望属性域上下文
 - **THEN** `IsChildOf` 判定为假，源落兜底路径；收到属性域上下文（或其更具体的派生）时判定为真，进入域读取路径
-

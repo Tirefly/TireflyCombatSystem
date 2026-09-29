@@ -1,7 +1,7 @@
 # cpp-module-structure Specification
 
 ## Purpose
-TBD - created by archiving change update-uplugin-for-r3-modules. Update Purpose after archive.
+定义 C++ 模块的目录与依赖骨架：模块骨架目录的收窄口径、最小编译集依赖方向，以及文件名去类型前缀的命名纪律。
 ## Requirements
 ### Requirement: 模块骨架目录收窄口径
 
@@ -44,4 +44,3 @@ TBD - created by archiving change update-uplugin-for-r3-modules. Update Purpose 
 
 - **WHEN** 重命名一个反射类型的头文件
 - **THEN** 该头内的 `.generated.h` include 同步改名，全量编译通过（UHT 产物名跟随头文件名）
-

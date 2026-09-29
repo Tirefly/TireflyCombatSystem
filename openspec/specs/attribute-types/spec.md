@@ -1,7 +1,7 @@
 # attribute-types Specification
 
 ## Purpose
-TBD - created by archiving change add-tcsattribute-types-and-store. Update Purpose after archive.
+定义 M2 属性层的类型词汇：封闭的运算带枚举与带权、操作数双形状、边界三态与值域模式、账本修正器与属性实例、修正器模板资产与约定列白名单、属性值参数源、覆盖带的优先级与同优先级策略，以及以 GameplayTag 为内容的属性身份与双轨制定义。
 ## Requirements
 ### Requirement: 运算带封闭枚举与带权
 
@@ -249,4 +249,3 @@ MUST 在资产 `IsDataValid`（`WITH_EDITOR`）报错：`DefTag` 无效（`!DefT
 
 - **WHEN** 单位由定义行添加属性后再读取实例
 - **THEN** 实例的边界、值域模式与覆盖带同优先级策略来自定义行，但实例不持有定义行或资产的引用（改定义不影响已建实例）
-

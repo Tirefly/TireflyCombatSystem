@@ -28,7 +28,7 @@ class UTcsDamageFlowDelegate : public UInterface
  *
  * 参与者一律实体身份句柄（承接 2026-09-20 句柄化——无 Actor 依赖，Mass 实体同样可委托）。
  *
- * **反射面 = 宿主脚本插槽（2026-09-24，台账 S-8）**：5 方法全带 `UFUNCTION(BlueprintNativeEvent)`
+ * **反射面 = 宿主脚本插槽（2026-09-24，台账 SCRIPT-8）**：5 方法全带 `UFUNCTION(BlueprintNativeEvent)`
  * ⇒ 宿主可用**任意 UE 脚本语言**实现本契约（C# / AS / Luau / TS / 蓝图——UE 原生反射分发，
  * 天然语言无关，兑现 D4-17"语言无关执行器"）。
  *

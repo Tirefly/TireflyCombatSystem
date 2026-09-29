@@ -21,7 +21,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FTcsOnCombatEvent, FGameplayTag, Ev
 /**
  * 事件总线门面（M0 §2.2）：世界级子系统，持有总线内核并接入动态多播监听面。
  *
- * **注意「反射」一词在本仓的歧义**（措辞规约见 `Documents/combat-system-design/reflection-terminology.md`）：
+ * **注意「反射」一词在本仓的歧义**（措辞规约见 `Documents/combat-system-design/ledger/reflection-terminology.md`）：
  * 本文件的"动态监听面"指 **`BlueprintAssignable`（蓝图暴露面）**——与 `UTcsEffectSubsystem` 的
  * "脚本可达面"（`UFUNCTION()` 无 specifier、**蓝图不可见**）是**互补相反**的两面，旧文本曾都写作
  * "反射面"，易误读。

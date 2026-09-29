@@ -1,7 +1,7 @@
 # effect-chain Specification
 
 ## Purpose
-TBD - created by archiving change add-tcseffect-chain-interpreter. Update Purpose after archive.
+定义效果链与链步骤的数据形状、链定义的登记表与解析入口、效果链上下文（黑板：类/实体/运行态/黑板值与生命周期纪律），以及链运行态句柄的反射性。
 ## Requirements
 ### Requirement: 链与步骤数据形状
 
@@ -32,7 +32,7 @@ TBD - created by archiving change add-tcseffect-chain-interpreter. Update Purpos
 - `FindChain(FGameplayTag ChainId)`：查询（**未登记返回 nullptr，不 ensure**——查询是正常路径，单位/链未登记不算契约违规）；
 - 拒绝面（ensure 提示 + 返回 false）：`ChainId` **无效**（`!ChainId.IsValid()`）、同 id 重复登记（D2-1 同款口径：词表/定义重名 = 加载期错误，**不得静默覆写**）；
 - 登记表 MUST 以**地址稳定**的持有方式存链定义（`TMap<FGameplayTag, TUniquePtr<FTcsEffectChain>>` 或同效手段；**2026-09-22 改造：键类型改 tag**）——解释器在一次进入执行期间持有链定义引用，后续登记不得使其悬空（引擎事实 2026-09-17：`TMap`/`TSet` 元素住连续缓冲、扩容即搬移）；
-- 登记表 MUST 同时做到**对 GC 可见**（2026-09-23 补，与 `damage-flow` 同批修台账 T-8）：链步骤可放**任意宿主自定义 struct**（D4-16 步骤无公共基类、picker 不设限），其中的 `UPROPERTY` 对象引用（委托 `TScriptInterface` / 资产 `TObjectPtr`）须被保活 —— 而**裸 C++ 容器不经 GC 的 `RefLink`**，故子系统 MUST 覆写 `AddReferencedObjects` 并逐链调 `FReferenceCollector::AddPropertyReferencesWithStructARO`，否则那些引用会被静默回收（步骤取到空引用，而非崩溃）。
+- 登记表 MUST 同时做到**对 GC 可见**（2026-09-23 补，与 `damage-flow` 同批修台账 WAIT-8）：链步骤可放**任意宿主自定义 struct**（D4-16 步骤无公共基类、picker 不设限），其中的 `UPROPERTY` 对象引用（委托 `TScriptInterface` / 资产 `TObjectPtr`）须被保活 —— 而**裸 C++ 容器不经 GC 的 `RefLink`**，故子系统 MUST 覆写 `AddReferencedObjects` 并逐链调 `FReferenceCollector::AddPropertyReferencesWithStructARO`，否则那些引用会被静默回收（步骤取到空引用，而非崩溃）。
 
 **地址稳定与 GC 可见是两件正交的事**：前者防 `TMap` 扩容搬移导致解释器持有的 C++ 引用悬空；后者防对象引用被 GC 回收。二者 MUST 同时满足。
 
@@ -60,8 +60,8 @@ TBD - created by archiving change add-tcseffect-chain-interpreter. Update Purpos
 - `Variables`（`TMap<FGameplayTag, double>`——链内变量，SetVar/Branch 类步骤的载体；**2026-09-22 改造：键类型 `FName` → `FGameplayTag`**）；
 - **属性捕获（CapturedAttrs）与宿主能力引用不住这里**：前者归 TcsDamage 流程上下文（09 §2.1），后者经门面注入点取得（`GetEntityQuery` 等）——黑板只持本次执行的数据；
 - 生命期：随链运行态（`FTcsChainRun`）自持，**MUST NOT 跨帧持有**（运行态释放即失效）；
-- **MUST NOT 作配置数据载体**（纯运行态）：MUST NOT 加 `BlueprintType`、MUST NOT 出现在任何 Def 资产的可编辑字段里、MUST NOT 加 `EditAnywhere` 类 specifier（措辞口径见 `Documents/combat-system-design/reflection-terminology.md`）；
-- **本约束不涉及类型反射可见性**（`USTRUCT()` 宏的有无）：类型是否反射可见与"能否作配置数据"是两件独立的事——前者由本需求不约束，若未来需让宿主脚本**直接持有/构造**本 struct（而非经门面按句柄访问器读写），须另行评估（台账 S-3）。
+- **MUST NOT 作配置数据载体**（纯运行态）：MUST NOT 加 `BlueprintType`、MUST NOT 出现在任何 Def 资产的可编辑字段里、MUST NOT 加 `EditAnywhere` 类 specifier（措辞口径见 `Documents/combat-system-design/ledger/reflection-terminology.md`）；
+- **本约束不涉及类型反射可见性**（`USTRUCT()` 宏的有无）：类型是否反射可见与"能否作配置数据"是两件独立的事——前者由本需求不约束，若未来需让宿主脚本**直接持有/构造**本 struct（而非经门面按句柄访问器读写），须另行评估（台账 SCRIPT-3）。
 
 #### Scenario: 参与者是句柄而非 Actor
 
@@ -74,7 +74,7 @@ TBD - created by archiving change add-tcseffect-chain-interpreter. Update Purpos
 
 - **字段 MUST 展平**（2026-09-24 实测修正）：句柄 MUST 直接持有 `Index`/`Generation` 两个 `UPROPERTY` 字段，**MUST NOT** 内嵌 `TTcsInstanceHandle<T>`——后者是模板类型、无法作 `UPROPERTY`，会让绑定产物生成**空壳**（`ToNative`/`FromNative` 函数体为空）⇒ 脚本层接住句柄时读不到值、传回时写全零 ⇒ **代际失配、往返失效**（实测：池给 `{Index=0, Generation=1}`，C# 传回 `{0, 0}`，`IsValid` 判 false）；
 - `Index` MUST 为 `int32`（UHT 不支持 `uint32` 作属性类型）；**无效值 `-1` 与 `TTcsInstanceHandle::InvalidIndex(0xFFFFFFFF)` 位模式相同**——MUST 经唯一的转换点（`GetInner`/`SetInner`）与池句柄互转，保证往返无损；
-- **MUST 为 `BlueprintType`（2026-09-24 放宽，台账 S-8 连带）**：原"MUST NOT 加 `BlueprintType`"的顾虑是"成为 `BlueprintCallable` 的合法形参 ⇒ 意外扩大蓝图承诺面"；插槽路线（`effect-step-dispatch` 的"步骤执行器插槽"）需要句柄出现在 **`BlueprintNativeEvent` 签名**里，而 UHT 对 `BlueprintEvent` 强制全部形参蓝图可表达（`UhtFunction.cs:859`/`:1043-1053`）⇒ 非 `BlueprintType` 则插槽**编译不过**。放宽的**承诺面代价为零**：消费句柄的门面方法仍为 `UFUNCTION()` 无 specifier（蓝图不可见），蓝图能"看见类型"却**无任何可调用的门面**；插槽接口确实蓝图可实现，但那是 R0 §9 已接受的"恰好蓝图也能用"（台账 S-8），**不是新增承诺**；
+- **MUST 为 `BlueprintType`（2026-09-24 放宽，台账 SCRIPT-8 连带）**：原"MUST NOT 加 `BlueprintType`"的顾虑是"成为 `BlueprintCallable` 的合法形参 ⇒ 意外扩大蓝图承诺面"；插槽路线（`effect-step-dispatch` 的"步骤执行器插槽"）需要句柄出现在 **`BlueprintNativeEvent` 签名**里，而 UHT 对 `BlueprintEvent` 强制全部形参蓝图可表达（`UhtFunction.cs:859`/`:1043-1053`）⇒ 非 `BlueprintType` 则插槽**编译不过**。放宽的**承诺面代价为零**：消费句柄的门面方法仍为 `UFUNCTION()` 无 specifier（蓝图不可见），蓝图能"看见类型"却**无任何可调用的门面**；插槽接口确实蓝图可实现，但那是 R0 §9 已接受的"恰好蓝图也能用"（台账 SCRIPT-8），**不是新增承诺**；
 - 先例 = `FTcsCombatEntityHandle`（同为展平字段的**反射 + `BlueprintType`** 句柄）——两条句柄分道扬镳无技术依据。
 
 #### Scenario: 句柄可作反射方法的返回与参数
@@ -96,4 +96,3 @@ TBD - created by archiving change add-tcseffect-chain-interpreter. Update Purpos
 
 - **WHEN** 检查 `UTcsStepExecutor::Execute` 的反射签名（含 `FTcsChainRunHandle Run` 形参）
 - **THEN** UHT 编译通过（句柄为 `BlueprintType`，满足 `BlueprintNativeEvent` 的形参校验）
-

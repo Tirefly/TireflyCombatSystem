@@ -87,7 +87,7 @@ void UTcsTriggerEvaluator::HandleEvent_Implementation(FGameplayTag EventTag, con
 		FTcsEffectContext ChainContext;
 		ChainContext.Caster = Context.Caster;
 		ChainContext.EventPayload = Payload;
-		// Targets 本轮留空：完整"事件载荷 → 目标"通路需真实带目标的载荷类型（台账 R5-1）
+		// Targets 本轮留空：完整"事件载荷 → 目标"通路需真实带目标的载荷类型（台账 DAMAGE-1）
 
 		UE_LOG(LogTcsEffect, Verbose, TEXT("触发求值：行命中（事件=%s 链=%s 主体=%lld）"),
 			*EventTag.ToString(), *ChainId.ToString(), Context.Caster.Id);

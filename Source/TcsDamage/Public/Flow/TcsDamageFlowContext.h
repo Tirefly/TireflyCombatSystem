@@ -112,7 +112,7 @@ public:
 
 public:
 	/**
-	 * 投影为**反射视图**（2026-09-24，台账 S-8）：宿主脚本层在 `ITcsDamageFlowDelegate` 实现里
+	 * 投影为**反射视图**（2026-09-24，台账 SCRIPT-8）：宿主脚本层在 `ITcsDamageFlowDelegate` 实现里
 	 * 读流程状态用（`FTcsDamageFlowContext` 本身是纯 C++ struct，不能作 `UFUNCTION` 形参）。
 	 *
 	 * **单向**：只拷贝可反射数据面，不改动本上下文（视图无反向写回——宿主修正流程值走

@@ -1,7 +1,7 @@
 # effect-interpreter Specification
 
 ## Purpose
-TBD - created by archiving change add-tcseffect-chain-interpreter. Update Purpose after archive.
+定义链的执行语义：池化运行态与驱动、步内挂起-恢复协议、单帧步数熔断、等待步骤，以及供宿主脚本调用的门面反射面。
 ## Requirements
 ### Requirement: 链执行与池化运行态
 
@@ -105,9 +105,9 @@ TBD - created by archiving change add-tcseffect-chain-interpreter. Update Purpos
 - **蓝图侧因此不可见，这是有意接受**（R0 §9"蓝图不承诺"）——声明处 MUST 以注释写明，避免被误读为漏写；
 - 可见性依赖 C++ 侧 `public` 访问级别（UHT 据此授予 `EFunctionFlags.Public`，UnrealSharp 才生成 `public` 方法）；**实现后 MUST 以生成的 glue 产物验证**（读 `*.generated.cs` 确认修饰符为 `public`），不得仅凭推断；
 - 覆盖范围（本轮）：链登记（`RegisterChain`/`UnregisterChain`/`FindChain`）、触发登记（`RegisterTriggerRow`/`UnregisterTriggerRow`/`SetTriggerGateTag`/`IsTriggerGateTagLit`/`GetTriggerRowCount`/`SetTriggerRandomSeed`）、执行（`ExecuteChain`/`ResumeRun`/`IsRunActive`）、能力注入（`SetEntityQuery`/`GetEntityQuery`）；
-- **形参含非反射裸 struct 的方法不在本轮**（如 `UnregisterTriggerRowsBySource(const FTcsSourceHandle&)`）——需先反射化该 struct，属台账 S-1 的 B 类未覆盖项；
-- 反射面**只开"调用"这一扇门**：MUST NOT 被理解为"脚本可提供行为"——行为登记（三张注册表的 `Register`）的反射入口是独立欠账（台账 S-2），其形参 `TFunction` 不可反射。**（2026-09-24 补：该欠账的替代路径已由台账 S-8 的"步骤执行器插槽"给出——UObject 基类不动 `TFunction` 签名即可让脚本登记执行器，见 `effect-step-dispatch`）**；
-- **按句柄的上下文访问器（2026-09-24 新增，台账 S-8）**：门面 MUST 提供下列方法，**全部 `UFUNCTION()` 无 specifier**——它们是"传句柄、不传上下文"手法的落地，使宿主脚本能在不反射化 `FTcsEffectContext` 的前提下读写运行态：
+- **形参含非反射裸 struct 的方法不在本轮**（如 `UnregisterTriggerRowsBySource(const FTcsSourceHandle&)`）——需先反射化该 struct，属台账 SCRIPT-1 的 B 类未覆盖项；
+- 反射面**只开"调用"这一扇门**：MUST NOT 被理解为"脚本可提供行为"——行为登记（三张注册表的 `Register`）的反射入口是独立欠账（台账 SCRIPT-2），其形参 `TFunction` 不可反射。**（2026-09-24 补：该欠账的替代路径已由台账 SCRIPT-8 的"步骤执行器插槽"给出——UObject 基类不动 `TFunction` 签名即可让脚本登记执行器，见 `effect-step-dispatch`）**；
+- **按句柄的上下文访问器（2026-09-24 新增，台账 SCRIPT-8）**：门面 MUST 提供下列方法，**全部 `UFUNCTION()` 无 specifier**——它们是"传句柄、不传上下文"手法的落地，使宿主脚本能在不反射化 `FTcsEffectContext` 的前提下读写运行态：
 
   | 方法 | 语义 |
   |---|---|
@@ -118,7 +118,7 @@ TBD - created by archiving change add-tcseffect-chain-interpreter. Update Purpos
   | `FTcsCombatEntityHandle GetRunCaster(FTcsChainRunHandle)` | 读施法者句柄（悬空句柄返回无效句柄） |
   | `FTcsCombatEntityHandle GetRunInstigator(FTcsChainRunHandle)` | 读发起者句柄（同上） |
 
-  **MUST NOT 提供 `FTcsEffectContext` 整体读写口**——该 struct 是非反射纯 C++ 类型（`TcsEffectContext.h:24`），且含 `FInstancedStruct EventPayload`（反射）与 `TMap` 变量表；整体暴露即等于要求上下文反射化（台账 S-3），而访问器路线的全部收益正是**避开**它。
+  **MUST NOT 提供 `FTcsEffectContext` 整体读写口**——该 struct 是非反射纯 C++ 类型（`TcsEffectContext.h:24`），且含 `FInstancedStruct EventPayload`（反射）与 `TMap` 变量表；整体暴露即等于要求上下文反射化（台账 SCRIPT-3），而访问器路线的全部收益正是**避开**它。
 
 #### Scenario: 脚本层可调用门面方法
 
@@ -144,4 +144,3 @@ TBD - created by archiving change add-tcseffect-chain-interpreter. Update Purpos
 
 - **WHEN** 以已释放的句柄调用任一访问器
 - **THEN** 读口返回空值/无效句柄、写口返回 false + Warning（**不 ensure**——代际竞态是正常路径，口径同 `ResumeRun`）
-

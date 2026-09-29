@@ -44,7 +44,7 @@ public:
 	virtual void Deinitialize() override;
 
 	/**
-	 * GC 引用收集（**模板登记表的 GC 可见持有**，2026-09-23 修复 T-8）。
+	 * GC 引用收集（**模板登记表的 GC 可见持有**，2026-09-23 修复 WAIT-8）。
 	 *
 	 * 为什么必须自己实现：`Templates` 是 `TMap<FGameplayTag, TUniquePtr<FTcsFlowTemplate>>`——
 	 * **裸 C++ 容器不经 GC 的 `RefLink`**，`TUniquePtr` 更不是 GC 可见持有，故 GC 看不见
@@ -76,10 +76,10 @@ public:
 	 * 登记流程模板（键 = `Template.TemplateId`）。
 	 * 拒绝面（ensure 提示 + 返回 false）：TemplateId 为空、同 id 重复登记（不得静默覆写）。
 	 *
-	 * **反射面（2026-09-24，台账 S-8）**：`UFUNCTION()` **无 specifier** 是有意的——形参
+	 * **反射面（2026-09-24，台账 SCRIPT-8）**：`UFUNCTION()` **无 specifier** 是有意的——形参
 	 * `FTcsFlowTemplate` 是 `USTRUCT()` 非 `BlueprintType`，加 `BlueprintCallable` 会被 UHT
 	 * 的蓝图参数校验拒；无 specifier 时 UHT 不校验参数，而宿主脚本层照常可达（口径同
-	 * `UTcsEffectSubsystem` 的 S-1 批次）。蓝图侧不可见属接受项（R0 §9"蓝图不承诺"）。
+	 * `UTcsEffectSubsystem` 的 SCRIPT-1 批次）。蓝图侧不可见属接受项（R0 §9"蓝图不承诺"）。
 	 *
 	 * @param Template 流程模板（按值拷入登记表；TUniquePtr 持有使执行期持有的引用不随登记表增长而悬空）。
 	 * @return 返回是否登记成功。
@@ -99,7 +99,7 @@ public:
 	bool UnregisterTemplate(FGameplayTag TemplateId);
 
 	/**
-	 * 登记**宿主脚本流程步骤执行器**（2026-09-24，台账 S-8 的流程侧插槽）。
+	 * 登记**宿主脚本流程步骤执行器**（2026-09-24，台账 SCRIPT-8 的流程侧插槽）。
 	 *
 	 * 内部把 `Executor` 包成 `TFunction` 转发进既有流程步骤注册表——**键与查表逻辑零改动**，
 	 * C++ 静态自注册宏路径（`UE_DEFINE_FLOW_STEP_EXECUTOR`）原样保留（**双轨并存**）。
@@ -108,7 +108,7 @@ public:
 	 * 只服务宿主业务、不值得进插件"的语义；而既有注册值 `TFunction` 不可反射（脚本登记不了）。
 	 *
 	 * **GC 可见持有**：本函数把 `Executor` 加进 `RegisteredFlowStepExecutors`（`UPROPERTY` 数组）——
-	 * 同 `Templates` 的 T-8 教训（裸容器持不住对象引用 ⇒ 静默回收 ⇒ "步骤不生效"而非崩溃）。
+	 * 同 `Templates` 的 WAIT-8 教训（裸容器持不住对象引用 ⇒ 静默回收 ⇒ "步骤不生效"而非崩溃）。
 	 *
 	 * 拒绝面（配置错误 → ensure + 返回 false）：`StepStruct` 为空、`Executor` 为空、
 	 * 同类型重复登记（由注册表判定，保留首个）。
@@ -194,7 +194,7 @@ private:
 
 	// 宿主脚本流程步骤执行器（**UPROPERTY 持有是必需的**：流程步骤注册表是裸 C++ 容器，
 	// 不经 GC 的 RefLink——不持有则脚本执行器被静默回收，表现为"步骤不生效"而非崩溃。
-	// 与 Templates 的 T-8 修复同款形态）
+	// 与 Templates 的 WAIT-8 修复同款形态）
 	UPROPERTY()
 	TArray<TObjectPtr<UTcsFlowStepExecutor>> RegisteredFlowStepExecutors;
 

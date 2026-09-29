@@ -1,5 +1,11 @@
 # AbilityKit 对照提取 B 路：触发器（Triggering）与属性修饰器（Attributes/Modifiers）
 
+- **文档 ID**：`RSCH-abilitykit-trigger`
+- **类型**：RSCH / 调研
+- **状态**：FROZEN
+- **权威范围**：AbilityKit B 路：触发器与属性修饰器（触发行提案 v1 来源）
+- **最后更新**：2026-09-01
+
 > 性质：对照调研提取（B 路：触发器与属性修饰器）→ 服务我方"Buff=触发器表（Event×Condition×Effect）+修饰器聚合"设计提案。
 > 日期：2026-09-01 · 输入：ability-kit-research 技能 04/02 号报告全文、01 号报告事件/池/定时器/确定性小节、09 号报告坑证据；vendored 源码复核 ECompareOp/ETriggerExecutionMode/TriggerExecutionControlPlan 三处。
 > 证据标注：沿用调研报告语义——【源码】=快照源码直接证实（附相对路径，默认省略 `Unity/Packages/com.abilitykit.triggering/Runtime/`，02 号报告路径相对仓库根）；【文档】=仓库内文档转引；【推断】/【未证实】=需复核。标注【源码·04§x】表示该结论由 04 号报告源码取证、本文转引，其余同理；【源码·本次复核】=本文在 vendored 源码亲验。

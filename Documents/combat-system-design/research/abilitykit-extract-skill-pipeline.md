@@ -1,5 +1,11 @@
 # AbilityKit 对照调研提取：技能管线与原语（A 路）
 
+- **文档 ID**：`RSCH-abilitykit-pipeline`
+- **类型**：RSCH / 调研
+- **状态**：FROZEN
+- **权威范围**：AbilityKit A 路：技能管线与原语（原语集提案 v1 来源）
+- **最后更新**：2026-09-01
+
 > 性质：对照调研提取报告——为我方 FEffectStep 步骤链提供原语集提案 v1。
 > 调研对象：AbilityKit（GitHub 快照 AbilityKit-master，2026-09-01 静态取证）报告 03/04/05/09 号 + vendored 源码（只读）。
 > 证据标注沿用源报告：【源码】【文档】【推断】【未证实】及 E0-E5；源码路径前缀 `references/AbilityKit-master/`。

@@ -1,7 +1,7 @@
 # attribute-store Specification
 
 ## Purpose
-TBD - created by archiving change add-tcsattribute-types-and-store. Update Purpose after archive.
+定义属性数据的宿主与单位注册、属性定义表与单位侧添加/移除入口、读侧契约，以及属性冻结暂存区（移除后整条实例的去激活语义）。
 ## Requirements
 ### Requirement: 属性数据宿主与单位注册
 
@@ -130,4 +130,3 @@ TBD - created by archiving change add-tcsattribute-types-and-store. Update Purpo
 
 - **WHEN** 单位带着冻结条目被 `UnregisterUnit`
 - **THEN** 该单位的 `Attributes` 与 `FrozenAttributes` 一并释放
-

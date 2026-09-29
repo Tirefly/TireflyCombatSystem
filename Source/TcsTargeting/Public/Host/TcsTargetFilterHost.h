@@ -11,7 +11,7 @@
 
 
 
-// 宿主过滤器插槽（TcsTargeting 反射面；宿主用任意 UE 脚本语言实现——台账 S-8）
+// 宿主过滤器插槽（TcsTargeting 反射面；宿主用任意 UE 脚本语言实现——台账 SCRIPT-8）
 UINTERFACE(MinimalAPI, Blueprintable)
 class UTcsTargetFilterHost : public UInterface
 {
@@ -19,7 +19,7 @@ class UTcsTargetFilterHost : public UInterface
 };
 
 /**
- * 宿主目标过滤器插槽（2026-09-24，台账 S-8）：**怎么算存活、怎么算敌人、阵营如何判定全是宿主本体论**
+ * 宿主目标过滤器插槽（2026-09-24，台账 SCRIPT-8）：**怎么算存活、怎么算敌人、阵营如何判定全是宿主本体论**
  * （10 §2.2）——本接口让宿主用任意 UE 脚本语言表达它，零 C++ 改动。
  *
  * **为什么必须经本接口转发**：同 `ITcsTargetSelectorHost`——`FTcsTargetFilterStrategy` 走 C++ 虚分派，

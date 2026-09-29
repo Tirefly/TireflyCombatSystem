@@ -14,13 +14,13 @@
 
 
 /**
- * 步骤执行器插槽（2026-09-24，台账 S-8）：**让宿主用任意 UE 脚本语言（C# / AS / Luau / TS / 蓝图）
+ * 步骤执行器插槽（2026-09-24，台账 SCRIPT-8）：**让宿主用任意 UE 脚本语言（C# / AS / Luau / TS / 蓝图）
  * 定义步骤行为，零 C++ 改动**——客制化、只服务宿主业务、不值得进插件的步骤语义的正解。
  *
  * **为什么需要它**：既有执行器签名 `FTcsStepExecute = TFunction<...>` 是**注册表的值**——
- * 键（`UScriptStruct*`）可反射而 `TFunction` 不可，故脚本层无法登记执行器（台账 S-2 的"差一层签名"）。
+ * 键（`UScriptStruct*`）可反射而 `TFunction` 不可，故脚本层无法登记执行器（台账 SCRIPT-2 的"差一层签名"）。
  * 本基类**替代 `TFunction` 作注册值**：门面把本对象包成 `TFunction` 转发进既有注册表
- * （**键与查表逻辑零改动**、C++ 快路径原样保留），比"换 `TFunction` 签名"（S-2）改动面小得多。
+ * （**键与查表逻辑零改动**、C++ 快路径原样保留），比"换 `TFunction` 签名"（SCRIPT-2）改动面小得多。
  *
  * **分发底座是 UE 自己的反射系统**（`UFunction::Invoke`），不是某个脚本语言专属 ⇒ **天然语言无关**。
  *
@@ -33,7 +33,7 @@
  *
  * **GC 可见持有**：登记后门面以 `UPROPERTY` 数组持有本类实例——**裸 C++ 注册表持不住对象引用**
  * （不经 GC 的 `RefLink`），不持有则脚本执行器被静默回收，表现为"步骤不生效"而非崩溃
- * （同 `UTcsDamageSubsystem::AddReferencedObjects` 修复的 T-8 缺陷形态）。
+ * （同 `UTcsDamageSubsystem::AddReferencedObjects` 修复的 WAIT-8 缺陷形态）。
  */
 UCLASS(Abstract, Blueprintable)
 class TCSEFFECT_API UTcsStepExecutor : public UObject

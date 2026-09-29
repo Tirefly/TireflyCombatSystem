@@ -42,7 +42,7 @@ public:
 	 * 主资产类型标识（Def 资产族统一约定，2026-09-17 定案）：**显式声明而非靠类名派生**——
 	 * 族语义固定、资产改名/挪目录不失联（默认实现取继承链首个原生类名与资产名）。
 	 * 注册到 AssetManager 的 `PrimaryAssetTypesToScan` 属 M6 DefLibrary 轮（不注册也能解析 id；
-	 * R3 的发现走 `IAssetRegistry::GetAssetsByClass`，见台账 R7-3）。
+	 * R3 的发现走 `IAssetRegistry::GetAssetsByClass`，见台账 INTEG-3）。
 	 */
 	static const FPrimaryAssetType PrimaryAssetType;
 

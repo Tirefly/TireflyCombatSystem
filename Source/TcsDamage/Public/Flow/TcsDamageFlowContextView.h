@@ -13,14 +13,14 @@
 
 
 /**
- * 流程上下文**反射视图**（2026-09-24，台账 S-8 的"宿主脚本插槽"）：
+ * 流程上下文**反射视图**（2026-09-24，台账 SCRIPT-8 的"宿主脚本插槽"）：
  * `FTcsDamageFlowContext` 的**可反射数据面投影**——宿主脚本层（C# / AS / Luau / TS / 蓝图）
  * 在 `ITcsDamageFlowDelegate` 的实现里读流程状态用。
  *
  * **为什么需要视图，而不是把 `FTcsDamageFlowContext` 整体反射化**：
  * 后者的黑板 `FTcsFlowAttributes` → `FTcsFlowAttributeSubmit` → `FTcsConsumePolicy::OnConsumed`
  * 是 `TFunction<void()>` 的**递归闭包**（见 `TcsFlowAttributes.h` 的消耗策略注释），
- * **物理不可反射**（UHT 实证）。真前置是"上下文/黑板分层"（台账 S-3），成本高一个数量级；
+ * **物理不可反射**（UHT 实证）。真前置是"上下文/黑板分层"（台账 SCRIPT-3），成本高一个数量级；
  * 而插槽只需要读参与者与参数，视图足够。
  *
  * **不含的字段与理由**（MUST NOT 加，加则本类型失去意义）：

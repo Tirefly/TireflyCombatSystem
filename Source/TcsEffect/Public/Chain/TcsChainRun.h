@@ -40,7 +40,7 @@ struct FTcsChainRunTag
  * 故取 `int32`；**无效值 `-1` 与 `TTcsInstanceHandle::InvalidIndex(0xFFFFFFFF)` 位模式相同**，
  * 经 `GetInner`/`SetInner` 转换无损。
  *
- * **`BlueprintType`（2026-09-24 放宽，台账 S-8 连带）**：本句柄要出现在**宿主脚本插槽**的签名里
+ * **`BlueprintType`（2026-09-24 放宽，台账 SCRIPT-8 连带）**：本句柄要出现在**宿主脚本插槽**的签名里
  * （`UTcsStepExecutor::Execute` 的形参），而 UHT 对 `BlueprintNativeEvent` 强制全部形参蓝图可表达
  * （`UhtFunction.cs:859`/`:1043-1053`）——非 `BlueprintType` 则插槽编译不过。
  * 原"MUST NOT 加"的顾虑是"成为 `BlueprintCallable` 的合法形参 ⇒ 意外扩大蓝图承诺面"，**代价为零**：

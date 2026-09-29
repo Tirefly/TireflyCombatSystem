@@ -1,7 +1,7 @@
 # damage-step-library Specification
 
 ## Purpose
-TBD - created by archiving change add-tcsdamage-steps-and-primitive. Update Purpose after archive.
+定义伤害流程的标准步骤库（十步）、步骤 Conditions 挂点、通用数据步骤，以及官方默认流程模板。
 ## Requirements
 ### Requirement: 标准步骤库（十步）
 
@@ -72,4 +72,3 @@ TBD - created by archiving change add-tcsdamage-steps-and-primitive. Update Purp
 
 - **WHEN** 宿主登记自己的 `TemplateId` 并在链步骤里指定
 - **THEN** 流程按宿主的模板执行（官方默认模板不受影响，仍可被其他链使用）
-

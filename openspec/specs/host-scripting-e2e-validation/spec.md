@@ -1,11 +1,11 @@
 # host-scripting-e2e-validation Specification
 
 ## Purpose
-TBD - created by archiving change verify-tcs-host-scripting-e2e. Update Purpose after archive.
+定义宿主脚本插槽的端到端验证矩阵与其证据边界：插槽对象的 GC 保活证据、悬空句柄安全证据，以及跨语言承诺的登记。
 ## Requirements
-### Requirement: S-8 宿主脚本端到端验证矩阵
+### Requirement: SCRIPT-8 宿主脚本端到端验证矩阵
 
-项目 MUST 提供一套可在 UnrealSharp/C# PIE 中运行的宿主脚本插槽验证装置，逐项覆盖已归档 S-8 契约的行为证据：伤害流程 delegate 回调、按句柄访问器、selector/filter 转发、Effect 步骤执行器同步与挂起/唤醒、Damage Flow 步骤执行器和悬空句柄访问。验证装置 MUST 为每个场景输出可检索的通过/失败日志，并将静态实现、glue、PIE、GC 和未验证边界分开记录。
+项目 MUST 提供一套可在 UnrealSharp/C# PIE 中运行的宿主脚本插槽验证装置，逐项覆盖已归档 SCRIPT-8 契约的行为证据：伤害流程 delegate 回调、按句柄访问器、selector/filter 转发、Effect 步骤执行器同步与挂起/唤醒、Damage Flow 步骤执行器和悬空句柄访问。验证装置 MUST 为每个场景输出可检索的通过/失败日志，并将静态实现、glue、PIE、GC 和未验证边界分开记录。
 
 #### Scenario: 既有 C# 伤害流程回归
 
@@ -63,4 +63,3 @@ TBD - created by archiving change verify-tcs-host-scripting-e2e. Update Purpose 
 
 - **WHEN** 某其他脚本语言具有真实 TCS 插槽绑定和可运行 PIE 夹具
 - **THEN** 该语言必须使用独立日志和独立结果记录，不能复用 C# 日志作为证据
-

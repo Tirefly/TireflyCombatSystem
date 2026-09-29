@@ -1,7 +1,7 @@
 # entity-query-contract Specification
 
 ## Purpose
-TBD - created by archiving change add-tcseffect-chain-interpreter. Update Purpose after archive.
+定义实体查询的注入契约——框架向宿主索取「世界里有哪些实体、它们各自在哪、是否存活」的唯一接口，并明确句柄语义、稳定遍历序与不依赖 Actor 的边界。
 ## Requirements
 ### Requirement: 实体查询注入契约
 
@@ -30,4 +30,3 @@ TBD - created by archiving change add-tcseffect-chain-interpreter. Update Purpos
 
 - **WHEN** 以合法句柄调用 `GetLocation` / `IsAlive`
 - **THEN** 由宿主实现给出结果；未知/已销毁句柄由宿主返回 false（框架不代判）
-

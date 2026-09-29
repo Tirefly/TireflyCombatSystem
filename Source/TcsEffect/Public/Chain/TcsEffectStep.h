@@ -14,7 +14,7 @@
  * 与 PC 挂起（WaitEvent 类）、事件订阅并列为三种挂起形态的一种——挂起状态住运行态（FTcsChainRun），
  * 不活在调用栈里（D4-3 异步语义）。
  *
- * **反射化（2026-09-24 升格，台账 S-8）**：本枚举是**步骤执行器插槽**
+ * **反射化（2026-09-24 升格，台账 SCRIPT-8）**：本枚举是**步骤执行器插槽**
  * （`UTcsStepExecutor::Execute` 的返回类型，`UFUNCTION(BlueprintNativeEvent)`）的必要条件——
  * UHT 对 `BlueprintEvent` 强制全部形参与返回值蓝图可表达（`UhtFunction.cs:859`/`:1043-1053`），
  * 非反射枚举拿不到该 cap（`UhtEnumProperty.cs:68-69`）⇒ 不升格则插槽编译不过。

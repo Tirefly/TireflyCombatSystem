@@ -1,8 +1,14 @@
 # AbilityKit 对照调研提取：编辑器工具与确定性/回放（C 路）
 
+- **文档 ID**：`RSCH-abilitykit-editor`
+- **类型**：RSCH / 调研
+- **状态**：FROZEN
+- **权威范围**：AbilityKit C 路：编辑器工具与确定性/回放
+- **最后更新**：2026-09-01
+
 > 性质：对照调研提取报告——服务于我方战斗系统设计（编辑器工具 + 确定性/回放两条线）。
 > 日期：2026-09-01。调研基线：GitHub 快照 `AbilityKit-master`（2026-09-01 静态取证），证据等级沿用 ability-kit-research 约定：【源码】= 报告已核源码；【本次核实】= 本报告在 vendored 源码（`references/AbilityKit-master/`）二次取证；【文档】= 仓库文档转引；【推断】/【未证实】= 同约定。报告编号 R19/R01/R11/R07 指 `~/.agents/skills/ability-kit-research/references/` 下对应调研报告。
-> 关联我方文档：裁决 3《2026-08-31-visualization-editing-paradigm.md》、裁决 2 子文档《2026-08-31-tick-pump-and-component-execution.md》、总日志《combat-skill-system-carrier-discussion.md》§6。
+> 关联我方文档：裁决 3《[DEC-2026-08-31-visualization](../decisions/dec-2026-08-31-visualization.md)》、裁决 2 子文档《[DEC-2026-08-31-tick-pump](../decisions/dec-2026-08-31-tick-pump.md)》、总日志《combat-skill-system-carrier-discussion.md》§6。
 
 ## 0 TL;DR
 

@@ -13,7 +13,7 @@
 
 
 /**
- * 宿主过滤器**转发器**（2026-09-24，台账 S-8）：把 `ITcsTargetFilterHost`（UObject 反射接口）
+ * 宿主过滤器**转发器**（2026-09-24，台账 SCRIPT-8）：把 `ITcsTargetFilterHost`（UObject 反射接口）
  * 接进 `FTcsTargetFilterStrategy`（USTRUCT 虚分派体系）——宿主用任意 UE 脚本语言表达
  * "存活/敌对/阵营"这类**宿主本体论**语义，零 C++ 改动。
  *

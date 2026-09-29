@@ -1,7 +1,7 @@
 # clock-expiry-heap Specification
 
 ## Purpose
-TBD - created by archiving change add-tcscore-clock-expiry-heap. Update Purpose after archive.
+定义唯一的取时入口与可注入时间源、惰性取消且带代际校验的到期最小堆，以及驱动它们的时钟泵子系统与固定泵序——全插件的时间与到期语义由此一处定义。
 ## Requirements
 ### Requirement: 唯一取时入口与可注入时间源
 
@@ -57,4 +57,3 @@ TcsCore MUST 提供 `FTcsExpiryHeap`：条目住实例池（复用 `TTcsInstance
 
 - **WHEN** 同一泵点内既有待冲洗帧末事件又有到期条目
 - **THEN** 按时间源 → 时钟推进 → 总线冲洗 → 到期堆的固定顺序执行（到期回调中发布的帧末事件归下一拍冲洗）
-

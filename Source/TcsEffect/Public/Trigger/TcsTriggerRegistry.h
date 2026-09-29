@@ -189,7 +189,7 @@ public:
 	 * 普通 C++ 成员（非 `UPROPERTY`），GC 的 `RefLink` 遍历**根本走不到它**——故行内的
 	 * `Def.Conditions` / `Def.EventPayloadFilter` 是 `FInstancedStruct`，其**内层内存里可以放
 	 * 宿主自定义 struct 的 `UPROPERTY` 对象引用**（D4-16 条件/步骤类型不设限），GC 看不见
-	 * → **静默回收**（条件跑到那里取到空引用，而非崩溃）。这正是 T-8 的同一类缺口
+	 * → **静默回收**（条件跑到那里取到空引用，而非崩溃）。这正是 WAIT-8 的同一类缺口
 	 * （缺口在容器，不在载荷——见 `instanced-struct-aro-and-container-gc-gaps` 记忆卡）。
 	 *
 	 * 手法与 `ChainDefs` 完全同款（逐行调 `AddPropertyReferencesWithStructARO`——

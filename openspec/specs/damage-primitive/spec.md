@@ -1,7 +1,7 @@
 # damage-primitive Specification
 
 ## Purpose
-TBD - created by archiving change add-tcsdamage-steps-and-primitive. Update Purpose after archive.
+定义 Damage 链步骤与执行器、供宿主实现的流程委托契约、流程上下文的反射视图、伤害记录与事件，以及流程模板登记面的反射可达性。
 ## Requirements
 ### Requirement: Damage 链步骤与执行器
 
@@ -33,7 +33,7 @@ TBD - created by archiving change add-tcsdamage-steps-and-primitive. Update Purp
 
 `TcsDamage` MUST 提供 `ITcsDamageFlowDelegate`（UINTERFACE，宿主实现；**全部函数带中性默认实现**——"普通项目零 delegate"，PV-7/D7-2）：
 
-- **反射面（2026-09-24 新增，台账 S-8）**：5 方法 MUST 带 `UFUNCTION(BlueprintNativeEvent)`，且 MUST 在接口类内声明对应的 `virtual <名>_Implementation(...)`——UHT 检测到声明则**不生成默认 stub**（`UhtFunction.cs:681` 的 `ImplFound`），故中性默认实现住接口声明处（同款先例 = 引擎 `ISequencerAnimationOverride`，`SequencerAnimationOverride.h:31-44`；本仓 `ITcsAttributeProvider` 为无默认体的同族先例）；
+- **反射面（2026-09-24 新增，台账 SCRIPT-8）**：5 方法 MUST 带 `UFUNCTION(BlueprintNativeEvent)`，且 MUST 在接口类内声明对应的 `virtual <名>_Implementation(...)`——UHT 检测到声明则**不生成默认 stub**（`UhtFunction.cs:681` 的 `ImplFound`），故中性默认实现住接口声明处（同款先例 = 引擎 `ISequencerAnimationOverride`，`SequencerAnimationOverride.h:31-44`；本仓 `ITcsAttributeProvider` 为无默认体的同族先例）；
 - **形参 MUST 全反射**：上下文参数类型 MUST 为 `FTcsDamageFlowContextView`（`USTRUCT(BlueprintType)` 反射只读视图），**MUST NOT** 为 `FTcsDamageFlowContext`——后者是**纯 C++ struct（无 `USTRUCT`）**，出现在 `UFUNCTION` 签名里会让 UHT 报 `Unable to find 'struct' with name ...`（同款既有实证：`UTcsEffectSubsystem::ExecuteChain` 因此无法标记，只能另开 `ExecuteChainForCaster`）；
 - **C++ 调用点 MUST 走 `ITcsDamageFlowDelegate::Execute_<名>`**（**MUST NOT** 虚表直调）——虚表直调会**静默跳过**脚本层实现（C# 覆写走 `ProcessEvent`），表现为"公式不生效"而非崩溃。`Execute_` 内部先查 `UFunction` 走反射、查不到才回落原生接口实现（`TcsAttributeProvider.gen.cpp:141-157` 同款生成代码），故**C++ 实现与脚本实现双轨并存**；
 - 5 方法签名（换型后）：
@@ -73,7 +73,7 @@ TBD - created by archiving change add-tcsdamage-steps-and-primitive. Update Purp
 - **MUST NOT 含宿主门面弱引用**（`Owner`）——脚本层经自身 `GetWorld()` 取门面，无需框架代传（且 `TWeakObjectPtr` 非脚本友好）；
 - **MUST NOT 含 `FlowSource` / `CapturedAttrs`**（框架簿记面，宿主脚本无消费场景）；
 - **构造方向 = 单向**：由框架从 `FTcsDamageFlowContext` 投影（`MakeView`）；**MUST NOT** 提供反向写回——视图是**只读投影**，不是"另一个可写上下文"（避免双真相）；
-- **为什么是视图而非整体反射化**：把 `FTcsDamageFlowContext` 整体反射化需先做**上下文/黑板分层**（把含闭包的运行态面摘出）——那是台账 S-3 的范围。视图只摘可反射面，**成本低一个数量级**，且满足插槽的全部读取需求。
+- **为什么是视图而非整体反射化**：把 `FTcsDamageFlowContext` 整体反射化需先做**上下文/黑板分层**（把含闭包的运行态面摘出）——那是台账 SCRIPT-3 的范围。视图只摘可反射面，**成本低一个数量级**，且满足插槽的全部读取需求。
 
 #### Scenario: 视图不含不可反射成员
 
@@ -122,4 +122,3 @@ TBD - created by archiving change add-tcsdamage-steps-and-primitive. Update Purp
 
 - **WHEN** 检查 `UTcsDamageSubsystem` 的生成绑定产物
 - **THEN** `RegisterTemplate` / `UnregisterTemplate` 出现且修饰符为 `public`
-

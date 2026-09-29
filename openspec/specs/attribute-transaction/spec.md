@@ -1,7 +1,7 @@
 # attribute-transaction Specification
 
 ## Purpose
-TBD - created by archiving change add-tcsattribute-pipeline-and-transaction. Update Purpose after archive.
+定义属性变更的事务语义：嵌套变更批与提交、唯一提交点与失败零写入、未提交候选值的预览查询，以及按来源句柄的级联摘除。
 ## Requirements
 ### Requirement: 变更批与提交
 
@@ -71,4 +71,3 @@ TBD - created by archiving change add-tcsattribute-pipeline-and-transaction. Upd
 
 - **WHEN** 以一个从未挂过任何修正器的来源调用 `RemoveBySource`
 - **THEN** 正常返回（不 ensure）
-

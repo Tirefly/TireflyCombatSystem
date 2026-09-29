@@ -1,7 +1,7 @@
 # effect-trigger Specification
 
 ## Purpose
-TBD - created by archiving change add-effect-trigger-row. Update Purpose after archive.
+定义触发行：数据形状、条件最小集、实例与来源级联退订、登记表与订阅生命周期、四道门的求值器、触发载荷读取器，以及触发行句柄的反射性。
 ## Requirements
 ### Requirement: 触发行数据形状
 
@@ -126,7 +126,7 @@ TBD - created by archiving change add-effect-trigger-row. Update Purpose after a
 - **观测 API**：`GetTriggerRowCount() const`（装置断言用）；
 - **求值器生命周期**：由门面在首次登记时创建并 **`UPROPERTY` 持有**——总线订阅表持**弱引用**（`FTcsEventSubscription::Handler` 是 `TWeakObjectPtr`），不 root 会被 GC 掉、订阅静默失效；
 - `Deinitialize` MUST 清空登记表 + **全量退订**（不留跨世界残留订阅）；
-- **脚本层可达（2026-09-24 补）**：上列方法中**形参均可作 `UFUNCTION` 形参**（即形参类型为 `USTRUCT()` 或原生可承载类型）的部分（`RegisterTriggerRow` / `UnregisterTriggerRow` / `SetTriggerGateTag` / `IsTriggerGateTagLit` / `GetTriggerRowCount` / `SetTriggerRandomSeed`）MUST 标记 `UFUNCTION()`（无 specifier，口径见 `effect-interpreter` 的「门面脚本可达面」需求——该需求旧标题为「门面反射面」，S-8 归档后以新名为准）——这是"宿主用 C# 写技能/Buff 逻辑"的登记入口。**形参含无 `USTRUCT` 宏的裸 struct 的 `UnregisterTriggerRowsBySource(const FTcsSourceHandle&)` 不在其列**（需先给 `FTcsSourceHandle` 加 `USTRUCT()`）。措辞口径见 `Documents/combat-system-design/reflection-terminology.md`。
+- **脚本层可达（2026-09-24 补）**：上列方法中**形参均可作 `UFUNCTION` 形参**（即形参类型为 `USTRUCT()` 或原生可承载类型）的部分（`RegisterTriggerRow` / `UnregisterTriggerRow` / `SetTriggerGateTag` / `IsTriggerGateTagLit` / `GetTriggerRowCount` / `SetTriggerRandomSeed`）MUST 标记 `UFUNCTION()`（无 specifier，口径见 `effect-interpreter` 的「门面脚本可达面」需求——该需求旧标题为「门面反射面」，SCRIPT-8 归档后以新名为准）——这是"宿主用 C# 写技能/Buff 逻辑"的登记入口。**形参含无 `USTRUCT` 宏的裸 struct 的 `UnregisterTriggerRowsBySource(const FTcsSourceHandle&)` 不在其列**（需先给 `FTcsSourceHandle` 加 `USTRUCT()`）。措辞口径见 `Documents/combat-system-design/ledger/reflection-terminology.md`。
 
 #### Scenario: 同一事件 Tag 的多行共用一个订阅
 
@@ -238,4 +238,3 @@ TBD - created by archiving change add-effect-trigger-row. Update Purpose after a
 
 - **WHEN** 脚本层读取接住的行句柄的 `Index` / `Generation`
 - **THEN** 读到的是登记表的真实值——绑定产物 MUST 为这两个字段生成真实的读写代码（非空壳）
-

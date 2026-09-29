@@ -21,7 +21,7 @@ struct FTcsEffectChain;
  *
  * 职责边界（**只做资产发现与注册，不做执行**——执行归各领域门面）：
  * - **发现**：`IAssetRegistry::GetAssetsByClass` 按类扫描（**不依赖 `PrimaryAssetTypesToScan` 注册**
- *   ——该注册属 M6 轮，且未注册时 AssetManager 按类型查询会**静默返回空**，排障成本高，见台账 R7-3）；
+ *   ——该注册属 M6 轮，且未注册时 AssetManager 按类型查询会**静默返回空**，排障成本高，见台账 INTEG-3）；
  * - **校验**：双真相（`Chain.ChainId != ChainId`）/ 空 id / 重复登记 → 计入失败清单 + Error，不静默跳过；
  * - **按名解析**：链定义按 `ChainId` 缓存（`ResolveChain`）；
  * - **就绪状态机**：`OnDefinitionsReady` **单出口**（幂等）——M6 双层引导的最小版（06 §4 硬规则①）；

@@ -1,7 +1,7 @@
 # damage-flow Specification
 
 ## Purpose
-TBD - created by archiving change add-tcsdamage-flow-layer. Update Purpose after archive.
+定义 TcsDamage 的瞬时流程层：流程模板与登记表、三层值空间的流程上下文、流程属性黑板、步骤注册表与自注册宏、同步单帧的流程解释器，以及收集事件协议。
 ## Requirements
 ### Requirement: 流程模板与登记表
 
@@ -11,7 +11,7 @@ TBD - created by archiving change add-tcsdamage-flow-layer. Update Purpose after
 - `UTcsDamageSubsystem`（世界级子系统门面）MUST 提供登记表：`RegisterTemplate` / `UnregisterTemplate` / `FindTemplate`，**键 = `TemplateId`**；拒绝面（ensure + false）：`TemplateId` **无效**（`!TemplateId.IsValid()`）、同 id 重复登记（不得静默覆写）；`FindTemplate` 未登记返回 nullptr（**不 ensure**——正常查询路径）；
 - `RunTemplate` 遇未登记模板 MUST 拒绝：Error 日志 + 不执行（执行期配置错误，不 ensure）；
 - 登记表 MUST 以**地址稳定**方式持有模板（`TMap<FGameplayTag, TUniquePtr<…>>` 或同效手段；**2026-09-22 改造：键类型改 tag**）——解释器在一次执行期间持模板引用；
-- 登记表 MUST 同时做到**对 GC 可见**（2026-09-23 补，修台账 T-8）：模板步骤可携带 `UPROPERTY` 对象引用（如 `FTcsFlowDelegate::Delegate` 这类 `TScriptInterface<ITcsDamageFlowDelegate>`），而**裸 C++ 容器不经 GC 的 `RefLink`** —— 子系统 MUST 覆写 `AddReferencedObjects` 并逐模板调 `FReferenceCollector::AddPropertyReferencesWithStructARO`，否则那些引用会被静默回收（步骤取到空引用，表现为"公式不生效"而非崩溃）。
+- 登记表 MUST 同时做到**对 GC 可见**（2026-09-23 补，修台账 WAIT-8）：模板步骤可携带 `UPROPERTY` 对象引用（如 `FTcsFlowDelegate::Delegate` 这类 `TScriptInterface<ITcsDamageFlowDelegate>`），而**裸 C++ 容器不经 GC 的 `RefLink`** —— 子系统 MUST 覆写 `AddReferencedObjects` 并逐模板调 `FReferenceCollector::AddPropertyReferencesWithStructARO`，否则那些引用会被静默回收（步骤取到空引用，表现为"公式不生效"而非崩溃）。
 
 **地址稳定与 GC 可见是两件正交的事**：前者防 `TMap` 扩容搬移导致解释器持有的 C++ 引用悬空；后者防对象引用被 GC 回收。二者 MUST 同时满足。
 
@@ -84,10 +84,10 @@ TBD - created by archiving change add-tcsdamage-flow-layer. Update Purpose after
 - 注册键 = 步骤 struct 的**反射类型**（同 Effect 口径）；**双入口**（静态自注册宏 + 动态 `Register`）；
 - 宏对：`UE_DECLARE_FLOW_STEP_EXECUTOR(ExecutorFn)` / `UE_DEFINE_FLOW_STEP_EXECUTOR(StepType, ExecutorFn)`——**静态初始化期零 UObject 触达**（只入待解析表、首次查询才解析反射类型；依据与 Effect 侧同：引擎 `FNativeGameplayTag::GetIfAllocated()` 纪律）；
 - 同类型重复登记 MUST 拒绝（ensure + 保留首个）；未知步骤类型在执行期 MUST 中止流程 + Error 日志（含步骤序号与类型名）；
-- **宿主脚本可登记流程步骤（2026-09-24 新增，台账 S-8）**：`UTcsDamageSubsystem` MUST 提供 `UFUNCTION() bool RegisterStepExecutor(UScriptStruct* StepStruct, UTcsFlowStepExecutor* Executor)`——**与 Effect 侧同款插槽手法**（UObject 基类替代 `TFunction` 作注册值），新增 `UTcsFlowStepExecutor : UObject`（`UCLASS(Abstract, Blueprintable)`）带 `UFUNCTION(BlueprintNativeEvent) bool Execute(const FInstancedStruct& StepData, const FTcsDamageFlowContextView& Context)`；
+- **宿主脚本可登记流程步骤（2026-09-24 新增，台账 SCRIPT-8）**：`UTcsDamageSubsystem` MUST 提供 `UFUNCTION() bool RegisterStepExecutor(UScriptStruct* StepStruct, UTcsFlowStepExecutor* Executor)`——**与 Effect 侧同款插槽手法**（UObject 基类替代 `TFunction` 作注册值），新增 `UTcsFlowStepExecutor : UObject`（`UCLASS(Abstract, Blueprintable)`）带 `UFUNCTION(BlueprintNativeEvent) bool Execute(const FInstancedStruct& StepData, const FTcsDamageFlowContextView& Context)`；
   - **为什么流程侧也需要**："流程阶段构成 = 项目知识"（D7-5）——宿主自研的流程步骤（如"先算护盾再生再结算"）正是最典型的"客制化、只服务宿主业务、不值得进插件"的语义；
   - **形参用视图不用原上下文**：同 `damage-primitive` 的 `FTcsDamageFlowContextView`（`FTcsDamageFlowContext` 是非反射纯 C++ struct，出现在 `UFUNCTION` 签名里会让 UHT 报错）；
-  - **GC 可见持有**：门面 MUST 以 `UPROPERTY TArray<TObjectPtr<UTcsFlowStepExecutor>>` 持有已登记执行器（同 `Templates` 的 T-8 教训：裸容器持不住对象引用 ⇒ 静默回收 ⇒ 表现为"步骤不生效"）；
+  - **GC 可见持有**：门面 MUST 以 `UPROPERTY TArray<TObjectPtr<UTcsFlowStepExecutor>>` 持有已登记执行器（同 `Templates` 的 WAIT-8 教训：裸容器持不住对象引用 ⇒ 静默回收 ⇒ 表现为"步骤不生效"）；
   - **双轨并存**：C++ 自注册宏路径 MUST 保持原样。
 
 #### Scenario: 自注册后即时可执行
@@ -145,4 +145,3 @@ TBD - created by archiving change add-tcsdamage-flow-layer. Update Purpose after
 
 - **WHEN** 订阅方在回调外保存载荷中的上下文指针
 - **THEN** 属误用（契约明文 MUST NOT 跨帧持有）——框架不为其保活
-

@@ -13,7 +13,7 @@
 
 
 /**
- * 宿主选择器**转发器**（2026-09-24，台账 S-8）：把 `ITcsTargetSelectorHost`（UObject 反射接口）
+ * 宿主选择器**转发器**（2026-09-24，台账 SCRIPT-8）：把 `ITcsTargetSelectorHost`（UObject 反射接口）
  * 接进 `FTcsTargetSelectorStrategy`（USTRUCT 虚分派体系）——**宿主用任意 UE 脚本语言写选择逻辑，
  * 零 C++ 改动**。
  *

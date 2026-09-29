@@ -1,7 +1,7 @@
 # event-bus Specification
 
 ## Purpose
-TBD - created by archiving change add-tcscore-event-bus. Update Purpose after archive.
+定义 M0 事件总线：共享事件处理器与纯数据载荷的配对、双通道发布与订阅配对清理、世界级门面子系统，以及给蓝图/宿主脚本用的动态监听面。
 ## Requirements
 ### Requirement: 共享事件处理器
 
@@ -52,7 +52,7 @@ TcsCore MUST 提供 `UTcsEventHandler`（Abstract、Blueprintable）：处理入
 
 ### Requirement: BP/CS 动态监听面
 
-TcsCore MUST 提供 **BP/CS 动态监听面**（Lyra GMS 形态；`A'` 为历史代号，此处指**蓝图暴露面**——`BlueprintAssignable`，与 `effect-interpreter` 的「门面脚本可达面」是**互补相反**的两面，措辞口径见 `Documents/combat-system-design/reflection-terminology.md`）：动态多播 `FTcsOnCombatEvent(FGameplayTag EventTag, FInstancedStruct Payload)`（BlueprintAssignable，全量事件流——每笔派发均触发，绑定者按 Tag 自行过滤），以及 `UTcsAsyncAction_ListenForCombatEvent` 监听节点（"绑定即过滤"）：绑定门面多播后在回调内按 **Tag 匹配（精确/部分——层级含）+ PayloadType 结构类型匹配（空 = 不限；非空要求载荷结构为其自身或子类）**过滤，命中才广播节点自身的 `OnEvent` 子集流；Activate 绑定（重复激活先解绑再绑定）、BeginDestroy 退订。
+TcsCore MUST 提供 **BP/CS 动态监听面**（Lyra GMS 形态；`A'` 为历史代号，此处指**蓝图暴露面**——`BlueprintAssignable`，与 `effect-interpreter` 的「门面脚本可达面」是**互补相反**的两面，措辞口径见 `Documents/combat-system-design/ledger/reflection-terminology.md`）：动态多播 `FTcsOnCombatEvent(FGameplayTag EventTag, FInstancedStruct Payload)`（BlueprintAssignable，全量事件流——每笔派发均触发，绑定者按 Tag 自行过滤），以及 `UTcsAsyncAction_ListenForCombatEvent` 监听节点（"绑定即过滤"）：绑定门面多播后在回调内按 **Tag 匹配（精确/部分——层级含）+ PayloadType 结构类型匹配（空 = 不限；非空要求载荷结构为其自身或子类）**过滤，命中才广播节点自身的 `OnEvent` 子集流；Activate 绑定（重复激活先解绑再绑定）、BeginDestroy 退订。
 
 #### Scenario: 监听节点输出子集流
 
@@ -63,4 +63,3 @@ TcsCore MUST 提供 **BP/CS 动态监听面**（Lyra GMS 形态；`A'` 为历史
 
 - **WHEN** 以部分匹配（EMT_Partial）过滤父 Tag，发布子 Tag 事件
 - **THEN** 节点命中并广播（精确匹配则不命中）
-

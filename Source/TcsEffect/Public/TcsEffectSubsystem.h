@@ -52,7 +52,7 @@ public:
 	virtual void Deinitialize() override;
 
 	/**
-	 * GC 引用收集（**链定义登记表的 GC 可见持有**，2026-09-23 与 TcsDamage 同批修复 T-8）。
+	 * GC 引用收集（**链定义登记表的 GC 可见持有**，2026-09-23 与 TcsDamage 同批修复 WAIT-8）。
 	 *
 	 * 为什么必须自己实现：`ChainDefs` 是 `TMap<FGameplayTag, TUniquePtr<FTcsEffectChain>>`——
 	 * **裸 C++ 容器不经 GC 的 `RefLink`**，`TUniquePtr` 更不是 GC 可见持有。链步骤里可以放
@@ -130,18 +130,18 @@ public:
 	bool IsChainRegistered(FGameplayTag ChainId) const;
 
 	/**
-	 * 登记**宿主脚本步骤执行器**（2026-09-24，台账 S-8 的步骤执行器插槽）。
+	 * 登记**宿主脚本步骤执行器**（2026-09-24，台账 SCRIPT-8 的步骤执行器插槽）。
 	 *
 	 * 内部把 `Executor` 包成 `TFunction` 转发进既有执行器注册表——**键与查表逻辑零改动**，
 	 * C++ 静态自注册宏路径（`UE_DEFINE_EFFECT_STEP_EXECUTOR`）原样保留（**双轨并存**）。
 	 *
 	 * **为什么需要它**：既有注册值 `FTcsStepExecute` 是 `TFunction`（不可反射）⇒ 脚本层无法登记执行器
-	 * （台账 S-2 的"差一层签名"）。本入口以 **UObject 基类替代 `TFunction` 作注册值**，
+	 * （台账 SCRIPT-2 的"差一层签名"）。本入口以 **UObject 基类替代 `TFunction` 作注册值**，
 	 * 比"换 `TFunction` 签名"改动面小得多。
 	 *
 	 * **GC 可见持有**：本函数把 `Executor` 加进 `RegisteredStepExecutors`（`UPROPERTY` 数组）——
 	 * **裸 C++ 注册表持不住对象引用**（不经 GC 的 `RefLink`），不持有则脚本执行器被静默回收，
-	 * 表现为"步骤不生效"而非崩溃（T-8 缺陷形态）。
+	 * 表现为"步骤不生效"而非崩溃（WAIT-8 缺陷形态）。
 	 *
 	 * 拒绝面（配置错误 → ensure + 返回 false）：`StepStruct` 为空、`Executor` 为空、
 	 * 同类型重复登记（由注册表判定，保留首个）。
@@ -192,7 +192,7 @@ public:
 	 * 按来源全量摘除（级联退订锚点——与 M2 `RemoveBySource` 同款语义）。
 	 *
 	 * **无反射面（2026-09-24）**：形参 `FTcsSourceHandle` 是非反射纯 C++ struct（无 `USTRUCT` 宏）
-	 * ⇒ 反射层表达不了。脚本层若要按来源级联摘除，需先反射化该 struct（属台账 S-1 的 B 类未覆盖项）。
+	 * ⇒ 反射层表达不了。脚本层若要按来源级联摘除，需先反射化该 struct（属台账 SCRIPT-1 的 B 类未覆盖项）。
 	 *
 	 * @param Source 来源句柄。
 	 * @return 返回摘除的行数。
@@ -264,7 +264,7 @@ public:
 	 * 标记会让 UHT 报 `Unable to find 'struct' with name 'FTcsEffectContext'`（同款先例 =
 	 * `FTcsEffectTriggerInstance.Source` 与 `FTcsAttrModInstance.Source` 的既有编译实证）。
 	 * 故脚本层起链走本入口；**完整黑板**（自定义 `EventPayload` / `Variables` / 多目标）待上下文
-	 * 反射化落地后开放（台账 S-3）。
+	 * 反射化落地后开放（台账 SCRIPT-3）。
 	 *
 	 * 与 `UTcsCombatEntityComponent::ExecuteChainById` 的分工：那个从组件自持的实体句柄取 `Caster`
 	 * （有组件时更顺手）；本入口用于**没有组件、只持实体句柄**的纯逻辑脚本（如 Buff 系统）。
@@ -313,13 +313,13 @@ public:
 
 public:
 	/**
-	 * 读运行态目标集（2026-09-24，台账 S-8 的"传句柄、不传上下文"手法）。
+	 * 读运行态目标集（2026-09-24，台账 SCRIPT-8 的"传句柄、不传上下文"手法）。
 	 *
 	 * **为什么需要这一组**：宿主脚本插槽（步骤执行器 / 选择器 / 过滤器）的形参只能是反射类型，
 	 * 而 `FTcsEffectContext` 是非反射纯 C++ struct（`TcsEffectContext.h:24`）——脚本层拿不到它。
-	 * 故改为"传运行态句柄 + 按句柄访问器读写"，**绕开上下文反射化**（台账 S-3 因此降为可选）。
+	 * 故改为"传运行态句柄 + 按句柄访问器读写"，**绕开上下文反射化**（台账 SCRIPT-3 因此降为可选）。
 	 *
-	 * **悬空句柄语义**（口径同 `ResumeRun`，S-7 先例）：代际失配/已释放是**正常时序竞态**，
+	 * **悬空句柄语义**（口径同 `ResumeRun`，SCRIPT-7 先例）：代际失配/已释放是**正常时序竞态**，
 	 * 读口返回空值/无效句柄、写口返回 false + Warning，**一律不 ensure**。
 	 *
 	 * **反射面**：`UFUNCTION()` 无 specifier（理由同 `RegisterChain`）。
@@ -409,7 +409,7 @@ public:
 	 * 取实体查询实现（未注入返回 nullptr——"能力尚未注入"是配置状态，不 ensure）。
 	 *
 	 * **无反射面（2026-09-24）**：本对（`SetEntityQuery`/`GetEntityQuery`）与实体查询契约
-	 * `ITcsEntityQuery` 一起归台账 **S-5**——该接口三方法零 `UFUNCTION` 且形参含 `TFunctionRef`
+	 * `ITcsEntityQuery` 一起归台账 **SCRIPT-5**——该接口三方法零 `UFUNCTION` 且形参含 `TFunctionRef`
 	 * （头文件自注"C++ 专用面：蓝图不可表达"），须先换签名。在 `ITcsEntityQuery` 反射化之前，
 	 * 脚本层无法实现实体查询、故也无需经反射注入它。**本对方法保持纯 C++**。
 	 *
@@ -463,7 +463,7 @@ private:
 
 	// 宿主脚本步骤执行器（**UPROPERTY 持有是必需的**：执行器注册表是裸 C++ 容器，
 	// 不经 GC 的 RefLink——不持有则脚本执行器被静默回收，表现为"步骤不生效"而非崩溃。
-	// 与 Templates 的 T-8 修复同款形态）
+	// 与 Templates 的 WAIT-8 修复同款形态）
 	UPROPERTY()
 	TArray<TObjectPtr<UTcsStepExecutor>> RegisteredStepExecutors;
 

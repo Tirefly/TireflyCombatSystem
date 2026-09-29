@@ -1,7 +1,7 @@
 # attribute-pipeline Specification
 
 ## Purpose
-TBD - created by archiving change add-tcsattribute-pipeline-and-transaction. Update Purpose after archive.
+定义属性聚合管线的行为：单份五带折叠纯函数、按需重算与脏标记、值域收口、依赖登记与成环拒绝、变更广播，以及管线的可见性与调用纪律。
 ## Requirements
 ### Requirement: 五带折叠纯函数（单份）
 
@@ -147,4 +147,3 @@ TBD - created by archiving change add-tcsattribute-pipeline-and-transaction. Upd
 
 - **WHEN** 消费者尝试调用重算内核、依赖登记或求值栈等内部函数
 - **THEN** 编译期不可见（`private:` 段）——实现细节不构成对外契约
-

@@ -1,7 +1,7 @@
 # plugin-descriptor Specification
 
 ## Purpose
-TBD - created by archiving change update-uplugin-for-r3-modules. Update Purpose after archive.
+定义插件描述符必须声明的三条内容：引擎版本（UE 5.8）、R3 物化的编译模块集合，以及「插件级零依赖」的边界，避免模块依赖被误升为插件依赖。
 ## Requirements
 ### Requirement: 引擎版本声明
 
@@ -39,4 +39,3 @@ R3 三模块基线的 `.uplugin` MUST NOT 声明 `Plugins` 数组——事件总
 
 - **WHEN** 检查 `.uplugin` 全文
 - **THEN** 不存在 `Plugins` 数组，GameplayMessageRouter 等旧外部插件不再被引用
-

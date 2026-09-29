@@ -100,7 +100,7 @@ namespace
 		if (Step->Delegate && Step->Delegate.GetObject())
 		{
 			// 降级逃生口：宿主特殊公式（默认实现即原样返回）
-			// **走 Execute_ 而非虚表直调**（2026-09-24，台账 S-8）：脚本层实现走 ProcessEvent，
+			// **走 Execute_ 而非虚表直调**（2026-09-24，台账 SCRIPT-8）：脚本层实现走 ProcessEvent，
 			// 虚表直调会静默跳过它（表现为"公式不生效"而非崩溃）；Execute_ 内部查不到脚本覆写时
 			// 回落原生 _Implementation ⇒ C++ 实现与脚本实现双轨并存。
 			// 上下文经**反射视图**传入（`FTcsDamageFlowContext` 是纯 C++ struct，不能作 UFUNCTION 形参）。

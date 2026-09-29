@@ -1,7 +1,7 @@
 # damage-record-inspection Specification
 
 ## Purpose
-TBD - created by archiving change add-damage-record-inspection. Update Purpose after archive.
+定义伤害记录（输入值 / 最终值 / 修改器净影响 / 执行量）的入库浏览命令——Explain 调试面板落地之前，供策划与程序在 PIE 中直接查看最近若干笔伤害结果的正式调试出口。
 ## Requirements
 ### Requirement: 伤害记录浏览命令
 
@@ -12,7 +12,7 @@ TBD - created by archiving change add-damage-record-inspection. Update Purpose a
 - **差额语义**：`Final − Base` = 收集到的全部修正对伤害量的**净影响**（正 = 被增强，负 = 被削弱）——修改器只经收集事件提交（09 §2.3 唯一通道）；
 - 输出 MUST 走 UE 原生日志（`LogTcsDamage`，`Display` 级）+ 屏显（`GEngine->AddOnScreenDebugMessage`）；MUST NOT 引入项目级日志设施（TcsCore 零日志设施纪律）；
 - 缓冲为空 MUST 明确提示（"尚无记录"）而非静默；
-- **MUST NOT 做逐键归因**（"哪几个修改器各改了多少"——09 §5 非目标，归 M8 Explain，台账 R8-6）。
+- **MUST NOT 做逐键归因**（"哪几个修改器各改了多少"——09 §5 非目标，归 M8 Explain，台账 TOOLS-6）。
 
 #### Scenario: 打印最近记录
 
@@ -33,4 +33,3 @@ TBD - created by archiving change add-damage-record-inspection. Update Purpose a
 
 - **WHEN** 一笔伤害的输入为 30、收集到一笔 `PercentAdd -0.2` 修正
 - **THEN** 该行 `Base = 30`、`Final = 24`、差额 = `-6`（= 削弱 20%）
-

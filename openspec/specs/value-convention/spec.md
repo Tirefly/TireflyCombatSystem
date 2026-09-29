@@ -1,7 +1,7 @@
 # value-convention Specification
 
 ## Purpose
-TBD - created by archiving change add-tcsnotation-value-convention. Update Purpose after archive.
+定义策划记法层的值约定：`Percent`/`OneMinus`/`Negate` 标志位与「显示值 ↔ 规范值」的转换助手。
 ## Requirements
 ### Requirement: 值约定标志位
 
@@ -25,4 +25,3 @@ TcsNotation MUST 提供静态无状态助手 `FTcsValueConvention::ConvertToCano
 
 - **WHEN** 调用 `ConvertToCanonical(x, VCF_None)`
 - **THEN** 返回 x（恒等）
-

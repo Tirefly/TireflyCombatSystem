@@ -11,7 +11,7 @@
 
 
 
-// 宿主选择器插槽（TcsTargeting 反射面；宿主用任意 UE 脚本语言实现——台账 S-8）
+// 宿主选择器插槽（TcsTargeting 反射面；宿主用任意 UE 脚本语言实现——台账 SCRIPT-8）
 UINTERFACE(MinimalAPI, Blueprintable)
 class UTcsTargetSelectorHost : public UInterface
 {
@@ -19,7 +19,7 @@ class UTcsTargetSelectorHost : public UInterface
 };
 
 /**
- * 宿主目标选择器插槽（2026-09-24，台账 S-8）：**让宿主用任意 UE 脚本语言（C# / AS / Luau / TS / 蓝图）
+ * 宿主目标选择器插槽（2026-09-24，台账 SCRIPT-8）：**让宿主用任意 UE 脚本语言（C# / AS / Luau / TS / 蓝图）
  * 实现目标选择，零 C++ 改动**——客制化、只服务宿主业务、不值得进插件的选择语义的正解。
  *
  * **为什么必须经本接口转发，而不是让脚本直接继承 `FTcsTargetSelectorStrategy`**：
