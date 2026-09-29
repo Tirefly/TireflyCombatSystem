@@ -4,7 +4,7 @@
 - **类型**：SPEC / 追踪矩阵
 - **状态**：LIVING
 - **权威范围**：OpenSpec 需求 → 代码证据 → 设计文档 → 提案任务的追踪与验证边界
-- **最后更新**：2026-09-28
+- **最后更新**：2026-09-29
 
 > 2026-09-26 收束轮建立。该矩阵区分代码静态证据、生成物证据、行为证据和未验证边界；“静态完成”不得替代 PIE/GC/跨语言行为验收。
 
@@ -24,13 +24,15 @@
 | `effect-step-dispatch / 宿主脚本步骤执行器` | `TcsEffectSubsystem` + `UTcsStepExecutor`：UObject 执行器、注册入口、挂起返回 | `04-module-effects.md` §5b | `add-host-scripting-slots` 4.1–4.4；`reconcile-tcs-contract-drift` 3.5 | C# PIE：同步标记写入/读回、`TSR_Running → ResumeRun → Completed`；原生 GC 后同步步骤再次抵达。跨 PIE 注册表仍保留旧世界转发器，见 R-2。 |
 | `targeting-strategy / 宿主脚本选择器插槽` | `TcsTargetSelectorHost.h`、`TcsSelHostDelegate.h` | `10-module-targeting.md` §2.1 | `reconcile-tcs-contract-drift` 3.4 | C# `ref IList` PIE：原生回调回写后未过滤顺序 `[1,2]`、空 Host 空集 + Warning、原生 GC 后 selector 再次执行均验证（`evidence/2026-09-28-selector-ref-pie.md`）；原版 UnrealSharp 生成器重建及第二轮 PIE 通过；全新克隆构建与 C# 主动调用反向回写未验证。 |
 | `targeting-strategy / 宿主脚本过滤器插槽` | `TcsTargetFilterHost.h`、`TcsFilterHostDelegate.h` | `10-module-targeting.md` §2.2 | `reconcile-tcs-contract-drift` 3.4；SCRIPT-8 Task 6.4 | C# PIE：AND 短路、空 Host 全通过、原生 GC 后 filter 再次执行均验证。 |
-| `entity-query-contract / 实体查询注入契约` | `TcsEntityQuery.h`：`TFunctionRef` 仍存在 | `10-module-targeting.md` §2.3；SCRIPT-5 台账 | `reconcile-tcs-contract-drift` 4.2；SCRIPT-8 Task 6.4 | C++ 专用；本次 SCRIPT-8 PIE 只验证运行态目标访问，不包含脚本遍历世界 |
+| `entity-query-contract / 实体查询注入契约` | `TcsEntityQuery.h`：`TFunctionRef` 仍存在 | `10-module-targeting.md` §2.3；SCRIPT-5 台账 | `reconcile-tcs-contract-drift` 4.2；SCRIPT-8 Task 6.4 | C++ 专用；本次 SCRIPT-8 PIE 只验证运行态目标访问，不包含脚本遍历世界。**2026-09-29 定案**：`DEC-04` 裁定 ③ 判定"不换"——`TFunctionRef` 的语义/热路径/蓝图不承诺三条判据不随时间改变，本条自此不再是待办 |
+| `effect-step-dispatch / 注册表寿命语义` | 4 张注册表：`Lifetimes` 表（对象/世界弱引用）+ 失效判据 + 拒绝门收窄 + `Unregister`/`GetDynamicKeys` + 门面 `Deinitialize` 按世界撤销 | `04-module-effects.md` §5b；`09-module-damage.md` §2.2 | `harden-registry-cross-world-lifetime`（2026-09-29） | **PIE 已验证（两连 PIE）**：同一 Editor 进程连续两次 PIE，Effect/Damage 两个宿主步骤执行器**二次登记均成功**，`拒绝重复登记` 等缺陷签名零命中（`evidence/2026-09-29-registry-lifetime-pie.md`）。**未覆盖**：`Find` 跨世界判定与 `DiscardIfStale` 替换路径未被触发；条件求值器/载荷读取器两张表无动态登记故未经行为验证；对象已 GC 路径未单独构造 |
+| `damage-flow / 流程步骤注册表寿命语义` | `FTcsFlowStepExecutorRegistry`：与 Effect 侧同构同款改造 | `09-module-damage.md` §2.2 | `harden-registry-cross-world-lifetime`（2026-09-29） | 同上一行（本行只记落点，口径不重复定义） |
 
 ## 2026-09-28 验证边界与后续输入
 
 - 本次手动 GC 命令和行为复核同处一个 PIE 世界；`Saved/Logs/LegendAutoChess.log:2663–2696` 为可复核依据。所贴的 155 行文本省略了命令/引擎输出，必须连完整日志一起引用。
 - `UTcsProbeDamageFormula` 使用瞬态 Outer 调 `PrintString` 产生 `No world was found` Warning；公式仍被 C++ 抵达、实际扣除 7，属于验证装置日志上下文噪声。下次修改夹具时改用有 World 的日志上下文。
-- Effect/Flow 动态执行器的进程级注册表跨 PIE 保留旧世界裸指针，此次单次 PIE 不覆盖；按 `reflection-backlog.md` R-2 中既有用户裁定，先记录，后续优先设计 TCS 自身兜底，A1 注销为退路。下一轮验证前须重启 Editor 进程。
+- Effect/Flow 动态执行器的进程级注册表跨 PIE 保留旧世界裸指针，此次单次 PIE 不覆盖；按 `reflection-backlog.md` R-2 中既有用户裁定，先记录，后续优先设计 TCS 自身兜底，A1 注销为退路。下一轮验证前须重启 Editor 进程。**★ 2026-09-29 已闭环**：提案 `harden-registry-cross-world-lifetime` 落地并经两连 PIE 实测——**"下一轮验证前须重启 Editor 进程"这条限制不再需要**（证据见 `evidence/2026-09-29-registry-lifetime-pie.md`；生效机制为门面 `Deinitialize` 按世界显式撤销，`DiscardIfStale` 替换路径仍未触发）。
 - 本仓只有 UnrealSharp/C# 的项目级宿主和 TCS 插槽测试入口；AS、Luau、Puerts/TS 未提供可运行的独立行为证据，继续标记未验证。
 
 ## 2026-09-27 旧提案归档门槛（历史记录）

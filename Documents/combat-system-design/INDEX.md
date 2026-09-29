@@ -50,7 +50,7 @@ combat-system-design/
 ├── log/                ← 决策日志 LOG-*（8 篇：按模块轮次分片 + 拍板流水 + 实施记录）
 ├── plans/              ← 实施计划 PLN-*（5 篇：R3 计划一二 + 竖切剧本 + 内容指南 + R4 计划）
 ├── research/           ← 调研 RSCH-*（6 篇：AbilityKit 三路 + 复制 + 脚本 + C#）
-├── evidence/           ← 证据 EVID-*（2 篇 PIE 取证，带 SHA-256）
+├── evidence/           ← 证据 EVID-*（3 篇 PIE 取证，带 SHA-256）
 ├── ledger/             ← 台账与规约 LEDGER-*（3 篇活文档）
 └── HISTORICAL/         ← 历史存档（模块地图提案 v1，已被 DEC-00 §9 取代）
 ```
@@ -113,7 +113,7 @@ combat-system-design/
 | `DEC-01-pv` | PV 系列：参数值来源策略体系（`PV-0`~`PV-10`） | 冻结（已拍板） |
 | `DEC-02-fold-display` | 参数折叠与展示（`D5-5` v3 / `D5-17` v2→v3 / `D5-18` v3 / `PV-1`、`PV-10` 增补） | 冻结（已拍板） |
 | `DEC-03-attribute-set` | 属性存在性与 AttributeSet（`D2-14` / `D2-15`） | 冻结（已拍板） |
-| `DEC-04-callback-carriers` | **回调载体**：全仓 `TFunction` 用途分类与替换边界（A 类注册值可换 / B 类 `TFunctionRef` 不可换 / C 类内部回调不动、其中 `OnConsumed` 重做 / D 类静态自注册禁止换）+ 各角色生命周期策略（CDO vs 每执行实例）——[`decisions/dec-04-callback-carriers.md`](decisions/dec-04-callback-carriers.md) | **待落地**（**决策已拍板** 2026-09-29，五项裁定见其 §0；实现未开始） |
+| `DEC-04-callback-carriers` | **回调载体**：全仓 `TFunction` 用途分类与替换边界（A 类注册值可换 / B 类 `TFunctionRef` 不可换 / C 类内部回调不动、其中 `OnConsumed` 重做 / D 类静态自注册禁止换）+ 各角色生命周期策略（CDO vs 每执行实例）——[`decisions/dec-04-callback-carriers.md`](decisions/dec-04-callback-carriers.md) | **决策已拍板** 2026-09-29；**实现部分落地**（裁定 ⑤ 第一批 = 注册表寿命语义，已归档并实测；裁定 ③ 记账生效；余项待后续提案） |
 | `LOG-99-misc` | Mass 连续内存备忘 | 冻结（**未拍板**，未来优化抽屉） |
 | `DEC-2026-09-02-module-map` | 模块拆分地图提案 v1 | **历史存档**（被 `DEC-00-constitution` §9 取代） |
 
@@ -159,6 +159,7 @@ combat-system-design/
 | `RSCH-abilitykit-editor` | AbilityKit C 路：编辑器工具与确定性/回放 | 裁决 3 校准来源 |
 | `EVID-2026-09-28-scripting-e2e` | 宿主脚本插槽 E2E + 原生 GC 证据 | `SCRIPT-8` 验收 |
 | `EVID-2026-09-28-selector-ref` | selector `ref` 容器回写两轮 PIE 证据 | 选择器签名验收 |
+| `EVID-2026-09-29-registry-lifetime` | **两连 PIE：注册表跨世界寿命修复**（同进程二次登记不再被拒；含生效机制诊断） | 提案 `harden-registry-cross-world-lifetime` 核心判据 |
 
 ### 4.7 治理（`GOV`）
 

@@ -85,6 +85,26 @@ struct FTcsTriggerConditionEntry
 
 
 /**
+ * 动态登记项的**寿命信息**（2026-09-29，DEC-04 裁定 ⑤；修反射册 R-2 跨世界寿命缺陷）。
+ *
+ * 与步骤执行器注册表同款：仅**动态**登记需要——它把世界级 GC 对象塞进了**进程级**注册表，
+ * 而注册表比世界活得久 ⇒ 必须能判"这条登记还属不属于当前世界"。
+ * **静态自注册项不进本表**（内置条件全走自注册，纯函数无 UObject 寿命问题，永不过期）。
+ *
+ * 失效判据（任一成立即失效）：① `Object` 弱引用为空（对象已被 GC）；② `World` 弱引用为空（世界已销毁）；③ `World` ≠ 查询方世界。
+ */
+struct FTcsTriggerConditionLifetime
+{
+	// 宿主求值器对象（弱引用——注册表 MUST NOT 强持有）
+	TWeakObjectPtr<UObject> Object;
+
+	// 登记时所在的世界（`nullptr` = 无世界上下文，此时跳过世界校验）
+	TWeakObjectPtr<const UWorld> World;
+};
+
+
+
+/**
  * 静态自注册器（宏展开的载体）：模块静态初始化期构造 → 把本项挂入待解析表。
  * **零 UObject 触达**——反射类型延迟到注册表首次查询时才解析。
  */
@@ -131,16 +151,41 @@ public:
 
 	/**
 	 * 动态注册入口（脚本层 / 测试装置 / 运行期补登）。
-	 * 同类型重复登记拒绝（ensure 提示 + 保留首个登记，不静默覆写）。
+	 *
+	 * **拒绝门 = "同世界活对象重复"**（2026-09-29，DEC-04 裁定 ⑤）：仅当既有登记**仍有效**
+	 * （对象存活 && 世界一致 && 非静态自注册项）时才拒绝并保留首个；既有登记**已失效**时
+	 * MUST 替换该条目——否则失效条目会毒化后续所有 PIE。
 	 *
 	 * **注（反射面欠账）**：本入口目前是纯 C++ 面（`TFunction` 不可反射）。
-	 * 设计意图（D4-17 双入口之反射面）要求它可被脚本层触达——该欠账与步骤执行器注册表
-	 * **同批**解决（CS 调研 §7.6 的 G-2），不在此处单独开一个反射入口（否则两处口径不一）。
+	 * 设计意图（D4-17 双入口之反射面）要求它可被脚本层触达——该欠账与载荷读取器**同批**、
+	 * 作为反射册 R-2 的独立提案解决（2026-09-29 口径更新：原写"与步骤执行器注册表同批"，
+	 * 因步骤执行器侧已由 SCRIPT-8 先行落地而口径过期）。
 	 *
 	 * @param ConditionStruct 条件 struct 反射类型。
 	 * @param Test 求值器。
+	 * @param LifetimeObject 宿主求值器对象（弱引用记录；空 = 不做对象寿命校验）。
+	 * @param LifetimeWorld 登记时所在的世界（弱引用记录；空 = 不做世界校验）。
 	 */
-	void Register(const UScriptStruct* ConditionStruct, FTcsTriggerConditionTest Test);
+	void Register(
+		const UScriptStruct* ConditionStruct,
+		FTcsTriggerConditionTest Test,
+		UObject* LifetimeObject = nullptr,
+		const UWorld* LifetimeWorld = nullptr);
+
+	/**
+	 * 移除一条**动态**登记（2026-09-29，DEC-04 裁定 ⑤）。静态自注册项 MUST NOT 被移除
+	 * ——它们是代码而非登记，本入口对它们返回 false。
+	 *
+	 * @return 是否真的移除了动态条目。
+	 */
+	bool Unregister(const UScriptStruct* ConditionStruct);
+
+	/**
+	 * 取全部**动态**登记项的键（静态自注册项不在其列）。
+	 *
+	 * @return 动态登记项的键数组（顺序不保证）。
+	 */
+	TArray<const UScriptStruct*> GetDynamicKeys() const;
 
 #pragma endregion
 
@@ -152,11 +197,15 @@ public:
 	/**
 	 * 按条件反射类型查求值器（首次调用时解析全部待解析登记项）。
 	 *
+	 * **寿命校验**（2026-09-29，DEC-04 裁定 ⑤）：动态登记项在对象已被 GC、世界已销毁、
+	 * 或与传入世界不一致时 MUST 视为未命中——返回 nullptr、移除该条目、留 Warning 日志。
+	 *
 	 * @param ConditionStruct 条件 struct 反射类型。
-	 * @return 返回求值器指针；未登记返回 nullptr（**不 ensure**——"未知条件类型"由求值助手
+	 * @param World 调用方所在的世界；**调用方持有世界时 MUST 传入**。空 = 跳过世界校验。
+	 * @return 返回求值器指针；未登记或已失效返回 nullptr（**不 ensure**——"未知条件类型"由求值助手
 	 *         按"不通过 + Warning"处置）。
 	 */
-	const FTcsTriggerConditionTest* Find(const UScriptStruct* ConditionStruct);
+	const FTcsTriggerConditionTest* Find(const UScriptStruct* ConditionStruct, const UWorld* World = nullptr);
 
 #pragma endregion
 
@@ -168,11 +217,20 @@ private:
 	// 解析待解析登记项（调用各 getter 取反射类型 → 建键；幂等，只跑一次）
 	void ResolvePending();
 
+	// 记录/覆盖一条动态登记的寿命信息（登记成功后调用）
+	void RecordLifetime(const UScriptStruct* ConditionStruct, UObject* LifetimeObject, const UWorld* LifetimeWorld);
+
+	// 既有动态登记是否失效（并移除之）；返回 true 表示"可被替换"
+	bool DiscardIfStale(const UScriptStruct* ConditionStruct, const UWorld* World);
+
 	// 待解析登记项（静态初始化期写入；首次查询时消费）
 	TArray<FTcsTriggerConditionEntry> PendingEntries;
 
 	// 已登记求值器（键 = 条件 struct 反射类型）
 	TMap<const UScriptStruct*, FTcsTriggerConditionTest> Tests;
+
+	// 动态登记项的寿命信息（键同上；**只含动态项**——静态自注册项不在此表，故永不过期）
+	TMap<const UScriptStruct*, FTcsTriggerConditionLifetime> Lifetimes;
 
 	// 待解析项是否已消费
 	bool bPendingResolved = false;
@@ -258,9 +316,12 @@ struct TCSEFFECT_API FTcsTriggerCondition_Chance
  * @param Conditions 行携带的条件数组（可空 = 无条件通过）。
  * @param Context 触发期上下文（条件按此求值）。
  * @param RandomValue [0,1) 随机值（仅概率类条件用；未注入随机源时传固定值以保证可复现）。
+ * @param World 调用方所在的世界；**调用方持有世界时 MUST 传入**（2026-09-29，DEC-04 裁定 ⑤——
+ *        动态登记项按对象/世界判失效，跨世界视为未命中）。空 = 跳过世界校验。
  * @return 返回是否全部条件通过。
  */
 bool TCSEFFECT_API EvaluateTriggerConditions(
 	const TArray<FInstancedStruct>& Conditions,
 	const FTcsTriggerContext& Context,
-	double RandomValue = 0.0);
+	double RandomValue = 0.0,
+	const UWorld* World = nullptr);

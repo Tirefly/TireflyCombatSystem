@@ -109,7 +109,10 @@ FTcsTriggerPayloadInfo UTcsTriggerEvaluator::ReadPayloadInfo(const FInstancedStr
 		return FTcsTriggerPayloadInfo();
 	}
 
-	const FTcsTriggerPayloadRead* Reader = FTcsTriggerPayloadReaderRegistry::Get().Find(PayloadType);
+	// 传本世界：读取器的动态登记按"对象 + 世界"判失效（2026-09-29，DEC-04 裁定 ⑤）；
+	// 门面已失效时传空（跳过世界校验，只做对象弱引用校验）
+	const FTcsTriggerPayloadRead* Reader = FTcsTriggerPayloadReaderRegistry::Get().Find(
+		PayloadType, Owner.IsValid() ? Owner->GetWorld() : nullptr);
 	if (!Reader)
 	{
 		// 未注册读取器：**不 ensure**——"载荷类型未知"不是契约违规（手动发布自定义事件是合法用法）
@@ -166,5 +169,6 @@ bool UTcsTriggerEvaluator::PassesConditions(const FTcsEffectTriggerDef& Def, con
 	}
 
 	// 空条件数组 = 无条件通过（EvaluateTriggerConditions 的既有语义）
-	return EvaluateTriggerConditions(Def.Conditions, Context, Facade->NextTriggerRandomValue());
+	// 传本世界：条件求值器的动态登记按"对象 + 世界"判失效（2026-09-29，DEC-04 裁定 ⑤）
+	return EvaluateTriggerConditions(Def.Conditions, Context, Facade->NextTriggerRandomValue(), Facade->GetWorld());
 }

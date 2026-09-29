@@ -31,7 +31,11 @@ void FTcsTriggerConditionRegistry::AddPending(FTcsTriggerConditionEntry Entry)
 	PendingEntries.Add(MoveTemp(Entry));
 }
 
-void FTcsTriggerConditionRegistry::Register(const UScriptStruct* ConditionStruct, FTcsTriggerConditionTest Test)
+void FTcsTriggerConditionRegistry::Register(
+	const UScriptStruct* ConditionStruct,
+	FTcsTriggerConditionTest Test,
+	UObject* LifetimeObject,
+	const UWorld* LifetimeWorld)
 {
 	ensureMsgf(ConditionStruct != nullptr, TEXT("FTcsTriggerConditionRegistry::Register: 条件类型为空——拒绝登记"));
 
@@ -40,24 +44,146 @@ void FTcsTriggerConditionRegistry::Register(const UScriptStruct* ConditionStruct
 		return;
 	}
 
+	// 拒绝门 = "同世界活对象重复"：既有条目**已失效**时可替换；**有效**（或静态自注册项）时拒绝保留首个
 	if (Tests.Contains(ConditionStruct))
 	{
-		ensureMsgf(false, TEXT("FTcsTriggerConditionRegistry::Register: 条件类型 %s 重复登记——保留首个登记"),
-			*ConditionStruct->GetName());
-		return;
+		if (DiscardIfStale(ConditionStruct, LifetimeWorld))
+		{
+			UE_LOG(LogTcsEffect, Log,
+				TEXT("FTcsTriggerConditionRegistry: 条件类型 %s 的既有动态登记已失效（旧世界残留）——替换为新登记"),
+				*ConditionStruct->GetName());
+		}
+		else
+		{
+			ensureMsgf(false, TEXT("FTcsTriggerConditionRegistry::Register: 条件类型 %s 重复登记——保留首个登记"),
+				*ConditionStruct->GetName());
+			return;
+		}
 	}
 
 	Tests.Add(ConditionStruct, MoveTemp(Test));
+	RecordLifetime(ConditionStruct, LifetimeObject, LifetimeWorld);
 }
 
-const FTcsTriggerConditionTest* FTcsTriggerConditionRegistry::Find(const UScriptStruct* ConditionStruct)
+bool FTcsTriggerConditionRegistry::Unregister(const UScriptStruct* ConditionStruct)
+{
+	if (!ConditionStruct)
+	{
+		return false;
+	}
+
+	// 静态自注册项是**代码**而非登记——MUST NOT 可移除（本入口只服务动态登记）
+	if (!Lifetimes.Contains(ConditionStruct))
+	{
+		return false;
+	}
+
+	Lifetimes.Remove(ConditionStruct);
+	Tests.Remove(ConditionStruct);
+	return true;
+}
+
+TArray<const UScriptStruct*> FTcsTriggerConditionRegistry::GetDynamicKeys() const
+{
+	TArray<const UScriptStruct*> Keys;
+	Keys.Reserve(Lifetimes.Num());
+
+	for (const TPair<const UScriptStruct*, FTcsTriggerConditionLifetime>& Pair : Lifetimes)
+	{
+		Keys.Add(Pair.Key);
+	}
+
+	return Keys;
+}
+
+const FTcsTriggerConditionTest* FTcsTriggerConditionRegistry::Find(const UScriptStruct* ConditionStruct, const UWorld* World)
 {
 	if (!bPendingResolved)
 	{
 		ResolvePending();
 	}
 
-	return ConditionStruct ? Tests.Find(ConditionStruct) : nullptr;
+	if (!ConditionStruct)
+	{
+		return nullptr;
+	}
+
+	const FTcsTriggerConditionTest* Found = Tests.Find(ConditionStruct);
+	if (!Found)
+	{
+		return nullptr;
+	}
+
+	// 寿命校验（只对动态登记项生效；内置条件全走静态自注册 ⇒ 不在 Lifetimes 表 ⇒ 永不过期）
+	const FTcsTriggerConditionLifetime* Lifetime = Lifetimes.Find(ConditionStruct);
+	if (Lifetime)
+	{
+		if (!Lifetime->Object.IsValid())
+		{
+			// 对象已被 GC：该条登记自然失效（MUST NOT 解引用）
+			UE_LOG(LogTcsEffect, Warning,
+				TEXT("FTcsTriggerConditionRegistry: 条件类型 %s 的宿主求值器已被回收——该条登记视为失效"),
+				*ConditionStruct->GetName());
+			Lifetimes.Remove(ConditionStruct);
+			Tests.Remove(ConditionStruct);
+			return nullptr;
+		}
+
+		if (Lifetime->World.IsValid() && World && Lifetime->World.Get() != World)
+		{
+			// 跨世界：**可诊断**（MUST NOT 静默按"未登记"处理——那会把"世界已更换"表现成"条件类型写漏"）
+			UE_LOG(LogTcsEffect, Warning,
+				TEXT("FTcsTriggerConditionRegistry: 条件类型 %s 的动态登记属另一世界（登记世界 %s ≠ 查询世界 %s）——该条登记视为失效"),
+				*ConditionStruct->GetName(),
+				*Lifetime->World->GetName(),
+				*World->GetName());
+			Lifetimes.Remove(ConditionStruct);
+			Tests.Remove(ConditionStruct);
+			return nullptr;
+		}
+	}
+
+	return Found;
+}
+
+void FTcsTriggerConditionRegistry::RecordLifetime(
+	const UScriptStruct* ConditionStruct,
+	UObject* LifetimeObject,
+	const UWorld* LifetimeWorld)
+{
+	if (!LifetimeObject && !LifetimeWorld)
+	{
+		// 纯 C++ 路径（无 UObject 寿命约束）——不建条目，该登记永不过期
+		Lifetimes.Remove(ConditionStruct);
+		return;
+	}
+
+	FTcsTriggerConditionLifetime& Lifetime = Lifetimes.FindOrAdd(ConditionStruct);
+	Lifetime.Object = LifetimeObject;
+	Lifetime.World = LifetimeWorld;
+}
+
+bool FTcsTriggerConditionRegistry::DiscardIfStale(const UScriptStruct* ConditionStruct, const UWorld* World)
+{
+	// 静态自注册项（不在 Lifetimes 表）不是"失效"——它是代码，MUST NOT 被替换
+	const FTcsTriggerConditionLifetime* Lifetime = Lifetimes.Find(ConditionStruct);
+	if (!Lifetime)
+	{
+		return false;
+	}
+
+	const bool bObjectCollected = !Lifetime->Object.IsValid();
+	const bool bWorldGone = Lifetime->World.IsValid() == false;
+	const bool bWorldMismatch = Lifetime->World.IsValid() && World && Lifetime->World.Get() != World;
+
+	if (!bObjectCollected && !bWorldGone && !bWorldMismatch)
+	{
+		return false;
+	}
+
+	Lifetimes.Remove(ConditionStruct);
+	Tests.Remove(ConditionStruct);
+	return true;
 }
 
 void FTcsTriggerConditionRegistry::ResolvePending()
@@ -137,7 +263,8 @@ UE_DEFINE_TRIGGER_CONDITION_EVALUATOR(FTcsTriggerCondition_Chance, TestTriggerCo
 bool EvaluateTriggerConditions(
 	const TArray<FInstancedStruct>& Conditions,
 	const FTcsTriggerContext& Context,
-	double RandomValue)
+	double RandomValue,
+	const UWorld* World)
 {
 	for (const FInstancedStruct& ConditionStruct : Conditions)
 	{
@@ -148,7 +275,7 @@ bool EvaluateTriggerConditions(
 		}
 
 		const UScriptStruct* ConditionType = ConditionStruct.GetScriptStruct();
-		const FTcsTriggerConditionTest* Test = FTcsTriggerConditionRegistry::Get().Find(ConditionType);
+		const FTcsTriggerConditionTest* Test = FTcsTriggerConditionRegistry::Get().Find(ConditionType, World);
 
 		// 未注册类型：不静默通过（静默会让"条件类型未注册/写错"表现成"条件通过"）
 		if (!Test)

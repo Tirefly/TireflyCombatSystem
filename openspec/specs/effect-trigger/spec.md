@@ -36,6 +36,12 @@
 - `FTcsTriggerCondition_Chance`：`Probability: double`（[0,1]）——**随机值由调用方注入**（D0-1 确定性纪律：求值器内部 MUST NOT 取随机数，否则同输入不同输出、回放失效）；
 - `FTcsTriggerContext`（USTRUCT，**触发期最小上下文**）：`EventTag` / `ClassificationTags` / `Caster`——只含本批条件真正需要的字段；
 - **分派走注册表** `FTcsTriggerConditionRegistry`：`Register(const UScriptStruct*, FTcsTriggerConditionTest)` 动态入口 + `UE_DECLARE/DEFINE_TRIGGER_CONDITION_EVALUATOR` 自注册宏对；键 = 条件 struct 的 `const UScriptStruct*`（**按 struct 类型分派**）；`Find` 未命中返回 nullptr（**不 ensure**——由求值助手处置）；同类型重复登记 MUST 拒绝（ensure + 保留首个）；
+- **寿命语义（2026-09-29 新增，`DEC-04` 裁定 ⑤）**：本注册表同为**进程级单例**且 MUST 保持如此；其**动态**登记项 MUST 受与步骤执行器注册表**同款**的寿命约束——MUST 记录宿主对象弱引用 + 登记世界弱引用；**静态自注册的纯函数项 MUST NOT 受寿命约束**（内置条件全部属此类，永不过期）；
+  - **失效判据**（任一即失效）：宿主弱引用为空 / 世界弱引用为空 / 条目世界 ≠ 查询方世界；
+  - **查询侧校验**：`Find` MUST 接受可选的世界校验入参（调用方持有世界时 MUST 显式传入）；跨世界失效 MUST 视为未命中（返回 nullptr）并移除该条目 + 留含类型名的 **Warning** 日志，MUST NOT 静默按"未登记"处理（静默会把"世界已更换"表现成"条件类型未注册"）；
+  - **拒绝门收窄（"同世界活对象重复"）**：既有条目已失效时新登记 MUST **替换**而 MUST NOT 拒绝；仅当既有条目有效且属同世界（或为静态自注册项）时才 MUST 拒绝；
+  - **显式移除入口**：MUST 提供按键移除动态条目的入口，MUST NOT 能移除静态项；缺省不调用时正确性 MUST NOT 受影响。
+  - **本条特此约束未来新增的动态入口**：当 `LEDGER-reflection` R-2 为条件求值器新增**宿主脚本插槽**（UObject 基类形态）时，其登记入口 MUST 直接满足上述寿命语义——MUST NOT 先按旧口径落地再返工；
 - **内置条件 MUST 走同一注册表**（经宏自登记）——**MUST NOT 存在"内置 if-else + 宿主注册表"两套路径**（两套路径必然导致行为分歧）；
 - `EvaluateTriggerConditions(Conditions, Context, RandomValue = 0.0) -> bool`：全部条件通过 → `true`；任一不过 → `false`（**短路**）；**未注册的条件类型 → 视为不过 + Warning 日志**（MUST NOT 静默通过——静默会让"条件类型未注册/写错"表现成"条件通过"）；
 - 条件类型之间**无公共基类、零虚函数**（D4-16 纯数据）——这是**脚本友好的必要条件**：虚分派在脚本侧物理不可达（见下）。
@@ -44,7 +50,7 @@
 
 **与流程侧条件的分工（MUST NOT 混用）**：`TcsDamage` 的 `FTcsConditionHasAllTags` / `FTcsConditionChance` 服务于**流程步骤**（上下文 `FTcsDamageFlowContext`）；本能力的 `FTcsTriggerCondition_*` 服务于**触发行**（上下文 `FTcsTriggerContext`）。`TcsEffect` MUST NOT 依赖 `TcsDamage`（依赖铁律 `Core←Attribute←Effect←{Damage,…}`），故两侧各自持有条件类型。
 
-**脚本可达面欠账（明示，非遗漏）**：`Register` 目前是纯 C++ 面（`FTcsTriggerConditionTest` 是 `TFunction`——**无 `USTRUCT` 宏、无法进 UHT 签名面**，故方法无法标 `UFUNCTION()`）。设计意图（D4-17 双入口之脚本可达面）要求它可被脚本层触达——该欠账与步骤执行器注册表**同批**解决，**MUST NOT** 在此处单独开一个脚本可达入口（否则两处口径不一）。
+**脚本可达面欠账（明示，非遗漏；2026-09-29 口径更新）**：`Register` 目前是纯 C++ 面（`FTcsTriggerConditionTest` 是 `TFunction`——**无 `USTRUCT` 宏、无法进 UHT 签名面**，故方法无法标 `UFUNCTION()`）。设计意图（D4-17 双入口之脚本可达面）要求它可被脚本层触达。**原口径为"与步骤执行器注册表同批解决"**——因步骤执行器注册表侧已于 SCRIPT-8（2026-09-27）先行落地脚本插槽，而条件求值器侧未随之落地，该口径已过期，现改为：**与载荷读取器同批，作为 `LEDGER-reflection` R-2 的独立提案落地**（2026-09-29 用户拍板，`DEC-04` 裁定 ①⑤）；本提案只先补齐两者的**寿命语义**，MUST NOT 借此新增脚本插槽（避免把两类改动混成一批、放大回归面）。
 
 #### Scenario: 全部条件通过才触发
 
@@ -68,13 +74,18 @@
 
 #### Scenario: 重复登记被拒
 
-- **WHEN** 对同一条件类型再次 `Register`
+- **WHEN** 对同一条件类型在**同一世界**内、既有登记**仍有效**时再次 `Register`
 - **THEN** 拒绝并保留首个登记，留 ensure 提示
 
 #### Scenario: 概率条件依赖注入的随机值
 
 - **WHEN** `Chance(0.5)` 分别以注入随机值 0.4 与 0.6 求值
 - **THEN** 前者通过、后者不过——**同一输入恒得同一结果**（求值器内部不取随机数）
+
+#### Scenario: 跨世界失效的条件登记被判定未命中
+
+- **WHEN** 世界 A 登记的动态条件求值器随 A 结束而失效，世界 B 的求值器查询该类型
+- **THEN** 返回 nullptr（视为未命中）并移除该条目，MUST NOT 解引用已失效对象
 
 ### Requirement: 触发行实例与级联退订
 
@@ -202,6 +213,12 @@
 - `FTcsTriggerPayloadInfo`（USTRUCT，反射）：`Caster: FTcsCombatEntityHandle` / `ClassificationTags: TArray<FGameplayTag>`——**载荷能提供的全部主体信息**；
 - 读取器签名：`TFunction<FTcsTriggerPayloadInfo(const FInstancedStruct& Payload)>`；
 - `FTcsTriggerPayloadReaderRegistry`：`AddPending`（静态自注册）+ `Register(const UScriptStruct*, Reader)`（动态入口，同类型重复登记 MUST 拒绝）+ `Find`（未命中返回 nullptr，**不 ensure**）；
+- **寿命语义（2026-09-29 新增，`DEC-04` 裁定 ⑤）**：本注册表同为**进程级单例**且 MUST 保持如此；其**动态**登记项 MUST 受与步骤执行器注册表**同款**的寿命约束——**MUST 记录宿主对象弱引用 + 登记世界弱引用**；静态自注册的纯函数项（含由属主模块登记的领域读取器）MUST NOT 受寿命约束；
+  - **失效判据**（任一即失效）：宿主弱引用为空 / 世界弱引用为空 / 条目世界 ≠ 查询方世界；
+  - **查询侧校验**：`Find` MUST 接受可选的世界校验入参（调用方持有世界时 MUST 显式传入）；跨世界失效 MUST 视为未命中（返回 nullptr）并移除该条目 + 留含类型名的 **Warning** 日志。**注意与"未注册载荷类型"的处置区分**：后者按既有口径走"默认构造 + **Verbose**"（不是契约违规），而前者是**世界已更换**——两者 MUST NOT 混为一谈；
+  - **拒绝门收窄（"同世界活对象重复"）**：既有条目已失效时新登记 MUST **替换**而 MUST NOT 拒绝；仅当既有条目有效且属同世界（或为静态自注册项）时才 MUST 拒绝；
+  - **显式移除入口**：MUST 提供按键移除动态条目的入口，MUST NOT 能移除静态项；缺省不调用时正确性 MUST NOT 受影响；
+  - **本条特此约束未来新增的动态入口**：当 `LEDGER-reflection` R-2 为载荷读取器新增**宿主脚本插槽**（UObject 基类形态）时，其登记入口 MUST 直接满足上述寿命语义——MUST NOT 先按旧口径落地再返工。
 - 自注册宏对 `UE_DECLARE/DEFINE_TRIGGER_PAYLOAD_READER`——**由载荷类型的属主模块登记**（如 TcsDamage 的收集事件读取器住 TcsDamage）；
 - **未注册载荷类型**：默认构造 `FTcsTriggerPayloadInfo`（空 Caster / 空标签集）+ **Verbose** 日志——**MUST NOT ensure**（"载荷类型未知"不是契约违规：手动发布一条自定义事件是合法用法）；
 - **`ClassificationTags` 无来源时为空集**：这是**显式交付的语义**，不是遗漏——空集上匹配非空 Tag 数组的 `HasAllTags` 恒不过（条件的既有语义），故内容侧若要用该条件，MUST 有读取器提供标签集。
@@ -218,9 +235,13 @@
 
 #### Scenario: 重复登记被拒
 
-- **WHEN** 对同一载荷类型再次 `Register`
+- **WHEN** 对同一载荷类型在**同一世界**内、既有登记**仍有效**时再次 `Register`
 - **THEN** 拒绝并保留首个登记，留 ensure 提示
 
+#### Scenario: 跨世界失效的读取器登记被判定未命中
+
+- **WHEN** 世界 A 登记的动态载荷读取器随 A 结束而失效，世界 B 的求值器读取同一载荷类型
+- **THEN** 返回 nullptr（视为未命中）并移除该条目 + 留 Warning 日志，MUST NOT 解引用已失效对象；且 MUST NOT 与"未注册载荷类型"的 Verbose 路径混淆
 ### Requirement: 触发行句柄的反射性
 
 `FTcsEffectTriggerHandle` MUST 是**反射可见类型**（`USTRUCT()`）且**值可跨语言往返**——脚本层调 `RegisterTriggerRow` 接住行句柄、再把它传回 `UnregisterTriggerRow` 摘除该行（2026-09-24 随门面反射面同批落地）。

@@ -35,6 +35,27 @@ struct FTcsEffectStepExecutorEntry
 
 
 /**
+ * 动态登记项的**寿命信息**（2026-09-29，DEC-04 裁定 ⑤；修反射册 R-2 跨世界寿命缺陷）。
+ *
+ * 仅**动态**登记（宿主脚本插槽）需要：它把世界级 GC 对象塞进了**进程级**注册表，
+ * 而注册表比世界活得久 ⇒ 必须能判"这条登记还属不属于当前世界"。
+ * **静态自注册项不进本表**（纯函数无 UObject 寿命问题，永不过期）。
+ *
+ * 失效判据（任一成立即失效，见注册表 Find/Register）：
+ * ① `Object` 弱引用为空（对象已被 GC）；② `World` 弱引用为空（世界已销毁）；③ `World` ≠ 查询方世界。
+ */
+struct FTcsEffectStepExecutorLifetime
+{
+	// 宿主执行器对象（弱引用——注册表 MUST NOT 强持有，强持有由门面的 UPROPERTY 负责）
+	TWeakObjectPtr<UObject> Object;
+
+	// 登记时所在的世界（`nullptr` = 无世界上下文，此时跳过世界校验）
+	TWeakObjectPtr<const UWorld> World;
+};
+
+
+
+/**
  * 静态自注册器（D4-14；宏展开的载体）：模块静态初始化期构造 → 把本项挂入待解析表。
  * **零 UObject 触达**——反射类型延迟到注册表首次查询时才解析。
  */
@@ -69,12 +90,43 @@ public:
 
 	/**
 	 * 动态注册入口（D4-17 双入口之反射面：脚本层 / 测试装置 / 运行期补登）。
-	 * 同类型重复登记拒绝（ensure 提示 + 保留首个登记，不静默覆写）。
+	 *
+	 * **拒绝门 = "同世界活对象重复"**（2026-09-29，DEC-04 裁定 ⑤）：仅当既有登记**仍有效**
+	 * （对象存活 && 世界一致 && 非静态自注册项）时才拒绝并保留首个；既有登记**已失效**时
+	 * MUST 替换该条目——否则失效条目会毒化后续所有 PIE（旧行为：第二次 PIE 撞 Contains
+	 * ⇒ 拒绝 + 保留首个 ⇒ 之后一直用旧世界的 stale 指针）。
 	 *
 	 * @param StepStruct 步骤 struct 反射类型。
-	 * @param Executor 执行器。
+	 * @param Executor 执行器（转发到宿主 UObject 的 `TFunction`）。
+	 * @param LifetimeObject 宿主执行器对象（弱引用记录；空 = 不做对象寿命校验）。
+	 * @param LifetimeWorld 登记时所在的世界（弱引用记录；空 = 不做世界校验——测试装置/纯 C++ 场景）。
 	 */
-	void Register(const UScriptStruct* StepStruct, FTcsStepExecute Executor);
+	void Register(
+		const UScriptStruct* StepStruct,
+		FTcsStepExecute Executor,
+		UObject* LifetimeObject = nullptr,
+		const UWorld* LifetimeWorld = nullptr);
+
+	/**
+	 * 移除一条**动态**登记（2026-09-29，DEC-04 裁定 ⑤）。静态自注册项 MUST NOT 被移除
+	 * ——它们是代码而非登记，本入口对它们返回 false。
+	 *
+	 * 注意：本入口是**整理手段，不是正确性前提**——`Find` 的失效判据自足，
+	 * 即使从不调用本入口也不会解引用已失效对象。
+	 *
+	 * @return 是否真的移除了动态条目。
+	 */
+	bool Unregister(const UScriptStruct* StepStruct);
+
+	/**
+	 * 取全部**动态**登记项的键（静态自注册项不在其列）。
+	 *
+	 * 用途：门面 `Deinitialize` 按世界收口时需要键清单——键（步骤 struct 类型）与值（宿主执行器对象）
+	 * 不同型，无法从对象反查键，故由注册表提供本清单供逐个 `Unregister`。
+	 *
+	 * @return 动态登记项的键数组（顺序不保证）。
+	 */
+	TArray<const UScriptStruct*> GetDynamicKeys() const;
 
 #pragma endregion
 
@@ -86,10 +138,15 @@ public:
 	/**
 	 * 按步骤反射类型查执行器（首次调用时解析全部待解析登记项）。
 	 *
+	 * **寿命校验**（2026-09-29）：动态登记项在对象已被 GC、世界已销毁、或与传入世界不一致时
+	 * MUST 视为未命中——返回 nullptr、移除该条目、留 Warning 日志（MUST NOT 静默按"未登记"
+	 * 处理：那会把"世界已更换"表现成"步骤类型写漏"，而后者走"未知步骤类型 → 断链"路径）。
+	 *
 	 * @param StepStruct 步骤 struct 反射类型。
-	 * @return 返回执行器指针；未登记返回 nullptr（**不 ensure**——"未知步骤类型"由解释器按断链处置）。
+	 * @param World 调用方所在的世界；**调用方持有世界时 MUST 传入**。空 = 跳过世界校验。
+	 * @return 返回执行器指针；未登记或已失效返回 nullptr（**不 ensure**——"未知步骤类型"由解释器按断链处置）。
 	 */
-	const FTcsStepExecute* Find(const UScriptStruct* StepStruct);
+	const FTcsStepExecute* Find(const UScriptStruct* StepStruct, const UWorld* World = nullptr);
 
 #pragma endregion
 
@@ -101,11 +158,20 @@ private:
 	// 解析待解析登记项（调用各 getter 取反射类型 → 建键；幂等，只跑一次）
 	void ResolvePending();
 
+	// 记录/覆盖一条动态登记的寿命信息（登记成功后调用）
+	void RecordLifetime(const UScriptStruct* StepStruct, UObject* LifetimeObject, const UWorld* LifetimeWorld);
+
+	// 既有动态登记是否失效（并移除之）；返回 true 表示"可被替换"
+	bool DiscardIfStale(const UScriptStruct* StepStruct, const UWorld* World);
+
 	// 待解析登记项（静态初始化期写入；首次查询时消费）
 	TArray<FTcsEffectStepExecutorEntry> PendingEntries;
 
 	// 已登记执行器（键 = 步骤 struct 反射类型）
 	TMap<const UScriptStruct*, FTcsStepExecute> Executors;
+
+	// 动态登记项的寿命信息（键同上；**只含动态项**——静态自注册项不在此表，故永不过期）
+	TMap<const UScriptStruct*, FTcsEffectStepExecutorLifetime> Lifetimes;
 
 	// 待解析项是否已消费
 	bool bPendingResolved = false;

@@ -73,6 +73,17 @@ void UTcsDamageSubsystem::Deinitialize()
 	RecordBuffer.Reset();
 	NextRecordSequence = 0;
 
+	// 宿主脚本流程步骤执行器：撤销**本世界**登记的动态条目（2026-09-29，DEC-04 裁定 ⑤）。
+	// 注意这是**整理手段而非正确性前提**——注册表的失效判据自足（对象已被回收 / 世界不符 ⇒ 视为未命中，
+	// 由 Find 负责移除并告警），此处撤销只是让进程级注册表不留本世界的残骸。
+	// 键（步骤 struct 类型）与值（执行器对象）不同型，无法从对象反查键 ⇒ 直接遍历注册表的**动态**条目
+	// （静态自注册项不在其中，故本循环 MUST NOT 也会移除代码登记）。
+	for (const UScriptStruct* DynamicStepStruct : FTcsFlowStepExecutorRegistry::Get().GetDynamicKeys())
+	{
+		FTcsFlowStepExecutorRegistry::Get().Unregister(DynamicStepStruct);
+	}
+	RegisteredFlowStepExecutors.Reset();
+
 	Super::Deinitialize();
 }
 
@@ -160,7 +171,8 @@ bool UTcsDamageSubsystem::RegisterStepExecutor(const UScriptStruct* StepStruct, 
 	}
 
 	// 包成 TFunction 转发进既有注册表（键与查表逻辑零改动——C++ 快路径原样保留）
-	// 捕获裸指针而非 TWeakObjectPtr：本对象已被下面的 UPROPERTY 数组强持有
+	// 捕获裸指针：本对象同时被下面的 UPROPERTY 数组强持有（防静默回收）**与**注册表的弱引用寿命信息
+	// （防跨世界残留）——两者互补，缺一都有洞
 	FTcsFlowStepExecute Forwarder = [Executor](const FInstancedStruct& StepData, FTcsDamageFlowContext& Context)
 	{
 		// 转发到脚本/UObject 执行器（**反射分派**——脚本层可达）
@@ -172,7 +184,8 @@ bool UTcsDamageSubsystem::RegisterStepExecutor(const UScriptStruct* StepStruct, 
 		return Executor->Execute(StepData, Context.MakeView());
 	};
 
-	FTcsFlowStepExecutorRegistry::Get().Register(StepStruct, MoveTemp(Forwarder));
+	// 记录寿命（对象 + 本世界）：注册表的拒绝门据此判"同世界活对象重复"——失效条目会被替换而非拒绝
+	FTcsFlowStepExecutorRegistry::Get().Register(StepStruct, MoveTemp(Forwarder), Executor, GetWorld());
 
 	// GC 可见持有（WAIT-8 教训：裸注册表持不住对象引用 ⇒ 静默回收 ⇒ 表现为"步骤不生效"而非崩溃）
 	RegisteredFlowStepExecutors.AddUnique(Executor);
@@ -209,7 +222,7 @@ bool UTcsDamageSubsystem::RunTemplate(FGameplayTag TemplateId, FTcsDamageFlowCon
 	{
 		const FInstancedStruct& Step = Template->Steps[StepIndex];
 		const UScriptStruct* StepStruct = Step.GetScriptStruct();
-		const FTcsFlowStepExecute* Executor = FTcsFlowStepExecutorRegistry::Get().Find(StepStruct);
+		const FTcsFlowStepExecute* Executor = FTcsFlowStepExecutorRegistry::Get().Find(StepStruct, GetWorld());
 		if (!Executor)
 		{
 			// 未知步骤类型：中止剩余步骤（不静默跳过——静默会让"配置写错"表现成"流程少跑了几步"）

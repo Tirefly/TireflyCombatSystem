@@ -32,6 +32,7 @@
 ### 2.2 流程模板：标准步骤库 + 官方默认模板（D7-5）
 - **流程模板** `FTcsDamageFlowTemplate`（概念名 `FCombatFlowTemplate`；实现名 2026-09-21 定 `FTcsFlowTemplate`，WAIT-8 资产化轮改现名）：有序步骤数组（FInstancedStruct，同 FEffectStep 形状）+ `TemplateId: FGameplayTag`（2026-09-22 tag 化）；**多预设 = 多模板资产**（不同游戏模式/角色配不同模板）。模板选择链：Damage 步骤配置指定 → Def 覆盖 → 全局默认（官方默认 = `Tcs.Flow.Template.Default`）。
 - **模板重定向** `FFlowRedirect{TargetTemplateId, ReplacementTemplateId}`（D7-7，用户拍板一步到位；字段为 tag）：状态/装备声明换流程，让渡点+重定向栈后挂/高优先+Source 级联回收——**三粒度让渡模式升四粒度**（参数→链→技能→流程）。
+- **流程步骤注册表的寿命语义（2026-09-29 新增，`DEC-04` 裁定 ⑤）**：`FTcsFlowStepExecutorRegistry` 与 Effect 侧**同构、同款改造**——进程级单例不变；动态登记项记录宿主对象 + 登记世界弱引用；失效判据为"对象死 / 世界亡 / 世界不同"；`Find` 带可选世界入参，跨世界失效视为未命中并移除 + Warning；**拒绝门收窄为"同世界活对象重复"**（失效 ⇒ 替换，有效且同世界 ⇒ 拒绝）；补 `Unregister` / `GetDynamicKeys`，门面 `Deinitialize` 按世界撤销。**完整口径见 `04-module-effects.md` §5b 的同名条目**（本文不重复定义，只记落点——避免"同一机制两处定义"）。
 - **标准步骤库**（内建 struct+执行器，自注册；官方默认模板 = 下表组装，宿主可整表替换）：
 
 | 标准步骤 | 引擎行为 | 项目挂点 |

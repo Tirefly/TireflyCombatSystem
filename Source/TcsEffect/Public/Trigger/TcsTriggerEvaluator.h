@@ -77,7 +77,8 @@ public:
 #pragma region Core
 
 private:
-	// 事件载荷 → 主体信息（走载荷读取器注册表；无读取器 = 默认构造 + Verbose）
+	// 事件载荷 → 主体信息（走载荷读取器注册表；无读取器 = 默认构造 + Verbose）。
+	// 传本世界：读取器的动态登记按"对象 + 世界"判失效（2026-09-29，DEC-04 裁定 ⑤）
 	FTcsTriggerPayloadInfo ReadPayloadInfo(const FInstancedStruct& Payload) const;
 
 	// 门② 执行闸（R4：TEG_Always 与 TEG_AuthorityOnly 同判——单机形态下本地即权威）

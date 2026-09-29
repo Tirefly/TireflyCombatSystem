@@ -302,7 +302,7 @@
 | `DEC-01-pv` | `decisions/dec-01-pv-param-value-source.md` | 决策记录（PV 系列） |
 | `DEC-02-fold-display` | `decisions/dec-02-fold-display.md` | 决策记录（参数折叠与展示） |
 | `DEC-03-attribute-set` | `decisions/dec-03-attribute-set.md` | 决策记录（属性存在性与 AttributeSet） |
-| `DEC-04-callback-carriers` | `decisions/dec-04-callback-carriers.md` | 决策记录（回调载体：`TFunction` 去留与替换边界；**决策已拍板 2026-09-29，实现待落地**） |
+| `DEC-04-callback-carriers` | `decisions/dec-04-callback-carriers.md` | 决策记录（回调载体：`TFunction` 去留与替换边界；**决策已拍板 2026-09-29，实现部分落地**） |
 | `LOG-00-core` | `log/log-00-core-m0m2.md` | 决策日志（M0-min + M2；`D0-*`/`D2-*`/`MD-*`/`NET-*`） |
 | `LOG-01-states` | `log/log-01-states-m3.md` | 决策日志（M3） |
 | `LOG-02-effects` | `log/log-02-effects-m4-d7.md` | 决策日志（M4 + `D7-*` 增补） |
@@ -324,6 +324,7 @@
 | `RSCH-csharp-authoring` | `research/csharp-authoring.md` | 调研（C# 编写 TCS 逻辑） |
 | `EVID-2026-09-28-scripting-e2e` | `evidence/2026-09-28-host-scripting-e2e-pie.md` | 证据（宿主脚本插槽 E2E） |
 | `EVID-2026-09-28-selector-ref` | `evidence/2026-09-28-selector-ref-pie.md` | 证据（selector `ref` 容器） |
+| `EVID-2026-09-29-registry-lifetime` | `evidence/2026-09-29-registry-lifetime-pie.md` | 证据（注册表跨世界寿命：两连 PIE） |
 | `LEDGER-deferred` | `ledger/deferred-inputs-ledger.md` | 台账（跨轮遗留输入，活文档） |
 | `LEDGER-reflection` | `ledger/reflection-backlog.md` | 台账（反射未解决项，活文档） |
 | `LEDGER-terminology` | `ledger/reflection-terminology.md` | 台账（反射术语规约，活文档） |
