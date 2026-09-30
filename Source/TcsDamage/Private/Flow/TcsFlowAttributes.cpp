@@ -4,7 +4,7 @@
 
 
 
-bool FTcsFlowAttributes::Submit(FGameplayTag Key, ETcsAttributeOp Op, const FTcsParamValue& Operand, const FTcsConsumePolicy& Consume)
+bool FTcsFlowAttributes::Submit(FGameplayTag Key, ETcsAttributeOp Op, const FTcsParamValue& Operand, const FTcsDamageModifierConsumePolicy& Consume)
 {
 	if (!ensureMsgf(Key.IsValid(), TEXT("FTcsFlowAttributes::Submit: 黑板键无效——拒绝提交")))
 	{

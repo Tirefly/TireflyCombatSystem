@@ -8,26 +8,43 @@
 #include "Attribute/TcsAttributeBandFold.h"
 #include "Parameter/TcsParamValue.h"
 
+#include "TcsFlowAttributes.generated.h"
+
 
 
 /**
- * 消耗策略（09 §2.3 / D7-4）：提交可携带"能用几次/多久/被消费时的回调"。
- * **本容器只存不裁**——裁决（SortKey 选一 → 成功才消费）归 `Execute` 步骤（Task 4），
- * 未选中者完全不动。
+ * **伤害修改器**的消耗策略（09 §2.3 / D7-4）：提交可携带"能用几次 / 多久 / 裁决座次"。
+ *
+ * **纯数据、可反射**（2026-09-30 用户拍板，`DEC-04` §3.3 裁定 ④）：原 `FTcsConsumePolicy`
+ * 含 `TFunction<void()> OnConsumed`，而含闭包的结构**无法出现在任何 `UPROPERTY` 上**
+ * （UHT 编译错误）⇒ 配置面（链步骤 / 数据步骤）一律带不上消耗策略。改造后**消费行为经事件语义表达**：
+ * 消费成功时发布消费事件，"被消费时要做什么"由项目**经触发行订阅**表达——可序列化、可反射、
+ * 可脚本可达，且复用项目既有的订阅通道，零新机制。
+ *
+ * **改名（同日）**：`FTcsConsumePolicy` → `FTcsDamageModifierConsumePolicy`。"DamageModifier"
+ * 指名"**伤害修改器**"这一提交者身份（09 §2.3 的修改器通道），与走运算带聚合的**属性**修正器
+ * （`FTcsAttrModInstance` / `UTcsAttrModDef`，无消耗语义）明确区分。
+ *
+ * **本容器只存不裁**——裁决（SortKey 选一 → 成功才消费）归 `FTcsFlowExecute` 步骤（D7-4"收集 ≠ 消费"），
+ * 未选中者完全不动。消费**动作**（扣 `MaxUses` / 起 `Cooldown` / 标记已消费 / 发消费事件）归
+ * 台账 `DAMAGE-4`（R5/M4a）：本结构只定形状。
  */
-struct FTcsConsumePolicy
+USTRUCT()
+struct TCSDAMAGE_API FTcsDamageModifierConsumePolicy
 {
+	GENERATED_BODY()
+
 	// 最多可用次数（0 = 不限）
+	UPROPERTY(EditAnywhere, Category = "Tcs|Damage|Flow")
 	int32 MaxUses = 0;
 
 	// 冷却（秒；0 = 无冷却；CD 到期堆在流程外驱动，见 09 §3）
+	UPROPERTY(EditAnywhere, Category = "Tcs|Damage|Flow")
 	double Cooldown = 0.0;
 
 	// 裁决排座次（大者优先；**不参与求值顺序**）
+	UPROPERTY(EditAnywhere, Category = "Tcs|Damage|Flow")
 	int32 SortKey = 0;
-
-	// 被消费时的回调（空 = 无）——由裁决步骤在"成功执行"后调用
-	TFunction<void()> OnConsumed;
 };
 
 
@@ -45,7 +62,7 @@ struct TCSDAMAGE_API FTcsFlowAttributeSubmit
 	FTcsParamValue Operand;
 
 	// 消耗策略（只存不裁）
-	FTcsConsumePolicy Consume;
+	FTcsDamageModifierConsumePolicy Consume;
 };
 
 
@@ -80,7 +97,7 @@ public:
 	 * @param Consume 消耗策略（只存不裁）。
 	 * @return 返回提交是否成功（键为空 → false，不静默记账）。
 	 */
-	bool Submit(FGameplayTag Key, ETcsAttributeOp Op, const FTcsParamValue& Operand, const FTcsConsumePolicy& Consume = FTcsConsumePolicy());
+	bool Submit(FGameplayTag Key, ETcsAttributeOp Op, const FTcsParamValue& Operand, const FTcsDamageModifierConsumePolicy& Consume = FTcsDamageModifierConsumePolicy());
 
 	/**
 	 * 读取键的当前值：对该键全部提交**逐一求值**后按共享折叠函数求值。

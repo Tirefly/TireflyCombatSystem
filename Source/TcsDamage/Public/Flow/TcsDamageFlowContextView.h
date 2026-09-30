@@ -18,10 +18,15 @@
  * 在 `ITcsDamageFlowDelegate` 的实现里读流程状态用。
  *
  * **为什么需要视图，而不是把 `FTcsDamageFlowContext` 整体反射化**：
- * 后者的黑板 `FTcsFlowAttributes` → `FTcsFlowAttributeSubmit` → `FTcsConsumePolicy::OnConsumed`
- * 是 `TFunction<void()>` 的**递归闭包**（见 `TcsFlowAttributes.h` 的消耗策略注释），
- * **物理不可反射**（UHT 实证）。真前置是"上下文/黑板分层"（台账 SCRIPT-3），成本高一个数量级；
+ * 后者的黑板 `FTcsFlowAttributes` 是**纯运行态容器**——存储形状 `TMap<key, TArray<提交>>` 是
+ * **嵌套容器**（UHT 层面不可作 `UPROPERTY`），提交项 `FTcsFlowAttributeSubmit` 又是纯 C++ 记录
+ * （提交态操作数 + 消耗策略）。真前置是"上下文/黑板分层"（台账 SCRIPT-3）；
  * 而插槽只需要读参与者与参数，视图足够。
+ *
+ * **2026-09-30 更新（立项理由收窄，但未消失）**：原根因是黑板深处的
+ * `FTcsConsumePolicy::OnConsumed`（`TFunction<void()>`）递归闭包——该成员已随消耗策略改造删除
+ * （改事件语义 + 改名，见 `TcsFlowAttributes.h`），故 SCRIPT-3 由"物理不可能"降为"逐字段反射化的
+ * 常规工作量"；但**本视图仍不可省**：嵌套容器与纯运行态提交记录依旧不可直接反射。
  *
  * **不含的字段与理由**（MUST NOT 加，加则本类型失去意义）：
  * - `Blackboard`——见上，含 `TFunction` 物理不可反射；

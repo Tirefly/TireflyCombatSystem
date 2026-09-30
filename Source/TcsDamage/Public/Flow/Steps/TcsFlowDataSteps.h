@@ -41,9 +41,10 @@ struct TCSDAMAGE_API FTcsFlowModify
 	UPROPERTY(EditAnywhere, Category = "Tcs|Damage|Flow")
 	FTcsParamValue Operand;
 
-	// 注：**数据步骤无法携带消耗策略**（`FTcsConsumePolicy` 含 `TFunction OnConsumed` 回调，
-	// 纯 C++ struct 不可反射、不可作 UPROPERTY——UHT 实证）→ 消耗型提交只能来自 C++ 步骤或事件响应。
-	// 这与"过网结构 MUST 纯反射数据"纪律同源（回调永不过网）。
+	// 注：**数据步骤不带消耗策略**——**理由于 2026-09-30 改写为职责划分**：数据步骤只做**纯数值写入**，
+	// 消耗型提交属"修改器通道"语义（`FTcsStepModifyFlow` 链原语 / C++ 步骤 / 事件响应）。
+	// 原理由（`FTcsConsumePolicy` 含 `TFunction OnConsumed` ⇒ 不可反射、不可作 UPROPERTY）已随消耗策略
+	// 改造（去闭包 + 改名 `FTcsDamageModifierConsumePolicy`）**失效**——禁令本身不变，别当技术限制读。
 
 	UPROPERTY(EditAnywhere, Category = "Tcs|Damage|Flow")
 	TArray<FInstancedStruct> Conditions;

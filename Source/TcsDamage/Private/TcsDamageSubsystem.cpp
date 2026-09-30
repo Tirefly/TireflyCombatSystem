@@ -29,6 +29,9 @@ UE_DEFINE_GAMEPLAY_TAG(Tag_Tcs_Event_Damage_Completed, "Tcs.Event.Damage.Complet
 // 伤害记录事件 Tag（原生声明；载荷 = FTcsDamageRecord）
 UE_DEFINE_GAMEPLAY_TAG(Tag_Tcs_Event_Damage_Recorded, "Tcs.Event.Damage.Recorded");
 
+// 消费事件 Tag（原生声明；2026-09-30 只声明形状——**发布归台账 DAMAGE-4**，本批不发布）
+UE_DEFINE_GAMEPLAY_TAG(Tag_Tcs_Event_Damage_ModifierConsumed, "Tcs.Event.Damage.ModifierConsumed");
+
 // 记录环形缓冲容量（R3 常量；改容量随统计需求轮）
 namespace
 {
