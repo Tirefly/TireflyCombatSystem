@@ -2,7 +2,9 @@
 
 ## Purpose
 定义 TcsDamage 的瞬时流程层：流程模板与登记表、三层值空间的流程上下文、流程属性黑板、步骤注册表与自注册宏、同步单帧的流程解释器，以及收集事件协议。
+
 ## Requirements
+
 ### Requirement: 流程模板与登记表
 
 `TcsDamage` MUST 以**数据模板**承载瞬时流程（D7-5 流程管线宿主化：阶段构成本身是项目知识，插件不预设）：
@@ -55,10 +57,10 @@
 `FTcsFlowAttributes`（流程工作值的容器：键 + 每键修正链）MUST 提供：
 
 - **键类型 = `FGameplayTag`**（**2026-09-22 改造：`FName` → `FGameplayTag`**）——契约键（`BaseDamage` / `Executed` / `Absorbed` / `Kill` / `Hit` / `Crit` / `ExecuteCandidates`）属**标准步骤库的契约**，由**插件原生声明**（`Tcs.Flow.Key.*`，常量名逐点换下划线）；项目自定义键自由，由**项目 ini** 声明；
-- **提交**：`Submit(Key, Op, Operand, SortKey, ConsumePolicy)`——Operand 为 `FTcsParamValue`（PV 系列载体；黑板键引用保留为流程域自身 Operand 选项）；`SortKey` **只用于消耗裁决、MUST NOT 参与求值顺序**；
+- **提交**：`Submit(Key, Op, Operand, Consume)`——Operand 为 `FTcsParamValue`（PV 系列载体；黑板键引用保留为流程域自身 Operand 选项）；`SortKey` **只用于消耗裁决、MUST NOT 参与求值顺序**（`SortKey` 是消耗策略的字段，不是本方法的独立形参——本参数列表以源码为准校正）；
 - **读取**：`Read(Key)` 按 **M2 同款带式语义**求值——**折叠 MUST 调用 TcsAttribute 的共享纯函数 `FoldTcsAttributeBands`**（D5-5 v3：M2 属性聚合 / M5 参数链 / 本容器**三处共用，MUST NOT 私建第二份**）；
 - **收集重置**：`Reset()`——清空全部键的收集（标准步骤 `CollectStart` 的落点）；
-- **消耗策略位**：`FTcsConsumePolicy`（`MaxUses` / `Cooldown` / `SortKey` 等字段；`OnConsumed` 回调位）——**本容器只存不裁**：裁决（SortKey 选一 → 成功才消费）归 `Execute` 步骤（Task 4，D7-4"收集 ≠ 消费"）；
+- **消耗策略位**：`FTcsDamageModifierConsumePolicy`（**2026-09-30 改名**：原 `FTcsConsumePolicy`——"DamageModifier" 指名"伤害修改器"这一提交者身份，与走运算带聚合的**属性**修正器明确区分）——字段集合限为 `{ MaxUses; Cooldown; SortKey; }` 的**纯数据**，**MUST NOT 含 `TFunction` / 闭包成员**（`OnConsumed` 回调位**已移除**，2026-09-30：消费行为改由**事件语义**表达，见 `damage-primitive` 的「消耗策略为纯数据可反射结构」需求）；**本容器只存不裁**：裁决（SortKey 选一 → 成功才消费）归 `Execute` 步骤（D7-4"收集 ≠ 消费"）；
 - **R3 不做值域收口**：黑板是流程工作值、**不是角色属性**——无边界/值域模式概念（`IValueDomainPolicy` 同款逃逸位随值域策略轮，见 09 §2.1 括注）。
 
 #### Scenario: 同键多笔提交求和且与顺序无关
@@ -73,8 +75,13 @@
 
 #### Scenario: 消耗策略只存不裁
 
-- **WHEN** 提交时携带 `FTcsConsumePolicy`（如 `MaxUses = 1`）
+- **WHEN** 提交时携带 `FTcsDamageModifierConsumePolicy`（如 `MaxUses = 1`）
 - **THEN** `Read` 行为不受策略影响，策略可被后续裁决步骤读回（消费语义不在本容器）
+
+#### Scenario: 消耗策略不含闭包
+
+- **WHEN** 检查 `FTcsDamageModifierConsumePolicy` 的成员
+- **THEN** 全部为可序列化的纯数据字段（无 `TFunction`）——该结构因此可作 `UPROPERTY`（链步骤 / 数据步骤得以携带消耗策略），且不再阻断 `FTcsDamageFlowContext` 的逐字段反射化
 
 ### Requirement: 流程步骤注册表与自注册宏
 
@@ -135,6 +142,7 @@
 
 - **WHEN** 某世界登记的动态条目在该世界门面 `Deinitialize` 后再次查询
 - **THEN** 返回 nullptr（本世界登记被撤销）；静态自注册项不受影响
+
 ### Requirement: 流程解释器（同步单帧）
 
 `UTcsDamageSubsystem::RunTemplate(FGameplayTag TemplateId, FTcsDamageFlowContext& Context)` MUST（**2026-09-22 改造：`TemplateId` 类型 `FName` → `FGameplayTag`**）：
