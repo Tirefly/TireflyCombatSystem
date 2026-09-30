@@ -4,7 +4,7 @@
 - **类型**：治理（术语与编号权威表）
 - **状态**：生效中（2026-09-29 建立）
 - **权威范围**：本文是 TCS 设计文档里**全部缩写、编号族与代号**的唯一权威表，同时是**文档 ID → 当前路径**的唯一映射表。规格正文不在本文（见 `INDEX.md`）。
-- **最后更新**：2026-09-29
+- **最后更新**：2026-09-30
 
 > **怎么用**：读到不认识的三五个字母就先来这里查。查法有两种——① 按首字母看 §2 的族表；② 直接 Ctrl+F 搜编号（如 `D5-17`、`STAT-2`）。
 
@@ -21,6 +21,8 @@
 | `DAMAGE-1` / `STAT-2` / …（**两段主题词 + 序号**，2026-09-29 起） | **跨轮遗留输入条目**（台账条目；共 11 个主题词族：`CORE`/`DAMAGE`/`INTEG`/`PRES`/`SCRIPT`/`STAT`/`TOOLS`/`WAIT`…） | `LEDGER-deferred`（`deferred-inputs-ledger.md`） | 37 | `STAT-2` = 参数源可枚举能力（原 `R4-1`） |
 
 > **旧写法已废**：台账条目曾写 `R4-1`、`R5-4`、`R8-6` 等"轮号-序号"形态，**与轮次 `R4`/`R5` 字面撞车**（实例：`R5` 在台账里指 M4a 触发行轮，在路线图里指 M3 状态层轮）。2026-09-29 全部改为主题 ID，映射表见 §5。
+
+> **`R4.5` 是唯一带小数点的 R 编号**（2026-09-30 登记）：它**不是正式轮**，而是 R4 与 R5 之间的一批「脚本通道收口」工作（立此编号时即明文"不占正式轮号"）——权威定义处 = `PLN-R4` 的《R4.5 批次表》。看到 `R4.5` 按「**半轮批次**」读，不要当成路线图里的第 4.5 轮。
 
 ### 1.2 `M` 也有两套含义
 
@@ -322,6 +324,7 @@
 | `RSCH-replication` | `research/replication-posture.md` | 调研（网络复制姿态） |
 | `RSCH-scripting-ustruct` | `research/scripting-language-ustruct.md` | 调研（脚本方案选型，`G-*` 定义处） |
 | `RSCH-csharp-authoring` | `research/csharp-authoring.md` | 调研（C# 编写 TCS 逻辑） |
+| `RSCH-targeting-absorption` | `research/targeting-abilitykit-absorption.md` | 调研（TcsTargeting 演进：AbilityKit 目标查找吸收 + 形状族/指示器切片；**待落地**） |
 | `EVID-2026-09-28-scripting-e2e` | `evidence/2026-09-28-host-scripting-e2e-pie.md` | 证据（宿主脚本插槽 E2E） |
 | `EVID-2026-09-28-selector-ref` | `evidence/2026-09-28-selector-ref-pie.md` | 证据（selector `ref` 容器） |
 | `EVID-2026-09-29-registry-lifetime` | `evidence/2026-09-29-registry-lifetime-pie.md` | 证据（注册表跨世界寿命：两连 PIE） |

@@ -4,7 +4,7 @@
 - **类型**：治理（入口索引）
 - **状态**：生效中（2026-09-29 建立，取代原 `README.md` 的"文档清单"职能）
 - **权威范围**：本文回答"**该读哪一篇**"。编号含义见 `GLOSSARY.md`；写法纪律见 `docs-convention.md`；逐条拍板流水见 `LOG-DECISIONS`。
-- **最后更新**：2026-09-29
+- **最后更新**：2026-09-30
 
 ---
 
@@ -14,6 +14,7 @@ TCS 战斗系统设计已完成 **M0–M9 全部决策拍板**，实施进行到
 
 - **R1/R2/R3 已完成**（核心 + 属性 + 六模块竖切，7 项人工检查点全通过）；
 - **R4 进行中**（触发行数据形状与登记表已完成 2/7 个 Task）；
+- **R4.5「脚本通道收口」**（**非正式轮号**，2026-09-29 立 / 2026-09-30 落档）：a 已闭环、b/c 未开工——见 `PLN-R4` 的《R4.5 批次表》；
 - **R5–R8 未开工**（状态层 → 技能层 → 集成层 → 表现与编辑器工具）。
 
 > **最容易误判的一条**：原 `README.md` 里 plan3 的状态写着"待执行 / 5 Task"，**那是过期信息**（README 已于 2026-09-29 拆分为导航页，内容迁入 `log/`）——plan3 的 Task 1/2 已完成，且 R4 已扩容为 7 个 Task。以本文 §3 的轮次表为准。
@@ -121,7 +122,7 @@ combat-system-design/
 
 | ID | 轮次 | 内容 | 状态 |
 |---|---|---|---|
-| `PLN-R4` | **R4（当前）** | 触发行与伤害修改器通道；**含 R4–R8 轮次路线图（现行顺序的真相源）** | 进行中（Task 1/2 完成，余 5 项未执行） |
+| `PLN-R4` | **R4（当前）** | 触发行与伤害修改器通道；**含 R4–R8 轮次路线图（现行顺序的真相源）+《R4.5 批次表》（非正式轮号）** | 进行中（Task 1/2 完成，余 5 项未执行） |
 | `PLN-R3-vertical-slice` | R3 | 竖切验收剧本（7 项人工检查单） | 冻结（7/7 已验） |
 | `PLN-R3-1` | R3 | 计划一：Core + Attribute（Task 0–6） | 冻结（全部完成） |
 | `PLN-R3-2` | R3 | 计划二：Effect + Targeting + Damage + Integration（Task 0–7） | 冻结（全部完成并验收） |
@@ -132,12 +133,13 @@ combat-system-design/
 | 轮次 | 主题 | 前置 | 台账消费 |
 |---|---|---|---|
 | **R4**（进行中） | M4a 触发行 + 伤害修改器通道 + 原语补齐 | R3 已收束 | `DAMAGE-1`/`DAMAGE-2`/`DAMAGE-3`（部分） |
+| **R4.5**（**非正式轮号**） | 脚本通道收口（R4 与 R5 之间，不占正式轮） | R4 Task 1/2 已落地 | 不消费台账条目；权威登记 = `LEDGER-reflection` 的 R-1 / R-2 |
 | **R5** | M3 状态层（`TcsState`） | R4（行为面验收） | `STAT-1`/`STAT-2`/`STAT-3`、`DAMAGE-2` 余、`DAMAGE-4` |
 | **R6** | M5 技能层（`TcsSkill`） | R5（`FSkillDef` 继承 `FStateDefBase`） | `STAT-1`、`CORE-1`（若成立） |
 | **R7** | M6 集成层（两级单位 / StateTree / AttributeSet / 加载层） | R6 | `INTEG-1`~`INTEG-3`、`WAIT-2`/`WAIT-5`/`WAIT-6` |
 | **R8** | M7 表现 + M8 编辑器与工具 | R7 | `PRES-1`、`TOOLS-1`~`TOOLS-6`、`WAIT-1`/`WAIT-4`/`WAIT-9`/`WAIT-10` |
 
-> 弹性：R6 可能拆两轮；`INTEG-3` 的加载层可拆独立轮；`WAIT-*` 条目在触发条件成立时随当轮消费。
+> 弹性：R6 可能拆两轮；`INTEG-3` 的加载层可拆独立轮；`WAIT-*` 条目在触发条件成立时随当轮消费。**`R4.5` 是非正式轮号**（不占正式轮）——逐批状态见 `PLN-R4` 的《R4.5 批次表》。
 
 ### 4.5 台账与追踪（`LEDGER`，活文档）
 
@@ -157,6 +159,7 @@ combat-system-design/
 | `RSCH-abilitykit-pipeline` | AbilityKit A 路：技能管线与原语 | 原语集提案来源 |
 | `RSCH-abilitykit-trigger` | AbilityKit B 路：触发器与属性修饰器 | 触发行提案来源 |
 | `RSCH-abilitykit-editor` | AbilityKit C 路：编辑器工具与确定性/回放 | 裁决 3 校准来源 |
+| `RSCH-targeting-absorption` | TcsTargeting 演进：AbilityKit 目标查找骨架吸收 + 形状族与指示器切片（**待落地**，含 P-A/P-B/P-C 提案切分） | P-A 排序相位 / P-B 形状族 / P-C 预览的提案输入 |
 | `EVID-2026-09-28-scripting-e2e` | 宿主脚本插槽 E2E + 原生 GC 证据 | `SCRIPT-8` 验收 |
 | `EVID-2026-09-28-selector-ref` | selector `ref` 容器回写两轮 PIE 证据 | 选择器签名验收 |
 | `EVID-2026-09-29-registry-lifetime` | **两连 PIE：注册表跨世界寿命修复**（同进程二次登记不再被拒；含生效机制诊断） | 提案 `harden-registry-cross-world-lifetime` 核心判据 |

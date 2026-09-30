@@ -4,7 +4,7 @@
 - **类型**：PLN / 计划
 - **状态**：ACTIVE
 - **权威范围**：R4 当前实施计划；含 R4–R8 轮次路线图（现行排期真相源）
-- **最后更新**：2026-09-23
+- **最后更新**：2026-09-30
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -59,6 +59,7 @@
 | 轮次 | 主题 | 主要交付 | 前置 | 台账消费 |
 |---|---|---|---|---|
 | **R4（本计划）** | **M4a 触发行 + 伤害修改器通道 + 原语补齐（一批）** | ①触发行定义/条件注册表（Task 1 已完成）；②登记表与求值器 + **载荷读取器注册表**（Task 2 **已完成**）；③**独立资产载体 `UTcsEffectTriggerDef` + DefLibrary 发现**（Task 2.5）；④`ModifyFlow` 链原语（Task 3）；⑤**追加 4 个原语**：`SetVar` / `Branch` / `RunSubChain` / `WaitEvent`（Task 3.5）；⑥端到端验收（Task 4）；⑦收束（Task 5） | R3 已收束 | **DAMAGE-3 部分**（ModifyFlow）；**DAMAGE-1 部分**（载荷装填）；**DAMAGE-2 部分**（4 个原语——2026-09-23 用户拍板提前） |
+| **R4.5**（**非正式轮号**） | **脚本通道收口**（寄在 R4 与 R5 之间，不占正式轮） | ①注册表跨世界寿命缺陷修复（**已闭环 2026-09-29**）；②R-1 参数源族宿主插槽（未开工）；③R-2 两张注册表宿主脚本插槽 + 载荷读取器登记（**半闭环**） | R4 Task 1/2 已落地 | 不消费台账条目；权威登记 = `LEDGER-reflection` 的 R-1 / R-2 |
 | R5 | **M3 状态层（TcsState）** | `UTcsStateDef` 家族 / `FStateInstance` + 中央注册表 / 五轴堆叠 / 关系表 + 级联重评 / Duration-Period + 到期堆 / `ParamSnapshot` / **修正器物化（D3-19）** / **`ApplyState` 链原语（随 M3 同批——否则 Buff 有事件却施加不了状态）** / 生命周期事件全集 / **`Heal` 原语** / `ModifyAttribute`（属性访问注入位与 `ApplyState` 同批） | R4（行为面验收） | **STAT-2**、**DAMAGE-2**、**STAT-3**、**DAMAGE-2 余**（`Repeat`/`Parallel`/`OnError`）、**DAMAGE-3 余**（`Heal`） |
 | R6 | **M5 技能层（TcsSkill）** | `UTcsSkillDef` / 账本 `FLearnedSkillEntry` / 六道门禁 / **时段驱动 `FPhaseSpan` + 打断** / 冷却多轨道 + 三事件 / Cost 策略 / **参数链（带式聚合，折叠器复用）** / 链重定向栈 / `FEntrySelector` | R5（`FSkillDef` 继承 `FStateDefBase`） | **STAT-1**（参数链接入折叠器）、**CORE-1**（若全域订阅需求成立） |
 | R7 | **M6 集成层** | 两级单位（Mass 小兵 + 全功能军官）/ StateTree 决策接线 / **AttributeSet 全套** / `PrimaryAssetTypesToScan` + 发现机制切换 AssetManager + 加载层三策略 | R6 | **INTEG-1**、**INTEG-2**、**INTEG-3**、**WAIT-2**、**WAIT-5**、**WAIT-6**、**WAIT-8 余**（模板资产化） |
@@ -71,6 +72,27 @@
 - **R6 可能需拆两轮**（M5 与时段/打断都是重活）——届时按 `M5 账本/施法` 与 `时段与冷却` 分拆，前置关系不变。
 - **不绑轮次的触发条件型条目**（WAIT-2/WAIT-3/WAIT-5 等）在其触发条件成立时随当轮消费，不单独排期。
 - **INTEG-3 的加载层**是 R7 内最重的一块（三策略 + 异步默认/同步逃生口），若 R7 超载可拆出独立轮。
+- **`R4.5` 不占正式轮号**（2026-09-29 立、2026-09-30 落档）：它是 R4 与 R5 之间的一批「脚本通道收口」工作，逐批状态见下方《R4.5 批次表》。**立此条的直接原因 = 它原先只住在会话里**——2026-09-30 实证：会话 compact 摘要把整条 `R4.5` 丢掉了，是靠翻会话记录才捞回来的。
+
+### R4.5「脚本通道收口」批次表（非正式轮号）
+
+> **依据**：`DEC-04` 裁定 ⑤（落地顺序 = 先做 A 类值语义改造，再在其上落 R-1 / R-2 两张新注册表）+ 用户 2026-09-29 裁定「**TCS 插件应该直接兜底，而不是交给宿主项目**」。
+>
+> **与 R4 剩余 Task 的关系**：互不阻塞。回点顺序按本计划原文（Task 2.5 → 3 → 3.5 → 4 → 5）。
+>
+> **权威登记处**：本表登记**批次与状态**；条目级真相仍在 `LEDGER-reflection`（`reflection-backlog.md`）的 R-1 / R-2 行——两处冲突以该册为准。
+>
+> **⚠ 提交边界（2026-09-30 留痕，勿误判）**：本块是**文件内混排**，不是独立提交单元——它与「P-A 排序相位并入 Task 3.5」（`:407-410` Step 块 / `:419-439` 并入注记）、Task 3 的 `UPROPERTY` 改动（`:337-339`）**同时**落在本文件与 `GLOSSARY` / `INDEX` / `reflection-backlog` 的同一批未提交改动里，且那些文件的「最后更新」日期两主题共写（拆不开）。**当前做法 = 随提案 `add-damage-modifyflow-primitive` 同批提交**（用户 2026-09-30 确认）。**将来若需单独提交 R4.5**，须先按 hunk 拆本文件（`git diff HEAD -- <本文件>` 逐块认领），不要以为它已经是一个独立单元。
+
+| 批次 | 内容 | 状态 | 判据 / 证据 |
+|---|---|---|---|
+| **R4.5-a** | 注册表跨世界寿命缺陷修复：4 张注册表双轨登记值（对象/世界弱引用）+ 失效判据 + 拒绝门收窄为「同世界活对象重复」+ `Unregister` / `GetDynamicKeys` + 门面 `Deinitialize` 按世界撤销 | **✅ 已闭环（2026-09-29）** | 提案 `harden-registry-cross-world-lifetime`（已归档 `2026-09-29-…`）；证据 `EVID-2026-09-29-registry-lifetime`——同一 Editor 进程两连 PIE，5 个缺陷签名（`拒绝重复登记` / `已有执行器` / `保留首个` / `登记失败` / `Handled ensure`）**全 0**；Development + Shipping 双配置 0 error / 0 warning |
+| **R4.5-b** | **R-1 参数源族宿主插槽**（`ITcsParamSourceHost` + 转发器 struct，拟名·未实现；已调研并拍板 2026-09-24） | **❌ 未开工** | 判据：C# 侧能定义新数值源并跑通一条链。落点 = `LEDGER-reflection` R-1（"已调研并拍板，待落地"） |
+| **R4.5-c** | **R-2 两张注册表的宿主脚本插槽**（`BlueprintType` 升格 + `Register(UScriptStruct*, UObject*)` 反射入口）+ **TcsDamage 载荷读取器登记** | **⚠ 半闭环** | 寿命语义那半已随 R4.5-a 落地（`reflection-backlog.md` R-2 行标"部分闭环"）；**插槽那半未落**——`UE_DEFINE_TRIGGER_PAYLOAD_READER` 至今全库只有定义、零登记（登记需求并入本计划 Task 3） |
+
+> **边界（如实记）**：`EVID-2026-09-29-registry-lifetime` 明文**不覆盖**条件求值器 / 载荷读取器两张注册表的寿命语义行为验证（本次装置未登记它们的动态条目；逻辑同构，属静态实现）——恰是 R4.5-c 要动的那两张。
+
+> **★ 跨轮耦合（2026-09-30 登记）**：R4.5-b / R4.5-c 与**本轮 Task 3.5 的 P-A 评分器插槽**（`ITcsTargetScorerHost`，拟名）是**同一形态的三个实例**（`UINTERFACE(Blueprintable)` + `BlueprintNativeEvent` → USTRUCT 转发器；见 Task 3.5 内的 P-A 说明）。三处分散推进会把同一套验证装置（C# 实现 + 同世界原生 GC + 跨 PIE 寿命）写三遍。**权威登记与并批取舍见 `LEDGER-reflection`《★ 宿主插槽家族的耦合关系》**——本表只留指针，不重复内容。
 
 ---
 
@@ -311,7 +333,10 @@ struct TCSDAMAGE_API FTcsStepModifyFlow
 	UPROPERTY(EditAnywhere, Category = "Tcs|Damage|Chain") FTcsParamValue Operand;
 
 	// 消耗策略（D7-4：候选按 SortKey 裁决选一、成功执行才消费；未选中者完全不动）
-	UPROPERTY(EditAnywhere, Category = "Tcs|Damage|Chain") FTcsConsumePolicy Consume;
+	// **2026-09-30 用户拍板**：类型改名 FTcsDamageModifierConsumePolicy + 去掉 TFunction（改事件语义）
+	//   —— 不先做这一步，本字段无法标 UPROPERTY（UHT 报错），本 Task 编不过。
+	//   真相源 = 提案 `add-damage-modifyflow-primitive`（含形状、事件 tag、验收面）。
+	UPROPERTY(EditAnywhere, Category = "Tcs|Damage|Chain") FTcsDamageModifierConsumePolicy Consume;
 };
 ```
 
@@ -379,10 +404,10 @@ USTRUCT() struct TCSEFFECT_API FTcsStepWaitEvent
 };  // 首入：订阅 + 返回 TSR_Running；命中/超时 → 唤醒重入 → 退订 + 完成
 ```
 
-- [ ] **Step 1: OpenSpec 提案**（`effect-chain` MODIFIED：追加四个原语需求；`effect-interpreter` 若唤醒源契约需改则一并）
-- [ ] **Step 2: 实施**——按"零前置 → 有前置"顺序：`SetVar` → `RunSubChain` → `Branch` → `WaitEvent`
-- [ ] **Step 3: 编译验证**（Development；`WaitEvent` 改 `TcsChainRun` 结构，须补 **Shipping**——结构改动是 Shipping 能照出的类型）
-- [ ] **Step 4: 定向人工检查**——依赖面零领域模块；**熔断自检**（`RunSubChain` 递归起链 + `Repeat` 类自激——`MaxStepsPerFrame` 是否够）
+- [ ] **Step 1: OpenSpec 提案**（`effect-chain` MODIFIED：追加四个原语需求；`effect-interpreter` 若唤醒源契约需改则一并；**+ `targeting-strategy` MODIFIED：并入 P-A 排序相位——见下方"同批并入"注记**）
+- [ ] **Step 2: 实施**——按"零前置 → 有前置"顺序：`SetVar` → `RunSubChain` → `Branch` → `WaitEvent`；**P-A 排序相位（`targeting-strategy`）** 与本批同步实施
+- [ ] **Step 3: 编译验证**（Development；`WaitEvent` 改 `TcsChainRun` 结构，须补 **Shipping**——结构改动是 Shipping 能照出的类型；P-A 搭同一次 Shipping 顺风车）
+- [ ] **Step 4: 定向人工检查**——依赖面零领域模块；**熔断自检**（`RunSubChain` 递归起链 + `Repeat` 类自激——`MaxStepsPerFrame` 是否够）；**P-A 追加检查**：排序项在链资产上可配、并列时稳定键决胜可复现（同一输入两次跑结果集一致）
 
 > **实施注记（必读）**：
 > - **⚠️ `WaitEvent` 是本批最难的一个**：它需要**新增唤醒源**（`04 §2.4` 四种唤醒源之"事件匹配"）。`WaitDelay` 已实证"到期堆唤醒"路径（`PendingExpiry` 锚 + 代际校验重入），`WaitEvent` 需要同款的"订阅句柄锚"——`FTcsChainRun` 要加字段（建议 `FTcsEventSubscriptionHandle PendingSubscription`），且**退订时机**必须覆盖三条路径：①事件命中；②超时（若配）；③运行态被释放（`ReleaseRun` 必须退订——否则订阅泄漏且回调打到已回收的运行态）。
@@ -390,6 +415,28 @@ USTRUCT() struct TCSEFFECT_API FTcsStepWaitEvent
 > - **递归深度**：`RunSubChain` 允许子链再起子链——**已有的 `MaxStepsPerFrame` 熔断只管"单帧步数"，不管"嵌套深度"**。本批 MUST 明确：嵌套深度靠什么护栏（建议复用熔断计数——子链步数计入父链的帧内步数），并在注记里写明实测值。
 > - **`SetVar` 的 `Value` 用 `FTcsParamValue`**：与链步骤其它数值字段一致（PV 载体，可 Literal/ParamRef）——**MUST NOT** 另造一个 double 字段（那会让"变量只能用字面量"成为隐式限制）。
 > - **`Branch` 的条件复用 Task 1 的条件注册表**：`Conditions` 求值走 `EvaluateTriggerConditions`——但**上下文不同**（那是 `FTcsTriggerContext`，需要 `ClassificationTags`）。链侧没有该上下文，故本批要么①构造一个最小 `FTcsTriggerContext`（从 `FTcsEffectContext` 映射），要么②为链侧条件另立签名。**建议①**（一套条件类型两处可用，零重复），实施时确认映射字段（`EventTag` 取运行态记录的上次事件、`ClassificationTags` 从哪来——**若链侧无来源则本批 `Branch` 只支持不依赖分类标签的条件**，并在注记写明）。
+
+> **同批并入：P-A 排序相位（2026-09-30 用户拍板）**
+>
+> **来源**：[`RSCH-targeting-absorption`](../research/targeting-abilitykit-absorption.md) 正文 §2.1 / §2.2 / §2.13 / §2.6 / §2.10（AbilityKit 目标查找经验吸收），落地判据见该文档 附录 A10.3.1。
+>
+> **并入理由（改动点复用，不是"越早越好"）**：本 Task 本来就要 ①写 OpenSpec 提案、②因 `WaitEvent` 改 `TcsChainRun` 结构、③必须补跑 Shipping——P-A 搭这三点顺风车。反之若本 Task 落地后单独做 P-A，规格要改第二次、**既有链资产要按新排序语义复核**（检查点 6 的"零 C++ 加链"资产）、Shipping 再跑一次。
+>
+> **P-A 最小集合**（MUST NOT 扩大）：①排序契约——有序比较项（Scorer + 方向）+ 严格字典序 + 全等后**稳定键（句柄 Index/Generation）升序决胜**；②浮点边界——任一排序项返回 NaN ⇒ 候选排除，±Inf 保留参与排序；③确定性纪律补进 `10 §3`；④**选择器产出去重**（当前完全无去重——宿主候选来源重叠时下游会对同一目标打两次，这是本轮顺带补掉的无人防守缺口）；⑤复用缓冲（执行器/预览共用 scratch，不引入池化基础设施）。
+>
+> **MUST NOT 并入**：Top-K 的流式实现、候选来源组合器、空间索引、`ITargetMapper`——均无消费者（理由见设计文档 §2.3 / §2.7 / §2.8 / §2.9）。
+>
+> **交付面（2026-09-30 用户拍板后的最终形态）**：
+> 1. **唯一内置评分器 = 距离**（只依赖 `ITcsEntityQuery::GetLocation`，**零宿主语义**）；
+> 2. **排序契约**——有序比较项（Scorer + 方向）+ 严格字典序 + 全等后**稳定键决胜**；
+> 3. **评分器宿主插槽**（`ITcsTargetScorerHost` + 转发器，拟名·未实现）——**本批必须补的第三个插槽家族**（选择器/过滤器两个已在 SCRIPT-8 落地）；否则"血量最低"这类条件无处安放，宿主只能去写 C++ 策略类型。规格 SHOULD 注明"排序评分优先 C++ 策略、脚本插槽用于低频/非关键排序"（评分调用频次是"逐候选 × 逐排序项"，高于过滤器，跨语言反射在热路径上不便宜）；**★ 本项与 R4.5-b / R4.5-c 同形、可并批**——取舍见 `LEDGER-reflection`《★ 宿主插槽家族的耦合关系》；
+> 4. **选择器产出去重**；5. 复用缓冲 + 浮点边界 + 确定性纪律。
+>
+> **内置边界规则（用户 2026-09-30 原则，写进规格）**：*"TCS 属于可复用插件，理论上不应该直接干涉宿主项目生命值属性的配置方法。"* ⇒ 泛化为——**凡是需要宿主词汇的内置策略，插件一律不提供**（判据 = 该策略引用了什么词汇：只引用框架自身契约 ⇒ 可内置；引用宿主属性名 / Tag 词表 / 阵营关系 ⇒ 归宿主）。这与 `10 §2.2`"框架零默认 Filter"（怎么算存活、怎么算敌人是宿主语义）同源。**据此本文初稿那条"评分器契约向 `FTcsParamValue` 参数源体系对齐"的建议作废**——它等价于让 TCS 认识 `AttributeScaled` 这类宿主侧属性源，正是本规则禁止的事。
+>
+> **前置条件**：**已满足**（用户 2026-09-30 确认"距离"是唯一需要插件内置的条件）。策划的技能选择条件清单降级为非阻塞项——用途改为"验证宿主侧属性量/状态量/关系量条件的覆盖面是否够，尤其关系量是否需要扩 `ITcsEntityQuery` 面"。
+>
+> **验收追加**：排序项在链资产上可配（零 C++）；并列时稳定键决胜可复现（同输入两次跑结果集一致）；NaN 评分的候选被排除而非排末尾。
 
 ---
 
@@ -507,12 +554,14 @@ const FTcsEffectTriggerDef* ResolveTriggerDef(FGameplayTag TriggerTag) const;
 
 **4. 已识别的实施风险**（写入注记而非隐藏）：
 - 命名撞车（`FTcsFlowModify` vs `FTcsStepModifyFlow`）——注记要求互相指名；
-- `FTcsConsumePolicy` 含 `TFunction` 不可反射——采纳"不标 UPROPERTY"的收窄；
+- ~~`FTcsConsumePolicy` 含 `TFunction` 不可反射——采纳"不标 UPROPERTY"的收窄~~ **已于 2026-09-30 解除**：用户拍板改事件语义（去 `TFunction` + 改名 `FTcsDamageModifierConsumePolicy`），`Consume` 字段**改为正常标 `UPROPERTY`**——原"不标"收窄随之作废（真相源 = 提案 `add-damage-modifyflow-primitive`）；
 - **载荷裸指针 + 链挂起 = 悬空**（`FTcsDamageFlowCollectEvent::Context` 是裸指针，链运行态跨帧）——已在 Task 3 明文"MUST NOT 挂起"；
 - 装置追加检查可能扰动既有 10 项——注记要求先查因；
 - 宿主既有模板都不含 `PreExecute`——Task 4 改为**新建** `Slice_Modifier` 模板（不污染检查点 6 的证据链 `SliceDefault`）。
 
 **5. 对上一轮结论的更正已写入 §0**（"6 个收集事件无发布者"是错的——十步全实现且会广播，只是默认模板不组装）。这条更正的意义：**若照错前提做计划，会重复实现已存在的代码**。
+
+**6. 提交边界的留痕（2026-09-30 加）**：本文件的未提交改动里**混着两条工作线**——①本计划自身（Task 3 sketch 的 `UPROPERTY` 改动、旧收窄作废留痕、Task 3.5 的四原语改写）与 ②**P-A 排序相位 + R4.5 落档**（后者属另一条线的设计成果）。核查结论：**无法按文件切出干净的 R4.5 提交**（R4.5 的权威载体 = 本文《R4.5 批次表》，而 `GLOSSARY` / `INDEX` / `reflection-backlog` 三处是混合文件且「最后更新」日期共写）。已在批次表头部写入**提交边界**说明（见该块第 4 条引用行），防止后续会话把该块误当独立单元。
 
 ---
 
