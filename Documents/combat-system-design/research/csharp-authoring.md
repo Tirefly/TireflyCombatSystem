@@ -12,6 +12,9 @@
 - 承接：`2026-09-23-scripting-language-ustruct-research.md`（G-1~G-4 的原始定义与选型结论）
 - **本次证据等级高于前次**：前次读 C++ 源码 + UnrealSharp 源码推断"能不能用"；本次**直接读已生成的 glue 产物**（编译器的实际输出）
 
+> **2026-09-30 实施注记（按 `docs-convention` §7「冻结」只追加，正文不改）**：本文关于"`FTcsDamageFlowContext` 物理不可直接反射化、真前置 = 上下文/黑板分层"的论断（`G-1b` 行及其依据的递归闭包图），其**唯一根因**——黑板提交项深处的 `FTcsConsumePolicy::OnConsumed`（`TFunction<void()>`）——**已于 2026-09-30 消除**：消耗策略改为**纯数据可反射结构**（`FTcsDamageModifierConsumePolicy`，`USTRUCT()` + 三个 `UPROPERTY` 字段），消费行为改**事件语义**（提案 `add-damage-modifyflow-primitive`；Development + Shipping 双配置 **0 error / 0 warning**）。
+> **对本文结论的影响**：**`G-1b` 由"必做前置（否则物理不可能）"降为"常规工作量 + 排期问题"**——剩余阻碍只有黑板存储形状的**嵌套容器**（`TMap<键, TArray<提交>>`，UHT 层面不可作 `UPROPERTY`）与纯 C++ 提交记录，不再是"物理不可能"。本文其余结论（内容侧 / 观测侧 / 行为登记侧三类可达性）不受影响。**权威现状**见 `LEDGER-reflection` 的 R-4/R-6 行与台账 `SCRIPT-3`。
+
 ---
 
 ## 0. 问题

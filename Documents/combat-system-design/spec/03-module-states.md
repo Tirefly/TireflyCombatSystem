@@ -54,7 +54,7 @@ FStateDefBase（抽象，编辑器隐藏）          ← 本模块定义
 ### 3.4 关系表（裁决 1 + D3-3 + 形状扩展）
 - 字段形状（裁决 1 增补）：`{ Status, Blocks, Requires, Priority, Cancels }`——FBuffDef 字段（约束施加态共存）；**FSkillDef 同形状字段**（语义映射：Block=禁止激活、Require=激活前提、Priority=顶替优先级、Cancels=激活时取消指定运行/状态——姿态切换），共享通用关系检查器（主体类型化：状态实例/施法运行）。
 - 执行时机：apply 时校验（Blocks 拒绝 / Requires 未满足拒绝或排队）；**任何状态移除后对依赖它的存活状态做事件驱动重评**（脏标记，批量移除合并一次）。
-- 槽位竞争（PriorityOnly 抢占 + PreemptionPolicy + 同优先级策略，TCS 06:117-119 已验证）并入 Priority 语义。
+- 槽位竞争（PriorityOnly 抢占 + PreemptionPolicy + 同优先级策略，TCS 报告 06（库外，已不在库内）已验证）并入 Priority 语义。
 - **组织与解析栈（D3-16）**：关系表/槽位竞争表**并存**（槽位=施法运行/动作状态，关系=Buff 施加态，互相影响）；统一 DataTable/DataAsset 行（行=单个或**一类** StateDef——StatusTag 匹配）；**解析栈**：全局默认表（插件）→ 游戏模式表 → 角色覆盖表（Boss）——让渡点模式应用；关系引用走 Tag（StateTag/SkillTag 子域）；**槽位竞争不用 StateTree**（数据行+引擎抢占规则）。
 
 ### 3.5 Level（D3-11 终定）

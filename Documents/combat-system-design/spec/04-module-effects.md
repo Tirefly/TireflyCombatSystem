@@ -103,7 +103,7 @@
 
 **约束（实施期两条硬约束 + 一条 GC 纪律）**：
 
-- 插槽接口的所有形参 MUST 全反射（"C# 四问"硬约束——这也是为什么传句柄而非 struct）；`BlueprintNativeEvent` 会触发 UHT 的蓝图参数校验（`UhtFunction.cs:859`/`:1043-1053`）⇒ 形参/返回**连句柄都必须 `BlueprintType`**（故 `FTcsChainRunHandle` 于 2026-09-24 放宽——理由与零代价论证见 `effect-chain` 规格）。
+- 插槽接口的所有形参 MUST 全反射（"C# 四问"硬约束——这也是为什么传句柄而非 struct）；`BlueprintNativeEvent` 会触发 UHT 的蓝图参数校验（`UhtFunction.cs:UhtFunction.Validate`）⇒ 形参/返回**连句柄都必须 `BlueprintType`**（故 `FTcsChainRunHandle` 于 2026-09-24 放宽——理由与零代价论证见 `effect-chain` 规格）。
 - **非反射纯 C++ struct 不能作 `UFUNCTION` 形参**（UHT 报 `Unable to find 'struct'`）⇒ 需要"上下文"时必须做**反射视图**（`FTcsDamageFlowContextView` 只摘可反射数据面；黑板因含 `TFunction` 物理不可反射而**不在**视图内）。**这修正了台账 SCRIPT-8 的原设想**（原写"`ITcsDamageFlowDelegate` 5 方法补 `UFUNCTION`"——做不到，必须换签名）。
 - **GC 可见持有**：门面 MUST 以 `UPROPERTY` 数组持有已登记的脚本执行器——裸 C++ 注册表不经 GC 的 `RefLink`，不持有则脚本执行器被**静默回收**，表现为"步骤不生效"而非崩溃（与模板登记表的 WAIT-8 缺陷同款形态）。
 - 插槽**不扩大蓝图承诺面**（蓝图恰好也能用，但不是承诺项，R0 §9）。

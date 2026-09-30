@@ -63,7 +63,7 @@
 ## 6. 依据
 
 - 拍板：D0-1~D0-6（2026-09-02 问答框；D0-6 三轮演化定稿——注册+级别门面 → 砍自建级别（UE 原生 Verbosity）→ **撤销设施**（统一注册入口无消费者，用户最终拍板）：日志归 UE 原生分类制（`LogTcs<模块名>` 命名规范）、屏显归测试装置/宿主）；裁决 2a/2b；**PV 系列（2026-09-10/11：FTcsParamValue{FInstancedStruct} 取代 D2-12 FTcsParamScalar（载体形态 2026-09-24 换裸，见上）、Evaluate 命名、Literal/ParamRef 内置；等级表源与实体等级接口归 TcsState——评判轮修订）**；**PV-1 增补 + PV-10（2026-09-14：Evaluate 便利转发、上下文补 `Subject`/`EffectiveLevel`、实体身份句柄边界让步记录、`FTcsParamEnumerableSource` 可枚举能力基类住本模块）**。
-- 证据：AbilityKit core 层取证（池/BuffRuntime 对象池/中央管理器形态）；TCS 13 报告（诊断与时间语义缺失的教训）；ZZ:68（TCS 零 ScaledDt 实证）。
+- 证据：AbilityKit core 层取证（池/BuffRuntime 对象池/中央管理器形态）；TCS 报告 13（库外，已不在库内；诊断与时间语义缺失的教训）；TCS 报告 ZZ（库外，已不在库内；TCS 零 ScaledDt 实证）。
 
 ## 7. 验收钩子
 

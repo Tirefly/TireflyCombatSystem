@@ -74,7 +74,7 @@ FStateDefBase（抽象，M3 定义：词表/FragmentSet/通用默认参数 Level
 
 ## 5. 关键机制
 
-- **门禁序列**：六道具名门（修 TCS 内联无钩子缺陷，09:94-123）。
+- **门禁序列**：六道具名门（修 TCS 内联无钩子缺陷，TCS 报告 09，库外，已不在库内）。
 - **时段驱动**：进入时段 → 到期堆注册（Duration 从 ParamSnapshot 取）→ `OnCastPhaseChanged`；`IsInterruptibleNow` 按三级实现解析；时段参数在快照构建时已定。
 - **打断**：来源优先级 vs `IsInterruptibleNow()` → CancelCast(Cancelled) → `OnCastInterrupted`；止于未来不追溯（M4 约定）。
 - **冷却触发（D5-15/D5-16）**：Timing 枚举到达 → CDR 快照 → 各轨到期堆注册（组轨写单位级组槽）→ Entry 轨道状态翻转 → `OnCooldownStarted`；`AdjustCooldown/ResetCooldown` 改动轨状态 → 重挂到期堆 → `OnCooldownUpdated`；到期出队 → `OnCooldownEnded`。

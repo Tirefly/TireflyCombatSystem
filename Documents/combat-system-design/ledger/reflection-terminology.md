@@ -29,9 +29,9 @@
 
 ### 1.1 为什么危险（不是"用词不雅"，是会读错规格）
 
-- **同句两义**：`effect-trigger/spec.md:159`「调用成立（**方法反射可见**、形参类型 `FTcsEffectTriggerInstance` **反射可见**）」——前半 B、后半 A。而 `BlueprintNativeEvent` 的形参校验恰恰要求**两者同时成立**；读成同一件事就会漏掉类型侧约束。
-- **同词反义**：`event-bus/spec.md:55` 的 `A' 反射面` = **蓝图可绑定**（C）；`effect-interpreter/spec.md:98` 的 `门面反射面` = **蓝图不可见**（B，`UFUNCTION()` 无 specifier）。两处都写"R0 §9 蓝图不承诺"，词面无法区分。
-- **判据被压扁**：`add-host-scripting-slots/proposal.md:16`「键（`UScriptStruct*`）**可反射**，值（`TFunction`）**不可**」——键的"可反射"是 D（类型身份可作查表键），值的"不可反射"是 A（UHT 无法生成属性）。同一形容词指两个维度，而这正是 SCRIPT-2/SCRIPT-8 讨论的**核心判据**。
+- **同句两义**：`openspec/specs/effect-trigger/spec.md「触发行登记表与订阅生命周期」`「调用成立（**方法反射可见**、形参类型 `FTcsEffectTriggerInstance` **反射可见**）」——前半 B、后半 A。而 `BlueprintNativeEvent` 的形参校验恰恰要求**两者同时成立**；读成同一件事就会漏掉类型侧约束。
+- **同词反义**：`openspec/specs/event-bus/spec.md「BP/CS 动态监听面」` 的 `A' 反射面` = **蓝图可绑定**（C）；`openspec/specs/effect-interpreter/spec.md「门面反射面（脚本层可达）」` 的 `门面反射面` = **蓝图不可见**（B，`UFUNCTION()` 无 specifier）。两处都写"R0 §9 蓝图不承诺"，词面无法区分。
+- **判据被压扁**：`openspec/specs/effect-step-dispatch/spec.md「步骤执行器插槽」`「键（`UScriptStruct*`）**可反射**，值（`TFunction`）**不可**」——键的"可反射"是 D（类型身份可作查表键），值的"不可反射"是 A（UHT 无法生成属性）。同一形容词指两个维度，而这正是 SCRIPT-2/SCRIPT-8 讨论的**核心判据**。
 - **同句正反对举**：`effect-interpreter`（SCRIPT-8 delta）「该 struct 是**非反射**纯 C++ 类型，且含 `FInstancedStruct` `EventPayload`（**反射**）」——前指"无 `USTRUCT` 宏"（A 否定），后指"该字段类型可承载"（A 肯定）。
 
 ---
@@ -84,14 +84,14 @@
 
 | 位置 | 原文 | 义项 | 实质 |
 |---|---|---|---|
-| `openspec/specs/event-bus/spec.md:55` | `TcsCore MUST 提供 A' 反射面（Lyra GMS 形态）：动态多播 FTcsOnCombatEvent(...)（BlueprintAssignable...）` | **C** | **蓝图可绑定**（暴露面） |
-| `openspec/specs/effect-interpreter/spec.md:98` | `### Requirement: 门面反射面（脚本层可达）` … `UFUNCTION()` 无 specifier | **B** | **蓝图不可见**（脚本可调） |
+| `openspec/specs/event-bus/spec.md「BP/CS 动态监听面」` | `TcsCore MUST 提供 A' 反射面（Lyra GMS 形态）：动态多播 FTcsOnCombatEvent(...)（BlueprintAssignable...）` | **C** | **蓝图可绑定**（暴露面） |
+| `openspec/specs/effect-interpreter/spec.md「门面反射面（脚本层可达）」` | `### Requirement: 门面反射面（脚本层可达）` … `UFUNCTION()` 无 specifier | **B** | **蓝图不可见**（脚本可调） |
 
 两条都在 `openspec/specs/`（真相源），都会被后续提案继承。**已按 §3 处方措辞修正**（见 §5）。
 
 ### 4.2 「反射可见」在同句内指两个对象
 
-`openspec/specs/effect-trigger/spec.md:159`：方法（B）与形参类型（A）都用"反射可见"。**已修正**。
+`openspec/specs/effect-trigger/spec.md「触发行登记表与订阅生命周期」`：方法（B）与形参类型（A）都用"反射可见"。**已修正**。
 
 ---
 
@@ -126,20 +126,20 @@
 | 位置 | 问题 | 判定（2026-09-29） |
 |---|---|---|
 | `openspec/changes/archive/2026-09-27-add-host-scripting-slots/specs/effect-step-dispatch/spec.md` | 「键可反射，值不可」（D+A/B 同句）；「`UScriptStruct*` 可作反射形参」 | **不改**——归档冻结；生效版为 `openspec/specs/effect-step-dispatch/spec.md`，以生效版措辞为准 |
-| `…/2026-09-27-add-host-scripting-slots/specs/effect-chain/spec.md` | 「反射 + `BlueprintType`」并列（A/C 并置） | **不改**（同上）；生效版 `openspec/specs/effect-chain/spec.md:63` 已用处方措辞 |
+| `…/2026-09-27-add-host-scripting-slots/specs/effect-chain/spec.md` | 「反射 + `BlueprintType`」并列（A/C 并置） | **不改**（同上）；生效版 `openspec/specs/effect-chain/spec.md「效果链上下文（黑板）」` 已用处方措辞 |
 | `…/2026-09-27-add-host-scripting-slots/specs/effect-interpreter/spec.md` | 「非反射……（反射）」正反对举 | **不改**（同上）；生效版 `openspec/specs/effect-interpreter/spec.md` 已用处方措辞 |
 | `…/2026-09-27-add-host-scripting-slots/proposal.md` / `design.md` | 「反射化」「反射可达化」未标义项 | **不改**（同上）——归档提案的标题与正文属历史文本 |
-| `Source/TcsEffect/Public/TcsEffectSubsystem.h:194-195` | 「无反射面……非反射……反射层表达不了」一句三义 | **⏳ 待改**（唯一实质残留）——按 §3 处方改写：`无反射面` → `形参含非反射纯 C++ struct（无 USTRUCT 宏），不能作 UFUNCTION 形参`；`反射层表达不了` → `脚本层不可达`。**未在本轮改**：该注释还引用了旧台账编号 `S-1`，须与 `SCRIPT-1` 一并更正，留作独立小项 |
-| `Documents/combat-system-design/spec/04-module-effects.md` §5b / `09-module-damage.md` §2.4 / `10-module-targeting.md` | 同批新增文本的「反射面/反射视图/反射化」 | **✅ 已收敛**——三处现行文本已改为处方措辞（`04:73,99-100,124` 等） |
-| `Documents/combat-system-design/research/csharp-authoring.md:170-176` | G-1~G-4 表格「反射化」三义交替、无维度列 | **✅ 已可查**——文件现位于 `research/csharp-authoring.md`（原 `2026-09-23-csharp-tcs-logic-authoring-research.md`）；"加维度列"建议仍待评估，非阻塞项 |
+| `TcsEffectSubsystem.h:UTcsEffectSubsystem::UnregisterTriggerRowsBySource` | 「无反射面……非反射……反射层表达不了」一句三义 | **⏳ 待改**（唯一实质残留）——按 §3 处方改写：`无反射面` → `形参含非反射纯 C++ struct（无 USTRUCT 宏），不能作 UFUNCTION 形参`；`反射层表达不了` → `脚本层不可达`。**未在本轮改**：该注释还引用了旧台账编号 `S-1`，须与 `SCRIPT-1` 一并更正，留作独立小项 |
+| `Documents/combat-system-design/spec/04-module-effects.md` §5b / `09-module-damage.md` §2.4 / `10-module-targeting.md` | 同批新增文本的「反射面/反射视图/反射化」 | **✅ 已收敛**——三处现行文本已改为处方措辞（`SPEC-03-effects` 等） |
+| `RSCH-csharp-authoring` | G-1~G-4 表格「反射化」三义交替、无维度列 | **✅ 已可查**——文件现位于 `research/csharp-authoring.md`（原 `2026-09-23-csharp-tcs-logic-authoring-research.md`）；"加维度列"建议仍待评估，非阻塞项 |
 | `Documents/combat-system-design/2026-09-02-r0-rebuild-position-paper.md` | 「反射动态委托」（已自认笼统，见 §6） | 同上 |
 
 ### 5.3 明确保留（不改）
 
 | 位置 | 保留理由 |
 |---|---|
-| `反射工具箱`（`r0:57` / `01-module-m0-core.md:55` / `rebuild-module-map-proposal.md:88`——后者今在 `HISTORICAL/dec-2026-09-02-module-map-proposal.md`，旧名系历史引用原文） | 指"通用反射工具库"，属独立第四义（E），与 UE 反射无关；改成别的词反而失真 |
-| `反射层视为同一物`（`param-value` 等 6 处） | 引擎官方注释引文（`InstancedStruct.h:538`），**引文不改** |
+| `反射工具箱`（`DEC-00-constitution` / `SPEC-00-core` / `DEC-2026-09-02-module-map`——后者今在 `HISTORICAL/dec-2026-09-02-module-map-proposal.md`，旧名系历史引用原文） | 指"通用反射工具库"，属独立第四义（E），与 UE 反射无关；改成别的词反而失真 |
+| `反射层视为同一物`（`param-value` 等 6 处） | 引擎官方注释引文（`InstancedStruct.h:TInstancedStruct`），**引文不改** |
 | `反射粒度` / `反射描述符` / `反射式 StructNetSerializer`（`2026-09-20-replication-posture-research.md` 全篇） | 复制/序列化领域术语（E），内部一致、无歧义 |
 | `反射名`（去 F 前缀）/ `反射符号`（UHT 生成符号） | 精确，无歧义 |
 
@@ -150,10 +150,10 @@
 | 措辞 | 出处 | 为什么好 |
 |---|---|---|
 | **`UFUNCTION()` 无 specifier（蓝图不可见）** | `Source/TcsEffect/Public/TcsEffectSubsystem.h`（17 处模板化） | 一句话同时说清"可调"（B）与"蓝图不可见"（C 的否定），零歧义 |
-| **「"反射动态委托"原表述过于笼统，落到具体机制即此」** | `2026-09-02-r0-rebuild-position-paper.md:134` | **全仓唯一一处对"反射"用词做过的显式自我消歧**——后续统一措辞可援引为范式 |
-| **`USTRUCT()` / `USTRUCT(BlueprintType)` 直接写宏名** | `effect-trigger:226`、`instance-handle-pool:66`、`effect-step-dispatch:12` | 宏名本身零歧义，是 A/C 的最优写法 |
-| **`反射只读视图` / `可反射数据面投影`** | `damage-primitive:42`、`TcsDamageFlowContextView.h:16` | 明确"这是一个新造的、反射可见的 struct"（A），无 B/C 歧义 |
-| **`模板类型字段不可作 UPROPERTY` ⇒ 句柄必须展平** | `csharp-research:265`、`ledger:164` | 说清约束的来源（`UPROPERTY` 承载性，A）而非笼统说"不可反射" |
+| **「"反射动态委托"原表述过于笼统，落到具体机制即此」** | `DEC-00-constitution` | **全仓唯一一处对"反射"用词做过的显式自我消歧**——后续统一措辞可援引为范式 |
+| **`USTRUCT()` / `USTRUCT(BlueprintType)` 直接写宏名** | `openspec/specs/effect-trigger/spec.md「触发载荷读取器」`、`openspec/specs/instance-handle-pool/spec.md「战斗实体身份句柄与发号」`、`openspec/specs/effect-step-dispatch/spec.md「步骤执行器签名与注册表」` | 宏名本身零歧义，是 A/C 的最优写法 |
+| **`反射只读视图` / `可反射数据面投影`** | `openspec/specs/damage-primitive/spec.md「流程委托契约（宿主实现）」`、`TcsDamageFlowContextView.h:FTcsDamageFlowContextView` | 明确"这是一个新造的、反射可见的 struct"（A），无 B/C 歧义 |
+| **`模板类型字段不可作 UPROPERTY` ⇒ 句柄必须展平** | `RSCH-csharp-authoring`、`LEDGER-deferred` | 说清约束的来源（`UPROPERTY` 承载性，A）而非笼统说"不可反射" |
 
 ---
 
@@ -166,3 +166,5 @@
 | 触发 | 写任何涉及"反射"的文本前 | 轮次开工 / 新遗留 | 架构决策变更 |
 
 **与 S 系列的关系**：`ledger` 的 SCRIPT-1~SCRIPT-8 记录**能力建设**（哪些面要打通），本文档记录**表述规约**（打通后怎么写）。两者不重叠——SCRIPT-8 落地"脚本插槽"能力，本文档规定该能力在文档里如何被描述。
+
+- **2026-10-01 引用收敛（`CONVENTION` §5 行号禁令）**：本册 **16 行**改写——源码引用 → `路径:符号名`、openspec 引用 → 路径 + 需求名、`r0`/`ledger`/`csharp-research` 等简称 → `DEC-00-constitution` / `LEDGER-deferred` / `RSCH-csharp-authoring`。**§2 术语分义与 §6 收敛表的判定均未变**，只改引用写法。

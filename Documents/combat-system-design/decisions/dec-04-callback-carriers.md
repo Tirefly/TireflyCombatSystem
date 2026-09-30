@@ -22,6 +22,8 @@
 > 1. **④ 的时机提前**：`OnConsumed` 的**形状**（去 `TFunction` + 改事件语义）随 **plan3 Task 3（`ModifyFlow`）**落地，不再等 `DAMAGE-4`。原因：`FTcsStepModifyFlow` 要带 `Consume` 字段，而含 `TFunction` 的结构**无法作 `UPROPERTY`（UHT 编译错误）** ⇒ 不改形状则 Task 3 编不过。**动作**（扣次数 / 起冷却 / 标记已消费 / 发消费事件）仍归 `DAMAGE-4`（R5/M4a）。
 > 2. **类型改名**：`FTcsConsumePolicy` → **`FTcsDamageModifierConsumePolicy`**（用户裁定：`Consume` 单独出现语义不清晰；`DamageModifier` 指名"伤害修改器"这一提交者身份，与走运算带聚合的**属性**修正器明确区分）。本条正文与 §3.3 中的旧名据此更新。
 >
+> 3. **★ ④ 的形状已落地（2026-09-30，同日实施完成）**：`FTcsDamageModifierConsumePolicy` 已改为 **`USTRUCT()` 纯数据**（三字段 `UPROPERTY(EditAnywhere)`）并去闭包；消费事件 tag 钉名为 **`Tcs.Event.Damage.ModifierConsumed`**（只声明、不发布，发布归 `DAMAGE-4`）；`FTcsStepModifyFlow` 链原语已交付。**实施期补上的一步（计划未写）**：光去 `TFunction` **不够**——非 `USTRUCT` 类型一样进不了 `UPROPERTY`（UHT 报 not supported），故该结构同时**升格为反射结构**。**连带效果**：本文 §3.3 与 §1 表 C-③ 行所依据的"该字段挡着反射与复制"论断**就此失效**（SCRIPT-3 由"物理不可能"降为"逐字段反射化的常规工作量"）；**但裁定 ④ 的结论方向不变**——闭包仍不该留在要过网/可配的结构里，只是它已不再是"挡路者"。验证 = Development + Shipping 双配置 **0 error / 0 warning**。
+>
 > 真相源 = 提案 `add-damage-modifyflow-primitive`（形状、事件 tag、验收面全在该提案内）。
 
 > **裁定后的下一步**：按本仓纪律，实施需以 OpenSpec 提案开道（`validate --strict` 通过 → 实施 → 编译验证 → 归档）。本批的提案边界 = ① 值语义改造（含跨世界寿命兜底）。

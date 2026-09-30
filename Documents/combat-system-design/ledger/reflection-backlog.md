@@ -50,7 +50,7 @@
 **现状证据（已核）**：
 - `Source/TcsCore/Public/Parameter/` 只有 `TcsParamSource_Literal` / `TcsParamSource_ParamRef`（+ `TcsParamTableReader` 接口），**无任何 Host/转发类型**；全库 grep `ParamSourceHost` 零命中；
 - 台账 SCRIPT-8 原文自认："PV-5（'delegate/接口插槽（宿主 C++ 绑定）'——当时只规划到参数源，**未延伸到选择器**，本条补上）"——即**参数源的插槽在 PV-5 已规划、但从未落地**；SCRIPT-8 补的是选择器，参数源反而留在原地；
-- `TcsParamValueSource.h:14`（上下文 MUST 反射可见的注释）与 `:62`（基类声明）确认当前形态。
+- `TcsParamValueSource.h:FTcsParamEvaluateContext`（上下文 MUST 反射可见的注释）与 `TcsParamValueSource.h:FTcsParamValueSource`（基类声明）确认当前形态。
 
 **归属**：建议 R5（与 `ApplyState` / `ModifyAttribute` 同批——这些步骤都要配数值源，是真实消费者出现之时）。
 
@@ -63,7 +63,7 @@
 **事项**：`FTcsTriggerConditionRegistry::Register` / `FTcsTriggerPayloadReaderRegistry::Register` 的形参是 `TFunction`（不可反射）⇒ 脚本层无法登记**条件求值器**与**载荷读取器**。步骤执行器已被 SCRIPT-8 的 `UTcsStepExecutor` / `UTcsFlowStepExecutor`（UObject 基类）覆盖，但**条件 / 载荷读取器没有对应的 UObject 基类替代**。
 
 **现状证据（已核）**：
-- `TcsTriggerCondition.h:136` / `TcsTriggerPayloadReader.h:122` 自注"反射面欠账（明示，非遗漏）：Register 目前是纯 C++ 面（TFunction 不可反射）"；
+- `TcsTriggerCondition.h:FTcsTriggerConditionRegistry::Register` / `TcsTriggerPayloadReader.h:FTcsTriggerPayloadReaderRegistry::Register` 自注"反射面欠账（明示，非遗漏）：Register 目前是纯 C++ 面（TFunction 不可反射）"；
 - 台账 SCRIPT-2 状态"**定位降级（2026-09-24）**：SCRIPT-8 的 UObject 执行器基类路线可替代**多数**场景……本条仅对'必须用纯 struct 执行器'仍有意义"——**"多数"≠全部**，条件/载荷读取器无替代；
 - SCRIPT-8 落地清单只有两个执行器基类（`UTcsStepExecutor` / `UTcsFlowStepExecutor`），无条件/载荷读取器对应物；
 - **调研补充（2026-09-27）**：①两张注册表**不在任何门面上**（`TcsEffectSubsystem.h` 零命中）；②**载荷读取器宏零调用**（`UE_DEFINE_TRIGGER_PAYLOAD_READER` 全库只有定义、无登记）；③条件求值器**热路径**（每候选行每条件一次）、载荷读取器**每事件一次**（各行共用）；④`FTcsTriggerContext` / `FTcsTriggerPayloadInfo` glue 产物均为**真字段读写**（可直接作 `BlueprintNativeEvent` 形参），但都是 `USTRUCT()` 非 `BlueprintType`——须升格（SCRIPT-8 已确立的插槽硬约束）；⑤**发现跨世界寿命缺陷**（SCRIPT-8 已落地的步骤执行器即存在——注册表进程级单例 vs 门面 `UWorldSubsystem` 持有，PIE 切换后 stale 指针）。
@@ -79,7 +79,7 @@
 **事项**：`ITcsEntityQuery::EnumerateEntities(TFunctionRef<void(FTcsCombatEntityHandle)>)` 含 `TFunctionRef` 形参（不可反射）⇒ 脚本层无法实现**实体遍历**；且门面 `SetEntityQuery` / `GetEntityQuery` 无 `UFUNCTION`。SCRIPT-8 的 6 个按句柄访问器覆盖了"读写目标集 / 变量 / 主体"，但**实体遍历无替代**（"找所有敌人"仍需实体查询）。
 
 **现状证据（已核）**：
-- `TcsEntityQuery.h:32` 自注"C++ 专用面：参数含 TFunctionRef，蓝图不可表达"；
+- `TcsEntityQuery.h:ITcsEntityQuery` 自注"C++ 专用面：参数含 TFunctionRef，蓝图不可表达"；
 - SCRIPT-8 proposal 非目标明文"**不做 `ITcsEntityQuery` 换签名**（台账 SCRIPT-5）——本提案的 `GetRunTargets` 等访问器已覆盖'脚本读/写目标集'这一主要诉求；实体遍历（`EnumerateEntities`）的 `TFunctionRef` 换型另轮"；
 - 台账 SCRIPT-5 状态"并入 SCRIPT-8（2026-09-24 定位）"——但 SCRIPT-8 落地清单**不含它**，实际仍待办。
 
@@ -94,7 +94,7 @@
 **事项**：三个上下文的三档难度——
 - `FTcsEffectContext`：字段全反射（句柄×2 + `FInstancedStruct` + `TArray<句柄>` + `TMap<tag,double>`），**可做**（但规格禁令已拆捆绑，见 `reflection-terminology.md` 与 `effect-chain/spec.md` 修订）；
 - `FTcsChainRun`：含 `TWeakObjectPtr` + 裸模板句柄 `TTcsInstanceHandle` + `FTcsTimeEntryHandle`——第二道坎，包 USTRUCT 可解（先例 `FTcsCombatEntityHandle` 展平）；
-- `FTcsDamageFlowContext`：**依赖 R-6 分层**（`OnConsumed` 摘出前物理不可反射）。
+- `FTcsDamageFlowContext`：**物理阻碍已消除（2026-09-30）**——原根因（提交项深处的 `OnConsumed` 闭包）已随消耗策略改造删除（改事件语义，提案 `add-damage-modifyflow-primitive`）；剩余工作是**嵌套容器 `TMap<key, TArray<提交>>` + 运行态提交记录**的逐字段反射化，属常规工作量。
 
 **现状证据（已核）**：台账 SCRIPT-3 状态"**降为可选（2026-09-24）**：SCRIPT-8 的插槽签名传句柄而非上下文 struct……对'宿主专属语义脚本化'目标，本条不再是必经之路。仅在'脚本必须直接持有/构造上下文 struct'时才有必要"。
 
@@ -110,7 +110,7 @@
 - `UnregisterTriggerRowsBySource(const FTcsSourceHandle&)`：形参 `FTcsSourceHandle` 是**无 `USTRUCT()` 宏的纯 C++ struct** ⇒ 该方法脚本不可达；
 - `FindChain`：返回**裸 struct 指针**（`const FTcsEffectChain*`）⇒ 反射返回类型表达不了。
 
-**现状证据（已核）**：`effect-interpreter/spec.md:108`（SCRIPT-1 未覆盖清单）；台账 SCRIPT-1 已消费但明示"**未覆盖（留待后续）**：`UnregisterTriggerRowsBySource`（形参 `FTcsSourceHandle` 非反射）、`FindChain`（裸 struct 指针不可反射）"。
+**现状证据（已核）**：`openspec/specs/effect-interpreter/spec.md「门面反射面（脚本层可达）」`（SCRIPT-1 未覆盖清单）；台账 SCRIPT-1 已消费但明示"**未覆盖（留待后续）**：`UnregisterTriggerRowsBySource`（形参 `FTcsSourceHandle` 非反射）、`FindChain`（裸 struct 指针不可反射）"。
 
 **归属**：SCRIPT-1 未覆盖项。
 
@@ -126,7 +126,7 @@
 
 **归属**：台账 DAMAGE-4（R5/M4a，与 `ModifyFlow` 同批）。
 
-**状态**：**⚖ 形状已定（2026-09-30）、动作待 `DAMAGE-4`**——用户裁定形状随 plan3 Task 3 提前落地（不改编不过：链步骤要带 `Consume` 字段），动作（扣次数 / 起冷却 / 标记已消费 / 发消费事件）仍归 `DAMAGE-4`（R5/M4a）；同轮类型改名 `FTcsDamageModifierConsumePolicy`。真相源 = 提案 `add-damage-modifyflow-primitive`。本册收录为 **R-4 的前置关联项**——**其"挡路"性质已消除**（`TFunction` 移除后，`FTcsDamageFlowContext` 的逐字段反射化不再有物理阻碍）。
+**状态**：**✅ 形状已落地（2026-09-30，提案 `add-damage-modifyflow-primitive`）、动作待 `DAMAGE-4`**——用户裁定形状随 plan3 Task 3 提前落地（不改编不过：链步骤要带 `Consume` 字段），动作（扣次数 / 起冷却 / 标记已消费 / 发消费事件）仍归 `DAMAGE-4`（R5/M4a）；同轮类型改名 `FTcsDamageModifierConsumePolicy`。真相源 = 提案 `add-damage-modifyflow-primitive`。本册收录为 **R-4 的前置关联项**——**其"挡路"性质已消除**（`TFunction` 移除后，`FTcsDamageFlowContext` 的逐字段反射化不再有物理阻碍）。
 
 ---
 
@@ -138,10 +138,10 @@
 
 | 项 | 事实 |
 |---|---|
-| 两张注册表的值 | `FTcsTriggerConditionTest = TFunction<bool(const FInstancedStruct&, const FTcsTriggerContext&, double)>`（`TcsTriggerCondition.h:64`）；`FTcsTriggerPayloadRead = TFunction<FTcsTriggerPayloadInfo(const FInstancedStruct&)>`（`TcsTriggerPayloadReader.h:61`） |
+| 两张注册表的值 | `FTcsTriggerConditionTest = TFunction<bool(const FInstancedStruct&, const FTcsTriggerContext&, double)>`（`TcsTriggerCondition.h:FTcsTriggerConditionTest`）；`FTcsTriggerPayloadRead = TFunction<FTcsTriggerPayloadInfo(const FInstancedStruct&)>`（`TcsTriggerPayloadReader.h:FTcsTriggerPayloadRead`） |
 | 两个 `Register` | 均无 `UFUNCTION`；两处头注释自认欠账（"与步骤执行器注册表同批解决，MUST NOT 单独开"） |
 | **两张注册表不在任何门面上** | `grep TriggerConditionRegistry / TriggerPayloadReaderRegistry` 于 `TcsEffectSubsystem.h` → **零命中**。脚本层不但登不了记，连入口都没有 |
-| 条件求值器热路径 | `EvaluateTriggerConditions` 每候选行、每条件调用一次（`TcsTriggerEvaluator.cpp:169`） |
+| 条件求值器热路径 | `EvaluateTriggerConditions` 每候选行、每条件调用一次（`TcsTriggerEvaluator.cpp:UTcsTriggerEvaluator::PassesConditions`） |
 | 载荷读取器热路径 | `ReadPayloadInfo` **每事件一次**（各行共用，已优化） |
 | 内置条件登记 | 2 个（`HasAllTags` / `Chance`），全走同一注册表 ✅ |
 | **载荷读取器登记数** | **0**——`UE_DEFINE_TRIGGER_PAYLOAD_READER` 宏全库只有定义、零调用；TcsDamage 未为自己发布的收集事件登记读取器 |
@@ -270,8 +270,8 @@ SCRIPT-8 的持有 = UPROPERTY TArray<TObjectPtr<...>> 挂在 UWorldSubsystem �
 
 #### 现状确认
 
-- `FTcsParamValueSource`（`TcsCore/Public/Parameter/TcsParamValueSource.h:62`）：`USTRUCT(meta=(Hidden))` 基类 + 两个虚函数——`virtual double Evaluate(const FTcsParamEvaluateContext&) const`（`:77`）与 `virtual bool AllowsValueConvention() const`（`:99`）；
-- 载体 `FTcsParamValue{ FInstancedStruct Source }`（SCRIPT-6 换型后），调用点 `Evaluate(Ctx)` → `Source.GetPtr<FTcsParamValueSource>()` → `->Evaluate(Ctx)`（`TcsParamValue.h:63-67`）；
+- `FTcsParamValueSource`（`TcsParamValueSource.h:FTcsParamValueSource`）：`USTRUCT(meta=(Hidden))` 基类 + 两个虚函数——`virtual double Evaluate(const FTcsParamEvaluateContext&) const`（`TcsParamValueSource.h:FTcsParamValueSource::Evaluate`）与 `virtual bool AllowsValueConvention() const`（`TcsParamValueSource.h:FTcsParamValueSource::AllowsValueConvention`）；
+- 载体 `FTcsParamValue{ FInstancedStruct Source }`（SCRIPT-6 换型后），调用点 `Evaluate(Ctx)` → `Source.GetPtr<FTcsParamValueSource>()` → `->Evaluate(Ctx)`（`TcsParamValue.h:FTcsParamValue::Evaluate`）；
 - 内置源：`FTcsParamSource_Literal` / `FTcsParamSource_ParamRef`（TcsCore）、`FTcsParamSource_AttributeScaled`（TcsAttribute）——全部 C++ 虚分派；
 - 选择器族的解法（SCRIPT-8 已落地）：`ITcsTargetSelectorHost`（`UINTERFACE(MinimalAPI, Blueprintable)` + `UFUNCTION(BlueprintNativeEvent)`）+ `FTcsSelHostDelegate`（USTRUCT 策略子类，持 `UPROPERTY TScriptInterface<ITcsTargetSelectorHost> Host`，`Resolve` 纯转发 + 空 Host 守卫）——**两层结构**：宿主实现 UObject 接口，转发器把它接进虚分派体系。
 
@@ -343,7 +343,7 @@ bool AllowsValueConvention();                                // 第二个虚函�
 **★ 落地时的关键判据（调研已确认，供实施者直接引用）**：
 
 - **形参可直接用 `FTcsParamEvaluateContext`**——它是 `USTRUCT(BlueprintType)`、字段全反射、**无 `TFunction`** ⇒ 可直接作 `BlueprintNativeEvent` 形参。**这是 R-1 比 SCRIPT-8 选择器插槽更简单的原因**：选择器被迫"传句柄 + 门面访问器"是因为 `FTcsEffectContext` 是非反射纯 C++ struct（不能作 `UFUNCTION` 形参，UHT 报错）；参数源没有这个约束。
-- **两个虚函数都要转发**——`Evaluate`（求值）与 `AllowsValueConvention`（约定能力位，D5-18 v3 白名单的判据）。漏掉后者会让宿主新源在"是否允许配置行级值约定"上拿到基类默认值 `true`，而契约要求"能力探测走虚分派，不得建立中心名单"（`TcsParamValueSource.h:95`）。
+- **两个虚函数都要转发**——`Evaluate`（求值）与 `AllowsValueConvention`（约定能力位，D5-18 v3 白名单的判据）。漏掉后者会让宿主新源在"是否允许配置行级值约定"上拿到基类默认值 `true`，而契约要求"能力探测走虚分派，不得建立中心名单"（`TcsParamValueSource.h:FTcsParamValueSource::AllowsValueConvention`）。
 - **载体与调用点零改动**——`FTcsParamValue.Source` 是裸 `FInstancedStruct`（SCRIPT-6 换型后），照装转发器；`Evaluate` 调用点走 `GetPtr<FTcsParamValueSource>()` + 判空，转发器作为子类自然命中。
 - **双轨并存**——内置源（Literal/ParamRef/AttributeScaled）仍走 C++ 快路径（`GetPtr` + 虚表直调，零反射开销），插槽只服务宿主扩展（多一次 `UFunction::Invoke`，按 SCRIPT-8 判据"客制化/非热路径"可接受）。
 
@@ -356,3 +356,6 @@ bool AllowsValueConvention();                                // 第二个虚函�
 - **2026-09-29 `DEC-04` 裁定落定（用户拍板 §7 五项全接受）**：本册 **3 行改判**——**R-3 由"待调研"改为"⚖ 已裁决：不换"**（`TFunctionRef` 的语义/热路径/蓝图不承诺三条判据不随时间改变，不再挂待办）；**R-6 由"已登记待办"改为"⚖ 已裁决"**（`OnConsumed` 改事件/原语语义，与 `DAMAGE-4` 同批）；**R-4 的前置获定向**（R-6 已裁定，待 `DAMAGE-4` 落定后启动）。**R-1 / R-2 状态不变**（仍"已调研并拍板，待落地"），但落地顺序获确认：**先做 A 类值语义改造**（`DEC-04` 裁定 ⑤），它是 R-2 跨世界寿命兜底的前置护栏。条目总数不变（6 项）。
 - **2026-09-30 新增《★ 宿主插槽家族的耦合关系》跨条备忘（用户指示：写进文档避免遗忘）**：登记三处"再开宿主插槽家族"的待办（R-1 参数源 / R-2 后段 条件求值器与载荷读取器 / P-A 评分器）与已落地的选择器·过滤器家族同构，并批可复用一套验证装置；同时记录 R-2 用 `UObject` 基类与另两处用 `UINTERFACE + 转发器` 的**已存在不一致**（待并批时显式确认）。**同步指针 5 处**：本册总表 R-1/R-2 行、`plan-r4-trigger-row.md` R4.5 批次表与 Task 3.5 交付面第 3 项、设计文档 §2.1 与附录 A11（Q-7）、`decisions-log.md` 2026-09-30 ⑤。**条目总数不变（6 项）**——本节是跨条备忘而非新条目。**当前建议未裁定**（Task 3 范围不变；P-A 起草时再决定是否并批）。
 - **2026-09-29 R-2 的寿命缺陷部分闭环（提案 `harden-registry-cross-world-lifetime`）**：`DEC-04` 裁定 ⑤ 的第一批落地。**R-2 行由"待落地（含寿命缺陷）"改为"部分闭环"**——寿命语义（对象/世界弱引用）、失效判据（对象死/世界亡/世界不同）、拒绝门收窄（失效⇒替换，有效且同世界⇒拒绝）、`Unregister` 与 `GetDynamicKeys`、门面 `Deinitialize` 按世界撤销，**4 张注册表全覆盖**。**实测判据**：同一 Editor 进程两次 PIE，`拒绝重复登记` 零命中，探针 `ATcsHostScriptingE2EProbe` 两轮均登记成功并跑完全部检查（证据 `EVID-2026-09-29-registry-lifetime`）。**生效机制 = 显式撤销**（诊断实测 `注册表动态条目 1 个`，说明条目确在进程级注册表内并被 `Deinitialize` 清除）；**`DiscardIfStale` 替换路径至今未被触发，仍无行为证据**（属"显式撤销失效时的保险"，按 2026-09-27 裁定只记录、不改变设计）。**R-2 仍未闭环的部分**：两张注册表的宿主脚本插槽（`BlueprintType` 升格 + 反射注册入口）仍待独立提案。条目总数不变（6 项）。
+- **2026-09-30 R-6 形状落地（提案 `add-damage-modifyflow-primitive`）**：本册 **3 行改判**——**R-6 由"⚖ 形状已定"改为"✅ 形状已落地"**（`FTcsDamageModifierConsumePolicy` 去闭包 + 改名 + 消费事件 tag `Tcs.Event.Damage.ModifierConsumed` 原生声明；消费**动作**仍待 `DAMAGE-4`）；**R-4 的前置由"依赖 R-6 分层"改为"物理阻碍已消除"**（原根因 `OnConsumed` 已删，剩余 = 嵌套容器 + 运行态记录的常规反射化）；台账 `SCRIPT-3` 同步改判（其"物理不可反射"的证据面失效）。**R-1 / R-2 / R-3 / R-5 状态不变**。条目总数不变（6 项）。
+
+- **2026-10-01 引用收敛（`CONVENTION` §5 行号禁令）**：本册 **9 行**改写——源码引用 → `路径:符号名`（`TcsParamValueSource.h` / `TcsEntityQuery.h` / `TcsTriggerCondition.h` / `TcsTriggerPayloadReader.h` / `TcsTriggerEvaluator.cpp` / `TcsParamValue.h` 等）、openspec 引用 → 路径 + 需求名。**R-1 ~ R-6 的结论与状态均未变**，只改引用写法。

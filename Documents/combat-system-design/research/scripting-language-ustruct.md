@@ -601,6 +601,9 @@ void Register(const UScriptStruct* StepStruct, FTcsStepExecute Executor);
 
 **→ 这意味着：即便脚本通道今天就打通，用 C# 也写不出"羁绊技能效果"和"Buff 效果"的完整逻辑——因为需要的原语步骤本身还没实现。** 这是比脚本选型更前置的缺口。
 
+> **2026-09-30 实施注记（按 `docs-convention` §7「冻结」只追加，正文不改）**：§7.5 的"实测注册点"表数字**已过时一位**——效果链执行器由 **3 → 4**（新增 `FTcsStepModifyFlow`，住 TcsDamage，经 `UE_DEFINE_EFFECT_STEP_EXECUTOR` 跨模块自注册；提案 `add-damage-modifyflow-primitive`，Development + Shipping 双配置 0 error / 0 warning）。伤害流程侧 12 不变。**派生结论随之微调**：效果链侧未落地原语由 **12 → 11**。**本节的结论方向不变**（缺口仍远大于脚本通道问题）——`WaitEvent` / `Branch` / `ApplyState` / `Repeat` / `Parallel` / `RunSubChain` / `ModifyAttribute` 等仍全未落地（见台账 `DAMAGE-2`，归 R5/M4a）。
+> **顺带一条方法论注记**：本节正是"**改造后要按被改符号扫一遍全集的引用面**"的实例——`FTcsStepModifyFlow` 的落地会让一张**计数表**过期，而计数表既不是 `#include` 也不是"理由句"，用"改了哪些文件"的思路扫不到它（教训卡 `MEM-20260930-05`）。
+
 ### 7.6 本节结论
 
 对"用 C# 写技能/羁绊/Buff 逻辑"这个目标，**卡点全部在 TCS 侧，且与 USTRUCT 继承无关**：

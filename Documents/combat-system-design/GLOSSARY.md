@@ -200,7 +200,7 @@
 | `D7-1` | TcsDamage 独立模块 + 瞬时流程骨架 | `SPEC-08-damage` §1 |
 | `D7-2` | `Damage`/`Heal` 原语 = 流程发起器；公式归项目 delegate | `SPEC-08-damage` §2 |
 | `D7-3` | 流程属性复用 M2 语义（键 + 修正链，作用域=流程） | `SPEC-08-damage` §2.1 |
-| `D7-4` | 消耗型修正器 `{MaxUses/Cooldown/OnConsumed/SortKey}`；收集≠消费，成功才消费 | `SPEC-08-damage` §2.2 |
+| `D7-4` | 消耗型修正器 `{MaxUses/Cooldown/SortKey}`（原 `OnConsumed` 闭包 **2026-09-30 改事件语义**）；收集≠消费，成功才消费 | `SPEC-08-damage` §2.2 |
 | `D7-5` | **流程模板化**（标准十阶段 = 步骤库 + 官方默认模板） | `SPEC-08-damage` §2.2 |
 | `D7-6` | **伤害修改器 = 触发行 + `ModifyFlow`（唯一通道）** | `SPEC-08-damage` §2.3 |
 | `D7-7` | `FFlowRedirect` 模板重定向（让渡模式升四粒度） | `SPEC-08-damage` §2.2 |
@@ -266,7 +266,7 @@
 | `R-3` | `ITcsEntityQuery` 反射化 | 待调研（= `SCRIPT-5`） |
 | `R-4` | 上下文整体反射化 | 待调研（前置 = `R-6`） |
 | `R-5` | `FTcsSourceHandle` 反射化 + `FindChain` 裸指针 | 待调研 |
-| `R-6` | `OnConsumed` / 消耗语义形状 | 已登记待办（形状待消费语义落地时定） |
+| `R-6` | `OnConsumed` / 消耗语义形状 | **✅ 形状已落地（2026-09-30）**；消费动作待台账 `DAMAGE-4` |
 
 ---
 
@@ -328,6 +328,7 @@
 | `EVID-2026-09-28-scripting-e2e` | `evidence/2026-09-28-host-scripting-e2e-pie.md` | 证据（宿主脚本插槽 E2E） |
 | `EVID-2026-09-28-selector-ref` | `evidence/2026-09-28-selector-ref-pie.md` | 证据（selector `ref` 容器） |
 | `EVID-2026-09-29-registry-lifetime` | `evidence/2026-09-29-registry-lifetime-pie.md` | 证据（注册表跨世界寿命：两连 PIE） |
+| `EVID-2026-09-30-modifyflow-acceptance` | `evidence/2026-09-30-modifyflow-primitive-acceptance-pie.md` | 证据（`ModifyFlow` 提交侧验收：单次 PIE，注册可达 + 降级路径） |
 | `LEDGER-deferred` | `ledger/deferred-inputs-ledger.md` | 台账（跨轮遗留输入，活文档） |
 | `LEDGER-reflection` | `ledger/reflection-backlog.md` | 台账（反射未解决项，活文档） |
 | `LEDGER-terminology` | `ledger/reflection-terminology.md` | 台账（反射术语规约，活文档） |
@@ -382,6 +383,7 @@
 | 8 | **编号与文件名/篇序三轨错位**（本册 §2 的十五族总表与 `INDEX.md` §4 已按编号列，但读者仍易按文件序号理解） | **✅ 已在本文 §2 与 `GLOSSARY` §5.1 双表并列**（ID ↔ 路径）——`SPEC-09` 主题词 = `editor`（文件 `spec/08-…`）、`SPEC-10` 主题词 = `presentation`（文件 `spec/07-…`）、`SPEC-08` 主题词 = `damage`（文件 `spec/09-…`）。**不改编号**：ID 是稳定键，动它要同步 5 份 openspec 生效规格（见 `CONVENTION` §5）。 |
 | 9 | **§2 表头计数与表体不符**（写"十二族"，实际 15 行） | **✅ 已修（2026-09-29）**：表头改"十五族"；`INDEX.md` §2 的交叉引用同步。**并修正台账族的清单**——原列 `TRIG-n`/`SKILL-n`/`TARGET-n` 三种前缀**在台账中不存在**（实测 8 个前缀族），已按实测改写 |
 | 6 | 台账旧编号残留引用 | 批次 1 已全库替换；验证见重构报告 |
+| 10 | **引用库外文档系列**（`TCS 报告 01–13 + ZZ`：2026-09 上旬对**旧 TCS 代码库**的勘察报告，含 orphan-scan / 诊断与时间语义 / 编辑器现状 等实证来源） | **✅ 已处置（2026-10-01）**：该系列在 LAC 工作区与 TCS git 历史中**均不存在**（已全盘搜索）。`SPEC`/`LEDGER` 内 10 处引用已改写为「`TCS 报告 NN`（库外，已不在库内）」的**追溯注记**，不再声称可复核。**若日后补齐入库，MUST 回头把注记改为真实路径 + 节锚点**（见 `CONVENTION` §6.1） |
 
 ---
 

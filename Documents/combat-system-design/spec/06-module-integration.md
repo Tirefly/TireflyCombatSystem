@@ -33,7 +33,7 @@
 - **`UCombatEntityComponent : UActorComponent`**——三职责封顶：
   1. **注册表身份锚**：`Initialize → RegisterEntity`（分配 `FCombatEntityHandle`、创建桶）、`EndPlay → Unregister`——Actor 生死 → 注册表条目生死的唯一翻译器；挂组件 = 策划声明"本 Actor 是战斗单位"；
   2. **查询门面**：实现 `ICombatAttributeProvider`（缓存桶指针转发）；**并暴露该单位的 AttributeSet 查询与切换入口**（D2-15，2026-09-17：Set 引用点住实体侧配置——组件持引用；"当前生效的 Set"是 World 级可变状态）；
-  3. **可选 StateTree 决策宿主**：子对象挂引擎原生 `UStateTreeComponent` + `UCombatStateTreeSchema : UStateTreeComponentSchema`（Context 收敛注入——通道复用 TCS 已验证形态，10:85-87）；不挂零成本。
+  3. **可选 StateTree 决策宿主**：子对象挂引擎原生 `UStateTreeComponent` + `UCombatStateTreeSchema : UStateTreeComponentSchema`（Context 收敛注入——通道复用 TCS 已验证形态，TCS 报告 10，库外，已不在库内）；不挂零成本。
 - **属性集合的施加时序（D2-14/D2-15，2026-09-17 裁决）**：单位属性由 **AttributeSet 在注册期初始化**——施加点在 `RegisterEntity` 之后，且**必须在 DefLibrary `IsRuntimeReady()` 门禁通过之后**（Set 资产是 GameInstance 级 Const 内容，未就绪时不得施加）；后续"换情景"由宿主调 `ApplyAttributeSet`（diff 替换，共有保留实例）或 `ClearAttributeSet`（整组清空）。**引擎不认识"游戏模式"轴**——情景与 Set 的对应关系归宿主（换实体身上的引用或换实体）。
 - 适配器零逻辑；**全部战斗组件不自 TickComponent**（D6-5：M0 泵唯一驱动）。
 - 宿主注入接口：`ICombatEntityQuery{Enumerate/GetLocation/IsAlive}`（**D4-15 统一命名**——接口定义在 TcsEffect，实现名 ITcsEntityQuery 见 plan2；旧名 ICombatEntitySpatial 已并于此）、`IRelationResolver{IsHostile}`（阵营——插件无阵营本体论）。

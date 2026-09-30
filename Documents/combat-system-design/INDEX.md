@@ -51,7 +51,7 @@ combat-system-design/
 ├── log/                ← 决策日志 LOG-*（8 篇：按模块轮次分片 + 拍板流水 + 实施记录）
 ├── plans/              ← 实施计划 PLN-*（5 篇：R3 计划一二 + 竖切剧本 + 内容指南 + R4 计划）
 ├── research/           ← 调研 RSCH-*（6 篇：AbilityKit 三路 + 复制 + 脚本 + C#）
-├── evidence/           ← 证据 EVID-*（3 篇 PIE 取证，带 SHA-256）
+├── evidence/           ← 证据 EVID-*（4 篇 PIE 取证，带 SHA-256）
 ├── ledger/             ← 台账与规约 LEDGER-*（3 篇活文档）
 └── HISTORICAL/         ← 历史存档（模块地图提案 v1，已被 DEC-00 §9 取代）
 ```
@@ -89,7 +89,7 @@ combat-system-design/
 | `SPEC-05-integration` | M6 集成 | `TcsIntegration` | 生效中 | R3 已交付（扩展 R7） |
 | `SPEC-06-targeting` | 目标选择 | `TcsTargeting` | 生效中 | R3 已交付 |
 | `SPEC-07-notation` | 策划记法 | `TcsNotation` | 待落地 | 骨架壳 R3；内容 R8 |
-| `SPEC-08-damage` | 伤害瞬时流程 | `TcsDamage` | 生效中 | R3 已交付（修改器 R4） |
+| `SPEC-08-damage` | 伤害瞬时流程 | `TcsDamage` | 生效中 | R3 已交付；**伤害修改器通道的提交侧已落地（R4 Task 3，2026-09-30：`FTcsStepModifyFlow` + 消耗策略纯数据化 + 收集事件载荷读取器）** |
 | `SPEC-09-editor` | M8 编辑器与工具 | `TcsEditor` | 待落地 | R8 |
 | `SPEC-10-presentation` | M7 表现 | `TcsCue` | 待落地 | R8 |
 | `SPEC-TRACE` | 契约追踪矩阵 | （跨模块） | 活文档 | — |
@@ -114,7 +114,7 @@ combat-system-design/
 | `DEC-01-pv` | PV 系列：参数值来源策略体系（`PV-0`~`PV-10`） | 冻结（已拍板） |
 | `DEC-02-fold-display` | 参数折叠与展示（`D5-5` v3 / `D5-17` v2→v3 / `D5-18` v3 / `PV-1`、`PV-10` 增补） | 冻结（已拍板） |
 | `DEC-03-attribute-set` | 属性存在性与 AttributeSet（`D2-14` / `D2-15`） | 冻结（已拍板） |
-| `DEC-04-callback-carriers` | **回调载体**：全仓 `TFunction` 用途分类与替换边界（A 类注册值可换 / B 类 `TFunctionRef` 不可换 / C 类内部回调不动、其中 `OnConsumed` 重做 / D 类静态自注册禁止换）+ 各角色生命周期策略（CDO vs 每执行实例）——[`decisions/dec-04-callback-carriers.md`](decisions/dec-04-callback-carriers.md) | **决策已拍板** 2026-09-29；**实现部分落地**（裁定 ⑤ 第一批 = 注册表寿命语义，已归档并实测；裁定 ③ 记账生效；余项待后续提案） |
+| `DEC-04-callback-carriers` | **回调载体**：全仓 `TFunction` 用途分类与替换边界（A 类注册值可换 / B 类 `TFunctionRef` 不可换 / C 类内部回调不动、其中 `OnConsumed` 重做 / D 类静态自注册禁止换）+ 各角色生命周期策略（CDO vs 每执行实例）——[`decisions/dec-04-callback-carriers.md`](decisions/dec-04-callback-carriers.md) | **决策已拍板** 2026-09-29；**实现部分落地**（裁定 ⑤ 第一批 = 注册表寿命语义，已归档并实测；裁定 ③ 记账生效；**裁定 ④ 的形状已落地（2026-09-30，Task 3：去闭包 + 改名 + 消费事件 tag 就位，消费动作仍归 `DAMAGE-4`）**；余项待后续提案） |
 | `LOG-99-misc` | Mass 连续内存备忘 | 冻结（**未拍板**，未来优化抽屉） |
 | `DEC-2026-09-02-module-map` | 模块拆分地图提案 v1 | **历史存档**（被 `DEC-00-constitution` §9 取代） |
 
@@ -122,7 +122,7 @@ combat-system-design/
 
 | ID | 轮次 | 内容 | 状态 |
 |---|---|---|---|
-| `PLN-R4` | **R4（当前）** | 触发行与伤害修改器通道；**含 R4–R8 轮次路线图（现行顺序的真相源）+《R4.5 批次表》（非正式轮号）** | 进行中（Task 1/2 完成，余 5 项未执行） |
+| `PLN-R4` | **R4（当前）** | 触发行与伤害修改器通道；**含 R4–R8 轮次路线图（现行顺序的真相源）+《R4.5 批次表》（非正式轮号）** | 进行中（**Task 1 / 2 / 3 已完成**；余 4 项 = Task 3.5 / 2.5 / 4 / 5） |
 | `PLN-R3-vertical-slice` | R3 | 竖切验收剧本（7 项人工检查单） | 冻结（7/7 已验） |
 | `PLN-R3-1` | R3 | 计划一：Core + Attribute（Task 0–6） | 冻结（全部完成） |
 | `PLN-R3-2` | R3 | 计划二：Effect + Targeting + Damage + Integration（Task 0–7） | 冻结（全部完成并验收） |

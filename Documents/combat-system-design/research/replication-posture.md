@@ -18,6 +18,9 @@
   - 过网的是**产物**：结果快照（`FDamageRecord`）与表现用上下文快照（CueId + 快照），**不是流程上下文本身**
   - 运行态上下文现有形态：`AActor*` / `TWeakObjectPtr<AActor>`、`TMap<FName, FTcsParamValue>`（内含 `TInstancedStruct<FTcsParamValueSource>`）、键→折叠 double 的黑板（`TMap<FName, TArray<提交>>`，提交内含 `TFunction OnConsumed`）、`TArray<FGameplayTag>`、`FTcsSourceHandle`（进程内原子发号 uint64）
 
+> **2026-09-30 实施注记（按 `docs-convention` §7「冻结」只追加，正文不改）**：上文"运行态上下文现有形态"（`:19`）里的 `TFunction OnConsumed`，以及**结论速览表第 5 行**与 **§7.5 专节**针对它的判断，其**分析对象已变更**——该成员已于 2026-09-30 **删除**（消耗策略改**纯数据可反射结构** `FTcsDamageModifierConsumePolicy`，行为改**事件语义**；提案 `add-damage-modifyflow-primitive`，Development + Shipping 双配置 0 error / 0 warning）。
+> **对本文结论的影响**：①「表第 5 行」所要回答的那个问题**消失**（该成员已不存在）——但"**回调永不过网**"这条**一般性纪律仍成立**，仍是本仓对任何回调成员的既有约束；②凡以"黑板深处嵌闭包"为依据的连带判断随之失效（§3.2 的 `TMap` 嵌套容器限制**不受影响，仍然成立**）——黑板**仍不该过网**，只是理由收敛为"它是流内中间态"一条，与表第 3/4 行同向；③**其余结论完全不受影响**：需要过网的产物快照（`FDamageRecord`）、Cue 上下文形态、以及 FastArray / RPC / Iris 的通道选型，均与本成员无关。**权威现状**见 `LEDGER-reflection` R-6 行与台账 `SCRIPT-3`。
+
 ---
 
 ## 零、结论速览（详细依据见 §1–§6，逐条判断见 §7）
