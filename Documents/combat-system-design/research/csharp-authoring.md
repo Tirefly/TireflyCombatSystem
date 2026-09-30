@@ -110,13 +110,13 @@ FTcsDamageFlowContext
   └─ FTcsFlowAttributes Blackboard
        └─ TMap<FGameplayTag, TArray<FTcsFlowAttributeSubmit>> Submits    ← 非 UPROPERTY 容器
             └─ FTcsFlowAttributeSubmit
-                 └─ FTcsConsumePolicy Consume
+                 └─ FTcsDamageModifierConsumePolicy Consume
                       └─ TFunction<void()> OnConsumed                     ← 不可反射
 ```
 
 `TcsFlowDataSteps.h:44-46` 的注释**自己写明了**：
 
-> 注：**数据步骤无法携带消耗策略**（`FTcsConsumePolicy` 含 `TFunction OnConsumed` 回调，纯 C++ struct 不可反射、不可作 UPROPERTY——UHT 实证）→ 消耗型提交只能来自 C++ 步骤或事件响应。
+> 注：**数据步骤无法携带消耗策略**（`FTcsDamageModifierConsumePolicy` 含 `TFunction OnConsumed` 回调，纯 C++ struct 不可反射、不可作 UPROPERTY——UHT 实证）→ 消耗型提交只能来自 C++ 步骤或事件响应。
 
 ### 5.2 这条事实改变了 G-1 的形状
 

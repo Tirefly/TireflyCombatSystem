@@ -67,7 +67,7 @@
     - **C++ 实现与脚本实现双轨并存**：`Execute_` 内部先查 `UFunction` 走反射、查不到才回落原生 `_Implementation`（生成代码先例 `TcsAttributeProvider.gen.cpp:141-157`）⇒ 既有 C++ 宿主实现（如 LAC 的 `UTcsDevDamageFormula`）无须改语义，只改签名。
   - **★ 形参不是 `FTcsDamageFlowContext`，而是 `FTcsDamageFlowContextView`（反射只读视图）**：前者是**纯 C++ struct（无 `USTRUCT`）**，出现在 `UFUNCTION` 签名里会让 UHT 报 `Unable to find 'struct' with name ...` ⇒ **不能只"补 UFUNCTION"，必须换签名**（这条修正了台账 SCRIPT-8 的原设想）。
     - 视图只摘**可反射数据面**：参与者句柄（`Attacker`/`Instigator`/`Targets`）、`FormulaParams`、`ClassificationTags`、请求字段（`BaseDamageInput`/`TargetAttrKey`）。
-    - **不含黑板**——`FTcsFlowAttributes` 的提交项深处嵌 `FTcsConsumePolicy::OnConsumed`（`TFunction<void()>`），**物理不可反射**（`TcsFlowAttributes.h` 自注 + UHT 实证）；真前置是"上下文/黑板分层"（台账 SCRIPT-3），成本高一个数量级，而插槽只需读参与者与参数。
+    - **不含黑板**——`FTcsFlowAttributes` 的提交项深处嵌 `FTcsDamageModifierConsumePolicy::OnConsumed`（`TFunction<void()>`），**物理不可反射**（`TcsFlowAttributes.h` 自注 + UHT 实证）；真前置是"上下文/黑板分层"（台账 SCRIPT-3），成本高一个数量级，而插槽只需读参与者与参数。
     - **不含 `Owner` 弱引用**——脚本实现本身是 UObject，可经自身 `GetWorld()` 取门面（LAC 侧实现的机械修复即此路）。
     - **单向投影、无反向写回**：脚本要修正流程值走收集事件协议的 `Submit`，不是改视图（避免双真相）。
   - **中性默认实现住接口声明处**（`virtual <名>_Implementation(...)`）：UHT 检测到声明则**不生成默认 stub**（`UhtFunction.cs:681` 的 `ImplFound`）⇒ "普通项目零 delegate"（PV-7）不受影响。先例 = 引擎 `ISequencerAnimationOverride`（`SequencerAnimationOverride.h:31-44`）。

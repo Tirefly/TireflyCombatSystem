@@ -15,8 +15,14 @@
 | ① | **接受"不全换"的边界**——A 类（注册表的值）改造；B 类（`TFunctionRef`）定案**不换**；C 类（C++ 内部回调）保持不动，其中 `OnConsumed` 重做；D 类（静态自注册载体）**禁止换** | 本文 §3 全节 |
 | ② | **A 类的值形态 = 双轨注册值（内置纯函数 + 宿主弱引用 UObject）** | 本文 §5；同时是 `LEDGER-reflection` R-2 跨世界寿命缺陷的兜底形态 |
 | ③ | **`SCRIPT-5`（`ITcsEntityQuery` 反射化）就此定案"不换"**，从"待办"改为"已裁决：保持 C++ 专用面" | 本文 §3.2；`LEDGER-deferred` SCRIPT-5、`LEDGER-reflection` R-3 同步改判 |
-| ④ | **`FTcsConsumePolicy::OnConsumed` 改为事件/原语语义**，与 `DAMAGE-4`（消耗语义落地）**同批** | 本文 §3.3；`LEDGER-deferred` DAMAGE-4、`LEDGER-reflection` R-4/R-6 同步 |
+| ④ | **`FTcsDamageModifierConsumePolicy::OnConsumed` 改为事件/原语语义**，与 `DAMAGE-4`（消耗语义落地）**同批** | 本文 §3.3；`LEDGER-deferred` DAMAGE-4、`LEDGER-reflection` R-4/R-6 同步 |
 | ⑤ | **落地顺序：先只做 A 类值语义改造**（它是 R-2 的前置护栏），再在其上落 R-1/R-2 两张新注册表 | 本文 §5 的关键联动 |
+
+> **★ 2026-09-30 修订（用户拍板）——两条口径调整，裁定本体不变**：
+> 1. **④ 的时机提前**：`OnConsumed` 的**形状**（去 `TFunction` + 改事件语义）随 **plan3 Task 3（`ModifyFlow`）**落地，不再等 `DAMAGE-4`。原因：`FTcsStepModifyFlow` 要带 `Consume` 字段，而含 `TFunction` 的结构**无法作 `UPROPERTY`（UHT 编译错误）** ⇒ 不改形状则 Task 3 编不过。**动作**（扣次数 / 起冷却 / 标记已消费 / 发消费事件）仍归 `DAMAGE-4`（R5/M4a）。
+> 2. **类型改名**：`FTcsConsumePolicy` → **`FTcsDamageModifierConsumePolicy`**（用户裁定：`Consume` 单独出现语义不清晰；`DamageModifier` 指名"伤害修改器"这一提交者身份，与走运算带聚合的**属性**修正器明确区分）。本条正文与 §3.3 中的旧名据此更新。
+>
+> 真相源 = 提案 `add-damage-modifyflow-primitive`（形状、事件 tag、验收面全在该提案内）。
 
 > **裁定后的下一步**：按本仓纪律，实施需以 OpenSpec 提案开道（`validate --strict` 通过 → 实施 → 编译验证 → 归档）。本批的提案边界 = ① 值语义改造（含跨世界寿命兜底）。
 
