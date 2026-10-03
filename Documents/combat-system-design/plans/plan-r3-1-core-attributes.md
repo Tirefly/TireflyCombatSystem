@@ -4,7 +4,9 @@
 - **类型**：PLN / 计划
 - **状态**：FROZEN
 - **权威范围**：R3 计划一：TcsCore + TcsAttribute 的 Task 0–6 施工单与验收
-- **最后更新**：2026-09-18
+- **最后更新**：2026-10-01
+
+> **换根注记（2026-10-01）**：本文 tag 名已随提案 `reroot-gameplay-tag-vocabulary` 换根——旧前缀 `Tcs.Event.*` / `Tcs.Flow.Key.*` / `Tcs.Flow.Template.*` / `Tcs.Attr.*` / `Tcs.Chain.*` 依次成为 `TcsEvent.*` / `DamageFlowKey.*` / `DamageFlowTemplate.*` / `Attribute.*` / `EffectChain.*`；本文正文一律用新名，旧名仅存于本注记与 `log/`、`ledger/`、`evidence/` 等历史文件。
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -545,7 +547,7 @@ public:
 - [x] **Step 5: 全量编译 + 停点待用户检查**（提交经用户授权）——编译零警告；用户 PIE 两轮（首轮 3/1 → 修夹具 → 次轮 **4/0 全 PASS**，2026-09-18）
 
 > **2026-09-18 落地实施注记**（提案：`openspec/changes/add-tcsattribute-pipeline-and-transaction`，18 delta / 2 新能力 + 3 修订）：
-> - **产物**：`Public/Attribute/TcsAttributeBandFold.h`（折叠纯函数 + `FTcsAttributeBandEntry`，**Public**——M5/TcsDamage 复用；plan1 原清单只列了 Private 的管线文件，规范扫描时补正）、`Public/Attribute/TcsAttributeChangedEvent.h/.cpp`（变更事件 USTRUCT + 原生 Tag `Tcs.Event.Attribute.ValueChanged`——命名公约 `Tcs.Event.<域>.<事件名>`，2026-09-18 用户拍板；由事件所属模块原生声明，TcsCore 不持战斗域词汇）、**`Public/Attribute/TcsAttributePipeline.h`**（管线类声明，2026-09-18 用户拍板从 Private 移出——确认未来有跨模块消费者；PIMPL 前向声明仍由门面持有）+ `Private/Attribute/TcsAttributePipeline.cpp`（recalc/收口/事务/PeekPending/广播/求值栈）、`TcsAttributePipeline_Dependency.cpp`（Tarjan SCC + 读即登记 + 脏传播）、`TcsAttributePipeline_Cascade.cpp`（RemoveBySource + SetBaseValue）；`TcsAttributeStore` 增冻结暂存区 / 依赖边 / 批深度；门面转发六个管线入口 + `SetBaseValue`，`RemoveAttribute` 改冻结、`AddAttribute` 改解冻优先。
+> - **产物**：`Public/Attribute/TcsAttributeBandFold.h`（折叠纯函数 + `FTcsAttributeBandEntry`，**Public**——M5/TcsDamage 复用；plan1 原清单只列了 Private 的管线文件，规范扫描时补正）、`Public/Attribute/TcsAttributeChangedEvent.h/.cpp`（变更事件 USTRUCT + 原生 Tag `TcsEvent.Attribute.ValueChanged`——命名公约 `TcsEvent.<域>.<事件名>`，2026-09-18 用户拍板；由事件所属模块原生声明，TcsCore 不持战斗域词汇）、**`Public/Attribute/TcsAttributePipeline.h`**（管线类声明，2026-09-18 用户拍板从 Private 移出——确认未来有跨模块消费者；PIMPL 前向声明仍由门面持有）+ `Private/Attribute/TcsAttributePipeline.cpp`（recalc/收口/事务/PeekPending/广播/求值栈）、`TcsAttributePipeline_Dependency.cpp`（Tarjan SCC + 读即登记 + 脏传播）、`TcsAttributePipeline_Cascade.cpp`（RemoveBySource + SetBaseValue）；`TcsAttributeStore` 增冻结暂存区 / 依赖边 / 批深度；门面转发六个管线入口 + `SetBaseValue`，`RemoveAttribute` 改冻结、`AddAttribute` 改解冻优先。
 > - **偏差 1（实体句柄升格为反射 USTRUCT）**：事件载荷走总线（`FInstancedStruct`）MUST 反射可见，而 `FTcsCombatEntityHandle` 原为纯 C++ 值类型（Task 4 的 D4 分界）→ **升格为 `USTRUCT(BlueprintType)` + 导出宏**（反射类型必须带宏），且 `Id` 由 `uint64` 改 **`int64`**（UHT 不支持 uint64 作为属性类型；句柄恒为正，无实际差异）。副作用正面：PV-1 规划的上下文 `Subject`（需 UPROPERTY）随之解禁。已回写 `instance-handle-pool` 规格（MODIFIED）。
 > - **偏差 2（新增 `SetBaseValue`）**：规格的"改基值"写操作类需要落点（02 §2.2a 的"等级成长 = 宿主升级事务改基值"），plan1 Task 5 接口清单原本没列 → 补 `UTcsAttributeSubsystem::SetBaseValue(单位, 属性名, 值)`（标脏 + 按事务纪律重算/广播，批外立即生效）。
 > - **偏差 3（成环语义按设计原文）**：设计写"成环 ensure + **拒绝该边**"（而非整条属性零写入）——实现为：登记边时跑 Tarjan SCC，成环则撤销刚登记的边 + ensure，读者用被读者的上一缓存值，求值有限不递归。提案 delta 的场景措辞已按此对齐。重算轮数上限（64 轮）只作收敛安全网，**与环判定解耦**（修旧 TCS 8 轮误判深链的缺陷）。
@@ -560,7 +562,7 @@ public:
 ---
 
 > **2026-09-18 Task 6 落地实施注记**（装置：`Source/TcsAttribute/Private/Testing/TcsAcceptanceRig.h/.cpp`，63 + 457 = 520 行；命令 `Tcs.Test.Acceptance.Plan1`，PIE 中运行）：
-> - **Step 1 装置**：屏显订阅者 `UTcsTestScreenChangeHandler`（订阅 `Tcs.Event.Attribute.ValueChanged` 立即通道 → 到达即直调 `GEngine->AddOnScreenDebugMessage` + 计数/留存载荷）+ 三个检查点段 + 屏显固定行号排版（`FScreenSection`：行键固定 → 重跑覆盖同批行，保留 600 秒）。夹具 = 单位 A（Health 上界动态取 MaxHealth / MaxHealth / Attack / Armor）、单位 B（隔离对照）、单位 C（悬空检查专用）；新建实例"预热结算"后广播计数才只反映真正的变更。
+> - **Step 1 装置**：屏显订阅者 `UTcsTestScreenChangeHandler`（订阅 `TcsEvent.Attribute.ValueChanged` 立即通道 → 到达即直调 `GEngine->AddOnScreenDebugMessage` + 计数/留存载荷）+ 三个检查点段 + 屏显固定行号排版（`FScreenSection`：行键固定 → 重跑覆盖同批行，保留 600 秒）。夹具 = 单位 A（Health 上界动态取 MaxHealth / MaxHealth / Attack / Armor）、单位 B（隔离对照）、单位 C（悬空检查专用）；新建实例"预热结算"后广播计数才只反映真正的变更。
 > - **落点偏差 1**：计划写 `Source/TcsIntegration/Testing/`，实际落 `Source/TcsAttribute/Private/Testing/`（与既有两个临时装置同目录）。理由：①`TcsIntegration` 模块归**计划二 Task 0** 建立，Task 6 时点不存在；②本装置只用 M0（总线）+ M2（属性门面）能力，**不是跨模块装置**；③装置属临时件（用毕即删），为它提前建一个零消费者的模块壳与用户既有口径（"零消费者不预建"，`01-module-m0-core.md:22 ④`）冲突。计划二 Task 6 的 C++ 测试装置不受影响——其落点 `Source/TcsIntegration/Testing/`（`plan2:259`，注明"plan1 Task 6 同款约定"）届时已由计划二 Task 0 建好模块；"同款约定"按"**装置住其所属模块的 Testing 目录**"理解，本装置归属 TcsAttribute（它只用 M0 总线 + M2 门面能力），两处约定不冲突。
 > - **语义澄清 2（检查点 2 的"1 次广播"）**：计划文本"一个测试 Source 挂 2 个 modifier（Attack+10 / Armor×1.5）→ 1 次重算 + 1 次广播"中，两个 modifier 落在**不同属性**上，而广播是**逐属性**的（`attribute-pipeline` 规格："同一提交内同一属性最多广播一次"）——故本条按"**每受影响属性各 1 次重算 + 1 次广播**"落地（两属性 = 本批 2 条），装置屏显直接写明该口径。"同属性两次变更只 1 条"由检查点 3 承担，两处合起来才是完整的"不会重复重算/重复广播"证明。
 > - **装置增补 3**：计划只写"2 单位"，装置用 3 个——单位 C 仅供检查点 4 的"真实单位数据上复验悬空"（注册 → 挂属性 → 注销 → 旧句柄访问）；单位 B 作隔离对照（A 的修正器全程不影响 B），把"2 单位"用成真检查而非装饰。

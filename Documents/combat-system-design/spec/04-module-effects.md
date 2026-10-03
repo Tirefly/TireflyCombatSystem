@@ -4,7 +4,9 @@
 - **类型**：SPEC / 模块规格
 - **状态**：ACTIVE
 - **权威范围**：TcsEffect（M4）链与步骤、触发行、目标选择、宿主插槽；理由住 LOG-02-effects
-- **最后更新**：2026-09-28
+- **最后更新**：2026-10-01
+
+> **换根注记（2026-10-01）**：本文 tag 名已随提案 `reroot-gameplay-tag-vocabulary` 换根——旧前缀 `Tcs.Event.*` / `Tcs.Flow.Key.*` / `Tcs.Flow.Template.*` / `Tcs.Attr.*` / `Tcs.Chain.*` 依次成为 `TcsEvent.*` / `DamageFlowKey.*` / `DamageFlowTemplate.*` / `Attribute.*` / `EffectChain.*`；本文正文一律用新名，旧名仅存于本注记与 `log/`、`ledger/`、`evidence/` 等历史文件。
 
 - 日期：2026-09-02
 - 状态：**v2 定稿**——全部增补（D4 修订/D7 瞬时流程/Authoring 边界/端到端走查/伪代码）已折入正文；修订记录见文末
@@ -143,7 +145,7 @@
 总纲：策划写的是三张表的数据行（状态词表行/触发行/链）；运行时自动性来自三机制：生命周期与时钟泵按声明发事件、触发行求值器自动匹配、解释器按数据执行。定义加载期把触发行订阅挂上总线，之后事件驱动闭环，无策划调用。
 
 ### 例一 Buff「灼烧」（每 2s 对宿主 5% 最大生命火伤，10s，叠 3 层）
-- 配置：StateDef_Burn（五轴 GroupBy=PerSource/Capacity→MaxStacks=3/RejectNew/AddValues/RefreshToTotal + Duration 10s + Period 2s）；触发行 TR_Burn_Tick（EventTag=`Tcs.Event.State.Periodic` + Filter DefTag=`<Burn 状态 tag>` + Effects=Chain_BurnTick + Cues）；链 Chain_BurnTick（单步 Damage{目标=EventTarget, 量=Param(BurnPct)×MaxHealth}）。**标识 2026-09-22 tag 化**：触发行 Filter 与链 id 均为 `FGameplayTag`（本节为走查预演形态，示意名不写全 tag 路径）。
+- 配置：StateDef_Burn（五轴 GroupBy=PerSource/Capacity→MaxStacks=3/RejectNew/AddValues/RefreshToTotal + Duration 10s + Period 2s）；触发行 TR_Burn_Tick（EventTag=`TcsEvent.State.Periodic` + Filter DefTag=`<Burn 状态 tag>` + Effects=Chain_BurnTick + Cues）；链 Chain_BurnTick（单步 Damage{目标=EventTarget, 量=Param(BurnPct)×MaxHealth}）。**标识 2026-09-22 tag 化**：触发行 Filter 与链 id 均为 `FGameplayTag`（本节为走查预演形态，示意名不写全 tag 路径）。
 - 运行：ApplyState（关系表→五轴→池分配→**快照构建**→时长/周期条目进到期堆→OnStateApplied 立即）→ 泵 2s 到期发 Periodic → 求值器四道门 → 起链 → Damage 步骤读 BurnPct（修正链）与 MaxHealth（M2 惰性重算）→ M2 事务扣血 → 提交尾 flush → Health 事件（立即）→ 死亡判定在宿主属性条件规则。10s 到 → Expire → 周期条目摘除 → 级联重评 → OnStateRemoved；悬空链醒后代际校验失效即取消（止于未来）。Cue 走帧末。
 
 ### 例二 Skill「旋风斩」（前摇 0.4s 可打断，4m 内 120% 攻击力，冷却 5s 挥砍组共享，消耗 20 怒气）

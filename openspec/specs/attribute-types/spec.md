@@ -2,7 +2,9 @@
 
 ## Purpose
 定义 M2 属性层的类型词汇：封闭的运算带枚举与带权、操作数双形状、边界三态与值域模式、账本修正器与属性实例、修正器模板资产与约定列白名单、属性值参数源、覆盖带的优先级与同优先级策略，以及以 GameplayTag 为内容的属性身份与双轨制定义。
+
 ## Requirements
+
 ### Requirement: 运算带封闭枚举与带权
 
 `TcsAttribute` MUST 提供封闭五带运算枚举 `ETcsAttributeOp`：`TAO_Add = 0`（默认）、`TAO_Override = 1`、`TAO_PercentAdd = 2`、`TAO_Mul = 3`、`TAO_FlatAdd = 4`；**无 Custom 逃逸位**（D2-7：计算一律在上游求值传入终值，聚合无代码插点）；新运算 = 末尾追加枚举值（D2-10 首例；追加需论证与既有带的交换性）。MUST 提供带权助手 `GetTcsAttributeBandWeight(ETcsAttributeOp)`（Override 0 / Add 10 / PercentAdd 15 / Mul 20 / FlatAdd 30，header-only）——**带序唯一真相在 Op**；账本修正器的 `SortKey` 仅为展示/审计位，折叠 MUST NOT 依赖它。
@@ -51,7 +53,7 @@
 
 #### Scenario: 边界两侧独立
 
-- **WHEN** 属性定义 `Min = ABM_Static(0)`、`Max = ABM_Dynamic(Tcs.Attr.MaxHealth)`
+- **WHEN** 属性定义 `Min = ABM_Static(0)`、`Max = ABM_Dynamic(Attribute.MaxHealth)`
 - **THEN** 两个边界各自按自己的模式处理（静态值 / 动态属性求值），互不牵连
 
 #### Scenario: 值域逃逸位取值固定
@@ -129,7 +131,7 @@ checked cast 失败或 Provider 为空 MUST 落 `Fallback`（不崩溃、不 ens
 
 #### Scenario: 属性值换算取用
 
-- **WHEN** 扩展上下文的 Provider 给出 `Attribute = Tcs.Attr.AttackPower → 60`，源配 `Coefficient = 2.0`
+- **WHEN** 扩展上下文的 Provider 给出 `Attribute = Attribute.AttackPower → 60`，源配 `Coefficient = 2.0`
 - **THEN** 求值为 120
 
 #### Scenario: 上下文不匹配落兜底
@@ -195,9 +197,9 @@ MUST NOT 提供自定义策略（无 Custom 逃逸位）：这是热路径上的
 - **`operator==` → 逐字相同**：`GameplayTagContainer.h:69`（`TagName == Other.TagName`）。
 - **`GetTypeHash` → 逐字相同**：`GameplayTagContainer.h:168`（`GetTypeHash(Tag.TagName)`）——`FGameplayTag` 内部即 `FName`，**比较与哈希成本与现实现一致**。
 
-**tag 来源（框架原生 + 项目 ini，用户 2026-09-22 拍板）**：属性名属**项目词汇**（插件 MUST NOT 持有战斗域词汇），故由**项目侧声明**——项目 `Config/DefaultGameplayTags.ini` 的 `+GameplayTagList=(Tag="Tcs.Attr.Health",…)`，代码侧经**缓存解析**取用（`RequestGameplayTag` 带 `TScopeLock(GameplayTagMapCritical)` + 重定向查询，`GameplayTagsManager.cpp:2372`，**MUST NOT 进热路径**）。
+**tag 来源（框架原生 + 宿主 ini，用户 2026-09-22 拍板；2026-10-01 换根）**：属性名属**宿主词汇**（插件 MUST NOT 持有战斗域词汇），故由**宿主侧声明**——宿主 `Config/DefaultGameplayTags.ini` 的 `+GameplayTagList=(Tag="Attribute.Health",…)`，代码侧经**缓存解析**取用（`RequestGameplayTag` 带 `TScopeLock(GameplayTagMapCritical)` + 重定向查询，`GameplayTagsManager.cpp:2372`，**MUST NOT 进热路径**）。
 
-**属性名命名约定**：`Tcs.Attr.<Name>`（与事件 tag 的 `Tcs.Event.*` 并列，共用 `Tcs` 命名空间但域段隔离）。
+**属性名命名约定（2026-10-01 换根）**：`Attribute.<Name>`。该根由**宿主仓的根段注册表**登记（全项目只有一个属性系统，故不加系统限定）；它与本插件的事件根 `TcsEvent` 并列——两者各自唯一指向一个消费场景（属性存储/聚合求值 vs 事件总线订阅/广播）。本插件 MUST NOT 在根段注册表里重复登记 `Attribute` 根，也 MUST NOT 声明任何具体的属性名。
 
 #### Scenario: 属性 API 只接受 tag
 
@@ -206,13 +208,18 @@ MUST NOT 提供自定义策略（无 Custom 逃逸位）：这是热路径上的
 
 #### Scenario: 拼错的属性 tag 在解析处即被拦截
 
-- **WHEN** 项目 ini 未声明 `Tcs.Attr.Nonexistent` 而代码侧解析它
+- **WHEN** 宿主 ini 未声明 `Attribute.Nonexistent` 而代码侧解析它
 - **THEN** `RequestGameplayTag` 的默认 `ErrorIfNotFound = true` 触发 ensure（**不静默产空 tag**）——失败点前移到解析处，而非运行期查表 miss
 
 #### Scenario: 作为 TMap 键
 
 - **WHEN** 两个 `FGameplayTag` 承载同一 tag，分别作 `TMap<FGameplayTag, …>` 的键读写
 - **THEN** 命中同一槽位（相等 + 哈希一致——由引擎实现保证）
+
+#### Scenario: 属性名根由宿主侧登记
+
+- **WHEN** 检查属性名的声明方与根归属
+- **THEN** 声明方是宿主 ini、根是宿主侧登记的 `Attribute`；本插件的根段注册表**不含**该根（也不含任何属性名）
 
 ### Requirement: 属性定义（双轨制 + tag 身份）
 
@@ -233,11 +240,11 @@ MUST 在资产 `IsDataValid`（`WITH_EDITOR`）报错：`DefTag` 无效（`!DefT
 #### Scenario: 运行期资产持有定义数据且身份按 tag 解析
 
 - **WHEN** 读取 `UTcsAttributeDef` 的 `DefTag`、其组合数据 `Def` 与 `GetPrimaryAssetId()`
-- **THEN** 定义字段来自 `Def`，且主资产身份等于 `[PrimaryAssetType, DefTag.GetTagName()]`（与资产文件叫什么无关）
+- **THEN** 定义字段来自 `Def`，且主资产身份等于 `[PrimaryAssetType, DefTag.GetTagName()]`（与资产文件叫什么无关；`GetTagName()` 返回**完整 tag 文本**，故身份名里同时含根段）
 
 #### Scenario: 编辑期表行以 RowName 为定位、以 DefTag 为身份
 
-- **WHEN** 以 `FTcsAttributeDefTableRow` 作 `UDataTable::RowStruct`，以资产名写入行名、行内填 `DefTag = Tcs.Attr.Health`
+- **WHEN** 以 `FTcsAttributeDefTableRow` 作 `UDataTable::RowStruct`，以资产名写入行名、行内填 `DefTag = Attribute.Health`
 - **THEN** 该行可被读出且字段往返保真（含 `OverrideTieBreak` 与 `DefTag`）；RowName 与 `DefTag` 不要求同名
 
 #### Scenario: 空身份被拦截

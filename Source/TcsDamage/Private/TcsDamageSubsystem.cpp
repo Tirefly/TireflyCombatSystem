@@ -17,20 +17,31 @@
 
 
 // 流程收集事件 Tag 全集（原生声明——不进项目 Tag 表）
-UE_DEFINE_GAMEPLAY_TAG(Tag_Tcs_Event_Damage_FlowStarted, "Tcs.Event.Damage.FlowStarted");
-UE_DEFINE_GAMEPLAY_TAG(Tag_Tcs_Event_Damage_PreHit, "Tcs.Event.Damage.PreHit");
-UE_DEFINE_GAMEPLAY_TAG(Tag_Tcs_Event_Damage_Hit, "Tcs.Event.Damage.Hit");
-UE_DEFINE_GAMEPLAY_TAG(Tag_Tcs_Event_Damage_Crit, "Tcs.Event.Damage.Crit");
-UE_DEFINE_GAMEPLAY_TAG(Tag_Tcs_Event_Damage_Element, "Tcs.Event.Damage.Element");
-UE_DEFINE_GAMEPLAY_TAG(Tag_Tcs_Event_Damage_AfterDamage, "Tcs.Event.Damage.AfterDamage");
-UE_DEFINE_GAMEPLAY_TAG(Tag_Tcs_Event_Damage_PreExecute, "Tcs.Event.Damage.PreExecute");
-UE_DEFINE_GAMEPLAY_TAG(Tag_Tcs_Event_Damage_Completed, "Tcs.Event.Damage.Completed");
+// **每个词带 `DevComment`**（编辑器 tag 树 tooltip 的载体）：语义 / 谁声明谁消费 / （若为验证词）退役判据
+UE_DEFINE_GAMEPLAY_TAG_COMMENT(Tag_TcsEvent_Damage_FlowStarted, "TcsEvent.Damage.FlowStarted",
+	"伤害流程开始收集事件（CollectStart 步广播）；由插件 TcsDamage 原生声明·宿主订阅后在流程起手处提交修正");
+UE_DEFINE_GAMEPLAY_TAG_COMMENT(Tag_TcsEvent_Damage_PreHit, "TcsEvent.Damage.PreHit",
+	"PreHit 阶段收集挂点（命中判定之前）；由插件 TcsDamage 原生声明·宿主订阅后提交命中相关修正");
+UE_DEFINE_GAMEPLAY_TAG_COMMENT(Tag_TcsEvent_Damage_Hit, "TcsEvent.Damage.Hit",
+	"命中判定阶段收集挂点；由插件 TcsDamage 原生声明·宿主订阅后可改写 DamageFlowKey.HitRate 键");
+UE_DEFINE_GAMEPLAY_TAG_COMMENT(Tag_TcsEvent_Damage_Crit, "TcsEvent.Damage.Crit",
+	"暴击判定阶段收集挂点；由插件 TcsDamage 原生声明·宿主订阅后可改写 DamageFlowKey.CritRate 键");
+UE_DEFINE_GAMEPLAY_TAG_COMMENT(Tag_TcsEvent_Damage_Element, "TcsEvent.Damage.Element",
+	"元素解析阶段收集挂点；由插件 TcsDamage 原生声明·宿主订阅后经 ResolveElement 决定返回的分类词");
+UE_DEFINE_GAMEPLAY_TAG_COMMENT(Tag_TcsEvent_Damage_AfterDamage, "TcsEvent.Damage.AfterDamage",
+	"伤害结算后阶段收集挂点（“伤害 +50”一类追加修正的落点）；由插件 TcsDamage 原生声明·宿主订阅后提交修正");
+UE_DEFINE_GAMEPLAY_TAG_COMMENT(Tag_TcsEvent_Damage_PreExecute, "TcsEvent.Damage.PreExecute",
+	"执行前阶段收集挂点（免疫/减伤候选的提交处·只收集不消费）；由插件 TcsDamage 原生声明·宿主订阅后提交候选");
+UE_DEFINE_GAMEPLAY_TAG_COMMENT(Tag_TcsEvent_Damage_Completed, "TcsEvent.Damage.Completed",
+	"伤害流程完成收集挂点（记录已产出之后）；由插件 TcsDamage 原生声明·宿主订阅做结算后表现与统计");
 
 // 伤害记录事件 Tag（原生声明；载荷 = FTcsDamageRecord）
-UE_DEFINE_GAMEPLAY_TAG(Tag_Tcs_Event_Damage_Recorded, "Tcs.Event.Damage.Recorded");
+UE_DEFINE_GAMEPLAY_TAG_COMMENT(Tag_TcsEvent_Damage_Recorded, "TcsEvent.Damage.Recorded",
+	"伤害记录已产出事件（载荷 = FTcsDamageRecord·经总线立即通道同步派发）；由插件 TcsDamage 原生声明·宿主订阅作回放与统计数据源");
 
 // 消费事件 Tag（原生声明；2026-09-30 只声明形状——**发布归台账 DAMAGE-4**，本批不发布）
-UE_DEFINE_GAMEPLAY_TAG(Tag_Tcs_Event_Damage_ModifierConsumed, "Tcs.Event.Damage.ModifierConsumed");
+UE_DEFINE_GAMEPLAY_TAG_COMMENT(Tag_TcsEvent_Damage_ModifierConsumed, "TcsEvent.Damage.ModifierConsumed",
+	"伤害修改器被消费事件（结果面·非收集协议）；由插件 TcsDamage 原生声明·本批只声明形状不发布（发布归台账 DAMAGE-4）·宿主订阅表达“被消费时要做什么”");
 
 // 记录环形缓冲容量（R3 常量；改容量随统计需求轮）
 namespace
@@ -49,7 +60,7 @@ void UTcsDamageSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	// R3 组装四步：CollectStart → BaseDamage → Execute → Completed
 	// （Hit/Crit/Element/PreHit/AfterDamage/PreExecute 的 struct 与执行器已就位，本模板不组装）
 	FTcsFlowTemplate DefaultTemplate;
-	DefaultTemplate.TemplateId = Tag_Tcs_Flow_Template_Default;
+	DefaultTemplate.TemplateId = Tag_DamageFlowTemplate_Default;
 	DefaultTemplate.Steps.AddDefaulted_GetRef().InitializeAs<FTcsFlowCollectStart>();
 	DefaultTemplate.Steps.AddDefaulted_GetRef().InitializeAs<FTcsFlowBaseDamage>();
 	DefaultTemplate.Steps.AddDefaulted_GetRef().InitializeAs<FTcsFlowExecute>();
@@ -300,7 +311,7 @@ void UTcsDamageSubsystem::AppendRecord(FTcsDamageRecord& Record)
 		{
 			FInstancedStruct PayloadStruct;
 			PayloadStruct.InitializeAs<FTcsDamageRecord>(Record);
-			BusSubsystem->PublishImmediate(Tag_Tcs_Event_Damage_Recorded, PayloadStruct);
+			BusSubsystem->PublishImmediate(Tag_TcsEvent_Damage_Recorded, PayloadStruct);
 		}
 	}
 

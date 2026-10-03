@@ -161,7 +161,7 @@ public:
 	 * 可在回调内 `Submit` 黑板修正（**收集 ≠ 消费**，D7-4：消费归 Execute 裁决步骤）。
 	 * 载荷为**上下文指针包装**（进程内瞬态，MUST NOT 跨帧持有）。
 	 *
-	 * @param EventTag 收集事件 Tag（原生声明，`Tcs.Event.Damage.*`）。
+	 * @param EventTag 收集事件 Tag（原生声明，`TcsEvent.Damage.*`）。
 	 * @param Context 流程上下文（派发期有效）。
 	 */
 	void PublishCollectEvent(FGameplayTag EventTag, FTcsDamageFlowContext& Context);
@@ -175,7 +175,7 @@ public:
 public:
 	/**
 	 * 追加一条伤害记录（`Completed` 步骤调用）：发号序号 → 写环形缓冲 → 经总线**立即通道**
-	 * 发布原生事件 `Tcs.Event.Damage.Recorded`（载荷 = 记录本身；记录是结果快照，消费方无须上下文）。
+	 * 发布原生事件 `TcsEvent.Damage.Recorded`（载荷 = 记录本身；记录是结果快照，消费方无须上下文）。
 	 *
 	 * @param Record 记录（序号与时刻若为空由本函数补齐——步骤只填业务字段）。
 	 */

@@ -2,7 +2,9 @@
 
 ## Purpose
 定义效果链与链步骤的数据形状、链定义的登记表与解析入口、效果链上下文（黑板：类/实体/运行态/黑板值与生命周期纪律），以及链运行态句柄的反射性。
+
 ## Requirements
+
 ### Requirement: 链与步骤数据形状
 
 `TcsEffect` MUST 以**数据 struct**（非策略类/非类层级）承载效果链与步骤（D4-3/D4-16；分离宪法 R0 §8：语义 = 词汇（C++）、链 = 句子（数据））：
@@ -11,7 +13,7 @@
 - `FTcsEffectStep{ FInstancedStruct StepData; }`（USTRUCT）——"把步骤当字段"的容器形状（链数组直接存 `FInstancedStruct`；本 struct 供内联挂载/传递类场合复用）；
 - **步骤类型无公共基类**（D4-16：15 原语按归属分住各模块）：链的步骤数组 MUST NOT 设 `BaseStruct` 编辑器限定——类型合法性由**执行器注册表在执行期**判定（未注册即拒绝，见 `effect-step-dispatch`）；链自带 `MaxStepsPerFrame` 默认 64（单帧步数熔断上限）。
 
-**链 id 的来源（2026-09-22）**：链是**项目内容**（策划创作），故 `ChainId` 属**项目词汇**——由项目 `Config/DefaultGameplayTags.ini` 声明（`Tcs.Chain.<Id>`），插件 MUST NOT 声明任何具体链 id。
+**链 id 的来源（2026-09-22；2026-10-01 换根）**：链是**宿主内容**（策划创作），故 `ChainId` 属**宿主词汇**——由宿主项目 `Config/DefaultGameplayTags.ini` 声明（**根 = `EffectChain`**，形态 `EffectChain.<Id>`；根段注册表与归属规则见 `gameplay-tag-governance` 能力），插件 MUST NOT 声明任何具体链 id。
 
 #### Scenario: 链定义字段完整
 
@@ -22,6 +24,11 @@
 
 - **WHEN** 在同一链的步骤数组里放入两种不同归属的步骤 struct（如本模块的 `FTcsStepWaitDelay` 与某领域模块的步骤类型）
 - **THEN** 二者共存于同一 `TArray<FInstancedStruct>`，链定义本身不因类型族不同而失败（分派发生在执行期）
+
+#### Scenario: 链 id 的根与段数
+
+- **WHEN** 检查一条宿主链 id 的形态
+- **THEN** 它形如 `EffectChain.<Id>`（2 段，留 2 段深度余量；换根前 `Tcs.Chain.<Id>` 与链上的其它角色同挤在一个 `Tcs` 根下），且由宿主 ini 声明——插件不声明任何具体链 id
 
 ### Requirement: 链定义登记表
 
@@ -38,7 +45,7 @@
 
 #### Scenario: 登记后按 id 查到
 
-- **WHEN** `RegisterChain` 一条 `ChainId = Tcs.Chain.Chain_Test` 的链后调 `FindChain`（同一 tag）
+- **WHEN** `RegisterChain` 一条 `ChainId = EffectChain.ChainTest` 的链后调 `FindChain`（同一 tag）
 - **THEN** 返回该链定义，步骤数组与登记内容一致
 
 #### Scenario: 重复登记被拒且不覆写
@@ -57,7 +64,7 @@
 
 - **参与者一律为实体身份句柄**（`FTcsCombatEntityHandle`）——`Caster`（施法者）/ `Instigator`（发起者）为单句柄，`Targets` 为句柄数组；**MUST NOT 使用 `AActor*` / `TWeakObjectPtr<AActor>`**（D3-1 Actor 无关性；06 §33"Mass 适配核心零改动"的前提）；
 - `EventPayload`（`FInstancedStruct`——触发事件载荷，无事件触发时为默认构造）；
-- `Variables`（`TMap<FGameplayTag, double>`——链内变量，SetVar/Branch 类步骤的载体；**2026-09-22 改造：键类型 `FName` → `FGameplayTag`**）；
+- `Variables`（`TMap<FGameplayTag, double>`——链内变量，SetVar/Branch 类步骤的载体；**2026-09-22 改造：键类型 `FName` → `FGameplayTag`**）——**键的根 = `EffectChainRunVar`**；该根的定义（消费角色 / 声明方 / 形态）与命名契约住 `effect-interpreter` 的门面 API 需求（消费者 `SetRunVariable` / `TryGetRunVariable` 的定义处）与 `gameplay-tag-governance` 的根段注册表，本需求不重复规则；
 - **属性捕获（CapturedAttrs）与宿主能力引用不住这里**：前者归 TcsDamage 流程上下文（09 §2.1），后者经门面注入点取得（`GetEntityQuery` 等）——黑板只持本次执行的数据；
 - 生命期：随链运行态（`FTcsChainRun`）自持，**MUST NOT 跨帧持有**（运行态释放即失效）；
 - **MUST NOT 作配置数据载体**（纯运行态）：MUST NOT 加 `BlueprintType`、MUST NOT 出现在任何 Def 资产的可编辑字段里、MUST NOT 加 `EditAnywhere` 类 specifier（措辞口径见 `Documents/combat-system-design/ledger/reflection-terminology.md`）；

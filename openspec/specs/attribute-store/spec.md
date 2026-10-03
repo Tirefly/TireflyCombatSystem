@@ -2,7 +2,9 @@
 
 ## Purpose
 定义属性数据的宿主与单位注册、属性定义表与单位侧添加/移除入口、读侧契约，以及属性冻结暂存区（移除后整条实例的去激活语义）。
+
 ## Requirements
+
 ### Requirement: 属性数据宿主与单位注册
 
 `TcsAttribute` MUST 提供 `UTcsAttributeSubsystem : UWorldSubsystem`（**非 Tickable**——M2 不认识时间，D2-8；零自 tick 依赖）作为 M2 数据宿主的唯一门面，MUST 仅在 Game / PIE / GamePreview 世界实例化（无跨 World 静态状态，PIE 安全），`Deinitialize` MUST 确定性清空全部单位与 Store。
@@ -35,7 +37,7 @@
 
 门面 MUST 持有**属性定义表**并在内部完成定义解析——**调用面纪律**（2026-09-17 用户口径）：单位侧只按属性 tag 操作，调用方 MUST NOT 传定义数据（定义解析是门面内部执行流程）。
 
-**键类型（2026-09-22 改造）**：定义表键与全部 API 的属性参数从 `FTcsAttributeName` 改为 **`FGameplayTag`**（`FTcsAttributeName` 整体移除，见 `attribute-types` 能力的"属性身份 = GameplayTag"需求）。空值判定从 `IsNone()` 改为 `!Tag.IsValid()`。
+**键类型（2026-09-22 改造）**：定义表键与全部 API 的属性参数从 `FTcsAttributeName` 改为 **`FGameplayTag`**（`FTcsAttributeName` 整体移除，见 `attribute-types` 能力的"属性身份 = GameplayTag"需求）。空值判定从 `IsNone()` 改为 `!Tag.IsValid()`。**键的归属（2026-10-01 换根）**：属性 tag 住宿主侧登记的 `Attribute` 根（形态 `Attribute.<名>`，宿主 ini 声明；见 `attribute-types` 能力与宿主仓的根段注册表）——本插件 MUST NOT 声明任何属性名，也 MUST NOT 在插件侧根段注册表里登记该根。
 
 - `RegisterAttributeDef(const FGameplayTag& Attribute, const FTcsAttributeDefData& DefData)`：宿主 / DefLibrary 加载定义资产后登记（`UTcsAttributeDef::Def` 即定义数据、`DefTag` 即属性身份）；属性 tag 由调用方显式给出。拒绝面（ensure + false）：属性 tag 无效、同 tag 重复登记（D2-1：词表重名 = 加载期错误，不得静默覆写）。
 - `FindAttributeDef(FGameplayTag)`：查回已登记定义（未登记返回 nullptr，**正常查询路径不 ensure**）。
@@ -48,7 +50,7 @@
 
 #### Scenario: 定义先登记后按 tag 添加
 
-- **WHEN** 先 `RegisterAttributeDef`（BaseValue 100、静态 0..100、Clamp）再 `AddAttribute(Unit, Tcs.Attr.Health)`
+- **WHEN** 先 `RegisterAttributeDef`（BaseValue 100、静态 0..100、Clamp）再 `AddAttribute(Unit, Attribute.Health)`
 - **THEN** 实例基础值与缓存占位值均为 100、`bDirty` 为真（待管线结算）、边界与值域来自定义数据；调用方未传任何定义数据
 - **AND** 该属性首次 `EvaluateCurrent` 后值为 100（基础值经值域收口结算）且 `bDirty` 转假
 

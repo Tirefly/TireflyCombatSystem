@@ -39,7 +39,7 @@ struct TCSDAMAGE_API FTcsStepModifyFlow
 #pragma region Submit
 
 public:
-	// 目标黑板键（**无效 tag = 落契约键 `Tcs.Flow.Key.BaseDamage`**——兜底在执行器内做：
+	// 目标黑板键（**无效 tag = 落契约键 `DamageFlowKey.BaseDamage`**——兜底在执行器内做：
 	// `FGameplayTag` 字段的默认值不能是 tag，"靠字段默认值兜底"会静默落进无效键）
 	UPROPERTY(EditAnywhere, Category = "Tcs|Damage|Chain")
 	FGameplayTag TargetKey;

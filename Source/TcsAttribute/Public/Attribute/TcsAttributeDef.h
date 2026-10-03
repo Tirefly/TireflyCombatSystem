@@ -132,7 +132,7 @@ public:
  * 只动资产与定义数据）。两轨一致性由 08 §5 的编辑器同步器维护（M8 工具面，R3 不做）。
  *
  * **身份从 `FName DefId` 改为 `FGameplayTag DefTag`（2026-09-22 tag 化改造）**：
- * 属性名是**项目词汇**，由项目 `Config/DefaultGameplayTags.ini` 声明（`Tcs.Attr.<Name>`），
+ * 属性名是**项目词汇**，由项目 `Config/DefaultGameplayTags.ini` 声明（`Attribute.<Name>`），
  * 编辑器侧获得 tag picker（下拉选择）+ 重命名自动修引用（`GameplayTagRedirects`）。
  */
 UCLASS(BlueprintType)

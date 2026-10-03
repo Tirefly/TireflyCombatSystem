@@ -2,7 +2,9 @@
 
 ## Purpose
 定义链的执行语义：池化运行态与驱动、步内挂起-恢复协议、单帧步数熔断、等待步骤，以及供宿主脚本调用的门面反射面。
+
 ## Requirements
+
 ### Requirement: 链执行与池化运行态
 
 `UTcsEffectSubsystem` MUST 提供 `ExecuteChain(FGameplayTag ChainId, FTcsEffectContext Context) -> FTcsChainRunHandle`（起链：立即执行至首个挂起点或走完；**2026-09-22 改造：`ChainId` 类型 `FName` → `FGameplayTag`**）：
@@ -119,6 +121,7 @@
   | `FTcsCombatEntityHandle GetRunInstigator(FTcsChainRunHandle)` | 读发起者句柄（同上） |
 
   **MUST NOT 提供 `FTcsEffectContext` 整体读写口**——该 struct 是非反射纯 C++ 类型（`TcsEffectContext.h:24`），且含 `FInstancedStruct EventPayload`（反射）与 `TMap` 变量表；整体暴露即等于要求上下文反射化（台账 SCRIPT-3），而访问器路线的全部收益正是**避开**它。
+  - **链内变量键的根（2026-10-01 换根）**：上表 `TryGetRunVariable` / `SetRunVariable` 的 `FGameplayTag Key` MUST 落在 **`EffectChainRunVar`** 根下——**消费角色 = 链内变量读写（即本表这两条 API）**，声明方 = 宿主 `Config/DefaultGameplayTags.ini`，形态 `EffectChainRunVar.<键>`（2 段）；根段注册表与归属规则见 `gameplay-tag-governance` 能力。该键空间与链 id 根 `EffectChain`（登记表按 id 查找）、参数表根 `TcsStateParam`（参数表读取）**分属三个消费角色**，MUST NOT 合并进同一个根用 facet 段区分；插件 MUST NOT 声明任何具体变量键。存储侧 = `FTcsEffectContext::Variables`（定义住 `effect-chain`，该需求只留指针、不重复规则）。
 
 #### Scenario: 脚本层可调用门面方法
 
@@ -144,3 +147,8 @@
 
 - **WHEN** 以已释放的句柄调用任一访问器
 - **THEN** 读口返回空值/无效句柄、写口返回 false + Warning（**不 ensure**——代际竞态是正常路径，口径同 `ResumeRun`）
+
+#### Scenario: 链内变量键住 `EffectChainRunVar` 根
+
+- **WHEN** 检查 `SetRunVariable` / `TryGetRunVariable` 的 `Key` 形参与宿主 ini 里对应词的形态
+- **THEN** 形参是 `FGameplayTag`、宿主词形如 `EffectChainRunVar.<键>`（2 段）；该根由本表这两条 API 独占消费，MUST NOT 与 `EffectChain`（链 id）或 `TcsStateParam`（参数表键）共根

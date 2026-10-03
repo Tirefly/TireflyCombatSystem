@@ -325,6 +325,7 @@
 | `RSCH-scripting-ustruct` | `research/scripting-language-ustruct.md` | 调研（脚本方案选型，`G-*` 定义处） |
 | `RSCH-csharp-authoring` | `research/csharp-authoring.md` | 调研（C# 编写 TCS 逻辑） |
 | `RSCH-targeting-absorption` | `research/targeting-abilitykit-absorption.md` | 调研（TcsTargeting 演进：AbilityKit 目标查找吸收 + 形状族/指示器切片；**待落地**） |
+| `RSCH-boundary-audit` | `research/boundary-audit.md` | 调研（框架本体边界审计：违规清单 + 32 项"不许删名单" + 真缺陷 R-1~R-3；**冻结**） |
 | `EVID-2026-09-28-scripting-e2e` | `evidence/2026-09-28-host-scripting-e2e-pie.md` | 证据（宿主脚本插槽 E2E） |
 | `EVID-2026-09-28-selector-ref` | `evidence/2026-09-28-selector-ref-pie.md` | 证据（selector `ref` 容器） |
 | `EVID-2026-09-29-registry-lifetime` | `evidence/2026-09-29-registry-lifetime-pie.md` | 证据（注册表跨世界寿命：两连 PIE） |

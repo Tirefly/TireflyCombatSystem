@@ -6,6 +6,8 @@
 - **权威范围**：跨轮遗留输入台账（唯一待办登记册）：入册判据、生命周期纪律、37 条条目
 - **最后更新**：2026-09-28
 
+> **换根注记（2026-10-01）**：本文件记录的 tag 名保留**当时原样**（历史现场，MUST NOT 改写）。这些旧名已于 2026-10-01 由提案 `reroot-gameplay-tag-vocabulary` 换根，映射 = `Tcs.Event.*`→`TcsEvent.*`、`Tcs.Flow.Key.*`→`DamageFlowKey.*`、`Tcs.Flow.Template.*`→`DamageFlowTemplate.*`、`Tcs.Attr.*`→`Attribute.*`、`Tcs.Chain.*`→`EffectChain.*`（另 16 个 `Probe` 验证词整批退役删除）。新名以 [SPEC-00-core](../spec/01-module-m0-core.md) 与提案规格为准。
+
 - 建立：2026-09-18（用户拍板新建独立台账文档；同轮否掉"建 plan3 装遗留项"的方案，理由见下"与计划的分工"）
 - 性质：**登记册 / 索引**，不是计划，也不是待办许愿池
 - 用途：登记「**决策已拍板、代码未落地/未验证**」且**不在任何现有计划 Task 里**的输入——这些内容此前散在决策文档段落、README 收束段与记忆卡中，缺单一入口

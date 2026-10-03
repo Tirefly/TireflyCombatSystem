@@ -13,7 +13,7 @@
 
 
 /**
- * 伤害域流程事件 Tag 全集（09 §2.2/§3）——按 **`Tcs.Event.<域>.<事件名>` 命名公约**
+ * 伤害域流程事件 Tag 全集（09 §2.2/§3）——按 **`TcsEvent.<域>.<事件名>` 命名公约**
  * （2026-09-18 用户拍板）由本模块**原生声明**（不进项目 Tag 表：项目漏配不会让事件静默丢失；
  * TcsCore 不持战斗域词汇）。**设计文档旧写法 `Combat.Damage.Collect.<Step>` 不采用**（早于该公约）。
  *
@@ -25,15 +25,15 @@
  * （实测 `LNK2001`）。这些 Tag 的设计意图正是"供宿主订阅/响应"（收集协议就是宿主挂点），
  * 故 MUST 带模块导出宏。
  */
-extern TCSDAMAGE_API FNativeGameplayTag Tag_Tcs_Event_Damage_FlowStarted;   // CollectStart
-extern TCSDAMAGE_API FNativeGameplayTag Tag_Tcs_Event_Damage_PreHit;        // PreHit
-extern TCSDAMAGE_API FNativeGameplayTag Tag_Tcs_Event_Damage_Hit;           // Hit（宿主可改写 `HitRate` 键）
-extern TCSDAMAGE_API FNativeGameplayTag Tag_Tcs_Event_Damage_Crit;          // Crit（宿主可改写 `CritRate` 键）
-extern TCSDAMAGE_API FNativeGameplayTag Tag_Tcs_Event_Damage_Element;       // Element
-extern TCSDAMAGE_API FNativeGameplayTag Tag_Tcs_Event_Damage_AfterDamage;   // AfterDamage（"伤害 +50" 挂点）
-extern TCSDAMAGE_API FNativeGameplayTag Tag_Tcs_Event_Damage_PreExecute;    // PreExecute（收集免疫/减伤候选）
-extern TCSDAMAGE_API FNativeGameplayTag Tag_Tcs_Event_Damage_Completed;     // Completed（记录已产出）
-extern TCSDAMAGE_API FNativeGameplayTag Tag_Tcs_Event_Damage_Recorded;      // 记录发布（载荷 = FTcsDamageRecord）
+extern TCSDAMAGE_API FNativeGameplayTag Tag_TcsEvent_Damage_FlowStarted;   // CollectStart
+extern TCSDAMAGE_API FNativeGameplayTag Tag_TcsEvent_Damage_PreHit;        // PreHit
+extern TCSDAMAGE_API FNativeGameplayTag Tag_TcsEvent_Damage_Hit;           // Hit（宿主可改写 `HitRate` 键）
+extern TCSDAMAGE_API FNativeGameplayTag Tag_TcsEvent_Damage_Crit;          // Crit（宿主可改写 `CritRate` 键）
+extern TCSDAMAGE_API FNativeGameplayTag Tag_TcsEvent_Damage_Element;       // Element
+extern TCSDAMAGE_API FNativeGameplayTag Tag_TcsEvent_Damage_AfterDamage;   // AfterDamage（"伤害 +50" 挂点）
+extern TCSDAMAGE_API FNativeGameplayTag Tag_TcsEvent_Damage_PreExecute;    // PreExecute（收集免疫/减伤候选）
+extern TCSDAMAGE_API FNativeGameplayTag Tag_TcsEvent_Damage_Completed;     // Completed（记录已产出）
+extern TCSDAMAGE_API FNativeGameplayTag Tag_TcsEvent_Damage_Recorded;      // 记录发布（载荷 = FTcsDamageRecord）
 
 /**
  * **消费事件**（`DEC-04` §3.3 裁定 ④ 的形状落地，用户 2026-09-30 拍板）：某笔**伤害修改器**被消费。
@@ -45,7 +45,7 @@ extern TCSDAMAGE_API FNativeGameplayTag Tag_Tcs_Event_Damage_Recorded;      // �
  * **本批只声明形状、不发布**：发布点（`FTcsFlowExecute` 裁决命中且成功执行之后）与载荷契约
  * 归台账 `DAMAGE-4`（R5/M4a）。
  */
-extern TCSDAMAGE_API FNativeGameplayTag Tag_Tcs_Event_Damage_ModifierConsumed;
+extern TCSDAMAGE_API FNativeGameplayTag Tag_TcsEvent_Damage_ModifierConsumed;
 
 
 
@@ -53,6 +53,12 @@ extern TCSDAMAGE_API FNativeGameplayTag Tag_Tcs_Event_Damage_ModifierConsumed;
  * 收集事件载荷（09 §2.3 的"payload = Context 引用包装"）：总线载荷须反射可见（`FInstancedStruct`），
  * 而 C++ 引用不可反射——故以**指针包装**承载。指针为**进程内瞬态**：立即通道同步派发期有效，
  * 消费方 MUST NOT 跨帧持有（框架不为它保活）。
+ *
+ * **分类集时点契约（2026-10-02 裁决，见 tasks 6.4.3）**：本载荷经 `Context` 直通流程上下文的
+ * `ClassificationTags`，而该集的**唯一写入点是 Element 步骤**（`TcsFlowStepsRest.cpp` 的
+ * `ExecuteFlowElement`）⇒ 订阅 `TcsEvent.Damage.FlowStarted`（由 `CollectStart` 步发出）时本集
+ * **必为空集**，在该事件上用 `HasAllTags` 匹配非空分类数组**恒不通过**；要按分类匹配须订阅
+ * Element 步之后发出的事件。**空集是显式交付的语义，不是遗漏**（`effect-trigger` 规格同款表述）。
  */
 USTRUCT()
 struct TCSDAMAGE_API FTcsDamageFlowCollectEvent

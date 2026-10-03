@@ -17,7 +17,7 @@
 // ===== 其余六步 + 两个数据步骤的执行器（默认模板不组装；宿主/项目按需启用）=====
 namespace
 {
-	// 黑板契约键（标准步骤库认识）：原生 tag 常量，编译期一致。
+	// 黑板契约键（标准步骤库认识）：直接引用 `Flow/TcsFlowKeys.h` 的原生 tag 常量，编译期一致。
 	// **MUST NOT 写引用别名**——理由见 TcsFlowStepsCore.cpp 同处注释
 	// （`operator FGameplayTag()` 按值返回，静态期绑定会永远持空 tag）。
 
@@ -60,7 +60,7 @@ namespace
 			return true;
 		}
 
-		BroadcastFlowRestCollect(Context, Tag_Tcs_Event_Damage_PreHit);
+		BroadcastFlowRestCollect(Context, Tag_TcsEvent_Damage_PreHit);
 		return true;
 	}
 
@@ -83,12 +83,12 @@ namespace
 		}
 
 		// 修改器可在收集事件后改写 `HitRate` 键（宿主挂点）
-		BroadcastFlowRestCollect(Context, Tag_Tcs_Event_Damage_Hit);
-		const double Modified = Context.Blackboard.Read(FGameplayTag(Tag_Tcs_Flow_Key_HitRate)) > 0.0
-			? Context.Blackboard.Read(FGameplayTag(Tag_Tcs_Flow_Key_HitRate))
+		BroadcastFlowRestCollect(Context, Tag_TcsEvent_Damage_Hit);
+		const double Modified = Context.Blackboard.Read(FGameplayTag(Tag_DamageFlowKey_HitRate)) > 0.0
+			? Context.Blackboard.Read(FGameplayTag(Tag_DamageFlowKey_HitRate))
 			: HitRate;
 
-		SubmitFlowRestOverride(Context.Blackboard, FGameplayTag(Tag_Tcs_Flow_Key_Hit), Modified >= 1.0 ? 1.0 : 0.0);
+		SubmitFlowRestOverride(Context.Blackboard, FGameplayTag(Tag_DamageFlowKey_Hit), Modified >= 1.0 ? 1.0 : 0.0);
 		return true;
 	}
 
@@ -110,12 +110,12 @@ namespace
 				Step->Delegate.GetObject(), Context.Attacker, Target, Context.MakeView());
 		}
 
-		BroadcastFlowRestCollect(Context, Tag_Tcs_Event_Damage_Crit);
-		const double Modified = Context.Blackboard.Read(FGameplayTag(Tag_Tcs_Flow_Key_CritRate)) > 0.0
-			? Context.Blackboard.Read(FGameplayTag(Tag_Tcs_Flow_Key_CritRate))
+		BroadcastFlowRestCollect(Context, Tag_TcsEvent_Damage_Crit);
+		const double Modified = Context.Blackboard.Read(FGameplayTag(Tag_DamageFlowKey_CritRate)) > 0.0
+			? Context.Blackboard.Read(FGameplayTag(Tag_DamageFlowKey_CritRate))
 			: CritRate;
 
-		SubmitFlowRestOverride(Context.Blackboard, FGameplayTag(Tag_Tcs_Flow_Key_Crit), Modified > 0.0 ? 1.0 : 0.0);
+		SubmitFlowRestOverride(Context.Blackboard, FGameplayTag(Tag_DamageFlowKey_Crit), Modified > 0.0 ? 1.0 : 0.0);
 		return true;
 	}
 
@@ -140,7 +140,7 @@ namespace
 			}
 		}
 
-		BroadcastFlowRestCollect(Context, Tag_Tcs_Event_Damage_Element);
+		BroadcastFlowRestCollect(Context, Tag_TcsEvent_Damage_Element);
 		return true;
 	}
 
@@ -153,7 +153,7 @@ namespace
 			return true;
 		}
 
-		BroadcastFlowRestCollect(Context, Tag_Tcs_Event_Damage_AfterDamage);
+		BroadcastFlowRestCollect(Context, Tag_TcsEvent_Damage_AfterDamage);
 		return true;
 	}
 
@@ -167,7 +167,7 @@ namespace
 		}
 
 		// 候选（免疫/减伤）落进 `Step->CandidateKey`——⑨ 按 SortKey 裁决、成功才消费
-		BroadcastFlowRestCollect(Context, Tag_Tcs_Event_Damage_PreExecute);
+		BroadcastFlowRestCollect(Context, Tag_TcsEvent_Damage_PreExecute);
 		return true;
 	}
 

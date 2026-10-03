@@ -6,6 +6,8 @@
 - **权威范围**：提案 `add-damage-modifyflow-primitive`（已归档 `2026-09-30-add-damage-modifyflow-primitive`）的人工验收面——链步骤 `FTcsStepModifyFlow` 的**跨模块注册可达**与**降级路径**
 - **最后更新**：2026-09-30
 
+> **换根注记（2026-10-01）**：本文件记录的 tag 名保留**当时原样**（历史现场，MUST NOT 改写）。这些旧名已于 2026-10-01 由提案 `reroot-gameplay-tag-vocabulary` 换根，映射 = `Tcs.Event.*`→`TcsEvent.*`、`Tcs.Flow.Key.*`→`DamageFlowKey.*`、`Tcs.Flow.Template.*`→`DamageFlowTemplate.*`、`Tcs.Attr.*`→`Attribute.*`、`Tcs.Chain.*`→`EffectChain.*`（另 16 个 `Probe` 验证词整批退役删除）。新名以 [SPEC-00-core](../spec/01-module-m0-core.md) 与提案规格为准。
+
 - **被测对象**：`Source/TcsDamage` 的 `FTcsStepModifyFlow`（链原语 + 执行器 + `UE_DEFINE_EFFECT_STEP_EXECUTOR` 自注册）与 `FTcsDamageModifierConsumePolicy`（纯数据可反射化改造）
 - **验证范围**：TCS 插件 + LAC 宿主内容资产。地图 `L_TcsDev_Slice`，夹具 = 内容链资产 `Content/TcsDev/DA_SliceChain`（`ChainId = Tcs.Chain.Slice_Chain`，原 3 步：`WaitDelay → SelectTargets(Self) → Damage`），**临时追加第 4 步 `TcsStepModifyFlow`** 后跑 `Tcs.Test.Slice.Run`
 - **完整来源**：`E:/Projects_Dev/LegendAutoChess/Saved/Logs/LegendAutoChess.log`

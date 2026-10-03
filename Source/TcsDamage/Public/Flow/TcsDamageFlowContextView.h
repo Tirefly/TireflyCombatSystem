@@ -70,7 +70,9 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "Tcs|Damage|Flow")
 	TMap<FGameplayTag, FTcsParamValue> FormulaParams;
 
-	// 分类 Tag 集（来源标签启动写入 / 元素标签由 Element 步骤写入——词表归项目）
+	// 分类 Tag 集（**唯一写入点 = Element 步骤**：`TcsFlowStepsRest.cpp` 的 `ExecuteFlowElement`；
+	// `CollectStart` **不写本集** ⇒ `TcsEvent.Damage.FlowStarted` 事件发出时本集必为空集。
+	// 词表归项目、根为 `DamageCategory`，插件只搬运与匹配——2026-10-02 裁决，见 tasks 6.4.3）
 	UPROPERTY(BlueprintReadOnly, Category = "Tcs|Damage|Flow")
 	TArray<FGameplayTag> ClassificationTags;
 

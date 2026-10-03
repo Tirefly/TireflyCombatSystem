@@ -14,9 +14,6 @@
 
 namespace
 {
-	// 黑板契约键（与标准步骤库一致：`BaseDamage` 是"本次基础伤害"的契约键）
-	const FName TcsChainDamage_BaseKey(TEXT("BaseDamage"));
-
 	/**
 	 * 伤害链原语执行器（09 §2.4 / D7-2）：构流程上下文 → 写基础值 → `RunTemplate`。
 	 * **跨模块自注册**（D4-14）：本文件用一行宏把执行器喂进 TcsEffect 的注册表——TcsEffect 不认识
@@ -61,7 +58,7 @@ namespace
 		// 默认模板 tag 是**框架词汇**（插件自带），由本模块原生声明（`TcsFlowKeys.h`）——零项目配置依赖。
 		const FGameplayTag TemplateId = Step->FlowTemplateId.IsValid()
 			? Step->FlowTemplateId
-			: FGameplayTag(Tag_Tcs_Flow_Template_Default);
+			: FGameplayTag(Tag_DamageFlowTemplate_Default);
 		if (!Owner->RunTemplate(TemplateId, FlowContext))
 		{
 			UE_LOG(LogTcsDamage, Warning, TEXT("Damage[%s]: 流程 %s 未走完（中止路径见上文日志）"),

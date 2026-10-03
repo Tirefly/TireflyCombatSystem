@@ -44,7 +44,7 @@ namespace
 		// 兜底 MUST 在执行器内做——`FGameplayTag` 字段默认值不能是 tag）
 		const FGameplayTag Key = Step->TargetKey.IsValid()
 			? Step->TargetKey
-			: FGameplayTag(Tag_Tcs_Flow_Key_BaseDamage);
+			: FGameplayTag(Tag_DamageFlowKey_BaseDamage);
 
 		if (!FlowContext->Blackboard.Submit(Key, Step->Op, Step->Operand, Step->Consume))
 		{

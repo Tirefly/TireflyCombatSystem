@@ -9,6 +9,8 @@
 > **来源说明**：本文于 2026-09-29 从原 `README.md` 的「检查点状态」节**逐字拆出**（自原第 166 行起）。拆分只动载体与位置，**未改任何结论**；文中旧编号（如 `R8-6`/`R7-3`/`S-8`）的含义见 [GLOSSARY](../GLOSSARY.md) §5.2 改名映射。
 > **检查点**：本工作区当前检查点卡 = MEM-20260902-01（task-open，跨阶段断点）；另有脚本化断点卡 MEM-20260924-06（task-open），见 `~/.agents/memory`。
 
+> **换根注记（2026-10-01）**：本文件记录的 tag 名保留**当时原样**（历史现场，MUST NOT 改写）。这些旧名已于 2026-10-01 由提案 `reroot-gameplay-tag-vocabulary` 换根，映射 = `Tcs.Event.*`→`TcsEvent.*`、`Tcs.Flow.Key.*`→`DamageFlowKey.*`、`Tcs.Flow.Template.*`→`DamageFlowTemplate.*`、`Tcs.Attr.*`→`Attribute.*`、`Tcs.Chain.*`→`EffectChain.*`（另 16 个 `Probe` 验证词整批退役删除）。新名以 [SPEC-00-core](../spec/01-module-m0-core.md) 与提案规格为准。
+
 ## 检查点状态
 
 - 当前检查点卡：**MEM-20260902-01（task-open，跨阶段断点）**——R3 计划产出后保持开启，执行收束后再关闭（M9 收尾轮拍板）。旧卡 MEM-20260831-01 已收束。

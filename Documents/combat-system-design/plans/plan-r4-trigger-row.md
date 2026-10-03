@@ -4,7 +4,9 @@
 - **类型**：PLN / 计划
 - **状态**：ACTIVE
 - **权威范围**：R4 当前实施计划；含 R4–R8 轮次路线图（现行排期真相源）
-- **最后更新**：2026-09-30
+- **最后更新**：2026-10-01
+
+> **换根注记（2026-10-01）**：本文 tag 名已随提案 `reroot-gameplay-tag-vocabulary` 换根——旧前缀 `Tcs.Event.*` / `Tcs.Flow.Key.*` / `Tcs.Flow.Template.*` / `Tcs.Attr.*` / `Tcs.Chain.*` 依次成为 `TcsEvent.*` / `DamageFlowKey.*` / `DamageFlowTemplate.*` / `Attribute.*` / `EffectChain.*`；本文正文一律用新名，旧名仅存于本注记与 `log/`、`ledger/`、`evidence/` 等历史文件。
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -323,7 +325,7 @@ struct TCSDAMAGE_API FTcsStepModifyFlow
 {
 	GENERATED_BODY()
 
-	// 目标黑板键（项目词表或契约键 `Tcs.Flow.Key.*`；空 = 落契约键 BaseDamage）
+	// 目标黑板键（项目词表或契约键 `DamageFlowKey.*`；空 = 落契约键 BaseDamage）
 	UPROPERTY(EditAnywhere, Category = "Tcs|Damage|Chain") FGameplayTag TargetKey;
 
 	// 运算带（带序唯一真相在 Op；折叠走共享纯函数）
@@ -348,7 +350,7 @@ struct TCSDAMAGE_API FTcsStepModifyFlow
 > **2026-09-30 实施注记（Task 3 落地记录；原注记保留于下）**：
 > ① **交付面** = 新增 3 文件 + 改 6 文件（清单见 `implementation-log` 2026-09-30 条）；**`TcsEffect` 零改动**（`git diff --stat -- Source/TcsEffect` 为空）、**`Build.cs` 零新增依赖**。
 > ② **★ 计划里没预料到的阻塞**：本 Task 的 sketch 写 `UPROPERTY … FTcsConsumePolicy Consume`，而 `FTcsConsumePolicy` 含 `TFunction OnConsumed` ⇒ UHT 阶段即失败。**且光去闭包不够**——非 `USTRUCT` 类型一样进不了 `UPROPERTY`（UHT 报 not supported）⇒ 消耗策略必须**同时升格为反射结构**。用户裁定**方案 A（事件语义）** + 改名 `FTcsDamageModifierConsumePolicy`；消费**动作**仍归台账 `DAMAGE-4`（R5/M4a）。
-> ③ **消费事件 tag 钉名（用户拍板）**：`Tcs.Event.Damage.ModifierConsumed`——本批**只声明、不发布**（发布归 `DAMAGE-4`）。
+> ③ **消费事件 tag 钉名（用户拍板）**：`TcsEvent.Damage.ModifierConsumed`——本批**只声明、不发布**（发布归 `DAMAGE-4`）。
 > ④ **补了第四份 delta**（`damage-primitive` MODIFIED「流程上下文反射视图」）：该生效需求原文以"提交项深处嵌 `OnConsumed` ⇒ **物理不可反射**"为理由，而该事实随本批消失；不补则 `archive` 合入后生效规格会残留一句**已被证伪**的论断。**同类修正**本提案已给 `damage-step-library` 做过一次。
 > ⑤ **顺带扫掉同类过期论断**（活动文档）：`dec-04`（追加修订注记 3）、`RSCH-csharp-authoring` 与 `RSCH-replication`（状态 `FROZEN` ⇒ 按 `docs-convention` §7 只**追加实施注记**、正文不改——其 `G-1b`「必做前置…否则物理不可能」降为"常规工作量 + 排期"）。
 > ⑥ **仍待办**：Step 4（人工检查，用户执行）→ 提案归档 + `openspec validate --specs --strict`；**提交需用户明确授权**。
@@ -374,7 +376,7 @@ struct TCSDAMAGE_API FTcsStepModifyFlow
 > - FTcsStepModifyFlow{TargetKey, Op, Operand, Consume}，四字段全 UPROPERTY（链资产可配）
 > - 执行器：从 FTcsEffectContext::EventPayload 解 FTcsDamageFlowCollectEvent → 黑板 Submit → 恒 TSR_Completed
 > - 载荷缺失/类型不符 → Warning + 完成（不崩溃、不静默通过、不产生半笔提交）
-> - TargetKey 无效 → 执行器内兜底契约键 Tcs.Flow.Key.BaseDamage（不依赖字段默认值）
+> - TargetKey 无效 → 执行器内兜底契约键 DamageFlowKey.BaseDamage（不依赖字段默认值）
 > - 一行 UE_DEFINE_EFFECT_STEP_EXECUTOR 跨模块自注册进 TcsEffect 注册表
 >
 > 【ADD】Private/Flow/TcsDamageFlowCollectEvent.cpp
@@ -385,7 +387,7 @@ struct TCSDAMAGE_API FTcsStepModifyFlow
 > - 去 TFunction OnConsumed（含闭包的结构无法出现在任何 UPROPERTY 上——UHT 报错）
 > - 三字段 UPROPERTY(EditAnywhere)：MaxUses / Cooldown / SortKey
 > - 光去闭包不够：非 USTRUCT 类型一样进不了 UPROPERTY，故必须同时升格为反射结构
-> - 消费行为改事件语义：原生 tag Tcs.Event.Damage.ModifierConsumed（只声明不发布，发布归 DAMAGE-4）
+> - 消费行为改事件语义：原生 tag TcsEvent.Damage.ModifierConsumed（只声明不发布，发布归 DAMAGE-4）
 >
 > 改动面：3 新增 + 6 修改；TcsEffect 零改动（git diff --stat -- Source/TcsEffect 为空）、Build.cs 零新增依赖。
 > 验证：LegendAutoChessEditor Win64 Development + LegendAutoChess Win64 Shipping 双配置 0 error / 0 warning；
@@ -565,9 +567,9 @@ const FTcsEffectTriggerDef* ResolveTriggerDef(FGameplayTag TriggerTag) const;
 **验收场景（"破甲"修改器——09 §2.3 的最小实例）**：
 
 1. **准备（三件，均住宿主侧）**：
-   - **链资产** `DA_ArmorBreakChain`（`ChainId = Tcs.Chain.ArmorBreak`，**单步** `FTcsStepModifyFlow{TargetKey=Tcs.Flow.Key.BaseDamage, Op=TAO_Mul, Operand=Literal(0.5)}`）；项目 tag 表加 `Tcs.Chain.ArmorBreak`。
-   - **新流程模板** `Tcs.Flow.Template.Slice_Modifier`（`TcsDevBootstrap` 内注册）——步骤 = `CollectStart → BaseDamage → **PreExecute** → Execute → Completed`。**必须新建**：宿主既有的 `SliceDefault`（4 步）与 `SliceFlow`（2 步自研）**都不含 `PreExecute`**（已核 `TcsDevBootstrap.cpp:226-255`），而 `PreExecute` 是收集修改器候选的那一步（`TcsFlowStepsRest.cpp:155-166`）。
-   - **触发行**（装置注册）：`EventTag = Tcs.Event.Damage.PreExecute`、`Effects = Tcs.Chain.ArmorBreak`、`Priority = 0`、`bConditionMissIsSilent = true`、`Source = <装置来源句柄>`。
+   - **链资产** `DA_ArmorBreakChain`（`ChainId = EffectChain.ArmorBreak`，**单步** `FTcsStepModifyFlow{TargetKey=DamageFlowKey.BaseDamage, Op=TAO_Mul, Operand=Literal(0.5)}`）；项目 tag 表加 `EffectChain.ArmorBreak`。
+   - **新流程模板** `DamageFlowTemplate.Slice_Modifier`（`TcsDevBootstrap` 内注册）——步骤 = `CollectStart → BaseDamage → **PreExecute** → Execute → Completed`。**必须新建**：宿主既有的 `SliceDefault`（4 步）与 `SliceFlow`（2 步自研）**都不含 `PreExecute`**（已核 `TcsDevBootstrap.cpp:226-255`），而 `PreExecute` 是收集修改器候选的那一步（`TcsFlowStepsRest.cpp:155-166`）。
+   - **触发行**（装置注册）：`EventTag = TcsEvent.Damage.PreExecute`、`Effects = EffectChain.ArmorBreak`、`Priority = 0`、`bConditionMissIsSilent = true`、`Source = <装置来源句柄>`。
 2. **跑流程**：用新模板起伤害流程，`BaseDamageInput` 设一个**非整数值**（如 30——减半后 15，与"原值 30"可区分；**避免用 1.0 这类减半后仍是可猜值的数**）。
 3. **断言（三个半边）**：
    - ① **提交生效**：挂行 → 最终伤害 = 基准值 × 0.5；
@@ -583,7 +585,7 @@ const FTcsEffectTriggerDef* ResolveTriggerDef(FGameplayTag TriggerTag) const;
 > **2026-09-30 承接注记（从 Task 3 移入；用户裁定"连同测试结果说明一起并入，使上下文完整"）**：
 > **① 本 Task 多背三项检查**（原属 Task 3 的 `tasks.md` §4，本次移出）：
 > - **4.3 端到端"破甲"**：触发行命中 → 单步链 `[ModifyFlow]` → 黑板多出一笔提交 → 后续 `Damage` 读到修正值（`BaseDamage` 经 `Op=Add` 后扣血值与预期一致）；
-> - **4.4 载荷读取器实证**：订阅 `Tcs.Event.Damage.AfterDamage` 的触发行，`Caster` 解析为本次流程的 `Attacker`（改造前读到空句柄）；
+> - **4.4 载荷读取器实证**：订阅 `TcsEvent.Damage.AfterDamage` 的触发行，`Caster` 解析为本次流程的 `Attacker`（改造前读到空句柄）；
 > - **4.5 的命令化**：Task 3 已实测降级路径成立（留 Warning + 链继续），但其"独立成 `.Reject` 命令"的收口随装置一并归本 Task。
 > **② 三项的共同前置 = 触发行夹具**，而**仓里一个也没有**：全仓 `RegisterTriggerRow` / `FTcsEffectTriggerInstance` 在 `TcsEffect/` 之外**使用点为零**；Task 2.5 的 `UTcsEffectTriggerDefAsset` 载体未实现 ⇒ **触发行今天只能 C++ 注册**，纯内容侧配不出来 ⇒ Step 1/Step 2 必须含装置代码。**装置住哪仍未裁定**（用户留本 Task 定）；先例 = 宿主侧 `Source/TcsDev/`（LAC 已入库 17 文件，含 `TcsDevSliceRig` 与 `Tcs.Test.Slice.Run` / `.Reject` 命令对），插件侧 `Private/Testing/` 按惯例不入库。
 > **③ Task 3 的验收结果（本 Task 的起点事实）**：`Tcs.Test.Slice.Run` 单次运行 **9 PASS / 0 FAIL**、全日志零 Error 零 ensure；`检查 3` 步数 **10 → 11** 证明新步骤类型存档后可解析；执行器降级 Warning 恰一条。**两条 MUST NOT 当作已证**（详见 `add-damage-modifyflow-primitive/tasks.md` §6）："扣血仍 45"不构成"降级不干扰流程值"的证据（该步追加在链尾）；**成功提交路径从未被执行过**——这正是 4.3 存在的理由。

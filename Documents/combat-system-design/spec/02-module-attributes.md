@@ -4,7 +4,9 @@
 - **类型**：SPEC / 模块规格
 - **状态**：ACTIVE
 - **权威范围**：TcsAttribute（M2）词表、聚合管线、事务与读侧契约；D2-* 理由住 LOG-00-core
-- **最后更新**：2026-09-23
+- **最后更新**：2026-10-01
+
+> **换根注记（2026-10-01）**：本文 tag 名已随提案 `reroot-gameplay-tag-vocabulary` 换根——旧前缀 `Tcs.Event.*` / `Tcs.Flow.Key.*` / `Tcs.Flow.Template.*` / `Tcs.Attr.*` / `Tcs.Chain.*` 依次成为 `TcsEvent.*` / `DamageFlowKey.*` / `DamageFlowTemplate.*` / `Attribute.*` / `EffectChain.*`；本文正文一律用新名，旧名仅存于本注记与 `log/`、`ledger/`、`evidence/` 等历史文件。
 
 - 日期：2026-09-02
 - 状态：设计 v1（编译层模块名 **TcsAttribute**，R0 §9；依据已拍板决策 D2-1~D2-5、D0-1/D0-2）
@@ -20,7 +22,7 @@
 ### 2.1 属性词表（**D2-1 于 2026-09-22 被 tag 化改造取代**）
 - **属性身份 = `FGameplayTag`**（2026-09-22 用户拍板"全部替换"；提案 `switch-identifiers-to-gameplay-tags`）：~~`FAttributeName`：FName 包装结构体，explicit 构造~~ → **`FTcsAttributeName` 整体删除**，属性名直接用 `FGameplayTag`。
   **保护更强而非更弱**：`FGameplayTag(const FName&)` 是 **`protected`**（`GameplayTagContainer.h:FGameplayTag::FGameplayTag`）→ 裸 FName 同样传不进属性 API，且只能走 `RequestGameplayTag`（默认 `ErrorIfNotFound=true` → **ensure**）或原生 tag 常量 → **拼错的 tag 在解析处即暴露**，而非运行期静默降级。`IsValid()` / `operator==` / `GetTypeHash` 与包装的三个手写成员**逐字等价**（`FGameplayTag` 内部即 `FName`）。
-- **项目侧词表 = 项目 tag 表**：~~`UE_DECLARE_COMBAT_ATTR / UE_DEFINE_COMBAT_ATTR` 宏~~ → 项目 `Config/DefaultGameplayTags.ini` 声明（`Tcs.Attr.<Name>`），编辑器获得 **tag picker**（下拉选择）+ **重命名自动修引用**（引擎 `GameplayTagRedirects`）。**代码侧 MUST 缓存解析**（`RequestGameplayTag` 带 `TScopeLock(GameplayTagMapCritical)`，不可进热路径）。
+- **项目侧词表 = 项目 tag 表**：~~`UE_DECLARE_COMBAT_ATTR / UE_DEFINE_COMBAT_ATTR` 宏~~ → 项目 `Config/DefaultGameplayTags.ini` 声明（`Attribute.<Name>`），编辑器获得 **tag picker**（下拉选择）+ **重命名自动修引用**（引擎 `GameplayTagRedirects`）。**代码侧 MUST 缓存解析**（`RequestGameplayTag` 带 `TScopeLock(GameplayTagMapCritical)`，不可进热路径）。
 - `FAttributeRegistry`（**收窄**）：启动注册（重名/非法引用**加载期报错**）；~~`Resolve(FAttributeName) -> int32` 稠密 id~~ → 按 tag 解析；~~行名 ↔ 常量约定映射校验~~ **作废**（tag 方案下无"行名"概念——见下）。
 - **属性定义（2026-09-17 双轨制定案，实现名）**：**表 = 编辑期载体、资产 = 运行期载体**（用户口径：DataTable 便于策划批量编辑，**不作为运行期加载源**；运行期一律走资产——资产制扩展性好，未来给定义加 Fragment 之类只动资产与定义行）：
   - **定义数据 `FTcsAttributeDefData`（字段形状的唯一声明处，2026-09-22 抽出）**：`BaseValue` + `Bounds` + `ValueDomain`（D2-6 值域模式挂定义）+ `OverrideTieBreak`。抽出的理由：行必须携带 `DefTag`（tag 是内容身份），而"字段集只声明一次"不能破——故行与资产各持 `{身份, 数据}` 两段。

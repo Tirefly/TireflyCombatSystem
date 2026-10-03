@@ -160,9 +160,11 @@ combat-system-design/
 | `RSCH-abilitykit-trigger` | AbilityKit B 路：触发器与属性修饰器 | 触发行提案来源 |
 | `RSCH-abilitykit-editor` | AbilityKit C 路：编辑器工具与确定性/回放 | 裁决 3 校准来源 |
 | `RSCH-targeting-absorption` | TcsTargeting 演进：AbilityKit 目标查找骨架吸收 + 形状族与指示器切片（**待落地**，含 P-A/P-B/P-C 提案切分） | P-A 排序相位 / P-B 形状族 / P-C 预览的提案输入 |
+| `RSCH-boundary-audit` | **框架本体边界审计**：违规清单（五分处置）+ **32 项"合规但极易被误判"不许删名单** + 真缺陷 R-1~R-3 + 第三态「契约默认」的双条件裁定 | 「伤害模块边界整肃」提案的核心判据与**删除禁令** |
 | `EVID-2026-09-28-scripting-e2e` | 宿主脚本插槽 E2E + 原生 GC 证据 | `SCRIPT-8` 验收 |
 | `EVID-2026-09-28-selector-ref` | selector `ref` 容器回写两轮 PIE 证据 | 选择器签名验收 |
 | `EVID-2026-09-29-registry-lifetime` | **两连 PIE：注册表跨世界寿命修复**（同进程二次登记不再被拒；含生效机制诊断） | 提案 `harden-registry-cross-world-lifetime` 核心判据 |
+| `EVID-2026-09-30-modifyflow-acceptance` | `ModifyFlow` 提交侧验收：单次 PIE（注册可达 + 降级路径） | 提案 `add-damage-modifyflow-primitive` 验收（已归档） |
 
 ### 4.7 治理（`GOV`）
 

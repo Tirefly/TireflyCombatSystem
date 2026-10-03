@@ -12,11 +12,11 @@
 
 
 /**
- * 伤害记录**已产出**事件 Tag（09 §2.4；按 `Tcs.Event.<域>.<事件名>` 公约原生声明，
+ * 伤害记录**已产出**事件 Tag（09 §2.4；按 `TcsEvent.<域>.<事件名>` 公约原生声明，
  * 不进项目 Tag 表）——载荷 = `FTcsDamageRecord`，经总线**立即通道**同步派发（回放/统计/UI 数据源）。
  * 带模块导出宏（宿主订阅必需——`UE_DECLARE_GAMEPLAY_TAG_EXTERN` 是裸 `extern`，见 `TcsDamageFlowCollectEvent.h` 说明）。
  */
-extern TCSDAMAGE_API FNativeGameplayTag Tag_Tcs_Event_Damage_Recorded;
+extern TCSDAMAGE_API FNativeGameplayTag Tag_TcsEvent_Damage_Recorded;
 
 
 
@@ -51,9 +51,12 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "Tcs|Damage|Record")
 	FTcsCombatEntityHandle Target;
 
-	// 元素（delegate 解析结果，可能为空）
-	UPROPERTY(BlueprintReadOnly, Category = "Tcs|Damage|Record")
-	FGameplayTag Element;
+	// **本结构不含"元素"字段**（2026-10-02 边界整肃删除，BREAKING：记录形状变更）：
+	// 元素的正确落点是**宿主词汇（`DamageCategory` 根）+ 通用载体（流程分类 Tag 集）**——
+	// 由 `FTcsFlowElement` 步经 `ITcsDamageFlowDelegate::ResolveElement` 产出后写进
+	// `FTcsDamageFlowContext::ClassificationTags`。**MUST NOT 在本形状里复活"元素"这个玩法名词**：
+	// 它违反主判据"凡是需要宿主词汇的内置策略，插件一律不提供"（判据体系见
+	// `Documents/combat-system-design/research/boundary-audit.md`）。要按元素判定，走分类匹配。
 
 #pragma endregion
 
@@ -62,11 +65,14 @@ public:
 #pragma region Outcome
 
 public:
-	// 是否命中
+	// 是否命中（**读契约键** `DamageFlowKey.Hit`，与 `bCrit` / `Absorbed` 同款取值来源）
+	// 框架 MUST NOT 硬编码："本次是否命中"是宿主判定（`DamageFlowKey.HitRate` 由宿主响应方改写、
+	// `FTcsFlowHit` 步按 `>= 1.0` 折算）。该步**不在默认模板** ⇒ 无提交 ⇒ 折叠初值 0 ⇒ 默认 false
 	UPROPERTY(BlueprintReadOnly, Category = "Tcs|Damage|Record")
 	bool bHit = false;
 
-	// 是否暴击
+	// 是否暴击（**读契约键** `DamageFlowKey.Crit`）
+	// 写入者 `FTcsFlowCrit` 步**不在默认模板**，故默认恒 false
 	UPROPERTY(BlueprintReadOnly, Category = "Tcs|Damage|Record")
 	bool bCrit = false;
 

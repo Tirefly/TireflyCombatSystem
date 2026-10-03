@@ -4,7 +4,9 @@
 - **类型**：调研与证据（RSCH / 设计推导）
 - **状态**：PENDING —— 内容已成稿，**代码与规格均未落地**（供逐节审阅，审完再开 OpenSpec 提案）
 - **权威范围**：TcsTargeting 未来演进（AbilityKit 目标查找经验吸收 + 形状族与指示器切片）；**不含**模块现状（`SPEC-06-targeting`）与排期（`PLN-R4`）。与 `SPEC-06-targeting` 冲突处以本文**待确认**结论为准（确认后须回写该规格）；与用户当场决定冲突以用户为准
-- **最后更新**：2026-09-30
+- **最后更新**：2026-10-01
+
+> **换根注记（2026-10-01）**：本文 tag 名已随提案 `reroot-gameplay-tag-vocabulary` 换根——旧前缀 `Tcs.Event.*` / `Tcs.Flow.Key.*` / `Tcs.Flow.Template.*` / `Tcs.Attr.*` / `Tcs.Chain.*` 依次成为 `TcsEvent.*` / `DamageFlowKey.*` / `DamageFlowTemplate.*` / `Attribute.*` / `EffectChain.*`；本文正文一律用新名，旧名仅存于本注记与 `log/`、`ledger/`、`evidence/` 等历史文件。
 
 > **上游调研**：AbilityKit 目标查找三方对账（`~/.agents/skills/ability-kit-research/references/26-targeting-article-crosscheck.md`，48 条断言：42 准确 / 1 过期 / 1 未证实）。
 > **建立**：2026-09-30（作者归属 = TcsTargeting 模块演进，R4 及以后）。
@@ -104,7 +106,7 @@ AbilityKit 的管线是五段（其文章原文即"Provider → Rule → SearchO
 | 排序条件 | 依赖词汇 | 归属 |
 |---|---|---|
 | **距离最近 / 最远** | `ITcsEntityQuery::GetLocation`（**机制层已有契约，零宿主语义**） | ✅ **插件内置（P-A 唯一内置的评分器）** |
-| 血量最低 / 护甲最低 / 攻击最高 | 宿主属性词表（`Tcs.Attr.Health` 等） | ❌ 宿主实现 |
+| 血量最低 / 护甲最低 / 攻击最高 | 宿主属性词表（`Attribute.Health` 等） | ❌ 宿主实现 |
 | debuff 最多 / 未受控优先 | 宿主 Tag 词表 | ❌ 宿主实现 |
 | 谁标记过我 / 与谁最近（关系量） | 宿主关系数据 | ❌ 宿主实现 |
 

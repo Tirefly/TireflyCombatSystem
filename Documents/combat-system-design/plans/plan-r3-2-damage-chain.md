@@ -4,7 +4,9 @@
 - **类型**：PLN / 计划
 - **状态**：FROZEN
 - **权威范围**：R3 计划二：TcsEffect + TcsTargeting + TcsDamage + TcsIntegration 的 Task 0–7 施工单与验收
-- **最后更新**：2026-09-22
+- **最后更新**：2026-10-01
+
+> **换根注记（2026-10-01）**：本文 tag 名已随提案 `reroot-gameplay-tag-vocabulary` 换根——旧前缀 `Tcs.Event.*` / `Tcs.Flow.Key.*` / `Tcs.Flow.Template.*` / `Tcs.Attr.*` / `Tcs.Chain.*` 依次成为 `TcsEvent.*` / `DamageFlowKey.*` / `DamageFlowTemplate.*` / `Attribute.*` / `EffectChain.*`；本文正文一律用新名，旧名仅存于本注记与 `log/`、`ledger/`、`evidence/` 等历史文件。
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -219,7 +221,7 @@ struct FTcsDamageFlowContext
 - [x] **Step 4: 编译验证**
 
 > **2026-09-20 落地实施注记**：规格先行——OpenSpec 提案 **`add-tcsdamage-flow-layer`**（新能力 `damage-flow`，**6 条需求**：模板登记 / 三层值空间上下文 / 流程属性黑板 / 步骤注册表与自注册宏 / 同步单帧解释器 / 收集事件协议；`validate --strict` 通过）。产物 **8 文件**：`Public/Flow/` 五件（`TcsDamageFlowContext.h` / `TcsFlowAttributes.h` / `TcsFlowTemplate.h` / `TcsFlowStepExecutor.h` / `TcsDamageFlowCollectEvent.h`）+ `Public/TcsDamageSubsystem.h` + `Private/Flow/TcsFlowStepExecutor.cpp` / `TcsFlowAttributes.cpp` + `Private/TcsDamageSubsystem.cpp`；另有临时装置 `Private/Testing/TcsDamageTestRig.h/.cpp`（**不入库**）。
-> - **落地口径（相对计划 sketch 的收窄，皆在提案钉名表声明）**：①步骤执行器签名钉为 **`bool` 中止通道**（`FTcsFlowStepExecute = TFunction<bool(const FInstancedStruct&, FTcsDamageFlowContext&)>`——流程无挂起，故不用挂起枚举）；②**收集事件 Tag 改用公约名** `Tcs.Event.Damage.*` + 原生声明（设计文档旧写法 `Combat.Damage.Collect.<Step>` 早于 2026-09-18 Tag 公约；本任务只声明流程开始事件，各步骤收集事件随标准步骤库逐条声明 = Task 4）；③载荷 = **上下文指针包装**（设计写"C++ 引用包装"——总线载荷须反射可见，引用不可反射）；④黑板**只存不裁**（`FTcsDamageModifierConsumePolicy` 落字段；裁决归 Task 4 的 Execute 步骤）；⑤黑板 **R3 无值域收口**（工作值不是角色属性）；⑥**不做 Context 池化**（门面签名即调用方提供上下文）；⑦**不做模板重定向栈**（`FFlowRedirect` 随 M3 状态轮）；⑧`Read` **只调用共享纯函数 `FoldTcsAttributeBands`**（D5-5 v3 三处共用的中间一处——台账 STAT-1 已勾销）。
+> - **落地口径（相对计划 sketch 的收窄，皆在提案钉名表声明）**：①步骤执行器签名钉为 **`bool` 中止通道**（`FTcsFlowStepExecute = TFunction<bool(const FInstancedStruct&, FTcsDamageFlowContext&)>`——流程无挂起，故不用挂起枚举）；②**收集事件 Tag 改用公约名** `TcsEvent.Damage.*` + 原生声明（设计文档旧写法 `Combat.Damage.Collect.<Step>` 早于 2026-09-18 Tag 公约；本任务只声明流程开始事件，各步骤收集事件随标准步骤库逐条声明 = Task 4）；③载荷 = **上下文指针包装**（设计写"C++ 引用包装"——总线载荷须反射可见，引用不可反射）；④黑板**只存不裁**（`FTcsDamageModifierConsumePolicy` 落字段；裁决归 Task 4 的 Execute 步骤）；⑤黑板 **R3 无值域收口**（工作值不是角色属性）；⑥**不做 Context 池化**（门面签名即调用方提供上下文）；⑦**不做模板重定向栈**（`FFlowRedirect` 随 M3 状态轮）；⑧`Read` **只调用共享纯函数 `FoldTcsAttributeBands`**（D5-5 v3 三处共用的中间一处——台账 STAT-1 已勾销）。
 > - **验证**：编译**零警告**（一次通过）；**折叠器复用自检**（`Source/TcsDamage/` 仅 `TcsFlowAttributes.cpp` 一处调用共享折叠，无私建第二份）；**零改动自检**（`git diff -- Source/TcsEffect Source/TcsTargeting Source/TcsAttribute Source/TcsCore` 为空）；依赖面 grep 零越界。
 > - **人工检查已完成——2026-09-20 用户 PIE 两条命令均通过**：`Tcs.Test.Damage.Flow`（步骤自注册可查 / 模板登记 / 同步单帧执行 / 顺序 A→B / 黑板读数 15 = 提交 10 + 收集响应 5 / 收集事件同步到达 / 收集重置回 0）与 `Tcs.Test.Damage.Flow.Reject`（未登记模板 / 未知步骤类型 / 步骤返回 false 中止——2 Error + 1 Warning 均为预期）。
 > - **提案已归档**：`openspec/changes/archive/2026-09-20-add-tcsdamage-flow-layer`（新能力 `damage-flow` 6 条需求并入规格库）。
@@ -505,7 +507,7 @@ UCLASS(BlueprintType) class UTcsEffectChainDef : public UPrimaryDataAsset   // �
 > **落点口径（丙方案：框架原生 + 项目 ini）**——判据"**谁拥有那个词，谁声明**"：
 > | 词汇类别 | 实例 | 声明处 |
 > |---|---|---|
-> | **框架词汇** | 事件 tag `Tcs.Event.*`（10 个，不变）+ **黑板契约键** `Tcs.Flow.Key.*`（9 个，**新增**）+ 官方默认模板 `Tcs.Flow.Template.Default` | **插件原生**（`UE_DEFINE_GAMEPLAY_TAG`，零项目配置依赖） |
+> | **框架词汇** | 事件 tag `TcsEvent.*`（10 个，不变）+ **黑板契约键** `DamageFlowKey.*`（9 个，**新增**）+ 官方默认模板 `DamageFlowTemplate.Default` | **插件原生**（`UE_DEFINE_GAMEPLAY_TAG`，零项目配置依赖） |
 > | **项目词汇** | 属性名 / 参数键 / 链 id / 模板 id / DefId | **项目 `Config/DefaultGameplayTags.ini`**（8 个 tag） |
 >
 > **关键澄清**：`project.md:18` 的"never in the project's tag table"**只管事件 tag**（标题即 `Event tag naming standard`，理由原文 `a missing project config entry would silently drop events`——该失败模式只对事件成立）。本次改造**不推翻该禁令**，而是在它之外为项目词汇开通道。契约键归框架的理由同款：它是**步骤之间的接口**，项目漏配会导致上下游**静默读到 0**。
@@ -523,12 +525,12 @@ UCLASS(BlueprintType) class UTcsEffectChainDef : public UPrimaryDataAsset   // �
 > **验收（全绿）**：
 > | 项 | 结果 |
 > |---|---|
-> | `Tcs.Test.Slice.Run`（`Tcs.Chain.Slice_Chain`） | **10/10**（扣血 45.0） |
-> | `Tcs.Test.Slice.Run Tcs.Chain.Formula_Chain` | **10/10**（扣血 **100.0** = 5×25 被 clamp 到 0） |
+> | `Tcs.Test.Slice.Run`（`EffectChain.SliceChain`） | **10/10**（扣血 45.0） |
+> | `Tcs.Test.Slice.Run EffectChain.FormulaChain` | **10/10**（扣血 **100.0** = 5×25 被 clamp 到 0） |
 > | `Tcs.Test.Slice.Reject` | **3/3** |
 > | 检查点 5 依赖铁律 | 通过（零反向 include、零 `TSubclassOf`、依赖边与 R0 §9 一致） |
 > | 检查点 7 ScaledDt | 通过（`slomo 0.1` 实测实时:战斗 = 10:1；`pause` 实测 `Elapsed` 跨 8 帧完全冻结） |
-> | **picker 人工检查** | 通过——`Chain Id` 字段控件为 **`combobox`**（下拉选择器），值为 `Tcs.Chain.Slice_Chain`（tag 形态）；同窗口 `Search` 仍为 `textbox`（对照） |
+> | **picker 人工检查** | 通过——`Chain Id` 字段控件为 **`combobox`**（下拉选择器），值为 `EffectChain.SliceChain`（tag 形态）；同窗口 `Search` 仍为 `textbox`（对照） |
 > | 双配置编译 | Development + **Shipping** 均通过 |
 >
 > **改造规模**：插件侧 20 文件（含删 `TcsAttributeName.h` + 新增 `TcsFlowKeys.h/.cpp`）、宿主侧 6 文件（含新增 `TcsDevTags.h/.cpp`）、11 份规格 delta、1 个项目 ini、6 个资产重建。

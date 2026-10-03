@@ -6,6 +6,8 @@
 - **权威范围**：全仓 `TFunction` / `TFunctionRef` 的**用途分类、可替换性判定与生命周期策略**；**宿主插槽的载体形态**（CDO vs 每执行实例）。**不在本文**——注册表的键与查表逻辑（D4-14 不变）、具体迁移的施工步骤（属提案）
 - **最后更新**：2026-09-29
 
+> **换根注记（2026-10-01）**：本文件记录的 tag 名保留**当时原样**（历史现场，MUST NOT 改写）。这些旧名已于 2026-10-01 由提案 `reroot-gameplay-tag-vocabulary` 换根，映射 = `Tcs.Event.*`→`TcsEvent.*`、`Tcs.Flow.Key.*`→`DamageFlowKey.*`、`Tcs.Flow.Template.*`→`DamageFlowTemplate.*`、`Tcs.Attr.*`→`Attribute.*`、`Tcs.Chain.*`→`EffectChain.*`（另 16 个 `Probe` 验证词整批退役删除）。新名以 [SPEC-00-core](../spec/01-module-m0-core.md) 与提案规格为准。
+
 ---
 
 ## 0. 裁定（2026-09-29，用户拍板：**§7 五项全部接受**）
