@@ -31,10 +31,10 @@
 
 - [x] 4.1 **配置面实证**（本批直接解除的阻塞）：链资产里 `FTcsStepModifyFlow` 的四个字段可配（picker 搜 `ModifyFlow` → `TcsStepModifyFlow`），`Consume.MaxUses = 3` 保存 → 重载资产后值原样保留。**另有两条不依赖编辑器的证据**：①UHT 差分（三字段旗标字与既有可持久化属性逐位相同、`Consume` 的 struct getter 指向本类型、两配置产物 SHA256 逐字节相同）；②运行期保真——`检查 3` 步数由 10 → 11 且全可解析（见 §6）
 - [x] 4.2 **注册可达**（**无独立检查面 ⇒ 用运行反证**；用户 2026-09-30 裁定本批不加代码）：`FTcsEffectStepExecutorRegistry` 只有 `GetDynamicKeys()`（仅动态项）、**无静态项枚举 API**，仓内唯一入库调试口是 `Tcs.Damage.DumpRecords` ⇒ 静态自注册项无法被独立查询。**反证已成立**：链里带 `FTcsStepModifyFlow` 跑一次，**执行器被调用并打出本模块的 Warning**（`LegendAutoChess.log:2601`）——未注册则解释器报"未知步骤类型"并断链，也不会有这行。枚举面归 M8/TOOLS-6 Explain 轮（已登记台账 `TOOLS-6`）
-- [x] 4.5 **降级面**：`EventPayload` 为空时步骤留 Warning 且链继续（不崩溃、不静默通过）——**实测成立**（同一次运行：Warning 恰一条、链继续走完、全日志零 Error 零 ensure）。**其"独立成 `.Reject` 命令"的收口随装置一并归 Task 4**
-- **4.3 / 4.4 已移出本提案 → R4 Task 4**（用户 2026-09-30 裁定：连同测试结果说明一起并入，使上下文完整）。**移出理由**：两者都要**触发行**，而全仓 `RegisterTriggerRow` / `FTcsEffectTriggerInstance` 在 `TcsEffect/` 之外**使用点为零**、Task 2.5 的 `UTcsEffectTriggerDefAsset` 载体未实现 ⇒ 触发行今天**只能 C++ 注册**，属 Task 4 Step 2「装置扩展」的活（`4.3` 原文即自注"端到端（**Task 4 主体的一部分**）"）
-  - 4.3 端到端"破甲"：触发行命中 → 单步链 `[ModifyFlow]` → 黑板多出一笔提交 → 后续 `Damage` 读到修正值（`BaseDamage` 经 `Op=Add` 后扣血值与预期一致）
-  - 4.4 载荷读取器实证：订阅 `Tcs.Event.Damage.AfterDamage` 的触发行，`Caster` 解析为本次流程的 `Attacker`（改造前读到空句柄）
+- [x] 4.5 **降级面**：`EventPayload` 为空时步骤留 Warning 且链继续（不崩溃、不静默通过）——**实测成立**（同一次运行：Warning 恰一条、链继续走完、全日志零 Error 零 ensure）。**其"独立成 `.Reject` 命令"的收口随装置一并归 Task 4** → **✅ 收口已完成（2026-10-04，R4 Task 4）**：落点 = `Tcs.Test.Slice.Reject` 的**检查 D**，判据不看日志文本、只看句柄活性（`句柄有效 && !IsRunActive` = "链找到 + 进了 + 没挂起"——未登记链返回无效句柄、降级后卡在 `Running` 会让它变红）；实测 PASS，且 `ModifyFlow[…]` Warning **全日志恰一条**（证据 = `EVID-2026-10-04-modifier-channel` 行 3159 / 3161）
+- [x] **4.3 / 4.4 已移出本提案 → R4 Task 4**（用户 2026-09-30 裁定：连同测试结果说明一起并入，使上下文完整）。**移出理由**：两者都要**触发行**，而全仓 `RegisterTriggerRow` / `FTcsEffectTriggerInstance` 在 `TcsEffect/` 之外**使用点为零**、Task 2.5 的 `UTcsEffectTriggerDefAsset` 载体未实现 ⇒ 触发行当时**只能 C++ 注册**，属 Task 4 Step 2「装置扩展」的活（`4.3` 原文即自注"端到端（**Task 4 主体的一部分**）"）。**✅ 两项均已于 2026-10-04 随 Task 4 完成**，结果如下：
+  - [x] 4.3 端到端"破甲"：触发行命中 → 单步链 `[ModifyFlow]` → 黑板多出一笔提交 → 后续 `Damage` 读到修正值（`BaseDamage` 经 `Op=Add` 后扣血值与预期一致）——**实际形态比原文更强**：用 `Op=Mul 0.5`（`30.0 → 15.0`，与"原值 30"互不相等、任一步失效都能从数值看出），且**两个观测面同时落在期望值**（伤害记录 `Final` 折叠值 + 生命实际扣量）；主路径走**内容资产**（`DA_Check_ArmorBreakTrigger` 经定义库装配，零 C++ 注册），装置另证三个生命周期半边（提交生效 / 摘行还原 / 按来源级联摘除）。证据 = `EVID-2026-10-04-modifier-channel`（行 2642 起）
+  - [x] 4.4 载荷读取器实证：订阅 `Tcs.Event.Damage.AfterDamage` 的触发行，`Caster` 解析为本次流程的 `Attacker`（改造前读到空句柄）——**行为观测取到**：`AfterDamage` 行 → 链 `EffectChain.Check.PayloadCaster`（`SelectTargets(Self)` + `Damage 7`）⇒ **施法者被扣 `7.0`**（`Caster` 无效时 `FTcsSelSelf` 不产出目标 ⇒ 施法者不掉血，判据可区分）；反向对照：摘掉该行后掉 `0.0`。证据同上（行 2771 / 2794）
 
 ## 5. 收束
 

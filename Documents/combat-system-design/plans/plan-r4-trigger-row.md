@@ -590,7 +590,7 @@ const FTcsEffectTriggerDef* ResolveTriggerDef(FGameplayTag TriggerTag) const;
 
 ---
 
-## Task 4: 端到端验收（修改器通道实证）
+## Task 4: 端到端验收（修改器通道实证） —— **已完成（2026-10-04）**
 
 **Files:**
 - Modify: `Source/TcsDev/Private/Dev/TcsDevSliceRig.cpp`（扩展既有 `Tcs.Test.Slice.Run`，**不新增命令**——遵循"暂不添加常驻验收命令"的用户口径，新功能验收并入既有命令）
@@ -609,11 +609,24 @@ const FTcsEffectTriggerDef* ResolveTriggerDef(FGameplayTag TriggerTag) const;
    - ② **摘行还原**：`UnregisterTriggerRow` → 值还原为基准值；
    - ③ **按来源级联摘除**：`UnregisterTriggerRowsBySource(装置来源)` → 值还原为基准值。
 
-- [ ] **Step 1: 建链资产 + 项目 tag + 新流程模板**（资产经 UE MCP 建；**先与用户确认再操作编辑器**——MCP 操作边界纪律；流程模板在 `TcsDevBootstrap` 内注册）
-- [ ] **Step 2: 装置扩展**（新增检查：挂行前基准值 / 挂行后减半 / 摘行后还原 / 按来源级联摘除）
-- [ ] **Step 3: 编译验证**（Development + **Shipping**——装置含 `WITH_EDITOR` 面时必跑）
-- [ ] **Step 4: PIE 实测**（用户执行；**常规命令 MUST 零红字**——预期失败面若需要，独立成 `.Reject`）
-- [ ] **Step 5: 验收记录回写**（plan3 注记 + README 决策日志）
+- [x] **Step 1: 建链资产 + 项目 tag + 新流程模板**（资产经 UE MCP 建；**先与用户确认再操作编辑器**——MCP 操作边界纪律；流程模板在 `TcsDevBootstrap` 内注册）——**✅ 建 3 个资产 + 5 个词 + 1 个六步模板**（见实施注记①②）
+- [x] **Step 2: 装置扩展**（新增检查：挂行前基准值 / 挂行后减半 / 摘行后还原 / 按来源级联摘除）——**✅ 落地为检查 8–17**（多出：资产路径装配前置、门③对照组、重挂初态、载荷读取器、反向对照、作者侧校验门）
+- [x] **Step 3: 编译验证**（Development + **Shipping**——装置含 `WITH_EDITOR` 面时必跑）——**✅ 双配置 `Result: Succeeded`、0 error / 0 warning**（Shipping 侧另确认 `#if WITH_EDITOR` 包裹未留 C4505）
+- [x] **Step 4: PIE 实测**（用户执行；**常规命令 MUST 零红字**——预期失败面若需要，独立成 `.Reject`）——**✅ 两轮 `.Run` 各 通过 19 / 失败 0 且关键行逐字一致 + 一轮 `.Reject` 4/0**；证据 = `EVID-2026-10-04-modifier-channel`
+- [x] **Step 5: 验收记录回写**（plan3 注记 + README 决策日志）——**✅ 本注记 + 证据文档 + 台账**（`TRIG-1` 消费 / `WAIT-6` 升级 / `DAMAGE-1`·`DAMAGE-3`·`DAMAGE-4` 更新）；**README 决策日志随 Task 5 一并落**（避免同一轮写两遍）
+
+> **实施注记（2026-10-04 落地；真相源 = `EVID-2026-10-04-modifier-channel`）**
+>
+> **四处与计划原文的偏离**：
+>
+> - **① 主场景改走内容资产路径**（计划原文写"触发行（装置注册）… `Source` = <装置来源句柄>"）。**原因**：Task 4 的 2026-09-30 承接注记以"`UTcsEffectTriggerDefAsset` 载体未实现 ⇒ 触发行今天只能 C++ 注册"为前提，而 Task 2.5 已把该载体落地 ⇒ 破甲行改由 `DA_Check_ArmorBreakTrigger`（`UTcsEffectTriggerDefAsset`）经**定义库装配**成形，**零 C++ 注册**即生效（实测：`发现触发定义资产 2 个` → `触发行 2/2 条`）。**收益**：验收走的是**策划真实作者路径**（比"只能 C++ 注册"保真度高），且 Task 2.5 的资产载体第一次拥有**行为面消费者**。C++ 注册只保留给需要句柄/来源锚点的生命周期半边。
+> - **② 模板加第 6 步 `AfterDamage`**（计划原文的模板是五步）。**原因**：`4.4`（载荷读取器）需要一个 `AfterDamage` 订阅点，而 `PreExecute`/`AfterDamage` 两步**都不在**既有 `SliceDefault`（4 步）/ `SliceFlow`（2 步）里，且 `SliceDefault` 是检查点 6 的证据链（MUST NOT 动）⇒ 新建 `DamageFlowTemplate.Check.ArmorBreakModifier`（六步，两个数值步骤**刻意不带 delegate**：基础值取上下文输入、执行量取裁决候选——避免公式逃生口给判据引入无关变量）。
+> - **③ 资产行配 `GateTags`、默认暗**（计划原文未提）。**原因**：该资产是常驻内容，行若默认点灯，**此后任何含 `PreExecute` 步骤的模板都会被它静默减半**（未来 R5/R6 的模板首当其冲）⇒ 设计为"默认暗 + 装置在检查块内点灯、块末灭灯"，实测"未点灯 ⇒ 扣原值 30 / 点灯 ⇒ 扣 15"。**顺带收益**：给台账 `TRIG-3`（定义库装配行没有摘除入口）一个**可用的控制面口径**——启停走点灯，不走摘除。
+> - **④ `4.5` 的判据改用"句柄活性"而非日志文本**：`ExecuteChain` 对已登记链恒返回**有效**句柄（全即时链在返回前走完并释放），对未登记链返回**无效**句柄 ⇒ `句柄有效 && !IsRunActive` 精确表述"链找到 + 进了 + 没挂起（= 走完）"，"降级后卡在 Running"与"链没找到"都会让它变红。该检查住 `Tcs.Test.Slice.Reject`（它必产一条 Warning，常规命令必须零红字）。
+>
+> **一处台账升级（不是计划错误，是把既有条目的触发条件提前）**：装置实现期撞上 `FTcsSourceHandleRegistry` 的**每实例计数器**语义——插件内两个独立注册表（定义库装配行 / 伤害门面每流程发号）**头一个 Id 都是 1**，而 `UnregisterTriggerRowsBySource` 已是公开面 ⇒ "宿主自建注册表发号的行"会与"定义库装配的行"**同号**，级联摘除**误摘后者**。**该缺陷早前已入册 = `WAIT-6`**（2026-09-20，原记"无实际碰撞场景，等 M6"）⇒ 本批**不重复登记**，只把触发条件提前到"来源级联一进入实用面"并补上真实碰撞场景。装置侧用**直写高位 Id** 规避（代码注释已写明理由），**不是机制保证**。
+>
+> **边界（写进证据 §5，MUST NOT 外推）**：只覆盖单机/单世界/单 PIE 进程；`ModifyFlow` 的成功提交**只经 `Op=Mul` 落在 `DamageFlowKey.BaseDamage` 键**验过；`Execute` 的**候选裁决**通道（`ExecuteCandidates` + `SortKey`）仍无真实候选走过（归 `DAMAGE-4`）；GC 面未覆盖（`FTcsTriggerRegistry::AddReferencedObjects` 的存活语义仍无行为证据，与 `WAIT-8` 同款留白）；`IsDataValid == Valid` 只扫触发定义资产（链资产缺提升段，`TOOLS-2` ③）。
 
 > **2026-09-30 承接注记（从 Task 3 移入；用户裁定"连同测试结果说明一起并入，使上下文完整"）**：
 > **① 本 Task 多背三项检查**（原属 Task 3 的 `tasks.md` §4，本次移出）：
