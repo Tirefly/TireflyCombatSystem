@@ -2,9 +2,9 @@
 
 - **文档 ID**：`PLN-R4`
 - **类型**：PLN / 计划
-- **状态**：ACTIVE
+- **状态**：ACTIVE（**R4 全轮已完成 2026-10-04**；本文档继续承载《R4.5 批次表》——b/c 未开工，收口后转 `FROZEN`）
 - **权威范围**：R4 当前实施计划；含 R4–R8 轮次路线图（现行排期真相源）
-- **最后更新**：2026-10-01
+- **最后更新**：2026-10-04
 
 > **换根注记（2026-10-01）**：本文 tag 名已随提案 `reroot-gameplay-tag-vocabulary` 换根——旧前缀 `Tcs.Event.*` / `Tcs.Flow.Key.*` / `Tcs.Flow.Template.*` / `Tcs.Attr.*` / `Tcs.Chain.*` 依次成为 `TcsEvent.*` / `DamageFlowKey.*` / `DamageFlowTemplate.*` / `Attribute.*` / `EffectChain.*`；本文正文一律用新名，旧名仅存于本注记与 `log/`、`ledger/`、`evidence/` 等历史文件。
 
@@ -646,33 +646,48 @@ const FTcsEffectTriggerDef* ResolveTriggerDef(FGameplayTag TriggerTag) const;
 
 ---
 
-## Task 5: 收束（文档回写 + 台账 + 归档）
+## Task 5: 收束（文档回写 + 台账 + 归档） —— **已完成（2026-10-04）**
 
-- [ ] **Step 1: 设计文档回写**——`04-module-effects.md` 的 §2.2 触发行段（补"R4 已落地哪些字段/哪些留位"）、§12 验收钩子；`09-module-damage.md` §2.3（补 ModifyFlow 落地状态）
-- [ ] **Step 2: 台账更新**——`deferred-inputs-ledger.md`：
-  - **DAMAGE-3 部分消费**（`ModifyFlow` 已落 / `Heal` 留 R5）
-  - **DAMAGE-1 部分消费**（载荷装填通路已落 / `EventTarget` 选择器留待真实消费者）
-  - **新增条目**：D4-5 剩余条件（`AttributeCompare` / `VariableCompare` / `GateCheck` / Custom）+ `EventPayloadFilter` / `Cues` / `InterruptPriority` / `ExecutionGate` 非默认值 —— 合并为一条"触发行留位字段与剩余条件"（归属 = 各自真实消费者出现的轮次）
-- [ ] **Step 3: README 决策日志**追加条目（本轮范围 / 路线偏离原序的理由 / 验收结果）
-- [ ] **Step 4: 全部提案归档** + `openspec validate --specs --strict` 全绿
-- [ ] **Step 5: 轮次检查点卡**（按 harness-retro 模板，走用户确认门）
+- [x] **Step 1: 设计文档回写**——`04-module-effects.md` 的 §2.2 触发行段（补"R4 已落地哪些字段/哪些留位"）、§12 验收钩子；`09-module-damage.md` §2.3（补 ModifyFlow 落地状态）——**✅ 两篇均落，范围略扩**：`SPEC-03-effects` = §2.1 原语实现状态（**15 已落 8**）+ §2.2 字段级"落地 / 留位"对照表（七个活字段 / 两个留位 / `Cues` 已删）+ §11 修订记录 + §12 验收对账表；`SPEC-08-damage` = §2.3 通道三段落地状态 + **硬约束明文**（只能用于同步单步链）+ §7 验收对账表 + §8 修订记录
+- [x] **Step 2: 台账更新**——**✅ 落地面与计划不同**（见注记 ②③）：`DAMAGE-3` / `DAMAGE-1` 已在 Task 4 部分消费；计划写的"新增一条『触发行留位字段与剩余条件』"**实为补登**（2026-09-23 变更记录宣告过、表格行从未落成）⇒ 补登 `TRIG-5`（新开区段），**条目总数 47 → 48**；**另改正一处过期**：`DAMAGE-2` 的现状证据自 Task 3.5 起即过期（"只有 `FTcsStepWaitDelay`" → 已落 4 个 / 余 4 个）
+- [x] **Step 3: README 决策日志追加条目**（本轮范围 / 路线偏离原序的理由 / 验收结果）——**✅ 载体改判**（见注记 ①）：README 自 2026-09-29 起只是导航页 ⇒ 条目落 `LOG-DECISIONS`（本轮范围 / 路线偏离理由 / 验收结果 / Task 5 三处偏离）+ `LOG-IMPLEMENTATION`（**补记 Task 3.5 / 2.5 / 4 三项——它们此前未进实施记录** + Task 5）
+- [x] **Step 4: 全部提案归档** + `openspec validate --specs --strict` 全绿——**✅** `openspec/changes/` 只剩 `archive`（**零活动提案**；R4 的**五个**提案 `add-effect-trigger-row` / `refine-effect-trigger-shape` / `add-effect-trigger-registry` / `add-effect-trigger-def-asset` / `add-chain-primitives-and-target-sorting` 均已归档）；`validate --all --strict --no-interactive` = **26 passed / 0 failed**、`--specs --strict` 同值。宿主仓 LAC = 4 passed / 0 failed（其活动提案 `add-tirefly-game-flow-system` 属 **TGFS**，与 R4 无关、**未动**）
+- [x] **Step 5: 轮次检查点卡**（按 harness-retro 模板，走用户确认门）——**✅ 已入库（2026-10-04，用户确认"全套采纳"）**：`MEM-20260923-04` **刷新⑩ + 收束关闭**（`status: task-open` → `active`，H1 标"已收束关闭"；§下一步改写为 **R5 开工四步 + R4 交接清单**）；**新卡 1 张** `MEM-20261004-10`（"指针型陈述的两种静默失效：宣告即落行 / 点名载体写文档 ID"）；**effectiveness 1 条**（`MEM-20260918-09`：计划差异第 5 类 = 收束期的"落点与已完成度双过期"）；`INDEX.md` 的 R4 卡行**从 3659 字符累积器收敛为短摘要**（历次刷新①~⑨存档于卡内 `effectiveness`）；记忆索引重建 **217 张**；`~/.agents` 已提交
+
+> **实施注记（2026-10-04 落地；本计划收束）**
+>
+> **四处与计划原文的偏离**（①②③ = 载体与口径，④ = 计划要求未落，属实施期发现）：
+>
+> - **① Step 3 的载体已不存在**：计划写"README 决策日志追加条目"，但 README 自 2026-09-29 起**只作导航页**（四种职能已拆为 `INDEX` / `LOG-DECISIONS` / `LOG-IMPLEMENTATION` / `LEDGER`）。本轮条目落 **`LOG-DECISIONS`**（范围 / 路线偏离理由 / 验收结果）+ **`LOG-IMPLEMENTATION`**（实施与验收记录）。**教训（写进注记供后续计划照用）**：计划里点名载体 MUST 用**文档 ID**（`LOG-DECISIONS`），不写"README 的某一节"——后者会随文档重构静默失效。
+> - **② Step 2 的"新增条目"实为补登**：`PLN-R4` Task 1 收束（2026-09-23）的变更记录宣告"其余留位项合并为一条登记…条目总数 27"，但**表格行从未落成**；2026-09-29 文档重构按实际行数重算为 37 条时把这处"宣告了却没落行"的差抹平。本次补登为 `TRIG-5` ⇒ **条目总数 47 → 48**（口径修正）。**教训**：变更记录里宣告的"合并登记" MUST 当场落成表格行。
+> - **③ Step 2 的前两项已在 Task 4 落**：计划把 `DAMAGE-3` / `DAMAGE-1` / 新条目三项都排在 Task 5，实际前两项随 Task 4 验收一并做了（避免同一轮写两遍）——Task 5 只补第三项（补登）与全册对账。
+> - **④ 计划要求的一处"明文"未落**：Task 3 注记要求"`ModifyFlow` 只能用于同步单步链"须在**头文件与规格两处明文**，Task 3 实施两处都没落（只落了执行器侧的非空校验）⇒ 本次补 `TcsStepModifyFlow.h` 头注释与 `SPEC-08-damage` §2.3；**注释级改动、零行为变更**，未复编（命令行 UBT 被 Live Coding 阻断——编辑器开着；注释不可能影响编译产物，故不谎称已复编）。
+>
+> **额外交付（计划未列、但 `INDEX` §5 的更新纪律要求）**：**`SPEC-TRACE` 验证状态更新**——`INDEX` §5 明文"一轮收束 → 台账勾销 + 计划标完成 + **`SPEC-TRACE` 更新验证状态**"，本计划的 Task 5 三 Step 漏了这一步。本次：**新增 7 行**（`effect-trigger` × 3 / `effect-trigger-asset` × 1 / `effect-interpreter` × 2 / `targeting-strategy` × 1）+ **改判 2 行 + 补边界 1 行** + 一份 R4 增量注记（含全部证据边界）。另：`INDEX` §1 / §2 / §4 状态同步（R4 完成、台账 48 条、`SPEC-03-effects` / `SPEC-08-damage` / `PLN-R4` / R4 路线图行）。
+>
+> **计划状态**：R4 七个 Task 全部完成；**本文档保持 `ACTIVE`**——它继续承载《R4.5 批次表》（b/c 未开工），待那两批收口后转 `FROZEN`。
 
 ---
 
 ## 台账消费与新增汇总
 
-**本轮消费**：
-| 条目 | 消费程度 |
-|---|---|
-| **DAMAGE-3**（TcsDamage 的 Heal / ModifyFlow 执行器） | **部分**——`ModifyFlow` 落地；`Heal` 留 R5 |
-| **DAMAGE-1**（Context 默认目标初始化 = 事件目标） | **部分**——载荷装填通路（`EventPayload`）与 `Caster` 解析落地；`EventTarget` 选择器留待真实带目标的载荷类型 |
-| **WAIT-9**（跨模块导出宏） | **按需**——本轮新增的跨模块消费面（触发行 API 供宿主调用）MUST 带导出宏 |
+**本轮消费（收束终值，2026-10-04 回填）**：
 
-**本轮新增（Task 5 登记）**：
-| 事项 | 归属 |
+| 条目 | 消费程度（终值） |
 |---|---|
-| D4-5 剩余触发条件（`AttributeCompare` / `VariableCompare` / `GateCheck` / Custom） | `AttributeCompare` → 需属性读取注入（可随 R5）；`GateCheck` → 随 R6（读 M5 `BoolSwitches`）；`VariableCompare` → 等变量存储消费者 |
-| 触发行留位字段（`EventPayloadFilter` / `Cues` / `InterruptPriority` / `ExecutionGate` 非默认值） | `Cues` → R8（TcsCue）；`InterruptPriority` → 链打断语义轮；`ExecutionGate` 非默认值 → 网络姿态轮；`EventPayloadFilter` → 首个带可筛字段的载荷类型出现时 |
+| **DAMAGE-2**（TcsEffect 剩余原语） | **部分（本轮最大一笔）**——`SetVar` / `Branch` / `RunSubChain` / `WaitEvent` 四个已落地并实测；**余 `Parallel` / `Repeat` / `OnError` / `ModifyAttribute` → R5** |
+| **DAMAGE-3**（TcsDamage 的 Heal / ModifyFlow 执行器） | **部分**——`ModifyFlow` 落地且**端到端实证**（破甲 `30 → 15`）；`Heal` 留 R5 |
+| **DAMAGE-1**（Context 默认目标初始化 = 事件目标） | **部分（状态已细分）**——"载荷 → 实体信息"通路落地并实证（`Caster ← Attacker`）；**"载荷 → `Context.Targets`" 仍未落**，等首个带目标字段的载荷类型 |
+| **DAMAGE-4**（消耗语义） | **仅补边界**——形状已就位（2026-09-30），**动作**（扣次数 / 起冷却 / 发消费事件）与候选裁决通道仍未走 → R5 |
+| **TRIG-1**（`IsDataValid == Valid` 无回执） | **✅ 已消费**——装置检查 17 取到回执（2/2、错误 0） |
+| **CHAIN-3**（嵌套深度定值依据） | **✅ 已消费**——实测回填（17 层 / 深度 17 熔断 / 16 层回卷） |
+| **WAIT-6**（来源发号器进程唯一） | **升级（归属提前）**——真实碰撞场景已出现；本轮**不做**（插件零改动是本批前提），装置侧直写高位 Id 规避 |
+| **WAIT-9**（跨模块导出宏） | **按需**——本轮新增的跨模块消费面（触发行 API 供宿主调用）带导出宏，M6 轮做全量审计 |
+
+**本轮新增（收束终值）**：台账行数 **37 → 48**——
+- `CHAIN-1` ~ `CHAIN-6`（Task 3.5 实施期发现的六条边界）；
+- `TRIG-1` ~ `TRIG-4`（Task 2.5 的四条）；
+- `TRIG-5`（**本 Task 补登**）——即本计划原写的"触发行留位字段与剩余条件"合并条目：`AttributeCompare` → 需属性读取注入（可随 R5）；`GateCheck` → R6（读 M5 `BoolSwitches`）；`VariableCompare` → 等变量存储消费者；`Cues` → R8（TcsCue）；`InterruptPriority` → 链打断语义轮；`ExecutionGate` 非默认值 → 网络姿态轮；`EventPayloadFilter` → 首个带可筛字段的载荷类型出现时。**⚠️ 它是补登而非新增待办**（2026-09-23 的变更记录宣告过、表格行从未落成）。
 
 ---
 

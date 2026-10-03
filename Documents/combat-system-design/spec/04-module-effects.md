@@ -4,7 +4,7 @@
 - **类型**：SPEC / 模块规格
 - **状态**：ACTIVE
 - **权威范围**：TcsEffect（M4）链与步骤、触发行、目标选择、宿主插槽；理由住 LOG-02-effects
-- **最后更新**：2026-10-01
+- **最后更新**：2026-10-04
 
 > **换根注记（2026-10-01）**：本文 tag 名已随提案 `reroot-gameplay-tag-vocabulary` 换根——旧前缀 `Tcs.Event.*` / `Tcs.Flow.Key.*` / `Tcs.Flow.Template.*` / `Tcs.Attr.*` / `Tcs.Chain.*` 依次成为 `TcsEvent.*` / `DamageFlowKey.*` / `DamageFlowTemplate.*` / `Attribute.*` / `EffectChain.*`；本文正文一律用新名，旧名仅存于本注记与 `log/`、`ledger/`、`evidence/` 等历史文件。
 
@@ -21,6 +21,7 @@
 
 ### 2.1 链与步骤（D4-3 终版：15 原语）
 - `FEffectStep`：`FInstancedStruct` 容器；步骤类型 = **15 个数据 struct（D4-16 终版）**，按归属分两半——**本模块 9**：控制流 6（WaitDelay/**WaitEvent**/Branch/Parallel/Repeat/RunSubChain）+ ModifyAttribute + SetVar + OnError；**领域模块自注册 6（D4-14）**：Damage/Heal/ModifyFlow（TcsDamage）、SelectTargets（TcsTargeting）、ApplyState（TcsState）、PlayCue（TcsCue）。修订史：WaitUntil→WaitEvent（事件回调挂起替代条件轮询）、Gate 并入开闸事件、ModifyFlow 新增（提交流程属性修正，见 09 文档）、SpawnProjectile/SpawnArea 移除（D4-16）。
+- **原语实现状态（2026-10-04，R4 收束回写）：15 个中已落地 8 个** —— 本模块 5（`WaitDelay`（R3）/ `WaitEvent` / `Branch` / `RunSubChain` / `SetVar`（四者 R4 Task 3.5，提案 `add-chain-primitives-and-target-sorting`，证据 `EVID-2026-10-04-chains-primitives`））+ 领域侧 3（`Damage`（R3）/ `ModifyFlow`（R4 Task 3，端到端见 `EVID-2026-10-04-modifier-channel`）/ `SelectTargets`（R3））。**余 7 个**：`Parallel` / `Repeat` / `OnError` / `ModifyAttribute`（R5）、`Heal`（R5，随治疗流程）、`ApplyState`（R5，与 M3 同批）、`PlayCue`（R8，随 TcsCue）。**节内其余描述仍是设计意图**——"这一轮到哪儿"的权威登记在 `PLN-R4` 注记与 `LEDGER-deferred`，本节只标已落地项，MUST NOT 当作"全部已实现"来读。
 - `FEffectChain`：有序步骤数组 + 元数据（`MaxStepsPerFrame` 熔断上限，默认 CVar 可调）。
 - `FEffectContext`（黑板，可池化）：`Caster / Instigator / EventPayload(FInstancedStruct) / Targets / Variables / **CapturedAttrs** / 注入引用（ICombatEntityQuery/IRelationResolver 等宿主能力契约，链构建时装配）`——黑板即上下文（与 09 文档同构）。
 - **原语集合扩展 = 新增 step struct（Authoring 第三层）**；Custom 逃逸位规约管策略枚举，不管类型族。
@@ -29,6 +30,27 @@
 `EventTag / EventPayloadFilter / Conditions / Effects / Priority / ExecutionGate / InterruptPriority / GateTags / Cues(CueId 引用) / bConditionMissIsSilent`。
 - 全部独立可空、零策略类；CueId 是引用（Niagara/贴花/MPC 参数映射住 TcsCue/宿主）；~~Scope~~~~HandlerClass~~ 已砍除（目标归属 = SelectTargets 步骤显式解析或 Context 默认目标——D4-4 v2；求值器本身就是共享 Handler）。
 - **条件最小集（D4-5 已拍板）**：`HasAllTags / AttributeCompare(Attr,Op,Value|Attr) / VariableCompare / GateCheck(读 BoolSwitches) / Chance(概率)` + Custom 逃逸位——无表达式语言。
+
+**实现状态（2026-10-04，R4 Task 1 / 2 / 2.5 / 4 收束回写）——字段级"落地 / 留位"对照**：
+
+| 字段（终定名） | R4 状态 | 说明 |
+|---|---|---|
+| `EventTag` | ✅ 活字段 | 总线按 Tag 路由（门①）；同 Tag 多行**共用一个订阅**（计数配对） |
+| `Conditions` | ✅ 活字段 | 走条件注册表 `FTcsTriggerConditionRegistry`（门④）；未登记类型 ⇒ 不通过 + 日志 |
+| `EffectChainId` | ✅ 活字段（**改名**） | 设计期名 `Effects`，Task 1 形态精修改为 `EffectChainId`（用户拍板"更直观"）；命中后 `ExecuteChain`，链未登记由门面既有拒绝面兜 |
+| `Priority` | ✅ 活字段 | 大者先；同级按登记序（显式全序 `(Priority 降序, 槽位下标升序)`，不依赖输入序） |
+| `ExecutionGate` | ✅ 活字段（**仅两枚举值同判**） | 门②；R4 单机形态下本地即权威 ⇒ `TEG_Always` 与 `TEG_AuthorityOnly` 同判，真正的权威闸归网络姿态轮 |
+| `GateTags` | ✅ 活字段 | 门③；非空要求**全亮**（`SetTriggerGateTag`），空数组恒通过 |
+| `bConditionMissIsSilent` | ✅ 活字段 | 条件未过：`true` 静默跳过 / `false` 记 `Verbose`（MUST NOT Warning） |
+| `EventPayloadFilter` | ⏸ **留位（只存不裁）** | 零消费者；等首个带可筛字段的载荷类型 |
+| `InterruptPriority` | ⏸ **留位（只存不裁）** | 零消费者；等链打断语义轮 |
+| `Cues` | ❌ **已删除** | Task 1 形态精修删除（TcsCue 模块未敲定，留字段 = 给策划假控件）；TcsCue 落地时加回 |
+
+- **载体（R4 Task 2.5）**：独立资产 `UTcsEffectTriggerDefAsset`（住 TcsIntegration，`TriggerTag` 为内容身份）经 DefLibrary 发现并**装配为触发行**（`Source` = 定义库来源句柄）；**内联位**（`SkillDef` / `BuffDef` 的 `TArray<FTcsEffectTriggerDef>`）待 R5/R6。
+- **条件落地面**：`HasAllTags` 与 `Chance` 已实现——**内置条件与自定义条件走同一注册表**（不分内外两套路径）；`AttributeCompare` / `VariableCompare` / `GateCheck` / Custom 未落地。
+- **求值顺序 = 四道门**（R4 Task 2）：`事件 Tag 路由 → ExecutionGate → GateTags → Conditions → 起链`——顺序有意义：网络闸最廉价先判，条件最贵最后判。
+- **载荷读取器**（Task 2 机制 + Task 3 首个属主登记）：`FTcsTriggerPayloadReaderRegistry` 由**载荷类型的属主模块**自登记（TcsDamage 的收集事件读取器给出 `Caster ← Attacker`、分类标签直通）——机制层不认识任何领域载荷类型，这是依赖铁律的兑现形态。
+- **留位项与剩余条件的唯一待办登记** = `LEDGER-deferred` 的 `TRIG-5`（2026-10-04 补登）。
 
 ### 2.3 目标选择（D4-4 终定；**v2 策略化**——D4-4 v2/D4-15 v2，规格详见 [SPEC-06-targeting](../spec/10-module-targeting.md)）
 - **策略模式（D4-4 v2，2026-09-02 审阅轮 5 后用户拍板；载体经 D3-7 v3 修订）**：`FTcsTargetSelectorStrategy` / `FTcsTargetFilterStrategy` USTRUCT 纯虚基类 + **裸 `FInstancedStruct`** 持有（2026-09-24 换型；StateTree 同构，规格见 10 文档 v3）；默认实现 Self/EventTarget；Filter 语义宿主实现（存活/敌对=宿主本体论）；RadiusArea/FTargetingShape 后置（竖切无消费者）。
@@ -167,7 +189,20 @@
 - v2 定稿重写（2026-09-02）：全部增补折入正文（本文），端到端走查与伪代码索引保留为 §9/§10。
 - v2 增补 2（2026-09-02，M9 追问轮同步）：折入 D4-14~16（注册制分派+依赖层级反转——依赖收窄为 Core/Attribute；15 原语终版与步骤归属；TcsTargeting；Spawn 残留清理）；§9 例二冷却表述对齐 D5-15/16。
 - v2 增补 3（2026-09-23，标识体系 tag 化改造回写）：§9 例一触发行 Filter 与链 id 改 tag 口径（原 `Filter DefId=Burn`）；本节为走查预演形态，示意名不写全 tag 路径。落点 = 提案 `switch-identifiers-to-gameplay-tags`（2026-09-22 归档）。
+- v2 增补 4（2026-10-04，R4 收束回写）：**§2.1 补原语实现状态**（15 个中已落地 8 个 + 余 7 个的归属轮次）；**§2.2 补字段级"落地 / 留位"对照表**（七个活字段 / 两个留位字段 / `Cues` 已删除）+ 载体与条件落地面 + 四道门顺序 + 载荷读取器机制；**§12 补 R4 验收实证与留白**。落点 = R4 轮收束（`PLN-R4` Task 5；证据 `EVID-2026-10-04-trigger-def-asset` / `-chains-primitives` / `-modifier-channel`）。
 
 ## 12. 验收钩子
 
 竖切验收：测试链 `WaitDelay → SelectTargets(单体策略) → Damage` 走 TcsDamage 骨架（10 文档 v2 验收钩子——§9 例二为全量预演形态）；熔断与打断、WaitEvent 挂起唤醒、重定向挂/摘在竖切后人工检查路径。
+
+**R4 收束时的实证状态（2026-10-04）**——本节各钩子逐条对账，**未打勾的仍是留白，不得读成已验**：
+
+| 验收钩子 | 状态 | 证据 / 留白 |
+|---|---|---|
+| **"事件 → 触发行 → 效果链"闭环** | ✅ **已实证** | 内容资产（`UTcsEffectTriggerDefAsset`）→ 定义库发现与装配 → 事件命中 → 挂起 → 唤醒 → 完成，四轮 PIE 含失败面与引用链预检；`EVID-2026-10-04-trigger-def-asset` |
+| **伤害修改器唯一通道（D7-6）端到端** | ✅ **已实证** | 破甲单步链 `ModifyFlow{Op=Mul 0.5}` 提交 `DamageFlowKey.BaseDamage` ⇒ 30 → 15，含对照组 / 摘行还原 / 按来源级联摘除 / 载荷读取器 `Caster ← Attacker`；`EVID-2026-10-04-modifier-channel`（两轮 19/0 逐字一致 + `.Reject` 4/0） |
+| **WaitEvent 挂起唤醒** | ✅ **已实证** | 共享订阅 + 门面等待表；订阅计数配对与解锚范围见 `EVID-2026-10-04-chains-primitives` |
+| **熔断（单帧步数 / 嵌套深度）** | 🟡 **部分** | 嵌套深度上限（16）已实测：17 层起链 ⇒ 深度 17 熔断 ⇒ 16 层父链逐一回卷完成。**单帧步数预算本身未被触发**（实测累计步数 17，未达共享预算 64）；**"三条降级路径"（无时钟 / 无总线 / 未注入查询）留白**，归 M5 |
+| **打断** | ⛔ **未验** | 无公开取消/释放入口（台账 `CHAIN-6`）⇒"运行态释放即解锚"的事件锚分支不可达；"打断与取消"归 M5 轮 |
+| **重定向挂/摘** | ⛔ **未验** | `FFlowRedirect` 模板重定向整套未落地（台账 `STAT-3`，归 R5） |
+| **GateTags 开闸事件**（§2.4 唤醒源④） | 🟡 **部分** | 门③（`GateTags` 全亮才通过）已实证，并成为内容行的启停控制面；**"开闸即发事件 + `WaitEvent` 语法糖"未实现** |

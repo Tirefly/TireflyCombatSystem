@@ -4,7 +4,7 @@
 - **类型**：SPEC / 模块规格
 - **状态**：ACTIVE
 - **权威范围**：TcsDamage 瞬时流程：模板、三层值空间、修改器通道、记录流；理由住 LOG-02-effects §D7
-- **最后更新**：2026-10-01
+- **最后更新**：2026-10-04
 
 > **换根注记（2026-10-01）**：本文 tag 名已随提案 `reroot-gameplay-tag-vocabulary` 换根——旧前缀 `Tcs.Event.*` / `Tcs.Flow.Key.*` / `Tcs.Flow.Template.*` / `Tcs.Attr.*` / `Tcs.Chain.*` 依次成为 `TcsEvent.*` / `DamageFlowKey.*` / `DamageFlowTemplate.*` / `Attribute.*` / `EffectChain.*`；本文正文一律用新名，旧名仅存于本注记与 `log/`、`ledger/`、`evidence/` 等历史文件。
 
@@ -60,6 +60,14 @@
 - 聚合：提交落进黑板对应键的修正链，读时按 M2 同式求值——**折叠统一走 TcsAttribute 共享带式折叠纯函数（D5-5 v3，2026-09-14：M2 属性聚合 / M5 参数链 / 本容器三处共用；SortKey 不参与顺序语义，带序由 Op 决定）**。
 - 创作糖：一条修改器 = 触发行+单步链（比文章一行重）——M8 编辑器提供"伤害修改器"模板自动生成，**机制唯一、界面给糖**。
 
+**R4 落地状态（2026-10-04 收束回写）——本通道三段全通**：
+
+- ①**订阅侧**：触发行落地（R4 Task 1 数据形状 + Task 2 登记表/求值器/四道门 + Task 2.5 独立资产载体与定义库装配）——见 [SPEC-03-effects](04-module-effects.md) §2.2；
+- ②**提交侧**：`FTcsStepModifyFlow` 链原语落地（R4 Task 3，提案 `add-damage-modifyflow-primitive`）——从 `FTcsEffectContext::EventPayload` 取回流程上下文 → 向黑板 `Submit` → 恒 `TSR_Completed`；
+- ③**端到端实证**：R4 Task 4（证据 `EVID-2026-10-04-modifier-channel`）——破甲行为**内容资产**（`UTcsEffectTriggerDefAsset`，零 C++ 注册）：订阅 `TcsEvent.Damage.PreExecute` + 单步链 `ModifyFlow{TargetKey = DamageFlowKey.BaseDamage, Op = TAO_Mul, Operand = Literal(0.5)}` ⇒ 提交落在 `Execute` 读黑板之前 ⇒ 扣血 **30 → 15**（记录 `Final` 与生命实际扣量**两个观测面同值**）；对照组（不点灯 ⇒ 门③不通过）扣原值 30、摘行还原、按来源级联摘除各一条。
+- **仍未走的面（MUST NOT 外推）**：`Execute` 的**候选裁决**通道（`DamageFlowKey.ExecuteCandidates` + `SortKey` 选一）**无真实候选走过**（台账 `DAMAGE-4`）；`Heal` 原语与治疗流程未落地（`DAMAGE-3` 余）；成功提交**只经 `Op=Mul` 落在 `BaseDamage` 一个键**验过——其他运算带与项目键未验。
+- **硬约束（本节 + `TcsStepModifyFlow.h` 头注释）**：`ModifyFlow` **只能用于同步单步链**——链上下文里携带的是流程上下文的**裸指针**，流程是单帧同步体；链若在本步之前挂起（`WaitDelay` / `WaitEvent` / 等子链），流程早已结束、指针悬空。故"一条修改器 = 触发行 + 单步链"不只是创作糖，**也是安全性约束**。（该条为 `PLN-R4` Task 3 注记的明文要求；**头注释那半在 R4 收束时补齐**——Task 3 实施只落了执行器侧校验，头注释与规格两处"明文"当时都未落。）
+
 ### 2.4 接口与记录
 
 > **证据状态（2026-09-28 增量）**：DamageFlow 反射视图与 `Execute_*` 静态/glue 证据不变；本次 C# PIE 验证脚本流程步骤返回 false 时中止、true 时两步继续，原生 `Obj GC` 后 Flow executor 和模板中的 C# Damage delegate 均再次执行，公式得到 `Final=7`、Health 100→93（见 `evidence/2026-09-28-host-scripting-e2e-pie.md`）。仅覆盖同一 PIE 世界；跨 PIE 注册表寿命问题与其他语言仍未验证。
@@ -103,6 +111,17 @@
 
 竖切扩展：火球术链 → Damage 原语 → **官方默认模板** → 项目 delegate（一条简单公式）→ Health 事务 → Record 事件可见；三免疫实例注入后仅消费一个；临时修正器（本次攻击 +10% 攻击力）流程后还原。M9 轮新增人工检查：数据步骤（FlowModify 实现破甲）零 C++ 拼流程；模板重定向挂/摘（状态声明 FFlowRedirect）；修改器模板生成的触发行+单步链生效。
 
+**R4 收束时的实证状态（2026-10-04）**——逐条对账，**未打勾的仍是留白，不得读成已验**：
+
+| 验收钩子 | 状态 | 证据 / 留白 |
+|---|---|---|
+| 流程骨架（官方默认模板 + 宿主公式 delegate + Health 事务 + `FDamageRecord` 记录流） | ✅ **R3 竖切已验** | `PLN-R3-2` Task 7 验收（7 项人工检查全过）+ 入库命令 `Tcs.Damage.DumpRecords`；R4 两轮 PIE 里的 `[伤害记录]` 行为同一路径 |
+| **"修改器 = 触发行 + 单步链"生效** | ✅ **已实证（R4 Task 4）** | 走**内容资产**路径、零 C++ 注册：`EVID-2026-10-04-modifier-channel`（破甲 `30 → 15`、对照组、摘行还原、按来源级联摘除）。**注意区分**：M8 的"伤害修改器模板**自动生成**"这层糖**未实现**，本次是手工建两条资产——"机制唯一、界面给糖"里的前者已证、后者未做 |
+| 三免疫实例注入后仅消费一个 | ⛔ **未验** | 候选裁决通道（`DamageFlowKey.ExecuteCandidates` + `SortKey`）**无真实候选走过**，消费动作整体未实现 ⇒ 台账 `DAMAGE-4`（R5/M4a） |
+| 临时修正器流程后还原（`FlowSource` 级联摘除） | ⛔ **未验** | `AttrCapture` 整套无填充者/读取者 ⇒ 台账 `WAIT-7`；`FlowSource` 的 `RemoveBySource` 级联复用 M2 既有能力，但"流程结束即摘"未作为验收项跑过 |
+| 数据步骤（`FlowModify`）**零 C++ 拼流程** | ⛔ **无证据** | R4 的破甲走的是**链原语** `ModifyFlow`，**不是**流程内数据步骤；`FTcsFlowModify` 执行器 R3 已落地，但"编辑器里零 C++ 拼一条流程"从未作为验收项跑过（该面只在 R3 用宿主 C++ 自研步骤验过"流程可整表替换"） |
+| 模板重定向挂/摘（`FFlowRedirect`） | ⛔ **未落地** | 台账 `STAT-3`（归 R5/M3 状态轮——消费者是"状态/装备声明换流程"） |
+
 ## 8. 修订记录
 
 - v1（2026-09-02）：初版（D7-1~4 折入）。
@@ -112,3 +131,4 @@
 - v4 增补（2026-09-15，D5-5 v3 交叉引用补齐）：§2.1/§2.3 流程属性黑板的折叠口径显式化——统一调用 TcsAttribute 共享带式折叠纯函数（三处共用之一），实现落点指向补齐；顺带移除无出处的旧词"三域三制"。
 - v4 增补 2（2026-09-23，标识体系 tag 化改造回写）：§2.1 公式参数初值键 `TMap<FName, …>` → **`TMap<FGameplayTag, FTcsParamValue>`**；黑板容器名对齐实现（`FFlowAttributes` → **`FTcsFlowAttributes`**）；**契约键归框架**（`DamageFlowKey.*` 原生声明）与项目键自由 tag 的分工写明；§2.2 模板身份补 `TemplateId: FGameplayTag`、模板类型名对齐实现（`FTcsDamageFlowTemplate`，WAIT-8 轮改名）；重定向字段为 tag。落点 = 提案 `switch-identifiers-to-gameplay-tags`（2026-09-22 归档）。
 - v4 增补 3（2026-09-30，消耗策略形状改造 + `ModifyFlow` 落地回写；提案 `add-damage-modifyflow-primitive`）：`FTcsConsumePolicy` → **`FTcsDamageModifierConsumePolicy`** 且改为**纯数据可反射结构**（`USTRUCT` + 三字段 `UPROPERTY`；去 `TFunction OnConsumed` 闭包，"被消费时要做什么"改**事件语义** = 原生事件 tag `TcsEvent.Damage.ModifierConsumed` + 项目经触发行订阅；消费**动作**仍归台账 `DAMAGE-4`）；§2.2 标准步骤表 Execute 行 / §2.3 消耗型 / §2.4 提交原语 / §3 收集≠消费 四处 `OnConsumed` 口径同步；§2.4 视图「不含黑板」的理由改写为**嵌套容器 + 运行态提交记录**（原 `TFunction` 根因已消除 ⇒ SCRIPT-3 降级为常规工作量）；**顺带校正**：§2.2 数据步骤 `FlowModify` 字段表原写 `SortKey`（实现无此字段，以源码为准改为 `Conditions`）并补「MUST NOT 携带消耗策略 = 职责划分」。
+- v4 增补 4（2026-10-04，R4 收束回写）：**§2.3 补"修改器通道三段全通"的落地状态**（订阅侧触发行 / 提交侧 `FTcsStepModifyFlow` / 端到端实证 `EVID-2026-10-04-modifier-channel`）+ **硬约束明文**（`ModifyFlow` 只能用于同步单步链——安全性约束，不只是创作糖；头注释那半本次补齐）；**§7 验收钩子逐条对账**（两条已实证、四条仍未验/未落地，明确标注不得外推）。落点 = `PLN-R4` Task 5。

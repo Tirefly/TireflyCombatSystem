@@ -26,6 +26,11 @@
  * **只存不裁**：`Consume` 只是随提交携带的消耗策略——裁决与消费（扣次数 / 起冷却 / 发消费事件）
  * 归 `FTcsFlowExecute`（D7-4"收集 ≠ 消费"），本原语不消费任何东西、也不读回任何东西。
  *
+ * **硬约束：只能用于同步单步链**（09 §2.3）——链上下文里携带的是流程上下文的**裸指针**
+ * （`FTcsDamageFlowCollectEvent::Context`，而流程是单帧同步体）。链若在本步之前挂起
+ * （`WaitDelay` / `WaitEvent` / 等子链），流程早已结束、指针悬空 ⇒ 本原语 MUST NOT 出现在
+ * 含挂起步骤的链上；MUST NOT 为跨帧场景造句柄化机制（真需要时是独立设计）。
+ *
  * **跨模块形态**（D4-14）：执行器住 TcsDamage 并经 `UE_DEFINE_EFFECT_STEP_EXECUTOR` 自注册进
  * TcsEffect 的执行器注册表——`TcsEffect` 全程不认识任何 TcsDamage 类型；流程上下文经
  * `FTcsEffectContext::EventPayload`（**已就位的中立字段**）抵达。
