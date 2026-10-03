@@ -51,7 +51,7 @@ combat-system-design/
 ├── log/                ← 决策日志 LOG-*（8 篇：按模块轮次分片 + 拍板流水 + 实施记录）
 ├── plans/              ← 实施计划 PLN-*（5 篇：R3 计划一二 + 竖切剧本 + 内容指南 + R4 计划）
 ├── research/           ← 调研 RSCH-*（6 篇：AbilityKit 三路 + 复制 + 脚本 + C#）
-├── evidence/           ← 证据 EVID-*（4 篇 PIE 取证，带 SHA-256）
+├── evidence/           ← 证据 EVID-*（5 篇 PIE 取证，带 SHA-256）
 ├── ledger/             ← 台账与规约 LEDGER-*（3 篇活文档）
 └── HISTORICAL/         ← 历史存档（模块地图提案 v1，已被 DEC-00 §9 取代）
 ```
@@ -165,6 +165,7 @@ combat-system-design/
 | `EVID-2026-09-28-selector-ref` | selector `ref` 容器回写两轮 PIE 证据 | 选择器签名验收 |
 | `EVID-2026-09-29-registry-lifetime` | **两连 PIE：注册表跨世界寿命修复**（同进程二次登记不再被拒；含生效机制诊断） | 提案 `harden-registry-cross-world-lifetime` 核心判据 |
 | `EVID-2026-09-30-modifyflow-acceptance` | `ModifyFlow` 提交侧验收：单次 PIE（注册可达 + 降级路径） | 提案 `add-damage-modifyflow-primitive` 验收（已归档） |
+| `EVID-2026-10-03-scripting-gc-survival` | **宿主脚本槽位 GC 存活观测**：四槽位（选择器/过滤器/流程执行器/伤害委托）经 `obj gc` 后的死活 + 行为计数判据；**含跑前立的预注册预测**与负对照（**状态 PENDING**，实跑输出待回填） | 提案 `add-scripting-gc-survival-probe` 验收（宿主侧装置，零插件代码改动） |
 
 ### 4.7 治理（`GOV`）
 

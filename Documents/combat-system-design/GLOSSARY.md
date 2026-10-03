@@ -330,6 +330,7 @@
 | `EVID-2026-09-28-selector-ref` | `evidence/2026-09-28-selector-ref-pie.md` | 证据（selector `ref` 容器） |
 | `EVID-2026-09-29-registry-lifetime` | `evidence/2026-09-29-registry-lifetime-pie.md` | 证据（注册表跨世界寿命：两连 PIE） |
 | `EVID-2026-09-30-modifyflow-acceptance` | `evidence/2026-09-30-modifyflow-primitive-acceptance-pie.md` | 证据（`ModifyFlow` 提交侧验收：单次 PIE，注册可达 + 降级路径） |
+| `EVID-2026-10-03-scripting-gc-survival` | `evidence/2026-10-03-scripting-gc-survival-probe-pie.md` | 证据（宿主脚本四槽位的 GC 存活观测：跑前预注册预测 + 负对照；**状态 PENDING**，实跑输出待回填） |
 | `LEDGER-deferred` | `ledger/deferred-inputs-ledger.md` | 台账（跨轮遗留输入，活文档） |
 | `LEDGER-reflection` | `ledger/reflection-backlog.md` | 台账（反射未解决项，活文档） |
 | `LEDGER-terminology` | `ledger/reflection-terminology.md` | 台账（反射术语规约，活文档） |
