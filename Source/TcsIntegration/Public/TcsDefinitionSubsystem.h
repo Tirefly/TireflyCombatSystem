@@ -5,12 +5,17 @@
 #include "CoreMinimal.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 
+#include "Handle/TcsSourceHandle.h"
+
 #include "TcsDefinitionSubsystem.generated.h"
 
 
 
+class FReferenceCollector;
 class UTcsEffectChainDef;
+class UTcsEffectTriggerDefAsset;
 struct FTcsEffectChain;
+struct FTcsEffectTriggerDef;
 
 
 
@@ -20,10 +25,14 @@ struct FTcsEffectChain;
  * 先枚举消费场景含无世界者，再定级别）。
  *
  * 职责边界（**只做资产发现与注册，不做执行**——执行归各领域门面）：
- * - **发现**：`IAssetRegistry::GetAssetsByClass` 按类扫描（**不依赖 `PrimaryAssetTypesToScan` 注册**
- *   ——该注册属 M6 轮，且未注册时 AssetManager 按类型查询会**静默返回空**，排障成本高，见台账 INTEG-3）；
+ * - **发现**（**两条按类路径**）：链资产 `UTcsEffectChainDef`（`DiscoverChainDefs`）与触发定义资产
+ *   `UTcsEffectTriggerDefAsset`（`DiscoverTriggerDefs`）——均走 `IAssetRegistry::GetAssetsByClass`
+ *   （**不依赖 `PrimaryAssetTypesToScan` 注册**——该注册属 M6 轮，且未注册时 AssetManager 按类型
+ *   查询会**静默返回空**，排障成本高，见台账 INTEG-3）；
  * - **校验**：双真相（`Chain.ChainId != ChainId`）/ 空 id / 重复登记 → 计入失败清单 + Error，不静默跳过；
- * - **按名解析**：链定义按 `ChainId` 缓存（`ResolveChain`）；
+ *   触发定义侧另有四条（空 `TriggerTag` / 空 `Def.EventTag` / 空 `Def.EffectChainId` / 身份重复）；
+ * - **按名解析**：链定义按 `ChainId` 缓存（`ResolveChain`）、触发定义按 `TriggerTag` 缓存
+ *   （`ResolveTriggerDef`）；
  * - **就绪状态机**：`OnDefinitionsReady` **单出口**（幂等）——M6 双层引导的最小版（06 §4 硬规则①）；
  * - **装配到世界**：见下条。
  *
@@ -34,7 +43,12 @@ struct FTcsEffectChain;
  * 中 `InitializeSubsystems()`（`World.cpp:2447`）**早于** `OnPostWorldInitialization.Broadcast`（`:2601`），
  * 故装配时 EffectSubsystem 已可用。
  *
- * **MUST NOT 持可变运行态**（Const 面：缓存的是定义，不是运行态）。
+ * **触发行装配（2026-10-04）**：链装配**之后**，每条触发定义经 `UTcsEffectSubsystem::RegisterTriggerRow`
+ * 登记成该世界的触发行，`Source` = 本类自持的来源句柄（`Initialize` 时发放一次）——`effect-trigger` 规格的
+ * "定义加载期登记（全局常驻规则）"由此成立。引用链在该世界不可解析时留 Warning 并**仍登记**
+ * （宿主可在运行期自行 `RegisterChain`，"跳过登记"会让该规则永久静默失效）。
+ *
+ * **MUST NOT 持可变运行态**（Const 面：缓存的是定义，不是运行态；触发行本身住世界级子系统）。
  *
  * 与中央注册表的分工（**不重叠**，三层结构）：本类 = Const 定义（"有哪些定义、定义是什么"）；
  * 各领域子系统登记表 = 定义的运行期副本（"当前世界有哪些定义可用"）；中央注册表
@@ -55,6 +69,34 @@ public:
 
 	// 反初始化：退订世界初始化委托，清空缓存与失败清单（确定性清理）
 	virtual void Deinitialize() override;
+
+#pragma endregion
+
+
+// GC 引用收集
+#pragma region GC
+
+public:
+	/**
+	 * GC 引用收集（**两份定义缓存的 GC 可见持有**，2026-10-04）——**必需**。
+	 *
+	 * 为什么必须自己实现：`ChainDefs` / `TriggerDefs` 都是本类的**非 `UPROPERTY` 成员**
+	 * （`TMap<FGameplayTag, TUniquePtr<...>>`），GC 的 `RefLink` 遍历**走不到它们**；而两份缓存的内容里
+	 * 都有 `FInstancedStruct`（链 = `Steps`、触发定义 = `Conditions` / `EventPayloadFilter`），其**内层内存
+	 * 可以放宿主自定义 struct 的 `UPROPERTY` 对象引用**（D4-16 类型不设限）⇒ 不补引用即**静默回收**
+	 * （表现为"步骤/条件里那个对象变成空引用"，不是崩溃）。
+	 *
+	 * **判据是"容器是否 GC 可见"，与"值语义还是指针语义"无关**——计划注记曾以"值语义 struct ⇒ 无需 ARO"
+	 * 为由判断不需要，该判据是错的（同 `FTcsTriggerRegistry::AddReferencedObjects` 的纠正）。
+	 *
+	 * 手法与 `UTcsEffectSubsystem::AddReferencedObjects` 完全同款：逐条调
+	 * `FReferenceCollector::AddPropertyReferencesWithStructARO`（引擎 `UDataTable::AddReferencedObjects`
+	 * 对 `RowMap` 用的同一招，`DataTable.cpp:300`）。
+	 *
+	 * @param InThis 本对象（引擎静态 ARO 签名约定，须自行 Cast）。
+	 * @param Collector GC 引用收集器。
+	 */
+	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
 
 #pragma endregion
 
@@ -100,6 +142,18 @@ public:
 	 */
 	const FTcsEffectChain* ResolveChain(FGameplayTag ChainId) const;
 
+	/**
+	 * 按身份解析已缓存的触发定义（未登记返回 nullptr——正常查询路径，不 ensure）。
+	 *
+	 * 与 `ResolveChain` 同款：返回**缓存内容的裸指针**（`TUniquePtr` 持有使地址稳定），
+	 * 故无反射面（UHT 不支持 struct 指针作反射返回）——宿主脚本层的登记入口是
+	 * `UTcsEffectSubsystem::RegisterTriggerRow`（它自己带定义数据，不需要本方法）。
+	 *
+	 * @param TriggerTag 触发身份（`EffectTriggerDef` 根）。
+	 * @return 返回触发定义；未缓存返回 nullptr。
+	 */
+	const FTcsEffectTriggerDef* ResolveTriggerDef(FGameplayTag TriggerTag) const;
+
 #pragma endregion
 
 
@@ -110,7 +164,10 @@ private:
 	// 发现并加载全部链资产（扫描 → 逐资产校验 → 入缓存；失败项进清单）
 	void DiscoverChainDefs();
 
-	// 装配已缓存定义进指定世界（幂等：同一世界不重复登记）
+	// 发现并加载全部触发定义资产（扫描 → 逐资产四校验 → 按身份去重 → 入缓存；失败项进清单）
+	void DiscoverTriggerDefs();
+
+	// 装配已缓存定义进指定世界（幂等：同一世界不重复登记；链在前、触发行在后）
 	void SeedWorld(UWorld* World);
 
 	// 世界初始化回调（新世界装配入口）
@@ -122,9 +179,22 @@ private:
 	// 链定义缓存（Const 内容；键 = ChainId）——`TUniquePtr` 持有使解析返回的指针地址稳定
 	TMap<FGameplayTag, TUniquePtr<FTcsEffectChain>> ChainDefs;
 
+	// 触发定义缓存（Const 内容；键 = TriggerTag）——持有形态与失效判据同链缓存
+	TMap<FGameplayTag, TUniquePtr<FTcsEffectTriggerDef>> TriggerDefs;
+
 	// 定义资产缓存（GC 锚定：缓存的是定义内容，但资产对象本身也需存活以免重载）
 	UPROPERTY()
 	TArray<TObjectPtr<UTcsEffectChainDef>> ChainDefAssets;
+
+	// 触发定义资产缓存（GC 锚定，理由同上）
+	UPROPERTY()
+	TArray<TObjectPtr<UTcsEffectTriggerDefAsset>> TriggerDefAssets;
+
+	// 来源句柄分配器（进程内原子发号；本类只在自己 `Initialize` 时用一次）
+	FTcsSourceHandleRegistry TriggerSourceRegistry;
+
+	// 触发行来源句柄（装配期登记触发行时的 `Source`——"定义库来源"这一级联退订锚点）
+	FTcsSourceHandle TriggerSeedSource;
 
 	// 失败清单（资产路径 + 原因）
 	TArray<FString> FailureList;

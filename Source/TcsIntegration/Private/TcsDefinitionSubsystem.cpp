@@ -9,6 +9,8 @@
 #include "Chain/TcsEffectChainDef.h"
 #include "Engine/World.h"
 #include "Engine/GameInstance.h"
+#include "Trigger/TcsEffectTriggerDefAsset.h"
+#include "Trigger/TcsEffectTriggerInstance.h"
 
 #include "TcsEffectSubsystem.h"
 #include "TcsIntegrationLogChannel.h"
@@ -20,6 +22,10 @@ void UTcsDefinitionSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	Super::Initialize(Collection);
 
 	DiscoverChainDefs();
+	DiscoverTriggerDefs();
+
+	// 触发行来源句柄：本类在世界装配期登记触发行时作 `Source`（"定义库来源"这一级联退订锚点，发放一次）
+	TriggerSeedSource = TriggerSourceRegistry.Allocate();
 
 	// 就绪单出口：发现/校验完成即派发（幂等——只在此处置位并广播一次；06 §4 硬规则①）
 	bRuntimeReady = true;
@@ -31,8 +37,8 @@ void UTcsDefinitionSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	WorldInitDelegateHandle = FWorldDelegates::OnPostWorldInitialization.AddUObject(
 		this, &UTcsDefinitionSubsystem::HandlePostWorldInitialization);
 
-	UE_LOG(LogTcsIntegration, Log, TEXT("UTcsDefinitionSubsystem: 定义库就绪——链定义 %d 条，失败 %d 条"),
-		ChainDefs.Num(), FailureList.Num());
+	UE_LOG(LogTcsIntegration, Log, TEXT("UTcsDefinitionSubsystem: 定义库就绪——链定义 %d 条，触发定义 %d 条，失败 %d 条"),
+		ChainDefs.Num(), TriggerDefs.Num(), FailureList.Num());
 
 	for (const FString& Failure : FailureList)
 	{
@@ -51,10 +57,42 @@ void UTcsDefinitionSubsystem::Deinitialize()
 	SeededWorld.Reset();
 	ChainDefs.Empty();
 	ChainDefAssets.Empty();
+	TriggerDefs.Empty();
+	TriggerDefAssets.Empty();
+	TriggerSeedSource = FTcsSourceHandle();
 	FailureList.Empty();
 	bRuntimeReady = false;
 
 	Super::Deinitialize();
+}
+
+
+
+void UTcsDefinitionSubsystem::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector)
+{
+	UTcsDefinitionSubsystem* This = CastChecked<UTcsDefinitionSubsystem>(InThis);
+
+	// 两份定义缓存都非 UPROPERTY（TUniquePtr 容器）——GC 只走 RefLink 看不见它们，故在此手动补引用。
+	// 缓存内容里的 FInstancedStruct（链的 Steps / 触发定义的 Conditions）内层可放宿主自定义 struct 的
+	// UPROPERTY 对象引用（D4-16 类型不设限），须靠本函数保活
+	// （引擎 UDataTable::AddReferencedObjects 对 RowMap 用的同一招，见头文件说明）。
+	for (const TPair<FGameplayTag, TUniquePtr<FTcsEffectChain>>& Pair : This->ChainDefs)
+	{
+		if (const FTcsEffectChain* Chain = Pair.Value.Get())
+		{
+			Collector.AddPropertyReferencesWithStructARO(FTcsEffectChain::StaticStruct(), const_cast<FTcsEffectChain*>(Chain), This);
+		}
+	}
+
+	for (const TPair<FGameplayTag, TUniquePtr<FTcsEffectTriggerDef>>& Pair : This->TriggerDefs)
+	{
+		if (const FTcsEffectTriggerDef* TriggerDef = Pair.Value.Get())
+		{
+			Collector.AddPropertyReferencesWithStructARO(FTcsEffectTriggerDef::StaticStruct(), const_cast<FTcsEffectTriggerDef*>(TriggerDef), This);
+		}
+	}
+
+	Super::AddReferencedObjects(InThis, Collector);
 }
 
 
@@ -129,7 +167,7 @@ void UTcsDefinitionSubsystem::DiscoverChainDefs()
 
 void UTcsDefinitionSubsystem::SeedWorld(UWorld* World)
 {
-	if (!World || ChainDefs.Num() == 0)
+	if (!World || (ChainDefs.Num() == 0 && TriggerDefs.Num() == 0))
 	{
 		return;
 	}
@@ -156,10 +194,41 @@ void UTcsDefinitionSubsystem::SeedWorld(UWorld* World)
 		}
 	}
 
+	// 触发定义 → 该世界的触发行（**在链之后**：引用链预检要查得到链）。
+	// `Source` = 定义库来源句柄——"定义加载期登记（全局常驻规则）"这条规格由此成立。
+	int32 RegisteredRows = 0;
+	for (const TPair<FGameplayTag, TUniquePtr<FTcsEffectTriggerDef>>& Pair : TriggerDefs)
+	{
+		const FTcsEffectTriggerDef* TriggerDef = Pair.Value.Get();
+		if (!TriggerDef)
+		{
+			continue;
+		}
+
+		// 引用链预检：不可解析 → Warning + **仍登记**（宿主可在世界运行期自行 `RegisterChain`，
+		// "先起世界后登记链"是合法时序；跳过登记会让该规则永久静默失效）。
+		// 不 ensure / 不 Error：内容缺口不是契约违规，且 `ExecuteChain` 已有自己的拒绝面。
+		if (!EffectSubsystem->IsChainRegistered(TriggerDef->EffectChainId))
+		{
+			UE_LOG(LogTcsIntegration, Warning,
+				TEXT("UTcsDefinitionSubsystem: 触发定义 %s 引用的链 %s 在该世界未登记——仍登记该行（宿主可在运行期登记该链）"),
+				*Pair.Key.ToString(), *TriggerDef->EffectChainId.ToString());
+		}
+
+		FTcsEffectTriggerInstance Instance;
+		Instance.Def = *TriggerDef;
+		Instance.Source = TriggerSeedSource;
+
+		if (EffectSubsystem->RegisterTriggerRow(Instance).IsValid())
+		{
+			++RegisteredRows;
+		}
+	}
+
 	SeededWorld = World;
 
-	UE_LOG(LogTcsIntegration, Log, TEXT("UTcsDefinitionSubsystem: 已装配到世界 %s——链定义 %d/%d 条"),
-		*World->GetName(), Registered, ChainDefs.Num());
+	UE_LOG(LogTcsIntegration, Log, TEXT("UTcsDefinitionSubsystem: 已装配到世界 %s——链定义 %d/%d 条，触发行 %d/%d 条"),
+		*World->GetName(), Registered, ChainDefs.Num(), RegisteredRows, TriggerDefs.Num());
 }
 
 void UTcsDefinitionSubsystem::HandlePostWorldInitialization(UWorld* World, const UWorld::InitializationValues IVS)

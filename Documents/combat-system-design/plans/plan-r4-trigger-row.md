@@ -531,11 +531,14 @@ USTRUCT() struct TCSEFFECT_API FTcsStepWaitEvent
 
 ---
 
-## Task 2.5: 触发行独立资产载体（`UTcsEffectTriggerDef` + DefLibrary 发现）
+## Task 2.5: 触发行独立资产载体（`UTcsEffectTriggerDefAsset` + DefLibrary 发现装配） —— **已完成（2026-10-04）**
 
-**Files:**
+> **本 Task 标题原写 `UTcsEffectTriggerDef`（无 `Asset` 后缀），与本文 Files/Interfaces 块自相矛盾**——实施期由 UHT 判了：`Asset` 形态胜出（理由与实测报错见下方实施注记①）。
+
+**Files（实际落点）:**
 - Create: `Source/TcsIntegration/Public/Trigger/TcsEffectTriggerDefAsset.h` + `Private/Trigger/TcsEffectTriggerDefAsset.cpp`
-- Modify: `Source/TcsIntegration/Public/TcsDefinitionSubsystem.h` + `Private/TcsDefinitionSubsystem.cpp`（加一条发现路径）
+- Modify: `Source/TcsIntegration/Public/TcsDefinitionSubsystem.h` + `Private/TcsDefinitionSubsystem.cpp`（加一条发现路径 + 装配 + ARO + 清理）
+- Create: `Source/TcsIntegration/Private/TcsDefinitionSubsystem_Trigger.cpp`（**实施时追加**——主 `.cpp` 已 176 行，按仓规 `<Name>_<Feature>.cpp` 分片；两文件 246 / 92 行，均 ≤ 300）
 
 **为什么住 TcsIntegration**：链资产 `UTcsEffectChainDef` 就在那里——**资产载体类需要同时看到"定义类型"（TcsEffect）与"DefLibrary 的发现机制"（TcsIntegration）**，而 TcsIntegration 是唯一依赖 TcsEffect 的上层。放 TcsEffect 会形成反向依赖。
 
@@ -559,13 +562,29 @@ void DiscoverTriggerDefs();                                  // AssetRegistry �
 const FTcsEffectTriggerDef* ResolveTriggerDef(FGameplayTag TriggerTag) const;
 ```
 
-- [ ] **Step 1: OpenSpec 提案**（`integration-entity` MODIFIED：加触发定义资产的发现与解析；`effect-trigger` 若需则补"资产载体"需求）
-- [ ] **Step 2: 实施**（资产类 + DefLibrary 发现/缓存/装配）
-- [ ] **Step 3: 编译验证**（Development + **Shipping**——含 `IsDataValid` 的 `WITH_EDITOR` 面，Shipping 必跑）
-- [ ] **Step 4: 定向人工检查**——依赖面：`TcsEffect` 零反向依赖（资产类住 TcsIntegration）；DefLibrary 的失败清单能报出空 `TriggerTag`
+- [x] **Step 1: OpenSpec 提案**（`integration-entity` MODIFIED：加触发定义资产的发现与解析；`effect-trigger` 若需则补"资产载体"需求）——**✅ 落地为提案 `add-effect-trigger-def-asset`**（`integration-entity` MODIFIED + **新能力 `effect-trigger-asset`** + `gameplay-tag-governance` MODIFIED × 3；`effect-trigger` 未动——规格早已把"定义加载期登记"写成事实，本批只是把它实现）
+- [x] **Step 2: 实施**（资产类 + DefLibrary 发现/缓存/装配）——**✅ 另加"装配为触发行"这一步**（见实施注记②）
+- [x] **Step 3: 编译验证**（Development + **Shipping**——含 `IsDataValid` 的 `WITH_EDITOR` 面，Shipping 必跑）——**✅ 双配置 `Result: Succeeded`、0 error / 0 warning**（UHT 侧还带 `-WarningsAsErrors`；Dev 首编译被 UHT 拒一次，见实施注记①）
+- [x] **Step 4: 定向人工检查**——依赖面：`TcsEffect` 零反向依赖（资产类住 TcsIntegration）；DefLibrary 的失败清单能报出空 `TriggerTag` —— **✅ 四轮 PIE 全过**：依赖面 grep 零命中；失败清单实证 `触发定义 0 条，失败 1 条` + `触发行 0/0 条`；正路实证规则命中 → 起链 → 挂起 → 唤醒 → 完成；另加"引用链预检"与"可复现 + 跨 PIE 零残留"两轮。证据 = `EVID-2026-10-04-trigger-def-asset`
 
-> **实施注记（必读）**：
-> - **GC 补引用**：DefLibrary 的缓存若用 `TMap<FGameplayTag, TUniquePtr<...>>` 持**定义内容**（值语义 struct）则无需 ARO；但**资产对象本身**必须 `UPROPERTY` 锚定（照 `ChainDefAssets` 的既有做法）——否则重载后资产被回收、`ResolveTriggerDef` 返回的指针指向已释放内容。
+> **实施注记（2026-10-04 落地；真相源 = 提案 `add-effect-trigger-def-asset`）**
+>
+> **三处与计划原文的偏离**（逐条住该提案 `design.md` 的 D-11 ~ D-16）：
+>
+> - **① 类名 `UTcsEffectTriggerDef` 被 UHT 否决 ⇒ 恢复计划的 `…Asset` 形态**（**计划原文反而是对的**，但计划自身标题与 Files/Interfaces 块自相矛盾）。实测报错（UHT 阶段，非编译期）：`Error: Class 'UTcsEffectTriggerDef' shares engine name 'TcsEffectTriggerDef' with struct 'FTcsEffectTriggerDef'`——**UHT 按"去前缀后的引擎名"判重**，`U` 类与 `F` 结构体算同一个名字（与"头文件名必须唯一"是两条独立门槛）。处置：资产类取 `Asset` 后缀，并在 `openspec/project.md` 的「Def 资产命名标准」补限定语（"`<Family>Def` 已被同类型占用时加 `Asset` 后缀"）；**MUST NOT** 反过来改名 Task 1 已交付的数据 struct。
+> - **② 计划只写"发现 + 解析"两条面 ⇒ 实施另加"装配为触发行"**（本 Task 的真正业务闭环）：`SeedWorld` 在链装配**之后**逐条 `RegisterTriggerRow`（`Source` = 定义库自持的来源句柄，`Initialize` 时发放一次）。**理由**：`effect-trigger` 规格早已把"定义加载期登记（全局常驻规则）→ `Source` = 系统/DefLibrary 来源句柄"写成事实，而照计划原文落地则资产**零消费者**（策划填了不生效 = 假控件）。另加**引用链预检**：`Def.EffectChainId` 在该世界不可解析 ⇒ **Warning + 仍登记**（否决"跳过登记"与"不校验"，理由见 D-14）。
+> - **③ "值语义 struct 无需 ARO"判据错误（本计划下方原注记第 1 条）⇒ 两份缓存都补**：`ChainDefs` / `TriggerDefs` 都是本类的**非 `UPROPERTY` 成员**，GC 的 `RefLink` 走不到，而两者的 `FInstancedStruct` 内层可放宿主自定义 struct 的 `UPROPERTY` 对象引用 ⇒ 不补即静默回收。判据是"**容器是否 GC 可见**"，与值/指针语义无关（**同 Task 2 错误 2 的同一处判据**，第二次犯、第二次纠正）。**链缓存那一半是同批驱动修**。
+>
+> **顺带做对的一件**（D-16）：新类 `IsDataValid` 在无错时把 `NotValidated` 提升为 `Valid`（基类默认返回 `NotValidated`）；链资产缺这一段属台账 `TOOLS-2` ③，**不在本批修**（避免扩大回归面）。
+>
+> **同批跨仓落地**：宿主侧新根段 `EffectTriggerDef` + 声明位置条文 + 检查词 `EffectTriggerDef.Check.Seed`，落成 LAC 提案 `add-effect-trigger-def-tag-root`（`host-gameplay-tag-registry` MODIFIED × 2；含"两类验证词"区分：`Probe` 管装置词 / `<功能根>.Check.<名>` 管内容检查词）。根清单由 13 根 → **14 根**，`Validate-GameplayTags.ps1` 跑 **零违规**（采集 37 条 = ini 16 / native 21）。
+>
+> **本批顺带的一条治理订正**：既有 5 个 `EffectChain.Check.*` 词已在跑，但规格只登记了"2 段"形态 ⇒ 本批把 **`Check` 子段约定**写进规格（并补一条新判据"**根名互不为真前缀**"——`EffectTrigger` 会是 `EffectTriggerGate` 的真前缀，而 BP/CS 动态层支持部分匹配）。
+>
+> **人工检查**：四轮 PIE 全过（正路+幂等 / 失败面 / 引用链预检 / 可复现+跨 PIE 零残留），证据 = `EVID-2026-10-04-trigger-def-asset`。**留白一条**：`IsDataValid == Valid` 未取到运行期证据（MCP 无校验入口）⇒ 建议 Task 4 扩装置时用 C++ 直接断言（`Tcs.Test.Slice.Reject` 的检查 A 已有同款手法）。
+
+> **实施注记（必读；原文保留，逐条附实施结论）**：
+> - **GC 补引用**：DefLibrary 的缓存若用 `TMap<FGameplayTag, TUniquePtr<...>>` 持**定义内容**（值语义 struct）则无需 ARO；但**资产对象本身**必须 `UPROPERTY` 锚定（照 `ChainDefAssets` 的既有做法）——否则重载后资产被回收、`ResolveTriggerDef` 返回的指针指向已释放内容。 —— **❌ 前半句判据错（见上方 ③）**：值语义**也要**补 ARO，两份缓存都补；**后半句（资产 `UPROPERTY` 锚定）已照做并保留**。
 > - **内联位（SkillDef/BuffDef）本批不做**：`SkillDef`/`BuffDef` 今天都不存在（M3/M5 未落地）。**本批只做独立资产**，内联位在 R5/R6 给那两个 Def 加 `TArray<FTcsEffectTriggerDef>` 字段时自然成立（定义类型已是纯配置，可直接内联——**这正是 Task 1 分层的收益**）。
 > - **"系统级规则"是本资产的业务场景**（用户 2026-09-23 确认）：全局常驻、与任何 Def 无关的触发规则（如"任何单位死亡时触发某链"）。Buff/Skill 的行为走**内联**（施加时注册、Source = 状态实例句柄）。
 

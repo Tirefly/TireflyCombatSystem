@@ -1,14 +1,4 @@
-# gameplay-tag-governance Specification
-
-## Purpose
-
-TCS 插件侧 GameplayTag 词表的**规范载体**：钉死插件那 9 个根段与各自的消费角色，规定归属规则（框架词汇 vs 宿主内容词汇 vs 验证词）、一角色一根、根名判据（含"根名互不为真前缀"）、检查词的 `Check` 子段约定、深度上限，以及 `TcsStateParam` / `DamageCategory` 等易误读根的语义边界。
-
-**边界**：本能力只管**插件那一半**。宿主侧 5 个根段的规范载体在 LAC 仓的 `host-gameplay-tag-registry` 能力，本规格只**引用**不复制（两边各登自己那一半）。跨项目的通用治理规则（根名判据、深度上限、`DevComment` 义务、受限 tag 机制、改名与重定向口径）住在用户级 `unreal-gameplay-tags` 技能，同样只引用不复制。
-
-**为什么需要它**：换根前 28 个 tag 全挤在 `Tcs.*` 下（**把 owner 前缀当根**），`Tcs.Event` / `Tcs.Flow.Key` / `Tcs.Flow.Template` 三族已卡在 4 段零余量、再加一层就越过上限。根段的判据本来就不该是 owner 前缀——本能力把"哪个词归哪个根、为什么"变成可校验的规格，并明确"增根不增层"。
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: 根段注册表
 
@@ -63,67 +53,6 @@ TCS 插件侧 GameplayTag 词表的**规范载体**：钉死插件那 9 个根�
 
 - **WHEN** 为一次人工检查新增一个只供检查使用的链 id 或触发定义身份
 - **THEN** MUST 取其功能根并加 `Check` 段（如 `EffectChain.Check.Sort` / `EffectTriggerDef.Check.Seed`），MUST NOT 为它另立根、MUST NOT 塞进 `Probe` 根（`Probe` 只承载宿主侧验证装置词）
-
-### Requirement: 词归属规则（谁拥有那个词，谁声明）
-
-**框架词汇**（框架自己分发或自己解析的契约词：框架事件、流程黑板契约键、官方默认模板 id）MUST 由**插件模块原生声明**——契约词若由宿主配置，宿主漏配即**静默破坏框架的广播面与读写面**，故不可下放。
-
-**宿主词汇**（由宿主内容规定含义的词：属性名、参数表键、链内变量键、链 id、宿主自己的流程模板 id、宿主自发布的事件、伤害分类集词、触发行开关词）MUST 由**宿主项目的 `Config/DefaultGameplayTags.ini`** 声明；本插件 MUST NOT 声明任何宿主内容词。
-
-**判据只看"谁拥有那个词"**，不看"插件代码有没有按名解析它"——`RequestGameplayTag(TEXT("..."))` 只是运行期按名解析，不构成声明方依据。
-
-**唯一声明处**：同一 tag 文本 MUST 只在一处声明（原生 / ini / DataTable 的任一组合下都算违规）。原生侧的重复声明**引擎不报错**（按指针分别注册），故该违规是静默的，只能靠本规则与校验脚本拦截。
-
-#### Scenario: 框架契约键由插件原生声明
-
-- **WHEN** 检查流程黑板契约键（`DamageFlowKey.BaseDamage` 等）与官方默认模板 id（`DamageFlowTemplate.Default`）的声明处
-- **THEN** 它们是插件模块的原生 tag 常量；宿主即使完全不配置 tag 表，框架的广播面与读写面依然成立
-
-#### Scenario: 宿主内容词由宿主声明
-
-- **WHEN** 需要一个属性名 / 链 id / 流程模板 id / 参数表键
-- **THEN** 该词 MUST 由宿主 `Config/DefaultGameplayTags.ini` 声明；插件 MUST NOT 声明它，也 MUST NOT 预设它存在（存在性由宿主内容侧负责）
-
-#### Scenario: 同一 tag 文本两处声明即违规
-
-- **WHEN** 某 tag 文本同时被插件原生声明与宿主 ini 声明
-- **THEN** 属违规（原生侧重复声明引擎不报错，故 MUST 由本规则与校验脚本拦截）
-
-### Requirement: 同一根共享（共享根）
-
-`TcsEvent` / `DamageFlowKey` / `DamageFlowTemplate` 是**共享根**——框架先在其下声明自己的契约词，宿主 MUST 能在同一根下声明自己的词；框架 MUST NOT 因宿主加词而拒绝登记或改变既有行为。
-
-**理由**：同一根下"框架契约词 + 宿主内容词"并存是既有口径（"契约键原生声明；项目自定义键自由"），换根不改变各自的声明方，只是把两者放进同一个角色根。故本插件 MUST NOT 用受限 tag 之类的机制**禁止**宿主在共享根下加词——扩展面是"多一个词/多一个根"，不是"把契约词变成配置项"。
-
-#### Scenario: 宿主在共享根下加自己的词
-
-- **WHEN** 宿主在 `Config/DefaultGameplayTags.ini` 里于 `DamageFlowKey` 下新增一个自定义键，并把该键配进某个流程数据步骤
-- **THEN** 该键可用且不触发任何插件侧拒绝；框架契约键的含义与行为不变
-
-#### Scenario: 契约词不可配
-
-- **WHEN** 宿主想改写框架契约词（例如让 `DamageFlowKey.BaseDamage` 指向别的文本）
-- **THEN** MUST NOT 通过配置实现——契约词是插件原生常量，宿主的扩展方式是在共享根下**新增自己的词**
-
-### Requirement: 一角色一根（正交化）
-
-一个根 MUST 只承载**一个消费角色**。同一机制下的不同角色 MUST 各自成根，MUST NOT 用一个 facet 段（如 `Key` / `Template`）把两个角色兼收在同一个根里。
-
-**判据 = 两条消费者是不是不同的代码路径**：`DamageFlowKey` 的消费者是"运行期读写值槽"（黑板提交/读取），`DamageFlowTemplate` 的消费者是"装配期按 id 查模板"（`RegisterTemplate` / `FindTemplate`）——两条路径 = 两个角色 = 两个根，哪怕它们同属"伤害流程"这一个机制。
-
-**判据的边界（MUST，防止把"多读取点"误判成"多角色"）**：分根判据是"**这个词的归属是否唯一**"，**不是**"读取点是否唯一"。同一套宿主词若被两处匹配面读取（`DamageCategory`：触发侧与流程侧两个 `HasAllTags` 匹配器共用宿主 `ResolveElement` 产出的同一套分类词），它仍是**一个消费角色、一个根**——两处只是同一词汇的两个读取点，词的归属只有一份。反向边界同样成立：**归属不同的词即使读取点相同**（如 `DamageFlowKey` 下的框架契约键与宿主自定义键）也**不拆根**（它们同属"黑板读写"这一个角色），拆的只是**声明方**（见「同一根共享」）。
-
-**收益不止省段位**：拆根后每个根各自拿到完整的深度预算，两个角色可独立演进（一方加分区不影响另一方）。
-
-#### Scenario: 机制内的两个角色各自成根
-
-- **WHEN** 检查"伤害流程"机制的根
-- **THEN** 黑板键住 `DamageFlowKey`、模板 id 住 `DamageFlowTemplate`；两者 MUST NOT 合并回 `DamageFlow.Key.*` / `DamageFlow.Template.*` 一类"一根两 facet"的形态
-
-#### Scenario: 新角色不寄居在既有根下
-
-- **WHEN** 出现一个"既不是黑板键、也不是模板 id"的新消费角色（例如一个新的运行期变量袋）
-- **THEN** MUST 新立根并登记注册表，MUST NOT 以 `DamageFlowKey.<分区>.<词>` 之类的方式寄居在既有根下
 
 ### Requirement: 根名判据
 
@@ -182,19 +111,3 @@ tag 路径深度 MUST ≤ 4 段。第 4 段是**留给未来变化的余量，MU
 
 - **WHEN** 需要给某族词加一档细分
 - **THEN** MUST 通过新增根或换更精确的词实现；MUST NOT 把路径加到 4 段去表达细分
-
-### Requirement: `TcsStateParam` 的语义边界
-
-`TcsStateParam` 的 "State" 取**广义**——包含**技能激活运行态**；它**不是** `TcsState` 模块，MUST NOT 被读作"只有状态模块的参数才住这里"。**技能运行态归状态。**
-
-**依据**：`TcsState` 是本插件的既有模块名（状态实例句柄 `FStateInstance`），技能却住 `TcsSkill`（施法运行句柄 `FCastRun`）——代码把两者当作**两个运行身份**处理；但两者产出的参数行**同属"参数表读取"这一个消费角色**，因而同住 `TcsStateParam` 根。根段注册表的判据是**消费角色**，不是"哪个模块产出它"。
-
-#### Scenario: 技能运行态的参数键住 `TcsStateParam`
-
-- **WHEN** 一个技能激活运行态需要按参数表读一个键
-- **THEN** 该键 MUST 落在 `TcsStateParam` 根下，MUST NOT 因"技能不住 `TcsState` 模块"而另立根
-
-#### Scenario: 不得读成模块名
-
-- **WHEN** 审查 `TcsStateParam` 根下的词
-- **THEN** 判据是该词的消费角色（参数表读取），不是"它是否来自 `TcsState` 模块"——两种运行身份的词可以同根共存

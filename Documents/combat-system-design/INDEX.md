@@ -50,8 +50,8 @@ combat-system-design/
 ├── decisions/          ← 决策记录 DEC-*（10 篇：立场书 + 4 篇早期裁决 + PV/折叠/AttributeSet/回调载体）
 ├── log/                ← 决策日志 LOG-*（8 篇：按模块轮次分片 + 拍板流水 + 实施记录）
 ├── plans/              ← 实施计划 PLN-*（5 篇：R3 计划一二 + 竖切剧本 + 内容指南 + R4 计划）
-├── research/           ← 调研 RSCH-*（6 篇：AbilityKit 三路 + 复制 + 脚本 + C#）
-├── evidence/           ← 证据 EVID-*（5 篇 PIE 取证，带 SHA-256）
+├── research/           ← 调研 RSCH-*（8 篇：AbilityKit 三路 + 复制 + 脚本 + C# + 目标吸收 + 边界审计）
+├── evidence/           ← 证据 EVID-*（7 篇 PIE 取证，带 SHA-256）
 ├── ledger/             ← 台账与规约 LEDGER-*（3 篇活文档）
 └── HISTORICAL/         ← 历史存档（模块地图提案 v1，已被 DEC-00 §9 取代）
 ```
@@ -166,6 +166,8 @@ combat-system-design/
 | `EVID-2026-09-29-registry-lifetime` | **两连 PIE：注册表跨世界寿命修复**（同进程二次登记不再被拒；含生效机制诊断） | 提案 `harden-registry-cross-world-lifetime` 核心判据 |
 | `EVID-2026-09-30-modifyflow-acceptance` | `ModifyFlow` 提交侧验收：单次 PIE（注册可达 + 降级路径） | 提案 `add-damage-modifyflow-primitive` 验收（已归档） |
 | `EVID-2026-10-03-scripting-gc-survival` | **宿主脚本槽位 GC 存活观测**：四槽位（选择器/过滤器/流程执行器/伤害委托）经 `obj gc` 后的死活 + 行为计数判据；**含跑前立的预注册预测**与负对照（**状态 PENDING**，实跑输出待回填） | 提案 `add-scripting-gc-survival-probe` 验收（宿主侧装置，零插件代码改动） |
+| `EVID-2026-10-04-chains-primitives` | **R4 链原语批次六项人工检查**：嵌套熔断（17 层起链 / 深度 17 / 16 层父链回卷）、订阅计数配对、解锚可达范围（= 世界反初始化）、排序相位（去重 / NaN 排除 / 稳定键 / 取前 K）、既有回归；**5 过 1 留白**（三条降级路径归 M5） | 提案 `add-chain-primitives-and-target-sorting` 验收（已归档） |
+| `EVID-2026-10-04-trigger-def-asset` | **触发行资产载体四轮 PIE**：发现 → 装配为触发行 → 规则生效（命中/挂起/唤醒/完成）、失败面（发现期拦下且不误伤其余）、引用链预检（Warning 但仍登记）、可复现与跨 PIE 零残留 | 提案 `add-effect-trigger-def-asset` 验收（已归档） |
 
 ### 4.7 治理（`GOV`）
 

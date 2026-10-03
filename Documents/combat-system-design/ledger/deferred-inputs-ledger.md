@@ -3,7 +3,7 @@
 - **文档 ID**：`LEDGER-deferred`
 - **类型**：LEDGER / 台账
 - **状态**：LIVING
-- **权威范围**：跨轮遗留输入台账（唯一待办登记册）：入册判据、生命周期纪律、43 条条目
+- **权威范围**：跨轮遗留输入台账（唯一待办登记册）：入册判据、生命周期纪律、47 条条目
 - **最后更新**：2026-10-04
 
 > **换根注记（2026-10-01）**：本文件记录的 tag 名保留**当时原样**（历史现场，MUST NOT 改写）。这些旧名已于 2026-10-01 由提案 `reroot-gameplay-tag-vocabulary` 换根，映射 = `Tcs.Event.*`→`TcsEvent.*`、`Tcs.Flow.Key.*`→`DamageFlowKey.*`、`Tcs.Flow.Template.*`→`DamageFlowTemplate.*`、`Tcs.Attr.*`→`Attribute.*`、`Tcs.Chain.*`→`EffectChain.*`（另 16 个 `Probe` 验证词整批退役删除）。新名以 [SPEC-00-core](../spec/01-module-m0-core.md) 与提案规格为准。
@@ -84,6 +84,17 @@
 | CHAIN-5 | **排序相位的复用缓冲收窄**：本批只做**评分预计算**（每个评分器 × 每个候选求值一次），**不引入** scratch 所有权/池化/租约语义——"执行器与预览面共用 scratch"的**共用对象（P-C 预览与逐候选诊断面）尚不存在**，此时引入所有权只是给零消费者的基础设施 | 提案 `add-chain-primitives-and-target-sorting`（`design.md` 的 Non-Goals 列 P-C；`tasks.md` 3.8 的裁定） | 已核（2026-10-03）：评分矩阵是执行器内的局部数组（一次执行内有效、无跨调用状态）；P-C 面在全库零命中 | 待触发（**归属 = P-C**：预览/诊断面落地时"共用 scratch"才有共用对象，届时再定所有权与租约语义） |
 
 | CHAIN-6 | **没有公开的"取消/释放运行态"入口** ⇒ 规格里"运行态释放即解锚"这条纪律，其**事件锚**分支当前**无外部可达调用方**：`ReleaseRun` 只有四条内部路径会调（走完 / 深度熔断 / 步数预算熔断 / 定义不可解析 / 未知步骤类型），而它们**都要求运行态正在跑**——挂在事件或子链上的运行态**不跑**，故今天唯一能释放它的路径是**世界反初始化**（`Deinitialize` → `RunPool.Reset`，走的是 `FTcsChainEventWaitRegistry::Reset` 的全量退订，**不是** `ReleaseRun` 内的 `DropEventWait`）。取消/打断语义（M5）落地时才有真实调用方 | 规格 `effect-interpreter`「挂起-恢复协议（步内挂起）」的"运行态释放即解锚"与"退订三路径"；`TcsEffectSubsystem_Run.cpp:ReleaseRun`（解锚清单）；`TcsEffectSubsystem_ChainWait.cpp:DropEventWait` | 已核（2026-10-03）：门面公开面只有 `ExecuteChain` / `ExecuteChainForCaster` / `ResumeRun` / `IsRunActive` / 六个按句柄访问器——**无 cancel/release**；`ReleaseRun` 的五个调用点全在 `RunFrom` 内部 | 待触发（**归属 = M5 打断/取消轮**：届时"取消一条挂起链"成为真实需求，`ReleaseRun` 的 `DropEventWait` 与 `ParentRun` 通知两条分支才被真实走到；本批只保证它们**代码就位**）。**★ 2026-10-04 实测确认可达范围**：本批只能按**世界反初始化**验证（`Reset` 全量退订）——测得停 PIE 区间**零红字** + 新 PIE 重新登记链（确为新会话）+ 之后 **0 行命中唤醒**（跨 PIE 零残留） |
+
+## R4 轮（触发行资产载体批次 / Task 2.5）
+
+> **区段来源**：R4 计划 Task 2.5 的提案 `add-effect-trigger-def-asset`（+ 宿主侧 `add-effect-trigger-def-tag-root`）。四条均为**实施期发现的边界**（两条是"本批刻意不做"，两条是"留位但无验证面/无入口"）。
+
+| # | 事项 | 来源锚点 | 现状证据（已核） | 状态 |
+|---|---|---|---|---|
+| TRIG-1 | **`IsDataValid == Valid`（`NotValidated` 提升段）无运行期证据**：新资产类按 D-16 写了"无错则把基类返回的 `NotValidated` 提升为 `Valid`"，但本批**取不到回执** | 提案 `add-effect-trigger-def-asset` 的 `design.md` D-16；`TcsEffectTriggerDefAsset.cpp:IsDataValid`（结尾三行提升） | 已核（2026-10-04）：MCP 的资产工具集只有 create/load/save/delete/move/duplicate/exists/…，**无"跑数据校验"入口**；编辑器侧也没有可读回执（`EVID-2026-10-04-trigger-def-asset` 的「边界与留白」已记） | 待触发（**归属 = R4 Task 4 装置扩展**：装置里用 C++ 直接调 `IsDataValid` 断言——`TcsDevSliceRig.cpp` 的 `Tcs.Test.Slice.Reject` 检查 A 已有同款手法；若 Task 4 不做则该点顺延 M8 校验矩阵轮） |
+| TRIG-2 | **引用链预检的误报面**：装配期对"引用的链在该世界不可解析"留 Warning 且**仍登记** —— 若宿主"**先起世界、后 `RegisterChain`**"，这条 Warning 会报出来而规则其实可用 | 提案 `add-effect-trigger-def-asset` 的 `design.md` D-14；`TcsDefinitionSubsystem.cpp:SeedWorld`（预检段） | 已核（2026-10-04）：`RegisterChain` 是公开面、"运行期登记链"是合法时序 ⇒ 该误报**明示接受**（Warning 非阻塞、规则仍登记、且比"每事件一次 Error"轻）。实测三态齐备：正路无 Warning / 未登记链恰 1 条 Warning 且仍 `触发行 1/1` / 置空身份走失败清单 | 待触发（宿主真出现"先起世界后登记链"的用法且嫌 Warning 吵时改判：可选改为**延迟复核**（链登记后再补一次预检）而不是装配期一次判定） |
+| TRIG-3 | **定义库登记的触发行没有"摘除/重装"入口**：`Source`（定义库来源句柄）**不对外暴露**，故宿主对内容规则的运行期控制**只有** `SetTriggerGateTag`（行级开关）；"整体摘掉某条内容规则"或"重装定义库"今天办不到 | 提案 `add-effect-trigger-def-asset` 的 `design.md` D-12（代行登记）；`TcsDefinitionSubsystem.h`（无 `GetTriggerSeedSource` 一类入口）；`effect-trigger` 规格的「点灯 API」（行级开关 = 设计好的控制面） | 已核（2026-10-04）：本批**刻意不暴露**该句柄（零消费者不预建）；宿主今天可用的控制面 = `SetTriggerGateTag`（行级）+ 删/改资产（下次装配生效） | 待触发（首个"要整体摘/重装定义库规则"的真实需求出现时——届时二选一：暴露来源句柄供 `UnregisterTriggerRowsBySource` 级联，或给定义库加"重装配"入口） |
+| TRIG-4 | **内联位（`SkillDef`/`BuffDef` 的 `TArray<FTcsEffectTriggerDef>`）本批不做**：`UTcsSkillDef` / `UTcsBuffDef` 今天都不存在（M5/M3 未落地） | R4 计划 Task 2.5 原注记（"内联位在 R5/R6 自然成立"）；提案 `add-effect-trigger-def-asset` 的 Non-Goals | 已核（2026-10-04）：本批只交付**独立资产**这一条载体；定义类型 `FTcsEffectTriggerDef` 已是纯配置 ⇒ 内联无需改造该类型 | 待触发（**归属 = R5/R6**：给那两个 Def 加字段时自然成立；施加时登记、`Source` = 状态实例句柄——规格 `effect-trigger` 的「触发行实例与级联退订」已写死该语义） |
 
 ## R6 轮（M5 技能/施法）
 
@@ -248,3 +259,9 @@
   - **CHAIN-6**（无公开取消/释放入口）——"运行态释放即解锚"的**事件锚分支今天不可达**（挂起的链不跑，而 `ReleaseRun` 只在跑的时候被调）⇒ 本批只保证代码就位，真实走过要等 M5 取消/打断。**连带影响**：Task 6.3 的"挂起中的链被释放"只能按"PIE 结束全量退订"验证（该检查项措辞已同步修正）。
   - **本批同时消费/更新的既有条目**：**DAMAGE-2 部分消费**——`SetVar`/`Branch`/`RunSubChain`/`WaitEvent` 四个原语已落地（提案 `add-chain-primitives-and-target-sorting`；Development 编译 0 error/0 warning），余 `Repeat`/`Parallel`/`OnError` + `ModifyAttribute`。
 - **2026-10-04 增补（R4 Task 3.5 验收完成：六项人工检查 5 过 1 留白）**：**CHAIN-3 消费**（嵌套深度上限实测回填：17 层 / 深度 17 / 累计步数 17 / 16 层父链回卷）；**CHAIN-6 补实测口径**（事件锚的解锚只能按世界反初始化验，测得零红字 + 跨 PIE 零残留）。证据 = `EVID-2026-10-04-chains-primitives`（PIE 实跑；含四份检查资产与逐项日志锚点）。**6.6（无时钟/无总线/未注入查询三条降级路径）如实留白**：三条都要刻意撤掉设施，装置不提供该开关，且时钟/总线随游戏世界一并创建 ⇒ 归属 M5 打断/取消轮顺带。**同批两条夹具教训**（非框架缺陷，已入记忆卡）：①容器自引用 `Array.Add(Array.Last())` 触发引擎致命断言；②"能力注入"排在"被注入方登记"之后 ⇒ 登记静默落空、症状表现为远离根因的"评分全 NaN"。**条目总数仍 43**（无新增）。
+- **2026-10-04 增补（R4 Task 2.5 触发行资产载体落地）**：**新开「R4 轮（触发行资产载体批次 / Task 2.5）」区段，登记 TRIG-1 ~ TRIG-4**。条目总数 **43 → 47**。
+  - **TRIG-1**（`IsDataValid == Valid` 无运行期证据）——MCP 资产工具集无校验入口、编辑器无可读回执 ⇒ 归属 Task 4 装置扩展（用 C++ 直接断言）。
+  - **TRIG-2**（引用链预检的误报面）——"先起世界后 `RegisterChain`"会报一条 Warning 而规则其实可用，**明示接受**；触发条件 = 该用法真出现且嫌吵时改判（可选"延迟复核"）。
+  - **TRIG-3**（定义库登记的行无摘除/重装入口）——`Source` 不暴露，宿主只有 `SetTriggerGateTag` 行级控制；本批**刻意不预建**。
+  - **TRIG-4**（内联位未做）——`SkillDef`/`BuffDef` 尚不存在，归属 R5/R6。
+  - **本批消费/更新的既有条目**：**无消费**（Task 2.5 不消费台账条目）。**`TOOLS-2` ③ 保持不变**（链资产的 `IsDataValid` 缺提升段仍归校验矩阵轮；本批只保证**新类不复制该缺陷**）。**新增一条治理面事实**（不入册，记在此处备查）：宿主根清单由 **13 根 → 14 根**（新增 `EffectTriggerDef`），`Validate-GameplayTags.ps1` 跑零违规（采集 37 条 = ini 16 / native 21）。证据 = `EVID-2026-10-04-trigger-def-asset`（四轮 PIE：正路+幂等 / 失败面 / 引用链预检 / 可复现+跨 PIE 零残留）。
