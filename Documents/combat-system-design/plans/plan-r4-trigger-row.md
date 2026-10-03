@@ -345,7 +345,7 @@ struct TCSDAMAGE_API FTcsStepModifyFlow
 - [x] **Step 1: OpenSpec 提案**（`damage-step-library` MODIFIED：追加 `ModifyFlow` 链原语需求；`damage-primitive` 视需要）——**落地形态与计划不同**：链原语需求实际落在 **`damage-primitive`（ADDED × 3）**（`FTcsStepModifyFlow` 与 `FTcsStepDamage` 同族、本就住该能力）；`damage-step-library` 只做 MODIFIED × 1（过期理由改写）；另补 **`damage-flow` MODIFIED × 1** 与 **`damage-primitive` MODIFIED × 1**（第四份 delta，见实施注记④）
 - [x] **Step 2: 实施 struct + 执行器 + 宏注册**（`Public/Chain/TcsStepModifyFlow.h` + `Private/Chain/TcsStepModifyFlow.cpp`；另补 `Private/Flow/TcsDamageFlowCollectEvent.cpp` = 载荷读取器登记）
 - [x] **Step 3: 编译验证**（Development）——**实际双配置**：`LegendAutoChessEditor Win64 Development` + `LegendAutoChess Win64 Shipping` 均 `Succeeded`，**0 error / 0 warning**
-- [ ] **Step 4: 定向人工检查**——跨模块自注册可查（`UE_DEFINE_EFFECT_STEP_EXECUTOR` 生效）；依赖面零新增边（**待用户执行**）
+- [x] **Step 4: 定向人工检查**——跨模块自注册可查（`UE_DEFINE_EFFECT_STEP_EXECUTOR` 生效）；依赖面零新增边——**两半均 ✅**（2026-10-03 复核；**原措辞"待用户执行"已改按 agent 复核口径**）：①自注册 = 日志「`步骤执行器登记表已解析（共 4 类）`」（`Saved/Logs/LegendAutoChess_2.log:2414`）+ `scripting-language-ustruct` §7.5 执行器计数 **3→4**（那 +1 = `FTcsStepModifyFlow` 的自注册）；②依赖面 = `22133be` 文件清单仅 9 个 `Source/TcsDamage/**`，**未动任何 `Build.cs` / `.uplugin`**
 
 > **2026-09-30 实施注记（Task 3 落地记录；原注记保留于下）**：
 > ① **交付面** = 新增 3 文件 + 改 6 文件（清单见 `implementation-log` 2026-09-30 条）；**`TcsEffect` 零改动**（`git diff --stat -- Source/TcsEffect` 为空）、**`Build.cs` 零新增依赖**。
@@ -481,10 +481,10 @@ USTRUCT() struct TCSEFFECT_API FTcsStepWaitEvent
 };  // 首入：订阅 + 返回 TSR_Running；命中/超时 → 唤醒重入 → 退订 + 完成
 ```
 
-- [ ] **Step 1: OpenSpec 提案**（`effect-chain` MODIFIED：追加四个原语需求；`effect-interpreter` 若唤醒源契约需改则一并；**+ `targeting-strategy` MODIFIED：并入 P-A 排序相位——见下方"同批并入"注记**）
-- [ ] **Step 2: 实施**——按"零前置 → 有前置"顺序：`SetVar` → `RunSubChain` → `Branch` → `WaitEvent`；**P-A 排序相位（`targeting-strategy`）** 与本批同步实施
-- [ ] **Step 3: 编译验证**（Development；`WaitEvent` 改 `TcsChainRun` 结构，须补 **Shipping**——结构改动是 Shipping 能照出的类型；P-A 搭同一次 Shipping 顺风车）
-- [ ] **Step 4: 定向人工检查**——依赖面零领域模块；**熔断自检**（`RunSubChain` 递归起链 + `Repeat` 类自激——`MaxStepsPerFrame` 是否够）；**P-A 追加检查**：排序项在链资产上可配、并列时稳定键决胜可复现（同一输入两次跑结果集一致）
+- [x] **Step 1: OpenSpec 提案**（`effect-chain` MODIFIED：追加四个原语需求；`effect-interpreter` 若唤醒源契约需改则一并；**+ `targeting-strategy` MODIFIED：并入 P-A 排序相位——见下方"同批并入"注记**）
+- [x] **Step 2: 实施**——按"零前置 → 有前置"顺序：`SetVar` → `RunSubChain` → `Branch` → `WaitEvent`；**P-A 排序相位（`targeting-strategy`）** 与本批同步实施
+- [x] **Step 3: 编译验证**（Development；`WaitEvent` 改 `TcsChainRun` 结构，须补 **Shipping**——结构改动是 Shipping 能照出的类型；P-A 搭同一次 Shipping 顺风车）——**Development + Shipping 双 `Succeeded`、0 error / 0 warning**（2026-10-03）
+- [x] **Step 4: 定向人工检查**——依赖面零领域模块；**熔断自检**（`RunSubChain` 递归起链 + `Repeat` 类自激——`MaxStepsPerFrame` 是否够）；**P-A 追加检查**：排序项在链资产上可配、并列时稳定键决胜可复现（同一输入两次跑结果集一致）——**2026-10-04 PIE 实跑全过**：依赖面零领域模块 ✓；熔断自检 = 17 层起链 / 深度 **17** 熔断 / **16 层父链回卷完成** ✓；P-A 追加 = 去重 1 · NaN 排除（取前 2 而非 3）· 距离并列时稳定键 `Id` 升序决胜（伤害落在先 spawn 的施法者）· 同命令两次**逐字一致** ✓。证据 = `EVID-2026-10-04-chains-primitives`。**一处留白**：`tasks.md` 的 6.6（三条降级路径）未跑——装置无法在不改代码的前提下撤掉时钟/总线（详见该证据文档末节）
 
 > **实施注记（必读）**：
 > - **⚠️ `WaitEvent` 是本批最难的一个**：它需要**新增唤醒源**（`04 §2.4` 四种唤醒源之"事件匹配"）。`WaitDelay` 已实证"到期堆唤醒"路径（`PendingExpiry` 锚 + 代际校验重入），`WaitEvent` 需要同款的"订阅句柄锚"——`FTcsChainRun` 要加字段（建议 `FTcsEventSubscriptionHandle PendingSubscription`），且**退订时机**必须覆盖三条路径：①事件命中；②超时（若配）；③运行态被释放（`ReleaseRun` 必须退订——否则订阅泄漏且回调打到已回收的运行态）。
@@ -514,6 +514,20 @@ USTRUCT() struct TCSEFFECT_API FTcsStepWaitEvent
 > **前置条件**：**已满足**（用户 2026-09-30 确认"距离"是唯一需要插件内置的条件）。策划的技能选择条件清单降级为非阻塞项——用途改为"验证宿主侧属性量/状态量/关系量条件的覆盖面是否够，尤其关系量是否需要扩 `ITcsEntityQuery` 面"。
 >
 > **验收追加**：排序项在链资产上可配（零 C++）；并列时稳定键决胜可复现（同输入两次跑结果集一致）；NaN 评分的候选被排除而非排末尾。
+
+> **实施注记（2026-10-03 落地；真相源 = 提案 `add-chain-primitives-and-target-sorting`）**
+>
+> **落地范围**：四个原语 + P-A 排序相位全部落地，**Development 编译 0 error / 0 warning**（Shipping 与人工检查见 Step 3/4 未勾项）。**偏离原计划的 7 处**逐条住提案 `proposal.md` 的「与计划的偏离」表；设计决策 D-1 ~ D-10 住同提案 `design.md`——本注记只记**计划原文被推翻或补空**的三点：
+>
+> - **① 计划建议的"订阅句柄锚"（`FTcsEventSubscriptionHandle PendingSubscription`）未采用**——改为**共享订阅 + 门面等待表**：同一 `EventTag` 的 N 条等待**共用一条总线订阅**（计数配对），运行态只持"在等哪个 tag"。三条依据：总线 `Subscribe` 只收 `UTcsEventHandler*`（传不了 lambda）且**派发不传订阅句柄**（Handler 无法自辨身份）；`FTcsTriggerRegistry` 已有明文纪律"同一 Tag 多行共用一条订阅…MUST NOT 每行各订一次"；每等待一条订阅会让同一回调被打 N 次、收益为零。**代价**：多一张表（`FTcsChainEventWaitRegistry`）+ 一个 `UPROPERTY` 锚定的共享 Handler。
+> - **② 嵌套深度的护栏 = 两条，且深度上限是固定常量（= `16`）**——计划原文只问"靠什么护栏（建议复用熔断计数）"。实施结论：**共享预算**（子链步数计入父链本次进入）拦自激，**另加固定常量深度上限**拦调用栈——因为预算值由链定义给出、**作者可配到 4096**，不能作为栈深度的唯一护栏。常量住 `Source/TcsEffect/Private/TcsEffectSubsystem_Run.cpp:TcsMaxChainNestingDepth`，**MUST NOT** 做成链定义字段（它是调用栈护栏，不是行为语义）。**✅ 实测已回填（2026-10-04，PIE 实跑）**：自激链起链 **17 层**后于**深度 17** 熔断（判定式 `ChainEntryDepth > 16`），累计步数 **17**（每层 1 步 —— 共享预算 64 **未触发** ⇒ "深度护栏先撞"的设计预期成立）；随后 **16 层父链被逐一唤醒并走完**（17 起 − 1 熔断 = 16 完成）⇒ "异常结束同样唤醒父、不留死链"实证。两次独立实跑结果一致。证据见 `EVID-2026-10-04-chains-primitives`；台账 `CHAIN-3` 已消费。
+> - **③ `Branch` 在链侧只支持不依赖 `EventTag` / `ClassificationTags` 的条件**——计划的"实施时确认映射字段"落了实：`FTcsEffectContext` **无事件 tag 字段**、也无分类标签来源 ⇒ 链侧 `FTcsTriggerContext` 只填 `Caster`，另两字段恒空 ⇒ 依赖它们的条件在链侧**恒不通过**（如 `HasAllTags`）。**这是明示接受的限制**（写进了 `TcsStepBranch.h` 头注释、`SPEC-06-targeting` 与提案规格），自然补法 = 起链时把触发事件 tag 记进运行态；欠账登记台账 `CHAIN-1`。
+>
+> **本批顺带交付的两件事（不在原计划 Files 列表里）**：
+> - **`TcsEffectSubsystem.cpp` 按 `TcsEffectSubsystem_<Feature>.cpp` 先例四拆**（原文件 679 行 → `TcsEffectSubsystem.cpp` 213 / `_Run.cpp` 279 / `_StepProtocol.cpp` 92 / `_RunAccess.cpp` 123，另 `_ChainWait.cpp` 128 为本批新增；单文件全部 ≤ 300 行）。**注意**：拆出的三个新 `.cpp` 首次编译会被 UBT 的源文件目录扫描缓存漏掉（表现为链接期一堆 `LNK2019`，而 unity 清单里根本没有它们）——删 `Intermediate/Build/SourceFileCache.bin` 后重建即恢复。
+> - **窗口/配平纪律成文**：`TcsChainRun.h` 补"嵌套起链共用预算 + 深度上限"两条纪律与三个挂起锚的配平规则（锚由步骤装/配平、门面唤醒时不清锚、"运行态释放即解锚"是唯一无条件解锚点）。
+>
+> **台账**：新增 `CHAIN-1` ~ `CHAIN-5`（五条实施期发现的边界）；`DAMAGE-2` 部分消费（四个原语已落地，余 `Repeat`/`Parallel`/`OnError` + `ModifyAttribute`）。
 
 ---
 

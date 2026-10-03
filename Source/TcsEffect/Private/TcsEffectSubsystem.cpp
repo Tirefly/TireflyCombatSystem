@@ -8,6 +8,7 @@
 
 
 // 世界类型过滤
+
 bool UTcsEffectSubsystem::DoesSupportWorldType(const EWorldType::Type WorldType) const
 {
 	// 仅游戏世界实例化：编辑器预览/检查器世界不创建（对齐时钟/总线/属性门面）
@@ -23,6 +24,12 @@ void UTcsEffectSubsystem::Deinitialize()
 	// 触发行：登记表清空 + **全量退订**（不留跨世界残留订阅）；求值器随门面一起回收。
 	TriggerRegistry.Reset(GetEventBus());
 	TriggerEvaluator = nullptr;
+
+	// 链事件等待：全量退订 + 清表（与触发行同款：不留跨世界残留订阅）；Handler 随门面一起回收。
+	// 挂起中的链其运行态随 RunPool.Reset() 一并消失——故必须先退订，否则总线上留下指向已空表的死订阅
+	ChainEventWaitRegistry.Reset(GetEventBus());
+	ChainEventWaitHandler = nullptr;
+
 	RunPool.Reset();
 	ChainDefs.Empty();
 	EntityQuery = TScriptInterface<ITcsEntityQuery>();
@@ -66,6 +73,7 @@ void UTcsEffectSubsystem::AddReferencedObjects(UObject* InThis, FReferenceCollec
 
 
 // 链定义登记表
+
 bool UTcsEffectSubsystem::RegisterChain(const FTcsEffectChain& Chain)
 {
 	ensure(IsInGameThread());
@@ -174,307 +182,7 @@ bool UTcsEffectSubsystem::RegisterStepExecutor(const UScriptStruct* StepStruct, 
 
 
 
-// 执行
-FTcsChainRunHandle UTcsEffectSubsystem::ExecuteChain(FGameplayTag ChainId, FTcsEffectContext Context)
-{
-	ensure(IsInGameThread());
-
-	const FTcsEffectChain* Chain = FindChain(ChainId);
-	if (!Chain)
-	{
-		UE_LOG(LogTcsEffect, Error, TEXT("UTcsEffectSubsystem::ExecuteChain: 链 %s 未登记——拒绝起链"), *ChainId.ToString());
-		return FTcsChainRunHandle();
-	}
-
-	FTcsChainRunHandle Handle;
-	Handle.SetInner(RunPool.Allocate());
-
-	FTcsChainRun* Run = RunPool.Resolve(Handle.GetInner());
-	Run->ChainId = ChainId;
-	Run->PC = 0;
-	Run->Context = MoveTemp(Context);
-	Run->Owner = this;
-	Run->Self = Handle;
-	Run->PendingExpiry = FTcsTimeEntryHandle();
-	Run->bHasPendingExpiry = false;
-
-	UE_LOG(LogTcsEffect, Log, TEXT("UTcsEffectSubsystem: 链 %s 起（步数=%d 单次上限=%d）"),
-		*ChainId.ToString(), Chain->Steps.Num(), Chain->MaxStepsPerFrame);
-
-	RunFrom(Handle);
-
-	// 全即时链在返回前即走完（运行态已释放）——句柄活性由 IsRunActive 判定
-	return Handle;
-}
-
-FTcsChainRunHandle UTcsEffectSubsystem::ExecuteChainForCaster(FGameplayTag ChainId, FTcsCombatEntityHandle Caster)
-{
-	// 上下文装配：Caster = Instigator = 传入句柄，Targets = 仅该句柄
-	// （D4-4 v2"默认目标 = 事件目标"；脚本层入口无事件载荷，故以 Caster 为默认目标）
-	FTcsEffectContext Context;
-	Context.Caster = Caster;
-	Context.Instigator = Caster;
-	Context.Targets.Add(Caster);
-
-	return ExecuteChain(ChainId, MoveTemp(Context));
-}
-
-bool UTcsEffectSubsystem::ResumeRun(FTcsChainRunHandle Handle)
-{
-	ensure(IsInGameThread());
-
-	// 代际校验：句柄悬空 / 运行态已释放 / 世界将拆 = 正常竞态，静默返回（不 ensure）
-	if (!RunPool.IsValid(Handle.GetInner()))
-	{
-		return false;
-	}
-
-	if (FTcsChainRun* Run = RunPool.Resolve(Handle.GetInner()))
-	{
-		UE_LOG(LogTcsEffect, Log, TEXT("UTcsEffectSubsystem: 链 %s 唤醒（PC=%d）"), *Run->ChainId.ToString(), Run->PC);
-	}
-
-	RunFrom(Handle);
-	return true;
-}
-
-bool UTcsEffectSubsystem::IsRunActive(FTcsChainRunHandle Handle) const
-{
-	return RunPool.IsValid(Handle.GetInner());
-}
-
-
-
-// 运行态按句柄访问（脚本层插槽的"传句柄、不传上下文"手法，2026-09-24 台账 SCRIPT-8）
-//
-// **为什么需要这一组**：插槽接口的形参只能是反射类型，而 `FTcsEffectContext` 是非反射纯 C++
-// struct（含 `FInstancedStruct` 事件载荷与 `TMap` 变量表）——脚本层拿不到它。故改为"传句柄 +
-// 按句柄访问器读写"，**绕开上下文反射化（台账 SCRIPT-3）**。
-//
-// **悬空句柄语义统一**（口径同 `ResumeRun`，SCRIPT-7 先例）：代际失配/已释放是**正常时序竞态**，
-// 不是配置错误 ⇒ 读口返回空值/无效句柄、写口返回 false + Warning，**一律不 ensure**。
-TArray<FTcsCombatEntityHandle> UTcsEffectSubsystem::GetRunTargets(FTcsChainRunHandle Handle)
-{
-	ensure(IsInGameThread());
-
-	// 代际校验先于解析（Resolve 对悬空句柄会 ensure——本组方法按"竞态不 ensure"口径自行前置校验）
-	if (!RunPool.IsValid(Handle.GetInner()))
-	{
-		return TArray<FTcsCombatEntityHandle>();
-	}
-
-	const FTcsChainRun* Run = RunPool.Resolve(Handle.GetInner());
-	return Run ? Run->Context.Targets : TArray<FTcsCombatEntityHandle>();
-}
-
-bool UTcsEffectSubsystem::SetRunTargets(FTcsChainRunHandle Handle, const TArray<FTcsCombatEntityHandle>& InTargets)
-{
-	ensure(IsInGameThread());
-
-	if (!RunPool.IsValid(Handle.GetInner()))
-	{
-		UE_LOG(LogTcsEffect, Warning, TEXT("UTcsEffectSubsystem::SetRunTargets: 句柄悬空或已释放（Index=%d, Generation=%d）——拒绝写入"),
-			Handle.Index, Handle.Generation);
-		return false;
-	}
-
-	if (FTcsChainRun* Run = RunPool.Resolve(Handle.GetInner()))
-	{
-		Run->Context.Targets = InTargets;
-		UE_LOG(LogTcsEffect, Verbose, TEXT("UTcsEffectSubsystem: 链 %s 目标集被改写为 %d 个（脚本层访问器）"),
-			*Run->ChainId.ToString(), InTargets.Num());
-		return true;
-	}
-
-	return false;
-}
-
-bool UTcsEffectSubsystem::TryGetRunVariable(FTcsChainRunHandle Handle, FGameplayTag Key, double& OutValue)
-{
-	ensure(IsInGameThread());
-
-	if (!RunPool.IsValid(Handle.GetInner()))
-	{
-		return false;
-	}
-
-	const FTcsChainRun* Run = RunPool.Resolve(Handle.GetInner());
-	if (!Run)
-	{
-		return false;
-	}
-
-	// miss 时出参内容未定义（调用方不得使用——契约同 ITcsParamTableReader::TryGetNumericParam）
-	if (const double* Found = Run->Context.Variables.Find(Key))
-	{
-		OutValue = *Found;
-		return true;
-	}
-
-	return false;
-}
-
-bool UTcsEffectSubsystem::SetRunVariable(FTcsChainRunHandle Handle, FGameplayTag Key, double Value)
-{
-	ensure(IsInGameThread());
-
-	if (!RunPool.IsValid(Handle.GetInner()))
-	{
-		UE_LOG(LogTcsEffect, Warning, TEXT("UTcsEffectSubsystem::SetRunVariable: 句柄悬空或已释放（Index=%d, Generation=%d）——拒绝写入"),
-			Handle.Index, Handle.Generation);
-		return false;
-	}
-
-	if (FTcsChainRun* Run = RunPool.Resolve(Handle.GetInner()))
-	{
-		Run->Context.Variables.Add(Key, Value);
-		return true;
-	}
-
-	return false;
-}
-
-FTcsCombatEntityHandle UTcsEffectSubsystem::GetRunCaster(FTcsChainRunHandle Handle)
-{
-	ensure(IsInGameThread());
-
-	if (!RunPool.IsValid(Handle.GetInner()))
-	{
-		return FTcsCombatEntityHandle();
-	}
-
-	const FTcsChainRun* Run = RunPool.Resolve(Handle.GetInner());
-	return Run ? Run->Context.Caster : FTcsCombatEntityHandle();
-}
-
-FTcsCombatEntityHandle UTcsEffectSubsystem::GetRunInstigator(FTcsChainRunHandle Handle)
-{
-	ensure(IsInGameThread());
-
-	if (!RunPool.IsValid(Handle.GetInner()))
-	{
-		return FTcsCombatEntityHandle();
-	}
-
-	const FTcsChainRun* Run = RunPool.Resolve(Handle.GetInner());
-	return Run ? Run->Context.Instigator : FTcsCombatEntityHandle();
-}
-
-
-
-// 宿主能力注入
-void UTcsEffectSubsystem::SetEntityQuery(const TScriptInterface<ITcsEntityQuery>& InEntityQuery)
-{
-	ensure(IsInGameThread());
-
-	EntityQuery = InEntityQuery;
-}
-
-ITcsEntityQuery* UTcsEffectSubsystem::GetEntityQuery() const
-{
-	return EntityQuery.GetInterface();
-}
-
-
-
-// 内核
-void UTcsEffectSubsystem::RunFrom(FTcsChainRunHandle Handle)
-{
-	// 单次进入的步数预算：按链定义取（熔断护栏——自激/循环链不得无限占用本帧）
-	int32 StepsThisEntry = 0;
-
-	while (true)
-	{
-		// 池元素住连续缓冲、扩容即搬移（引擎事实 2026-09-17）——每步入器前按句柄重解析
-		FTcsChainRun* Run = RunPool.Resolve(Handle.GetInner());
-		if (!Run)
-		{
-			return;
-		}
-
-		const FTcsEffectChain* Chain = FindChain(Run->ChainId);
-		if (!Chain)
-		{
-			UE_LOG(LogTcsEffect, Error, TEXT("UTcsEffectSubsystem::RunFrom: 链 %s 定义不可解析——运行态释放"),
-				*Run->ChainId.ToString());
-			ReleaseRun(Handle);
-			return;
-		}
-
-		// 走完：正常路径（零诊断噪音）
-		if (Run->PC >= Chain->Steps.Num())
-		{
-			UE_LOG(LogTcsEffect, Log, TEXT("UTcsEffectSubsystem: 链 %s 完成（共 %d 步）"),
-				*Chain->ChainId.ToString(), Chain->Steps.Num());
-			ReleaseRun(Handle);
-			return;
-		}
-
-		if (StepsThisEntry >= FMath::Max(1, Chain->MaxStepsPerFrame))
-		{
-			ensureMsgf(false, TEXT("UTcsEffectSubsystem::RunFrom: 链 %s 单次进入步数超上限（%d）——熔断断链"),
-				*Chain->ChainId.ToString(), Chain->MaxStepsPerFrame);
-			UE_LOG(LogTcsEffect, Error, TEXT("UTcsEffectSubsystem::RunFrom: 链 %s 单次进入步数超上限（%d）——断链"),
-				*Chain->ChainId.ToString(), Chain->MaxStepsPerFrame);
-			ReleaseRun(Handle);
-			return;
-		}
-
-		const FInstancedStruct& Step = Chain->Steps[Run->PC];
-		const UScriptStruct* StepStruct = Step.GetScriptStruct();
-		const FTcsStepExecute* Executor = FTcsEffectStepExecutorRegistry::Get().Find(StepStruct, GetWorld());
-		if (!Executor)
-		{
-			// 未知步骤类型：断链（不静默跳过——静默会让"配置写错"表现成"效果没生效"）
-			UE_LOG(LogTcsEffect, Error, TEXT("UTcsEffectSubsystem::RunFrom: 链 %s 第 %d 步类型 %s 无执行器——断链"),
-				*Chain->ChainId.ToString(), Run->PC, StepStruct ? *StepStruct->GetName() : TEXT("<空>"));
-			ReleaseRun(Handle);
-			return;
-		}
-
-		const int32 StepIndex = Run->PC;
-		const ETcsStepResult Result = (*Executor)(Step, Run->Context, *Run);
-		++StepsThisEntry;
-
-		if (Result == ETcsStepResult::TSR_Running)
-		{
-			// 步内挂起：PC 停驻原步、运行态保持活动——等唤醒源按句柄重入（零每帧成本）
-			UE_LOG(LogTcsEffect, Log, TEXT("UTcsEffectSubsystem: 链 %s 步 %d 挂起（PC 停驻）"),
-				*Chain->ChainId.ToString(), StepIndex);
-			return;
-		}
-
-		// 步骤执行期间可能新增运行态（池扩容即搬移）——推进 PC 前重新解析
-		FTcsChainRun* AdvancedRun = RunPool.Resolve(Handle.GetInner());
-		if (!AdvancedRun)
-		{
-			return;
-		}
-		AdvancedRun->PC = StepIndex + 1;
-	}
-}
-
-void UTcsEffectSubsystem::ReleaseRun(FTcsChainRunHandle Handle)
-{
-	if (!RunPool.IsValid(Handle.GetInner()))
-	{
-		return;
-	}
-
-	FTcsChainRun* Run = RunPool.Resolve(Handle.GetInner());
-
-	// 清黑板与唤醒锚：槽位内容不跨生命周期残留（池 Free 不清零——池零策略纪律）
-	Run->ChainId = FGameplayTag();
-	Run->PC = 0;
-	Run->Context = FTcsEffectContext();
-	Run->Owner = nullptr;
-	Run->Self = FTcsChainRunHandle();
-	Run->PendingExpiry = FTcsTimeEntryHandle();
-	Run->bHasPendingExpiry = false;
-
-	RunPool.Free(Handle.GetInner());
-}
-
+// 是否存在引用该链的活动运行态（注销前校验——`UnregisterChain` 用）
 bool UTcsEffectSubsystem::HasActiveRunForChain(FGameplayTag ChainId)
 {
 	bool bFound = false;
@@ -486,4 +194,20 @@ bool UTcsEffectSubsystem::HasActiveRunForChain(FGameplayTag ChainId)
 		}
 	});
 	return bFound;
+}
+
+
+
+// 宿主能力注入
+
+void UTcsEffectSubsystem::SetEntityQuery(const TScriptInterface<ITcsEntityQuery>& InEntityQuery)
+{
+	ensure(IsInGameThread());
+
+	EntityQuery = InEntityQuery;
+}
+
+ITcsEntityQuery* UTcsEffectSubsystem::GetEntityQuery() const
+{
+	return EntityQuery.GetInterface();
 }

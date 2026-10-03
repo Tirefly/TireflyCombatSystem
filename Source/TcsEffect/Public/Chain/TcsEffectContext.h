@@ -47,7 +47,8 @@ public:
 	// 框架不持 Actor 生命周期引用）
 	TArray<FTcsCombatEntityHandle> Targets;
 
-	// 链内变量（SetVar / Branch 类步骤的载体；R3 无写入方，留位）
+	// 链内变量（SetVar 写入 / Branch 读取；**首个写入方 = `FTcsStepSetVar`**——
+	// 此前"R3 无写入方，留位"的注记已作废；脚本层经门面 `SetRunVariable` 读写的是同一张表）
 	TMap<FGameplayTag, double> Variables;
 
 #pragma endregion

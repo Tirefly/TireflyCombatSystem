@@ -6,6 +6,7 @@
 #include "Subsystems/WorldSubsystem.h"
 #include "UObject/ScriptInterface.h"
 
+#include "Chain/TcsChainEventWaitRegistry.h"
 #include "Chain/TcsChainRun.h"
 #include "Chain/TcsEffectChain.h"
 #include "Chain/TcsEffectContext.h"
@@ -18,6 +19,7 @@
 
 #include "TcsEffectSubsystem.generated.h"
 
+class UTcsChainEventWaitHandler;
 class UTcsTriggerEvaluator;
 
 
@@ -313,6 +315,79 @@ public:
 #pragma endregion
 
 
+// 步骤协议面（解释器内部协议——**不是宿主契约**）
+#pragma region StepProtocol
+
+public:
+	/**
+	 * 控制流步骤的**共用实现**（链原语 `RunSubChain` 与 `Branch` 都只调它——规格明文
+	 * "MUST NOT 各写一套唤醒逻辑"）。宿主与脚本层 MUST NOT 调用：本组是解释器与自己的步骤之间的
+	 * 内部协议，不承担对外兼容承诺。
+	 *
+	 * **一次调用承担两件事**（故调用方无需自辨首入/唤醒）：
+	 * 1. **首入**：按 `Parent` 取该运行态的黑板快照 → 起子链 → `bWait` 时装"在等子链"锚 → 返 `TSR_Running`；
+	 * 2. **唤醒重入**：锚在场 ⇒ 复核子链是否真的结束（`IsRunActive`）——仍活动 = **无效唤醒**
+	 *    （`ResumeRun` 是脚本层可调的门面方法），保持挂起；已结束 ⇒ 配平锚、返 `TSR_Completed`。
+	 *
+	 * **两条降级路径都返 `TSR_Completed`（不挂起、不崩溃）**：子链未登记（`ExecuteChain` 已留 Error）、
+	 * 子链在全即时路径上于 `ExecuteChain` 内即走完（其通知早于装锚发出、无处可发——挂起必成死链）、
+	 * `bWait=false`（放支线，不跟踪子链结局）、父运行态已释放（挂起期间被取消）。
+	 *
+	 * **签名纪律（D-4）**：形参全是**值类型**（句柄 / tag / bool），黑板由本方法**按句柄自行取快照**——
+	 * 调用方因此从头到尾不必把 `Context` / `Run` 的引用递出去。这不是洁癖：`FTcsStepExecute` 以引用传
+	 * 池元素，而起链可能使池扩容搬移 ⇒ 任何跨 `ExecuteChain` 的引用都可能悬空。
+	 *
+	 * @param Parent 本步骤所属运行态句柄（等的一方）。
+	 * @param ChainId 要起的链 id（**空 id 的口径归调用方**——`RunSubChain` 记 Warning、`Branch` 的空支
+	 *        是正常配置不记；故本方法只做防御性拒绝）。
+	 * @param bWait 是否等子链走完（false = 起链即完成）。
+	 * @return 返回本步骤结果（`TSR_Running` = 已挂起等子链；`TSR_Completed` = 本步完成）。
+	 */
+	ETcsStepResult RunChildChainStep(FTcsChainRunHandle Parent, FGameplayTag ChainId, bool bWait);
+
+	/**
+	 * 装"等事件"锚（链原语步骤 `WaitEvent` 用；宿主与脚本层 MUST NOT 调用）。
+	 *
+	 * 语义 = 在门面侧的事件等待表里登记本运行态 + 在**该 tag 首次出现时**订阅一次总线
+	 * （同一 tag 的多个等待者**共用一条订阅**——见 `FTcsChainEventWaitRegistry`），
+	 * 并在运行态上记 `PendingEventTag`（可配平锚："无效 tag = 未在等事件"）。
+	 *
+	 * **拒绝面（返回 false，不 ensure）**：`EventTag` 无效、总线不可得（世界拆解期）、
+	 * 订阅被拒。调用方（步骤）据此**降级为"本步按完成处理" + Error**——挂起 MUST 有可靠的唤醒源。
+	 *
+	 * @param Handle 等待的运行态句柄。
+	 * @param EventTag 等的事件 Tag。
+	 * @return 返回是否装锚成功。
+	 */
+	bool ArmEventWait(FTcsChainRunHandle Handle, FGameplayTag EventTag);
+
+	/**
+	 * 摘"等事件"锚（**配平入口**：步骤被唤醒后调用；`ReleaseRun` 的解锚亦走它）。
+	 *
+	 * **为什么要由步骤/释放路径显式调**：命中路的登记摘除归门面（在 `ResumeRun` 之前做，
+	 * 不依赖步骤行为），而**超时路门面未参与**——那条路的登记只能由步骤自己摘。两条路在此收口。
+	 *
+	 * 语义 = 从等待表摘除等待者（该 tag 计数归零即退订）+ 清运行态的 `PendingEventTag`。
+	 * **不动 `bPendingEventHit`**（那是步骤的唤醒判据，由步骤自行配平）。
+	 *
+	 * @param Handle 运行态句柄。
+	 * @return 返回是否确实摘掉了一条登记（未在等事件/已摘除返回 false——正常竞态，不 ensure）。
+	 */
+	bool DropEventWait(FTcsChainRunHandle Handle);
+
+	/**
+	 * 取下一个 [0,1) 随机值（**门面种子流**；概率类条件求值用）。
+	 *
+	 * **两条求值路径共用本流**（触发行求值 + 链侧 `Branch` 条件）：同一粒种子下两条路径的
+	 * 可复现口径一致（D0-1：求值内部 MUST NOT 自行取随机数）。
+	 *
+	 * @return 返回 [0,1) 随机值；宿主未注入随机源时返回固定值（判定退化为确定性）。
+	 */
+	double NextTriggerRandomValue();
+
+#pragma endregion
+
+
 // 运行态按句柄访问（脚本层插槽）
 #pragma region RunAccess
 
@@ -432,6 +507,23 @@ private:
 	// 求值器内部面（求值器不住本类，但需读登记表/点灯/随机流——故经 friend 开放最小集）
 	friend class UTcsTriggerEvaluator;
 
+	// 事件等待 Handler 内部面（它只做一件事：把事件交回本类路由——故经 friend 开放最小集）
+	friend class UTcsChainEventWaitHandler;
+
+	/**
+	 * 事件到达 → 唤醒等待该 tag 的运行态（Handler 的唯一入口；路由归门面，理由见 D-1：
+	 * 总线派发**不传订阅句柄**，Handler 无法自辨身份）。
+	 *
+	 * **顺序是硬约束**：按 tag 取**等待者快照** → 逐个代际校验 → **先摘登记**（使"同一事件不会二次
+	 * 唤醒同一运行态"不依赖步骤行为）→ 写载荷 + 置 `bPendingEventHit` → `ResumeRun`。
+	 * **MUST NOT 在遍历中持运行态指针**：`ResumeRun` 会执行步骤、可能起链并扩容池（搬移元素），
+	 * 故一律按句柄重解析、用完即弃。
+	 *
+	 * @param EventTag 命中的事件 Tag。
+	 * @param Payload 事件载荷（写入命中者黑板 `Context.EventPayload`——立即通道零复制透传）。
+	 */
+	void WakeEventWaiters(FGameplayTag EventTag, const FInstancedStruct& Payload);
+
 	// 收集某事件 Tag 的全部行句柄（快照；求值器用）
 	void CollectTriggerRowsForTag(FGameplayTag EventTag, TArray<FTcsEffectTriggerHandle>& OutHandles) const;
 
@@ -441,11 +533,25 @@ private:
 	// 按句柄解析行（代际校验；悬空返回 nullptr——求值器用）
 	const FTcsEffectTriggerInstance* FindTriggerRow(FTcsEffectTriggerHandle Handle) const;
 
-	// 取下一个 [0,1) 随机值（仅概率类条件用；每行各取一次——求值器用）
-	double NextTriggerRandomValue();
-
 	// 取事件总线门面（登记/退订装配用；世界拆解期可能为 nullptr）
 	class UTcsEventBusSubsystem* GetEventBus() const;
+
+	/**
+	 * 装"在等子链"锚（`RunChildChainStep` 的内部一半——**不对外**：调用方要的语义是"起链并按需挂起"，
+	 * 单独暴露装锚只会诱使调用方自己写一套时序）。
+	 *
+	 * **返回值即"子链是否仍在运行"**：`false` = 子链已在全即时路径上走完（或句柄无效）⇒
+	 * `RunChildChainStep` 据此返 `TSR_Completed` 而**不挂起**（挂起则唤醒方永不出现 = 死链）。
+	 * 故它是"复核 + 装锚"的**合一入口**，免去调用方先查后装的 TOCTOU 窗口。
+	 *
+	 * 双向登记：子运行态记 `ParentRun`（`ReleaseRun` 据此通知——D-3）；父记 `PendingChildRun`
+	 * （被唤醒时据 `IsRunActive` 复核，挡假唤醒）。两次解析之间无分配 ⇒ 两个指针同时有效。
+	 *
+	 * @param Parent 本步骤所属运行态句柄（等的一方）。
+	 * @param Child 刚起的子链运行态句柄（被等的一方）。
+	 * @return 返回子链是否仍在运行。
+	 */
+	bool ArmChildWait(FTcsChainRunHandle Parent, FTcsChainRunHandle Child);
 
 	// 解释器：从运行态 PC 推进至挂起/走完（逐步查执行器注册表分派；越界熔断与未知类型断链在此处置）
 	void RunFrom(FTcsChainRunHandle Handle);
@@ -479,6 +585,29 @@ private:
 
 	// 触发行登记表（纯逻辑类；值语义持有行 + 订阅计数配对 + 点灯集 + 随机流）
 	FTcsTriggerRegistry TriggerRegistry;
+
+	// 链事件等待的共享 Handler（**UPROPERTY 持有是必需的**：总线订阅表持弱引用——不 root 会被 GC 掉、
+	// 订阅静默失效。与触发求值器同款纪律；懒建：首个等待者出现时创建）
+	UPROPERTY()
+	TObjectPtr<UTcsChainEventWaitHandler> ChainEventWaitHandler;
+
+	// 事件等待表（纯逻辑类；Tag → 订阅句柄计数配对 + Tag → 等待者集合；零 GC 引用）
+	FTcsChainEventWaitRegistry ChainEventWaitRegistry;
+
+	/**
+	 * 链进入的**嵌套深度**（0 = 不在任何一次进入中）——`RunFrom` 用作用域守卫增减（该函数有四条
+	 * `return` 路径，手工增减必漏）。用途 = 调用栈护栏：`MaxStepsPerFrame` 由链定义给出、**作者可配
+	 * 到很大**，故它 MUST NOT 作为栈深度的唯一护栏（深度上限是固定常量，见 `.cpp`）。
+	 */
+	int32 ChainEntryDepth = 0;
+
+	// 本次**最外层进入**已执行的步数——**嵌套起链共用父链预算**（子链步数计入父链）；
+	// 原实现把它当 `RunFrom` 的局部变量 ⇒ 每进一条链各拿一份新预算 ⇒ 自激链既绕过预算
+	// 又直接吃调用栈（不是性能问题，是崩溃）
+	int32 StepsInChainEntry = 0;
+
+	// 本次最外层进入的步数上限（取自**最外层**链定义的 `MaxStepsPerFrame`；0 = 未进入）
+	int32 ActiveEntryStepLimit = 0;
 
 #pragma endregion
 };
