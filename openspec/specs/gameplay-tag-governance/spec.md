@@ -2,7 +2,7 @@
 
 ## Purpose
 
-TCS 插件侧 GameplayTag 词表的**规范载体**：钉死插件那 9 个根段与各自的消费角色，规定归属规则（框架词汇 vs 宿主内容词汇 vs 验证词）、一角色一根、根名判据（含"根名互不为真前缀"）、检查词的 `Check` 子段约定、深度上限，以及 `TcsStateParam` / `DamageCategory` 等易误读根的语义边界。
+TCS 插件侧 GameplayTag 词表的**规范载体**：钉死插件那 10 个根段与各自的消费角色，规定归属规则（框架词汇 vs 宿主内容词汇 vs 验证词）、一角色一根、根名判据（含"根名互不为真前缀"）、检查词的 `Check` 子段约定、深度上限，以及 `TcsStateParam` / `DamageCategory` 等易误读根的语义边界。
 
 **边界**：本能力只管**插件那一半**。宿主侧 5 个根段的规范载体在 LAC 仓的 `host-gameplay-tag-registry` 能力，本规格只**引用**不复制（两边各登自己那一半）。跨项目的通用治理规则（根名判据、深度上限、`DevComment` 义务、受限 tag 机制、改名与重定向口径）住在用户级 `unreal-gameplay-tags` 技能，同样只引用不复制。
 
@@ -14,7 +14,7 @@ TCS 插件侧 GameplayTag 词表的**规范载体**：钉死插件那 9 个根�
 
 本插件 MUST 维护并遵守一份**插件侧根段注册表**——每个根登记「消费角色（哪条代码路径解析它）/ 声明方 / 形态（段数）」三项。新建根之前 MUST 先查该表；表内已有承载同一消费角色的根时 MUST NOT 另立新根。
 
-本插件拥有的根（共 9 个）：
+本插件拥有的根（共 10 个）：
 
 | 根 | 消费角色（哪条代码路径解析它） | 声明方 | 形态（段数） |
 |---|---|---|---|
@@ -26,7 +26,10 @@ TCS 插件侧 GameplayTag 词表的**规范载体**：钉死插件那 9 个根�
 | `EffectChain` | 链定义的登记与查找（`RegisterChain` / `FindChain`） | 宿主 ini | `EffectChain.<Id>`（2 段） |
 | `EffectTriggerGate` | 触发行的**行级开关**（`SetTriggerGateTag` / `IsTriggerGateTagLit`；四道门的第三道） | 宿主 ini | `EffectTriggerGate.<词>`（2 段） |
 | `EffectTriggerDef` | **触发定义资产的身份解析**（`UTcsDefinitionSubsystem::DiscoverTriggerDefs` / `ResolveTriggerDef`；资产身份 `[PrimaryAssetType, TriggerTag]` 与去重键共用它，**2026-10-04 新增**） | 宿主 ini | `EffectTriggerDef.<名>`（2 段） |
+| `StateDef` | **状态定义资产的身份解析**（`UTcsDefinitionSubsystem::DiscoverStateDefs` / `ResolveStateDef`；资产身份 `[PrimaryAssetType, DefTag]` 与去重键共用它，**2026-10-04 新增**） | 宿主 ini | `StateDef.<名>`（2 段） |
 | `DamageCategory` | **供条件匹配的伤害分类集**（触发侧 `FTcsTriggerCondition_HasAllTags` + 流程侧 `FTcsConditionHasAllTags`） | 宿主 ini | `DamageCategory.<词>`（2 段） |
+
+**状态词（`Def.StatusTag`）本轮 MUST NOT 为它开根**：它今天的**解析消费者为零**（关系表检查器与按它匹配的槽位竞争表整体归 R5.5-e，本轮只有发现期的有效性校验）⇒ 归属待那一轮拍板（零消费者不预建根）；本轮的验收资产里 `StatusTag` 复用同一个 `StateDef.*` 词，不因此构成对状态词根归属的裁定。
 
 **检查词的 `Check` 子段约定（2026-10-04 新增，把已在跑的实践补成规则）**：**仅供人工检查/验收使用**的内容词 MUST 落在其**功能根**下并加一个 `Check` 段（形如 `<功能根>.Check.<名>`，3 段）——MUST NOT 另立根（检查词的**消费路径与正式词完全相同**：链 id 仍须 `RegisterChain` 认、触发定义身份仍须定义库认，另立根会让消费路径读不到它），MUST NOT 把生命周期语义塞进路径中段之外的其它位置（生命周期维度只允许 `Check` 这一段的语义）。**该段是段位预算内的合法用法**：`Check` 词比同根正式词多 1 段，仍在 `词表深度上限` 的 4 段预算内留有余量。既有形态 = `EffectChain.Check.{SelfSub,Sort,SortMulti,WaitEvent,WaitEvent3}`（R4 人工检查链）。
 
@@ -131,7 +134,7 @@ TCS 插件侧 GameplayTag 词表的**规范载体**：钉死插件那 9 个根�
 
 **为什么唯一性可以由根名自己承担**：UE 的 tag 命名空间全局共享（引擎 + 全部插件 + 商城内容同处一棵树），唯一性确实必须有人承担——但这份唯一性由**根名**承担即可，不要求统一的命名空间前缀。代价是把"一刀切的前缀保护"换成了"**逐根的唯一性论证**"：引入第三方内容或新插件时 MUST 回头查根段注册表有没有撞车。
 
-本插件 9 个根名的由来：
+本插件 10 个根名的由来（2026-10-04 增 `StateDef`）：
 
 | 根 | 唯一化限定 | 角色名 |
 |---|---|---|
@@ -143,6 +146,7 @@ TCS 插件侧 GameplayTag 词表的**规范载体**：钉死插件那 9 个根�
 | `EffectChain` | `Effect`（`Chain` 是泛指词、MUST 加限定，限定词取机制名） | `Chain` |
 | `EffectTriggerGate` | `EffectTrigger`（`Gate` 是泛指词、MUST 加限定，限定词取机制名） | `Gate` |
 | `EffectTriggerDef` | `EffectTrigger`（`Def` 是泛指词、MUST 加限定，限定词取机制名） | `Def` |
+| `StateDef` | `State`（`Def` 是泛指词、MUST 加限定，限定词取机制名） | `Def` |
 | `DamageCategory` | `Damage`（`Category` 是泛指词、MUST 加限定，限定词取机制名） | `Category` |
 
 #### Scenario: 泛指词必须加限定
@@ -171,11 +175,12 @@ tag 路径深度 MUST ≤ 4 段。第 4 段是**留给未来变化的余量，MU
 
 **分类细化的手段 = 增根不增层**（沿用既有口径"增域不增层"）：要细分就新增根，或换更精确的词，MUST NOT 在既有路径上继续加层。
 
-**度量（2026-10-04 订正）**：本插件 9 个根的代表词全部 ≤ 3 段——`TcsEvent.<域>.<名>` 3 段（余 1 段）；`DamageFlowKey.<键>` / `DamageFlowTemplate.<Id>` / `EffectChain.<Id>` / `TcsStateParam.<键>` / `EffectChainRunVar.<键>` / `EffectTriggerGate.<词>` / `EffectTriggerDef.<名>` / `DamageCategory.<词>` 2 段（余 2 段）；**检查词**（`<功能根>.Check.<名>`）占 3 段——比同根正式词多用 1 段，仍余 1 段。换根前 `Tcs.Event.Damage.<名>` / `Tcs.Flow.Key.<键>` / `Tcs.Flow.Template.<Id>` 三族**全部卡在 4 段零余量**。
+**度量（2026-10-04 订正）**：本插件 **10 个根**的代表词全部 ≤ 3 段——`TcsEvent.<域>.<名>` 3 段（余 1 段）；`DamageFlowKey.<键>` / `DamageFlowTemplate.<Id>` / `EffectChain.<Id>` / `TcsStateParam.<键>` / `EffectChainRunVar.<键>` / `EffectTriggerGate.<词>` / `EffectTriggerDef.<名>` / `StateDef.<名>` / `DamageCategory.<词>` 2 段（余 2 段）；
+**检查词**（`<功能根>.Check.<名>`）占 3 段——比同根正式词多用 1 段，仍余 1 段。换根前 `Tcs.Event.Damage.<名>` / `Tcs.Flow.Key.<键>` / `Tcs.Flow.Template.<Id>` 三族**全部卡在 4 段零余量**。
 
 #### Scenario: 每个根至少留一段余量
 
-- **WHEN** 检查本插件 9 个根下现有词的段数
+- **WHEN** 检查本插件 10 个根下现有词的段数
 - **THEN** 每族都存在未被用满的余量（3 段族余 1 段、2 段族余 2 段，含 `Check` 词后仍余 1 段），不存在 4 段词
 
 #### Scenario: 细分走增根而不是加层

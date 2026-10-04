@@ -52,7 +52,7 @@
 | 事实 | 证据 | 对计划的影响 |
 |---|---|---|
 | `Source/` 只有 **7 个模块**，无 `TcsState` | 模块目录清单；`TireflyCombatSystem.uplugin` 的 `Modules` 数组 | Task 1 是从零建模块 |
-| `FTcsParamSnapshot` / `FTcsParamSnapshotEntry` / `FTcsNumericParamRow` / `ETcsParamMode` / `ITcsEntityLevelProvider` / `FTcsParamEnumerableSource` **代码里全不存在**（只活在规格与决策文档） | 全插件 grep 零命中（`Source/` 侧） | Task 0/3 是**造类型**不是接线；形状必须在计划里给草稿 |
+| `FTcsParamSnapshot` / `FTcsParamSnapshotEntry` / `FTcsNumericParamRow` / `ETcsParamMode` / `ITcsEntityLevelProvider` / `FTcsParamEnumerableSource` **代码里全不存在**（只活在规格与决策文档） | 全插件 grep 零命中（`Source/` 侧） | Task 0/3 是**造类型**不是接线；形状必须在计划里给草稿。**★ 2026-10-04 Task 0 更新：`FTcsParamEnumerableSource` 已存在**（`TcsCore/Public/Parameter/TcsParamEnumerableSource.h`），其余五项仍缺 |
 | `FTcsValueConvention::ConvertToCanonical` **零调用点**（`TcsNotation` 里躺着） | `TcsValueConvention.h` 只有定义；全库无调用 | Task 3 会点亮它（正面信号：存量设计对了） |
 | 全仓**从未构造过一个 `FTcsAttrModInstance`**，`Materialize*` 零命中 | 唯一写入点 `UTcsAttributeSubsystem::ApplyModifier` 由调用方自带实例 | Task 4 的物化器是修正器管线的**第一个真实消费者** |
 | `FTcsSourceHandleRegistry` 计数器是**每实例**的（`NextId` 非 static，首个发 1），而级联摘除按值比较 `Source` | `TcsSourceHandle.h`；插件内两个发号器（定义库 `TriggerSourceRegistry` / 伤害门面 `FlowSourceRegistry`）**头号都是 1** | ✅ 坐实 `WAIT-6` = **真实缺陷**（状态实例来源会与定义库装配行互相误摘）→ Task 0 Step 3 |
@@ -148,17 +148,20 @@
 
 **依赖**：无（本轮第一个 Task）
 
-- [ ] **Step 1: `FTcsParamEvaluateContext` 补两个字段（`DAMAGE-5`）**——在 `TcsParamValueSource.h` 的既有唯一字段 `ParamTable` 之后追加：
+- [x] **Step 1: `FTcsParamEvaluateContext` 补两个字段（`DAMAGE-5`）**——**✅ 2026-10-04 落地**（两字段 + 头注释口径改毕；UHT 产物 `NewProp_Subject`（`FStructProperty` 绑 `FTcsCombatEntityHandle`）与 `NewProp_EffectiveLevel`（`FIntProperty`）已进反射表，偏移正确）——在 `TcsParamValueSource.h` 的既有唯一字段 `ParamTable` 之后追加：
   `UPROPERTY(BlueprintReadWrite) FTcsCombatEntityHandle Subject;`（被施加方实体——状态/技能实例所依附的单位）
   `UPROPERTY(BlueprintReadWrite) int32 EffectiveLevel = 0;`（生效等级；0 = 无等级语义；**取值归调用方**，源不自己去查实例）
   头注释第 15 行的"M2/M5 轮补齐"口径 MUST 改为"**随 TcsState 等级源同批补齐（2026-10-04，M2 已收束，原文过期）**"。
-- [ ] **Step 2: `FTcsParamEnumerableSource` 基类（`STAT-2`）**——新文件，形状：
+- [x] **Step 2: `FTcsParamEnumerableSource` 基类（`STAT-2`）**——**✅ 2026-10-04 落地**（新文件 `Source/TcsCore/Public/Parameter/TcsParamEnumerableSource.h`，UHT 已产出 `.generated.h` + `.gen.cpp`；PV-10 原案的 `Enumerate` **未建**——展示层零消费者，台账按"部分消费"记）——新文件，形状：
   `USTRUCT(meta = (Hidden)) struct TCSCORE_API FTcsParamEnumerableSource : public FTcsParamValueSource`
-  成员：`virtual int32 GetIndexCount() const { return 0; }`、`virtual int32 GetIndexForLevel(int32 Level) const { return INDEX_NONE; }`。
+  成员：`virtual int32 GetIndexForLevel(int32 Level) const { return INDEX_NONE; }`。**提交前修正（2026-10-04）**：原写的 `GetIndexCount()` 已删——它**全库无设计出处**（PV-10 各处只写 `Enumerate` + `GetIndexForLevel`）、且 **Series 视图要的是整表数值**（`FTcsViewBuildContext::TryGetSeries`），"表项总数"渲染不出任何一档 ⇒ 无消费者；PV-10 的 `Enumerate` 与其派生形态一并留白到展示层（`FTcsParamView_Series`，R8）落地时。
   **纪律**：只放"表项总数 + 等级→下标"两个中性默认实现（**索引解析的唯一真相在源**，见 `[`SPEC-00-core`](../spec/01-module-m0-core.md)` ④）；MUST NOT 预建 `IValueDomainPolicy` 一类策略接口（零消费者）。
-- [ ] **Step 3: 来源发号器统一（`WAIT-6`，本轮硬前置）**——把 `FTcsSourceHandleRegistry` 的计数器改为**进程唯一**：`NextId` 由实例成员改为 `static std::atomic<uint64>`（`Allocate()` 语义不变：返回非 0、全局唯一）。头注释补一句"Id 空间 = **进程唯一**（2026-10-04 `WAIT-6` 修复：原每实例发号导致两个注册表头号都是 1，级联摘除会误摘他人来源）"。
-  连带：① 插件内两个发号器（`UTcsDefinitionSubsystem::TriggerSourceRegistry` / `UTcsDamageSubsystem::FlowSourceRegistry`）**零改动**（自动获得全局唯一性）；② 宿主装置 `TcsDevSliceRig.cpp` 撤掉"直写高位 Id"的规避常量，改走正常发号（**LAC 仓改动**，与插件同批交付）；③ 台账 `WAIT-6` 标"已消费"。
-- [ ] **Step 4: 编译与回归**——UBT Development Editor 通过（改动含 `UPROPERTY` ⇒ **补跑 Shipping**）；宿主既有验收命令 `Tcs.Test.Slice.Run` 仍 **19/0 且零红字**（零行为变更的直接证据）。
+- [x] **Step 3: 来源发号器统一（`WAIT-6`，本轮硬前置）**——把 `FTcsSourceHandleRegistry` 的计数器改为**进程唯一**（`Allocate()` 语义不变：返回非 0、全局唯一）。**✅ 2026-10-04 落地，含一处必要偏离**：
+  - **偏离内容**：计划原写"`NextId` 由实例成员改为 `static std::atomic<uint64>`"，照字面改**修不掉缺陷**——本类是跨模块头内联的（`Allocate()` 内联、实例分住 TcsIntegration / TcsDamage / TcsDev 三个不同镜像），MSVC 的 COMDAT 折叠**不跨 DLL 合并** ⇒ `static` 成员/内联变量在每个镜像各留一份计数器、全都从 1 开始（而 monolithic Shipping 又会合并成一份 ⇒ 症状随配置漂移、Editor 下照旧撞号）。
+  - **实际落法**：故改为**出线**：`Allocate()` 的定义移入新文件 `Source/TcsCore/Private/Handle/TcsSourceHandle.cpp`（计数器 = 该文件匿名 namespace 变量），结构体按本仓导出宏纪律（"有 out-of-line 成员或反射符号才带宏"，先例 `TcsCoreStats`）改带 `TCSCORE_API`。**导出生效的硬证据** = 三个消费模块全部链接成功（未导出必 LNK2019）。
+  连带：① 插件内两个发号器（`UTcsDefinitionSubsystem::TriggerSourceRegistry` / `UTcsDamageSubsystem::FlowSourceRegistry`）**零改动**（自动获得全局唯一性）✅；② 宿主装置 `TcsDevSliceRig.cpp` 撤掉"直写高位 Id"的规避常量，改走正常发号（**LAC 仓改动**，与插件同批交付）✅；③ 台账 `WAIT-6` 标"已消费"✅。
+- [x] **Step 4: 编译与回归**——**两半均 ✅ 2026-10-04**。**编译半边**：`-projectfiles` 刷新 + UBT Development Editor + Game Shipping **双配置均 Succeeded**，全日志**零 warning 零 error**；
+  - **回归半边**：用户于 PIE 内跑 `Tcs.Test.Slice.Run` ⇒ **通过 19 / 失败 0**、延迟判定 **7b PASS**、区间**零红字**（`Error:` / `Warning:` / `Ensure condition` / `Fatal error` / `[FAIL]` 全零命中）。**关键行为读点 = 检查 14「按来源级联摘除」摘掉恰 1 条**——装置已改走正常发号，仍不误摘定义库来源 ⇒ Step 3 的**行为级**实证（不只编译级）。证据 = `EVID-2026-10-04-param-context-and-source-issuer`（活动日志区段 L2413–L2698 的逐项锚点 + 区段哈希）。
 
 **验收信号**：双配置 0 error / 0 warning；`Tcs.Test.Slice.Run` 输出与 R4 收束时逐字一致（除"按来源级联摘除"检查改为走正常发号）。
 
@@ -188,18 +191,26 @@
 
 **依赖**：Task 0（求值上下文类型在 TcsCore，Def 行要引用它）
 
-- [ ] **Step 1: 模块骨架**——照 `TcsDamage` 六件套（`.uplugin` 条目 / `Build.cs` / 壳 `.h`+`.cpp` / 日志通道两件 / `Public`+`Private` 目录）。`Build.cs` 的 `PublicDependencyModuleNames` = `Core` / `CoreUObject` / `Engine` / `GameplayTags` / `TcsCore` / `TcsNotation` / `TcsAttribute` / `TcsEffect`。壳类名 `FTcsStateModule : public IModuleInterface`（空体）。
-- [ ] **Step 2: 参数行与 Def 形状**——`ETcsParamMode { EPM_Snapshot = 0, EPM_Live = 1 }`（规格：Snapshot 默认 / Live 仅 Skill 侧用）；`FTcsNumericParamRow { FGameplayTag Key; FTcsParamValue Base; ETcsParamMode Mode = EPM_Snapshot; ETcsValueConventionFlag ValueConvention = VCF_None; }`。
+- [x] **Step 1: 模块骨架**（2026-10-04 ✅）——照 `TcsDamage` 六件套（`.uplugin` 条目 / `Build.cs` / 壳 `.h`+`.cpp` / 日志通道两件 / `Public`+`Private` 目录）。`Build.cs` 的 `PublicDependencyModuleNames` = `Core` / `CoreUObject` / `Engine` / `GameplayTags` / `TcsCore` / `TcsNotation` / `TcsAttribute` / `TcsEffect`。壳类名 `FTcsStateModule : public IModuleInterface`（空体）。
+- [x] **Step 2: 参数行与 Def 形状**（2026-10-04 ✅）——`ETcsParamMode { EPM_Snapshot = 0, EPM_Live = 1 }`（规格：Snapshot 默认 / Live 仅 Skill 侧用）；`FTcsNumericParamRow { FGameplayTag Key; FTcsParamValue Base; ETcsParamMode Mode = EPM_Snapshot; ETcsValueConventionFlag ValueConvention = VCF_None; }`。
   `FTcsStateDefBase`（抽象、编辑器隐藏）：`FGameplayTag StatusTag` / `int32 LevelBase = 1` / `int32 MaxLevel = 0` / `TArray<FTcsNumericParamRow> Params` / `TArray<FTcsDescriptionEntry> Descriptions` / `TArray<TSoftObjectPtr<UTcsAttrModDef>> ModifierRows`（**R5 只用属性行**）。
   `FTcsBuffDef : FTcsStateDefBase`：时值三件（`EDurationPolicy DurationPolicy = EDP_Finite` / `FTcsParamValue DurationTime` / `double Period = 0.0` / `ETcsPeriodRefresh PeriodRefresh = EPR_Keep`）、堆叠（`FStateStackPolicy StackPolicy`）、
   行为（`TArray<FTcsEffectTriggerDef> Triggers`——**`TRIG-4` 的内联位**）、关系字段（`TArray<FGameplayTag> Blocks` / `Requires` / `int32 Priority = 0` / `TArray<FGameplayTag> Cancels`——**只落字段，检查器归 R5.5**）。
   **不落项（登记台账）**：`FStateDefBase` 的"生命周期事件词汇"字段**无消费者**（行为 Fragment 的兴趣 Tag 已是声明面）⇒ 本轮不预建；`Descriptions` 只落字段与 `IsDataValid` 引号校验，**渲染归 R8**。
-- [ ] **Step 3: 资产两个**——`UTcsStateDef : UPrimaryDataAsset`（`DefTag: FGameplayTag`；`static const FPrimaryAssetType PrimaryAssetType` 取值 = 类名 `"TcsStateDef"`；`GetPrimaryAssetId()` 名取 `DefTag.GetTagName()`）；`UTcsBuffDefAsset : UTcsStateDef`（`BuffDef: FTcsBuffDef`；`PrimaryAssetType` = `"TcsBuffDefAsset"`）。
+- [x] **Step 3: 资产两个**（2026-10-04 ✅）——`UTcsStateDef : UPrimaryDataAsset`（`DefTag: FGameplayTag`；`static const FPrimaryAssetType PrimaryAssetType` 取值 = 类名 `"TcsStateDef"`；`GetPrimaryAssetId()` 名取 `DefTag.GetTagName()`）；`UTcsBuffDefAsset : UTcsStateDef`（`BuffDef: FTcsBuffDef`；`PrimaryAssetType` = `"TcsBuffDefAsset"`）。
   `IsDataValid` 校验（**末尾 MUST 把 `NotValidated` 提升为 `Valid`**）：`DefTag` 空 ⇒ Error；`Params` 键重复 ⇒ Error；`ModifierRows` 空引用 ⇒ Error；`Triggers` 内 `EventTag` / `EffectChainId` 空 ⇒ Error；`DurationPolicy == Finite` 且 `DurationTime` 未配 ⇒ Error；`Period < 0` 或 `PeriodRefresh != Keep` 而 `Period == 0` ⇒ Warning。
-- [ ] **Step 4: 表行（编辑期载体）**——`FTcsBuffDefTableRow : FTableRowBase`（`DefTag` + `BuffDef`）；**运行期零 DataTable 加载路径**（双轨制：表 = 编辑期、资产 = 运行期）。
-- [ ] **Step 5: 定义库发现与解析**——`DiscoverStateDefs()` 照 `DiscoverTriggerDefs()` 形状（`IAssetRegistry::GetAssetsByClass(UTcsBuffDefAsset::StaticClass()->GetClassPathName(), ...)` + `IsLoadingAssets()` 就绪门 + 四条校验进 `FailureList`）；`ResolveStateDef(FGameplayTag) -> const FTcsBuffDef*`。**不做世界装配**（状态 Def 由 `UTcsStateSubsystem` 按需解析，无"每世界登记一次"的语义）。
-- [ ] **Step 6: 规格同步**——`plugin-descriptor` 的"恰好七个模块"改 8 并补 `TcsState` 行；`openspec/project.md` 同步；`[`SPEC-02-states`](../spec/03-module-states.md)` 的资产名 `UTcsBuffDef` → `UTcsBuffDefAsset`（Q-4 甲案）与 §1 依赖行同步。
-- [ ] **Step 7: 编译 + 资产发现实测**——双配置编译；装置侧断言"发现 N 个 `UTcsBuffDefAsset`、`IsDataValid == Valid`、按 `DefTag` 可解析"（**注意**：`Valid` 判据依赖 Step 3 的提升段）。
+- [x] **Step 4: 表行（编辑期载体）**（2026-10-04 ✅）——`FTcsBuffDefTableRow : FTableRowBase`（`DefTag` + `BuffDef`）；**运行期零 DataTable 加载路径**（双轨制：表 = 编辑期、资产 = 运行期）。
+- [x] **Step 5: 定义库发现与解析**（2026-10-04 ✅）——`DiscoverStateDefs()` 照 `DiscoverTriggerDefs()` 形状（`IAssetRegistry::GetAssetsByClass(UTcsBuffDefAsset::StaticClass()->GetClassPathName(), ...)` + `IsLoadingAssets()` 就绪门 + 四条校验进 `FailureList`）；`ResolveStateDef(FGameplayTag) -> const FTcsBuffDef*`。**不做世界装配**（状态 Def 由 `UTcsStateSubsystem` 按需解析，无"每世界登记一次"的语义）。
+- [x] **Step 6: 规格同步**（2026-10-04 ✅）——`plugin-descriptor` 的"恰好七个模块"改 8 并补 `TcsState` 行；`openspec/project.md` 同步；`[`SPEC-02-states`](../spec/03-module-states.md)` 的资产名 `UTcsBuffDef` → `UTcsBuffDefAsset`（Q-4 甲案）与 §1 依赖行同步。
+- [x] **Step 7: 编译 + 资产发现实测**——**两半均 ✅ 2026-10-04**。**编译半边**：Development Editor 与 Game Shipping 均 `Result: Succeeded`，两日志 `error` / `warning` 命中数全 0（含宿主装置改动后的复编）；产出 `UnrealEditor-TcsState.dll`。**资产半边**：编辑器内建 `/Game/TcsDev/Checks/DA_Check_BuffDef`（`DefTag` = `Buff.Def.StatusTag` = `StateDef.Check.Burn`）并存盘；PIE 跑 `Tcs.Test.Slice.Run` ⇒ **通过 20 / 失败 0**（原 19 项 + 新增**检查 18**）、延迟判定 **7b PASS**、区间零红字；**检查 18 四项判据全过**（按 `DefTag` 解析成功 / `StatusTag` 一致 / `IsDataValid == Valid 1/1` / 失败清单状态定义条目 0 条）。证据 = `EVID-2026-10-04-tcs-state-def-asset`（区段 L2909–L3168、区段哈希 `0dd2bb9a…`）。双配置编译；装置侧断言"发现 N 个 `UTcsBuffDefAsset`、`IsDataValid == Valid`、按 `DefTag` 可解析"（**注意**：`Valid` 判据依赖 Step 3 的提升段）。
+
+> **Task 1 落地记录（2026-10-04）**——实际交付面比交付物列表多三项，逐条留痕：
+> - **提案 delta 从一份变四份**：除 `plugin-descriptor`（MUST MODIFY）外，另补 ① `integration-entity` MODIFIED——Step 5 一落地，现行规格里"**两条**按类发现路径"这句事实即失效，delta 是合规不是扩张；② `state-def-asset` ADDED——新 Def 族的形状/身份/校验需要规格落点（对齐 `effect-trigger-asset` 先例）；③ `gameplay-tag-governance` MODIFIED——见下条。
+> - **描述载体随之落**（用户 2026-10-04 裁定甲案）：`FTcsDescriptionEntry` / `FTcsDescriptionViewSlot` 两个纯数据载体——`FTcsStateDefBase.Descriptions` 的类型**全库不存在**（TcsNotation 只有值约定 + 日志通道），不补则编译不过，而 §12.4 已裁定"本轮只落字段与作者侧校验"；视图策略族仍归 R8。
+> - **`StateDef` tag 根（用户 2026-10-04 裁定甲案）**：Step 7 要真资产就必须有身份词，而根表 9 个根里**没有任何一个承载"状态定义资产身份解析"**（`TcsStateParam` 是参数表读取角色，不是 Def 身份）⇒ 新增 `StateDef.<名>` 根（根表 9 → 10）。**`Def.StatusTag` 的根归属本轮不裁定**（零解析消费者 ⇒ 不预建根），验收资产复用同一个 `StateDef.*` 词，归属待 R5.5-e 关系表族拍板。
+> - **两处类型提前落**（详见 `SPEC-02-states` §12.5）：`EDurationPolicy` / `ETcsPeriodRefresh`（住 `Public/State/TcsStateEnums.h`）与 `FStateStackPolicy` 形状（住 `Public/State/TcsStateStackPolicy.h`）随本 Task 落——字段要先有类型；Task 2 / Task 5 只在其上续写，计划里那两项交付物名随之让位。
+> - **宿主侧连带（LAC 仓）**：`TcsDev.Build.cs` 显式加 `TcsState` 依赖——**传递依赖只给头文件路径、不给导入库**：TcsDev 靠 `TcsIntegration` 的 public 依赖能 include 到 `Def/TcsBuffDefAsset.h`，但链接期取不到 `Z_Construct_UClass_UTcsBuffDefAsset`（实测 `LNK2019` + `LNK1120`）⇒ **直接使用某模块类型者 MUST 自己声明依赖**（这条是本节新记录的引擎/UBT 事实）。
+> - **描述载体归属订正**：`SPEC-02-states` §10 v2 增补 9 原写"类型住 TcsNotation"，与 `DEC-02-fold-display` v3 命名批"住哪"表冲突 ⇒ 改判 **TcsState**（§12.5 第 4 条留痕）。
 
 **验收信号**：新模块编入且 `uplugin` 模块序正确；一个 buff 资产被定义库扫到、校验回执为 `Valid`、按 tag 解析成功。
 
@@ -271,7 +282,7 @@
 - [ ] **Step 2: 快照构建**——`Apply` 时对 `Def.Params` 逐行求值：`Overrides`（施加方覆盖）**优先**，否则 `Def` 默认值；求值上下文 = `FTcsParamEvaluateContext{ ParamTable = 施加方参数表, Subject = Target, EffectiveLevel = Level }`；**`ValueConvention` 转换在此写入点发生**（`FTcsValueConvention::ConvertToCanonical`——**全库首次点亮**），快照内**永远规范值**。
 - [ ] **Step 3: 快照读取适配器**——`FTcsStateParamTableReader : public ITcsParamTableReader`（把 `FTcsParamSnapshot` 当参数表暴露给 `FTcsParamSource_ParamRef` 与修正器物化）——**这是 Task 4 物化器的输入口**，本步先落类型与 `TryGetNumericParam`。
 - [ ] **Step 4: 等级源与宿主契约**——`ITcsEntityLevelProvider`：`UINTERFACE(Blueprintable)` + `UFUNCTION(BlueprintNativeEvent) int32 GetEntityLevel(FTcsCombatEntityHandle Entity) const`（**不带 `const` 在 `BlueprintNativeEvent` 上是硬规则**——按 UHT 要求去掉 `const` 并补 `_Implementation` 声明），宿主实现；门面加 `SetEntityLevelProvider(TScriptInterface<...>)` / `GetEntityLevelProvider()`（`UPROPERTY` 持有；未注入 = `nullptr`，是**配置状态**不是错误）。
-  四个源：`FTcsParamSource_StateLevelArray{ TArray<double> Values; }`（读 `Context.EffectiveLevel` → 下标，越界落最后一档）/ `_StateLevelMap{ TMap<int32,double> Values; }` / `_InstigatorLevelArray` / `_InstigatorLevelMap`（读 `Context.Subject` → provider → level）。四型均继承 `FTcsParamEnumerableSource`（Task 0 Step 2），`GetIndexCount` / `GetIndexForLevel` 即"索引解析唯一真相在源"。
+  四个源：`FTcsParamSource_StateLevelArray{ TArray<double> Values; }`（读 `Context.EffectiveLevel` → 下标，越界落最后一档）/ `_StateLevelMap{ TMap<int32,double> Values; }` / `_InstigatorLevelArray` / `_InstigatorLevelMap`（读 `Context.Subject` → provider → level）。四型均继承 `FTcsParamEnumerableSource`（Task 0 Step 2），`GetIndexForLevel` 即"索引解析唯一真相在源"。
   上下文补第三个字段：`UPROPERTY(BlueprintReadWrite) TScriptInterface<ITcsEntityLevelProvider> LevelProvider;`（同 `ParamTable` 先例——`DAMAGE-5` 只记了两个字段，实现期按需补第三个，**记为对台账条目的增量**）。
 - [ ] **Step 5: Duration 与 Period 落堆**——`Finite`：`PushExpiry(Clock->GetClock().Elapsed + DurationTime, OwnerId, 回调)`；`Infinite`：不入堆、永不过期。`Period > 0`：**重复到期条目**——每次周期回调广播 `TcsEvent.State.Periodic`（载荷带当前 `Stacks` + `Level`）后**重新入堆**；默认**等首个周期**（"施加即生效"由 apply 响应链表达）。
 - [ ] **Step 6: `PeriodRefresh` 与生命周期操作**——刷新（Refresh/StackChange）时按 `EPR_Keep`（不动）/ `EPR_Reset`（重建周期条目）/ `EPR_Immediate`（立即执行一次并重置）；`ExtendDuration(handle, Δ)` / `SetRemaining(handle, T)` = 撤销旧条目 + 按新余量重入堆（**句柄配对清理**），`Infinite` 上调这些口 = `Warning` + 无操作。
@@ -441,6 +452,10 @@
 | **新增** `R-7`（`LEDGER-reflection`） | 属性访问**写侧**宿主插槽（`ITcsAttributeAccess`） | 触发条件型（R5.5-g） |
 | **新增**（实施期） | 本轮实施中发现的边界，逐条登记 | Task 8 Step 3 |
 
+> **Task 0 收束（2026-10-04）就地在台账标记三条**：`STAT-2`（**部分消费**——基类 + `GetIndexForLevel` 落地；PV-10 原案的 `Enumerate` 与"表项总数"均零消费者不预建）、`DAMAGE-5`（消费——两字段 + 头注释口径）、`WAIT-6`（消费——出线发号 + 导出宏）。**与本册"行级状态收束时才标"的关系**：这三条的**收束点就是 Task 0 自身**（已落地即已消费），故不就待到 Task 8 Step 3；Task 8 那一趟只处理剩余行与"实施期新发现"。
+>
+> **一处判据留痕**：Task 0 的提案面比计划少一个——`unify-source-handle-issuer` 未开（`instance-handle-pool` 规格第 17 行**早已**要求"进程内永不复用"，Step 3 是还债而非改需求 ⇒ 按 `openspec/AGENTS.md` 决策树免提案）。
+
 ---
 
 ## 非目标（本轮不做）
@@ -473,3 +488,10 @@
 ## 变更记录
 
 - 2026-10-04 建立：R5 开工收窄轮产出——台账折入（§0.1）、六条口径裁决（§0.2）、现状证据（§0.3）、两条错前提更正（§0.4）；Task 0~8 切分；《R5.5 批次表》落纸（防"非正式轮号只住会话里"重演）；《轮次路线图》自 `PLN-R4` 移交至本文档。
+- 2026-10-04 Task 0 收束（前置契约）：Step 1 / 2 / 3 落地并勾选；Step 4 的**两半均已通过**（双配置 Succeeded、零 warning；PIE 回归 **19/0 + 7b**、零红字，证据 `EVID-2026-10-04-param-context-and-source-issuer`）。
+  - **两处与计划文本的偏离记录在案**：① Step 3 的修法由"`static` 成员"改为"出线 + `TCSCORE_API`"（理由 = 跨 DLL 的 COMDAT 不合并，字面改会把缺陷修成配置相关的假修复——详见该 Step 内文）；② **提案面收缩为一个**（`extend-param-evaluate-context`）：Step 3 属"恢复 `instance-handle-pool` 规格既有行为"的缺陷修复，按 `openspec/AGENTS.md` 决策树**免提案**，故计划的"两个提案"落地为一个，Step 3 的过程留痕在本计划 + 台账 + 两册日志。§0.3 现状证据表同步加"已存在"注记（防再被当现行事实读）。
+- 2026-10-04 Task 0 **提交前修正**（用户索要"可枚举基类的实际业务场景"时暴露）：Step 2 里我自造的 `GetIndexCount()` **已删**——理由两条：① **全库无设计出处**（PV-10 各处只写 `Enumerate` + `GetIndexForLevel`）；② 该能力的真实消费者是展示层的 `FTcsParamView_Series`（整表 + 当前档高亮），它要的是**整表数值**（`FTcsViewBuildContext::TryGetSeries`），"表项总数"渲染不出任何一档 ⇒ 无消费者。基类现只留 `GetIndexForLevel`（PV-10 原文有、Task 3 四源会覆写）。
+  连带同步：头文件 / openspec 现行规格 / 归档提案与其 delta / 本计划三处 / 台账 `STAT-2` 注记 / 两册日志 / EVID 边界，随后重编双配置。
+- 2026-10-04 **Task 1 收束**（模块与 Def 资产族）：Step 1~7 **全勾**；提案 `add-tcs-state-module` **四份 delta** 归档（`+5 added / ~3 modified / →1 renamed`），`openspec validate --all --strict` = **27 passed / 0 failed**、`changes/` 零活动提案；验收 = 双配置编译零 warning / 零 error + PIE **20/0 + 7b** 零红字（**检查 18** 四项判据全过），证据 `EVID-2026-10-04-tcs-state-def-asset`。
+  - **四处与计划文本的差异（逐条留痕）**：① **提案 delta 从一份变四份**——除 `plugin-descriptor`（MUST MODIFY）外补 `integration-entity` MODIFIED（Step 5 一落地，"两条按类发现路径"这句事实即失效）、`state-def-asset` ADDED（新 Def 族的形状/身份/校验需要规格落点）、`gameplay-tag-governance` MODIFIED（新增 `StateDef` 根，见 ③）；② **描述载体随本 Task 落**（用户裁定甲案）——`FTcsDescriptionEntry` / `FTcsDescriptionViewSlot` 的类型全库不存在，不补则编译不过；③ **新增 `StateDef` tag 根（9 → 10）**（用户裁定甲案）——Step 7 要真资产就必须有身份词，而根表无任何根承载"状态定义资产身份解析"；`Def.StatusTag` 的根归属**不裁定**（零消费者）挂台账 `STAT-4` 待 R5.5-e；④ **两处类型提前落**——`EDurationPolicy` / `ETcsPeriodRefresh`（`Public/State/TcsStateEnums.h`）与 `FStateStackPolicy` 形状（`Public/State/TcsStateStackPolicy.h`）随本 Task 落，Task 2 / 5 只在其上续写（`SPEC-02-states` §12.5）。
+  - **一条引擎/UBT 事实（本轮实测）**：直接使用某模块类型者 MUST 在自己的 `Build.cs` 声明依赖——**传递依赖只给头文件路径、不给导入库**（`TcsDev` 靠 `TcsIntegration` 的 public 依赖能 include `Def/TcsBuffDefAsset.h`，但链接期取不到 `Z_Construct_UClass_UTcsBuffDefAsset`，报 `LNK2019` + `LNK1120`）。

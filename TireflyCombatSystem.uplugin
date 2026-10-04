@@ -37,6 +37,11 @@
 			"LoadingPhase": "Default"
 		},
 		{
+			"Name": "TcsState",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
+		},
+		{
 			"Name": "TcsTargeting",
 			"Type": "Runtime",
 			"LoadingPhase": "Default"

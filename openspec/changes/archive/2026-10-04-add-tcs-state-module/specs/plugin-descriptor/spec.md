@@ -1,18 +1,9 @@
-# plugin-descriptor Specification
+## RENAMED Requirements
 
-## Purpose
-定义插件描述符必须声明的三条内容：引擎版本（UE 5.8）、**当前物化**的编译模块集合（现况声明，随轮次推进——R3 七模块 → R5 八模块），以及「插件级零依赖」的边界，避免模块依赖被误升为插件依赖。
+- FROM: `### Requirement: R3 模块物化声明`
+- TO: `### Requirement: 模块物化声明`
 
-## Requirements
-
-### Requirement: 引擎版本声明
-
-插件描述文件 MUST 声明 `"EngineVersion": "5.8"`，与宿主工程 LegendAutoChess.uproject 解析出的引擎（关联 GUID → `E:/UnrealEngine/UE_5.8`）保持一致。
-
-#### Scenario: 引擎版本与宿主一致
-
-- **WHEN** 读取 `TireflyCombatSystem.uplugin` 的 `EngineVersion` 字段
-- **THEN** 其值为 `"5.8"`，与宿主工程解析出的引擎版本一致
+## MODIFIED Requirements
 
 ### Requirement: 模块物化声明
 
@@ -38,12 +29,3 @@ R0 的 `TcsSkill`、`TcsCue`、`TcsEditor` 仍属目标架构模块，不得被�
 
 - **WHEN** 检查插件描述文件全文
 - **THEN** 不存在 `TireflyCombatSystem`、`TireflyCombatSystemEditor` 等已删除旧模块条目
-
-### Requirement: 无插件级依赖
-
-R3 三模块基线的 `.uplugin` MUST NOT 声明 `Plugins` 数组——事件总线与对象池内置 TcsCore（R0 §9 基础设施内置规定），引擎插件依赖（StateTree / GameplayStateTree）由 TcsIntegration 落地时回补。
-
-#### Scenario: 幽灵依赖清除
-
-- **WHEN** 检查 `.uplugin` 全文
-- **THEN** 不存在 `Plugins` 数组，GameplayMessageRouter 等旧外部插件不再被引用

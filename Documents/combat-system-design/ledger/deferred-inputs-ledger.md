@@ -42,13 +42,20 @@
 
 ## R5 轮（M3 状态/Buff = TcsState）
 
-> **条目归属已按现行路线图（`PLN-R4` §轮次路线图）重新归位**：本区段两项均为 R5 轮工作（旧编号 `` `R4-1` `` → `STAT-2`、`` `R4-3` `` → `STAT-3`；旧 `` `R4-2` `` 与 R4/R5 区段的旧 `` `R5-2` `` 合并为 `DAMAGE-2`）。
+> **条目归属已按现行路线图（`PLN-R4` §轮次路线图）重新归位**：本区段的归位项均为 R5 轮工作（旧编号 `` `R4-1` `` → `STAT-2`、`` `R4-3` `` → `STAT-3`；旧 `` `R4-2` `` 与 R4/R5 区段的旧 `` `R5-2` `` 合并为 `DAMAGE-2`）。
 
 | # | 事项 | 来源锚点 | 现状证据（已核） | 状态 |
 |---|---|---|---|---|
-| STAT-2 | `FTcsParamEnumerableSource`（PV-10 源可枚举能力：`Enumerate` / `GetIndexForLevel`，索引解析唯一真相在源）；落地随 **TcsState 等级源**同批 | `SPEC-00-core ④`；`DEC-02-fold-display` | 代码与规格中均无（已 grep `Source/` 与 `openspec/specs/param-value/`）；当初明记"不进 plan1 Task 0——零消费者不预建" | 待触发（R5 开工） |
-| DAMAGE-5 | **`FTcsParamEvaluateContext` 补 `Subject`**（`FCombatEntityHandle`）+ `EffectiveLevel`（int32）；落地随 TcsState 等级源同批 | `SPEC-00-core ②`；plan1 偏差 1（句柄升格反射 USTRUCT 后 Subject 解禁） | 上下文中无这两个字段（`TcsParamValueSource.h:FTcsParamEvaluateContext`）；**且该头注释仍写"随 M2/M5 轮补齐"——M2 已收束，注释过期，口径待统一为"随 TcsState 等级源"** | 待触发（R5 开工） |
+| STAT-2 | `FTcsParamEnumerableSource`（PV-10 源可枚举能力：`Enumerate` / `GetIndexForLevel`，索引解析唯一真相在源）；落地随 **TcsState 等级源**同批 | `SPEC-00-core ④`；`DEC-02-fold-display` | 代码与规格中均无（已 grep `Source/` 与 `openspec/specs/param-value/`）；当初明记"不进 plan1 Task 0——零消费者不预建" | **✅ 部分消费（2026-10-04，R5 Task 0 Step 2）**——基类与两个索引入口已落地；`Enumerate` 留白（明细见下方《Task 0 收束》注记） |
+| DAMAGE-5 | **`FTcsParamEvaluateContext` 补 `Subject`**（`FCombatEntityHandle`）+ `EffectiveLevel`（int32）；落地随 TcsState 等级源同批 | `SPEC-00-core ②`；plan1 偏差 1（句柄升格反射 USTRUCT 后 Subject 解禁） | 上下文中无这两个字段（`TcsParamValueSource.h:FTcsParamEvaluateContext`）；**且该头注释仍写"随 M2/M5 轮补齐"——M2 已收束，注释过期，口径待统一为"随 TcsState 等级源"** | **✅ 已消费（2026-10-04，R5 Task 0 Step 1）**——两字段 + 头注释口径已落地；反射证据与余项见下方《Task 0 收束》注记 |
 | STAT-3 | **`FFlowRedirect` 模板重定向栈**（D7-7：状态/装备声明换流程——让渡点 + 重定向栈后挂/高优先 + Source 级联回收；三粒度让渡模式升四粒度） | `SPEC-08-damage`（D7-7）；plan2 Task 3/4 均列为非目标（"随 M3 状态轮"） | 未落地（2026-09-21 plan2 Task 4 实施时确认：流程机制层与步骤库均无重定向入口） | 待触发（**归属 = R5/M3 状态轮**——消费者是"状态/装备声明换流程"，无状态模块即无场景） |
+| STAT-4 | **状态词（`FTcsStateDefBase.StatusTag`）的 tag 根归属**——本轮只落字段与发现期的有效性校验，**未裁定它住哪个根** | `PLN-R5` Task 1 落地记录（2026-10-04）；`gameplay-tag-governance` 根段注册表 | 根表 10 个根中**无承载它的角色**（新增的 `StateDef` 根只承载**资产身份解析** `DiscoverStateDefs` / `ResolveStateDef`）；`StatusTag` 的**解析消费者为零**——关系表检查器与按它匹配的槽位竞争表整体归 R5.5-e | 待触发（**归属 = R5.5-e 关系表族**——语义拍板时才出现真实消费者，届时按"一角色一根"定根并登记根表；本轮验收资产复用 `StateDef.*` 词，不构成对归属的裁定） |
+
+> **Task 0 收束（2026-10-04）——本表两条落地**：
+> - **`STAT-2` 部分消费**：`FTcsParamEnumerableSource`（`USTRUCT(meta = (Hidden))` + `TCSCORE_API`，新文件 `Source/TcsCore/Public/Parameter/TcsParamEnumerableSource.h`）+ 中性默认实现 `GetIndexForLevel()` 已落地（UHT 已产出 `.generated.h` + `.gen.cpp`）。**未建的一半** = PV-10 原案的 `Enumerate(Level, OutValues, OutCurrentIndex)`**及其派生形态"表项总数"**——两者的消费者都是展示层的 `FTcsParamView_Series`（整表 + 当前档高亮），按"零消费者不预建"继续留白，落地时随真实消费方补。
+> - **`DAMAGE-5` 已消费**：`Subject`（`UPROPERTY(BlueprintReadWrite)`）与 `EffectiveLevel`（`int32 = 0` = 无等级语义）已进上下文，**取值归调用方**（源 MUST NOT 自行反查实例）；头注释口径改写为"随 TcsState 等级源同批补齐（2026-10-04 已补齐）"。
+>   - **反射生效证据** = UHT 产物 `NewProp_Subject`（`FStructProperty` 绑 `Z_Construct_UScriptStruct_FTcsCombatEntityHandle`）与 `NewProp_EffectiveLevel`（`FIntProperty`），偏移与 `STRUCT_OFFSET` 一致。**余项**：计划 §0.1 记的 +1 字段增量（上下文实现期带 `ITcsEntityLevelProvider`）仍归 Task 3 Step 4。
+> - **规格承载**：两条由提案 `extend-param-evaluate-context` 承载（MODIFIED「反射可见求值上下文」+ ADDED「可枚举值来源基类」），该提案已归档为 `2026-10-04-extend-param-evaluate-context`。
 
 > 三项的共同锚点 = `ITcsEntityLevelProvider` 定义于 TcsState（D3-11 修订：State/Instigator × Array/Map 四源归 TcsState）——该接口属 R5 轮自身范围，不单列条目，此处登记为确保 `STAT-2`/`DAMAGE-2` 的触发点不丢。
 
@@ -61,6 +68,12 @@
 > **同批新增两条**：本册 `SCRIPT-9`（属性写入面缺反射）；反射册 `LEDGER-reflection` 的 **`R-7`**（属性访问写侧宿主插槽——属《宿主插槽家族的耦合关系》第五族，**不在本册计数内**）。
 >
 > **R4.5 排期（2026-10-04 用户裁定，落纸防丢）**：`R4.5-a` ✅ 闭环（2026-09-29）；**`R4.5-b`（`R-1` 参数源族宿主插槽）并入 [`PLN-R5`](../plans/plan-r5-state-layer.md) Task 3**（与四个等级源同族同验证面）；**`R4.5-c` 只剩"两张注册表的宿主脚本插槽"这半**——"载荷读取器登记"那半**已被 R4 Task 3 消费**（`TcsDamageFlowCollectEvent.cpp` 的 `UE_DEFINE_TRIGGER_PAYLOAD_READER` + Task 4 实测 `Caster ← Attacker` 生效），插槽那半**排到 R6 开工前**（消费者 = 宿主专属条件 / SkillCost）。判据 = 按"离第一个真实消费者最近"排（本仓"零消费者不预建"纪律）。
+
+> **Task 1 收束（2026-10-04，R5 模块与 Def 资产族）**：
+> - **新增一条 `STAT-4`**（上表末行）：**状态词的 tag 根归属挂账**——本轮不为零消费者开根（明细与归属见该行）。
+> - **根表变化**：`gameplay-tag-governance` 的插件侧根段注册表 **9 → 10**（新增 `StateDef` 根，消费角色 = 状态定义资产的身份解析；由提案 `add-tcs-state-module` 的 MODIFIED delta 承载，归档时落主规格并同步该规格 `Purpose` 的根数计数）。
+> - **本 Task 不消费本区段既有行**：`STAT-2` / `DAMAGE-5` 已在 Task 0 结、`STAT-3` 归 R5.5-d。
+> - **一条引擎/UBT 事实（供后续轮参考）**：直接使用某模块类型者 MUST 在自己的 `Build.cs` 声明依赖——**传递依赖只给头文件路径、不给导入库**（实测：TcsDev 靠 `TcsIntegration` 的 public 依赖能 include `Def/TcsBuffDefAsset.h`，但链接期取不到 `Z_Construct_UClass_UTcsBuffDefAsset`，报 `LNK2019` + `LNK1120`）。
 
 ## R1 后续（M0 总线补全）
 
@@ -194,11 +207,21 @@
 | WAIT-3 | **复制契约实现** `ICombatReplicationProxy`（`InjectOperation(操作流)` / `ExportSnapshot()`） | `SPEC-05-integration`（仅契约不实现，实现推迟到有联网项目） | 仅契约草案 | 等有联网项目 |
 | WAIT-4 | 总线动态层**类型化委托**（增量） | `SPEC-00-core`（"哪个事件用得痛再单独加"） | 未落地 | 等痛点出现 |
 | WAIT-5 | **`IRelationResolver` 阵营判定注入契约**（`IsHostile` / `IsFriendly(来源, 目标)`——设计名，与 `ICombatEntityQuery` 同族的宿主能力契约） | `SPEC-06-targeting`（§2.3 注入接口）（宿主 Filter 内部可调）；plan2 全篇未点名落点（已核） | 未落地——**R3 零消费者**：框架零默认 Filter，竖切的过滤器由测试装置自带判定，不需要阵营契约 | 等第一个需要阵营判定的宿主实现出现（最近机会 = M6 宿主适配轮，或 LAC 首个敌对判定需求） |
-| WAIT-6 | **来源发号器统一为进程唯一**：`FTcsSourceHandleRegistry` 可实例化，属性侧装置与 TcsDamage 门面各持一份 → **两个分配器的 Id 空间重叠**，"按来源级联摘除"可能误摘他人来源 | plan2 Task 3 实施注记（2026-09-20）；`TcsCore/Public/Handle/TcsSourceHandle.h`（类可实例化） | 未落地——R3 各分配器用途分离、无实际碰撞场景；**流程侧已用门面内实例**（`UTcsDamageSubsystem::FlowSourceRegistry`）。**★ 2026-10-04 实测：碰撞场景已出现（R4 Task 4）**——插件内今天就有两个独立注册表（`UTcsDefinitionSubsystem::TriggerSourceRegistry` 装配触发行用 / `UTcsDamageSubsystem::FlowSourceRegistry` 每流程发号），**两者头一个 Id 都是 1**；而 `UTcsEffectSubsystem::UnregisterTriggerRowsBySource` 已是公开面 ⇒「宿主自建注册表发号的行」与「定义库装配的行」**会同号**，级联摘除会**误摘后者**（本轮装置因此**直写高位 Id** 规避，理由写在 `TcsDevSliceRig.cpp` 的常量注释里） | 等 M6 宿主适配轮（届时多来源并存：状态/装备/流程/技能冷却）。**★ 2026-10-04 归属提前**：触发条件不再是"M6 多来源并存"——**来源级联摘除一进入实用面**（本轮 `UnregisterTriggerRowsBySource` 首次有真实调用方）就已经成立；修法二选一：①发号器**共享化**（真·进程单例，需 TcsCore 出导出函数或单例访问口）；②`FTcsSourceHandle` 携带**分配器身份**（域号 + 序号）。**本轮不做**（插件零改动是本批的前提），装置侧规避**不是**机制保证 |
+| WAIT-6 | **来源发号器统一为进程唯一**：`FTcsSourceHandleRegistry` 可实例化，属性侧装置与 TcsDamage 门面各持一份 → **两个分配器的 Id 空间重叠**，"按来源级联摘除"可能误摘他人来源 | plan2 Task 3 实施注记（2026-09-20）；`TcsCore/Public/Handle/TcsSourceHandle.h`（类可实例化） | 未落地（R3 用途分离、无碰撞）；**★ 2026-10-04 R4 Task 4 实测碰撞成立**（两注册表头号都是 1 ⇒ 级联会误摘）；现场与规避手法**留痕见下方《`WAIT-6` 收束》注记** | **✅ 已消费（2026-10-04，R5 Task 0 Step 3）**——出线 + 导出宏；原状态栏留痕（归属提前过程、修法二选一、装置侧规避）见同注记 |
 | WAIT-7 | **AttrCapture（属性捕获）整套**：`ETcsAttrCaptureFrom{Instigator/Target}` + FlowStart 捕获填充 `CapturedAttrs` 快照 + "读默认 Live、命中读快照"的读取语义（09 §2.1"流程内读取一致性"；"本次攻击攻击力 +10%"的双路径之一） | `SPEC-08-damage`；plan2 Task 4 提案顺延节（2026-09-21 实施时确认） | 未落地：`FTcsDamageFlowContext.CapturedAttrs` 字段已就位，但**无填充者、无读取者**（R3 竖切只有字面量 `DamageBase` 链，无属性修正型修改器） | 等 M5 技能账本轮，或第一个属性修正型修改器出现 |
 | WAIT-8 | **流程模板资产化**：`UTcsDamageFlowTemplateDef : UPrimaryDataAsset`（与链资产同形：`{ FGameplayTag TemplateTag; FTcsDamageFlowTemplate Template; }` + 显式 `PrimaryAssetType`（**值 = 类名** `"TcsDamageFlowTemplateDef"`——族内一致，2026-09-21 标准收口）+ 覆写 `GetPrimaryAssetId()` 名取 `TemplateTag.GetTagName()`），DefLibrary 发现并登记进 `UTcsDamageSubsystem`；**先改名**：`FTcsFlowTemplate` → `FTcsDamageFlowTemplate`（现名 `Flow` 段语义太泛，模块内 `Flow*` 类型成堆） | `SPEC-08-damage`（"**多预设 = 多模板资产**（不同游戏模式/角色配不同模板）。模板选择链：Damage 步骤配置指定 → Def 覆盖 → 全局默认"——**设计明文称"模板资产"**，从未被任何 Task 认领）；用户 2026-09-21 拍板方向（"可以走资产化"）+ 改名要求 | **未落地**：全库 `FlowTemplateDef` / `DamageFlowTemplate` 零命中（2026-09-21 已核）。R3 现状 = 默认模板在 `UTcsDamageSubsystem::Initialize` **C++ 硬编码组装**（`TcsDamageSubsystem.cpp:UTcsDamageSubsystem::Initialize`，四步 CollectStart→BaseDamage→Execute→Completed）。**模板是"句子"（合法资产化）**——与"步骤是词汇（不可资产化）"分属不同层（R0 §8 锋利边界）。**✅ GC 面已修（2026-09-23）**：登记表 `TMap<FGameplayTag, TUniquePtr<FTcsFlowTemplate>>` 非 UPROPERTY 的地雷，已用 `UTcsDamageSubsystem::AddReferencedObjects` 静态 ARO 覆写 + `AddPropertyReferencesWithStructARO` 逐模板补引用（链侧 `UTcsEffectSubsystem` 同批同款）；规格已并入（`damage-flow` / `effect-chain` 各加"对 GC 可见"要求 + 场景）。提案 `fix-registry-gc-visible-holding` → 归档 `2026-09-22-fix-registry-gc-visible-holding`。**⚠️ 未实证**：GC 场景（无其他强引用的 delegate + 手动 `obj gc`）**未跑**——宿主当前用 `UPROPERTY` 强引用绕过（现成冗余保险），R3 无合适夹具；成立依据是引擎源码机制（`AddPropertyReferencesWithStructARO` 递归进 `FInstancedStruct` 内层，`InstancedStruct.cpp:FInstancedStruct::AddStructReferencedObjects`）而非实测。**资产化落地后本问题自然消解**（资产 root 后 ARO 覆写成为冗余但无害） | 等第一个真实内容需求（策划要自定义流程顺序 / 多游戏模式多模板）；改名可随该轮一并做，或提前单独做 |
 | WAIT-9 | **跨模块消费面的导出宏存量审计**：公共头里的**非内联符号**若被其他模块（宿主/兄弟模块）引用，声明处 MUST 带模块导出宏（`TCS<模块>_API`）——否则链接失败。**2026-09-21 Task 6 实证两处（已修）**：①原生 Tag（`UE_DECLARE_GAMEPLAY_TAG_EXTERN` 展开为**裸 `extern`**，`NativeGameplayTags.h:UE_DECLARE_GAMEPLAY_TAG_EXTERN` 无 dllexport）→ 11 个框架事件 Tag 已补导出宏；②`FTcsFlowAttributes` / `FTcsFlowAttributeSubmit`（宿主自研流程步骤的公共调用面）→ 已补 `TCSDAMAGE_API`。**未补的存量面**（纯内联或仅同模块使用，暂安全）：`FTcsDamageFlowContext` / `FTcsDamageModifierConsumePolicy` / `FTcsAttributeStore` / `FTcsAttributeInstance` / `FTcsAttrModOperand` / `FTcsClock` / `FTcsEventBus` 族等 | plan2 Task 6 实施注记②（2026-09-21）；`NativeGameplayTags.h:UE_DECLARE_GAMEPLAY_TAG_EXTERN`；实测 `LNK2001` / `LNK2019` | **根因**：R3 之前**从无跨模块消费者**（宿主是第一个），故这类"声明缺导出宏"的问题从未暴露。已修的两类是"设计意图明确要供宿主使用"的（事件 Tag 供订阅、黑板供宿主步骤读写） | 随**首个跨模块消费者**出现逐个补（判据 = 该符号是否被跨模块引用）；M6 宿主适配轮可做一次全量审计 |
 | WAIT-10 | **跨资产 id 引用的作者侧存在性校验**：六类引用点（`FlowTemplateId` / `ParamRef::Key` / 属性名 / 黑板键 / `TemplateId` / `DefId`）在 tag 化后，**拼写/存在性由 `FGameplayTag::IsValid()` 与 `RequestGameplayTag` 的 ensure 部分覆盖**（构造/解析处即暴露）；但**"已注册却指向不存在实体"**（如合法 tag 但无对应模板）仍无校验——该面归 M8 校验矩阵 | 用户 2026-09-22 指出（"所有配置都在 Def 里…都需要开发者手动填写 FName，这样很容易出事故"）；`SPEC-09-editor`（"未登记的 DefId = 保存期报错"——**设计已承诺、R8 未落地**）；台账 TOOLS-1/TOOLS-2 记的面均**未覆盖"id 引用存在性"这一类** | **部分覆盖**（tag 化的直接收益）；剩余面未落地 | 待触发（R8 开工） |
+
+> **`WAIT-6` 收束（2026-10-04，R5 Task 0 Step 3）——落法、偏离与同族第二实例**：
+> - **落法（"发号器共享化"的加强版）**：`Allocate()` 定义**出线**到新文件 `Source/TcsCore/Private/Handle/TcsSourceHandle.cpp`（计数器 = 该文件匿名 namespace 变量 `GTcsSourceHandleNextId`），结构体按本仓导出宏纪律改带 `TCSCORE_API`（判据 = "有 out-of-line 成员或反射符号"，先例 `TcsCoreStats`）。**导出生效的硬证据** = TcsIntegration / TcsDamage / TcsDev 三模块链接成功（未导出必 LNK2019）。
+> - **为什么不是"改 `static` 成员"（计划原文写法）**：本类跨模块头内联，而插件是模块化构建（`UnrealEditor-TcsCore` / `-TcsIntegration` / `-TcsDamage` / `-TcsDev` 四镜像）；MSVC 的 COMDAT 折叠**不跨 DLL 合并** ⇒ `static` 成员在每个镜像各留一份计数器、全都从 1 开始（monolithic Shipping 又会合并成一份 ⇒ 症状随配置漂移）。
+> - **备选未采用**：②"`FTcsSourceHandle` 携带分配器身份（域号 + 序号）"——留作将来若真需"多 Id 空间共存"时再议（届时是纯增量）。
+> - **装置侧规避已撤除**：`TcsDevSliceRig.cpp` 的两个直写常量（`0x7C5D9001` / `0x7C5D9002`）换成 `GTcsDevRigSourceRegistry.Allocate()`，原"为什么直写"的注释改写为撤除记录。
+> - **同族第二实例（登记，本轮不扩大范围）**：`FTcsCombatEntityHandleRegistry`（`TcsCore/Handle/TcsCombatEntityHandle.h`）是同一缺陷的镜像（每实例计数器），但今天只有 `UTcsAttributeSubsystem::EntityRegistry` 一处持有 ⇒ **无活体碰撞**；等 M6 世界注册表落地（第二处发号方出现）时按本次同一修法统一。
+> - **原单元格留痕（2026-10-04 行宽整理时压缩自表格行，事实未删）**：R3 期各分配器用途分离、**无实际碰撞场景**；流程侧已用门面内实例（`UTcsDamageSubsystem::FlowSourceRegistry`）。
+>   - **R4 Task 4 实测（碰撞成立）**：插件内当时就有两个独立注册表——`UTcsDefinitionSubsystem::TriggerSourceRegistry`（装配触发行）与 `UTcsDamageSubsystem::FlowSourceRegistry`（每流程发号），**两者头一个 Id 都是 1**；而 `UTcsEffectSubsystem::UnregisterTriggerRowsBySource` 已是公开面 ⇒「宿主自建注册表发号的行」与「定义库装配的行」**会同号**，级联摘除会**误摘后者**。装置当时**直写高位 Id** 规避（理由写在 `TcsDevSliceRig.cpp` 的常量注释里）——**规避不是机制保证**。
+>   - **归属与修法的原记录**：原判"等 M6 宿主适配轮（届时多来源并存：状态/装备/流程/技能冷却）"；2026-10-04 **提前**到"来源级联摘除一进入实用面"（`UnregisterTriggerRowsBySource` 首次有真实调用方）。修法二选一 = ①发号器**共享化**（真·进程单例，需 TcsCore 出导出函数或单例访问口）／②`FTcsSourceHandle` 携带**分配器身份**（域号 + 序号）——本轮取①的加强版（出线 + 导出宏），②留作备选。
 
 ---
 
@@ -300,3 +323,9 @@
   - **`DAMAGE-1` / `DAMAGE-3` / `DAMAGE-4` / `TRIG-1` / `TRIG-3` / `WAIT-6` / `CHAIN-3`**：已在 Task 2.5 / 3.5 / 4 各自收束时消费或更新（逐条见上方对应增补），**Task 5 不重复动作**。
   - **本轮无其他新增条目**——R4 收束后未关闭项**全部带归属**（轮次或触发条件），无"无归属"条目（入册判据第 4 条）。
 - **2026-10-04 增补（R5 开工折入）**：新增 **`SCRIPT-9`**（属性写入面缺反射——`ApplyModifier` / `RemoveBySource` 无 `UFUNCTION`，且形参 `FTcsAttrModInstance` 是纯 C++ struct，补宏不足以打通）。**条目总数 48 → 49**。R5 区段加《R5 开工折入》块：逐项落点（`STAT-2` → Task 0 Step 2、`DAMAGE-5` → Task 0 Step 1、`WAIT-6` → Task 0 Step 3、`TRIG-4` → Task 1+6、`TRIG-5` 的 `AttributeCompare` → Task 6 Step 3、`DAMAGE-2` 的 `ModifyAttribute` → Task 6 Step 2）+ **五项归属改判 R5.5**（`DAMAGE-2` 余 3 / `DAMAGE-3` 余 / `DAMAGE-4` / `STAT-3` / 关系表族）。**行级状态本轮不预先改**——按本册纪律，收束时才标"已消费（日期 + 落点）"（R5 Task 8 Step 3 执行）。**同批新增反射册 `R-7`**（属性访问写侧宿主插槽）——属另一册，**不在本册计数内**。**并记 R4.5 重排**（同日用户裁定）：`R4.5-b`（`R-1` 参数源插槽）并入 `PLN-R5` Task 3、`R4.5-c` 只剩"两张注册表插槽"半并排到 R6 开工前——详见《R5 开工折入》块末段的《R4.5 排期》条；判据 = 按"离第一个真实消费者最近"排。
+- **2026-10-04 增补（R5 Task 0 收束）**：**条目总数仍 49**（零新增；`WAIT-6` 的同族第二实例见该行内注记，未开新条目）。三条就地标记（**本册纪律的对齐说明**：R5 折入时写的"行级状态本轮不预先改、Task 8 Step 3 统一标"针对"**只是被排进计划**"的行；`STAT-2` / `DAMAGE-5` / `WAIT-6` 的**收束点就是 Task 0 自身**——已落地即已消费，故就地标；Task 8 Step 3 那一趟只处理剩余行与"实施期新发现"）：
+  - **`STAT-2` → 部分消费**（基类 + 两个索引入口落地；`Enumerate` 零消费者继续留白）。
+  - **`DAMAGE-5` → 已消费**（上下文两字段 + 头注释口径；反射证据 = UHT 产物两属性）。
+  - **`WAIT-6` → 已消费**（出线发号 + `TCSCORE_API`；装置侧高位 Id 规避撤除）。**并记一处计划文本偏离**：计划原写"改 `static` 成员"，实测该修法跨 DLL 无效（详见该行内注记与 `PLN-R5` Task 0 Step 3）。
+  - **提案面收缩**：计划列的两个提案落地为一个 `extend-param-evaluate-context`；`unify-source-handle-issuer` 未开——`instance-handle-pool` 规格第 17 行早已要求"进程内永不复用"，本次属**恢复规格既有行为**的缺陷修复，按 `openspec/AGENTS.md` 决策树免提案。
+- **2026-10-04 增补（R5 Task 1 收束）**：新增 **`STAT-4`**（状态词的 tag 根归属——零解析消费者 ⇒ 本轮不开根，归属待 R5.5-e 关系表族）。**条目总数 49 → 50**。R5 区段加《Task 1 收束》块：新增行、根表 9 → 10、以及一条 UBT 事实（传递依赖不给导入库 ⇒ 直接使用某模块类型者必须自己声明依赖）。**同批不改既有行状态**（`STAT-2` / `DAMAGE-5` 已于 Task 0 结，`STAT-3` 归 R5.5-d）。

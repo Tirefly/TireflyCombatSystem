@@ -119,9 +119,12 @@ FStateDefBase（抽象，编辑器隐藏）          ← 本模块定义
 - v2 增补 6（2026-09-10，D3-7 v3 载体修订）：Fragment 载体 EditInlineNew Instanced UObject → **USTRUCT 反射基类 + C++ 虚函数分派 + `TInstancedStruct<Base>` 持有**（可行性调研后用户拍板——引擎事实与 StateTree 先例见 README 决策日志同日条目）；行为 Fragment UTcs→FTcs；BP 策略扩展通道放弃；编辑器校验挪至 Def 资产 IsDataValid；实例零策略/泛化订阅契约不变。
 - v2 增补 7（2026-09-11，PV 系列）：参数行 Base 换型 **FTcsParamValue{TInstancedStruct<FTcsParamValueSource>}**（D2-12 FTcsParamScalar 被取代）；**等级源住本模块**（D3-11 修订——等级表 def 数据进引擎）：StateLevelArray/Map + InstigatorLevelArray/Map（`ITcsEntityLevelProvider::GetEntityLevel` **定义于本模块**、宿主实现；TargetLevel 系暂不提供——评判轮用户拍板）；快照条目留源引用位（Debug+Live 预留）；DurationTime 等时值字段同批换型。
 - v2 增补 8（2026-09-14，参数折叠与展示轮）：折入 **D5-17 v2**（§2 描述绑定词法族、§3.6 tooltip 索引口径 = 实例快照 Level）、**D5-18 v3**（参数行 Mode 列与约定白名单同参 11 文档）、**命名批**（§2 Def 资产层级 `UTcsStateDef`/`UTcsBuffDef` + 范围澄清、`FTcsNumericParamRow`/`ETcsParamMode`、§3.1 `FTcsParamSnapshot`、§3.6 `FTcsParamSnapshotEntry`）；**PV-10**（等级源后续实现可枚举能力——`FTcsParamEnumerableSource` 基类住 Core，索引解析唯一真相在源，随本模块等级源同批落地）。
-- v2 增补 9（2026-09-15，D5-17 v3 描述视图策略化）：§2 DescriptionTextKey 单字段 → **Descriptions 配置组**（`FTcsDescriptionEntry` 多描述入口 + `TInstancedStruct<FTcsParamView>` 视图槽位——类型住 TcsNotation，本模块已有 Notation 边零新边）；§3.6 tooltip 索引口径改 Series 视图措辞（口径本身不变：实例快照 Level）。
+- v2 增补 9（2026-09-15，D5-17 v3 描述视图策略化）：§2 DescriptionTextKey 单字段 → **Descriptions 配置组**（`FTcsDescriptionEntry` 多描述入口 + `TInstancedStruct<FTcsParamView>` 视图槽位——~~类型住 TcsNotation，本模块已有 Notation 边零新边~~ → **类型住本模块 TcsState**：`DEC-02-fold-display` v3 命名批的"住哪"表明写"描述视图槽位 / 配置条目 → TcsState（Def 形状所在）"，TcsNotation 只拥有词汇约定与视图机制。**2026-10-04 订正**：上述"住 TcsNotation"的父注作废、改判 TcsState（见 §12.5 第 4 条）；
+    §3.6 tooltip 索引口径改 Series 视图措辞（口径本身不变：实例快照 Level）。
 - v2 增补 10（2026-09-23，标识体系 tag 化改造回写）：§2 Def 资产身份 `FName DefId` → **`FGameplayTag DefTag`**（主资产身份 = `[PrimaryAssetType, DefTag.GetTagName()]`；表行 `RowName` 降为编辑期定位，与 `DefTag` 分工而非双真相）；§3.1 实例权威字段、§4 `ApplyState` 签名、§7 操作复制载荷同步改 tag 口径。落点 = 提案 `switch-identifiers-to-gameplay-tags`（2026-09-22 归档）。
 - v2 增补 11（2026-10-04，**R5 开工收窄轮**）：新增 **§12「R5 实施范围与切分」**（落地对照 / 不落及归属 / 两处实现口径 / 四处口径待澄清）；身份块状态改 `PENDING（R5 实施中）`；**两处实现口径改名**记录在 §12.3——宿主类 `UCombatStateRegistry` → `UTcsStateSubsystem`（§3.1 正文加注）、资产类 `UTcsBuffDef` → `UTcsBuffDefAsset`（§2 正文加注），两处正文改名的**规格提案随 `PLN-R5` Task 1 一并落地**。计划见 [`PLN-R5`](../plans/plan-r5-state-layer.md)。
+- v2 增补 12（2026-10-04，**R5 Task 1 落地**）：模块与 Def 资产族物化——`TcsState` 进 `.uplugin`（第 8 个模块）、`FTcsStateDefBase` / `FTcsBuffDef` / `FTcsBuffDefTableRow` / `UTcsStateDef` / `UTcsBuffDefAsset` / `FTcsNumericParamRow` / `FTcsDescriptionEntry`(+`FTcsDescriptionViewSlot`) 落地、定义库第三条发现路径 `DiscoverStateDefs` / `ResolveStateDef` 接通（第三份缓存 + GC 引用收集）。
+  **订正 v2 增补 9 的"描述载体类型住 TcsNotation"**：改判 **TcsState**（依据 `DEC-02-fold-display` v3 命名批"住哪"表）；新增 **§12.5** 记四条落地口径（两处类型提前落 / 状态词根归属挂账 / 描述载体归属订正）。规格提案 = `2026-10-04-add-tcs-state-module`（四份 delta）。
 
 ## 11. 验收钩子
 
@@ -178,3 +181,12 @@ FStateDefBase（抽象，编辑器隐藏）          ← 本模块定义
 - §2 的 `Descriptions` 描述视图配置：本轮只落字段与作者侧校验，**渲染归 R8**（`SPEC-09-editor`）。
 - §3.3 正文里的 `Combat.State.Periodic` 是**换根前的旧 tag 名**——新名为 `TcsEvent.State.Periodic`（本轮定型，见 `unreal-gameplay-tags` 规范）。
 - §3.4 的"槽位竞争并入 Priority 语义"一节引用的 `TCS 报告 06`（库外，已不在库内）**不可复核**，语义拍板时 MUST 重新论证。
+
+### 12.5 Task 1 落地口径（2026-10-04，R5）
+
+| # | 口径 | 依据 / 后果 |
+|---|---|---|
+| 1 | `EDurationPolicy` / `ETcsPeriodRefresh` **随 Task 1 落**（住 `Public/State/TcsStateEnums.h`）；Task 2 在同一文件补 `EStatePhase` / `EStateRemoveCause` / `EApplyResult` | `FTcsBuffDef` 的时值字段在 Task 1 就要编译 ⇒ 类型必须先于字段存在；计划 Task 2 交付物列表里的这两个枚举名随之让位（免两处定义） |
+| 2 | `FStateStackPolicy` **随 Task 1 落形状**（住 `Public/State/TcsStateStackPolicy.h`：四轴枚举 + `MaxStacks`）；Task 5 只补决策 Fragment 与行为 | 同上：`FTcsBuffDef.StackPolicy` 字段需要类型；本轮**不带** Custom 位的 `TInstancedStruct` 载荷与任何策略基类（零消费者不预建） |
+| 3 | **状态词根归属挂账**：新增 `StateDef` 根只承载"状态定义资产的身份解析"（`DiscoverStateDefs` / `ResolveStateDef`）；`Def.StatusTag` 的根归属**本轮不裁定** | 一角色一根 + 零消费者不预建根——解析消费者为零（关系表检查器与按它匹配的槽位竞争表整体归 R5.5-e）；验收资产里 `StatusTag` 复用同一个 `StateDef.*` 词，不构成对归属的裁定 |
+| 4 | **描述配置载体住本模块**（订正 §10 v2 增补 9 的"类型住 TcsNotation"父注） | `DEC-02-fold-display` v3 命名批"住哪"表 + `SPEC-07-notation` §1 边界（字段归各 Def、词汇约定归 Notation）；Task 1 落 `FTcsDescriptionEntry` / `FTcsDescriptionViewSlot` 两个纯数据载体，视图策略族仍归 R8 |
