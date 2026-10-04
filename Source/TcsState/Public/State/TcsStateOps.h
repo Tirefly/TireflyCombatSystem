@@ -3,7 +3,6 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "GameplayTagContainer.h"
 
 #include "Handle/TcsCombatEntityHandle.h"
 #include "Handle/TcsSourceHandle.h"
@@ -11,9 +10,15 @@
 #include "State/TcsStateEnums.h"
 #include "State/TcsStateHandle.h"
 #include "State/TcsStateInstance.h"
+#include "State/TcsStateSnapshot.h"
 
 class UTcsStateSubsystem;
+class UTcsClockSubsystem;
+class ITcsEntityLevelProvider;
+class ITcsParamTableReader;
 struct FTcsBuffDef;
+struct FTcsStateEvaluateContext;
+struct FTcsTimeEntryHandle;
 
 
 
@@ -29,9 +34,13 @@ struct FTcsBuffDef;
  * 调用点（`FTcsStateOps::Apply(...)`）一眼可辨。
  *
  * 文件划分：本头 + `TcsStateOps.cpp`（施加与移除）/ `TcsStateOps_Query.cpp`（查询）/
- * `TcsStateOps_Events.cpp`（Tag 定义与广播）。
+ * `TcsStateOps_Events.cpp`（Tag 定义与广播）/ `TcsStateOps_Snapshot.cpp`（快照构建与时长求值）/
+ * `TcsStateOps_Lifetime.cpp`（时长 / 周期条目入堆与撤堆、时长操作）。
+ *
+ * **导出宏是必需项**（`WAIT-9` 判据："该符号是否被跨模块引用"）：宿主侧装置（`TcsDev`）直接调
+ * `MakeContext` 等静态成员 ⇒ 不带 `TCSSTATE_API` 必 `LNK2019`（2026-10-05 实测）。
  */
-class FTcsStateOps
+class TCSSTATE_API FTcsStateOps
 {
 // 施加
 #pragma region Apply
@@ -47,7 +56,9 @@ public:
 	 * @param Target 被施加方实体。
 	 * @param DefTag 状态定义身份（须已登记）。
 	 * @param Source 施加方来源句柄（无效则由门面发号）。
-	 * @param Overrides 施加方参数覆盖（本轮不消费）。
+	 * @param Instigator 发起者实体（无效则取 `Target`——"谁施加的"缺省即被施加方）。
+	 * @param ParamTable 施加方参数表（空 = 引用类参数源落兜底）。
+	 * @param Overrides 施加方参数覆盖（参与快照构建）。
 	 * @return 返回施加结果。
 	 */
 	static EApplyResult Apply(
@@ -55,6 +66,8 @@ public:
 		FTcsCombatEntityHandle Target,
 		FGameplayTag DefTag,
 		FTcsSourceHandle Source,
+		FTcsCombatEntityHandle Instigator,
+		const TScriptInterface<ITcsParamTableReader>& ParamTable,
 		const TMap<FGameplayTag, double>& Overrides);
 
 #pragma endregion
@@ -65,7 +78,7 @@ public:
 
 public:
 	/**
-	 * 按句柄移除一个实例（**先广播后释放槽位**——见方法内注释的硬约束）。
+	 * 按句柄移除一个实例（**先撤时间条目 → 先广播后释放槽位**——见方法内注释的硬约束）。
 	 *
 	 * @param Subsystem 状态门面。
 	 * @param Handle 实例句柄。
@@ -82,6 +95,64 @@ public:
 	 * @return 返回移除的实例数。
 	 */
 	static int32 UnregisterUnit(UTcsStateSubsystem& Subsystem, FTcsCombatEntityHandle Unit);
+
+#pragma endregion
+
+
+// 时间条目（到期 / 周期）
+#pragma region Time
+
+public:
+	/**
+	 * 装配状态域求值上下文（快照构建与时值求值的**唯一装配点**）。
+	 *
+	 * 为什么集中一处：上下文有五个字段（参数表 / 主体 / 发起者 / 等级 / 等级读口），
+	 * 分散装配迟早出现"某一处少填一个字段"的静默降级（源会落兜底而不是报错）。
+	 *
+	 * @param OutContext 输出上下文。
+	 * @param Subsystem 状态门面（提供宿主等级读口）。
+	 * @param Target 被施加方实体。
+	 * @param Instigator 发起者实体（无效则取 `Target`）。
+	 * @param EffectiveLevel 生效等级（本轮 = `Def.LevelBase`）。
+	 * @param ParamTable 施加方参数表（可空）。
+	 */
+	static void MakeContext(
+		FTcsStateEvaluateContext& OutContext,
+		UTcsStateSubsystem& Subsystem,
+		FTcsCombatEntityHandle Target,
+		FTcsCombatEntityHandle Instigator,
+		int32 EffectiveLevel,
+		const TScriptInterface<ITcsParamTableReader>& ParamTable);
+
+	/**
+	 * 挂时值到期条目（`Finite` 路径）。
+	 *
+	 * 回调捕获**世界弱引用 + 句柄**：世界已拆解或句柄悬空（代际失配）时静默丢弃
+	 * （时序竞态语义——不留红字、不 ensure）。
+	 *
+	 * @param Subsystem 状态门面。
+	 * @param Instance 目标实例（须已在册）。
+	 */
+	static void PushExpiry(UTcsStateSubsystem& Subsystem, FTcsStateInstance& Instance);
+
+	/**
+	 * 挂周期条目（`Period > 0` 路径）：每次回调广播 `TcsEvent.State.Periodic` 后**重新入堆**。
+	 *
+	 * @param Subsystem 状态门面。
+	 * @param Instance 目标实例（须已在册）。
+	 */
+	static void PushPeriod(UTcsStateSubsystem& Subsystem, FTcsStateInstance& Instance);
+
+	/**
+	 * 撤销某实例的全部时间条目（时值 + 周期）。
+	 *
+	 * **撤销顺序的前置一步**：移除 / 到期 / 单位注销 MUST 先调本函数再走广播链——
+	 * 条目持句柄，槽位复用后回调仍会到达；先撤条目才不产生无谓回调。
+	 *
+	 * @param Subsystem 状态门面。
+	 * @param Instance 目标实例（字段被就地清空，可重复调用）。
+	 */
+	static void CancelTimeEntries(UTcsStateSubsystem& Subsystem, FTcsStateInstance& Instance);
 
 #pragma endregion
 
@@ -150,6 +221,75 @@ public:
 #pragma endregion
 
 
+// 快照
+#pragma region Snapshot
+
+public:
+	/**
+	 * 构建（或重建）参数快照——写入点，`ValueConvention` 的规范转换在此发生一次。
+	 *
+	 * 逐行规则：`Overrides` 命中该行 `Key` ⇒ 取覆盖值（**不再过一次值约定**——覆盖值是调用方
+	 * 给出的规范值）；否则 `Def.Base.Evaluate(Ctx)` 后按该行 `ValueConvention` 转规范值。
+	 *
+	 * @param OutSnapshot 输出快照（函数内先 `Reset` 再填——重建语义）。
+	 * @param Def 定义内容。
+	 * @param Ctx 求值上下文（由调用方装配）。
+	 * @param Overrides 施加方参数覆盖。
+	 */
+	static void BuildSnapshot(
+		FTcsParamSnapshot& OutSnapshot,
+		const FTcsBuffDef& Def,
+		const FTcsParamEvaluateContext& Ctx,
+		const TMap<FGameplayTag, double>& Overrides);
+
+	/**
+	 * 求值一个状态定义的总时长（秒）——`DurationTime` 经快照口径求值。
+	 *
+	 * **为什么经快照读而不是直接求值**：`DurationTime` 是参数行的一员（可配等级表），
+	 * 施加时它已按同一上下文求值并冻结；两处各求一次就会出现"时值与参数行不同档"的双口径。
+	 * 故先在快照里按键找，找不到才回落实时求值（定义没把它写进 `Params` 的形态）。
+	 *
+	 * @param Subsystem 状态门面（提供时钟/等级读口以装配上下文）。
+	 * @param Def 定义内容。
+	 * @param Snapshot 已构建的快照（可为空表）。
+	 * @param Target 被施加方实体（装配上下文用）。
+	 * @param Instigator 发起者实体。
+	 * @param ParamTable 施加方参数表。
+	 * @return 返回总时长（秒）；`EDP_Infinite` 或求值失败返回 0。
+	 */
+	static double EvaluateTotalDuration(
+		UTcsStateSubsystem& Subsystem,
+		const FTcsBuffDef& Def,
+		const FTcsParamSnapshot& Snapshot,
+		FTcsCombatEntityHandle Target,
+		FTcsCombatEntityHandle Instigator,
+		const TScriptInterface<ITcsParamTableReader>& ParamTable);
+
+	/**
+	 * 按定义的时值/周期语义重挂时间条目（施加与刷新共用一处）。
+	 *
+	 * 规则：`Finite` ⇒ 撤销旧时值条目、按 `DurationTime` 求值后重入堆；`Infinite` ⇒ 撤旧条目不重挂。
+	 * `Period > 0` ⇒ 按 `PeriodRefresh` 处理（`Keep` 保留剩余、`Reset` 满额重建、`Immediate`
+	 * 先按周期语义走一次再重建）；`Period <= 0` ⇒ 撤旧周期条目不重挂。
+	 *
+	 * @param Subsystem 状态门面。
+	 * @param Instance 目标实例。
+	 * @param Def 定义内容。
+	 * @param Snapshot 已构建的快照。
+	 * @param ParamTable 施加方参数表（时值求值用）。
+	 * @param bRefresh 是否刷新路径（true 时 `PeriodRefresh` 才起作用）。
+	 */
+	static void ScheduleTime(
+		UTcsStateSubsystem& Subsystem,
+		FTcsStateInstance& Instance,
+		const FTcsBuffDef& Def,
+		const FTcsParamSnapshot& Snapshot,
+		const TScriptInterface<ITcsParamTableReader>& ParamTable,
+		bool bRefresh);
+
+#pragma endregion
+
+
 // 生命周期操作
 #pragma region LifetimeOps
 
@@ -166,6 +306,14 @@ public:
 		UTcsStateSubsystem& Subsystem,
 		FTcsStateHandle Handle,
 		FTcsStateInstance*& OutInstance);
+
+	/**
+	 * 时长操作的后置（撤销旧条目 + 按新余量重入堆）——`ExtendDuration` / `SetRemaining` 共用。
+	 *
+	 * @param Subsystem 状态门面。
+	 * @param Instance 目标实例（其 `DurationRemaining` 已被调用方改成新值）。
+	 */
+	static void RescheduleExpiry(UTcsStateSubsystem& Subsystem, FTcsStateInstance& Instance);
 
 #pragma endregion
 };

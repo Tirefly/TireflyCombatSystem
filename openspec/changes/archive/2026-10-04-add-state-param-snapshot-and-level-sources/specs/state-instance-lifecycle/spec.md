@@ -1,35 +1,10 @@
-# state-instance-lifecycle Specification
+# Delta: state-instance-lifecycle
 
-## Purpose
+> **本 delta 的性质**：Task 2 已把"实例骨架"落进主规格；本 delta 只补**时间与数值两条腿**带来的四处口径变化（实例字段面 / 门面时长操作与等级读口 / 撤销顺序扩展 / 反初始化清空面）。
+>
+> **归档器硬约束（第三次实证，2026-10-04）**：MODIFIED 块里 `### Requirement:` 与 `#### Scenario:` 的**标题都不可改、不可删**——改名或删除会被 `validate` 拒为 `omits scenario(s)`，`## RENAMED Requirements` 写 `#### Scenario:` 会被**静默丢弃**。故下面每条 MODIFIED 均**原样保留全部既有场景标题**，新语义只以"新增场景 + 正文补句"承载。
 
-定义 M3 状态层的**运行态骨架**：状态实例句柄与池化实例记录、per-unit 桶注册表与代际校验、世界级状态门面（施加 / 查询 / 移除 / 生命周期操作 + 定义登记口）、六枚生命周期事件 tag 与反射载荷，以及阶段迁移与广播点的纪律——让"状态定义"能变成可查、可移除、可被订阅的运行实例。
-
-**边界**：本能力只覆盖"实例在册与生命周期广播"。参数快照与等级源（`PLN-R5` Task 3）、持续修正器物化（Task 4）、五轴堆叠与刷新政策（Task 5）、链原语 `ApplyState` 与行为 Fragment（Task 6）各自另有能力，本能力只保留它们的**接入位**（定义登记口、`ExtendDuration` / `SetRemaining` 签名、`EApplyResult` 的 `Stacked` 档）。
-
-## Requirements
-
-### Requirement: 状态实例句柄
-
-TcsState MUST 提供 `FTcsStateHandle`（`USTRUCT(BlueprintType)`）：两字段 `int32 Index` 与 `int32 Generation`（**展平形态**，与 `FTcsChainRunHandle` / `FTcsEffectTriggerInstance` 同款——反射与宿主脚本往返需要可反射的标量字段，对象身份不外传）。
-
-- `IsValid()`：`Index >= 0` 且 `Generation > 0`（`Generation` 从 1 起，0 恒为"从未分配"）；
-- 相等比较按 `(Index, Generation)` 全等；MUST 提供 `GetTypeHash`（供 `TMap` / `TSet` 键控）；
-- **句柄相对其发放方（该世界的状态门面）有义**：`Index` / `Generation` 的语义由**桶**定义；MUST NOT 把句柄跨世界或跨门面重用。
-
-#### Scenario: 未分配句柄无效
-
-- **WHEN** 取一个默认构造的 `FTcsStateHandle` 并调 `IsValid`
-- **THEN** 返回 false（`Index` 为负或 `Generation` 为 0）
-
-#### Scenario: 分配出的句柄可直接判有效
-
-- **WHEN** 施加一个状态并取回其句柄（`Index` 可能为 0）
-- **THEN** `IsValid` 返回 true（合法性判据是"`Generation` 非 0"，不是"下标非 0"——下标 0 是合法槽位）
-
-#### Scenario: 用过的句柄在槽位回收后失配
-
-- **WHEN** 移除一个状态使槽位回收，随后用旧句柄查询
-- **THEN** 查询被拒绝（代际失配），且同一槽位新分配的实例不受影响
+## MODIFIED Requirements
 
 ### Requirement: 池化状态实例记录
 
@@ -66,31 +41,6 @@ TcsState MUST 提供 `FTcsStateInstance`——**纯数据**记录，字段分三
 
 - **WHEN** 施加一个带参数行的状态后检查该实例
 - **THEN** 它的 `ParamSnapshot` 含施加时刻求值得到的条目（不是空表，也不随外部输入变化）
-
-### Requirement: per-unit 桶注册表与代际校验
-
-TcsState MUST 提供 `FTcsStateRegistry`：**per-unit 桶**——`TMap<FTcsCombatEntityHandle, TUniquePtr<FStateBucket>>`（`TUniquePtr` 间接层，`TMap` 扩容**不搬移桶地址**）。
-
-桶 = 槽位数组（`TArray<FTcsStateInstance>`）+ 每槽代际数组 + 空闲槽栈（照 `FTcsTriggerRegistry` 的手法：分配优先复用空闲槽、释放使代际 +1、新槽代际从 1 起）。
-
-**脏句柄一律拒绝 + `Warning`**（不 `ensure`——这是**时序竞态**语义，与"配置错误"分开）：代际失配 / 下标越界 / 单位未注册。拒绝 MUST NOT 影响同桶其它实例。
-
-`UnregisterUnit` 删桶时 MUST 回收该单位全部槽位（否则池占用统计残留）。
-
-#### Scenario: 脏句柄被拒绝且不影响他人
-
-- **WHEN** 对同一单位建两个实例后，用代际失配的旧句柄调移除
-- **THEN** 拒绝该调用并留 Warning，两个实例仍在册（无实例被误移除），不出现 ensure
-
-#### Scenario: 桶地址不随登记表增长失效
-
-- **WHEN** 持续为不同单位建桶与实例（`TMap` 发生多次扩容）后，用早先单位的句柄查询
-- **THEN** 查询照常命中（桶经 `TUniquePtr` 间接持有，登记表扩容不搬移桶地址）
-
-#### Scenario: 单位销毁后桶被回收
-
-- **WHEN** 对某单位建若干实例后调 `UnregisterUnit`
-- **THEN** 该单位全部实例被移除、桶被删除，且用其旧句柄查询一律被拒绝
 
 ### Requirement: 状态门面（施加、查询、移除与生命周期操作）
 
@@ -147,58 +97,6 @@ TcsState MUST 提供 `UTcsStateSubsystem : UWorldSubsystem`，**仅在 Game / PI
 
 - **WHEN** 未注入 `ITcsEntityLevelProvider` 时查询 `GetEntityLevelProvider`
 - **THEN** 返回空（配置状态），门面不留红字
-
-### Requirement: 状态定义到运行态的登记口
-
-`UTcsStateSubsystem` MUST 提供**定义登记口**：`RegisterStateDef(FGameplayTag DefTag, const FTcsBuffDef& Def)` / `UnregisterStateDef(FGameplayTag)` / `GetRegisteredStateDef(FGameplayTag) -> const FTcsBuffDef*`。
-
-**为什么是登记口而不是反向依赖**：定义库（`UTcsDefinitionSubsystem`）住 `TcsIntegration`，而 `TcsIntegration` **依赖** `TcsState`——若状态门面去 include `TcsIntegration` 反查定义库即成环。故依赖方向 MUST 保持单向：**定义库把定义写进门的登记口**（同款先例 = 定义库把触发行写进 `UTcsEffectSubsystem::RegisterTriggerRow`）。
-
-**为什么身份是形参**：身份归**资产**声明（`UTcsStateDef::DefTag`——资产身份、`GetPrimaryAssetId()` 的取值来源、作者期校验对象），`FTcsBuffDef` 是**定义内容**；若为"从内容里读身份"再往数据 struct 加一份 `DefTag`，策划就得在同一个资产里把同一个 tag 手填两遍 = **双真相**。故运行期的身份由登记口一次对齐（调用方 = 定义库，其缓存键本就是 `DefTag`）。
-
-登记表 MUST **自持定义副本**（`TUniquePtr` 持有使 `GetRegisteredStateDef` 返回的指针地址稳定），且 `DefTag` 无效 / 重复登记 MUST 被拒绝并留 Error（不静默覆写）。
-
-#### Scenario: 定义登记后可被施加
-
-- **WHEN** 把某状态定义登记进该世界的状态门面，随后以该 `DefTag` 施加
-- **THEN** 施加成功（`Applied`），取回的实例 `DefTag` 与登记时一致
-
-#### Scenario: 重复登记被拒
-
-- **WHEN** 同一 `DefTag` 被登记两次
-- **THEN** 第二次被拒绝并留 Error，第一次的定义仍可解析（不静默覆写）
-
-#### Scenario: 未登记的定义解析为 nullptr
-
-- **WHEN** 以未登记过的 `DefTag` 调 `GetRegisteredStateDef`
-- **THEN** 返回 nullptr（正常查询路径，不 ensure）
-
-### Requirement: 状态生命周期事件
-
-TcsState MUST 原生声明六枚框架事件 tag（`UE_DECLARE_GAMEPLAY_TAG_EXTERN` + `UE_DEFINE_GAMEPLAY_TAG_COMMENT`，常量带模块导出宏——裸 `extern` 会 `LNK2001`），词落在既有 `TcsEvent` 根下（**不新增根**）：
-
-| 常量 | 词 | 广播时机 |
-|---|---|---|
-| `Tag_TcsEvent_State_Applied` | `TcsEvent.State.Applied` | 施加成功（新实例） |
-| `Tag_TcsEvent_State_Refreshed` | `TcsEvent.State.Refreshed` | 重复施加命中同组成活实例（刷新） |
-| `Tag_TcsEvent_State_StackChanged` | `TcsEvent.State.StackChanged` | 层数变化 |
-| `Tag_TcsEvent_State_Expired` | `TcsEvent.State.Expired` | 到期（自然结束） |
-| `Tag_TcsEvent_State_Removed` | `TcsEvent.State.Removed` | 显式移除 / 取消 / 单位注销 |
-| `Tag_TcsEvent_State_Periodic` | `TcsEvent.State.Periodic` | 周期到点（需周期计时，归 Task 3） |
-
-载荷 MUST 为纯反射数据 `FTcsStateEventPayload{ Handle, DefTag, Source, Instigator, Stacks, Level, Cause }`：`Handle` / `DefTag` / `Source` / `Stacks` / `Level` 恒有效；`Cause`（`EStateRemoveCause`）**仅 `Expired` / `Removed` 有意义**，其余事件里无意义。
-
-广播 MUST 走总线**立即通道**（`PublishImmediate`）——同一提交内到达，装置可在同一帧断言。
-
-#### Scenario: 六枚事件词的归属与形态
-
-- **WHEN** 检查六枚常量
-- **THEN** 它们均为本模块原生声明、词形为 `TcsEvent.State.<名>`（3 段，落在既有 `TcsEvent` 根下），无新增根
-
-#### Scenario: 载荷可经总线传递且字段可读
-
-- **WHEN** 订阅者收到任一事件
-- **THEN** 载荷为 `FTcsStateEventPayload`，可读到 `Handle` / `DefTag` / `Source` / `Stacks` / `Level`（`Cause` 只在 `Expired` / `Removed` 上有意义）
 
 ### Requirement: 广播点与阶段迁移
 

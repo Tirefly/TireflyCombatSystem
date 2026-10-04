@@ -2,7 +2,7 @@
 
 - **文档 ID**：`SPEC-02-states`
 - **类型**：SPEC / 模块规格
-- **状态**：PENDING（**R5 实施中，2026-10-04 起**——落地范围与切分见 §12；已落地：Task 1（Def 资产族，§12.5）、**Task 2（实例与生命周期，§12.6）**）
+- **状态**：PENDING（**R5 实施中，2026-10-04 起**——落地范围与切分见 §12；已落地：Task 1（Def 资产族，§12.5）、Task 2（实例与生命周期，§12.6）、**Task 3（参数快照 / 等级源 / Duration-Period 到期堆，§12.7）**）
 - **权威范围**：TcsState（M3）Def 层级、实例存储、五轴堆叠、关系表、快照；理由住 LOG-01-states
 - **最后更新**：2026-10-04
 
@@ -155,9 +155,9 @@ FStateDefBase（抽象，编辑器隐藏）          ← 本模块定义
 | §2 | `FStateDefBase` / `FBuffDef` 形状 + `UTcsStateDef` / `UTcsBuffDefAsset` 资产 + `FTcsBuffDefTableRow` | PLN-R5 Task 1 |
 | §3.1 | `FStateInstance`（池化、纯数据）+ per-unit 桶 + `FStateOps` | Task 2（**✅ 2026-10-04**，落地口径见 §12.6——实现名 `FTcsStateInstance`、类名 `FTcsStateRegistry` / `FTcsStateOps`） |
 | §3.2 | `FStateStackPolicy` 五轴（含 Custom 决策 Fragment） | Task 5 |
-| §3.3 | Duration 两态 + Period + `PeriodRefresh` 三态 | Task 3 |
-| §3.5 | `LevelBase` / `MaxLevel` + **四型等级源** + `ITcsEntityLevelProvider` | Task 3 |
-| §3.6 | `FTcsParamSnapshot` / `FTcsParamSnapshotEntry` + 快照构建（含 ValueConvention 转换） | Task 3 |
+| §3.3 | Duration 两态 + Period + `PeriodRefresh` 三态 | Task 3（**✅ 2026-10-04**，落地口径见 §12.7） |
+| §3.5 | `LevelBase` / `MaxLevel` + **四型等级源** + `ITcsEntityLevelProvider` | Task 3（**✅ 2026-10-04**，落地口径见 §12.7——接口住 **TcsState**、读口走派生上下文） |
+| §3.6 | `FTcsParamSnapshot` / `FTcsParamSnapshotEntry` + 快照构建（含 ValueConvention 转换） | Task 3（**✅ 2026-10-04**，落地口径见 §12.7——实现名沿用本节命名批、`ConvertToCanonical` 首次点亮） |
 | §4 | 门面 `ApplyState` / `RemoveState` / `ExpireState` / `GetState` / `ForEachState` / `ExtendDuration` / `SetRemaining` | Task 2 / 3 |
 | §5 | Apply / Remove / Expire 流程 + 生命周期事件全集 + 行为 Fragment 订阅挂接 + **修正器物化（D3-19）** | Task 2 / 4 / 6 |
 | §6 | `FStepApplyState` 领域步骤（自注册）+ Buff 内联触发行（施加时登记、`Source` = 实例句柄） | Task 6 |
@@ -182,7 +182,7 @@ FStateDefBase（抽象，编辑器隐藏）          ← 本模块定义
 
 - §2 的 `FStateDefBase` "**生命周期事件词汇**"字段：**零消费者**（行为 Fragment 的 `Interests` 已是声明面）⇒ 本轮不预建，等真实消费者。
 - §2 的 `Descriptions` 描述视图配置：本轮只落字段与作者侧校验，**渲染归 R8**（`SPEC-09-editor`）。
-- §3.3 正文里的 `Combat.State.Periodic` 是**换根前的旧 tag 名**——新名 `TcsEvent.State.Periodic` **已于 2026-10-04（Task 2）落地**（`TcsStateEvents.h` 的 `Tag_TcsEvent_State_Periodic`，原生声明 + 导出宏）；**该词本轮只有声明、零广播**（周期计时的产生者归 Task 3）。
+- §3.3 正文里的 `Combat.State.Periodic` 是**换根前的旧 tag 名**——新名 `TcsEvent.State.Periodic` **已于 2026-10-04（Task 2）落地**、其**产生者（周期条目）于 Task 3 落地**（`TcsStateEvents.h` 的 `Tag_TcsEvent_State_Periodic`，原生声明 + 导出宏）；**该词本轮只有声明、零广播**（周期计时的产生者归 Task 3）。
 - §3.4 的"槽位竞争并入 Priority 语义"一节引用的 `TCS 报告 06`（库外，已不在库内）**不可复核**，语义拍板时 MUST 重新论证。
 
 ### 12.5 Task 1 落地口径（2026-10-04，R5）
@@ -204,3 +204,16 @@ FStateDefBase（抽象，编辑器隐藏）          ← 本模块定义
 | 4 | **事件载荷的 `Source` 不是 `UPROPERTY`**；六枚 tag 落在既有 `TcsEvent` 根下（**零新增根**） | `FTcsSourceHandle` 是**非反射**纯 C++ struct（"纯内联类型不得带导出宏"那条纪律的另一面）——需要脚本层可达时须先反射化它（台账 `SCRIPT` 系列连带项）。事件词属**框架契约**（广播面漏配即静默失效），故由本模块原生声明并带导出宏 |
 | 5 | **阶段机三态与"先广播后释放"** | `EStatePhase{Inactive/Active/Expiring}`：`Expiring` 是"已进入移除流程、槽位尚未归还"的窗口——**它是"订阅者在移除回调里仍能 `GetState` 读到实例"能成立的前提**；非法迁移 `ensure`（配置错误语义），与脏句柄的时序竞态口径（只 `Warning`）刻意分开。四条合法边含 `Expiring → Active`（刷新是"过渡后挂回"） |
 | 6 | **共存决策的暂用位**：本轮"同组"判据 = **同单位 + 同 `DefTag`**（`GroupBy = None` 语义） | 它是 Task 5 五轴共存决策的**替换点**（代码注释已就地标明）；`EApplyResult::EAR_Stacked` 本轮不可达，`EStateRemoveCause::ESRC_Cancelled` 本轮无内建产生者（归 R5.5-e）——两处均已在枚举注释里写明归属 |
+
+### 12.7 Task 3 落地口径（2026-10-04，R5）
+
+| # | 口径 | 依据 / 后果 |
+|---|---|---|
+| 1 | **等级读口不进 Core 上下文**：`ITcsEntityLevelProvider` 住 `TcsState/Public/Host/`，字段挂**派生上下文** `FTcsStateEvaluateContext`（唯一新增字段 `LevelProvider`），域侧源按 `GetScriptStruct()->IsChildOf(...)` 判定后取值 | `FTcsParamEvaluateContext` 住 `TcsCore`，而该读口的唯一消费者（四个等级源）住 `TcsState`——把域读口放进 Core 会让 Core 持有只有上层使用的类型，且日后每个域都想往那里塞自己的读口。**先例 = 同族 `FTcsAttributeEvaluateContext` 持 `ITcsAttributeProvider`**（PV-1 明文支持多层派生）。R-1 调研原设想的"加成 Core 第三字段"**不采用** |
+| 2 | **`Instigator` 反而进基础上下文**（`FTcsParamEvaluateContext` 的第三个主体字段） | **分界判据**：字段本身是**跨域通用的主体身份**（谁施加的、谁被施加、生效等级）⇒ 进 Core 基础上下文；字段是**某域的读口**（属性读口、等级读口）⇒ 进该域派生上下文。它是台账 `DAMAGE-5` 的 **+1 字段增量**（Task 0 只补了 `Subject` 与 `EffectiveLevel`） |
+| 3 | **快照实现名取设计名** `FTcsParamSnapshot` / `FTcsParamSnapshotEntry` | 快照是**参数域**概念（修正器物化、R6 技能侧参数行都要读它），不是状态模块专属；`TcsState` 前缀会让"技能侧复用同一类型"在名字上说不通。Task 2 在 `FTcsStateInstance` 里预留的 `FTcsStateParamSnapshot` 注释**随之作废** |
+| 4 | **读取适配器是纯 C++ 类**（`FTcsStateParamTableReader`：持快照只读指针 + 键查询），本轮**不派生 `UObject`、不实现 `ITcsParamTableReader`** | 唯一消费方（Task 4 物化器）是 C++ 直调，而该接口**不是 `Blueprintable`** ⇒ 造 `UObject` 壳属"零消费者预建"，且会把快照指针寿命绑到 GC 上。继承接口的时机 = 出现第一个要把快照当参数表挂进上下文的反射消费方 |
+| 5 | **周期与时值各持一个条目锚点**（`PeriodEntry` / `ExpiryEntry`）；周期走**重复到期条目**（回调广播 `Periodic` 后重新入堆）；**撤销顺序前伸一步** = 先撤该实例两个条目再走 `Expiring → 广播 → 归还槽位` | `Finite` 与 `Period > 0` 是可同时成立的两个语义（标准 DoT）；挤一个锚点会让"撤销旧条目"分不清撤哪条（`ExtendDuration` 只该动时值条目、`PeriodRefresh` 只该动周期条目）。条目持句柄 ⇒ 槽位复用后回调仍会到达，先撤条目才不产生无谓回调 |
+| 6 | **`PeriodRefresh` 的 `Immediate` = 同步执行一次**（不是排一个 0 延迟条目）；`ExtendDuration` **不钳到总时长** | "立即"的语义就是本次调用内发生，排 0 延迟会把它变成"下一泵点"（与语义不符）。延长上限在 D3-15 原文**未定**；若改为"钳到总时长"那是另一条决策，代码注释已标明改一处即可 |
+| 7 | **`EvaluateTotalDuration` 实时求值、不设"时值的参数键"** | `DurationTime` 是**时值字段**（不在 `Def.Params` 里）；把它塞进快照就要给时值编一个参数表键，而**键空间归宿主声明**（`gameplay-tag-governance`）。求值上下文与快照构建共用同一装配点（`FTcsStateOps::MakeContext`），故"时值与参数行不同档"的双口径不会出现 |
+| 8 | **宿主参数源插槽（R4.5-b）**：接口与转发器**同住一个头** `TcsCore/Public/Parameter/TcsParamSourceHost.h`；连带给基类补 `virtual ~FTcsParamValueSource() = default;` | 同族先例 `TcsParamSource_AttributeScaled.h` 把接口 / 派生上下文 / 源三者同处一文件——"同一机制的两半"拆开只多一跳。虚析构是**多态基类的正确性要求**：等级表两族源持 `TArray` / `TMap`（非平凡析构），非虚析构下"经基类指针删除"是未定义行为（`C4265` 正是这一点）。**两个虚函数都要转发**（漏能力位会让宿主源在白名单校验上拿到错误的默认位） |

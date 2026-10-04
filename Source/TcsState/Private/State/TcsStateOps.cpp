@@ -16,10 +16,10 @@ EApplyResult FTcsStateOps::Apply(
 	FTcsCombatEntityHandle Target,
 	FGameplayTag DefTag,
 	FTcsSourceHandle Source,
+	FTcsCombatEntityHandle Instigator,
+	const TScriptInterface<ITcsParamTableReader>& ParamTable,
 	const TMap<FGameplayTag, double>& Overrides)
 {
-	(void)Overrides;
-
 	// 目标无效 = 调用方错误（空实体句柄）——拒绝而不 ensure（同门面其余拒绝面口径）
 	if (!Target.IsValid())
 	{
@@ -57,22 +57,31 @@ EApplyResult FTcsStateOps::Apply(
 		// 刷新：更新可确定的字段。**`Source` 刻意不动**——它是级联撤销锚点，
 		// 已被触发行/修正器等下游按原值登记过；换来源会让"同一个状态 = 同一个来源"失效。
 		// `Instigator` 反过来：它答"最近一次施加是谁发起的"，故刷新时更新。
-		// **时值字段本轮刻意不动**（`DurationRemaining` / `PeriodRemaining`）：它们的真值来自
-		// `DurationTime` 参数源求值 ⇒ 归 R5 Task 3（快照构建）——本轮没有快照，写死一个数就是编造。
 		Existing->Level = Def->LevelBase;
-		Existing->Instigator = Target;
+		Existing->Instigator = Instigator.IsValid() ? Instigator : Target;
+
+		// 快照重建（D3-12："修改 = 重新施加，新 payload 覆盖旧的"）
+		FTcsStateEvaluateContext Ctx;
+		MakeContext(Ctx, Subsystem, Target, Existing->Instigator, Def->LevelBase, ParamTable);
+		BuildSnapshot(Existing->ParamSnapshot, *Def, Ctx, Overrides);
 
 		Transit(Subsystem, Existing, EStatePhase::ESP_Expiring);
+
+		// 时间条目重挂放在**广播之前**：订阅者在 `Refreshed` 回调里读到的时值/周期已是本次施加的结果
+		// （放在广播之后会让回调读到上一轮的剩余时长——一处只有靠时序才能发现的错值）
+		ScheduleTime(Subsystem, *Existing, *Def, Existing->ParamSnapshot, ParamTable, /*bRefresh=*/true);
+
 		Broadcast(Subsystem, Tag_TcsEvent_State_Refreshed, *Existing, EStateRemoveCause::ESRC_Removed);
 		Transit(Subsystem, Existing, EStatePhase::ESP_Active);
 
-		UE_LOG(LogTcsState, Log, TEXT("状态刷新：单位=%lld 定义=%s 句柄=%d/%d 层数=%d"),
-			Target.Id, *DefTag.ToString(), Existing->Handle.Index, Existing->Handle.Generation, Existing->Stacks);
+		UE_LOG(LogTcsState, Log, TEXT("状态刷新：单位=%lld 定义=%s 句柄=%d/%d 层数=%d 快照=%d 条 剩余=%.3f"),
+			Target.Id, *DefTag.ToString(), Existing->Handle.Index, Existing->Handle.Generation,
+			Existing->Stacks, Existing->ParamSnapshot.Num(), Existing->DurationRemaining);
 
 		return EApplyResult::EAR_Refreshed;
 	}
 
-	// 新施加：分配槽位 → 填实例 → 广播。句柄在 `AllocateSlot` 后取得，
+	// 新施加：分配槽位 → 填实例 → 快照 → 时间条目 → 广播。句柄在 `AllocateSlot` 后取得，
 	// 其 `Index` 只在本函数内按值随句柄流转——`TArray` 扩容不使**值**失效（这是"传句柄不传指针"的纪律）。
 	const FTcsStateHandle NewHandle = Bucket.AllocateSlot();
 	FTcsStateInstance* NewInstance = Bucket.Find(NewHandle);
@@ -82,18 +91,27 @@ EApplyResult FTcsStateOps::Apply(
 	NewInstance->Handle = NewHandle;
 	NewInstance->Unit = Target;
 	NewInstance->Source = Source.IsValid() ? Source : Subsystem.SourceRegistry.Allocate();
-	NewInstance->Instigator = Target;
+	NewInstance->Instigator = Instigator.IsValid() ? Instigator : Target;
 	NewInstance->Stacks = 1;
 	NewInstance->Level = Def->LevelBase;
 	NewInstance->Phase = EStatePhase::ESP_Active;
 	NewInstance->DurationRemaining = 0.0;
 	NewInstance->PeriodRemaining = 0.0;
 
+	// 快照构建（D3-12）：覆盖优先、Def 兜底、值约定在写入点转规范值
+	FTcsStateEvaluateContext Ctx;
+	MakeContext(Ctx, Subsystem, Target, NewInstance->Instigator, Def->LevelBase, ParamTable);
+	BuildSnapshot(NewInstance->ParamSnapshot, *Def, Ctx, Overrides);
+
+	// 时间条目（放在广播之前——订阅者读到的是完整的实例）
+	ScheduleTime(Subsystem, *NewInstance, *Def, NewInstance->ParamSnapshot, ParamTable, /*bRefresh=*/false);
+
 	Broadcast(Subsystem, Tag_TcsEvent_State_Applied, *NewInstance, EStateRemoveCause::ESRC_Removed);
 
-	UE_LOG(LogTcsState, Log, TEXT("状态施加：单位=%lld 定义=%s 句柄=%d/%d 来源=%llu 等级=%d"),
+	UE_LOG(LogTcsState, Log, TEXT("状态施加：单位=%lld 定义=%s 句柄=%d/%d 来源=%llu 等级=%d 快照=%d 条 剩余=%.3f 周期=%.3f"),
 		Target.Id, *DefTag.ToString(), NewHandle.Index, NewHandle.Generation,
-		NewInstance->Source.Id, NewInstance->Level);
+		NewInstance->Source.Id, NewInstance->Level, NewInstance->ParamSnapshot.Num(),
+		NewInstance->DurationRemaining, NewInstance->PeriodRemaining);
 
 	return EApplyResult::EAR_Applied;
 }
@@ -134,14 +152,17 @@ bool FTcsStateOps::Remove(
 		return false;
 	}
 
-	// 撤销顺序（**硬约束**）：`Expiring` → 广播 → 归还槽位。
-	// 先广播后释放，订阅者才能在回调里用载荷句柄读到实例（否则"收到移除事件却查不到实例"）。
+	// 撤销顺序（**硬约束**）：**撤时间条目** → `Expiring` → 广播 → 归还槽位。
+	// 先广播后释放，订阅者才能在回调里用载荷句柄读到实例（否则"收到移除事件却查不到实例"）；
+	// 撤条目排在最前，是因为条目持句柄——槽位复用后回调仍会到达，靠代际校验兜底是"能成立"，
+	// 但先撤条目才是"不产生无谓回调"。
 	FTcsStateInstance* Instance = Bucket->Find(Handle);
 	if (!Instance)
 	{
 		return false;
 	}
 
+	CancelTimeEntries(Subsystem, *Instance);
 	Transit(Subsystem, Instance, EStatePhase::ESP_Expiring);
 
 	// 广播前把实例复制一份：广播会让订阅者改桶（槽位可能被复用），故不用引用跨过广播。

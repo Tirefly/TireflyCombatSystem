@@ -3,7 +3,7 @@
 - **文档 ID**：`LEDGER-deferred`
 - **类型**：LEDGER / 台账
 - **状态**：LIVING
-- **权威范围**：跨轮遗留输入台账（唯一待办登记册）：入册判据、生命周期纪律、**50 条条目**（行数 = 唯一 id 数 = 50，2026-10-04 R5 Task 2 收束时逐行复核：`CHAIN 6 / CORE 1 / DAMAGE 5 / INTEG 3 / PRES 1 / SCRIPT 9 / STAT 4 / TOOLS 6 / TRIG 5 / WAIT 10`）
+- **权威范围**：跨轮遗留输入台账（唯一待办登记册）：入册判据、生命周期纪律、**51 条条目**（行数 = 唯一 id 数 = 51，2026-10-04 R5 Task 3 收束时逐行复核：新增 1 条 `Task-3-1`；前缀分布 = `CHAIN 6 / CORE 1 / DAMAGE 5 / INTEG 3 / PRES 1 / SCRIPT 9 / STAT 4 / Task-3 1 / TOOLS 6 / TRIG 5 / WAIT 10`；上一轮口径（50 条）见《Task 2 收束》块——本轮**只加不改**，既有 50 行状态一律留给 Task 8 统一勾销）
 - **最后更新**：2026-10-04
 
 > **换根注记（2026-10-01）**：本文件记录的 tag 名保留**当时原样**（历史现场，MUST NOT 改写）。这些旧名已于 2026-10-01 由提案 `reroot-gameplay-tag-vocabulary` 换根，映射 = `Tcs.Event.*`→`TcsEvent.*`、`Tcs.Flow.Key.*`→`DamageFlowKey.*`、`Tcs.Flow.Template.*`→`DamageFlowTemplate.*`、`Tcs.Attr.*`→`Attribute.*`、`Tcs.Chain.*`→`EffectChain.*`（另 16 个 `Probe` 验证词整批退役删除）。新名以 [SPEC-00-core](../spec/01-module-m0-core.md) 与提案规格为准。
@@ -50,6 +50,7 @@
 | DAMAGE-5 | **`FTcsParamEvaluateContext` 补 `Subject`**（`FCombatEntityHandle`）+ `EffectiveLevel`（int32）；落地随 TcsState 等级源同批 | `SPEC-00-core ②`；plan1 偏差 1（句柄升格反射 USTRUCT 后 Subject 解禁） | 上下文中无这两个字段（`TcsParamValueSource.h:FTcsParamEvaluateContext`）；**且该头注释仍写"随 M2/M5 轮补齐"——M2 已收束，注释过期，口径待统一为"随 TcsState 等级源"** | **✅ 已消费（2026-10-04，R5 Task 0 Step 1）**——两字段 + 头注释口径已落地；反射证据与余项见下方《Task 0 收束》注记 |
 | STAT-3 | **`FFlowRedirect` 模板重定向栈**（D7-7：状态/装备声明换流程——让渡点 + 重定向栈后挂/高优先 + Source 级联回收；三粒度让渡模式升四粒度） | `SPEC-08-damage`（D7-7）；plan2 Task 3/4 均列为非目标（"随 M3 状态轮"） | 未落地（2026-09-21 plan2 Task 4 实施时确认：流程机制层与步骤库均无重定向入口） | 待触发（**归属 = R5/M3 状态轮**——消费者是"状态/装备声明换流程"，无状态模块即无场景） |
 | STAT-4 | **状态词（`FTcsStateDefBase.StatusTag`）的 tag 根归属**——本轮只落字段与发现期的有效性校验，**未裁定它住哪个根** | `PLN-R5` Task 1 落地记录（2026-10-04）；`gameplay-tag-governance` 根段注册表 | 根表 10 个根中**无承载它的角色**（新增的 `StateDef` 根只承载**资产身份解析** `DiscoverStateDefs` / `ResolveStateDef`）；`StatusTag` 的**解析消费者为零**——关系表检查器与按它匹配的槽位竞争表整体归 R5.5-e | 待触发（**归属 = R5.5-e 关系表族**——语义拍板时才出现真实消费者，届时按"一角色一根"定根并登记根表；本轮验收资产复用 `StateDef.*` 词，不构成对归属的裁定） |
+| Task-3-1 | **验收资产 `DA_Check_BuffDef` 是 `Finite` 而 `DurationTime` 求值为 0**（不是"没配"——`IsDataValid` 只查数值来源**是否存在**，存在即过；是**配了却求值成 0**） | `PLN-R5` Task 3 收束（2026-10-04）；`EVID-2026-10-04-state-param-snapshot-and-level-sources` §5 边界④ | 该状态每轮 `Run` 落 4 条 `Warning: 状态时值非正：按 0 处理`，并在**下一个泵点即到期**。**当前无断言受害**（Task 3 的检查不读它的剩余时长），但**任何读它剩余时长的下游都会读到 0** | 待触发（**触发条件 = 出现真实消费者**：Task 4 的修正器物化或 Task 7 的端到端竖切）。届时二选一：①**内容侧配明确时长**（推荐，一处资产改动）；②**校验里放行"显式 0 = 立即到期"**并把该语义写进 `state-def-asset` 能力 |
 
 > **Task 0 收束（2026-10-04）——本表两条落地**：
 > - **`STAT-2` 部分消费**：`FTcsParamEnumerableSource`（`USTRUCT(meta = (Hidden))` + `TCSCORE_API`，新文件 `Source/TcsCore/Public/Parameter/TcsParamEnumerableSource.h`）+ 中性默认实现 `GetIndexForLevel()` 已落地（UHT 已产出 `.generated.h` + `.gen.cpp`）。**未建的一半** = PV-10 原案的 `Enumerate(Level, OutValues, OutCurrentIndex)`**及其派生形态"表项总数"**——两者的消费者都是展示层的 `FTcsParamView_Series`（整表 + 当前档高亮），按"零消费者不预建"继续留白，落地时随真实消费方补。
@@ -79,6 +80,13 @@
 > - **零新增、零消费**——**条目总数仍 50**。逐条判据：本 Task 的两处"本轮不可达"面（`EApplyResult::EAR_Stacked` 需五轴共存决策；`EStateRemoveCause::ESRC_Cancelled` 无内建产生者）**都不入册**——按《入册判据》第 3 条，它们**在既有计划的 Task 里**（前者 = `PLN-R5` Task 5，后者 = `R5.5-e` 关系表族），重复登记只会制造两处真相；两处在**枚举注释与规格正文**里各有一句"归哪一轮"，信息不丢。
 > - **本 Task 不消费本区段既有行**：`STAT-2` / `DAMAGE-5` 已于 Task 0 结，`STAT-3` 归 R5.5-d，`STAT-4` 归 R5.5-e——Task 2 与四条均无交集。
 > - **一处待 Task 8 对账的计数不一致（就地记下，不擅自改）**：`INDEX` §4.4 的 **R7 行仍列 `WAIT-6`**，而该条已于 R5 Task 0 Step 3 标"已消费"（归属自 M6 提前）。本册不复制路线图（真相源 = `PLN-R5` §轮次路线图），故此处只登记该现象，由 `PLN-R5` Task 8 Step 5（`INDEX` §4.4 同步那一趟）一并纠正。
+
+> **Task 3 收束（2026-10-04，R5 参数快照 / 等级源 / Duration-Period 到期堆 / R4.5-b）**：
+> - **消费 `DAMAGE-5` 的 +1 字段增量**：该条在 Task 0 Step 1 只补了 `Subject` 与 `EffectiveLevel` 两个字段，**`Instigator`（发起者实体）是 Task 3 实施期补的第三个主体字段**（发起者等级源必须读它，否则两型 `InstigatorLevel*` 与 `StateLevel*` 会退化成同一个来源）。口径：**跨域通用的主体身份进基础上下文、某域的读口进该域派生上下文**（`LevelProvider` 因此住 `FTcsStateEvaluateContext`）——记入 `PLN-R5` Task 3《提案面》② 与 `SPEC-02-states` §12.6。
+> - **消费反射册 `R-1`（参数源族宿主插槽）**：接口 `ITcsParamSourceHost` + 转发器 `FTcsParamSource_HostDelegate` 已落地（同住 `TcsParamSourceHost.h`），双配置编译零 warning、glue 产物核验"两方法生成真实方法体 + `Host` 字段双向 marshaller"。**C# 侧实现实测未做**（顺延到 R5 Task 7 或单独补探针）——故 `R-1` 在反射册的状态应由"已调研并拍板，待落地"改为"**静态面已落地、行为面待验**"（该改动由 Task 8 一并落到 `LEDGER-reflection`）。
+> - **新增一条（实施期发现，入册）**：`Task-3-1` —— **`DA_Check_BuffDef` 是 `Finite` 而 `DurationTime` 求值为 0**。它不是"没配"（`IsDataValid` 那条只查数值来源**是否存在**，存在即过），而是**配了却求值成 0** ⇒ 落"时值非正 ⇒ 按 0 处理"的 Warning，且该状态在下一个泵点即到期。当前无断言受害（本轮检查不读该状态的剩余时长），但**任何读它剩余时长的下游都会读到 0** ⇒ 真实消费者（Task 4 修正器 / Task 7 端到端）出现前必须定：**内容侧配明确时长**（推荐）或**校验里放行"显式 0 = 立即到期"**。
+> - **零新增其余条目**：本轮的两处"未覆盖"面（`PeriodRefresh` 的 `Reset` / `Immediate` 无内容覆盖；`InstigatorLevel*` 只验数组型）**都不入册**——按《入册判据》第 3 条，前者在 `PLN-R5` Task 3 的交付面里（下一步就该配），后者是同族代码路径且证据 §5 已如实标边界。
+> - **同批一条引擎/UBT 事实（供后续轮参考）**：含 `TUniquePtr` 元素的 `TMap` 类型**不能**加模块导出宏（MSVC 强制实例化 `TMap` 复制路径 ⇒ `C2280`）；`FTimerManager::SetTimer` 的句柄形参是**非 const 左值引用**（临时量与 lambda 捕获副本都绑不上 ⇒ `C2665`）。两条都住 `PLN-R5` Task 3 的《提案面》块。
 
 ## R1 后续（M0 总线补全）
 
@@ -335,3 +343,4 @@
   - **提案面收缩**：计划列的两个提案落地为一个 `extend-param-evaluate-context`；`unify-source-handle-issuer` 未开——`instance-handle-pool` 规格第 17 行早已要求"进程内永不复用"，本次属**恢复规格既有行为**的缺陷修复，按 `openspec/AGENTS.md` 决策树免提案。
 - **2026-10-04 增补（R5 Task 1 收束）**：新增 **`STAT-4`**（状态词的 tag 根归属——零解析消费者 ⇒ 本轮不开根，归属待 R5.5-e 关系表族）。**条目总数 49 → 50**。R5 区段加《Task 1 收束》块：新增行、根表 9 → 10、以及一条 UBT 事实（传递依赖不给导入库 ⇒ 直接使用某模块类型者必须自己声明依赖）。**同批不改既有行状态**（`STAT-2` / `DAMAGE-5` 已于 Task 0 结，`STAT-3` 归 R5.5-d）。
 - **2026-10-04 增补（R5 Task 2 收束）**：**条目总数仍 50**（**零新增、零消费**）。R5 区段加《Task 2 收束》块：两处"本轮不可达"面（`EAR_Stacked` / `ESRC_Cancelled`）**按入册判据第 3 条不入册**（它们在既有计划的 Task 5 与 R5.5-e 里，重复登记 = 两处真相），只登记"为什么不入册"这一判断本身。**并记一处待对账项**：`INDEX` §4.4 的 R7 行仍列已消费的 `WAIT-6`，留给 `PLN-R5` Task 8 Step 5 一并纠正（本册不复制路线图）。
+- **2026-10-04 增补（R5 Task 3 收束）**：新增 **1 条**（`Task-3-1`：验收资产 `Finite` 却 `DurationTime` 求值为 0）⇒ **条目总数 50 → 51**；身份块前缀分布同步追加 `Task-3 1`（机械复核：表行 51 = 唯一 id 51）。R5 区段加《Task 3 收束》块：**消费 `DAMAGE-5` 的 +1 字段增量**（`Instigator` 是 Task 0 之后补的第三个主体字段，口径 = 通用主体身份进基础上下文、域读口进派生上下文）、**`R-1` 静态面已落地**（行为面待验，其状态改写留给 Task 8 落到 `LEDGER-reflection`）、一条实施期发现入册、两处"未覆盖"面按入册判据第 3 条不入册、两条引擎/UBT 事实。**既有 50 行的状态一律不动**——按本册纪律，行级勾销在 `PLN-R5` Task 8 Step 3 统一执行。

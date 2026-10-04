@@ -291,26 +291,48 @@
 
 **依赖**：Task 2
 
-- [ ] **Step 1: 快照类型**——`FTcsParamSnapshotEntry{ FGameplayTag Key; double Value; FInstancedStruct SourceRef; }`（**源引用位**供 Debug 与将来 Live 化；**禁用 `Resolved*` 命名**——动词纪律）；`FTcsParamSnapshot{ TArray<FTcsParamSnapshotEntry> Entries; }` + `TryGetNumericParam(FGameplayTag, double&) const`。
-- [ ] **Step 2: 快照构建**——`Apply` 时对 `Def.Params` 逐行求值：`Overrides`（施加方覆盖）**优先**，否则 `Def` 默认值；求值上下文 = `FTcsParamEvaluateContext{ ParamTable = 施加方参数表, Subject = Target, EffectiveLevel = Level }`；**`ValueConvention` 转换在此写入点发生**（`FTcsValueConvention::ConvertToCanonical`——**全库首次点亮**），快照内**永远规范值**。
-- [ ] **Step 3: 快照读取适配器**——`FTcsStateParamTableReader : public ITcsParamTableReader`（把 `FTcsParamSnapshot` 当参数表暴露给 `FTcsParamSource_ParamRef` 与修正器物化）——**这是 Task 4 物化器的输入口**，本步先落类型与 `TryGetNumericParam`。
-- [ ] **Step 4: 等级源与宿主契约**——`ITcsEntityLevelProvider`：`UINTERFACE(Blueprintable)` + `UFUNCTION(BlueprintNativeEvent) int32 GetEntityLevel(FTcsCombatEntityHandle Entity) const`（**不带 `const` 在 `BlueprintNativeEvent` 上是硬规则**——按 UHT 要求去掉 `const` 并补 `_Implementation` 声明），宿主实现；门面加 `SetEntityLevelProvider(TScriptInterface<...>)` / `GetEntityLevelProvider()`（`UPROPERTY` 持有；未注入 = `nullptr`，是**配置状态**不是错误）。
+> **提案面（2026-10-05，两份提案同时起草并获批；`openspec validate --strict` 两份均绿）**：
+> - **`add-state-param-snapshot-and-level-sources`**：新能力 `state-param-snapshot` ADDED 六条（快照与构建规则 / 读取适配器 / 等级来源与读口 / 时值与周期语义 / 时长操作的堆同步 / 生命期与撤销顺序）+ `state-instance-lifecycle` MODIFIED 三条 + `state-def-asset` ADDED 一条（值约定白名单校验）。
+> - **`add-param-source-host-slot`**：`param-value` MODIFIED 一条（补 `Instigator`）+ ADDED 一条（宿主参数源插槽）。
+>
+> **四处实施期裁定（当日拍板，逐条已在代码与规格里留痕）**：
+> ① **等级读口不进 Core 上下文**——调研 R-1 原设想把 `ITcsEntityLevelProvider` 加成 `FTcsParamEvaluateContext` 的第三字段；**不采用**（Core 不该持有只有上层使用的域读口）。改用**已立规的扩展机制**：`TcsState` 的派生上下文 `FTcsStateEvaluateContext` 持该字段，域侧源以 `GetScriptStruct()->IsChildOf(...)` 判定后取值（先例 = 同族 `FTcsAttributeEvaluateContext` 持 `ITcsAttributeProvider`）。**连带**：接口住 `TcsState/Public/Host/`（读口随消费者所属的领域层），不是计划原写的 `TcsCore/`。
+> ② **`Instigator` 反而进基础上下文**——实施期编译暴露它**不在** Task 0 补的两个字段里（那次只补了 `Subject` 与 `EffectiveLevel`），而发起者等级源必须读它。裁定的**分界判据**：跨域通用的主体身份（`Subject` / `Instigator` / `EffectiveLevel`）进基础；某域的读口进该域派生上下文。
+> ③ **快照类型名取设计名**——实现名 = `FTcsParamSnapshot` / `FTcsParamSnapshotEntry`（`SPEC-02-states` §3.6 的 2026-09-14 命名批），**不是** Task 2 注释里预留的 `FTcsStateParamSnapshot`：快照是**参数域**概念（修正器物化与 R6 技能侧参数行都要读它），不是状态模块专属。Task 2 那条注释随之作废（评审时若倾向成族命名，改这一处即可，代价 = 三个文件）。
+> ④ **读取适配器是纯 C++ 类**——`FTcsStateParamTableReader` 本轮**不派生 `UObject`、也不实现 `ITcsParamTableReader`**：唯一消费方（Task 4 的物化器）是 C++ 直调，而该接口**不是 `Blueprintable`**（宿主脚本实现不了）⇒ 造 `UObject` 壳属"零消费者预建"，且会把快照指针的寿命绑到 GC 上。继承接口的时机 = 出现第一个要把快照当参数表挂进上下文的反射消费方。
+> ⑤ **Step 9 的文件面收窄**：接口与转发器**同住一个头**（`TcsParamSourceHost.h`）——同族先例 `TcsParamSource_AttributeScaled.h`（接口 + 派生上下文 + 源三者同处一文件）；计划原写的 `TcsParamSource_HostDelegate.h/.cpp` 两个文件**不建**（拆开只多一跳）。连带补 `FTcsParamValueSource` 的**虚析构**（`C4265` 的根因修复：多态基类 + 派生源持非平凡析构成员 = 经基类指针删除是 UB）。
+>
+> **一处实施期发现（引擎/UBT 事实，供后续轮参考）**：（`TMap` 元素含 `TUniquePtr`）的类型**不能**加模块导出宏 `TCSSTATE_API`——MSVC 会强制实例化 `TMap` 的复制路径并报 `C2280`（`TSparseSetElement` 复制到已删除的函数）。跨模块可达性改由**门面**承担（`UTcsStateSubsystem` 带宏、它作为成员持有登记表）。
+>
+> **另一条（同批踩到，装置侧）**：引擎 `TimerManager.h` 的 `SetTimer` 句柄形参是**非 const 左值引用** ⇒ 传临时量（`FTimerHandle()`）或**捕获副本**（lambda 按值捕获进来的成员默认 const）都绑不上（`C2665`）。延迟探针的写法 = **句柄用回调体内的局部左值**；且**不要**把裸指针捕获的 `World` 当 weak lambda 的宿主（`CreateWeakLambda` 的宿主必须是捕获得来的**弱引用**或对象指针本身）。
+
+- [x] **Step 1: 快照类型**——`FTcsParamSnapshotEntry{ FGameplayTag Key; double Value; FInstancedStruct SourceRef; }`（**源引用位**供 Debug 与将来 Live 化；**禁用 `Resolved*` 命名**——动词纪律）；`FTcsParamSnapshot{ TArray<FTcsParamSnapshotEntry> Entries; }` + `TryGetNumericParam(FGameplayTag, double&) const`。
+- [x] **Step 2: 快照构建**——`Apply` 时对 `Def.Params` 逐行求值：`Overrides`（施加方覆盖）**优先**，否则 `Def` 默认值；求值上下文 = `FTcsParamEvaluateContext{ ParamTable = 施加方参数表, Subject = Target, EffectiveLevel = Level }`；**`ValueConvention` 转换在此写入点发生**（`FTcsValueConvention::ConvertToCanonical`——**全库首次点亮**），快照内**永远规范值**。
+- [x] **Step 3: 快照读取适配器**——`FTcsStateParamTableReader : public ITcsParamTableReader`（把 `FTcsParamSnapshot` 当参数表暴露给 `FTcsParamSource_ParamRef` 与修正器物化）——**这是 Task 4 物化器的输入口**，本步先落类型与 `TryGetNumericParam`。
+- [x] **Step 4: 等级源与宿主契约**——`ITcsEntityLevelProvider`：`UINTERFACE(Blueprintable)` + `UFUNCTION(BlueprintNativeEvent) int32 GetEntityLevel(FTcsCombatEntityHandle Entity) const`（**不带 `const` 在 `BlueprintNativeEvent` 上是硬规则**——按 UHT 要求去掉 `const` 并补 `_Implementation` 声明），宿主实现；门面加 `SetEntityLevelProvider(TScriptInterface<...>)` / `GetEntityLevelProvider()`（`UPROPERTY` 持有；未注入 = `nullptr`，是**配置状态**不是错误）。
   四个源：`FTcsParamSource_StateLevelArray{ TArray<double> Values; }`（读 `Context.EffectiveLevel` → 下标，越界落最后一档）/ `_StateLevelMap{ TMap<int32,double> Values; }` / `_InstigatorLevelArray` / `_InstigatorLevelMap`（读 `Context.Subject` → provider → level）。四型均继承 `FTcsParamEnumerableSource`（Task 0 Step 2），`GetIndexForLevel` 即"索引解析唯一真相在源"。
   上下文补第三个字段：`UPROPERTY(BlueprintReadWrite) TScriptInterface<ITcsEntityLevelProvider> LevelProvider;`（同 `ParamTable` 先例——`DAMAGE-5` 只记了两个字段，实现期按需补第三个，**记为对台账条目的增量**）。
-- [ ] **Step 5: Duration 与 Period 落堆**——`Finite`：`PushExpiry(Clock->GetClock().Elapsed + DurationTime, OwnerId, 回调)`；`Infinite`：不入堆、永不过期。`Period > 0`：**重复到期条目**——每次周期回调广播 `TcsEvent.State.Periodic`（载荷带当前 `Stacks` + `Level`）后**重新入堆**；默认**等首个周期**（"施加即生效"由 apply 响应链表达）。
-- [ ] **Step 6: `PeriodRefresh` 与生命周期操作**——刷新（Refresh/StackChange）时按 `EPR_Keep`（不动）/ `EPR_Reset`（重建周期条目）/ `EPR_Immediate`（立即执行一次并重置）；`ExtendDuration(handle, Δ)` / `SetRemaining(handle, T)` = 撤销旧条目 + 按新余量重入堆（**句柄配对清理**），`Infinite` 上调这些口 = `Warning` + 无操作。
-- [ ] **Step 7: 到期路径**——到期回调（`UWorld` 弱引用 + 句柄代际校验）→ `ExpireState` → `EStateRemoveCause::Expired` → Task 2 的广播与回收链。
-- [ ] **Step 8: 编译 + 冒烟**——Finite + Period buff：施加 → 若干个 `Periodic` → 到期 `Expired` + 实例回收（**装置逐 tick 轮询观察**，勿用"下一 tick"假定）。
+- [x] **Step 5: Duration 与 Period 落堆**——`Finite`：`PushExpiry(Clock->GetClock().Elapsed + DurationTime, OwnerId, 回调)`；`Infinite`：不入堆、永不过期。`Period > 0`：**重复到期条目**——每次周期回调广播 `TcsEvent.State.Periodic`（载荷带当前 `Stacks` + `Level`）后**重新入堆**；默认**等首个周期**（"施加即生效"由 apply 响应链表达）。
+- [x] **Step 6: `PeriodRefresh` 与生命周期操作**——刷新（Refresh/StackChange）时按 `EPR_Keep`（不动）/ `EPR_Reset`（重建周期条目）/ `EPR_Immediate`（立即执行一次并重置）；`ExtendDuration(handle, Δ)` / `SetRemaining(handle, T)` = 撤销旧条目 + 按新余量重入堆（**句柄配对清理**），`Infinite` 上调这些口 = `Warning` + 无操作。
+- [x] **Step 7: 到期路径**——到期回调（`UWorld` 弱引用 + 句柄代际校验）→ `ExpireState` → `EStateRemoveCause::Expired` → Task 2 的广播与回收链。
+- [x] **Step 8: 编译 + 冒烟**——Finite + Period buff：施加 → 若干个 `Periodic` → 到期 `Expired` + 实例回收（**装置逐 tick 轮询观察**，勿用"下一 tick"假定）。
 
-- [ ] **Step 9: R4.5-b 参数源族宿主插槽（同批落地——同族同验证面）**——`ITcsParamSourceHost`（`UINTERFACE(MinimalAPI, Blueprintable)` + 两个 `UFUNCTION(BlueprintNativeEvent)`：`double Evaluate(const FTcsParamEvaluateContext& Context)` / `bool AllowsValueConvention()`）+ `FTcsParamSource_HostDelegate : FTcsParamValueSource`（持 `UPROPERTY TScriptInterface<ITcsParamSourceHost> Host`；两个虚函数**纯转发** + 空 Host 守卫 = 返回 0 / true）。
+- [x] **Step 9: R4.5-b 参数源族宿主插槽（同批落地——同族同验证面）**——`ITcsParamSourceHost`（`UINTERFACE(MinimalAPI, Blueprintable)` + 两个 `UFUNCTION(BlueprintNativeEvent)`：`double Evaluate(const FTcsParamEvaluateContext& Context)` / `bool AllowsValueConvention()`）+ `FTcsParamSource_HostDelegate : FTcsParamValueSource`（持 `UPROPERTY TScriptInterface<ITcsParamSourceHost> Host`；两个虚函数**纯转发** + 空 Host 守卫 = 返回 0 / true）。
   两处都住 `TcsCore/Public/Parameter/`（`ITcsParamTableReader` 已在此；转发器 MUST 与基类同模块）；**载体与调用点零改动**（`FTcsParamValue.Source` 是裸 `FInstancedStruct`，照装）。
   **两个虚函数都要转发**（R-1 调研的硬判据）——漏 `AllowsValueConvention` 会让宿主新源在本轮 Task 3 的 `ValueConvention` 白名单上拿到错误的默认能力位。
   验证（R-1 调研已定的流程）：UBT 编译 + **glue 产物核验**（"能导出 ≠ 能往返"——确认 `Evaluate` 生成真实方法体，非空壳）+ **C# 实现实测**（配到 `FTcsParamValue.Source` 后求值走脚本；**复用 SCRIPT-8 的探针形态，不得重写**）。规格 delta = `param-value` 能力 ADDED 一条"宿主参数源插槽"需求 + 场景。
-- [ ] **Step 10: 编译 + 冒烟收口**——本节全部落地后重跑双配置编译 + Task 3 的冒烟（快照/等级源/周期），确认 Step 9 未动既有求值路径。
+- [x] **Step 10: 编译 + 冒烟收口**——本节全部落地后重跑双配置编译 + Task 3 的冒烟（快照/等级源/周期），确认 Step 9 未动既有求值路径。
 
 **验收信号**：快照数值随 `Overrides` / Def 默认 / 等级源三者组合正确变化；周期事件计数与到期时刻可复现（同一 Seed 下逐字一致）；**C# 自定义源能在链里求值**（R4.5-b 判据）。
 
 **非目标**：不做参数链（R6 `STAT-1`）；不做快照 Live 化（`Live` 模式本轮只在 `ETcsParamMode` 上留值）。
+
+> **Task 3 落地结果（2026-10-04）**：Step 1–10 **全勾**；两份提案归档（`add-state-param-snapshot-and-level-sources`：`state-param-snapshot` **新能力 ×6** + `state-instance-lifecycle` ×3 MODIFIED + `state-def-asset` ×1 ADDED；`add-param-source-host-slot`：`param-value` ×1 MODIFIED + ×1 ADDED），`openspec validate --all --strict` = **29 passed / 0 failed**、`changes/` 零活动提案。
+> - **验收读数**：双配置编译**零 warning / 零 error**；`Tcs.Test.Slice.Run` **即时 32/0 + 延迟段 39/0**（新增 `20a`–`20e` 数值面、`20f`–`20l` 时间面、一条"夹具就绪"判定）；`Tcs.Test.Slice.Reject` **9/0**（新增 H/I）。证据 = `EVID-2026-10-04-state-param-snapshot-and-level-sources`（区段 L2416–L2760、345 行 / 49,691 字节 / SHA-256 `7b82a338…`、复算脚本、**9 条边界**）。
+> - **四处实施期裁定（详见 Task 3 头部的《提案面》块）**：① 等级读口不进 Core 上下文（落 `FTcsStateEvaluateContext`）；② `Instigator` 反而进基础上下文（分界判据 = 通用主体身份 vs 域读口）；③ 快照取设计名 `FTcsParamSnapshot`（Task 2 预留的 `FTcsStateParamSnapshot` 作废）；④ 读取适配器是**纯 C++ 类**（`ITcsParamTableReader` 不是 `Blueprintable`，不预建 `UObject` 壳）。
+> - **两处交付物面收缩**：Step 9 的接口与转发器**同住一个头**（`TcsParamSourceHost.h`，同族先例 `TcsParamSource_AttributeScaled.h`）；计划的 `TcsStateDuration.h/.cpp` **未建**——入堆/撤堆集中在 `TcsStateOps_Lifetime.cpp`（"时长驱动"的全部逻辑就是那四个函数，另开一层的抽象成本大于收益）。
+> - **三处同类判据（本轮装置侧踩坑沉淀，全部非机制问题）**：探针词未声明时的**静默无效 tag**、漏施加探针导致四条断言在空夹具上说谎、`ForEachState` 未按定义过滤取到"桶里第一个实例"、定时器绑装置 Actor + 采样延时拿世界时钟反算得到负数——四条都记进证据 §4，判据两条：**夹具不完整会让断言说谎**、**拿世界时钟当探针相对表必错**。
+> - **两处如实边界（交 Task 7 / 内容侧）**：① 验收资产 `DA_Check_BuffDef` 是 `Finite` 而 `DurationTime` 求值为 0（4 条 `状态时值非正` Warning 的来源，不影响断言但让"零红字"严格不成立）；② **R4.5-b 的 C# 侧实测未做**（静态面 + glue 核验已过），归 Task 7 端到端或单独补探针。
 
 ---
 
@@ -514,3 +536,10 @@
   - **一处跨文档口径更新**：`EVID-2026-10-04-tcs-state-def-asset` §1 的"状态定义不做世界装配"读数**今日仍成立但规格已变**——该证据已就地加口径更新注记（两步非互斥），并补记其区段所属日志的**冻结备份整文件哈希**（原证据只记活动日志区段、无文件级锚 ⇒ 日后无法复算）。
   - **一处待对账项（交 Task 8）**：`INDEX` §4.4 的 R7 行仍列**已消费**的 `WAIT-6`（该条已在 Task 0 Step 3 标结）——由 Task 8 Step 5 的"`INDEX` §4.4 同步"那一趟一并纠正；已就地记进台账《Task 2 收束》块。
   - **本 Task 的验收边界（七条）**见证据 §6：时值 / 快照 / 修正器三面零覆盖（Task 3 / Task 4）；`Stacked` 档与五轴未验（Task 5）；`Cancelled` 无内建产生者（R5.5-e）；`StackChanged` / `Periodic` 两枚 tag 零广播；只跑单轮。
+- 2026-10-04 **Task 3 收束**（参数快照 / 等级源 / Duration-Period 到期堆 / R4.5-b 宿主插槽）：Step 1~10 **全勾**；两份提案归档（`+7 added / ~3 modified` + `+1 added / ~1 modified`），`validate --all --strict` = **29 passed / 0 failed**、`changes/` 零活动；验收 = 双配置编译零 warning / 零 error + `Tcs.Test.Slice.Run` **即时 32/0 + 延迟段 39/0**（新增 `20a`–`20l` 与一条夹具判定）+ `Tcs.Test.Slice.Reject` **9/0**（新增 H/I），证据 `EVID-2026-10-04-state-param-snapshot-and-level-sources`。
+  - **四处实施期裁定**：① **等级读口不进 Core 上下文**（落 `FTcsStateEvaluateContext`；接口住 `TcsState/Public/Host/`——读口随消费者所属的领域层，先例 `FTcsAttributeEvaluateContext` 持 `ITcsAttributeProvider`）；② **`Instigator` 反而补进基础上下文**（分界判据 = "跨域通用的主体身份"进基础、"某域的读口"进该域派生上下文）；③ **快照取设计名** `FTcsParamSnapshot` / `FTcsParamSnapshotEntry`（Task 2 预留的 `FTcsStateParamSnapshot` 作废——快照是参数域概念，不是状态模块专属）；④ **读取适配器是纯 C++ 类**（`ITcsParamTableReader` 不是 `Blueprintable` ⇒ 造 `UObject` 壳属"零消费者预建"，且会把快照指针寿命绑到 GC 上）。
+  - **两处交付物面收缩**：① Step 9 的接口与转发器**同住一个头** `TcsParamSourceHost.h`（同族先例 `TcsParamSource_AttributeScaled.h` 把接口 / 派生上下文 / 源三者同处一文件；计划原写的 `TcsParamSource_HostDelegate.h/.cpp` **不建**）；② 计划的 `TcsStateDuration.h/.cpp` **未建**——入堆 / 撤堆 / 重挂集中在 `TcsStateOps_Lifetime.cpp`（"时长驱动"的全部逻辑就是那四个函数，另开一层的抽象成本大于收益）。
+  - **两条引擎/UBT 事实（本轮实测）**：① 含 `TUniquePtr` 元素的 `TMap` 类型**不能**加模块导出宏——MSVC 会强制实例化 `TMap` 复制路径并报 `C2280`（`TSparseSetElement` 复制到已删除的函数）；跨模块可达性改由**门面**承担。② `FTimerManager::SetTimer` 的句柄形参是**非 const 左值引用** ⇒ 临时量与 lambda 捕获副本（默认 const）都绑不上（`C2665`）；且 `CreateWeakLambda` 的宿主不能是按值捕获的裸指针。
+  - **一处规格新能力的 Purpose 需手工补**（**第四次实证**）：归档器为新能力 `state-param-snapshot` 写的是占位句 `TBD - created by archiving …` ⇒ 归档后 `validate --all` = 28 passed / 1 failed；改主规格 `## Purpose` 后 **29 / 0**。纪律见 `CONVENTION` §6.6。
+  - **两处如实边界（交 Task 7 / 内容侧）**：① 验收资产 `DA_Check_BuffDef` 是 `Finite` 而 `DurationTime` 求值为 0（4 条 `状态时值非正` Warning 的来源——本轮检查不读该状态的剩余时长，故不影响任何断言，但让"常规命令零红字"严格不成立；修法 = 内容侧配明确时长，或校验里放行"显式 0 = 立即到期"）；② **R4.5-b 的 C# 侧实测未做**（静态面编译 + glue 产物已核"非空壳"），归 R5 Task 7 端到端或单独补一次探针。
+  - **本 Task 的验收边界（九条）**见证据 §5：单机单世界单 PIE；延迟段读数是帧推进型（周期次数随帧率浮动，判据用下限而非等式）；真实资产的等级类源 0 行（机制已验、内容待配置）；`PeriodRefresh` 只验 `Keep`；`StackPolicy` / 关系字段 / `Cancelled` 零覆盖；R4.5-b 只到静态面；`InstigatorLevel*` 只验数组型；`ExtendDuration` 上限未定（本轮口径 = 不钳到总时长）。

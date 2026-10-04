@@ -2,6 +2,7 @@
 
 #include "TcsStateSubsystem.h"
 
+#include "Clock/TcsClockSubsystem.h"
 #include "EventBus/TcsEventBusSubsystem.h"
 #include "State/TcsStateOps.h"
 #include "TcsStateLogChannel.h"
@@ -19,10 +20,22 @@ bool UTcsStateSubsystem::DoesSupportWorldType(const EWorldType::Type WorldType) 
 
 void UTcsStateSubsystem::Deinitialize()
 {
-	// 确定性清空：全部桶逐槽归还（旧句柄凭代际失配失效）+ 登记表复位。
-	// **本轮无到期条目待撤销**（入堆/撤堆归 R5 Task 3——见头文件说明）。
+	// **先逐条撤销时间条目**（时值 + 周期）：条目持句柄，桶清空后回调仍会到达——
+	// 靠代际校验兜底是"能成立"，但每次世界切换都会往堆里留一批无谓条目。
+	// 顺序 = 撤条目 → 清桶 → 复位登记表。
 	// **发号器不复位**：`Id` 的契约是"进程内唯一且永不复用"（`instance-handle-pool` 规格），
 	// 复位会让新世界的来源号与上一世界撞车——那正是级联摘除会误伤别人的缺陷形态（`WAIT-6`）。
+	Registry.ForEachBucket([this](FTcsCombatEntityHandle Unit, FStateBucket& Bucket)
+	{
+		Bucket.ForEach([this](FTcsStateInstance& Instance)
+		{
+			FTcsStateOps::CancelTimeEntries(*this, Instance);
+			return true;
+		});
+
+		return true;
+	});
+
 	Registry.Reset();
 	RegisteredDefs.Reset();
 
@@ -44,6 +57,34 @@ void UTcsStateSubsystem::AddReferencedObjects(UObject* InThis, FReferenceCollect
 		}
 	}
 
+	// 在册实例的参数快照**同款地雷**：实例记录住桶（非 UPROPERTY 容器），而其 `ParamSnapshot`
+	// 的 `SourceRef` 位可含对象引用（数值来源的副本，如域侧 `AttributeScaled` 一类源持读口）
+	// ⇒ 不补引用即"那个对象被静默回收"（表现为读快照时来源变空，不是崩溃）。
+	//
+	// **为什么用 `FInstancedStruct::AddStructReferencedObjects` 而不是 `AddPropertyReferencesWithStructARO`**：
+	// 后者要求一个 `UScriptStruct*`（会连带收集结构体自身的引用），而 `FTcsParamSnapshotEntry`
+	// **不是反射结构体**（快照只在 C++ 侧流转）⇒ 没有 `StaticStruct()` 可给。逐条走 `SourceRef`
+	// 自己的 ARO 反而更准：它只补真正持对象的那一层，且递归进内层结构体的属性
+	// （引擎 `FInstancedStruct::AddStructReferencedObjects` 已实现该递归）。
+	This->Registry.ForEachBucket([&Collector](FTcsCombatEntityHandle Unit, FStateBucket& Bucket)
+	{
+		Bucket.ForEach([&Collector](FTcsStateInstance& Instance)
+		{
+			for (FTcsParamSnapshotEntry& Entry : Instance.ParamSnapshot.Entries)
+			{
+				if (Entry.SourceRef.IsValid())
+				{
+					// 收集只枚举引用、不改内容——`const_cast` 仅为满足 ARO 的非 const 签名
+					const_cast<FInstancedStruct&>(Entry.SourceRef).AddStructReferencedObjects(Collector);
+				}
+			}
+
+			return true;
+		});
+
+		return true;
+	});
+
 	Super::AddReferencedObjects(InThis, Collector);
 }
 
@@ -54,9 +95,11 @@ EApplyResult UTcsStateSubsystem::ApplyState(
 	FTcsCombatEntityHandle Target,
 	FGameplayTag DefTag,
 	FTcsSourceHandle Source,
+	FTcsCombatEntityHandle Instigator,
+	const TScriptInterface<ITcsParamTableReader>& ParamTable,
 	const TMap<FGameplayTag, double>& Overrides)
 {
-	return FTcsStateOps::Apply(*this, Target, DefTag, Source, Overrides);
+	return FTcsStateOps::Apply(*this, Target, DefTag, Source, Instigator, ParamTable, Overrides);
 }
 
 const FTcsStateInstance* UTcsStateSubsystem::GetState(FTcsStateHandle Handle) const
@@ -120,8 +163,10 @@ bool UTcsStateSubsystem::ExtendDuration(FTcsStateHandle Handle, double Delta)
 
 	Instance->DurationRemaining = FMath::Max(0.0, Instance->DurationRemaining + Delta);
 
-	// 到期堆同步（撤销旧条目 + 按新余量重入堆）归 R5 Task 3——本轮只更新字段
-	UE_LOG(LogTcsState, Log, TEXT("状态时长延长：句柄=%d/%d 增量=%.3f 剩余=%.3f（堆同步归 Task 3）"),
+	// 到期堆同步：撤销旧条目 + 按新余量重入堆（句柄配对清理）
+	FTcsStateOps::RescheduleExpiry(*this, *Instance);
+
+	UE_LOG(LogTcsState, Log, TEXT("状态时长延长：句柄=%d/%d 增量=%.3f 剩余=%.3f"),
 		Handle.Index, Handle.Generation, Delta, Instance->DurationRemaining);
 
 	return true;
@@ -137,11 +182,24 @@ bool UTcsStateSubsystem::SetRemaining(FTcsStateHandle Handle, double Seconds)
 
 	Instance->DurationRemaining = FMath::Max(0.0, Seconds);
 
-	// 到期堆同步归 R5 Task 3——本轮只更新字段
-	UE_LOG(LogTcsState, Log, TEXT("状态剩余时长设置：句柄=%d/%d 剩余=%.3f（堆同步归 Task 3）"),
+	// 到期堆同步同上；剩余 0 时条目按"当前时刻"入堆 ⇒ 在**下一个泵点**到期
+	FTcsStateOps::RescheduleExpiry(*this, *Instance);
+
+	UE_LOG(LogTcsState, Log, TEXT("状态剩余时长设置：句柄=%d/%d 剩余=%.3f"),
 		Handle.Index, Handle.Generation, Instance->DurationRemaining);
 
 	return true;
+}
+
+
+
+// 宿主等级读口
+void UTcsStateSubsystem::SetEntityLevelProvider(TScriptInterface<ITcsEntityLevelProvider> InProvider)
+{
+	EntityLevelProvider = InProvider;
+
+	UE_LOG(LogTcsState, Log, TEXT("状态门面注入等级读口：%s"),
+		InProvider.GetObject() ? *InProvider.GetObject()->GetName() : TEXT("（已清空）"));
 }
 
 
@@ -151,6 +209,12 @@ UTcsEventBusSubsystem* UTcsStateSubsystem::GetEventBus() const
 {
 	const UWorld* World = GetWorld();
 	return World ? World->GetSubsystem<UTcsEventBusSubsystem>() : nullptr;
+}
+
+UTcsClockSubsystem* UTcsStateSubsystem::GetClockSubsystem() const
+{
+	const UWorld* World = GetWorld();
+	return World ? World->GetSubsystem<UTcsClockSubsystem>() : nullptr;
 }
 
 void UTcsStateSubsystem::TransitionPhase(FTcsStateInstance* Instance, EStatePhase NewPhase)

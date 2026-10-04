@@ -8,15 +8,20 @@
 #include "Def/TcsBuffDef.h"
 #include "Handle/TcsCombatEntityHandle.h"
 #include "Handle/TcsSourceHandle.h"
+#include "Parameter/TcsParamTableReader.h"
+
+#include "Host/TcsEntityLevelProvider.h"
 
 #include "State/TcsStateEnums.h"
 #include "State/TcsStateHandle.h"
 #include "State/TcsStateInstance.h"
+#include "State/TcsStateParamTableReader.h"
 #include "State/TcsStateRegistry.h"
 
 #include "TcsStateSubsystem.generated.h"
 
 class UTcsEventBusSubsystem;
+class UTcsClockSubsystem;
 
 
 
@@ -51,11 +56,11 @@ public:
 	virtual bool DoesSupportWorldType(const EWorldType::Type WorldType) const override;
 
 	/**
-	 * 反初始化：登记表复位 + **全部桶清空**（跨世界确定性清理——旧句柄一律凭代际失配失效）。
+	 * 反初始化：**先逐条撤销时间条目**（时值 + 周期）→ 登记表复位 → **全部桶清空**
+	 * （跨世界确定性清理——旧句柄一律凭代际失配失效）。
 	 *
-	 * **本轮无到期条目待撤销**：`DurationRemaining` / `ExpiryEntry` 只是字段落点，
-	 * 入堆与撤堆归 R5 Task 3——故本处不撤堆；Task 3 接线时 MUST 在此补"待撤销条目撤销"
-	 * （照 `UTcsEffectSubsystem::Deinitialize` 的先例：已在堆里的条目到期时按代际校验静默丢弃）。
+	 * **撤销条目的时机**：必须有（R5 Task 3 接线）——条目持句柄，桶清空后回调仍会到达，
+	 * 靠代际校验兜底是"能成立"，但每次世界切换都会往堆里留一批无谓条目。
 	 */
 	virtual void Deinitialize() override;
 
@@ -157,24 +162,29 @@ public:
 	 *   不是契约违规，且发现期已把"能否按 tag 寻址"拦过一次）。
 	 *
 	 * **`: 本步的替换点`**：上面的"同组"判据是 **R5 Task 5 五轴共存决策的暂用位**——
-	 * Task 5 MUST 在原处替换为策略驱动（组键 / 上限 / 溢出 / 数值叠加 / 时长刷新五轴），
-	 * 而**事件面与返回值语义不变**（`Stacked` 档随 Task 5 变为可达）。
+	 * 快照构建（本轮落地）与时间条目重挂都挂在它下面，Task 5 只需替换共存判据本身，
+	 * **事件面与返回值语义不变**（`Stacked` 档随 Task 5 变为可达）。
 	 *
-	 * **`Overrides` 本轮只落形参**（施加方参数覆盖）：快照求值与覆盖优先归 R5 Task 3；
-	 * 先占位是为了 Task 3 不必改门面签名。
+	 * **两个可选形参的缺省语义**（都不构成错误面）：
+	 * - `Instigator` 无效 ⇒ 取 `Target`（"谁施加的"缺省即被施加方）；
+	 * - `ParamTable` 空 ⇒ 引用类参数源落兜底（`ParamRef` 的 Fallback）。
 	 *
 	 * **无反射面**：形参含 `TMap` 与未反射化句柄（本轮不加 `UFUNCTION`——脚本面整体留 `SCRIPT` 系列）。
 	 *
 	 * @param Target 被施加方实体（无效即拒绝）。
 	 * @param DefTag 状态定义身份（须已在本世界登记）。
 	 * @param Source 施加方来源句柄（**无效则由本门面发号**——同一次施加内触发行与修正器共用它）。
-	 * @param Overrides 施加方参数覆盖（本轮不消费）。
+	 * @param Instigator 发起者实体（可选；无效则取 `Target`）。
+	 * @param ParamTable 施加方参数表（可选；空则引用类源落兜底）。
+	 * @param Overrides 施加方参数覆盖（参与快照构建：命中即取覆盖值，否则取定义默认）。
 	 * @return 返回施加结果。
 	 */
 	EApplyResult ApplyState(
 		FTcsCombatEntityHandle Target,
 		FGameplayTag DefTag,
 		FTcsSourceHandle Source,
+		FTcsCombatEntityHandle Instigator,
+		const TScriptInterface<ITcsParamTableReader>& ParamTable,
 		const TMap<FGameplayTag, double>& Overrides);
 
 	/**
@@ -259,9 +269,11 @@ public:
 	/**
 	 * 延长剩余时长（`Delta` 秒，可负）。
 	 *
-	 * **本轮只落签名与拒绝面**：到期堆同步归 R5 Task 3——故本函数当前**只更新
-	 * `DurationRemaining` 字段**，不改任何堆条目（堆里本轮根本没有该实例的条目）。
-	 * Task 3 接线时 MUST 在此补"撤销旧条目 + 按新余量重入堆"。
+	 * **到期堆同步**：撤销旧条目 + 按新余量重入堆（句柄配对清理）——R5 Task 3 接线完成，
+	 * 不再是"只改字段"。
+	 *
+	 * **不钳到总时长**：延长可以超过 `DurationTime`（"灼烧延长"的 D3-15 原义未定上限；
+	 * 若要改成"钳到总时长"那是另一条决策，届时改这一处即可）。
 	 *
 	 * **`EDP_Infinite` 上调它 = Warning + 无操作**：无限时值没有到期条目可调，
 	 * 这是**配置状态**不是错误（同"未注入 provider"的口径），故不 ensure、不改字段。
@@ -276,10 +288,10 @@ public:
 	/**
 	 * 设置剩余时长为绝对值（秒）。
 	 *
-	 * 拒绝面与"本轮只落签名"的口径同 `ExtendDuration`（含 `Infinite` 与定义缺失两条 Warning 路径）。
+	 * 拒绝面与"到期堆同步"的口径同 `ExtendDuration`（含 `Infinite` 与定义缺失两条 Warning 路径）。
 	 *
 	 * @param Handle 状态实例句柄。
-	 * @param Seconds 新的剩余秒数（负值按 0 处理）。
+	 * @param Seconds 新的剩余秒数（负值按 0 处理；置 0 使其在下一个泵点到期）。
 	 * @return 返回是否操作成功。
 	 */
 	bool SetRemaining(FTcsStateHandle Handle, double Seconds);
@@ -287,13 +299,52 @@ public:
 #pragma endregion
 
 
+// 宿主等级读口
+#pragma region LevelProvider
+
+public:
+	/**
+	 * 注入实体等级读口（宿主实现"这个实体几级"；等级类参数源经它把句柄解析成等级）。
+	 *
+	 * **未注入 = `nullptr` 是配置状态不是错误**（同 `ITcsParamTableReader` 可空的口径）——
+	 * 等级类源据此落兜底路径，不留红字、不 ensure。
+	 *
+	 * **为什么住门面而不是全局单例**：等级是**世界内的实体属性**（同一份数据在 PIE 与 Game
+	 * 世界各自独立），注入物按世界持有；跨世界不共享是特性不是缺陷。
+	 *
+	 * 注入物以 `UPROPERTY` 持有（`TScriptInterface` 的 GC 纪律：非 `UPROPERTY` 的接口指针
+	 * 会被 GC 静默回收，表现为"读口突然变空"）。
+	 *
+	 * @param InProvider 宿主读口（可传空以撤销注入）。
+	 */
+	void SetEntityLevelProvider(TScriptInterface<ITcsEntityLevelProvider> InProvider);
+
+	// 取当前注入的等级读口（未注入返回空接口）
+	TScriptInterface<ITcsEntityLevelProvider> GetEntityLevelProvider() const
+	{
+		return EntityLevelProvider;
+	}
+
+#pragma endregion
+
+
 // 内核
 #pragma region Core
 
-private:
-	// 取事件总线门面（世界拆解期可能为 nullptr——调用方须容忍）
+public:
+	/**
+	 * 取事件总线门面 / 时钟泵门面（**世界拆解期都可能为 nullptr——调用方须容忍**）。
+	 *
+	 * **为什么是公开口而不是把消费者塞进 friend 名单**：条目的入堆/撤堆发生在引擎函数里
+	 * （`FTcsStateOps` / `FTcsStateDuration`），它们**本来就**够得着门面私有区；但"取另一个
+	 * 子系统的指针"是任何调用方（含将来的行为 Fragment 派发）都要做的事，藏起来只会让下一处
+	 * 再往 friend 名单里加一个名字。返回裸指针即"可能为空"的显式声明。
+	 */
 	UTcsEventBusSubsystem* GetEventBus() const;
 
+	UTcsClockSubsystem* GetClockSubsystem() const;
+
+private:
 	// 广播一次状态事件（载荷由实例快照 + 原因拼装；总线不可得时 Warning 并丢弃——不 ensure）
 	void BroadcastStateEvent(FGameplayTag EventTag, const FTcsStateInstance& Instance, EStateRemoveCause Cause);
 
@@ -301,7 +352,7 @@ private:
 	void TransitionPhase(FTcsStateInstance* Instance, EStatePhase NewPhase);
 
 	/**
-	 * 施加 / 移除 / 查询流程（`FTcsStateOps`）需要读写下面三个成员——
+	 * 施加 / 移除 / 查询流程（`FTcsStateOps`）需要读写下面四个成员——
 	 * 故开放**最小集**（friend 类不给访问域继承：引擎函数访问这些成员靠的是 friend 声明，
 	 * 而非把它们放到 public）。门面只做世界过滤与登记口，流程逻辑全在引擎函数里（设计文档 §3.1 的分工）。
 	 */
@@ -315,6 +366,10 @@ private:
 
 	// 来源发号器（施加时发放实例的来源句柄；Task 0 的统一发号器 = 进程内唯一、永不复用）
 	FTcsSourceHandleRegistry SourceRegistry;
+
+	// 宿主等级读口（未注入 = 空接口；`UPROPERTY` 持有以满足 TScriptInterface 的 GC 纪律）
+	UPROPERTY()
+	TScriptInterface<ITcsEntityLevelProvider> EntityLevelProvider;
 
 #pragma endregion
 };

@@ -13,8 +13,9 @@
 /**
  * 参数求值上下文（PV-1）：参数源求值时的最小数据面，零领域词汇。
  * MUST 反射可见（宿主脚本扩展通道）——禁止 TFunction/std::function 等不可反射成员；
- * 领域扩展 = 结构体继承 + 源内 checked cast（PV-1）；Subject 句柄/级别位字段随 TcsState 等级源同批
- * 补齐（2026-10-04 已补齐——原文"M2/M5 轮补齐"系 M2 收束前的排期，已过期）。
+ * 领域扩展 = 结构体继承 + 源内 checked cast（PV-1）；Subject / Instigator / 级别位三个主体字段随
+ * TcsState 等级源同批补齐（2026-10-04 已补齐 Subject 与 EffectiveLevel，2026-10-05 补 Instigator——
+ * 原文"M2/M5 轮补齐"系 M2 收束前的排期，已过期）。
  */
 USTRUCT(BlueprintType)
 struct TCSCORE_API FTcsParamEvaluateContext
@@ -60,6 +61,10 @@ public:
 	UPROPERTY(BlueprintReadWrite, Category = "Param Evaluate")
 	FTcsCombatEntityHandle Subject;
 
+	// 发起者实体（"谁施加的"——可与被施加方不同；0 = 未填，域侧源按缺省口径处理）
+	UPROPERTY(BlueprintReadWrite, Category = "Param Evaluate")
+	FTcsCombatEntityHandle Instigator;
+
 	// 生效等级（0 = 无等级语义）
 	UPROPERTY(BlueprintReadWrite, Category = "Param Evaluate")
 	int32 EffectiveLevel = 0;
@@ -85,6 +90,16 @@ struct TCSCORE_API FTcsParamValueSource
 #pragma region Evaluate
 
 public:
+	/**
+	 * 虚析构（**多态基类的正确性要求，非洁癖**）：本族是多态基类，派生源持 `TArray` / `TMap`
+	 * 一类**非平凡析构**的成员（等级表两族即如此）；若非虚析构，任何"经基类指针删除"的写法
+	 * 都是未定义行为——MSVC 的 `C4265` 正是这一点。此处给**默认实现**（不引入新的自定义逻辑）：
+	 * 对本就平凡的派生类无影响，对非平凡的派生类把析构正确性补齐。
+	 *
+	 * 为什么住基类而不是逐个派生类加：一处声明即覆盖全族（含宿主自定义源与 R6 的技能源）。
+	 */
+	virtual ~FTcsParamValueSource() = default;
+
 	/**
 	 * 在给定上下文下求出规范值。
 	 *

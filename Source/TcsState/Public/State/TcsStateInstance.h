@@ -10,6 +10,7 @@
 
 #include "State/TcsStateEnums.h"
 #include "State/TcsStateHandle.h"
+#include "State/TcsStateSnapshot.h"
 
 
 
@@ -66,11 +67,21 @@ public:
 	// 当前层数（从 1 起；五轴堆叠决策归 R5 Task 5）
 	int32 Stacks = 1;
 
-	// 生效等级（等级源求值入参；快照构建归 R5 Task 3）
+	// 生效等级（等级源求值入参——`Context.EffectiveLevel` 取它；快照构建归 R5 Task 3）
 	int32 Level = 0;
 
 	// 实例阶段（在册稳态 = `ESP_Active`）
 	EStatePhase Phase = EStatePhase::ESP_Active;
+
+	/**
+	 * 参数快照（施加瞬间冻结的生效数值，D3-12；构建与重建规则见 `state-param-snapshot` 能力）。
+	 *
+	 * **为什么它不是"策略载体"**（不违反本结构体的纯度纪律）：快照是**已求值结果的副本**，
+	 * 值语义、可复制；`SourceRef` 位也只是该行数值来源的副本（供 Debug 与 Live 化），
+	 * 不是"实例持策略"（策略仍归 Def 资产）。其内层若含对象引用，由门面的 `AddReferencedObjects`
+	 * 统一补引用（本结构体非 `UPROPERTY` 容器，GC 看不见）。
+	 */
+	FTcsParamSnapshot ParamSnapshot;
 
 #pragma endregion
 
@@ -82,16 +93,20 @@ public:
 	// 剩余时长（秒；`EDP_Infinite` 时不使用——无到期条目）
 	double DurationRemaining = 0.0;
 
-	// 距下个周期的剩余时间（秒；周期机制归 R5 Task 3）
+	// 距下个周期的剩余时间（秒；周期机制归 R5 Task 3——值每次周期回调后重置为满额）
 	double PeriodRemaining = 0.0;
 
-	// 参数快照（施加瞬间冻结的生效数值；**类型归 R5 Task 3 落地**——字段先留位，本步不消费）
-	// 命名用 `State` 中缀（与 `FTcsStateDefBase` / `FTcsStateEventPayload` 同族），
-	// 而非设计文档里的概念名 `FTcsParamSnapshot`（实现名以 `TcsState` 前缀成族；Task 3 定稿时回写文档）
-	// FTcsStateParamSnapshot ParamSnapshot;
-
-	// 到期条目锚点（取消锚；**入堆/撤堆归 R5 Task 3**——字段先留位，本步不消费）
+	// 时值到期条目锚点（取消锚；`Finite` 时非空，`Infinite` 时恒空）
 	FTcsTimeEntryHandle ExpiryEntry;
+
+	/**
+	 * 周期到期条目锚点（取消锚；`Period > 0` 时非空）。
+	 *
+	 * **为什么与时值条目分开两个字段**：`Finite` 与 `Period > 0` 是可同时成立的两个语义
+	 * （标准 DoT = 有限时值 + 周期跳伤），挤在一个锚点里会让"撤销旧条目"分不清撤的是哪一条
+	 * （`ExtendDuration` 只该动时值条目，`PeriodRefresh` 只该动周期条目）。
+	 */
+	FTcsTimeEntryHandle PeriodEntry;
 
 #pragma endregion
 };

@@ -20,6 +20,11 @@
  * `GetState(Handle)` 无法直接定位。故照 `FTcsTriggerRegistry` 的**槽位 + 代际**手法自建，
  * 语义（分配优先复用空闲槽、释放使代际 +1、新槽代际从 1 起）**刻意与池一致**，
  * 使"代际失配 = 悬空"这条判据在全插件只有一种读法。
+ *
+ * **刻意不带导出宏**（2026-10-05 实测）：本类型持 `TUniquePtr` 元素 ⇒ 不可复制；
+ * 加 `TCSSTATE_API` 会让 MSVC 强制实例化 `TMap` 的复制路径并报 `C2280`
+ * （`TSparseSetElement` 复制到已删除的函数）。跨模块可达性由**门面**承担——
+ * `UTcsStateSubsystem` 带 `TCSSTATE_API`，它作为成员持有本类型，消费方经门面访问即可。
  */
 struct FStateBucket
 {
@@ -78,10 +83,15 @@ public:
 	 *
 	 * **遍历期间 MUST NOT 增删实例**（增删会改动槽位/空闲栈）：需要增删时先自行收集句柄，
 	 * 遍历结束后再动（同 `FTcsTriggerRegistry::UnregisterRowsBySource` 的两段式手法）。
+	 * **就地改字段是允许的**（改 `ExpiryEntry` 之类的锚点不动槽位）——门面 `Deinitialize`
+	 * 的"逐条撤时间条目"正靠这一条。
 	 *
 	 * @param Visitor 访问者（返回是否继续）。
 	 */
 	void ForEach(TFunctionRef<bool(const FTcsStateInstance&)> Visitor) const;
+
+	// 遍历在册实例（可写重载——仅供"就地改字段"的场景，见只读重载的纪律说明）
+	void ForEach(TFunctionRef<bool(FTcsStateInstance&)> Visitor);
 
 	/**
 	 * 在册实例数（观测与统计用）。
@@ -142,6 +152,8 @@ private:
  * **脏句柄一律拒绝 + `Warning`（不 `ensure`）**：代际失配 / 下标越界 / 单位未注册都是
  * **时序竞态**语义（调用方手上的句柄过期了），不是配置错误——与"非法阶段迁移"的 `ensure` 口径
  * 刻意分开。拒绝 MUST NOT 影响同桶其它实例。
+ *
+ * **导出宏理由同 `FStateBucket`**（二者是同一处组合的两个类型；加宏会强制实例化 `TMap` 复制路径）。
  */
 class FTcsStateRegistry
 {
@@ -204,6 +216,9 @@ public:
 	 * @param Visitor 访问者（单位 + 该单位桶；返回是否继续）。
 	 */
 	void ForEachBucket(TFunctionRef<bool(FTcsCombatEntityHandle, const FStateBucket&)> Visitor) const;
+
+	// 遍历全部桶（可写重载——仅供"就地改实例字段"的场景，如门面 `Deinitialize` 逐条撤条目）
+	void ForEachBucket(TFunctionRef<bool(FTcsCombatEntityHandle, FStateBucket&)> Visitor);
 
 #pragma endregion
 

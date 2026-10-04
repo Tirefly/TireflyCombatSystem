@@ -2,6 +2,9 @@
 
 #include "Def/TcsBuffDefAsset.h"
 
+#include "Parameter/TcsParamValueSource.h"
+#include "TcsValueConvention.h"
+
 
 
 // 主资产类型取值 = 类名（派生族各自遮蔽基类静态成员——见头文件说明）
@@ -97,6 +100,22 @@ EDataValidationResult UTcsBuffDefAsset::IsDataValid(FDataValidationContext& Cont
 			Context.AddError(FText::FromString(FString::Printf(
 				TEXT("Params 里出现重复键（%s）：同键两行会让快照写入互相覆盖，请删掉一条"), *Row.Key.ToString())));
 			Result = EDataValidationResult::Invalid;
+		}
+
+		// 错误五：值约定白名单（R5 Task 3）——判据走**虚分派**读该行数值来源的能力位
+		// （MUST NOT 建"源类型 × 可配约定"的中心名单：宿主自定义源自行声明、零公共代码改动）。
+		// 运行期不拦（快照构建对这类行只按"不转换"降级），故作者期这一道门是唯一暴露点。
+		if (Row.ValueConvention != ETcsValueConventionFlag::VCF_None)
+		{
+			const FTcsParamValueSource* Source = Row.Base.Source.GetPtr<FTcsParamValueSource>();
+			if (Source && !Source->AllowsValueConvention())
+			{
+				Context.AddError(FText::FromString(FString::Printf(
+					TEXT("参数行 %s 配了值约定列，但该行的数值来源不允许值约定（引用类源 / 域侧换算源读到的已是规范值，"
+						"再转即二次转换）：请把值约定改回「无」，或把数值来源换成书写值即结果的那类源"),
+					*Row.Key.ToString())));
+				Result = EDataValidationResult::Invalid;
+			}
 		}
 	}
 

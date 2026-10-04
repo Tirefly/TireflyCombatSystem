@@ -87,6 +87,24 @@ void FStateBucket::ForEach(TFunctionRef<bool(const FTcsStateInstance&)> Visitor)
 	}
 }
 
+void FStateBucket::ForEach(TFunctionRef<bool(FTcsStateInstance&)> Visitor)
+{
+	// 可写重载：可见范围与只读重载完全一致（只多给了字段写权限）——"就地改字段"是允许的，
+	// 增删实例仍 MUST NOT（那会改动槽位与空闲栈）
+	for (int32 SlotIndex = 0; SlotIndex < SlotGenerations.Num(); ++SlotIndex)
+	{
+		if ((SlotGenerations[SlotIndex] & 1u) == 0u)
+		{
+			continue;
+		}
+
+		if (!Visitor(Instances[SlotIndex]))
+		{
+			return;
+		}
+	}
+}
+
 int32 FStateBucket::Num() const
 {
 	int32 Count = 0;
@@ -198,6 +216,25 @@ int32 FTcsStateRegistry::NumInstances() const
 void FTcsStateRegistry::ForEachBucket(TFunctionRef<bool(FTcsCombatEntityHandle, const FStateBucket&)> Visitor) const
 {
 	for (const TPair<FTcsCombatEntityHandle, TUniquePtr<FStateBucket>>& Pair : Buckets)
+	{
+		if (!Pair.Value.IsValid())
+		{
+			continue;
+		}
+
+		if (!Visitor(Pair.Key, *Pair.Value))
+		{
+			return;
+		}
+	}
+}
+
+
+
+void FTcsStateRegistry::ForEachBucket(TFunctionRef<bool(FTcsCombatEntityHandle, FStateBucket&)> Visitor)
+{
+	// 可写重载：与只读重载同序（`TMap` 序，不定序），只多给桶的写权限
+	for (TPair<FTcsCombatEntityHandle, TUniquePtr<FStateBucket>>& Pair : Buckets)
 	{
 		if (!Pair.Value.IsValid())
 		{
