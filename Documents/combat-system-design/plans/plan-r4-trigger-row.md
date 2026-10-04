@@ -3,7 +3,7 @@
 - **文档 ID**：`PLN-R4`
 - **类型**：PLN / 计划
 - **状态**：ACTIVE（**R4 全轮已完成 2026-10-04**；本文档继续承载《R4.5 批次表》——b/c 未开工，收口后转 `FROZEN`）
-- **权威范围**：R4 当前实施计划；含 R4–R8 轮次路线图（现行排期真相源）
+- **权威范围**：R4 实施计划与《R4.5 批次表》（非正式轮号）。**《R5–R8 轮次路线图》已于 2026-10-04 移交 [`PLN-R5`](plan-r5-state-layer.md)**——本文档不再承载路线图，其同名节仅作 R4 期间的历史留痕
 - **最后更新**：2026-10-04
 
 > **换根注记（2026-10-01）**：本文 tag 名已随提案 `reroot-gameplay-tag-vocabulary` 换根——旧前缀 `Tcs.Event.*` / `Tcs.Flow.Key.*` / `Tcs.Flow.Template.*` / `Tcs.Attr.*` / `Tcs.Chain.*` 依次成为 `TcsEvent.*` / `DamageFlowKey.*` / `DamageFlowTemplate.*` / `Attribute.*` / `EffectChain.*`；本文正文一律用新名，旧名仅存于本注记与 `log/`、`ledger/`、`evidence/` 等历史文件。
@@ -89,12 +89,12 @@
 | 批次 | 内容 | 状态 | 判据 / 证据 |
 |---|---|---|---|
 | **R4.5-a** | 注册表跨世界寿命缺陷修复：4 张注册表双轨登记值（对象/世界弱引用）+ 失效判据 + 拒绝门收窄为「同世界活对象重复」+ `Unregister` / `GetDynamicKeys` + 门面 `Deinitialize` 按世界撤销 | **✅ 已闭环（2026-09-29）** | 提案 `harden-registry-cross-world-lifetime`（已归档 `2026-09-29-…`）；证据 `EVID-2026-09-29-registry-lifetime`——同一 Editor 进程两连 PIE，5 个缺陷签名（`拒绝重复登记` / `已有执行器` / `保留首个` / `登记失败` / `Handled ensure`）**全 0**；Development + Shipping 双配置 0 error / 0 warning |
-| **R4.5-b** | **R-1 参数源族宿主插槽**（`ITcsParamSourceHost` + 转发器 struct，拟名·未实现；已调研并拍板 2026-09-24） | **❌ 未开工** | 判据：C# 侧能定义新数值源并跑通一条链。落点 = `LEDGER-reflection` R-1（"已调研并拍板，待落地"） |
-| **R4.5-c** | **R-2 两张注册表的宿主脚本插槽**（`BlueprintType` 升格 + `Register(UScriptStruct*, UObject*)` 反射入口）+ **TcsDamage 载荷读取器登记** | **⚠ 半闭环** | 寿命语义那半已随 R4.5-a 落地（`reflection-backlog.md` R-2 行标"部分闭环"）；**插槽那半未落**——`UE_DEFINE_TRIGGER_PAYLOAD_READER` 至今全库只有定义、零登记（登记需求并入本计划 Task 3） |
+| **R4.5-b** | **R-1 参数源族宿主插槽**（`ITcsParamSourceHost` + 转发器 struct；已调研并拍板 2026-09-24） | **并入 R5 Task 3**（2026-10-04 排定） | 判据：C# 侧能定义新数值源并跑通一条链。落点 = `PLN-R5` Task 3 Step 9（与四个等级源同族同验证面）；条目级真相 = `LEDGER-reflection` R-1 |
+| **R4.5-c** | **R-2 两张注册表的宿主脚本插槽**（`BlueprintType` 升格 + `Register(UScriptStruct*, UObject*)` 反射入口） | **⚠ 半闭环**（2026-10-04 复核：**只剩插槽这一半**） | 寿命语义那半随 R4.5-a 落地；**"载荷读取器登记"那半已消费**——本计划 Task 3 落了 `TcsDamageFlowCollectEvent.cpp` 的 `UE_DEFINE_TRIGGER_PAYLOAD_READER`，Task 4 实测 `Caster ← Attacker` 生效 ⇒ 本行原写"至今全库只有定义、零登记"**已过期**。**插槽那半排到 R6 开工前**（消费者 = 宿主专属条件 / SkillCost） |
 
 > **边界（如实记）**：`EVID-2026-09-29-registry-lifetime` 明文**不覆盖**条件求值器 / 载荷读取器两张注册表的寿命语义行为验证（本次装置未登记它们的动态条目；逻辑同构，属静态实现）——恰是 R4.5-c 要动的那两张。
 
-> **★ 跨轮耦合（2026-09-30 登记）**：R4.5-b / R4.5-c 与**本轮 Task 3.5 的 P-A 评分器插槽**（`ITcsTargetScorerHost`，拟名）是**同一形态的三个实例**（`UINTERFACE(Blueprintable)` + `BlueprintNativeEvent` → USTRUCT 转发器；见 Task 3.5 内的 P-A 说明）。三处分散推进会把同一套验证装置（C# 实现 + 同世界原生 GC + 跨 PIE 寿命）写三遍。**权威登记与并批取舍见 `LEDGER-reflection`《★ 宿主插槽家族的耦合关系》**——本表只留指针，不重复内容。
+> **★ 跨轮耦合（2026-09-30 登记；2026-10-04 重排）**：评分器那一处**已随本计划 Task 3.5 落地**（`ITcsTargetScorerHost` + `FTcsScorerHostDelegate`）⇒ 宿主插槽家族只剩 R4.5-b / R4.5-c 两处，原"三处未开工 ⇒ 装置会写三遍"的**并批前提已不成立**。**新排期（2026-10-04 用户裁定）**：b **并入 `PLN-R5` Task 3**（与四个等级源同族同验证面）、c **排到 R6 开工前**（消费者 = 宿主专属条件 / SkillCost）——按"离第一个真实消费者最近"排。两处各自复用 SCRIPT-8 的探针，**探针 MUST 复用、不得重写第三次**。**权威登记见 `LEDGER-reflection`《★ 宿主插槽家族的耦合关系》**——本表只留指针，不重复内容。
 
 ---
 

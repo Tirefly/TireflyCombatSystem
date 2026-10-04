@@ -2,9 +2,9 @@
 
 - **文档 ID**：`SPEC-02-states`
 - **类型**：SPEC / 模块规格
-- **状态**：PENDING
+- **状态**：PENDING（**R5 实施中，2026-10-04 起**——落地范围与切分见 §12）
 - **权威范围**：TcsState（M3）Def 层级、实例存储、五轴堆叠、关系表、快照；理由住 LOG-01-states
-- **最后更新**：2026-09-23
+- **最后更新**：2026-10-04
 
 - 日期：2026-09-02
 - 状态：**v2 定稿**——全部增补（D3-10~12 等）已折入正文；修订记录见文末
@@ -28,7 +28,7 @@ FStateDefBase（抽象，编辑器隐藏）          ← 本模块定义
 - **FBuffDef（施加态语义）**：Duration/Period、堆叠五轴、关系表字段。
 - **FSkillDef（施法语义，详见 05）**：施法时段表、冷却、Cost、主链、关系字段（同形状语义映射）。**无堆叠、无时值**。
 - 编辑器只暴露 FBuffDef / FSkillDef（用户 TCS 决策复用：基类不该有派生类的配置）。
-- **Def 资产（2026-09-14 命名批；身份 2026-09-22 tag 化）**：`UTcsStateDef`（基类——对应 `FStateDefBase` 家族，持 `DefTag: FGameplayTag` + `IsDataValid` 校验挂点）→ `UTcsBuffDef`（本模块）/ `UTcsSkillDef`（TcsSkill）；DataTable 双轨行 `FTcsBuffDefTableRow`。**范围澄清**：DefLibrary 管辖的只是 `FStateDefBase` 家族；修正器模板（`UTcsAttrModDef`/`UTcsSkillModDef`）与属性词表（AttributeDef）是并列另一族，**不共用此资产基类**（故基类名不用 `UTcsDefAssetBase`——会暗示覆盖全部 Def）。**基类统一 `UPrimaryDataAsset`（2026-09-17 定）**：`UTcsStateDef` 家族 / `UTcsAttrModDef` / `UTcsSkillModDef` 同此——Def 引用语义本是"**身份 tag + DefLibrary 解析**"，主资产身份让解析与按类型发现/加载归引擎（族内混用两套基类会让 DefLibrary 发现逻辑分叉）；`PrimaryAssetTypes` 注册属 M6 DefLibrary 轮。**双轨制语义（2026-09-17 用户口径，全 Def 族适用）**：**表 = 编辑期载体、资产 = 运行期载体**——DataTable（`FTcsBuffDefTableRow` / `FTcsAttributeDefTableRow` 等）只服务策划批量编辑与编辑器即时响应，**不作为运行期加载源**；运行期一律按 `DefTag` 解析资产（资产制扩展性更好，加 Fragment 等只动资产与载荷）。两轨一致性由 08 §5 的编辑器同步器维护。**身份字段与主资产身份（2026-09-22 改造）**：`DefTag` 取代原 `FName DefId`；主资产身份 = `[PrimaryAssetType, DefTag.GetTagName()]`（`FPrimaryAssetId` 的 name 位是引擎硬约束的 `FName`，tag 经 `GetTagName()` 转换）。表行侧 **`RowName` 降为编辑期定位**、行内 `DefTag` 才是内容身份，二者 **MUST NOT 被要求同名**（分工而非双真相；口径见 02 §2.1）。
+- **Def 资产（2026-09-14 命名批；身份 2026-09-22 tag 化；**资产类名 2026-10-04 修**）**：`UTcsStateDef`（基类——对应 `FStateDefBase` 家族，持 `DefTag: FGameplayTag` + `IsDataValid` 校验挂点）→ ~~`UTcsBuffDef`~~ **`UTcsBuffDefAsset`**（本模块；UHT 按去前缀引擎名判重——`UTcsBuffDef` 与数据 struct `FTcsBuffDef` 同名即编译失败，见 §12.3）/ `UTcsSkillDef`（TcsSkill）；DataTable 双轨行 `FTcsBuffDefTableRow`。**范围澄清**：DefLibrary 管辖的只是 `FStateDefBase` 家族；修正器模板（`UTcsAttrModDef`/`UTcsSkillModDef`）与属性词表（AttributeDef）是并列另一族，**不共用此资产基类**（故基类名不用 `UTcsDefAssetBase`——会暗示覆盖全部 Def）。**基类统一 `UPrimaryDataAsset`（2026-09-17 定）**：`UTcsStateDef` 家族 / `UTcsAttrModDef` / `UTcsSkillModDef` 同此——Def 引用语义本是"**身份 tag + DefLibrary 解析**"，主资产身份让解析与按类型发现/加载归引擎（族内混用两套基类会让 DefLibrary 发现逻辑分叉）；`PrimaryAssetTypes` 注册属 M6 DefLibrary 轮。**双轨制语义（2026-09-17 用户口径，全 Def 族适用）**：**表 = 编辑期载体、资产 = 运行期载体**——DataTable（`FTcsBuffDefTableRow` / `FTcsAttributeDefTableRow` 等）只服务策划批量编辑与编辑器即时响应，**不作为运行期加载源**；运行期一律按 `DefTag` 解析资产（资产制扩展性更好，加 Fragment 等只动资产与载荷）。两轨一致性由 08 §5 的编辑器同步器维护。**身份字段与主资产身份（2026-09-22 改造）**：`DefTag` 取代原 `FName DefId`；主资产身份 = `[PrimaryAssetType, DefTag.GetTagName()]`（`FPrimaryAssetId` 的 name 位是引擎硬约束的 `FName`，tag 经 `GetTagName()` 转换）。表行侧 **`RowName` 降为编辑期定位**、行内 `DefTag` 才是内容身份，二者 **MUST NOT 被要求同名**（分工而非双真相；口径见 02 §2.1）。
 
 ## 3. 类型词汇（对外）
 
@@ -36,7 +36,7 @@ FStateDefBase（抽象，编辑器隐藏）          ← 本模块定义
 - `FStateInstance`（USTRUCT，池化）：`DefTag / Handle / Source / Stacks / Level / Phase / ParamSnapshot`（**快照类型 `FTcsParamSnapshot`，2026-09-14 命名批**；**v3：FragmentSet 移除**——Fragment 配置归 Def，实例零策略/载荷/订阅句柄，D3-7 v2）。**实例-定义引用规范（D3-18；身份 2026-09-22 tag 化）**：权威=`DefTag`（`FGameplayTag`）；热路径=`GetDef()` 解析缓存（const 指针+DefLibrary 版本校验；重定向/热重载自动失效）；**运行期零回查 Def**（数值类基础信息在快照构建时消化——发现"执行中查 Def"即设计漏洞）。无 UObject、无每实例 StateTree（D3-5）。
 - **`FStateInstance.ParamSnapshot`（D3-12）**：apply 时把全部生效参数一次性求值冻结（强度/Duration/Period/Level——施加上下文覆盖值优先，Def 默认兜底）；实例生命周期内读快照；**修改 = 按刷新政策重新施加（快照重建，新 payload 覆盖）**。
 - **live 通道分界**：实例施加的持续修正器（Source=状态句柄，走 M2 账本）实时生效、随驱散/强化级联——与快照通道正交（灼烧幅度=快照；灼烧附带的-20% 火抗=live）。修正器来自 Def 的 ModifierRows 模板引用，apply 物化时可变值从 ParamSnapshot 解析（D3-19）——账本内纯规范值。
-- `UCombatStateRegistry`（命名与 06 文档统一待办，见 06 `UCombatWorldRegistrySubsystem`）：中央注册表 per-unit 桶（`FCombatEntityHandle → 桶`）；军官组件与 Mass 桶只是访问适配器（桶指针缓存+代际校验）；桶只存数据与索引，操作全在引擎函数 `FStateOps`。
+- ~~`UCombatStateRegistry`~~ → **`UTcsStateSubsystem : UWorldSubsystem`**（2026-10-04 R5 收窄轮定，见 §12.3；原命名与 06 文档统一待办就此结案）：中央注册表 per-unit 桶（`FCombatEntityHandle → 桶`）；军官组件与 Mass 桶只是访问适配器（桶指针缓存+代际校验）；桶只存数据与索引，操作全在引擎函数 `FStateOps`。
 
 ### 3.2 堆叠与刷新（D3-4，FBuffDef 字段）
 `FStateStackPolicy` 五轴（每轴枚举**值 0=默认/None，值 1=Custom**——Custom 选中→编辑器暴露 `TInstancedStruct` 决策策略（struct 单字段，D3-7 v3））：
@@ -121,6 +121,7 @@ FStateDefBase（抽象，编辑器隐藏）          ← 本模块定义
 - v2 增补 8（2026-09-14，参数折叠与展示轮）：折入 **D5-17 v2**（§2 描述绑定词法族、§3.6 tooltip 索引口径 = 实例快照 Level）、**D5-18 v3**（参数行 Mode 列与约定白名单同参 11 文档）、**命名批**（§2 Def 资产层级 `UTcsStateDef`/`UTcsBuffDef` + 范围澄清、`FTcsNumericParamRow`/`ETcsParamMode`、§3.1 `FTcsParamSnapshot`、§3.6 `FTcsParamSnapshotEntry`）；**PV-10**（等级源后续实现可枚举能力——`FTcsParamEnumerableSource` 基类住 Core，索引解析唯一真相在源，随本模块等级源同批落地）。
 - v2 增补 9（2026-09-15，D5-17 v3 描述视图策略化）：§2 DescriptionTextKey 单字段 → **Descriptions 配置组**（`FTcsDescriptionEntry` 多描述入口 + `TInstancedStruct<FTcsParamView>` 视图槽位——类型住 TcsNotation，本模块已有 Notation 边零新边）；§3.6 tooltip 索引口径改 Series 视图措辞（口径本身不变：实例快照 Level）。
 - v2 增补 10（2026-09-23，标识体系 tag 化改造回写）：§2 Def 资产身份 `FName DefId` → **`FGameplayTag DefTag`**（主资产身份 = `[PrimaryAssetType, DefTag.GetTagName()]`；表行 `RowName` 降为编辑期定位，与 `DefTag` 分工而非双真相）；§3.1 实例权威字段、§4 `ApplyState` 签名、§7 操作复制载荷同步改 tag 口径。落点 = 提案 `switch-identifiers-to-gameplay-tags`（2026-09-22 归档）。
+- v2 增补 11（2026-10-04，**R5 开工收窄轮**）：新增 **§12「R5 实施范围与切分」**（落地对照 / 不落及归属 / 两处实现口径 / 四处口径待澄清）；身份块状态改 `PENDING（R5 实施中）`；**两处实现口径改名**记录在 §12.3——宿主类 `UCombatStateRegistry` → `UTcsStateSubsystem`（§3.1 正文加注）、资产类 `UTcsBuffDef` → `UTcsBuffDefAsset`（§2 正文加注），两处正文改名的**规格提案随 `PLN-R5` Task 1 一并落地**。计划见 [`PLN-R5`](../plans/plan-r5-state-layer.md)。
 
 ## 11. 验收钩子
 
@@ -134,3 +135,46 @@ FStateDefBase（抽象，编辑器隐藏）          ← 本模块定义
 - **运行实例生命周期操作**：`FStateOps::ExtendDuration(handle, Δ) / SetRemaining(handle, T)` 进 API（"灼烧延长"类）；**MaxStacks 无运行时修改**（政策常量；"层数上限+2"成长 = 变体 BuffDef + 技能/状态级重定向）。
 - **关系表/槽位竞争表组织（用户提案采纳）**：两者**并存**（槽位竞争管施法运行/动作状态，关系表管 Buff 施加态，互相影响）；组织 = **统一 DataTable/DataAsset 行**（行 = 单个 StateDef **或一类**——StatusTag 匹配）；**解析栈**：全局默认表（插件）→ 游戏模式表 → 角色覆盖表（Boss）——让渡点模式再次应用；关系字段引用走 Tag（StateTag/SkillTag 子域）；**槽位竞争不用 StateTree**（数据行 + 引擎抢占规则；StateTree 只做单位级决策）。
 - **堆叠轴命名**：~~DurationMerge~~ 撤回——值名回 TCS（{None, RefreshRemainingToTotal}），**轴名 StackDurationPolicy 已终定（D3-17，已回写 §3.2）**。
+
+---
+
+## 12. R5 实施范围与切分（2026-10-04 收窄轮）
+
+> **本节回答"本轮把本文的哪些条款变成代码、哪些不落"**——它是实施视角的收窄结论，实施计划见 [`PLN-R5`](../plans/plan-r5-state-layer.md)。
+
+### 12.1 本轮落地（R5）
+
+| § | 条款 | 落点 |
+|---|---|---|
+| §2 | `FStateDefBase` / `FBuffDef` 形状 + `UTcsStateDef` / `UTcsBuffDefAsset` 资产 + `FTcsBuffDefTableRow` | PLN-R5 Task 1 |
+| §3.1 | `FStateInstance`（池化、纯数据）+ per-unit 桶 + `FStateOps` | Task 2 |
+| §3.2 | `FStateStackPolicy` 五轴（含 Custom 决策 Fragment） | Task 5 |
+| §3.3 | Duration 两态 + Period + `PeriodRefresh` 三态 | Task 3 |
+| §3.5 | `LevelBase` / `MaxLevel` + **四型等级源** + `ITcsEntityLevelProvider` | Task 3 |
+| §3.6 | `FTcsParamSnapshot` / `FTcsParamSnapshotEntry` + 快照构建（含 ValueConvention 转换） | Task 3 |
+| §4 | 门面 `ApplyState` / `RemoveState` / `ExpireState` / `GetState` / `ForEachState` / `ExtendDuration` / `SetRemaining` | Task 2 / 3 |
+| §5 | Apply / Remove / Expire 流程 + 生命周期事件全集 + 行为 Fragment 订阅挂接 + **修正器物化（D3-19）** | Task 2 / 4 / 6 |
+| §6 | `FStepApplyState` 领域步骤（自注册）+ Buff 内联触发行（施加时登记、`Source` = 实例句柄） | Task 6 |
+
+### 12.2 本轮**不落**（带归属）
+
+| 条款 | 为何不落 | 归属 |
+|---|---|---|
+| §3.4 关系表**检查器** | **字段语义从未定稿**（`DEC-2026-08-31-state-relation` 的"Priority 语义 / 互斥组结构 / 族规则表达式"至今待在办行；本文 §3.4 只给了形状与执行时机）⇒ 不满足"设计已按实施视角收窄" | R5.5-e（**先拍板语义**）。本轮**只落字段形状**（`FBuffDef` 的 `Blocks` / `Requires` / `Priority` / `Cancels`），零消费者如实登记 |
+| §3.4 级联重评 / 槽位竞争 / 解析栈组织 | 依赖上面的语义拍板；槽位竞争主体（施法运行）属 R6 | R5.5-e |
+| §3.7 就绪状态机（`Unloaded→Loading→Ready/Failed`） | 它是 **DefLibrary（M6/R7）**的性质，不是状态层的 | R7 `INTEG-3` |
+| §5 修正器物化的**技能参数行**分派 | `UTcsSkillModDef` 与 `TcsSkill` 今天都不存在 | R5.5-f / R6 |
+| §7 操作复制（`Apply{DefTag,Source,ParamSnapshot}` 等） | 网络姿态整体未开工 | R7（`WAIT-3`） |
+| §8 非目标各项 | 性质不变（不做行为链解释器 / 回合本体论 / 每实例 StateTree / 值复制 / Instancing / Level 增长策略） | — |
+
+### 12.3 收窄轮定下的两处实现口径（与本文正文的差异）
+
+1. **宿主类名**：§3.1 的 `UCombatStateRegistry` **作废**——本轮定为 **`UTcsStateSubsystem : UWorldSubsystem`**（per-unit 状态桶；与既有 `UTcsAttributeSubsystem` 同构）。`SPEC-05-integration` §2.1 的 `UCombatWorldRegistrySubsystem`（实体状态机 + 泵接线 + DefLibrary 门禁）**仍有效但属 R7/M6**——两者分工：**状态桶归 TcsState，实体注册与门禁归集成层**。
+2. **资产类名**：§2 的 `UTcsBuffDef` → **`UTcsBuffDefAsset`**（UHT 按"去前缀引擎名"判重：`UTcsBuffDef` 与数据 `FTcsBuffDef` 同名即编译失败，先例 `UTcsEffectTriggerDefAsset`；`openspec/project.md` 既定补救条款）。`UTcsStateDef` 不变。
+
+### 12.4 口径待澄清（本轮登记，不阻塞）
+
+- §2 的 `FStateDefBase` "**生命周期事件词汇**"字段：**零消费者**（行为 Fragment 的 `Interests` 已是声明面）⇒ 本轮不预建，等真实消费者。
+- §2 的 `Descriptions` 描述视图配置：本轮只落字段与作者侧校验，**渲染归 R8**（`SPEC-09-editor`）。
+- §3.3 正文里的 `Combat.State.Periodic` 是**换根前的旧 tag 名**——新名为 `TcsEvent.State.Periodic`（本轮定型，见 `unreal-gameplay-tags` 规范）。
+- §3.4 的"槽位竞争并入 Priority 语义"一节引用的 `TCS 报告 06`（库外，已不在库内）**不可复核**，语义拍板时 MUST 重新论证。

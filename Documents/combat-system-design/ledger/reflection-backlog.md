@@ -3,8 +3,8 @@
 - **文档 ID**：`LEDGER-reflection`
 - **类型**：LEDGER / 台账
 - **状态**：LIVING
-- **权威范围**：反射可达性未解决项 R-1~R-6 与逐项专项调研记录
-- **最后更新**：2026-09-30
+- **权威范围**：反射可达性未解决项 R-1~R-6 + **R-7**（宿主插槽家族补充，非反射缺陷）与逐项专项调研记录
+- **最后更新**：2026-10-04
 
 > **换根注记（2026-10-01）**：本文件记录的 tag 名保留**当时原样**（历史现场，MUST NOT 改写）。这些旧名已于 2026-10-01 由提案 `reroot-gameplay-tag-vocabulary` 换根，映射 = `Tcs.Event.*`→`TcsEvent.*`、`Tcs.Flow.Key.*`→`DamageFlowKey.*`、`Tcs.Flow.Template.*`→`DamageFlowTemplate.*`、`Tcs.Attr.*`→`Attribute.*`、`Tcs.Chain.*`→`EffectChain.*`（另 16 个 `Probe` 验证词整批退役删除）。新名以 [SPEC-00-core](../spec/01-module-m0-core.md) 与提案规格为准。
 
@@ -27,12 +27,14 @@
 
 | ID | 事项 | 根因类 | 现状 | 归属 | 状态 |
 |---|---|---|---|---|---|
-| **R-1** | **参数源族宿主插槽**（`FTcsParamValueSource` 虚分派脚本不可达） | ② 虚分派 | 未解决（SCRIPT-8 只覆盖选择器族，参数源族无转发器） | **SCRIPT-8 归档后独立小提案**（用户 2026-09-24 拍板）；**★ 与 R-2 后段 / P-A 评分器同构、可并批**——见下文《宿主插槽家族的耦合关系》 | **✅ 已调研并拍板**（2026-09-24；三项开放问题全定，待落地） |
-| **R-2** | **条件求值器 / 载荷读取器注册表反射入口**（SCRIPT-2 未被 SCRIPT-8 替代的部分） | ③ 签名 | 部分被 SCRIPT-8 替代（步骤执行器有 UObject 基类，条件/载荷读取器没有）；**跨世界寿命缺陷已于 2026-09-29 修复**（见右栏） | **R-1 紧邻独立提案**（用户 2026-09-27 拍板）；**★ 后段（两张注册表插槽）与 R-1 / P-A 评分器同构、可并批**——见下文《宿主插槽家族的耦合关系》 | **✅ 已调研并拍板**（2026-09-27）。**★ 2026-09-29 部分闭环**：随提案 `harden-registry-cross-world-lifetime` 落地——4 张注册表获得**寿命语义**（对象/世界弱引用）+ 失效判据 + 拒绝门收窄为"同世界活对象重复" + `Unregister`/`GetDynamicKeys` + 门面 `Deinitialize` 按世界撤销；**两次 PIE 实测通过**（`拒绝重复登记` 零命中，见 `EVID-2026-09-29-registry-lifetime`）。**仍未落地**：两张注册表的**宿主脚本插槽**（`BlueprintType` 升格 + `Register(UScriptStruct*, UObject*)` 反射入口）——仍待 R-2 的独立提案 |
+| **R-1** | **参数源族宿主插槽**（`FTcsParamValueSource` 虚分派脚本不可达） | ② 虚分派 | 未解决（SCRIPT-8 只覆盖选择器族，参数源族无转发器） | **SCRIPT-8 归档后独立小提案**（用户 2026-09-24 拍板）；**★ 2026-10-04 排定：并入 [`PLN-R5`](../plans/plan-r5-state-layer.md) Task 3 Step 9**（与四个等级源同族、同验证面；理由 = 按"离第一个真实消费者最近"排）；**与 R-2 后段 / P-A 评分器同构**——见下文《宿主插槽家族的耦合关系》 | **✅ 已调研并拍板**（2026-09-24；三项开放问题全定，待落地） |
+| **R-2** | **条件求值器 / 载荷读取器注册表反射入口**（SCRIPT-2 未被 SCRIPT-8 替代的部分） | ③ 签名 | 部分被 SCRIPT-8 替代（步骤执行器有 UObject 基类，条件/载荷读取器没有）；**跨世界寿命缺陷已于 2026-09-29 修复**（见右栏） | **R-1 紧邻独立提案**（用户 2026-09-27 拍板）；**★ 2026-10-04 排定：后段（两张注册表插槽）排到 R6 开工前**（消费者 = 宿主专属条件 / **SkillCost**——用户 2026-09-27 原话点名）；与 R-1 / P-A 评分器同构——见下文《宿主插槽家族的耦合关系》 | **✅ 已调研并拍板**（2026-09-27）。**★ 2026-09-29 部分闭环**：随提案 `harden-registry-cross-world-lifetime` 落地——4 张注册表获得**寿命语义**（对象/世界弱引用）+ 失效判据 + 拒绝门收窄为"同世界活对象重复" + `Unregister`/`GetDynamicKeys` + 门面 `Deinitialize` 按世界撤销；**两次 PIE 实测通过**（`拒绝重复登记` 零命中，见 `EVID-2026-09-29-registry-lifetime`）。**仍未落地**：两张注册表的**宿主脚本插槽**（`BlueprintType` 升格 + `Register(UScriptStruct*, UObject*)` 反射入口）——仍待 R-2 的独立提案 |
 | **R-3** | **`ITcsEntityQuery` 反射化**（`EnumerateEntities` 的 `TFunctionRef` 形参 + 门面 `SetEntityQuery` 无 `UFUNCTION`） | ③ 签名 | 并入 SCRIPT-8 但 SCRIPT-8 非目标明示"不做" | 台账 SCRIPT-5 | **⚖ 已裁决：不换**（2026-09-29，`DEC-04` 裁定 ③）——`TFunctionRef` = 宿主提供回调、框架遍历中同步调用且**不持有**；UObject 化会把契约由"拉"改"推"、把分配推进热路径，且 R0 §9 明文"蓝图不承诺"。**不再调研、不再挂待办** |
 | **R-4** | **上下文整体反射化**（SCRIPT-3：`FTcsEffectContext` 可做 / `FTcsChainRun` 需包壳 / `FTcsDamageFlowContext` 依赖 OnConsumed 分层） | ① 不可反射成员 + 结构形状 | 降为可选（SCRIPT-8"传句柄"已绕过主要场景） | 台账 SCRIPT-3 + DAMAGE-4（前置） | 待调研（**前置 = R-6 落定**）——R-6 已由 `DEC-04` 裁定 ④ 定向：走"`OnConsumed` 改事件/原语语义"，**与 DAMAGE-4 同批** |
 | **R-5** | **`FTcsSourceHandle` 反射化 + `FindChain` 裸指针**（SCRIPT-1 未覆盖项） | ③ 签名 | SCRIPT-1 已消费但明示"未覆盖留待后续" | 台账 SCRIPT-1 未覆盖 | 待调研 |
 | **R-6** | **OnConsumed / 消耗语义**（规格欠账；`TFunction` 是 `FTcsDamageFlowContext` 反射化的唯一根因） | ① 不可反射成员 | 已登记台账 DAMAGE-4（含完整证据链） | 台账 DAMAGE-4（R5/M4a） | **⚖ 已裁决（2026-09-29，`DEC-04` 裁定 ④）**：`FTcsDamageModifierConsumePolicy::OnConsumed` 的 `TFunction<void()>` **改为事件/原语语义**（可反射、可复制、可脚本可达），**与 DAMAGE-4 同批**；~~形状待 DAMAGE-4 落定时定~~ **★ 形状已于 2026-09-30 提前定下**（用户裁定：不改编不过 ⇒ 形状随 plan3 Task 3 落地；动作仍待 DAMAGE-4）；同轮类型改名 `FTcsConsumePolicy` → `FTcsDamageModifierConsumePolicy`（语义直观化）。`DEC-04` §3.3 补齐了本条此前缺的量化证据（三个字段全库零消费者、`BestIndex` 赋值后无使用点） |
+
+| **R-7** | **属性访问写侧宿主插槽**（`ITcsAttributeAccess`——宿主/脚本替换"属性怎么存、怎么写"） | ② 虚分派（**同族**；**非反射可达性缺陷**） | 未落地；**2026-10-04 由 R5 收窄轮登记**——`ModifyAttribute` 本轮走"直接依赖 `UTcsAttributeSubsystem`"（`PLN-R5` §0.2 Q-2 的 A 案），**写侧无插槽**；读侧早有 `ITcsAttributeProvider`（宿主可实现） | **`R5.5-g`**（`PLN-R5` §R5.5 批次表）；与 `R-1` / `R-2` 后段 / P-A 评分器**同构、同验证手段** | ❌ 未开工（**登记理由**：属《宿主插槽家族的耦合关系》**第五族**——为保家族单一入口而登记于此册；它的性质是**能力归属缺口**，不是反射可达性问题） |
 
 **根因类**（沿用 S 系列判据表）：
 - ① **不可反射成员**——`TFunction`/闭包作 struct 成员 ⇒ 递归传染，宿主类型无法加 `USTRUCT()`；
@@ -129,6 +131,25 @@
 **归属**：台账 DAMAGE-4（R5/M4a，与 `ModifyFlow` 同批）。
 
 **状态**：**✅ 形状已落地（2026-09-30，提案 `add-damage-modifyflow-primitive`）、动作待 `DAMAGE-4`**——用户裁定形状随 plan3 Task 3 提前落地（不改编不过：链步骤要带 `Consume` 字段），动作（扣次数 / 起冷却 / 标记已消费 / 发消费事件）仍归 `DAMAGE-4`（R5/M4a）；同轮类型改名 `FTcsDamageModifierConsumePolicy`。真相源 = 提案 `add-damage-modifyflow-primitive`。本册收录为 **R-4 的前置关联项**——**其"挡路"性质已消除**（`TFunction` 移除后，`FTcsDamageFlowContext` 的逐字段反射化不再有物理阻碍）。
+
+---
+
+### R-7 属性访问写侧宿主插槽（`ITcsAttributeAccess`，拟名·未实现）
+
+**事项**：`ModifyAttribute` 一类**写入**路径今天只有 TCS 自家实现可走——`TcsEffect` 的步骤直接依赖 `UTcsAttributeSubsystem`（`PLN-R5` §0.2 的 Q-2 A 案）。宿主/脚本若想替换"属性怎么存、怎么写"（自研账本 / 外部数值系统 / 网络权威侧），**没有插座**。读侧早有对称件 `ITcsAttributeProvider`（宿主可实现、`BlueprintNativeEvent`），**写侧为空**。
+
+**性质澄清（MUST 读）**：本条**不是**反射可达性缺口，而是**能力归属**缺口。登记于本册的理由 = 它属《宿主插槽家族的耦合关系》**第五族**，为保家族单一入口（同一主题只允许一个载体）。与台账 `SCRIPT-9`（属性写入面缺反射）是**同一需求的两条解法**：`SCRIPT-9` = 让脚本能**调到既有实现**；`R-7` = 让宿主能**替换实现**。
+
+**现状证据（已核，2026-10-04 双路源码核查）**：
+- `Source/TcsEffect/TcsEffect.Build.cs` **已依赖 `TcsAttribute`**（编译边早就存在，只是代码零 include）⇒ "需要注入位"从来不是编译问题，而是归属问题；
+- `UTcsAttributeSubsystem::ApplyModifier` / `RemoveBySource` **均无 `UFUNCTION`**，且形参 `FTcsAttrModInstance` 是纯 C++ struct（无 `USTRUCT()` / 无 `UPROPERTY`）⇒ 脚本侧今天连"直接调"都不可达（= `SCRIPT-9`）；
+- 全仓**从未构造过一个 `FTcsAttrModInstance`**、`Materialize*` 零命中 ⇒ 写侧今天的唯一消费者 = R5 的状态修正器物化（`PLN-R5` Task 4）。
+
+**归属**：`R5.5-g`（`PLN-R5` §R5.5 批次表）。
+
+**状态**：❌ 未开工。**触发条件** = 出现"宿主替换属性存储"或"脚本直写属性"的真实需求。**本轮已落的三条缓解**（Q-2）：用到的属性 API 钉死为三个（`ApplyModifier` / `RemoveBySource` / `EvaluateCurrent`）+ 集中一个解析点（将来补契约只换这一处）+ `D4-14` 边界句改述为"不依赖上层领域模块"。
+
+**★ 落地时的关键判据（预置，供实施者引用）**：接口形态照 `ITcsEntityQuery` / `ITcsAttributeProvider` 先例（`UINTERFACE(Blueprintable)` + `BlueprintNativeEvent`）；门面注入照 `SetEntityQuery`（`UPROPERTY` 持有、空注入是**配置状态**而非错误）；**形参设计 MUST 先解决 `FTcsAttrModInstance` 的反射化**——否则 `BlueprintNativeEvent` 过不了 UHT（与 `SCRIPT-9` 同一障碍）。
 
 ---
 
@@ -248,19 +269,22 @@ SCRIPT-8 的持有 = UPROPERTY TArray<TObjectPtr<...>> 挂在 UWorldSubsystem �
 | **选择器 / 过滤器** | `ITcsTargetSelectorHost` / `ITcsTargetFilterHost` | `FTcsSelHostDelegate` / `FTcsFilterHostDelegate` | 台账 SCRIPT-8 | ✅ **已落地**（2026-09-27，提案 `add-host-scripting-slots`） |
 | **参数源** | `ITcsParamSourceHost`（拟名·未实现） | `FTcsParamSource_HostDelegate` | 本册 **R-1** | ✅ 已调研并拍板，**未开工** |
 | **条件求值器 / 载荷读取器** | ——（方案 A 用 `UObject` 基类，见下方偏差） | —— | 本册 **R-2** 后段 | ✅ 已调研并拍板，**未开工** |
-| **评分器** | `ITcsTargetScorerHost`（拟名·未实现） | 转发器（拟名·未实现） | 目标查找设计文档 §2.1 / `decisions-log.md` 2026-09-30 ⑤ | **尚在设计**（P-A 提案起草时定形） |
+| **评分器** | `ITcsTargetScorerHost` | `FTcsScorerHostDelegate` | 目标查找设计文档 §2.1 / `decisions-log.md` 2026-09-30 ⑤ | **✅ 已落地（2026-10-04，随 R4 Task 3.5 的提案 `add-chain-primitives-and-target-sorting`）**——本行原写"尚在设计（P-A 提案起草时定形）"，**已过期**（2026-10-04 复核：`TcsTargetScorerHost.h:ITcsTargetScorerHost` + `TcsScorerHostDelegate.h:FTcsScorerHostDelegate`） |
+| **属性访问（写侧）** | `ITcsAttributeAccess`（拟名·未实现） | 转发器或直接注入（未定形） | 本册 **R-7**（2026-10-04 登记） | ❌ 未开工（`R5.5-g`；触发条件 = 宿主替换属性存储 / 脚本直写属性） |
 
 **同构点**（三处一致）：`UINTERFACE(MinimalAPI, Blueprintable)` + `UFUNCTION(BlueprintNativeEvent)` → 宿主实现脚本侧 → **USTRUCT 策略子类转发器**（`UPROPERTY TScriptInterface<…> Host`，纯转发 + 空 Host 守卫）接进既有虚分派体系；内置路径全部保持 C++ 快路径不变，插槽只服务宿主扩展。共同依据 = `dec-00-constitution.md` §"框架只识别插座抽象、不认识具体语义"。
 
 **⚠ 已记录的一处不一致（待并批时统一）**：R-2 的落地清单（本册 `#### 落地清单` 第 1/2 项）用的是 **`UObject` 基类**（`UTcsTriggerConditionEvaluator` / `UTcsTriggerPayloadReader`），而 R-1 与 P-A 评分器用的是 **UINTERFACE + USTRUCT 转发器**。差异来源是注册值的载体不同（`TFunction` 注册值 vs `FInstancedStruct` 策略），**不是笔误**；但并批时须显式确认"是否统一到转发器模式"，否则三处形态不一致会重新制造理解成本。
 
+**★ 2026-10-04 前提更正（先读）**：评分器那处**已落地**（见上表）⇒ 本段"若合并"的讨论对象**只剩 R-1 / R-2 两处**；且这两处**已分别排期**（R-1 并入 `PLN-R5` Task 3；R-2 后段排到 R6 开工前）⇒ "并批"从**推荐做法降为可选**，**但"探针 MUST 复用、不得重写第三次"这条不变**。
+
 **并批收益（若合并成一批）**：
 - **验证装置只写一套**——`verify-tcs-host-scripting-e2e` 那套探针（C# 实现 + 同世界原生 GC + 跨 PIE 寿命检查）在三个家族上跑的是同一组判据（"能导出 ≠ 能往返"）；
 - **底座改造共享**——R-2 需要的 `BlueprintType` 升格与注册表寿命语义，是另外两处的前置或同批产物（寿命语义已于 2026-09-29 单独闭环）。
 
-**并批代价**：改动面横跨 `TcsCore`（参数源）/ `TcsTrigger`（条件求值器）/ `TcsTargeting`（评分器）三个模块，**单一提案的 blast radius 大**；且 R-1 / R-2 的调研结论已冻结在 2026-09-24 / 09-27，P-A 的评分器契约尚未定形 ⇒ 并批必须等 P-A 定形后才能启动，会**反压 R-1 / R-2 的落地时机**。
+**并批代价**：改动面横跨 `TcsCore`（参数源）/ `TcsTrigger`（条件求值器）/ `TcsTargeting`（评分器）三个模块，**单一提案的 blast radius 大**；~~且 R-1 / R-2 的调研结论已冻结在 2026-09-24 / 09-27，P-A 的评分器契约尚未定形 ⇒ 并批必须等 P-A 定形后才能启动，会反压 R-1 / R-2 的落地时机~~ → **该代价已随 2026-10-04 的排期决定消解**（P-A 已落地；两处改为分级落点、各自贴着消费者）。
 
-**当前建议（未裁定，仅备忘）**：**Task 3 范围不变**；P-A 提案起草时若 R-1 / R-2 仍未开工，则把三者合并为"宿主插槽家族补全"一批（收益：一套验证装置）。若分开做，**验证脚本与探针 MUST 按最早那批命名并可复用**（避免第三次重写）。此条待用户拍板。
+**当前结论（2026-10-04 用户裁定，替代此前的"未裁定"建议）**：**不并批、分级落点**——`R-1` **并入 `PLN-R5` Task 3**（同族同验证面：参数源那一节，与四个等级源一起验）；`R-2` 后段**排到 R6 开工前**（消费者 = 宿主专属条件 / SkillCost）。判据 = 按"**离第一个真实消费者最近**"排（本仓"零消费者不预建"纪律的同一把尺子；R-1 的消费者在 R5，R-2 的在 R6）。**探针 MUST 复用**（`verify-tcs-host-scripting-e2e` 那套，按最早那批命名）。**同批待办**：两处形态不一致（R-1 用 `UINTERFACE + USTRUCT 转发器`；R-2 调研清单用 `UObject` 基类）**在 R-2 落地时统一到转发器模式**（差异来源只是注册值载体，把注册值包进转发器即可对齐）。
 
 ---
 
@@ -361,3 +385,5 @@ bool AllowsValueConvention();                                // 第二个虚函�
 - **2026-09-30 R-6 形状落地（提案 `add-damage-modifyflow-primitive`）**：本册 **3 行改判**——**R-6 由"⚖ 形状已定"改为"✅ 形状已落地"**（`FTcsDamageModifierConsumePolicy` 去闭包 + 改名 + 消费事件 tag `Tcs.Event.Damage.ModifierConsumed` 原生声明；消费**动作**仍待 `DAMAGE-4`）；**R-4 的前置由"依赖 R-6 分层"改为"物理阻碍已消除"**（原根因 `OnConsumed` 已删，剩余 = 嵌套容器 + 运行态记录的常规反射化）；台账 `SCRIPT-3` 同步改判（其"物理不可反射"的证据面失效）。**R-1 / R-2 / R-3 / R-5 状态不变**。条目总数不变（6 项）。
 
 - **2026-10-01 引用收敛（`CONVENTION` §5 行号禁令）**：本册 **9 行**改写——源码引用 → `路径:符号名`（`TcsParamValueSource.h` / `TcsEntityQuery.h` / `TcsTriggerCondition.h` / `TcsTriggerPayloadReader.h` / `TcsTriggerEvaluator.cpp` / `TcsParamValue.h` 等）、openspec 引用 → 路径 + 需求名。**R-1 ~ R-6 的结论与状态均未变**，只改引用写法。
+- **2026-10-04 新增 R-7（R5 开工收窄轮）**：新增 **`R-7` 属性访问写侧宿主插槽**（`ITcsAttributeAccess`，拟名·未实现）——**总表 + 明细 + 家族表各一行**。**条目总数 6 → 7**。**登记理由与性质（MUST 读）**：它不是反射可达性缺口，而是**能力归属**缺口；入册是为了让《宿主插槽家族的耦合关系》保有**单一入口**（第五族）。与台账 `SCRIPT-9` 是**同一需求的两条解法**——`SCRIPT-9` = 让脚本**调得到**既有实现；`R-7` = 让宿主**换得掉**实现。**权威范围行同步**改为"R-1~R-6 + R-7（宿主插槽家族补充，非反射缺陷）"。**同批指针**：`PLN-R5` §0.2 Q-2 缓解③ / §R5.5-g；台账《R5 开工折入》块；`LOG-DECISIONS` 2026-10-04 ④。
+- **2026-10-04 R4.5 两处排期落定（用户裁定，本册三处改写）**：**`R-1` → 并入 `PLN-R5` Task 3 Step 9**（同族同验证面：与四个等级源一起验）；**`R-2` 后段 → 排到 R6 开工前**（消费者 = 宿主专属条件 / SkillCost）。判据 = 按"离第一个真实消费者最近"排。**同批改正两处过期登记**：① 家族表"评分器"行由"尚在设计（P-A 起草时定形）"改为 **"✅ 已落地（2026-10-04，随 R4 Task 3.5）"**——`ITcsTargetScorerHost` + `FTcsScorerHostDelegate` 已在代码里（复核 `TcsTargetScorerHost.h` / `TcsScorerHostDelegate.h`）；② 家族表的《并批收益》与《并批代价》两段按新排期改写（原"三处未开工 ⇒ 装置会写三遍"与"必须等 P-A 定形"两个前提**均已不成立**）。**"探针 MUST 复用、不得重写第三次"这条不变**；**R-2 落地时须把两处形态统一到转发器模式**（R-1 已是转发器；R-2 调研清单用的是 `UObject` 基类）。**在册条目总数仍 7 项**（只改状态与排期，不新增条目）。

@@ -3,7 +3,7 @@
 - **文档 ID**：`LEDGER-deferred`
 - **类型**：LEDGER / 台账
 - **状态**：LIVING
-- **权威范围**：跨轮遗留输入台账（唯一待办登记册）：入册判据、生命周期纪律、48 条条目
+- **权威范围**：跨轮遗留输入台账（唯一待办登记册）：入册判据、生命周期纪律、49 条条目
 - **最后更新**：2026-10-04
 
 > **换根注记（2026-10-01）**：本文件记录的 tag 名保留**当时原样**（历史现场，MUST NOT 改写）。这些旧名已于 2026-10-01 由提案 `reroot-gameplay-tag-vocabulary` 换根，映射 = `Tcs.Event.*`→`TcsEvent.*`、`Tcs.Flow.Key.*`→`DamageFlowKey.*`、`Tcs.Flow.Template.*`→`DamageFlowTemplate.*`、`Tcs.Attr.*`→`Attribute.*`、`Tcs.Chain.*`→`EffectChain.*`（另 16 个 `Probe` 验证词整批退役删除）。新名以 [SPEC-00-core](../spec/01-module-m0-core.md) 与提案规格为准。
@@ -51,6 +51,16 @@
 | STAT-3 | **`FFlowRedirect` 模板重定向栈**（D7-7：状态/装备声明换流程——让渡点 + 重定向栈后挂/高优先 + Source 级联回收；三粒度让渡模式升四粒度） | `SPEC-08-damage`（D7-7）；plan2 Task 3/4 均列为非目标（"随 M3 状态轮"） | 未落地（2026-09-21 plan2 Task 4 实施时确认：流程机制层与步骤库均无重定向入口） | 待触发（**归属 = R5/M3 状态轮**——消费者是"状态/装备声明换流程"，无状态模块即无场景） |
 
 > 三项的共同锚点 = `ITcsEntityLevelProvider` 定义于 TcsState（D3-11 修订：State/Instigator × Array/Map 四源归 TcsState）——该接口属 R5 轮自身范围，不单列条目，此处登记为确保 `STAT-2`/`DAMAGE-2` 的触发点不丢。
+
+> **R5 开工折入（2026-10-04）**：本区段已通读并折进 [`PLN-R5`](../plans/plan-r5-state-layer.md)（§0.1 台账折入表）。逐项落点：`STAT-2` → Task 0 Step 2；`DAMAGE-5` → Task 0 Step 1（**+1 字段增量**：`FTcsParamEvaluateContext` 实现期还需带 `ITcsEntityLevelProvider`，已记入计划 §0.1 与 Task 3 Step 4）；`STAT-3` → **归属改判 R5.5-d**（首版竖切无消费者）。`WAIT-6` 亦在本轮消费（Task 0 Step 3，**归属自 M6 提前**——原触发条件"来源级联摘除进入实用面"本轮成立）。
+>
+> **同批改判归属的五项**（原记"R5 / R5·M4a"）：`DAMAGE-2` 余 3 原语（`Parallel`/`Repeat`/`OnError`）→ **R5.5-a**、`DAMAGE-3` 余 `Heal` → **R5.5-b**、`DAMAGE-4`（消费动作 + 候选裁决）→ **R5.5-c**、`STAT-3` → **R5.5-d**、关系表族（字段语义拍板 + 检查器 + 级联重评 + 槽位竞争）→ **R5.5-e**。**留在 R5 的两支**：`DAMAGE-2` 的 `ModifyAttribute`（Task 6 Step 2）、`TRIG-5` 的 `AttributeCompare`（Task 6 Step 3）。
+>
+> **归属的真相源 = `PLN-R5` §轮次路线图**（本表只留指针，避免两处真相）。**各行状态本轮不预先改**——按本册纪律，条目在**收束时**标"已消费（日期 + 落点）"（R5 Task 8 Step 3 执行）。
+>
+> **同批新增两条**：本册 `SCRIPT-9`（属性写入面缺反射）；反射册 `LEDGER-reflection` 的 **`R-7`**（属性访问写侧宿主插槽——属《宿主插槽家族的耦合关系》第五族，**不在本册计数内**）。
+>
+> **R4.5 排期（2026-10-04 用户裁定，落纸防丢）**：`R4.5-a` ✅ 闭环（2026-09-29）；**`R4.5-b`（`R-1` 参数源族宿主插槽）并入 [`PLN-R5`](../plans/plan-r5-state-layer.md) Task 3**（与四个等级源同族同验证面）；**`R4.5-c` 只剩"两张注册表的宿主脚本插槽"这半**——"载荷读取器登记"那半**已被 R4 Task 3 消费**（`TcsDamageFlowCollectEvent.cpp` 的 `UE_DEFINE_TRIGGER_PAYLOAD_READER` + Task 4 实测 `Caster ← Attacker` 生效），插槽那半**排到 R6 开工前**（消费者 = 宿主专属条件 / SkillCost）。判据 = 按"离第一个真实消费者最近"排（本仓"零消费者不预建"纪律）。
 
 ## R1 后续（M0 总线补全）
 
@@ -171,6 +181,8 @@
 | SCRIPT-7 | **脚本层正常竞态的红字噪音**（2026-09-24 实测发现，**已修**）：`UTcsEffectSubsystem::UnregisterChain` 的"有活动运行态"拒绝面原用 `ensureMsgf`——但脚本层"起一条挂起链后想注销"是**完全正常的调用序列**（时序竞态，非配置错误），产出红字噪音；且同函数内"未登记就注销"用的是 `Warning`，**两种拒绝面口径不一致** | 2026-09-24 PIE 实测（两次实测均出现该 ensure）；TCS 内部既有惯例：悬空句柄/陈旧句柄/世界拆解期均"正常竞态不 ensure"（`TcsEffectSubsystem.cpp:UTcsEffectSubsystem::ResumeRun`、`TcsTriggerRegistry.cpp:FTcsTriggerRegistry::UnregisterRow`）；D0-6 日志纪律（红字留给真实缺陷） | 已修为 `UE_LOG(Warning)` + 返回 false | **✅ 已消费（2026-09-24，随提案 `add-scripting-reflection-surface`）**——本条登记为"口径统一的先例"，供后续新增门面 API 时参照：**配置错误 → ensure；时序竞态 → Warning** |
 | SCRIPT-8 | **★ 宿主脚本插槽（UObject 接口 + `BlueprintNativeEvent`）**：选择器/过滤器转发、`UTcsStepExecutor`/`UTcsFlowStepExecutor`、`ITcsDamageFlowDelegate` 反射化、流程模板登记和按句柄访问器；插槽签名传句柄/视图，不整体反射化含 `TFunction` 的上下文 | `04-module-effects.md` §5b；`09-module-damage.md` §2.4；`10-module-targeting.md` §2.1/§2.2；C# 调研 §12 | **已落地（静态 + glue）**；C# PIE 已覆盖模板登记、公式抵达、句柄访问器、selector/filter、Effect 与 Flow 脚本步骤、悬空及代际失配；同次 PIE 原生 `Obj GC` 后四类宿主对象仍能执行 | **✅ 已消费（2026-09-27，提案 `add-host-scripting-slots`）**；2026-09-28 的 `verify-tcs-host-scripting-e2e` 已补 C# PIE 与同世界原生 GC 行为证据。**仍未解决/未验证**：~~进程级执行器注册表跨 PIE 寿命缺陷（`reflection-backlog.md` R-2）~~ → **✅ 已于 2026-09-29 修复**（提案 `harden-registry-cross-world-lifetime`：4 张注册表加寿命语义 + 拒绝门收窄 + 门面按世界撤销；两次 PIE 零 `拒绝重复登记`，证据见 `EVID-2026-09-29-registry-lifetime`）；**仍未解决**：AS/Luau/TS 独立往返和 `ITcsEntityQuery` 脚本世界查询（后者已由 `DEC-04` 裁定 ③ 定案"不换"，不再是待办）；见下方增量记录。 |
 
+| SCRIPT-9 | **属性写入面缺反射**（宿主脚本无法"不经链直接施加减益"）：`UTcsAttributeSubsystem::ApplyModifier` / `RemoveBySource` 两个方法**均无 `UFUNCTION`**，而同模块的 `RegisterUnit` / `AddAttribute` / `SetBaseValue` / `EvaluateCurrent` / `PeekPending` 都有 ⇒ C# 侧取不到它们 | 2026-10-04 R5 开工收窄核查（`PLN-R5` §0.2 Q-2 缓解③）；`Source/TcsAttribute/Public/TcsAttributeSubsystem.h:ApplyModifier` / `:RemoveBySource` | 已核（2026-10-04，双路源码核查）：两方法确无 `UFUNCTION`；**且形参 `FTcsAttrModInstance` 是纯 C++ struct**（无 `USTRUCT()` / 无 `UPROPERTY` / 无用户声明构造函数）⇒ 补 `UFUNCTION` **不足以**打通——UHT 会拒该形参类型，须先反射化该类型（或改签名传字段组/句柄）。全库今天**从未构造过一个 `FTcsAttrModInstance`** | 待触发（**触发条件 = 出现"脚本不经链直接施加减益"的真实需求**；届时二选一：① 反射化 `FTcsAttrModInstance`（含其 `FTcsAttrModOperand` 内层），② 给门面加"按字段组施加减益"的反射入口）。**归属登记 = `PLN-R5` §R5.5-h**；与反射册 `R-7`（写侧宿主插槽）是同一需求的两条不同解法 |
+
 ## 触发条件型（不绑轮次）
 
 > 原编号 WAIT-1~WAIT-10 → WAIT-1~WAIT-10。
@@ -287,3 +299,4 @@
   - **`DAMAGE-2` 更新（本轮最大的一处消费，也是唯一一处"现状证据已过期"）**：`WaitEvent` / `Branch` / `RunSubChain` / `SetVar` 四个原语已落地并经 PIE 实证（提案 `add-chain-primitives-and-target-sorting` 归档 `2026-10-04-…`；证据 `EVID-2026-10-04-chains-primitives`）；条目由"剩余 8 原语整套"改为"**余 4 个**"（`Parallel` / `Repeat` / `OnError` / `ModifyAttribute` → R5）。原行文的现状证据写"`Source/TcsEffect/` 只有 `FTcsStepWaitDelay`"——**该事实自 Task 3.5 起已过期**（今天共五个步骤类型），本次一并改正，并撤掉"`RunSubChain`/`Parallel` 的汇合语义等 R6"这半句（`RunSubChain`/`Branch` 的等待唤醒已在 R4 实测）。
   - **`DAMAGE-1` / `DAMAGE-3` / `DAMAGE-4` / `TRIG-1` / `TRIG-3` / `WAIT-6` / `CHAIN-3`**：已在 Task 2.5 / 3.5 / 4 各自收束时消费或更新（逐条见上方对应增补），**Task 5 不重复动作**。
   - **本轮无其他新增条目**——R4 收束后未关闭项**全部带归属**（轮次或触发条件），无"无归属"条目（入册判据第 4 条）。
+- **2026-10-04 增补（R5 开工折入）**：新增 **`SCRIPT-9`**（属性写入面缺反射——`ApplyModifier` / `RemoveBySource` 无 `UFUNCTION`，且形参 `FTcsAttrModInstance` 是纯 C++ struct，补宏不足以打通）。**条目总数 48 → 49**。R5 区段加《R5 开工折入》块：逐项落点（`STAT-2` → Task 0 Step 2、`DAMAGE-5` → Task 0 Step 1、`WAIT-6` → Task 0 Step 3、`TRIG-4` → Task 1+6、`TRIG-5` 的 `AttributeCompare` → Task 6 Step 3、`DAMAGE-2` 的 `ModifyAttribute` → Task 6 Step 2）+ **五项归属改判 R5.5**（`DAMAGE-2` 余 3 / `DAMAGE-3` 余 / `DAMAGE-4` / `STAT-3` / 关系表族）。**行级状态本轮不预先改**——按本册纪律，收束时才标"已消费（日期 + 落点）"（R5 Task 8 Step 3 执行）。**同批新增反射册 `R-7`**（属性访问写侧宿主插槽）——属另一册，**不在本册计数内**。**并记 R4.5 重排**（同日用户裁定）：`R4.5-b`（`R-1` 参数源插槽）并入 `PLN-R5` Task 3、`R4.5-c` 只剩"两张注册表插槽"半并排到 R6 开工前——详见《R5 开工折入》块末段的《R4.5 排期》条；判据 = 按"离第一个真实消费者最近"排。

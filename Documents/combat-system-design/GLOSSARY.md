@@ -16,7 +16,7 @@
 
 | 写法 | 含义 | 权威定义处 | 个数 | 例子 |
 |---|---|---|---|---|
-| `R0`–`R8`（**无连字符**） | **实施轮次**（R=Round，"一轮 ≈ 一个模块的一次拍板→文档循环"） | `PLN-R4` 的《轮次路线图》§`R4–R8`（现行）；`DEC-2026-09-02-module-map`（原始定义，已存档） | 9 | `R3` 竖切、`R4` 触发行轮、`R5` 状态层轮 |
+| `R0`–`R8`（**无连字符**） | **实施轮次**（R=Round，"一轮 ≈ 一个模块的一次拍板→文档循环"） | `PLN-R5` 的《轮次路线图》§`R5–R8`（**现行真相源**，2026-10-04 自 `PLN-R4` 移交）；`DEC-2026-09-02-module-map`（原始定义，已存档） | 9 | `R3` 竖切、`R4` 触发行轮、`R5` 状态层轮 |
 | `R-1`–`R-6`（**连字符 + 1 位数字**） | **反射未解决项**（反射可达性专项待办） | `LEDGER-reflection`（`reflection-backlog.md`）的《未解决项总表》 | 6 | `R-1` 参数源族宿主插槽 |
 | `DAMAGE-1` / `STAT-2` / …（**两段主题词 + 序号**，2026-09-29 起） | **跨轮遗留输入条目**（台账条目；共 11 个主题词族：`CORE`/`DAMAGE`/`INTEG`/`PRES`/`SCRIPT`/`STAT`/`TOOLS`/`WAIT`…） | `LEDGER-deferred`（`deferred-inputs-ledger.md`） | 37 | `STAT-2` = 参数源可枚举能力（原 `R4-1`） |
 
@@ -226,7 +226,7 @@
 | 编号 | 含义 | 状态 |
 |---|---|---|
 | `MD-1` | 模块地图 M0–M8 认可（M4 拆 a/b/c） | 已拍板；**其地图已被 `R0 §9` 取代**（§9 = 现行模块表） |
-| `MD-2` | 实施顺序 = C 叶先行 + 竖切验收 | 已拍板（现行顺序见 `PLN-R4` 路线图） |
+| `MD-2` | 实施顺序 = C 叶先行 + 竖切验收 | 已拍板（现行顺序见 `PLN-R5` 路线图） |
 | `MD-3` | TCS 旧仓冻结 + 两个悬空提案冻结，Fragment 思路迁 M3 重审 | 已拍板 |
 | `NET-1` | LAC 本作不联机；插件须可扩展至网络同步 | 需求（非决策）；落点 = 各模块《网络姿态落点》节 |
 | `NET-2` | 千人战场 = 联机、服务器权威、士兵层不做本地预测 | 同上 |
@@ -316,7 +316,8 @@
 | `PLN-R3-vertical-slice` | `plans/plan-r3-vertical-slice.md` | 实施计划（R3 验收剧本） |
 | `PLN-R3-1` | `plans/plan-r3-1-core-attributes.md` | 实施计划（R3 计划一） |
 | `PLN-R3-2` | `plans/plan-r3-2-damage-chain.md` | 实施计划（R3 计划二） |
-| `PLN-R4` | `plans/plan-r4-trigger-row.md` | 实施计划（R4 计划三，**含 R4–R8 路线图**） |
+| `PLN-R4` | `plans/plan-r4-trigger-row.md` | 实施计划（R4 计划三，**含 R4.5 批次表**；R5–R8 路线图已于 2026-10-04 移交 `PLN-R5`） |
+| `PLN-R5` | `plans/plan-r5-state-layer.md` | 实施计划（R5：M3 状态层，**含 R5–R8 路线图（现行真相源）+ R5.5 批次表**） |
 | `PLN-R3-content-guide` | `plans/plan-r3-content-guide.md` | 实施计划（竖切内容资产指南） |
 | `RSCH-abilitykit-editor` | `research/abilitykit-extract-editor-determinism.md` | 调研（AbilityKit C 路） |
 | `RSCH-abilitykit-pipeline` | `research/abilitykit-extract-skill-pipeline.md` | 调研（AbilityKit A 路） |
