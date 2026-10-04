@@ -54,16 +54,22 @@ struct FTcsEffectTriggerDef;
  * "定义加载期登记（全局常驻规则）"由此成立。引用链在该世界不可解析时留 Warning 并**仍登记**
  * （宿主可在运行期自行 `RegisterChain`，"跳过登记"会让该规则永久静默失效）。
  *
- * **状态定义不做世界装配（2026-10-04 R5 Task 1）**：状态定义只进缓存、由 `UTcsStateSubsystem` 按需解析，
- * MUST NOT 在 `OnPostWorldInitialization` 里为它登记任何每世界结构——链与触发定义有"每世界登记一次"的语义，
- * 状态定义没有（故 `SeedWorld` 的"无内容即返回"判据仍只看前两者）。
+ * **状态定义也装配到世界（2026-10-04 R5 Task 2；Task 1 时只做缓存）**：状态定义在装配世界时
+ * 逐条**登记进该世界的状态门面**（`UTcsStateSubsystem::RegisterStateDef`，按值拷一份、不与本类共享
+ * 生命周期）——只发现不登记 = 资产零消费者（同触发行那条的理由）。Task 1 只做缓存是因为当时还没有
+ * 消费方；"缓存那一步不建任何每世界结构"今天照样成立（故 `SeedWorld` 的判据现看三类定义）。
+ * **依赖方向仍是单向的**：本类（`TcsIntegration`）→ `TcsState` 的登记口，门面 MUST NOT 反查本类。
  *
  * **MUST NOT 持可变运行态**（Const 面：缓存的是定义，不是运行态；触发行本身住世界级子系统）。
  *
  * 与中央注册表的分工（**不重叠**，三层结构）：本类 = Const 定义（"有哪些定义、定义是什么"）；
  * 各领域子系统登记表 = 定义的运行期副本（"当前世界有哪些定义可用"）；中央注册表
- * （`UCombatWorldRegistrySubsystem`，M3/M6）= 可变运行态 per-unit 桶（"当前世界有哪些实体"）。
- * 门禁关系：中央注册表查本类 `IsRuntimeReady()`。
+ * （**实体状态机 + 泵接线 + 就绪门禁**，R7/M6 落地——2026-10-04 R5 收窄轮把"中央注册表"这个名字
+ * 判给了 `UTcsStateSubsystem`，故此处不再用它指代未落地的那一层）= 可变运行态 per-unit 桶。
+ * 门禁关系：那一层查本类 `IsRuntimeReady()`。
+ *
+ * **状态门面（`UTcsStateSubsystem`）是已落地的 per-unit 桶**（R5 Task 2）：它持的是"每个单位有哪些
+ * 状态"，不是"世界里有哪些实体"——后者才是上面那一层的职责，故两者不是同一件事。
  */
 UCLASS()
 class TCSINTEGRATION_API UTcsDefinitionSubsystem : public UGameInstanceSubsystem

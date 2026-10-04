@@ -3,7 +3,7 @@
 - **文档 ID**：`LEDGER-deferred`
 - **类型**：LEDGER / 台账
 - **状态**：LIVING
-- **权威范围**：跨轮遗留输入台账（唯一待办登记册）：入册判据、生命周期纪律、49 条条目
+- **权威范围**：跨轮遗留输入台账（唯一待办登记册）：入册判据、生命周期纪律、**50 条条目**（行数 = 唯一 id 数 = 50，2026-10-04 R5 Task 2 收束时逐行复核：`CHAIN 6 / CORE 1 / DAMAGE 5 / INTEG 3 / PRES 1 / SCRIPT 9 / STAT 4 / TOOLS 6 / TRIG 5 / WAIT 10`）
 - **最后更新**：2026-10-04
 
 > **换根注记（2026-10-01）**：本文件记录的 tag 名保留**当时原样**（历史现场，MUST NOT 改写）。这些旧名已于 2026-10-01 由提案 `reroot-gameplay-tag-vocabulary` 换根，映射 = `Tcs.Event.*`→`TcsEvent.*`、`Tcs.Flow.Key.*`→`DamageFlowKey.*`、`Tcs.Flow.Template.*`→`DamageFlowTemplate.*`、`Tcs.Attr.*`→`Attribute.*`、`Tcs.Chain.*`→`EffectChain.*`（另 16 个 `Probe` 验证词整批退役删除）。新名以 [SPEC-00-core](../spec/01-module-m0-core.md) 与提案规格为准。
@@ -74,6 +74,11 @@
 > - **根表变化**：`gameplay-tag-governance` 的插件侧根段注册表 **9 → 10**（新增 `StateDef` 根，消费角色 = 状态定义资产的身份解析；由提案 `add-tcs-state-module` 的 MODIFIED delta 承载，归档时落主规格并同步该规格 `Purpose` 的根数计数）。
 > - **本 Task 不消费本区段既有行**：`STAT-2` / `DAMAGE-5` 已在 Task 0 结、`STAT-3` 归 R5.5-d。
 > - **一条引擎/UBT 事实（供后续轮参考）**：直接使用某模块类型者 MUST 在自己的 `Build.cs` 声明依赖——**传递依赖只给头文件路径、不给导入库**（实测：TcsDev 靠 `TcsIntegration` 的 public 依赖能 include `Def/TcsBuffDefAsset.h`，但链接期取不到 `Z_Construct_UClass_UTcsBuffDefAsset`，报 `LNK2019` + `LNK1120`）。
+
+> **Task 2 收束（2026-10-04，R5 实例 / per-unit 桶 / 门面 / 生命周期事件）**：
+> - **零新增、零消费**——**条目总数仍 50**。逐条判据：本 Task 的两处"本轮不可达"面（`EApplyResult::EAR_Stacked` 需五轴共存决策；`EStateRemoveCause::ESRC_Cancelled` 无内建产生者）**都不入册**——按《入册判据》第 3 条，它们**在既有计划的 Task 里**（前者 = `PLN-R5` Task 5，后者 = `R5.5-e` 关系表族），重复登记只会制造两处真相；两处在**枚举注释与规格正文**里各有一句"归哪一轮"，信息不丢。
+> - **本 Task 不消费本区段既有行**：`STAT-2` / `DAMAGE-5` 已于 Task 0 结，`STAT-3` 归 R5.5-d，`STAT-4` 归 R5.5-e——Task 2 与四条均无交集。
+> - **一处待 Task 8 对账的计数不一致（就地记下，不擅自改）**：`INDEX` §4.4 的 **R7 行仍列 `WAIT-6`**，而该条已于 R5 Task 0 Step 3 标"已消费"（归属自 M6 提前）。本册不复制路线图（真相源 = `PLN-R5` §轮次路线图），故此处只登记该现象，由 `PLN-R5` Task 8 Step 5（`INDEX` §4.4 同步那一趟）一并纠正。
 
 ## R1 后续（M0 总线补全）
 
@@ -329,3 +334,4 @@
   - **`WAIT-6` → 已消费**（出线发号 + `TCSCORE_API`；装置侧高位 Id 规避撤除）。**并记一处计划文本偏离**：计划原写"改 `static` 成员"，实测该修法跨 DLL 无效（详见该行内注记与 `PLN-R5` Task 0 Step 3）。
   - **提案面收缩**：计划列的两个提案落地为一个 `extend-param-evaluate-context`；`unify-source-handle-issuer` 未开——`instance-handle-pool` 规格第 17 行早已要求"进程内永不复用"，本次属**恢复规格既有行为**的缺陷修复，按 `openspec/AGENTS.md` 决策树免提案。
 - **2026-10-04 增补（R5 Task 1 收束）**：新增 **`STAT-4`**（状态词的 tag 根归属——零解析消费者 ⇒ 本轮不开根，归属待 R5.5-e 关系表族）。**条目总数 49 → 50**。R5 区段加《Task 1 收束》块：新增行、根表 9 → 10、以及一条 UBT 事实（传递依赖不给导入库 ⇒ 直接使用某模块类型者必须自己声明依赖）。**同批不改既有行状态**（`STAT-2` / `DAMAGE-5` 已于 Task 0 结，`STAT-3` 归 R5.5-d）。
+- **2026-10-04 增补（R5 Task 2 收束）**：**条目总数仍 50**（**零新增、零消费**）。R5 区段加《Task 2 收束》块：两处"本轮不可达"面（`EAR_Stacked` / `ESRC_Cancelled`）**按入册判据第 3 条不入册**（它们在既有计划的 Task 5 与 R5.5-e 里，重复登记 = 两处真相），只登记"为什么不入册"这一判断本身。**并记一处待对账项**：`INDEX` §4.4 的 R7 行仍列已消费的 `WAIT-6`，留给 `PLN-R5` Task 8 Step 5 一并纠正（本册不复制路线图）。

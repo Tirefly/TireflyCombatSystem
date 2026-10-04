@@ -15,6 +15,7 @@
 
 #include "TcsEffectSubsystem.h"
 #include "TcsIntegrationLogChannel.h"
+#include "TcsStateSubsystem.h"
 
 
 
@@ -180,7 +181,8 @@ void UTcsDefinitionSubsystem::DiscoverChainDefs()
 
 void UTcsDefinitionSubsystem::SeedWorld(UWorld* World)
 {
-	if (!World || (ChainDefs.Num() == 0 && TriggerDefs.Num() == 0))
+	// 无内容即返回的判据 = 三类定义**全空**（状态定义也算内容——只装状态定义的世界同样要装配）
+	if (!World || (ChainDefs.Num() == 0 && TriggerDefs.Num() == 0 && StateDefs.Num() == 0))
 	{
 		return;
 	}
@@ -197,6 +199,10 @@ void UTcsDefinitionSubsystem::SeedWorld(UWorld* World)
 		// 非游戏型世界（编辑器预览等）——该子系统自身按 DoesSupportWorldType 过滤，此处静默跳过
 		return;
 	}
+
+	// 状态门面（R5 Task 2）：状态定义逐世界登记进它。存在性由世界子系统机制保证
+	// （与 EffectSubsystem 同批实例化），故此处不做门禁——但取不到就静默跳过该批（非游戏世界）
+	UTcsStateSubsystem* StateSubsystem = World->GetSubsystem<UTcsStateSubsystem>();
 
 	int32 Registered = 0;
 	for (const TPair<FGameplayTag, TUniquePtr<FTcsEffectChain>>& Pair : ChainDefs)
@@ -238,10 +244,28 @@ void UTcsDefinitionSubsystem::SeedWorld(UWorld* World)
 		}
 	}
 
+	// 状态定义 → 该世界的状态门面（**在链与触发行之后**：顺序只要求"不早于消费方存在"，
+	// 状态定义与链/触发行之间无引用关系）。**不与本类共享生命周期**：门面按值拷一份，
+	// 故本类缓存被清（世界切换 / 反初始化）不会让门面手里的定义悬空。
+	// 身份取自缓存键（= 资产侧 `UTcsStateDef::DefTag`）——身份归资产，内容归数据 struct。
+	int32 RegisteredStateDefs = 0;
+	if (StateSubsystem)
+	{
+		for (const TPair<FGameplayTag, TUniquePtr<FTcsBuffDef>>& Pair : StateDefs)
+		{
+			if (Pair.Value.IsValid() && StateSubsystem->RegisterStateDef(Pair.Key, *Pair.Value))
+			{
+				++RegisteredStateDefs;
+			}
+		}
+	}
+
 	SeededWorld = World;
 
-	UE_LOG(LogTcsIntegration, Log, TEXT("UTcsDefinitionSubsystem: 已装配到世界 %s——链定义 %d/%d 条，触发行 %d/%d 条"),
-		*World->GetName(), Registered, ChainDefs.Num(), RegisteredRows, TriggerDefs.Num());
+	UE_LOG(LogTcsIntegration, Log,
+		TEXT("UTcsDefinitionSubsystem: 已装配到世界 %s——链定义 %d/%d 条，触发行 %d/%d 条，状态定义 %d/%d 条"),
+		*World->GetName(), Registered, ChainDefs.Num(), RegisteredRows, TriggerDefs.Num(),
+		RegisteredStateDefs, StateDefs.Num());
 }
 
 void UTcsDefinitionSubsystem::HandlePostWorldInitialization(UWorld* World, const UWorld::InitializationValues IVS)

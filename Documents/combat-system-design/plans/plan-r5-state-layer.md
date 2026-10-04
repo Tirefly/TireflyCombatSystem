@@ -236,24 +236,37 @@
 
 **依赖**：Task 1
 
-- [ ] **Step 1: 句柄与枚举**——句柄 `FTcsStateHandle{ Index, Generation }`（`IsValid()`：`Index >= 0 && Generation > 0`）。
-  枚举：`EDurationPolicy{ EDP_Finite = 0, EDP_Infinite = 1 }` / `ETcsPeriodRefresh{ EPR_Keep = 0, EPR_Reset = 1, EPR_Immediate = 2 }` / `EStatePhase{ ESP_Inactive = 0, ESP_Active = 1, ESP_Expiring = 2 }`。
-  `EStateRemoveCause{ ESRC_Expired = 0, ESRC_Removed = 1, ESRC_Cancelled = 2 }` / `EApplyResult{ EAR_Applied = 0, EAR_Refreshed = 1, EAR_Stacked = 2, EAR_Rejected = 3 }`（拒绝原因的具名细分随 R5.5-e 扩，**本轮只留 `Rejected` 一档 + 日志**）。
-- [ ] **Step 2: `FStateInstance`（池化，纯数据）**——身份与来源：`DefTag` / `Handle` / `Source: FTcsSourceHandle`（**发号经 Task 0 的统一发号器**）/ `Instigator`。
-  数值与时间：`Stacks: int32 = 1` / `Level: int32 = 0` / `Phase: EStatePhase` / `ParamSnapshot: FTcsParamSnapshot`（Task 3 落类型，本步先留字段）/ `DurationRemaining` / `PeriodRemaining` / `ExpiryEntry: FTcsTimeEntryHandle`（取消锚）。
-  **MUST NOT** 持策略 / 载荷 / 订阅句柄 / `UObject` 引用（D3-7 v2 纪律）。
-- [ ] **Step 3: 注册表与桶**——`FTcsStateRegistry`：`TMap<FTcsCombatEntityHandle, FStateBucket>`（`TUniquePtr` 间接层，**避免 `TSet`/`TMap` 扩容搬移导致元素地址失效**）；桶 = `TArray<FStateInstance>` + `SlotGenerations` + `FreeSlots`（照 `FTcsTriggerRegistry` 的槽位/代际手法）。脏句柄（代际失配）一律拒绝并记 `Warning`（时序竞态口径，**不 ensure**）。
-- [ ] **Step 4: 门面 `UTcsStateSubsystem`**——世界过滤 `DoesSupportWorldType`（仅 Game/PIE/GamePreview，同族先例）+ `Deinitialize()` 全量清理（池重置 + 桶清空 + 到期条目撤销）。
-  施加与查询：`ApplyState(FTcsCombatEntityHandle Target, FGameplayTag DefTag, FTcsSourceHandle Source, const TMap<FGameplayTag,double>& Overrides) -> EApplyResult` / `GetState(FTcsStateHandle) -> const FStateInstance*` / `ForEachState(FTcsCombatEntityHandle, TFunctionRef<bool(const FStateInstance&)>)`。
-  移除与生命周期操作：`RemoveState(FTcsStateHandle, EStateRemoveCause)` / `ExpireState(FTcsStateHandle)` / `ExtendDuration` / `SetRemaining`（先落签名，堆同步在 Task 3 接线）/ `UnregisterUnit(FTcsCombatEntityHandle)`。
-  **反射面**：`ApplyState` / `RemoveState` / `GetState` 一类**本轮不加 `UFUNCTION`**（句柄与 `TMap` 形参今天不可反射；脚本面留待 `SCRIPT` 系列，登记台账）。
-- [ ] **Step 5: 生命周期事件**——`TcsStateEvents.h` 声明原生 tag（**带 `TCSSTATE_API` 导出宏**，裸 `extern` 会 LNK2001）：`Tag_TcsEvent_State_Applied` / `_Refreshed` / `_StackChanged` / `_Expired` / `_Removed` / `_Periodic`，tag 文本 = `TcsEvent.State.Applied` 等（换根后词根）。
-  载荷 = `FTcsStateEventPayload{ FTcsStateHandle Handle; FGameplayTag DefTag; FTcsSourceHandle Source; FTcsCombatEntityHandle Instigator; int32 Stacks; int32 Level; EStateRemoveCause Cause; }`（`Cause` 仅 `Removed`/`Expired` 有意义）。
-  **注意**：`SPEC-02-states` §3.3 里的 `Combat.State.Periodic` 是**换根前的旧名**，本轮一并改为 `TcsEvent.State.Periodic`。
-- [ ] **Step 6: 广播点与 Phase 迁移**——`Apply` / `Refresh` / `StackChange` / `Expire` / `Remove` 五处广播（提交尾 flush 语义照 M2 惯例：`ApplyState` 的 `OnStateApplied` 走**立即通道**）；Phase 迁移矩阵非法迁移 = `ensure`（**配置错误**语义，与门面脏句柄的竞态口径分开）。
-- [ ] **Step 7: 编译 + 冒烟**——双配置编译；装置侧：直接调 `ApplyState` 建出一个实例、总线订阅者收到 `TcsEvent.State.Applied`、`RemoveState` 后再收 `Removed`。
+> **提案面（2026-10-04，二份 delta）**：`state-instance-lifecycle`（**新能力** ADDED 七条：句柄 / 池化实例 /
+> per-unit 桶与代际 / 世界门面 / 定义登记口 / 六枚事件与载荷 / 广播点与阶段机）+ `integration-entity`
+> MODIFIED 一条（状态定义从"只进缓存"扩为"缓存 + 逐世界登记进状态门面"）。
+>
+> **三处实施期裁定（当日拍板，均已在代码与规格里留痕）**：
+> ① **身份归资产、登记口显式收身份**——`FTcsBuffDef` 是**定义内容**，`DefTag` 是**资产身份**
+> （`UTcsStateDef::DefTag`，`GetPrimaryAssetId()` 的取值来源）。故 `RegisterStateDef(FGameplayTag DefTag, const FTcsBuffDef&)`
+> 收两个形参；**不往 `FTcsStateDefBase` 加 `DefTag`**（否则策划在同一资产里手填两遍同一个 tag = 双真相）。
+> ② **实例自持 `Unit`**（宿主单位）——句柄里没有单位段，不自持就只能"遍历所有桶找句柄"（O(桶数)）；
+> 且 R5 Task 4 的修正器物化要用它把修正器挂到该单位的属性账本上（同一份信息，不是重复真相）。
+> ③ **注册表自建槽位、不复用 `TTcsInstancePool`**——那个池是"一个池 = 一个句柄空间"，状态要的是
+> **每单位一个句柄空间**（桶）；套用只有"一桶一池"（语义绕）或"全局一池"（句柄与单位解耦）两条更差的路。
+> 手法照 `FTcsTriggerRegistry` 的槽位 + 代际（语义刻意与池一致：分配优先复用空闲槽、释放使代际 +1、新槽从 1 起）。
+>
+> **归档器硬约束（第三次实证，已写进 delta 头部）**：`### Requirement:` 与 `#### Scenario:` 的**标题**在
+> MODIFIED 块里**都不可改、不可删**——改名或删除会被 `validate` 拒为 `omits scenario(s)`，故 Task 1 那条
+> "状态定义只进缓存、不被装配到世界"的场景标题**原样保留**（它描述"缓存那一步"、今日仍成立），
+> 另**新增**一条场景陈述"被逐世界登记"，两步关系写进需求正文。
+
+- [x] **Step 1: 句柄与枚举**——**✅ 2026-10-04 落地**。`TcsStateEnums.h` 补 `EStatePhase{Inactive/Active/Expiring}`（三态由来：`Expiring` 是"先广播后释放槽位"能成立的前提）、`EStateRemoveCause{Expired/Removed/Cancelled}`、`EApplyResult{Applied/Refreshed/Stacked/Rejected}`（后两档本轮不可达，各自注释写明归属）；新增 `Public/State/TcsStateHandle.h`：`USTRUCT(BlueprintType)` 展平 `int32 Index` + `int32 Generation`，`IsValid()` = `Index >= 0 && Generation > 0`（**判据是"代际非 0"而非"下标非 0"——下标 0 是合法槽位**），相等比较 + `GetTypeHash`（含 `Templates/TypeHash.h`，`HashCombine` 不在 `CoreMinimal` 传递闭包内）。
+- [x] **Step 2: `FStateInstance`（池化，纯数据）**——**✅ 2026-10-04 落地，两处对计划文本的修正**：① **实现名 `FTcsStateInstance`**（计划写 `FStateInstance`；`TcsState` 前缀与同族 `FTcsStateDefBase` / `FTcsStateEventPayload` 成族）；② **新增字段 `Unit`（宿主单位）**——计划未列，但句柄里没有单位段，不自持就只能"遍历所有桶找句柄"（O(桶数)），且 Task 4 的修正器物化要用它把修正器挂到该单位账本上（同一份信息）。字段 = 身份（`DefTag`/`Handle`/`Unit`/`Source`/`Instigator`）+ 数值阶段（`Stacks`/`Level`/`Phase`）+ 时间（`DurationRemaining`/`PeriodRemaining`/`ExpiryEntry`）。**`ParamSnapshot` 字段本轮按注释留白**：快照类型 `FTcsParamSnapshot` 全库不存在（Task 3 落），写占位类型只会造一个假类型。**非反射结构体**（无 `USTRUCT` 宏——它只在 C++ 侧流转，进总线的载荷是 `FTcsStateEventPayload`）。
+- [x] **Step 3: 注册表与桶**——**✅ 2026-10-04 落地，含一处对计划文本的"为什么"补全**。`Public/State/TcsStateRegistry.h` + `Private/State/TcsStateRegistry.cpp`：`FTcsStateRegistry` 持 `TMap<FTcsCombatEntityHandle, TUniquePtr<FStateBucket>>`（间接层使**桶地址不随 `TMap` 扩容失效**，遍历中为别的单位建桶安全）；`FStateBucket` = 槽位数组 + 代际数组 + 空闲槽栈，`MakeHandle` 是**唯一拼装点**。**为什么不用 TcsCore 的 `TTcsInstancePool`**（计划未写理由）：那个池是"一池一句柄空间"，而状态要的是**每单位一个句柄空间**；套用只有"一桶一池"（同一件事两套身份 + 每单位多一份池与统计）或"全局一池"（句柄与单位解耦 ⇒ `GetState(Handle)` 无法直接定位）两条更差的路。槽位语义**刻意与池一致**（分配优先复用空闲槽、释放使代际 +1、新槽从 1 起、奇偶簿记），使"代际失配 = 悬空"在全插件只有一种读法。脏句柄一律**拒绝 + Warning、不 ensure**（时序竞态语义）。
+- [x] **Step 4: 门面 `UTcsStateSubsystem`**——**✅ 2026-10-04 落地，含一处实施期裁定**。世界过滤三型 + `Deinitialize` 全量清理（登记表复位 + 全部桶清空；**发号器不复位**——`Id` 契约是"进程内永不复用"，复位会让新世界与上一世界撞号 = `WAIT-6` 那个缺陷形态）；申请/查询/移除/生命周期操作全套按计划落地，另加 `IsStateActive` / `GetStateCount` / `GetTotalStateCount` 三个观测口（装置断言与将来的统计面）。**实施期裁定 = 定义登记口的身份处理**：首次编译炸 `C2039: 'DefTag' is not a member of 'FTcsBuffDef'`——身份归**资产**（`UTcsStateDef::DefTag`：资产身份、`GetPrimaryAssetId()` 取值来源、作者期校验对象），而 `FTcsBuffDef` 是**内容**。故 `RegisterStateDef(FGameplayTag DefTag, const FTcsBuffDef&)` **收两个形参**；**不往 `FTcsStateDefBase` 加 `DefTag`**（否则策划在同一资产里手填两遍同一个 tag = 双真相）。附带 `AddReferencedObjects`：登记表是 `TUniquePtr` 容器、GC 看不见——本轮定义内容里通常没有对象引用（大概率空跑），但**缺一段 ARO 是静默失败类缺陷、修复成本为零**，故补上。实现文件按功能拆分（`TcsStateSubsystem.cpp` / `TcsStateSubsystem_Definition.cpp` + `State/TcsStateOps*.cpp` 三拆：主流程 / 查询 / 事件）。
+- [x] **Step 5: 生命周期事件**——**✅ 2026-10-04 落地**。`Public/State/TcsStateEvents.h`：六枚原生 tag 带 `TCSSTATE_API`（`UE_DECLARE_GAMEPLAY_TAG_EXTERN` 展开为裸 `extern` ⇒ 不带宏必 `LNK2001`），词全落既有 `TcsEvent` 根下（**零新增根**）；载荷 `FTcsStateEventPayload` = `Handle` / `DefTag` / `Source` / `Instigator` / `Stacks` / `Level` / `Cause`，`Cause` 注释写明"**仅 `Expired` / `Removed` 有意义**"。广播走 `PublishImmediate`（同一提交内到达 ⇒ 订阅者可在广播者那句日志之前读到实例，装置也能同帧断言）。
+- [x] **Step 6: 广播点与 Phase 迁移**——**✅ 2026-10-04 落地**。施加（新实例）⇒ `Applied`；命中同组 ⇒ `Refreshed`（本轮判据 = 同单位 + 同 `DefTag`，**已在代码注释里标为 Task 5 的替换点**，"同组"三字旁边写着五轴）；到期 ⇒ `Expired`；显式移除 ⇒ `Removed`（原因由调用方给）；`UnregisterUnit` 逐条 `Removed` 后删桶。**撤销顺序 = 硬约束**：`Expiring` → 广播 → 归还槽位（先释放则订阅者拿到已清零的载荷）。阶段迁移矩阵四条合法边（含 `Expiring → Active`：刷新是"过渡后挂回"），非法迁移 `ensure`（配置错误语义）。
+- [x] **Step 7: 编译 + 冒烟**——**✅ 2026-10-04 两半均过**。**编译半边**：Development Editor 与 Game Shipping **双配置 `Result: Succeeded`**、日志零 error 零 warning（修 `DefTag` 与 `ForEachBucket` 两轮后）。**冒烟半边**：宿主装置扩**检查 19a–19f**（常规命令）+ **检查 E/F/G**（拒绝面），PIE 实测 `Tcs.Test.Slice.Run` **26/0 + 7b PASS + 零红字**（唯一 `Warning:` 命中即 19f 的预期拒绝日志）、`Tcs.Test.Slice.Reject` **7/7**。证据 = `EVID-2026-10-04-state-instance-lifecycle`（双区段哈希 + 复算脚本 + 七条边界）。
 
 **验收信号**：实例可建可查可删；六个事件 tag 至少三个（Applied / StackChanged / Removed）有真实广播与订阅者回执。
+
+> **Task 2 落地结果（2026-10-04）**：实例可建可查可删 ✓；事件面实测**四枚有真实广播与订阅者回执**（`Applied` / `Refreshed` / `Expired` 路径同款 / `Removed`——超计划要求的三枚）；`StackChanged` 与 `Periodic` 两枚**只有声明、零广播**（分别随 Task 5 / Task 3，已在 `EVID-2026-10-04-state-instance-lifecycle` §6 边界⑦如实记）。
+> **两处与计划文本的差异（留痕）**：① `FStateInstance` → **`FTcsStateInstance`**（命名成族）+ **新增 `Unit` 字段**（理由见 Step 2）；② 拒绝面探针**多扩两条**（计划只要求"装置侧调 ApplyState 建实例"）——`E/F/G` 三条状态面检查落进 `.Reject` 命令，其中 **G 用真实路径造陈旧句柄**（代际只在槽位释放时 +1，无法凭空构造）。
 
 **非目标**：不做就绪状态机（`INTEG-3`/R7）；不做操作复制（`WAIT-3`）；不做查询门面 `UCombatEntityComponent` 侧接线（R7）。
 
@@ -495,3 +508,9 @@
 - 2026-10-04 **Task 1 收束**（模块与 Def 资产族）：Step 1~7 **全勾**；提案 `add-tcs-state-module` **四份 delta** 归档（`+5 added / ~3 modified / →1 renamed`），`openspec validate --all --strict` = **27 passed / 0 failed**、`changes/` 零活动提案；验收 = 双配置编译零 warning / 零 error + PIE **20/0 + 7b** 零红字（**检查 18** 四项判据全过），证据 `EVID-2026-10-04-tcs-state-def-asset`。
   - **四处与计划文本的差异（逐条留痕）**：① **提案 delta 从一份变四份**——除 `plugin-descriptor`（MUST MODIFY）外补 `integration-entity` MODIFIED（Step 5 一落地，"两条按类发现路径"这句事实即失效）、`state-def-asset` ADDED（新 Def 族的形状/身份/校验需要规格落点）、`gameplay-tag-governance` MODIFIED（新增 `StateDef` 根，见 ③）；② **描述载体随本 Task 落**（用户裁定甲案）——`FTcsDescriptionEntry` / `FTcsDescriptionViewSlot` 的类型全库不存在，不补则编译不过；③ **新增 `StateDef` tag 根（9 → 10）**（用户裁定甲案）——Step 7 要真资产就必须有身份词，而根表无任何根承载"状态定义资产身份解析"；`Def.StatusTag` 的根归属**不裁定**（零消费者）挂台账 `STAT-4` 待 R5.5-e；④ **两处类型提前落**——`EDurationPolicy` / `ETcsPeriodRefresh`（`Public/State/TcsStateEnums.h`）与 `FStateStackPolicy` 形状（`Public/State/TcsStateStackPolicy.h`）随本 Task 落，Task 2 / 5 只在其上续写（`SPEC-02-states` §12.5）。
   - **一条引擎/UBT 事实（本轮实测）**：直接使用某模块类型者 MUST 在自己的 `Build.cs` 声明依赖——**传递依赖只给头文件路径、不给导入库**（`TcsDev` 靠 `TcsIntegration` 的 public 依赖能 include `Def/TcsBuffDefAsset.h`，但链接期取不到 `Z_Construct_UClass_UTcsBuffDefAsset`，报 `LNK2019` + `LNK1120`）。
+- 2026-10-04 **Task 2 收束**（实例 / per-unit 桶 / 门面 / 生命周期事件）：Step 1~7 **全勾**；提案 `add-state-instance-lifecycle`（`state-instance-lifecycle` ADDED ×7 + `integration-entity` MODIFIED ×1）**待归档**；验收 = 双配置编译零 warning / 零 error + `Tcs.Test.Slice.Run` **26/0 + 7b** 零红字（新增检查 19a–19f）+ `Tcs.Test.Slice.Reject` **7/7**（新增 E/F/G），证据 `EVID-2026-10-04-state-instance-lifecycle`。
+  - **三处实施期裁定**：① **身份归资产、登记口显式收身份**（`RegisterStateDef(FGameplayTag, const FTcsBuffDef&)`；**不往数据 struct 加 `DefTag`**——否则同一 tag 在一个资产里手填两遍 = 双真相）；② **实例自持 `Unit`**（句柄无单位段 ⇒ 否则 `GetState(Handle)` 是 O(桶数)，且 Task 4 的修正器物化要用它）；③ **自建槽位、不复用 `TTcsInstancePool`**（那个池是"一池一句柄空间"，状态要"每单位一个句柄空间"；套用只有两条更差的路——理由写进 `TcsStateRegistry.h`）。
+  - **一条归档器硬约束（第三次实证，已写进 delta 头部）**：MODIFIED 块里 `### Requirement:` 与 `#### Scenario:` 的**标题都不可改、不可删**（改名或删除被 `validate` 拒为 `omits scenario(s)`）⇒ Task 1 那条"状态定义只进缓存、不被装配到世界"的场景标题**原样保留**（它描述"缓存那一步"、今日仍成立），另**新增**一条场景陈述"被逐世界登记"，两步关系写进需求正文。
+  - **一处跨文档口径更新**：`EVID-2026-10-04-tcs-state-def-asset` §1 的"状态定义不做世界装配"读数**今日仍成立但规格已变**——该证据已就地加口径更新注记（两步非互斥），并补记其区段所属日志的**冻结备份整文件哈希**（原证据只记活动日志区段、无文件级锚 ⇒ 日后无法复算）。
+  - **一处待对账项（交 Task 8）**：`INDEX` §4.4 的 R7 行仍列**已消费**的 `WAIT-6`（该条已在 Task 0 Step 3 标结）——由 Task 8 Step 5 的"`INDEX` §4.4 同步"那一趟一并纠正；已就地记进台账《Task 2 收束》块。
+  - **本 Task 的验收边界（七条）**见证据 §6：时值 / 快照 / 修正器三面零覆盖（Task 3 / Task 4）；`Stacked` 档与五轴未验（Task 5）；`Cancelled` 无内建产生者（R5.5-e）；`StackChanged` / `Periodic` 两枚 tag 零广播；只跑单轮。

@@ -1,48 +1,6 @@
-# integration-entity Specification
+## MODIFIED Requirements
 
-## Purpose
-定义集成层的实体接线：三职责封顶的战斗实体组件、PIE 环境下的实体查询实现，以及 GameInstance 级的定义库（发现、装载、按 tag 解析与**逐世界装配**——把缓存定义登记进该世界的消费方子系统）。
-
-## Requirements
-
-### Requirement: 战斗实体组件（三职责封顶）
-
-`TcsIntegration` MUST 提供 `UTcsCombatEntityComponent`（`UActorComponent` 派生，适配器零逻辑——06 §5），**恰好三职责**：
-
-1. **身份锚**：`BeginPlay` 把所属 Actor 注册为战斗实体（`UTcsAttributeSubsystem::RegisterUnit` 发放句柄）并记录自己的句柄；`EndPlay` 反向注销。挂组件 = 策划声明"本 Actor 是战斗单位"。**门禁**：注册前检查定义就绪（`UTcsDefinitionSubsystem::IsRuntimeReady`）——未就绪留 Warning 并跳过（时序是宿主责任，不 ensure 刷屏）；
-2. **查询门面**：`GetCurrent(FGameplayTag) -> double`（转发属性门面求值；**2026-09-22 改造：参数从 `FTcsAttributeName` 改为 `FGameplayTag`**）+ 施加/撤销调试用修正器入口（供宿主与装置；R3 不做 AttributeSet）；
-3. **手动触发 API**：`ExecuteChainById(FGameplayTag ChainId)`（**2026-09-22 改造：参数类型 `FName` → `FGameplayTag`**）——组 `FTcsEffectContext`（`Caster` = 自身句柄、`Targets` = 自身句柄、`Instigator` 留空）→ `UTcsEffectSubsystem::ExecuteChain`；返回运行态句柄（全即时链在返回前已走完，句柄活性由 `IsRunActive` 判定）。
-
-组件 MUST NOT 越出三职责；MUST NOT 自 Tick；MUST NOT 认识具体链/步骤类型。
-
-#### Scenario: 组件注册后可查询与触发
-
-- **WHEN** 挂载组件的 Actor 进入 Play，随后调用 `GetCurrent` 与 `ExecuteChainById`
-- **THEN** 前者转发属性门面返回当前值、后者起链并返回运行态句柄（链未走完时有效）
-
-#### Scenario: 定义未就绪时跳过注册
-
-- **WHEN** `BeginPlay` 时定义库未就绪
-- **THEN** 留 Warning 并跳过注册（不 ensure 刷屏），组件句柄保持无效
-
-### Requirement: 实体查询实现（PIE）
-
-`TcsIntegration` MUST 提供 `ITcsEntityQuery` 的实现 **`UTcsPieEntityQuery`**（**类名不得用 `UTcsEntityQuery`**——该 U 类名已被接口占用）：
-
-- `EnumerateEntities(TFunctionRef<void(FTcsCombatEntityHandle)>)`：遍历世界中带 `UTcsCombatEntityComponent` 的 Actor 并吐**句柄**（**稳定序**——按组件注册序或 Actor 名排序，同输入同输出）；
-- `GetLocation(句柄, FVector&)` / `IsAlive(句柄)`：经**本实现持有的"句柄 ↔ Actor"映射**解析（组件注册时登记、注销时移除）；
-- **本实现是宿主侧唯一的"句柄 ↔ Actor"映射点**：机制层（TcsEffect/TcsTargeting/TcsDamage）MUST NOT 依赖该映射，内容资产 MUST NOT 存句柄（授权约束）。
-- 注入方式：宿主在 `BeginPlay`/DefLibrary 就绪后调 `UTcsEffectSubsystem::SetEntityQuery`（R3 由测试/宿主接线）。
-
-#### Scenario: 遍历吐句柄且稳定序
-
-- **WHEN** 世界中三个带组件的 Actor 调用 `EnumerateEntities`
-- **THEN** 访问者收到三个**句柄**（非 Actor），两次遍历顺序一致
-
-#### Scenario: 句柄解析为定位与存活
-
-- **WHEN** 以合法句柄调 `GetLocation` / `IsAlive`
-- **THEN** 分别返回该 Actor 的坐标与"组件仍注册"的存活判定；未注册/已注销句柄返回 false
+> **delta 形状说明（openspec 1.13.2 实测约束）**：MODIFIED 块**替换整条需求**，且归档器校验"当前规格里的 scenario 是否被丢弃"⇒ **scenario 标题不可改、不可删**（改名或删除都被 `validate` 拒为 `omits scenario(s)`）。故本变更**保留** Task 1 那条场景的标题原文（今日它仍成立：缓存这一步不建任何每世界结构），另**新增**一条场景陈述"被逐世界登记"，并在需求正文里写清两步关系。
 
 ### Requirement: 定义库（GameInstance 级最小版）
 

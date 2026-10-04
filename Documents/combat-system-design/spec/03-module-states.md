@@ -2,7 +2,7 @@
 
 - **文档 ID**：`SPEC-02-states`
 - **类型**：SPEC / 模块规格
-- **状态**：PENDING（**R5 实施中，2026-10-04 起**——落地范围与切分见 §12）
+- **状态**：PENDING（**R5 实施中，2026-10-04 起**——落地范围与切分见 §12；已落地：Task 1（Def 资产族，§12.5）、**Task 2（实例与生命周期，§12.6）**）
 - **权威范围**：TcsState（M3）Def 层级、实例存储、五轴堆叠、关系表、快照；理由住 LOG-01-states
 - **最后更新**：2026-10-04
 
@@ -125,6 +125,9 @@ FStateDefBase（抽象，编辑器隐藏）          ← 本模块定义
 - v2 增补 11（2026-10-04，**R5 开工收窄轮**）：新增 **§12「R5 实施范围与切分」**（落地对照 / 不落及归属 / 两处实现口径 / 四处口径待澄清）；身份块状态改 `PENDING（R5 实施中）`；**两处实现口径改名**记录在 §12.3——宿主类 `UCombatStateRegistry` → `UTcsStateSubsystem`（§3.1 正文加注）、资产类 `UTcsBuffDef` → `UTcsBuffDefAsset`（§2 正文加注），两处正文改名的**规格提案随 `PLN-R5` Task 1 一并落地**。计划见 [`PLN-R5`](../plans/plan-r5-state-layer.md)。
 - v2 增补 12（2026-10-04，**R5 Task 1 落地**）：模块与 Def 资产族物化——`TcsState` 进 `.uplugin`（第 8 个模块）、`FTcsStateDefBase` / `FTcsBuffDef` / `FTcsBuffDefTableRow` / `UTcsStateDef` / `UTcsBuffDefAsset` / `FTcsNumericParamRow` / `FTcsDescriptionEntry`(+`FTcsDescriptionViewSlot`) 落地、定义库第三条发现路径 `DiscoverStateDefs` / `ResolveStateDef` 接通（第三份缓存 + GC 引用收集）。
   **订正 v2 增补 9 的"描述载体类型住 TcsNotation"**：改判 **TcsState**（依据 `DEC-02-fold-display` v3 命名批"住哪"表）；新增 **§12.5** 记四条落地口径（两处类型提前落 / 状态词根归属挂账 / 描述载体归属订正）。规格提案 = `2026-10-04-add-tcs-state-module`（四份 delta）。
+- v2 增补 13（2026-10-04，**R5 Task 2 落地**）：运行态骨架物化——`FTcsStateHandle` / `FTcsStateInstance` / `FTcsStateRegistry`（per-unit 桶 + 槽位代际）/ `FTcsStateOps`（引擎函数，三拆）/ `UTcsStateSubsystem`（世界门面 + 定义登记口）/ `EStatePhase`+`EStateRemoveCause`+`EApplyResult` 三枚举 / 六枚生命周期事件 tag + 载荷 `FTcsStateEventPayload` 落地；**§3.1 的实现名与 §3.3 的 tag 名就此定型**（见 **§12.6**）。
+  **§3.1 正文的两处落地订正**：① `FStateInstance` 的实现名是 **`FTcsStateInstance`**（成族）且**非反射结构体**（只在 C++ 侧流转；进总线的载荷是 `FTcsStateEventPayload`）；② 实例**自持 `Unit`（宿主单位）**并**只持 `DefTag`（定义身份）**——`GetDef()` 解析缓存在本轮**不落**（热路径不回查 Def 的承诺登记在 §12.6 第 3 条，快照构建落地后才有意义）。
+  **§4 的门面归位**：`ApplyState` / `RemoveState` / `ExpireState` / `GetState` / `ForEachState` 已落；`ExtendDuration` / `SetRemaining` 本轮只落**签名 + 拒绝面**（堆同步归 Task 3）；`SetLevel` / `GetLevel` / `CheckRelations` 仍归后续（§12.2）。
 
 ## 11. 验收钩子
 
@@ -150,7 +153,7 @@ FStateDefBase（抽象，编辑器隐藏）          ← 本模块定义
 | § | 条款 | 落点 |
 |---|---|---|
 | §2 | `FStateDefBase` / `FBuffDef` 形状 + `UTcsStateDef` / `UTcsBuffDefAsset` 资产 + `FTcsBuffDefTableRow` | PLN-R5 Task 1 |
-| §3.1 | `FStateInstance`（池化、纯数据）+ per-unit 桶 + `FStateOps` | Task 2 |
+| §3.1 | `FStateInstance`（池化、纯数据）+ per-unit 桶 + `FStateOps` | Task 2（**✅ 2026-10-04**，落地口径见 §12.6——实现名 `FTcsStateInstance`、类名 `FTcsStateRegistry` / `FTcsStateOps`） |
 | §3.2 | `FStateStackPolicy` 五轴（含 Custom 决策 Fragment） | Task 5 |
 | §3.3 | Duration 两态 + Period + `PeriodRefresh` 三态 | Task 3 |
 | §3.5 | `LevelBase` / `MaxLevel` + **四型等级源** + `ITcsEntityLevelProvider` | Task 3 |
@@ -179,7 +182,7 @@ FStateDefBase（抽象，编辑器隐藏）          ← 本模块定义
 
 - §2 的 `FStateDefBase` "**生命周期事件词汇**"字段：**零消费者**（行为 Fragment 的 `Interests` 已是声明面）⇒ 本轮不预建，等真实消费者。
 - §2 的 `Descriptions` 描述视图配置：本轮只落字段与作者侧校验，**渲染归 R8**（`SPEC-09-editor`）。
-- §3.3 正文里的 `Combat.State.Periodic` 是**换根前的旧 tag 名**——新名为 `TcsEvent.State.Periodic`（本轮定型，见 `unreal-gameplay-tags` 规范）。
+- §3.3 正文里的 `Combat.State.Periodic` 是**换根前的旧 tag 名**——新名 `TcsEvent.State.Periodic` **已于 2026-10-04（Task 2）落地**（`TcsStateEvents.h` 的 `Tag_TcsEvent_State_Periodic`，原生声明 + 导出宏）；**该词本轮只有声明、零广播**（周期计时的产生者归 Task 3）。
 - §3.4 的"槽位竞争并入 Priority 语义"一节引用的 `TCS 报告 06`（库外，已不在库内）**不可复核**，语义拍板时 MUST 重新论证。
 
 ### 12.5 Task 1 落地口径（2026-10-04，R5）
@@ -190,3 +193,14 @@ FStateDefBase（抽象，编辑器隐藏）          ← 本模块定义
 | 2 | `FStateStackPolicy` **随 Task 1 落形状**（住 `Public/State/TcsStateStackPolicy.h`：四轴枚举 + `MaxStacks`）；Task 5 只补决策 Fragment 与行为 | 同上：`FTcsBuffDef.StackPolicy` 字段需要类型；本轮**不带** Custom 位的 `TInstancedStruct` 载荷与任何策略基类（零消费者不预建） |
 | 3 | **状态词根归属挂账**：新增 `StateDef` 根只承载"状态定义资产的身份解析"（`DiscoverStateDefs` / `ResolveStateDef`）；`Def.StatusTag` 的根归属**本轮不裁定** | 一角色一根 + 零消费者不预建根——解析消费者为零（关系表检查器与按它匹配的槽位竞争表整体归 R5.5-e）；验收资产里 `StatusTag` 复用同一个 `StateDef.*` 词，不构成对归属的裁定 |
 | 4 | **描述配置载体住本模块**（订正 §10 v2 增补 9 的"类型住 TcsNotation"父注） | `DEC-02-fold-display` v3 命名批"住哪"表 + `SPEC-07-notation` §1 边界（字段归各 Def、词汇约定归 Notation）；Task 1 落 `FTcsDescriptionEntry` / `FTcsDescriptionViewSlot` 两个纯数据载体，视图策略族仍归 R8 |
+
+### 12.6 Task 2 落地口径（2026-10-04，R5）
+
+| # | 口径 | 依据 / 后果 |
+|---|---|---|
+| 1 | **身份归资产、登记口显式收身份**：`UTcsStateSubsystem::RegisterStateDef(FGameplayTag DefTag, const FTcsBuffDef& Def)` 收两个形参；**不往 `FTcsStateDefBase` 加 `DefTag`** | 身份是**资产**属性（`UTcsStateDef::DefTag`：资产身份、`GetPrimaryAssetId()` 取值来源、作者期校验对象），`FTcsBuffDef` 是**定义内容**。为"从内容读身份"再加一份 = 策划在同一资产里手填两遍同一个 tag（**双真相**）。运行期副本的身份由登记口一次对齐（调用方 = 定义库，其缓存键本就是 `DefTag`） |
+| 2 | **实例自持 `Unit`（宿主单位）** | 句柄里没有单位段 ⇒ 不自持则 `GetState(Handle)` 只能遍历所有桶（O(桶数)）；且 Task 4 的修正器物化要用它把修正器挂到该单位的属性账本上（同一份信息，不是重复真相） |
+| 3 | **注册表自建槽位、不复用 `TTcsInstancePool`**；`GetDef()` 解析缓存**本轮不落** | 那个池是"一池一句柄空间"，状态要"**每单位**一个句柄空间"（桶）；套用只有"一桶一池"（同一件事两套身份）或"全局一池"（句柄与单位解耦 ⇒ `GetState` 无法直接定位）两条更差的路。槽位语义**刻意与池一致**（分配优先复用空闲槽 / 释放使代际 +1 / 新槽从 1 起 / 奇偶簿记）。`GetDef()` 缓存**等快照构建**：本轮"热路径不回查 Def"由"实例只用 `DefTag` 做身份比较、数值面尚不存在"自然满足，缓存与版本失效判据纯属预建（零消费者） |
+| 4 | **事件载荷的 `Source` 不是 `UPROPERTY`**；六枚 tag 落在既有 `TcsEvent` 根下（**零新增根**） | `FTcsSourceHandle` 是**非反射**纯 C++ struct（"纯内联类型不得带导出宏"那条纪律的另一面）——需要脚本层可达时须先反射化它（台账 `SCRIPT` 系列连带项）。事件词属**框架契约**（广播面漏配即静默失效），故由本模块原生声明并带导出宏 |
+| 5 | **阶段机三态与"先广播后释放"** | `EStatePhase{Inactive/Active/Expiring}`：`Expiring` 是"已进入移除流程、槽位尚未归还"的窗口——**它是"订阅者在移除回调里仍能 `GetState` 读到实例"能成立的前提**；非法迁移 `ensure`（配置错误语义），与脏句柄的时序竞态口径（只 `Warning`）刻意分开。四条合法边含 `Expiring → Active`（刷新是"过渡后挂回"） |
+| 6 | **共存决策的暂用位**：本轮"同组"判据 = **同单位 + 同 `DefTag`**（`GroupBy = None` 语义） | 它是 Task 5 五轴共存决策的**替换点**（代码注释已就地标明）；`EApplyResult::EAR_Stacked` 本轮不可达，`EStateRemoveCause::ESRC_Cancelled` 本轮无内建产生者（归 R5.5-e）——两处均已在枚举注释里写明归属 |

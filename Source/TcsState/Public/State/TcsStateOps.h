@@ -1,0 +1,171 @@
+// Copyright Tirefly. All Rights Reserved.
+
+#pragma once
+
+#include "CoreMinimal.h"
+#include "GameplayTagContainer.h"
+
+#include "Handle/TcsCombatEntityHandle.h"
+#include "Handle/TcsSourceHandle.h"
+
+#include "State/TcsStateEnums.h"
+#include "State/TcsStateHandle.h"
+#include "State/TcsStateInstance.h"
+
+class UTcsStateSubsystem;
+struct FTcsBuffDef;
+
+
+
+/**
+ * 状态引擎函数（设计文档 §3.1 的既定分工）：**桶只存数据与索引，操作全在这里**。
+ *
+ * 为什么是"引擎函数"而不是把逻辑写进门面：门面的职责是**世界过滤 + 定义登记 + 门面签名**；
+ * 施加 / 移除 / 查询的流程逻辑按操作种类集中在本类，这样 `UTcsStateSubsystem.cpp` 保持薄壳，
+ * 而流程改动不会与 UE 生命周期样板混在一起（同款先例 = `TcsDamage` 的流程步骤库拆分）。
+ *
+ * **全部成员为静态函数**：本类**无实例**（不持状态）——状态一律经 `Subsystem` 参数传入。
+ * 用 `class` 而非 namespace 是为了对齐设计文档的 `FStateOps` 命名，并让"这些函数是一族"在
+ * 调用点（`FTcsStateOps::Apply(...)`）一眼可辨。
+ *
+ * 文件划分：本头 + `TcsStateOps.cpp`（施加与移除）/ `TcsStateOps_Query.cpp`（查询）/
+ * `TcsStateOps_Events.cpp`（Tag 定义与广播）。
+ */
+class FTcsStateOps
+{
+// 施加
+#pragma region Apply
+
+public:
+	/**
+	 * 施加（或刷新）一个状态——`UTcsStateSubsystem::ApplyState` 的实现体。
+	 *
+	 * **本轮共存判据 = 同单位 + 同 `DefTag`**（`GroupBy = None` 语义）：命中即在原实例上刷新，
+	 * 否则新建。**此处是 R5 Task 5 五轴决策的替换点**（见方法内注释的锚记）。
+	 *
+	 * @param Subsystem 状态门面（提供登记表、桶、发号器与广播面）。
+	 * @param Target 被施加方实体。
+	 * @param DefTag 状态定义身份（须已登记）。
+	 * @param Source 施加方来源句柄（无效则由门面发号）。
+	 * @param Overrides 施加方参数覆盖（本轮不消费）。
+	 * @return 返回施加结果。
+	 */
+	static EApplyResult Apply(
+		UTcsStateSubsystem& Subsystem,
+		FTcsCombatEntityHandle Target,
+		FGameplayTag DefTag,
+		FTcsSourceHandle Source,
+		const TMap<FGameplayTag, double>& Overrides);
+
+#pragma endregion
+
+
+// 移除
+#pragma region Removal
+
+public:
+	/**
+	 * 按句柄移除一个实例（**先广播后释放槽位**——见方法内注释的硬约束）。
+	 *
+	 * @param Subsystem 状态门面。
+	 * @param Handle 实例句柄。
+	 * @param Cause 移除原因。
+	 * @return 返回是否移除成功（脏句柄返回 false + Warning，不 ensure）。
+	 */
+	static bool Remove(UTcsStateSubsystem& Subsystem, FTcsStateHandle Handle, EStateRemoveCause Cause);
+
+	/**
+	 * 注销单位：逐条移除该单位全部实例后删桶。
+	 *
+	 * @param Subsystem 状态门面。
+	 * @param Unit 单位实体句柄。
+	 * @return 返回移除的实例数。
+	 */
+	static int32 UnregisterUnit(UTcsStateSubsystem& Subsystem, FTcsCombatEntityHandle Unit);
+
+#pragma endregion
+
+
+// 查询
+#pragma region Query
+
+public:
+	/**
+	 * 按句柄查实例。
+	 *
+	 * **为何不需要"单位"形参**：本函数先在全部桶里做一次**代际校验式定位**（脏句柄上
+	 * `Instance.Unit` 是陈旧值、定位必然失败 ⇒ 返回 nullptr，正是我们要的），再进该桶解析。
+	 * 代价 = 一次 O(桶数) 遍历（桶数量级 = 在场单位数，且查询不是热路径）。
+	 * 之所以不为"句柄 → 单位"另建旁路登记表：那会引入**第二处身份真相**（表与桶可能不同步），
+	 * 收益只是把一次遍历换成一次哈希——不值。
+	 *
+	 * @param Subsystem 状态门面。
+	 * @param Handle 实例句柄。
+	 * @return 返回实例指针；脏句柄返回 nullptr。
+	 */
+	static const FTcsStateInstance* Find(UTcsStateSubsystem& Subsystem, FTcsStateHandle Handle);
+
+	/**
+	 * 取本世界已登记的状态定义（转发 `UTcsStateSubsystem::GetRegisteredStateDef`——
+	 * 时长操作要读 `DurationPolicy`，而登记表是门面私有成员）。
+	 *
+	 * @param Subsystem 状态门面。
+	 * @param DefTag 定义身份。
+	 * @return 返回定义；未登记返回 nullptr。
+	 */
+	static const FTcsBuffDef* GetDef(UTcsStateSubsystem& Subsystem, FGameplayTag DefTag);
+
+	/**
+	 * 广播一次状态事件（转发门面的私有广播实现——引擎函数与门面共用同一处载荷拼装）。
+	 *
+	 * @param Subsystem 状态门面。
+	 * @param EventTag 事件 Tag（六枚之一）。
+	 * @param Instance 实例（被广播时的快照）。
+	 * @param Cause 移除原因（仅 Expired / Removed 有意义）。
+	 */
+	static void Broadcast(
+		UTcsStateSubsystem& Subsystem,
+		FGameplayTag EventTag,
+		const FTcsStateInstance& Instance,
+		EStateRemoveCause Cause);
+
+	/**
+	 * 阶段迁移（转发门面的私有实现——非法迁移 = `ensure`，见门面注释）。
+	 *
+	 * @param Subsystem 状态门面。
+	 * @param Instance 目标实例；nullptr = 无操作（调用方已确认存在，此处只做防御）。
+	 * @param NewPhase 目标阶段。
+	 */
+	static void Transit(UTcsStateSubsystem& Subsystem, FTcsStateInstance* Instance, EStatePhase NewPhase);
+
+	/**
+	 * 取某单位桶内在册实例数。
+	 *
+	 * @param Subsystem 状态门面。
+	 * @param Unit 单位实体句柄。
+	 * @return 返回到在册实例数。
+	 */
+	static int32 CountStates(UTcsStateSubsystem& Subsystem, FTcsCombatEntityHandle Unit);
+
+#pragma endregion
+
+
+// 生命周期操作
+#pragma region LifetimeOps
+
+public:
+	/**
+	 * 时长操作的共用前置（解析实例 + 读定义 + 判定时值策略）。
+	 *
+	 * @param Subsystem 状态门面。
+	 * @param Handle 实例句柄。
+	 * @param OutInstance 输出解析到的实例（失败时不动）。
+	 * @return 返回是否允许继续（`false` = 已留 Warning，调用方直接返回 false）。
+	 */
+	static bool PrepareDurationOp(
+		UTcsStateSubsystem& Subsystem,
+		FTcsStateHandle Handle,
+		FTcsStateInstance*& OutInstance);
+
+#pragma endregion
+};
