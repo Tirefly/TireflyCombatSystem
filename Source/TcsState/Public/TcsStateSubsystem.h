@@ -52,6 +52,15 @@ class TCSSTATE_API UTcsStateSubsystem : public UWorldSubsystem
 #pragma region Lifetime
 
 public:
+	/**
+	 * 初始化：建**快照参数表反射壳**（`ParamTableReader`）。
+	 *
+	 * **为什么在初始化期就建**（而不是第一次物化时懒建）：壳是门面持有的**单例**，
+	 * 建成之后物化路径**零分配**；而物化发生在施加流程里（可能正持着实例指针），
+	 * 那个位置不该出现"可能触发 GC 的分配"这一类副作用。
+	 */
+	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
+
 	// 世界类型过滤：仅游戏世界（Game/PIE/GamePreview）实例化——状态注册表是运行时设施（对齐时钟/总线/属性/效果链门面）
 	virtual bool DoesSupportWorldType(const EWorldType::Type WorldType) const override;
 
@@ -344,6 +353,17 @@ public:
 
 	UTcsClockSubsystem* GetClockSubsystem() const;
 
+	/**
+	 * 取快照参数表反射壳（修正器物化把"该实例的快照"作为**本次求值的参数表**装进求值上下文的载体）。
+	 *
+	 * **绑定纪律不在壳里、在作用域里**：绑定/恢复由 `FTcsStateSnapshotScope`（RAII，栈式）负责，
+	 * 见 `State/TcsStateParamTableReader.h`——调用方 MUST NOT 手工 `Bind` 跨过可能广播的调用
+	 * （那会让"当前绑定"变成一处隐式的跨帧状态）。
+	 *
+	 * @return 返回壳（初始化后非空；未初始化返回 `nullptr`，物化侧按"无参数表"降级）。
+	 */
+	UTcsStateParamTableReader* GetParamTableReader();
+
 private:
 	// 广播一次状态事件（载荷由实例快照 + 原因拼装；总线不可得时 Warning 并丢弃——不 ensure）
 	void BroadcastStateEvent(FGameplayTag EventTag, const FTcsStateInstance& Instance, EStateRemoveCause Cause);
@@ -370,6 +390,10 @@ private:
 	// 宿主等级读口（未注入 = 空接口；`UPROPERTY` 持有以满足 TScriptInterface 的 GC 纪律）
 	UPROPERTY()
 	TScriptInterface<ITcsEntityLevelProvider> EntityLevelProvider;
+
+	// 快照参数表反射壳（`Initialize` 建的单例；绑定由 `FTcsStateSnapshotScope` 作用域负责）
+	UPROPERTY()
+	TObjectPtr<UTcsStateParamTableReader> ParamTableReader;
 
 #pragma endregion
 };

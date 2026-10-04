@@ -167,3 +167,24 @@ public:
 
 #pragma endregion
 };
+
+
+
+// 模板行 → 账本条目（声明住 `TcsAttrModInstance.h`——实现必须住这里：`FTcsAttrModDefTableRow`
+// 在本头才完备，而本头被实例头 include，反向 include 成环）。
+// `inline` 是有意为之：header-only 定义 ⇒ 各 TU 各自内联，不需要模块导出宏
+// （该结构体按本仓纪律"全内联值类型不加导出宏"——`TcsAttrModInstance.h` 头注有记）。
+inline FTcsAttrModInstance FTcsAttrModInstance::MakeFromDef(
+	const FTcsAttrModDefTableRow& Row,
+	const FTcsAttrModOperand& InOperand,
+	FTcsSourceHandle InSource)
+{
+	FTcsAttrModInstance Instance;
+	Instance.Target = Row.Target;
+	Instance.Op = Row.Op;
+	Instance.Operand = InOperand;
+	Instance.Source = InSource;
+	Instance.OverridePriority = Row.OverridePriority;
+	Instance.SortKey = Row.SortKey;
+	return Instance;
+}

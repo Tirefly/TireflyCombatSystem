@@ -65,6 +65,24 @@ EApplyResult FTcsStateOps::Apply(
 		MakeContext(Ctx, Subsystem, Target, Existing->Instigator, Def->LevelBase, ParamTable);
 		BuildSnapshot(Existing->ParamSnapshot, *Def, Ctx, Overrides);
 
+		// 修正器重物化：**先按来源摘旧、再按新快照挂新**（同一批内完成）。
+		// 不这么做就会出现"快照是新值、账本还是旧值"的静默不一致（刷新 = 重新施加的账本面）。
+		MountModifiers(Subsystem, *Def, *Existing, /*bStripFirst=*/true);
+
+		// 挂载提交会重算 + 广播（属性变更事件）⇒ 订阅者可重入状态操作（移除本实例 / 注销单位），
+		// 那会让上面那个实例指针与桶引用双双失效（槽位释放后还可能被复用）⇒ MUST 重新定位。
+		FStateBucket* LiveBucket = Subsystem.Registry.FindBucket(Target);
+		Existing = LiveBucket ? LiveBucket->Find(ExistingHandle) : nullptr;
+		if (!Existing)
+		{
+			// 重入移除的极端路径：刷新动作本身已完成（快照 + 修正器都按本次施加更新过），
+			// 实例却已不在册 ⇒ 不再补播 `Refreshed`（对已不在册的实例广播是错语义）。
+			UE_LOG(LogTcsState, Warning,
+				TEXT("状态刷新后实例已不在册（挂载提交期间被重入移除）：单位=%lld 定义=%s 句柄=%d/%d"),
+				Target.Id, *DefTag.ToString(), ExistingHandle.Index, ExistingHandle.Generation);
+			return EApplyResult::EAR_Refreshed;
+		}
+
 		Transit(Subsystem, Existing, EStatePhase::ESP_Expiring);
 
 		// 时间条目重挂放在**广播之前**：订阅者在 `Refreshed` 回调里读到的时值/周期已是本次施加的结果
@@ -103,15 +121,30 @@ EApplyResult FTcsStateOps::Apply(
 	MakeContext(Ctx, Subsystem, Target, NewInstance->Instigator, Def->LevelBase, ParamTable);
 	BuildSnapshot(NewInstance->ParamSnapshot, *Def, Ctx, Overrides);
 
-	// 时间条目（放在广播之前——订阅者读到的是完整的实例）
-	ScheduleTime(Subsystem, *NewInstance, *Def, NewInstance->ParamSnapshot, ParamTable, /*bRefresh=*/false);
+	// 修正器物化 + 挂载（施加路径无需先摘：来源句柄是本次施加才发放的，账本上不可能有同来源条目）。
+	// 位置在广播之前——订阅者在 `Applied` 回调里读到的属性已是挂载后的数值。
+	MountModifiers(Subsystem, *Def, *NewInstance, /*bStripFirst=*/false);
 
-	Broadcast(Subsystem, Tag_TcsEvent_State_Applied, *NewInstance, EStateRemoveCause::ESRC_Removed);
+	// 挂载提交会重算 + 广播 ⇒ 订阅者可重入状态操作 ⇒ MUST 重新定位实例与桶（理由同刷新路径）
+	FStateBucket* LiveBucket = Subsystem.Registry.FindBucket(Target);
+	FTcsStateInstance* LiveInstance = LiveBucket ? LiveBucket->Find(NewHandle) : nullptr;
+	if (!LiveInstance)
+	{
+		UE_LOG(LogTcsState, Warning,
+			TEXT("状态施加后实例已不在册（挂载提交期间被重入移除）：单位=%lld 定义=%s 句柄=%d/%d"),
+			Target.Id, *DefTag.ToString(), NewHandle.Index, NewHandle.Generation);
+		return EApplyResult::EAR_Applied;
+	}
+
+	// 时间条目（放在广播之前——订阅者读到的是完整的实例）
+	ScheduleTime(Subsystem, *LiveInstance, *Def, LiveInstance->ParamSnapshot, ParamTable, /*bRefresh=*/false);
+
+	Broadcast(Subsystem, Tag_TcsEvent_State_Applied, *LiveInstance, EStateRemoveCause::ESRC_Removed);
 
 	UE_LOG(LogTcsState, Log, TEXT("状态施加：单位=%lld 定义=%s 句柄=%d/%d 来源=%llu 等级=%d 快照=%d 条 剩余=%.3f 周期=%.3f"),
 		Target.Id, *DefTag.ToString(), NewHandle.Index, NewHandle.Generation,
-		NewInstance->Source.Id, NewInstance->Level, NewInstance->ParamSnapshot.Num(),
-		NewInstance->DurationRemaining, NewInstance->PeriodRemaining);
+		LiveInstance->Source.Id, LiveInstance->Level, LiveInstance->ParamSnapshot.Num(),
+		LiveInstance->DurationRemaining, LiveInstance->PeriodRemaining);
 
 	return EApplyResult::EAR_Applied;
 }
@@ -145,6 +178,13 @@ bool FTcsStateOps::Remove(
 	const FGameplayTag DefTag = Found->DefTag;
 	const FTcsSourceHandle Source = Found->Source;
 
+	// **修正器摘除排在"取实例指针"之前**（顺序有理由，不是随手排的）：`StripModifiers` 内的批提交
+	// 会重算 + 广播（属性变更事件），订阅者可在其中重入状态操作（移除本实例 / 注销单位）——
+	// 先摘除、再重新定位桶与实例，下面两道既有守卫（桶不存在 / 实例查不到）就同时接住了重入造成的失效。
+	// 完整撤销顺序：**摘除修正器 → 撤时间条目 → `Expiring` → 广播 → 归还槽位**。
+	// 两处撤销（修正器 / 时间条目）都排在广播之前 ⇒ 订阅者读到的是"已经还清"的属性值与实例。
+	StripModifiers(Subsystem, Unit, Source);
+
 	FStateBucket* Bucket = Subsystem.Registry.FindBucket(Unit);
 	if (!Bucket)
 	{
@@ -159,6 +199,7 @@ bool FTcsStateOps::Remove(
 	FTcsStateInstance* Instance = Bucket->Find(Handle);
 	if (!Instance)
 	{
+		// 摘除提交期间被重入者移除（或单位已注销）——按已移除处理，不重复归还槽位
 		return false;
 	}
 

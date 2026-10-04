@@ -12,6 +12,11 @@
 
 
 
+// 前置声明：`MakeFromDef` 的形参是"行"（实现在 TcsAttrModDef.h 文件末——那里两个形状都完备）
+struct FTcsAttrModDefTableRow;
+
+
+
 /**
  * 属性运算带（D2-7 砍 Custom op / D2-10 增 FlatAdd，纯封闭五带）——聚合公式：
  * 存在 Override 时按"优先级 → 同优先级策略 → 有符号值"三级比较选出一条直接作为结果
@@ -200,6 +205,34 @@ struct FTcsAttrModInstance
 
 	// 同带内展示/审计位（折叠按 Op 分桶——带序唯一真相在 Op，不得依赖本字段）
 	int32 SortKey = 0;
+
+// 装配
+#pragma region Assembly
+
+public:
+	/**
+	 * 显式构造入口（**"模板行 → 账本条目"的字段映射的唯一声明处**，R5 Task 4 落地）。
+	 *
+	 * 为什么要有它：本结构全仓长期"从未被构造过"（物化器是它的第一个生产者）。把字段映射
+	 * 留在这里而不是散在物化器里，是因为**两个形状都归 TcsAttribute**——上层（TcsState 的物化器）
+	 * 只该负责"求值 + 转规范值"，不该逐字段知道账本条目需要哪些位（R6 技能侧物化要复用同一处）。
+	 *
+	 * 操作数**已解析**（`Literal` 恒为规范值）——本函数不做求值、不做值约定转换，那是物化边界的事。
+	 *
+	 * **实现住 `TcsAttrModDef.h` 文件末**：形参 `FTcsAttrModDefTableRow` 在那个头里才完备，
+	 * 而本头被它 include（反向 include 会成环）。
+	 *
+	 * @param Row 模板行（字段形状的唯一声明处）。
+	 * @param InOperand 已解析的运行侧操作数。
+	 * @param InSource 归属来源（级联撤销锚点；物化器传入状态实例的来源句柄）。
+	 * @return 返回装配好的账本条目。
+	 */
+	static FTcsAttrModInstance MakeFromDef(
+		const FTcsAttrModDefTableRow& Row,
+		const FTcsAttrModOperand& InOperand,
+		FTcsSourceHandle InSource);
+
+#pragma endregion
 
 	// 注（2026-09-23 删除）：原有一个 `FName Tag`（"同来源内分组标签"）字段——它从旧 TCS 搬来，
 	// 全库**零消费者**（折叠/物化/级联撤销都不读），留着只会让配置者误以为填了有用。删之。

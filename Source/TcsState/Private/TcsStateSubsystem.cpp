@@ -10,6 +10,15 @@
 
 
 // 生命期
+void UTcsStateSubsystem::Initialize(FSubsystemCollectionBase& Collection)
+{
+	Super::Initialize(Collection);
+
+	// 快照参数表反射壳：门面持有单例 ⇒ 物化路径零 per-apply 分配。
+	// 初始**不绑定**任何快照（未绑定 = 一切查询落 miss）——绑定只在物化作用域内发生。
+	ParamTableReader = NewObject<UTcsStateParamTableReader>(this, TEXT("TcsStateParamTableReader"));
+}
+
 bool UTcsStateSubsystem::DoesSupportWorldType(const EWorldType::Type WorldType) const
 {
 	// 仅游戏世界（Game/PIE/GamePreview）——状态注册表是运行时设施，与时钟/总线/属性/效果链门面同口径
@@ -215,6 +224,11 @@ UTcsClockSubsystem* UTcsStateSubsystem::GetClockSubsystem() const
 {
 	const UWorld* World = GetWorld();
 	return World ? World->GetSubsystem<UTcsClockSubsystem>() : nullptr;
+}
+
+UTcsStateParamTableReader* UTcsStateSubsystem::GetParamTableReader()
+{
+	return ParamTableReader;
 }
 
 void UTcsStateSubsystem::TransitionPhase(FTcsStateInstance* Instance, EStatePhase NewPhase)

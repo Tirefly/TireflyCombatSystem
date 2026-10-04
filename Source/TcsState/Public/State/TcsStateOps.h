@@ -35,7 +35,8 @@ struct FTcsTimeEntryHandle;
  *
  * 文件划分：本头 + `TcsStateOps.cpp`（施加与移除）/ `TcsStateOps_Query.cpp`（查询）/
  * `TcsStateOps_Events.cpp`（Tag 定义与广播）/ `TcsStateOps_Snapshot.cpp`（快照构建与时长求值）/
- * `TcsStateOps_Lifetime.cpp`（时长 / 周期条目入堆与撤堆、时长操作）。
+ * `TcsStateOps_Lifetime.cpp`（时长 / 周期条目入堆与撤堆、时长操作）/
+ * `TcsStateOps_Modifier.cpp`（属性访问解析点 + 修正器挂载与摘除）。
  *
  * **导出宏是必需项**（`WAIT-9` 判据："该符号是否被跨模块引用"）：宿主侧装置（`TcsDev`）直接调
  * `MakeContext` 等静态成员 ⇒ 不带 `TCSSTATE_API` 必 `LNK2019`（2026-10-05 实测）。
@@ -153,6 +154,57 @@ public:
 	 * @param Instance 目标实例（字段被就地清空，可重复调用）。
 	 */
 	static void CancelTimeEntries(UTcsStateSubsystem& Subsystem, FTcsStateInstance& Instance);
+
+#pragma endregion
+
+
+// 修正器（属性账本）
+#pragma region Modifier
+
+public:
+	/**
+	 * 挂载修正器（施加与刷新共用）：物化 `Def.ModifierRows` 并按**一个属性批**写入属性账本。
+	 *
+	 * **批是硬要求**（两条理由，缺一不可）：① 多个修正器只该触发**一次**重算与一次广播；
+	 * ② 摘旧与挂新必须在同一批内完成——否则订阅者会看到"摘了一半"的中间态，
+	 * 且逐条挂载会多次广播、把重入窗口放大成 N 个。
+	 *
+	 * **提交点之后调用方 MUST 重新定位实例与桶**：提交会重算 + 广播（属性变更事件），
+	 * 订阅者可在其中重入状态操作（施加/移除/注销单位）——那会让本函数调用方手里的
+	 * 实例指针与桶引用**双双失效**（槽位释放后可能被复用）。
+	 *
+	 * 正常分支（零模板 + 非刷新 / 单位无属性账本）MUST 静默返回：状态与属性是两套登记，
+	 * "这个单位没有属性可改"不是错误（不 ensure、不留 Warning）。
+	 *
+	 * @param Subsystem 状态门面（提供登记表与快照读取壳）。
+	 * @param Def 状态定义内容（取 `ModifierRows`）。
+	 * @param Instance 目标实例（物化输入；本函数只读它）。
+	 * @param bStripFirst 是否先按来源摘除旧条目（**刷新路径传 true**：账本恒与最近一次快照一致、条数不累加；
+	 *        施加路径传 false——来源句柄是施加时才发放的，账本上不可能有同来源条目）。
+	 */
+	static void MountModifiers(
+		UTcsStateSubsystem& Subsystem,
+		const FTcsBuffDef& Def,
+		const FTcsStateInstance& Instance,
+		bool bStripFirst);
+
+	/**
+	 * 按来源级联摘除该实例的修正器（批内提交）——移除 / 到期路径的撤销步骤之一。
+	 *
+	 * **为什么会开一个批**：`RemoveBySource` 在批外会立即 flush + 广播；批内则只标脏，
+	 * 由本函数紧随其后的 `Commit` 一次性收口（一个来源的 N 条修正器 = 一次重算 + 一次广播）。
+	 *
+	 * **调用位置有硬约束**：它可能广播（`Commit`），故调用方 MUST 在**取实例指针之前**调用它，
+	 * 之后重新定位桶与实例（`FTcsStateOps::Remove` 即按此顺序书写）。
+	 *
+	 * @param Subsystem 状态门面。
+	 * @param Unit 单位实体句柄。
+	 * @param Source 来源句柄（= 状态实例的来源句柄）。
+	 */
+	static void StripModifiers(
+		UTcsStateSubsystem& Subsystem,
+		FTcsCombatEntityHandle Unit,
+		FTcsSourceHandle Source);
 
 #pragma endregion
 

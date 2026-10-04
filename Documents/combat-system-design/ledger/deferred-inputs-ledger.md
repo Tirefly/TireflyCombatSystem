@@ -3,7 +3,7 @@
 - **文档 ID**：`LEDGER-deferred`
 - **类型**：LEDGER / 台账
 - **状态**：LIVING
-- **权威范围**：跨轮遗留输入台账（唯一待办登记册）：入册判据、生命周期纪律、**51 条条目**（行数 = 唯一 id 数 = 51，2026-10-04 R5 Task 3 收束时逐行复核：新增 1 条 `Task-3-1`；前缀分布 = `CHAIN 6 / CORE 1 / DAMAGE 5 / INTEG 3 / PRES 1 / SCRIPT 9 / STAT 4 / Task-3 1 / TOOLS 6 / TRIG 5 / WAIT 10`；上一轮口径（50 条）见《Task 2 收束》块——本轮**只加不改**，既有 50 行状态一律留给 Task 8 统一勾销）
+- **权威范围**：跨轮遗留输入台账（唯一待办登记册）：入册判据、生命周期纪律、**53 条条目**（行数 = 唯一 id 数 = 53，2026-10-04 R5 Task 4 收束时逐行复核：新增 2 条 `ATTR-1` / `STAT-5`；前缀分布 = **`ATTR 1`** / `CHAIN 6` / `CORE 1` / `DAMAGE 5` / `INTEG 3` / `PRES 1` / `SCRIPT 9` / **`STAT 5`** / `Task-3 1` / `TOOLS 6` / `TRIG 5` / `WAIT 10`；上一轮口径（51 条）见《Task 3 收束》块——本轮**只加不改**，既有 51 行状态一律留给 Task 8 统一勾销）
 - **最后更新**：2026-10-04
 
 > **换根注记（2026-10-01）**：本文件记录的 tag 名保留**当时原样**（历史现场，MUST NOT 改写）。这些旧名已于 2026-10-01 由提案 `reroot-gameplay-tag-vocabulary` 换根，映射 = `Tcs.Event.*`→`TcsEvent.*`、`Tcs.Flow.Key.*`→`DamageFlowKey.*`、`Tcs.Flow.Template.*`→`DamageFlowTemplate.*`、`Tcs.Attr.*`→`Attribute.*`、`Tcs.Chain.*`→`EffectChain.*`（另 16 个 `Probe` 验证词整批退役删除）。新名以 [SPEC-00-core](../spec/01-module-m0-core.md) 与提案规格为准。
@@ -51,6 +51,8 @@
 | STAT-3 | **`FFlowRedirect` 模板重定向栈**（D7-7：状态/装备声明换流程——让渡点 + 重定向栈后挂/高优先 + Source 级联回收；三粒度让渡模式升四粒度） | `SPEC-08-damage`（D7-7）；plan2 Task 3/4 均列为非目标（"随 M3 状态轮"） | 未落地（2026-09-21 plan2 Task 4 实施时确认：流程机制层与步骤库均无重定向入口） | 待触发（**归属 = R5/M3 状态轮**——消费者是"状态/装备声明换流程"，无状态模块即无场景） |
 | STAT-4 | **状态词（`FTcsStateDefBase.StatusTag`）的 tag 根归属**——本轮只落字段与发现期的有效性校验，**未裁定它住哪个根** | `PLN-R5` Task 1 落地记录（2026-10-04）；`gameplay-tag-governance` 根段注册表 | 根表 10 个根中**无承载它的角色**（新增的 `StateDef` 根只承载**资产身份解析** `DiscoverStateDefs` / `ResolveStateDef`）；`StatusTag` 的**解析消费者为零**——关系表检查器与按它匹配的槽位竞争表整体归 R5.5-e | 待触发（**归属 = R5.5-e 关系表族**——语义拍板时才出现真实消费者，届时按"一角色一根"定根并登记根表；本轮验收资产复用 `StateDef.*` 词，不构成对归属的裁定） |
 | Task-3-1 | **验收资产 `DA_Check_BuffDef` 是 `Finite` 而 `DurationTime` 求值为 0**（不是"没配"——`IsDataValid` 只查数值来源**是否存在**，存在即过；是**配了却求值成 0**） | `PLN-R5` Task 3 收束（2026-10-04）；`EVID-2026-10-04-state-param-snapshot-and-level-sources` §5 边界④ | 该状态每轮 `Run` 落 4 条 `Warning: 状态时值非正：按 0 处理`，并在**下一个泵点即到期**。**当前无断言受害**（Task 3 的检查不读它的剩余时长），但**任何读它剩余时长的下游都会读到 0** | **✅ 已关闭（2026-10-04 当晚）**——采内容侧修法：`DurationTime` 由 `Literal(0)` 改为 **`Literal(3600)`**（走编辑器侧资产通道改并 `save_assets` 落盘）。`Finite` 语义保留、测试期内不再到期、4 条 Warning 消失。**余项**："Finite 且时值在测试窗口内真的到期"这一路径转为**明确未覆盖**（3600 是刻意取的长值），记入证据 §5 边界④ |
+| ATTR-1 | **修正器模板身份词（`UTcsAttrModDef::TemplateTag`）的 tag 根归属未定**——`ModifierRows` 走的是**资产直引用**（`TSoftObjectPtr<UTcsAttrModDef>`），模板身份词今天**零解析消费者**；故装置探针模板的 `TemplateTag` 留空，本轮也不为它开根 | `PLN-R5` Task 4 落地记录（2026-10-04）；`attribute-types`（模板行 `TemplateTag` = 内容身份）；`gameplay-tag-governance` 根段注册表 | 插件侧 **10 个根里没有**承载"修正器模板身份解析"的角色（`StateDef` 根只承载状态定义资产的身份解析）；全库按 `TemplateTag` 解析模板的路径**为零**（已核：物化器只用 `Get()`/`LoadSynchronous()` 取对象） | 待触发（**归属 = 触发条件**：R6 技能侧 `UTcsSkillModDef` 或 R8 内容侧出现"按 tag 解析修正器模板"的真实需求时，按"一角色一根"定根并登记根表——同 `STAT-4` 的同款判据） |
+| STAT-5 | **状态移除的"广播窗口"内重入移除同一句柄 ⇒ 双次归还槽位**：`FTcsStateOps::Remove` 的顺序是 `… → 广播 Removed → Bucket->ReleaseSlot`（"先广播后释放"是 Task 2 的硬约束：订阅者要能在回调里读到实例），而窗口内**没有"已在移除中"的守卫** ⇒ 订阅者对同一句柄再调 `RemoveState` 会自己走完一次释放，外层随后再释放一次 ⇒ 空闲栈里同一索引出现两次 ⇒ 后续 `AllocateSlot` 撞 `check(NewInstance != nullptr)` | `PLN-R5` Task 4 落地记录（2026-10-04）；`EVID-2026-10-04-state-modifier-materialization` §5 边界⑧ | **既有窗口、非 Task 4 引入**（Task 4 只闭合了自己引入的两处：挂载提交后的实例/桶重新定位，以及把摘除排在取实例指针之前）；今天**零触发者**——装置与内容都不在状态事件回调里改状态 | 待触发（**归属 = 触发条件**：Task 6 的行为 Fragment / 内联触发行开始能在状态事件回调里改状态时，先补守卫——候选 = `Remove` 入口对 `Phase == ESP_Expiring` 的句柄直接拒绝，或归还槽位前自查"是否已在空闲栈"） |
 
 > **Task 0 收束（2026-10-04）——本表两条落地**：
 > - **`STAT-2` 部分消费**：`FTcsParamEnumerableSource`（`USTRUCT(meta = (Hidden))` + `TCSCORE_API`，新文件 `Source/TcsCore/Public/Parameter/TcsParamEnumerableSource.h`）+ 中性默认实现 `GetIndexForLevel()` 已落地（UHT 已产出 `.generated.h` + `.gen.cpp`）。**未建的一半** = PV-10 原案的 `Enumerate(Level, OutValues, OutCurrentIndex)`**及其派生形态"表项总数"**——两者的消费者都是展示层的 `FTcsParamView_Series`（整表 + 当前档高亮），按"零消费者不预建"继续留白，落地时随真实消费方补。
@@ -87,6 +89,13 @@
 > - **新增一条（实施期发现，入册）**：`Task-3-1` —— **`DA_Check_BuffDef` 是 `Finite` 而 `DurationTime` 求值为 0**。它不是"没配"（`IsDataValid` 那条只查数值来源**是否存在**，存在即过），而是**配了却求值成 0** ⇒ 落"时值非正 ⇒ 按 0 处理"的 Warning，且该状态在下一个泵点即到期。当前无断言受害（本轮检查不读该状态的剩余时长），但**任何读它剩余时长的下游都会读到 0** ⇒ 真实消费者（Task 4 修正器 / Task 7 端到端）出现前必须定：**内容侧配明确时长**（推荐）或**校验里放行"显式 0 = 立即到期"**。
 > - **零新增其余条目**：本轮的两处"未覆盖"面（`PeriodRefresh` 的 `Reset` / `Immediate` 无内容覆盖；`InstigatorLevel*` 只验数组型）**都不入册**——按《入册判据》第 3 条，前者在 `PLN-R5` Task 3 的交付面里（下一步就该配），后者是同族代码路径且证据 §5 已如实标边界。
 > - **同批一条引擎/UBT 事实（供后续轮参考）**：含 `TUniquePtr` 元素的 `TMap` 类型**不能**加模块导出宏（MSVC 强制实例化 `TMap` 复制路径 ⇒ `C2280`）；`FTimerManager::SetTimer` 的句柄形参是**非 const 左值引用**（临时量与 lambda 捕获副本都绑不上 ⇒ `C2665`）。两条都住 `PLN-R5` Task 3 的《提案面》块。
+
+> **Task 4 收束（2026-10-04，R5 修正器物化 D3-19；提案归档于 2026-10-05 零点后）**：
+> - **新增两条**（上表末两行）：`ATTR-1`（修正器模板身份词的根归属未定——`ModifierRows` 走资产直引用，身份词零解析消费者）、`STAT-5`（状态移除广播窗口内重入移除同一句柄 ⇒ 双次归还槽位——**既有窗口**，Task 4 只闭合了自己引入的两处）。**条目总数 51 → 53**，前缀分布同步追加 `ATTR 1` 且 `STAT 4 → 5`（机械复核：表行 53 = 唯一 id 53）。
+> - **本轮不消费既有行**：`Task-3-1` 已于 Task 3 当晚关闭；`STAT-2` / `DAMAGE-5` / `WAIT-6` 在 Task 0 结；`TRIG-4` / `TRIG-5`（`AttributeCompare`）/ `DAMAGE-2`（`ModifyAttribute`）的落点在 **Task 6**；`STAT-3` / `STAT-4` / 关系表族归 **R5.5**。Task 4 与它们均无交集。
+> - **一处"未覆盖"面按入册判据第 3 条不入册**：本轮十条边界里，"模板真资产走 `LoadSynchronous()`"归 `PLN-R5` Task 7 端到端、"等级源当操作数"与"脚本源读快照"是同族代码路径的探针缺口（证据 §5 已如实标），都不构成新的跨轮待办。
+> - **一条判据值得跨轮沿用（记在此处备查，非条目）**：**"零红字"的准确读法是"零非预期红字"**——`Tcs.Test.Slice.Run` 本身固有 3 条预期 Warning（19f ×1 / 20j ×2），装置头部现已逐条列出预期红字与归属。验收报告引用"零红字"时 MUST 同时给出预期红字清单，否则复核者会把预期当故障。
+> - **一处实施期缺陷（已修，留痕）**：21h 首版夹具"真造单位 + 手动注销属性账本"导致拆除时组件 `EndPlay` 二次注销而 ensure ⇒ 判据 = **夹具的形状自己造出红字，与被测机制无关**；改用"从未注册的句柄"。含缺陷那一轮的区段哈希记进 `EVID-2026-10-04-state-modifier-materialization` §4.1（**不作验收锚点**）。
 
 ## R1 后续（M0 总线补全）
 
@@ -344,3 +353,4 @@
 - **2026-10-04 增补（R5 Task 1 收束）**：新增 **`STAT-4`**（状态词的 tag 根归属——零解析消费者 ⇒ 本轮不开根，归属待 R5.5-e 关系表族）。**条目总数 49 → 50**。R5 区段加《Task 1 收束》块：新增行、根表 9 → 10、以及一条 UBT 事实（传递依赖不给导入库 ⇒ 直接使用某模块类型者必须自己声明依赖）。**同批不改既有行状态**（`STAT-2` / `DAMAGE-5` 已于 Task 0 结，`STAT-3` 归 R5.5-d）。
 - **2026-10-04 增补（R5 Task 2 收束）**：**条目总数仍 50**（**零新增、零消费**）。R5 区段加《Task 2 收束》块：两处"本轮不可达"面（`EAR_Stacked` / `ESRC_Cancelled`）**按入册判据第 3 条不入册**（它们在既有计划的 Task 5 与 R5.5-e 里，重复登记 = 两处真相），只登记"为什么不入册"这一判断本身。**并记一处待对账项**：`INDEX` §4.4 的 R7 行仍列已消费的 `WAIT-6`，留给 `PLN-R5` Task 8 Step 5 一并纠正（本册不复制路线图）。
 - **2026-10-04 增补（R5 Task 3 收束）**：新增 **1 条**（`Task-3-1`：验收资产 `Finite` 却 `DurationTime` 求值为 0）⇒ **条目总数 50 → 51**；身份块前缀分布同步追加 `Task-3 1`（机械复核：表行 51 = 唯一 id 51）。R5 区段加《Task 3 收束》块：**消费 `DAMAGE-5` 的 +1 字段增量**（`Instigator` 是 Task 0 之后补的第三个主体字段，口径 = 通用主体身份进基础上下文、域读口进派生上下文）、**`R-1` 静态面已落地**（行为面待验，其状态改写留给 Task 8 落到 `LEDGER-reflection`）、一条实施期发现入册、两处"未覆盖"面按入册判据第 3 条不入册、两条引擎/UBT 事实。**既有 50 行的状态一律不动**——按本册纪律，行级勾销在 `PLN-R5` Task 8 Step 3 统一执行。
+- **2026-10-04 增补（R5 Task 4 收束 / 修正器物化）**：新增 **2 条** ⇒ **条目总数 51 → 53**，并**首次引入 `ATTR` 前缀**（`ATTR-1` 修正器模板身份词的根归属；`STAT 4 → 5`）。R5 区段加《Task 4 收束》块：两条新行、零消费、一处"未覆盖"面按判据不入册、**一条跨轮判据**（"零红字" = 零**非预期**红字，验收报告 MUST 附预期红字清单）、一处装置缺陷留痕（夹具自造红字）。**实施面**：`state-modifier-materialization` 新能力（7 条需求）+ `state-param-snapshot` 1 条 MODIFIED，提案归档 `2026-10-05-add-modifier-materialization`，`openspec validate --all --strict` = **30 passed / 0 failed**、`changes/` 零活动；证据 = `EVID-2026-10-04-state-modifier-materialization`（双区段哈希 `5dedd64b…` / `eeb895d5…`）。

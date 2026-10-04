@@ -157,9 +157,9 @@ FStateDefBase（抽象，编辑器隐藏）          ← 本模块定义
 | §3.2 | `FStateStackPolicy` 五轴（含 Custom 决策 Fragment） | Task 5 |
 | §3.3 | Duration 两态 + Period + `PeriodRefresh` 三态 | Task 3（**✅ 2026-10-04**，落地口径见 §12.7） |
 | §3.5 | `LevelBase` / `MaxLevel` + **四型等级源** + `ITcsEntityLevelProvider` | Task 3（**✅ 2026-10-04**，落地口径见 §12.7——接口住 **TcsState**、读口走派生上下文） |
-| §3.6 | `FTcsParamSnapshot` / `FTcsParamSnapshotEntry` + 快照构建（含 ValueConvention 转换） | Task 3（**✅ 2026-10-04**，落地口径见 §12.7——实现名沿用本节命名批、`ConvertToCanonical` 首次点亮） |
+| §3.6 | `FTcsParamSnapshot` / `FTcsParamSnapshotEntry` + 快照构建（含 ValueConvention 转换） | Task 3（**✅ 2026-10-04**，落地口径见 §12.7——实现名沿用本节命名批、`ConvertToCanonical` 首次点亮）；读取适配器的**反射壳**由 Task 4 补（**✅ 2026-10-04**，见 §12.8） |
 | §4 | 门面 `ApplyState` / `RemoveState` / `ExpireState` / `GetState` / `ForEachState` / `ExtendDuration` / `SetRemaining` | Task 2 / 3 |
-| §5 | Apply / Remove / Expire 流程 + 生命周期事件全集 + 行为 Fragment 订阅挂接 + **修正器物化（D3-19）** | Task 2 / 4 / 6 |
+| §5 | Apply / Remove / Expire 流程 + 生命周期事件全集 + 行为 Fragment 订阅挂接 + **修正器物化（D3-19）** | Task 2（**✅**）/ **Task 4（✅ 2026-10-04：修正器物化落地，口径见 §12.8）** / Task 6 |
 | §6 | `FStepApplyState` 领域步骤（自注册）+ Buff 内联触发行（施加时登记、`Source` = 实例句柄） | Task 6 |
 
 ### 12.2 本轮**不落**（带归属）
@@ -217,3 +217,17 @@ FStateDefBase（抽象，编辑器隐藏）          ← 本模块定义
 | 6 | **`PeriodRefresh` 的 `Immediate` = 同步执行一次**（不是排一个 0 延迟条目）；`ExtendDuration` **不钳到总时长** | "立即"的语义就是本次调用内发生，排 0 延迟会把它变成"下一泵点"（与语义不符）。延长上限在 D3-15 原文**未定**；若改为"钳到总时长"那是另一条决策，代码注释已标明改一处即可 |
 | 7 | **`EvaluateTotalDuration` 实时求值、不设"时值的参数键"** | `DurationTime` 是**时值字段**（不在 `Def.Params` 里）；把它塞进快照就要给时值编一个参数表键，而**键空间归宿主声明**（`gameplay-tag-governance`）。求值上下文与快照构建共用同一装配点（`FTcsStateOps::MakeContext`），故"时值与参数行不同档"的双口径不会出现 |
 | 8 | **宿主参数源插槽（R4.5-b）**：接口与转发器**同住一个头** `TcsCore/Public/Parameter/TcsParamSourceHost.h`；连带给基类补 `virtual ~FTcsParamValueSource() = default;` | 同族先例 `TcsParamSource_AttributeScaled.h` 把接口 / 派生上下文 / 源三者同处一文件——"同一机制的两半"拆开只多一跳。虚析构是**多态基类的正确性要求**：等级表两族源持 `TArray` / `TMap`（非平凡析构），非虚析构下"经基类指针删除"是未定义行为（`C4265` 正是这一点）。**两个虚函数都要转发**（漏能力位会让宿主源在白名单校验上拿到错误的默认位） |
+
+### 12.8 Task 4 落地口径（2026-10-04，R5）
+
+| # | 口径 | 依据 / 后果 |
+|---|---|---|
+| 1 | **物化求值的参数表 = 该实例的快照，经反射壳装进 `Ctx.ParamTable`（甲案）**——纯类本体 `FTcsStateParamTableReader` 不动（仍是查找语义的唯一实现），**另加薄壳** `UTcsStateParamTableReader`（只委托）+ 门面单例（`UPROPERTY` 持有）+ `FTcsStateSnapshotScope`（**RAII 栈式绑定**，嵌套按栈恢复） | **修订 §12.7 第 4 条的推论**（本体"不派生 `UObject`"仍成立，被推翻的是"因此物化器不需要反射壳"）。理由：物化求值要经**反射上下文**把快照交给参数源，而"读参数表"**已有反射契约**；为它另开一条纯 C++ 表通道会让"本次求值的参数表是哪张"出现**两个不一致的答案**（反射位说没有、旁路说有）。栈式绑定是为了让嵌套物化按栈恢复而不是互相覆盖（先例 = 属性管线的 `PushEvalStack` / `PopEvalStack`）。**被否方案**：乙案（Core 加纯 C++ 表端口 `ITcsNumericParamTable` + `EvaluateWithTable` 虚函数）、丙案（物化点自解析 `ParamRef`——ParamRef 语义出现第二份实现）。理由与取舍见 `LOG-DECISIONS` |
+| 2 | **物化器收"实例"而不是散字段**：`Materialize(Subsystem, Def, Instance, Out)` | `Unit` / `Instigator` / `Level` / `Source` / `ParamSnapshot` 全是实例已有信息（实例自持 `Unit` 正是为了免去"遍历桶找单位"）——多形参只会让"某处少填一个"成为可能，而**少填在源侧表现为静默落兜底**（最坏的一类错，因为不报错） |
+| 3 | **同一批内"摘旧 + 挂新"**（刷新路径）：`BeginBatch` → `RemoveBySource(来源)` → 逐条 `ApplyModifier` → `Commit` | 三条后果都要：① 多个修正器只触发**一次**重算 + 一次广播；② 订阅者看不到"摘了一半"的中间态；③ 逐条挂载若不批，重入窗口放大 N 倍。刷新不这么做就会出现"快照是新值、账本还是旧值"的静默不一致 |
+| 4 | **撤销顺序再前伸一步**：**摘除修正器 → 撤时间条目 → `Expiring` → 广播 → 归还槽位**；且**摘除 MUST 排在"取实例指针"之前** | §12.7 第 5 条把撤销顺序前伸到"先撤时间条目"；本条再前伸一步（属性面还清）。顺序中的"取指针之后"是硬约束：摘除的批提交会广播，订阅者可在其中重入状态操作 ⇒ 之后 MUST 重新定位桶与实例（既有守卫接住失效）。完整重入纪律见第 5 条 |
+| 5 | **重入纪律（本轮新增的一条通用纪律）**：**任何"可能广播"的调用之后，调用方手里的实例指针与桶引用都可能失效** ⇒ 施加/刷新路径在挂载提交后 MUST 重新定位实例与桶；重新定位后发现实例已不在册时 MUST **不再补播施加事件**（对已不在册的实例广播是错语义）+ Warning | 提交/广播会同步派发到订阅者（`PublishImmediate`），订阅者能改状态（移除本实例 / 注销单位）⇒ 那会让实例指针与桶引用双双失效，症状从"数值错"到"槽位复用后写坏别人的实例"都可能。本轮闭合了**自己引入的两处**；既有的"`Removed` 广播窗口内重入移除同一句柄"**未修**，入册台账 **`STAT-5`**（触发条件 = Task 6 起回调里能改状态的消费者出现） |
+| 6 | **属性访问解析点是"薄包装 + 白名单"**：`FTcsStateAttributeAccess`（住 `Private/State/TcsStateAttributeAccess.h`，实现体落 `Private/State/TcsStateOps_Modifier.cpp`——该文件是 TcsState 内**唯一** include 属性门面头处）；暴露面 = 语义面三个（`ApplyModifier` / `RemoveBySource` / `EvaluateCurrent`）+ **事务对** + **一个存在性判据** `IsLedgerReady` | Q-2 缓解①的落地：把"直接依赖属性门面"的影响面钉死在可替换的最小范围内（将来补注入契约只换这一处）。**上限用结构表达而不是靠记性**（不把门面指针交出去 ⇒ 越界在编译期不可达）。**事务对进上限**的理由见第 3 条；**存在性判据**的理由：状态与属性是**两套登记**（状态可施加到没有属性账本的单位上，合法），而账本侧 `BeginBatch` 对未注册单位会 **ensure** ⇒ 挂点先问一句，"没有可改的属性"按配置状态静默处理（`Log` 级、不留红字） |
+| 7 | **账本条目的 `Source` = 状态实例的来源句柄**（`FTcsStateInstance::Source`），刷新 MUST NOT 更换；模板行 → 账本条目的字段映射的唯一声明处 = `FTcsAttrModInstance::MakeFromDef(Row, Operand, Source)`（实现住 `TcsAttrModDef.h` 文件末——行类型在那里才完备；header-only `inline` ⇒ 不需要模块导出宏） | "**同一个状态实例 = 同一个来源**"是 Task 6 内联触发行退订要复用的同一条锚点（一次按来源摘除清掉该实例的**两族**条目）。字段映射放在**同时拥有两个形状**的模块里，上层只负责"求值 + 转规范值"，R6 技能侧物化复用同一处 |
+| 8 | **`TSoftObjectPtr` 取值顺序 = 先 `Get()`、未加载才 `LoadSynchronous()`** | 命中已加载对象时 MUST NOT 发加载请求；且该顺序使**装置瞬态模板**成为可行夹具（瞬态对象无资产路径，`LoadSynchronous()` 解不出）。GC 可达性由状态门面对登记表副本里 `TSoftObjectPtr` 的 ARO 承担 |
+| 9 | **"零红字"的准确读法 = 零*非预期*红字**：`Tcs.Test.Slice.Run` 固有 3 条预期 Warning（19f 未登记定义 ×1 / 20j 无限时值时长操作 ×2），装置头部 MUST 逐条列出预期红字与归属 | 本轮实测发现装置头部原写"红字都在 `.Reject`"与事实不符（会让复核者把预期当故障）。**验收报告引用"零红字"时 MUST 同时给出预期红字清单** |

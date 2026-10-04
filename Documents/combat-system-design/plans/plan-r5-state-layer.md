@@ -355,17 +355,25 @@
 
 **依赖**：Task 3（快照 = 物化输入）
 
-- [ ] **Step 1: 物化入口形状**——`FTcsStateModifierMaterializer::Materialize(const FTcsBuffDef& Def, const FTcsParamSnapshot& Snapshot, FTcsSourceHandle Source, FTcsCombatEntityHandle Target, TArray<FTcsAttrModInstance>& Out)`。
-  逐条流水：`ModifierRows` → 解析 `UTcsAttrModDef::Def`（`FTcsAttrModDefTableRow`）→ `FTcsAttrModOperandDef` 转运行侧 `FTcsAttrModOperand`（`Literal` 若为 `FTcsParamSource_ParamRef`，经 `FTcsStateParamTableReader` 从**快照**取值）→ `ValueConvention` 规范转换 → 填 `Source`（状态来源句柄）/ `OverridePriority` / `SortKey`。
-  **技术选型先例**：解析 `TSoftObjectPtr<UTcsAttrModDef>` 走 `LoadSynchronous()`（与定义库同步单出口一致；异步加载归 `INTEG-3`/R7）。
-- [ ] **Step 2: apply 挂点**——`ApplyState` 流程尾部（`OnStateApplied` **之前**）：物化 + 逐条 `UTcsAttributeSubsystem::ApplyModifier(Target, Instance)`；`BeginBatch`/`Commit` 包裹（M2 事务语义）。
-- [ ] **Step 3: remove 挂点**——`Remove/Expire` 流程头部：`UTcsAttributeSubsystem::RemoveBySource(Target, 状态来源句柄)`（**按来源级联摘除**，与触发行退订同一来源句柄）。
-- [ ] **Step 4: 属性访问解析点（Q-2 缓解①）**——新增 `Private/State/TcsAttributeAccess.h`：`FTcsAttributeAccess::Resolve(const UWorld*)` 一处集中取 `UTcsAttributeSubsystem`；**本轮允许触碰的属性 API 只有 `ApplyModifier` / `RemoveBySource` / `EvaluateCurrent` 三个**，头注释写明"将来补 `ITcsAttributeAccess` 注入契约时**只换这一处**"。
-- [ ] **Step 5: 编译 + 冒烟**——施加一个"减火抗"buff：M2 账本出现条目（`EvaluateCurrent` 观测到变化）→ 驱散后条目消失且**余量归位**（`RemoveBySource` 返回恰 1 条）。
+- [x] **Step 1: 物化入口形状**——**✅ 2026-10-04 落地，含一处签名订正**。实际签名 = `FTcsStateModifierMaterializer::Materialize(UTcsStateSubsystem& Subsystem, const FTcsBuffDef& Def, const FTcsStateInstance& Instance, TArray<FTcsAttrModInstance>& Out)`——**收实例而不是散字段**（计划原写的 `Snapshot` / `Source` / `Target` 三个形参在"实例自持 `Unit`/`Source`/`Level`/`ParamSnapshot`"之后全是冗余，且多形参只会让"某处少填一个"成为可能，而少填在源侧表现为**静默落兜底**而不是报错）；上下文经 `FTcsStateOps::MakeContext` **同一装配点**获得（与快照构建同源）。
+  逐条流水：`ModifierRows` → 解析 `UTcsAttrModDef`（`Get()` 优先、未加载才 `LoadSynchronous()`）→ `FTcsAttrModOperandDef` 转运行侧 `FTcsAttrModOperand`（`OPK_Literal` 经上下文求值；`Kind == OPK_AttributeScaled` **不物化**、原样过）→ `ValueConvention` 规范转换（能力位为假则不转）→ 经 `FTcsAttrModInstance::MakeFromDef` 装配（`Source` = 状态实例来源句柄）。
+- [x] **Step 2: apply 挂点**——`ApplyState` 流程里排在**快照构建之后、`Applied` 广播之前**：物化 + 逐条 `ApplyModifier`，外层 `BeginBatch` / 末尾 `Commit` 包裹（M2 事务语义：多条修正器 = 一次重算 + 一次广播）。**并加一处重入纪律**：提交会广播 ⇒ 之后 MUST 重新定位实例与桶（订阅者可在提交的广播里重入状态操作）。
+- [x] **Step 3: remove 挂点**——`Remove/Expire` 流程里 `RemoveBySource(Target, 实例来源句柄)`（**按来源级联摘除**，与将来的触发行退订同一来源句柄），**批内提交**；顺序 = **摘除 → 撤时间条目 → `Expiring` → 广播 → 归还槽位**，且摘除**排在"取实例指针"之前**（理由同 Step 2 的重入纪律；既有守卫天然接住重入造成的失效）。
+- [x] **Step 4: 属性访问解析点（Q-2 缓解①）**——实际文件 = `Private/State/TcsStateAttributeAccess.h`（**改名以避让 Task 6 的同名头**：UHT 要求全项目头文件名唯一，计划原文与 Task 6 计划项都写作 `TcsAttributeAccess.h`）；实现体落 `Private/State/TcsStateOps_Modifier.cpp`（该文件是 TcsState 内**唯一** include 属性门面头的地方）。本类的形状即纪律：**薄包装**（暴露面 = 白名单方法，不把门面指针交出去），本轮暴露 `ApplyModifier` / `RemoveBySource` / `BeginBatch` / `Commit` + 一个存在性判据 `IsLedgerReady`（只答"账本认不认识这个单位"）；头注释写明"将来补 `ITcsAttributeAccess` 注入契约时**只换这一处**"。
+- [x] **Step 5: 编译 + 冒烟**——**两半均 ✅ 2026-10-04**。**编译半边**：Development Editor 与 Game Shipping **双配置 `Result: Succeeded`**、日志零 error 零 warning。**冒烟半边**：装置扩**检查 21a–21h**（常规命令）+ **检查 J**（拒绝面），PIE 实测 `Tcs.Test.Slice.Run` **即时 40/0 + 延迟累计 47/0**、`Tcs.Test.Slice.Reject` **10/0**；读数 = 账本条目 `0→1`（两属性各一条）/ 护甲 `5→-15`（快照 `-20`，兜底 `-999` 未被取用）/ 攻击 `30→30.5`（写 50 的百分比约定）/ 定序"属性变更 37 < `Applied` 38" / 刷新后条目仍 `1/1` 且值随覆盖 `-35` / 移除后条目 `0/0` 且两值归位。证据 = `EVID-2026-10-04-state-modifier-materialization`（双区段哈希 + 复算脚本 + 十条边界 + 一处装置缺陷留痕）。
 
-**验收信号**：**属性数值前后可观测**（两条观测面：`EvaluateCurrent` 读数 + `FTcsAttributeChangedEvent` 广播）。
+**验收信号**：**属性数值前后可观测**（两条观测面：`EvaluateCurrent` 读数 + `FTcsAttributeChangedEvent` 广播）——✅ 两半都实测：`EvaluateCurrent` 前后可分辨（21b/21c/21e/21f），属性变更广播到达且**早于** `Applied`（21d 的定序读数）。
 
 **非目标**：技能参数行分派（R5.5-f）；关系表检查器（R5.5-e）；参数链式聚合（R6）。
+
+> **Task 4 落地结果（2026-10-04 / 归档于 2026-10-05 零点后）**：Step 1–5 **全勾**；提案 `add-modifier-materialization` 归档为 `2026-10-05-add-modifier-materialization`（**新能力 `state-modifier-materialization` ×7 ADDED** + `state-param-snapshot` ×1 MODIFIED），`openspec validate --all --strict --no-interactive` = **30 passed / 0 failed**、`changes/` 零活动提案。
+> - **验收读数**：双配置编译**零 warning / 零 error**；`Tcs.Test.Slice.Run` **即时 40/0 + 延迟累计 47/0**（新增 21a–21h）、`Tcs.Test.Slice.Reject` **10/0**（新增 J）。证据 = `EVID-2026-10-04-state-modifier-materialization`（双区段哈希 `5dedd64b…` / `eeb895d5…`、复算脚本、**十条边界**、一处装置缺陷留痕）。
+> - **一处裁定修订（重要，替代 Task 3 的推论文本）**：Task 3 裁定"读取适配器是纯 C++ 类、**不造 UObject 壳**"，理由是"唯一消费方是 C++ 直调"。本轮落地时该**推论**被推翻——物化求值要经**反射上下文**把"该实例的快照"交给参数源，而"读参数表"这件事**已有反射契约**（`FTcsParamEvaluateContext::ParamTable`）；若为它另开一条纯 C++ 表通道，同一问题（"本次求值的参数表是哪张"）会出现两个不一致的答案。故按甲案落地：**纯类本体不动**（仍是查找语义的唯一实现），**另加薄壳** `UTcsStateParamTableReader`（只委托）+ 门面单例 + `FTcsStateSnapshotScope`（**RAII 栈式绑定**，嵌套按栈恢复）。判据链与两条被否方案见 `LOG-DECISIONS`。
+> - **四处对计划文本的订正（逐条留痕）**：① `Materialize` 签名**收实例**而非散字段（`Snapshot`/`Source`/`Target` 三形参在实例自持后冗余，且多形参让"少填一个"成为可能——少填在源侧表现为静默落兜底）；② 属性访问解析点文件名改 `Private/State/TcsStateAttributeAccess.h`（计划原文与 Task 6 计划项同名，撞 UHT"全项目头文件名唯一"）；③ 允许触碰的属性 API 上限从"三个"改述为"**语义面三个 + 事务对（`BeginBatch`/`Commit`）+ 一个存在性判据（`IsLedgerReady`）**"——计划 Step 2 要求批包裹而 Step 4 只许三个，是自相矛盾，以"能站住的纪律"为准；④ 解析点实现体落 `Private/State/TcsStateOps_Modifier.cpp`（该文件是 TcsState 内唯一 include 属性门面头处，越界在编译期就不可达）。
+> - **一处交付物面收缩**：反射壳与纯类本体**同住一个头**（`Public/State/TcsStateParamTableReader.h`，同族先例 = R4.5-b 的接口 + 转发器同头），未新开文件。
+> - **一处装置缺陷（已修，留痕）**：21h 首版夹具用"真造单位 + 手动注销属性账本"构造"无账本单位"，导致拆除时组件 `EndPlay` 二次注销而 **ensure** ⇒ 判据 = **夹具的形状自己造出红字，与被测机制无关**；改用"从未注册的句柄"。含缺陷那一轮的区段哈希记进证据 §4.1（**不作验收锚点**）。
+> - **一处口径订正（影响后续所有轮）**：`Run` 命令**本来就不是字面"零红字"**（19f、20j 是故意红字，本轮实测恰 3 条 Warning）⇒ "零红字"的准确读法是"**零非预期红字**"，且装置头部 MUST 逐条列出预期红字与归属（本轮已改装置两处头部文案并重编重跑，使日志区段与源码严格一致）。
+> - **两条边界入册台账**：`ATTR-1`（修正器模板身份词 `TemplateTag` 的根归属未定——`ModifierRows` 走资产直引用，该词零解析消费者）、`STAT-5`（**状态移除的广播窗口内重入移除同一句柄 ⇒ 双次归还槽位**——既有窗口，本轮只闭合了自己引入的两处）。
 
 ---
 
