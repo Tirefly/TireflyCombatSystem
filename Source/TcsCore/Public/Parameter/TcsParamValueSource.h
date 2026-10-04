@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "UObject/Interface.h"
+#include "Handle/TcsCombatEntityHandle.h"
 #include "Parameter/TcsParamTableReader.h"
 #include "TcsParamValueSource.generated.h"
 
@@ -12,7 +13,8 @@
 /**
  * 参数求值上下文（PV-1）：参数源求值时的最小数据面，零领域词汇。
  * MUST 反射可见（宿主脚本扩展通道）——禁止 TFunction/std::function 等不可反射成员；
- * 领域扩展 = 结构体继承 + 源内 checked cast（PV-1）；Subject 句柄/级别位字段随 M2/M5 轮补齐。
+ * 领域扩展 = 结构体继承 + 源内 checked cast（PV-1）；Subject 句柄/级别位字段随 TcsState 等级源同批
+ * 补齐（2026-10-04 已补齐——原文"M2/M5 轮补齐"系 M2 收束前的排期，已过期）。
  */
 USTRUCT(BlueprintType)
 struct TCSCORE_API FTcsParamEvaluateContext
@@ -46,6 +48,21 @@ public:
 	// 参数表只读访问接口（可空——空时 ParamRef 源落 Fallback）
 	UPROPERTY(BlueprintReadWrite, Category = "Param Evaluate")
 	TScriptInterface<ITcsParamTableReader> ParamTable;
+
+#pragma endregion
+
+
+// 主体与等级（2026-10-04 随 TcsState 等级源同批补齐）
+#pragma region Subject
+
+public:
+	// 被施加方实体（状态/技能实例所依附的单位；0 = 无效）
+	UPROPERTY(BlueprintReadWrite, Category = "Param Evaluate")
+	FTcsCombatEntityHandle Subject;
+
+	// 生效等级（0 = 无等级语义）
+	UPROPERTY(BlueprintReadWrite, Category = "Param Evaluate")
+	int32 EffectiveLevel = 0;
 
 #pragma endregion
 };
