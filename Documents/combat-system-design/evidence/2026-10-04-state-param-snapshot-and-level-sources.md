@@ -60,7 +60,7 @@
 
 | 类别 | 条数 | 归属 |
 |---|---|---|
-| `Warning: 状态时值非正：按 0 处理` | 4 | **内容侧**：验收资产 `DA_Check_BuffDef` 的 `DurationPolicy = Finite` 而 `DurationTime` 求值为 0（见 §5 边界④）——Task 3 新引入的读数，**非机制缺陷** |
+| `Warning: 状态时值非正：按 0 处理` | 4 | **内容侧**：验收资产 `DA_Check_BuffDef` 的 `DurationPolicy = Finite` 而 `DurationTime` 求值为 0——**已于当晚改掉**（见 §5 边界④：时值改为 3600），本节读数取自改前的构建，故仍含这 4 条 |
 | `Warning: 状态施加被拒：定义未在本世界登记（TcsEvent.State.Periodic）` | 1 | 检查 19f 的**预期**拒绝日志（探针词 = 原生事件 tag） |
 | `Warning: 时长操作被拒：无限时值无到期条目可调` | 2 | 检查 20j 的**预期**拒绝日志 |
 
@@ -111,13 +111,21 @@ $sha    = [Security.Cryptography.SHA256]::Create()
 
 ③ **`DurationTime` 的等级表未在内容侧验证**：`20b` 验的是**装置手搓定义**上的四条等级路；真实资产 `DA_Check_BuffDef` 的参数行里**等级类源 0 行**（装置观测行 `20l` 如实记录）——"机制已验、真实资产待配置"。
 
-④ **验收资产 `DA_Check_BuffDef` 的 `DurationTime` 求值为 0**（`DurationPolicy = Finite`）：因此它落"时值非正 ⇒ 按 0 处理"的 Warning，且该状态**在下一个泵点即到期**。本轮的全部状态面检查都建立在这一事实上（它们不读该状态的剩余时长），故**未覆盖**"Finite 且时值 > 0 的真实资产"。修法（Task 4 或内容侧）：给该资产配一个明确的 `DurationTime`。
+④ **验收资产的 `DurationTime` 已从 0 改为 3600**（2026-10-04 当晚补，走编辑器侧资产通道：`get_properties` 读 → `set_properties` 整块回写 → 回读一致 → `save_assets` 落盘）：原先它是 `Finite` 而时值求值为 0 ⇒ 每轮 `Run` 落 4 条"状态时值非正 ⇒ 按 0 处理"的 Warning、且该状态**在下一个泵点即到期**。台账 `Task-3-1` 据此关闭。**仍然未覆盖**："Finite 且时值在测试窗口内真的到期"这一路径（3600 秒是刻意取的长值，它让状态在测试期内**不会**到期）。
 
 ⑤ **`PeriodRefresh` 三态只验了 `Keep`**：探针定义配的是 `EPR_Keep`（`Reset` / `Immediate` 无内容覆盖）。
 
 ⑥ **`StackPolicy` / 关系字段 / `Cancelled` 档零覆盖**：分别归 Task 5 / R5.5-e，本轮的快照与时间条目只跑"组键 = 同单位 + 同 `DefTag`"这一暂用判据。
 
-⑦ **R4.5-b（宿主参数源插槽）只到静态面**：接口与转发器已编译进双配置、glue 产物已核（`ITcsParamSourceHost` 两个方法生成真实方法体：`CallGetNativeFunctionFromClassAndName` + 参数偏移；`FTcsParamSource_HostDelegate.Host` 双向 marshaller），**C# 侧实现实测未做**（需要宿主脚本夹具；探针 MUST 复用 `TcsDevGcFixtures` 那套，不得重写）。
+⑦ **R4.5-b（宿主参数源插槽）：静态面 + **行为面**双证（2026-10-04 当晚补齐）**；仍然未覆盖的面见下。
+- **静态面**：接口与转发器已编译进双配置；glue 产物已核（`ITcsParamSourceHost` 两个方法生成真实方法体：`CallGetNativeFunctionFromClassAndName` + 参数偏移；`FTcsParamSource_HostDelegate.Host` 双向 marshaller）。
+- **行为面**（`Tcs.Test.Gc.Arm` → `obj gc` → `Tcs.Test.Gc.Verify`，宿主脚本夹具 `UTcsDevGcParamSourceHost`，**复用既有探针、未重写**）：
+  - `已登记被测脚本对象 5 个`（原 4 + 参数源槽位）；
+  - `槽位 参数源槽位（UTcsDevGcParamSourceHost）：存活`（**真实原生 GC 之后仍被登记表的反射引用保活**）；
+  - **参数源真的抵达了 C#**：装置日志两行 `**C# 公式被调用** call=1 incoming=25` → `call=2 incoming=13`（GC 后同款 `call=3 / call=4`）——`incoming=13` 只可能来自脚本参数源（链配置是 25、空 Host 守卫是 0）；
+  - `[PASS] 基线：… 扣血 14（预期 14 = 每发 7 × 2 发）/ 脚本流程步骤调用 4（预期 4）`、`[PASS] 正例通过：脚本对象在真实原生 GC 后仍存活，且各槽位行为与调用计数符合基线`。
+- **一处实施期判据订正（值得留档）**：我第一版把"扣量"当成参数源槽位的判据，写成"公式 7 + 参数源 13 = 20"，实测当场翻车（实际 14）——根因是**两发 Damage 走同一个流程模板**，模板里的 C# 公式把 `incomingBase` 一律覆写成 7 ⇒ **扣量读不出两发的区别**。正确落点 = **调用参数**（`call=2 incoming=13`）而不是结果值。判据由此改挂到"公式那一行的入参"，并给公式补了调用序号。
+- **仍未覆盖**：①`AllowsValueConvention` 的脚本覆写**无行为证据**（夹具返回 true 与默认一致；要验它得让宿主源返回 false 再看白名单校验是否报错）；②宿主源**未参与状态参数行的快照构建**（本轮它只出现在链步骤数值上）；③其他脚本语言（AS/Luau/TS）未验（`SCRIPT-8` 的同款边界）。
 
 ⑧ **`InstigatorLevel*` 两型只验了数组型**：`20b` 走的是 `FTcsParamSource_InstigatorLevelArray`；`_Map` 型无行为证据（同族代码路径，风险低但不外推）。
 
