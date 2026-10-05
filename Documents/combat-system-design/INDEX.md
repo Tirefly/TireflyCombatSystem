@@ -4,13 +4,13 @@
 - **类型**：治理（入口索引）
 - **状态**：生效中（2026-09-29 建立，取代原 `README.md` 的"文档清单"职能）
 - **权威范围**：本文回答"**该读哪一篇**"。编号含义见 `GLOSSARY.md`；写法纪律见 `docs-convention.md`；逐条拍板流水见 `LOG-DECISIONS`。
-- **最后更新**：2026-10-04（R5 Task 4 落地：修正器物化）
+- **最后更新**：2026-10-05（R5 Task 5 落地：五轴堆叠与刷新政策）
 
 ---
 
 ## 1. 现状一句话
 
-TCS 战斗系统设计已完成 **M0–M9 全部决策拍板**，实施 **R4 轮已收束**（触发行与伤害修改器通道），下一步 = **R5 轮（M3 状态层，`TcsState`）**（Task 0 前置契约、Task 1 模块 + Def 资产族、Task 2 实例与生命周期、Task 3 参数快照与时间语义、**Task 4 修正器物化**已于 2026-10-04 落地；下一步 = Task 5 五轴堆叠）：
+TCS 战斗系统设计已完成 **M0–M9 全部决策拍板**，实施 **R4 轮已收束**（触发行与伤害修改器通道），下一步 = **R5 轮（M3 状态层，`TcsState`）**（Task 0 前置契约、Task 1 模块 + Def 资产族、Task 2 实例与生命周期、Task 3 参数快照与时间语义、**Task 4 修正器物化**已于 2026-10-04 落地、**Task 5 五轴堆叠与刷新政策**已于 2026-10-05 落地；下一步 = Task 6 链原语与行为面接线）：
 
 - **R1/R2/R3 已完成**（核心 + 属性 + 六模块竖切，7 项人工检查点全通过）；
 - **R4 已完成（2026-10-04）**——七个 Task（1 / 2 / 2.5 / 3 / 3.5 / 4 / 5）全部完成：触发行三段（数据形状 → 登记表与四道门求值器 → 独立资产载体 `UTcsEffectTriggerDefAsset` 与定义库装配）+ **伤害修改器唯一通道（D7-6）端到端**（破甲 `30 → 15`）+ 四个链原语（`SetVar` / `Branch` / `RunSubChain` / `WaitEvent`）与 P-A 目标排序相位。**四份证据**：`EVID-2026-10-04-trigger-def-asset` / `EVID-2026-10-04-chains-primitives` / `EVID-2026-10-04-modifier-channel` / `EVID-2026-09-30-modifyflow-acceptance`；`openspec validate --all --strict` = **26 passed / 0 failed**、`openspec/changes/` **零活动提案**。**唯一留白** = Task 3.5 的 `tasks.md` 6.6 三条降级路径（归 M5）；
@@ -20,6 +20,7 @@ TCS 战斗系统设计已完成 **M0–M9 全部决策拍板**，实施 **R4 轮
   - **Task 2 验收已过**——`Tcs.Test.Slice.Run` 即时 **26/0**（新增检查 19a–19f）+ 延迟 7b PASS、区间零红字；`Tcs.Test.Slice.Reject` **7/7**（新增状态面 E/F/G）；证据 `EVID-2026-10-04-state-instance-lifecycle`。
   - **Task 3 验收已过（2026-10-04）**——数值与时间两条腿落地：**参数快照**（`FTcsParamSnapshot` + 值约定在写入点转规范值 + 纯 C++ 读取适配器）/ **四个等级源 + 宿主实体等级读口**（`ITcsEntityLevelProvider` + 派生上下文 `FTcsStateEvaluateContext`）/ **Duration-Period 到期堆**（重复到期条目 + `PeriodRefresh` 三态 + 时长操作堆同步）/ **R4.5-b 宿主参数源插槽**（`ITcsParamSourceHost` + `FTcsParamSource_HostDelegate`）。读数 = `Tcs.Test.Slice.Run` 即时 **32/0** + 延迟段 **39/0**（新增 `20a`–`20l`）、`Tcs.Test.Slice.Reject` **9/0**（新增 H/I）、双配置编译零 warning 零 error；证据 `EVID-2026-10-04-state-param-snapshot-and-level-sources`。
   - **Task 4 验收已过（2026-10-04）**——**状态第一次真的改得动数值**（D3-19 修正器物化）：`ModifierRows` 模板 → M2 账本条目（`Source` = 实例来源句柄）、模板里的引用类操作数**从该实例自己的快照取值**（经新增的**反射壳 + RAII 栈式绑定**把快照装进 `Ctx.ParamTable`）、施加/刷新**同批内**挂载且排在生命周期广播之前、移除/到期**按同一来源一次摘净**。读数 = `Tcs.Test.Slice.Run` 即时 **40/0** + 延迟段累计 **47/0**（新增 `21a`–`21h`）、`Tcs.Test.Slice.Reject` **10/0**（新增 J）、双配置编译零 warning 零 error；关键读点 = 护甲 `5.000 → -15.000`（快照 `-20`，模板兜底 `-999` **未被取用**）与定序读数"属性变更 **37** < `Applied` **38**"；证据 `EVID-2026-10-04-state-modifier-materialization`。**下一步 = Task 5（五轴堆叠与刷新政策）**。
+  - **Task 5 验收已过（2026-10-05）**——**同一 buff 的重复施加首次有确定语义**（五轴堆叠与刷新政策）：组键三态（不分组 / 按来源 / 按发起者）+ Custom 逃逸位、`MaxStacks` 与溢出两档、数值叠加（取最大 / 累加）、时长刷新（不动 / 回满额）；`EApplyResult` **四档全部实测可达**、`TcsEvent.State.StackChanged` **首次有真实广播**（叠层路径，且定序早于 `Refreshed`）；宿主自定义决策 Fragment 被真实调用（样本恒不同组 ⇒ 每次新建）。读数 = `Tcs.Test.Slice.Run` 即时 **53/0** + 延迟累计 **60/0**（新增 `22a`–`22m`）、`Tcs.Test.Slice.Reject` **11/0**（新增 `K`）；证据 `EVID-2026-10-05-state-stacking-policies`（双区段哈希 `0841f12a…` / `dc3917a9…`）。**同轮修掉一处实现缺陷**：`ScheduleTime` 刷新恒回满额 ⇒ `ESD_None`（不动时长）那一档此前**在实现上从未存在**。
   - **R6–R8 未开工**（技能层 → 集成层 → 表现与编辑器工具）。
 
 > **最容易误判的一条**：原 `README.md` 里 plan3 的状态写着"待执行 / 5 Task"，**那是过期信息**（README 已于 2026-09-29 拆分为导航页，内容迁入 `log/`）——plan3 的 Task 1/2 已完成、R4 已扩容为 7 个 Task、并已于 2026-10-04 **全轮收束**。以本文 §1 与 `PLN-R4` 为准。
@@ -152,7 +153,7 @@ combat-system-design/
 
 | ID | 内容 | 规模 |
 |---|---|---|
-| `LEDGER-deferred` | 跨轮遗留输入台账（**唯一待办登记册**）：按轮次分组的 53 条 + 变更记录 | 53 条 |
+| `LEDGER-deferred` | 跨轮遗留输入台账（**唯一待办登记册**）：按轮次分组的 56 条 + 变更记录 | 56 条 |
 | `LEDGER-reflection` | 反射未解决项（`R-1`~`R-6`）+ 逐项专项调研登记册 | 6 项 |
 | `LEDGER-terminology` | 「反射」术语规约（一词五义的唯一处方措辞）——**写含"反射"的文本前 MUST 通读** | — |
 
@@ -181,6 +182,8 @@ combat-system-design/
 | `EVID-2026-10-04-state-instance-lifecycle` | **R5 Task 2 验收（实例 / per-unit 桶 / 门面 / 生命周期事件）**：`Tcs.Test.Slice.Run` 即时 **26/0**（新增检查 **19a–19f**）+ 延迟 7b PASS、区间零红字；`Tcs.Test.Slice.Reject` **7/7**（新增状态面 **E/F/G**，其中 G = 悬空句柄在槽位复用后**既被拒又不误伤**）；**关键读点 = 订阅者回调行早于广播者的"状态施加"行**（"广播早于释放槽位"的可观测证据）；**定义逐世界登记**由启动期装配行 `状态定义 1/1 条` 独立佐证；含七条边界与一条跨文档口径更新（Task 1 的"不做世界装配"读数两步读法） | R5 Task 2 Step 5 验收（`PLN-R5`）；规格面 = 提案 `add-state-instance-lifecycle`（`state-instance-lifecycle` ADDED ×7 + `integration-entity` MODIFIED） |
 | `EVID-2026-10-04-state-param-snapshot-and-level-sources` | **R5 Task 3 验收（参数快照 / 等级源 / Duration-Period 到期堆 / R4.5-b 宿主插槽）**：`Tcs.Test.Slice.Run` 即时 **32/0** + 延迟段 **39/0**（新增 `20a`–`20l`）、`Tcs.Test.Slice.Reject` **9/0**（新增 H/I）；**关键读点 = `20b` 两条等级路取到不同的档**（被施加方 1 级 ⇒ 10.0 / 发起者 2 级 ⇒ 200.0，证明来源没被混成一个）与 **`20l` 窗口内"周期 4→4、到期 1→1"**（到期后周期回调停止的自证采样点）；含**四类装置缺陷的判据沉淀**（探针词静默无效 / 漏施加探针致假通过 / `ForEachState` 未按定义过滤 / 定时器绑 Actor + 采样延时拿世界时钟反算）与九条边界 | R5 Task 3 Step 7 验收（`PLN-R5`）；规格面 = 提案 `add-state-param-snapshot-and-level-sources`（`state-param-snapshot` 新能力 ×6 + `state-instance-lifecycle` ×3 + `state-def-asset` ×1）与 `add-param-source-host-slot`（`param-value` ×2） |
 | `EVID-2026-10-04-state-modifier-materialization` | **R5 Task 4 验收（修正器物化 D3-19）**：`Tcs.Test.Slice.Run` 即时 **40/0** + 延迟段累计 **47/0**（新增 `21a`–`21h`）、`Tcs.Test.Slice.Reject` **10/0**（新增 J）；**关键读点 = 引用类操作数从快照取值**（护甲 `5.000 → -15.000` = 基础值 + 快照 `-20`，模板兜底 `-999` **未被取用**）与 **定序读数"属性变更 37 < `Applied` 38"**（计数只能证"都到了"，定序才证"谁先到"）；含**一处装置缺陷留痕**（夹具自造 ensure：真造单位 + 手动注销账本 ⇒ 拆除时二次注销）、**一条验收措辞订正**（"零红字" = 零**非预期**红字；`Run` 固有 3 条预期 Warning）与十条边界 | R5 Task 4 Step 5 验收（`PLN-R5`）；规格面 = 提案 `add-modifier-materialization`（新能力 `state-modifier-materialization` ×7 + `state-param-snapshot` ×1 MODIFIED） |
+
+| `EVID-2026-10-05-state-stacking-policies` | **R5 Task 5 验收（五轴堆叠与刷新政策）**：`Tcs.Test.Slice.Run` 即时 **53/0** + 延迟段累计 **60/0**（新增 `22a`–`22m`）、`Tcs.Test.Slice.Reject` **11/0**（新增 `K`）；四档回执全可达 / `StackChanged` 首次广播且先于 `Refreshed` / `AddValues` 账本读数成倍（5→15→25）/ 满仓替换换句柄 / 时长两档可分（8.000 vs 3.000）/ 宿主决策样本被真实调用；双区段哈希 + 复算脚本 + **十二条边界** | Task 5 验收锚点 |
 
 ### 4.7 治理（`GOV`）
 

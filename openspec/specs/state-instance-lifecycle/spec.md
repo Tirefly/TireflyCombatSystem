@@ -106,7 +106,7 @@ TcsState MUST 提供 `UTcsStateSubsystem : UWorldSubsystem`，**仅在 Game / PI
 
 `ApplyState` 与 `RemoveState` / `GetState` 一类**本轮 MUST NOT 加 `UFUNCTION`**（句柄与 `TMap` 形参今天不可反射；脚本面整体留 `SCRIPT` 系列，登记台账）。
 
-**返回值语义**：`EApplyResult{ Applied / Refreshed / Stacked / Rejected }`——本轮真实可达 `Applied` / `Refreshed` / `Rejected`；`Stacked` 归 Task 5（五轴堆叠），**拒绝原因的具名细分**归 R5.5-e（本轮只有 `Rejected` 一档 + 日志）。
+**返回值语义**：`EApplyResult{ Applied / Refreshed / Stacked / Rejected }`——四档 MUST 全部可达，判据归 `state-stacking-policies` 能力（无同组实例 ⇒ `Applied`；同组**同来源**未满仓 ⇒ `Refreshed`；同组**异来源**未满仓 ⇒ `Stacked`；满仓 ⇒ `Rejected` 或替换后 `Applied`）；**拒绝原因的具名细分**仍归 R5.5-e（今天只有 `Rejected` 一档 + 日志）。
 
 #### Scenario: 非游戏世界不创建
 
@@ -147,6 +147,11 @@ TcsState MUST 提供 `UTcsStateSubsystem : UWorldSubsystem`，**仅在 Game / PI
 
 - **WHEN** 未注入 `ITcsEntityLevelProvider` 时查询 `GetEntityLevelProvider`
 - **THEN** 返回空（配置状态），门面不留红字
+
+#### Scenario: 四档回执全部可达
+
+- **WHEN** 依次走"建新实例 / 同来源重复施加 / 异来源重复施加 / 满仓拒绝"四类施加
+- **THEN** 四类分别返回 `Applied` / `Refreshed` / `Stacked` / `Rejected`（四档均非死档）
 
 ### Requirement: 状态定义到运行态的登记口
 
@@ -202,9 +207,9 @@ TcsState MUST 原生声明六枚框架事件 tag（`UE_DECLARE_GAMEPLAY_TAG_EXTE
 
 ### Requirement: 广播点与阶段迁移
 
-**施加的共存结果 MUST 恰好广播一枚事件**：无同组成活实例 ⇒ `TcsEvent.State.Applied`；命中同组 ⇒ `TcsEvent.State.Refreshed`（层数变化时另有 `StackChanged`）。`ExpireState` ⇒ `Expired`（`Cause = Expired`）、`RemoveState` ⇒ `Removed`（`Cause` 由调用方给）。**周期到点**另有 `TcsEvent.State.Periodic`（周期条目的重复回调，载荷带当前 `Stacks` 与 `Level`）——它是**追加**语义，不替代任一生命周期事件。
+**施加的共存结果 MUST 恰好广播一枚生命周期事件**（`Applied` / `Refreshed` 二者之一；替换路径是"旧实例被移除 + 新实例被建出"两笔，不属于"同一条实例的共存结果"）：无同组实例 ⇒ `TcsEvent.State.Applied`；命中同组 ⇒ `TcsEvent.State.Refreshed`，层数变化时另有 `TcsEvent.State.StackChanged`。`ExpireState` ⇒ `Expired`（`Cause = Expired`）、`RemoveState` ⇒ `Removed`（`Cause` 由调用方给）。**周期到点**另有 `TcsEvent.State.Periodic`（周期条目的重复回调，载荷带当前 `Stacks` 与 `Level`）——它是**追加**语义，不替代任一生命周期事件。
 
-**本轮的"同组"判据 = 同单位 + 同 `DefTag`**（`GroupBy = None` 的语义）——它是 **Task 5 五轴共存决策的暂用位**，Task 5 MUST 在原处替换为策略驱动而不改变事件面。
+**"同组"判据归 `state-stacking-policies` 能力**（组键 = `单位 + DefTag` + 轴附加项）——本能力只保证**共存结果与广播的对应关系**：新建 ⇒ `Applied`；同来源刷新 ⇒ `Refreshed`；异来源叠层 ⇒ `StackChanged` + `Refreshed`（前者先到）；替换 ⇒ `Removed`（旧）+ `Applied`（新）；满仓拒绝 ⇒ 无广播。事件面 MUST NOT 因策略不同而增减（除上述对应关系外）。
 
 **阶段机**：`EStatePhase{ Inactive / Active / Expiring }`，合法迁移 `Inactive → Active`（施加成功）、`Active → Expiring`（进入移除流程）、`Expiring → Inactive`（槽位释放）；**非法迁移 = `ensure`**（配置错误语义，与脏句柄的竞态口径分开）。
 
@@ -219,7 +224,7 @@ TcsState MUST 原生声明六枚框架事件 tag（`UE_DECLARE_GAMEPLAY_TAG_EXTE
 
 #### Scenario: 重复施加广播 Refreshed 而非 Applied
 
-- **WHEN** 对同一单位以同一 `DefTag` 连续施加两次
+- **WHEN** 对同一单位以同一 `DefTag` **与同一来源句柄**连续施加两次
 - **THEN** 第二笔广播的是 `TcsEvent.State.Refreshed`（`ApplyState` 返回 `Refreshed`），`Applied` 只收到一笔
 
 #### Scenario: 移除广播 Removed 且原因可读

@@ -9,6 +9,7 @@
 #include "State/TcsStateInstance.h"
 #include "State/TcsStateOps.h"
 #include "State/TcsStateParamTableReader.h"
+#include "State/TcsStateStackPolicy.h"
 #include "TcsStateLogChannel.h"
 #include "TcsStateSubsystem.h"
 #include "TcsValueConvention.h"
@@ -80,6 +81,26 @@ void FTcsStateModifierMaterializer::Materialize(
 			Operand.Literal = bAllowConvention
 				? FTcsValueConvention::ConvertToCanonical(RawValue, static_cast<int32>(Template.ValueConvention))
 				: RawValue;
+		}
+
+		// ⑤ 数值叠加轴（D3-4 的 `ValueStack`，R5 Task 5）：`AddValues` 在**物化边界**把值按层数成倍。
+		//
+		// 为什么放在这里而不是调用方：物化边界是"值"这件事的唯一收口处（值约定的转换也在这里），
+		// 且本函数的每次调用都是**从模板重算**（`Out.Reset()` + 逐行重建）⇒ 乘层数不会自我累积、
+		// 条数也不随层数变。层数由调用方**先写入实例**再调本函数（顺序是硬约束：层数后落会让
+		// 本次叠层的数值停在旧层数）。
+		if (Def.StackPolicy.ValueStack == EValueStackPolicy::EVS_AddValues && Instance.Stacks > 1)
+		{
+			if (Operand.Kind == ETcsOperandKind::OPK_Literal)
+			{
+				Operand.Literal *= static_cast<double>(Instance.Stacks);
+			}
+			else
+			{
+				// 属性换算形态的"值" = `Coefficient × Current(Attribute)`（live 求值）⇒ 按系数成倍，
+				// 账本条目仍是同一条（不物化那句纪律不变）
+				Operand.Coefficient *= static_cast<double>(Instance.Stacks);
+			}
 		}
 
 		// ④ 装配（字段映射的唯一声明处；`Source` = 状态实例的来源句柄 ⇒ 一次级联摘除全清）

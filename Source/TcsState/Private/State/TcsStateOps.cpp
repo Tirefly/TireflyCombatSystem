@@ -5,6 +5,7 @@
 #include "Def/TcsBuffDef.h"
 #include "EventBus/TcsEventBusSubsystem.h"
 #include "State/TcsStateEvents.h"
+#include "State/TcsStateStackFragment.h"
 #include "TcsStateLogChannel.h"
 #include "TcsStateSubsystem.h"
 
@@ -35,74 +36,66 @@ EApplyResult FTcsStateOps::Apply(
 		return EApplyResult::EAR_Rejected;
 	}
 
-	FStateBucket& Bucket = Subsystem.Registry.FindOrAddBucket(Target);
+	// 组键与共存决策（**策略驱动**——R5 Task 5 落地，原"同单位 + 同 `DefTag` 即刷新"的暂用判据已替换）：
+	// 组键 = `(单位, DefTag)` + 轴附加项，命中后按容量与溢出政策决定刷新 / 叠层 / 替换 / 拒绝。
+	// 决策与后续更新流水住 `TcsStateOps_Stack.cpp`；本函数只做校验、决策分派与"新建"一支。
+	FStateBucket* Bucket = &Subsystem.Registry.FindOrAddBucket(Target);
 
-	// 本轮共存判据 = 同单位 + 同 DefTag（`GroupBy = None` 语义）。
-	// **这里是 R5 Task 5 五轴共存决策的替换点**：Task 5 换成"组键 + 上限 + 溢出 + 数值叠加 + 时长刷新"
-	// 的确定性决策，事件面与返回值语义不变。两段式（先收句柄再动）——`ForEach` 期间不得增删实例。
-	FTcsStateHandle ExistingHandle;
-	Bucket.ForEach([&DefTag, &ExistingHandle](const FTcsStateInstance& Instance)
+	FTcsStateStackRequest StackRequest;
+	StackRequest.DefTag = DefTag;
+	StackRequest.Unit = Target;
+	StackRequest.Source = Source;
+	StackRequest.Instigator = Instigator.IsValid() ? Instigator : Target;
+
+	const FTcsStateStackDecision Decision = ResolveStackDecision(StackRequest, *Bucket, Def->StackPolicy);
+	const FTcsStateHandle MemberHandle = Decision.ExistingHandle;
+
+	// 满仓拒绝 / 自定义不接受：**业务结果不是错误**（`Log` 而非 `Warning`；实例不动、无任何广播）
+	if (Decision.Kind == ETcsStateStackDecisionKind::Reject)
 	{
-		if (Instance.DefTag == DefTag)
+		const FTcsStateInstance* Member = Bucket->Find(MemberHandle);
+		UE_LOG(LogTcsState, Log, TEXT("状态施加被共存策略拒绝：单位=%lld 定义=%s 组内层数=%d 层数上限=%d 溢出政策=%d"),
+			Target.Id, *DefTag.ToString(), Member ? Member->Stacks : 0,
+			Def->StackPolicy.MaxStacks, static_cast<int32>(Def->StackPolicy.Overflow));
+		return EApplyResult::EAR_Rejected;
+	}
+
+	// 替换：先走**同一条移除链**摘掉旧条（撤时间条目 + 摘修正器 + `Removed` 广播 + 归还槽位），
+	// 再落到下面的新建路径——旧句柄从此悬空，这正是"替换"与"原地刷新"的可观测差别。
+	if (Decision.Kind == ETcsStateStackDecisionKind::Replace)
+	{
+		Remove(Subsystem, Decision.ExistingHandle, EStateRemoveCause::ESRC_Removed);
+
+		// 移除会广播 ⇒ 订阅者可重入状态操作（注销该单位）⇒ MUST 重新取桶。桶对象经 `TUniquePtr` 持有、
+		// 地址稳定，但**对象本身可能已被销毁** ⇒ 必须重取而不是复用旧指针（Task 4 的重入纪律）。
+		Bucket = Subsystem.Registry.FindBucket(Target);
+		if (!Bucket)
 		{
-			ExistingHandle = Instance.Handle;
-			return false;
+			UE_LOG(LogTcsState, Warning, TEXT("状态替换的移除阶段期间单位桶已注销：单位=%lld 定义=%s"),
+				Target.Id, *DefTag.ToString());
+			return EApplyResult::EAR_Rejected;
 		}
+	}
 
-		return true;
-	});
-
-	if (FTcsStateInstance* Existing = Bucket.Find(ExistingHandle))
+	// 刷新 / 叠层：同一处更新流水（层数 → 快照重建 → 修正器重挂 → 时长重挂 → 广播），
+	// 回执按层数有无变化分档（`Refreshed` = 续杯 / `Stacked` = 叠了一层）。
+	if (Decision.Kind == ETcsStateStackDecisionKind::Refresh || Decision.Kind == ETcsStateStackDecisionKind::Stack)
 	{
-		// 刷新：更新可确定的字段。**`Source` 刻意不动**——它是级联撤销锚点，
-		// 已被触发行/修正器等下游按原值登记过；换来源会让"同一个状态 = 同一个来源"失效。
-		// `Instigator` 反过来：它答"最近一次施加是谁发起的"，故刷新时更新。
-		Existing->Level = Def->LevelBase;
-		Existing->Instigator = Instigator.IsValid() ? Instigator : Target;
-
-		// 快照重建（D3-12："修改 = 重新施加，新 payload 覆盖旧的"）
-		FTcsStateEvaluateContext Ctx;
-		MakeContext(Ctx, Subsystem, Target, Existing->Instigator, Def->LevelBase, ParamTable);
-		BuildSnapshot(Existing->ParamSnapshot, *Def, Ctx, Overrides);
-
-		// 修正器重物化：**先按来源摘旧、再按新快照挂新**（同一批内完成）。
-		// 不这么做就会出现"快照是新值、账本还是旧值"的静默不一致（刷新 = 重新施加的账本面）。
-		MountModifiers(Subsystem, *Def, *Existing, /*bStripFirst=*/true);
-
-		// 挂载提交会重算 + 广播（属性变更事件）⇒ 订阅者可重入状态操作（移除本实例 / 注销单位），
-		// 那会让上面那个实例指针与桶引用双双失效（槽位释放后还可能被复用）⇒ MUST 重新定位。
-		FStateBucket* LiveBucket = Subsystem.Registry.FindBucket(Target);
-		Existing = LiveBucket ? LiveBucket->Find(ExistingHandle) : nullptr;
+		FTcsStateInstance* Existing = Bucket->Find(Decision.ExistingHandle);
 		if (!Existing)
 		{
-			// 重入移除的极端路径：刷新动作本身已完成（快照 + 修正器都按本次施加更新过），
-			// 实例却已不在册 ⇒ 不再补播 `Refreshed`（对已不在册的实例广播是错语义）。
-			UE_LOG(LogTcsState, Warning,
-				TEXT("状态刷新后实例已不在册（挂载提交期间被重入移除）：单位=%lld 定义=%s 句柄=%d/%d"),
-				Target.Id, *DefTag.ToString(), ExistingHandle.Index, ExistingHandle.Generation);
-			return EApplyResult::EAR_Refreshed;
+			UE_LOG(LogTcsState, Warning, TEXT("状态共存决策后实例已不在册：单位=%lld 定义=%s 句柄=%d/%d"),
+				Target.Id, *DefTag.ToString(), Decision.ExistingHandle.Index, Decision.ExistingHandle.Generation);
+			return EApplyResult::EAR_Rejected;
 		}
 
-		Transit(Subsystem, Existing, EStatePhase::ESP_Expiring);
-
-		// 时间条目重挂放在**广播之前**：订阅者在 `Refreshed` 回调里读到的时值/周期已是本次施加的结果
-		// （放在广播之后会让回调读到上一轮的剩余时长——一处只有靠时序才能发现的错值）
-		ScheduleTime(Subsystem, *Existing, *Def, Existing->ParamSnapshot, ParamTable, /*bRefresh=*/true);
-
-		Broadcast(Subsystem, Tag_TcsEvent_State_Refreshed, *Existing, EStateRemoveCause::ESRC_Removed);
-		Transit(Subsystem, Existing, EStatePhase::ESP_Active);
-
-		UE_LOG(LogTcsState, Log, TEXT("状态刷新：单位=%lld 定义=%s 句柄=%d/%d 层数=%d 快照=%d 条 剩余=%.3f"),
-			Target.Id, *DefTag.ToString(), Existing->Handle.Index, Existing->Handle.Generation,
-			Existing->Stacks, Existing->ParamSnapshot.Num(), Existing->DurationRemaining);
-
-		return EApplyResult::EAR_Refreshed;
+		return RefreshStacked(Subsystem, *Def, *Existing, StackRequest, Decision, ParamTable, Overrides);
 	}
 
 	// 新施加：分配槽位 → 填实例 → 快照 → 时间条目 → 广播。句柄在 `AllocateSlot` 后取得，
 	// 其 `Index` 只在本函数内按值随句柄流转——`TArray` 扩容不使**值**失效（这是"传句柄不传指针"的纪律）。
-	const FTcsStateHandle NewHandle = Bucket.AllocateSlot();
-	FTcsStateInstance* NewInstance = Bucket.Find(NewHandle);
+	const FTcsStateHandle NewHandle = Bucket->AllocateSlot();
+	FTcsStateInstance* NewInstance = Bucket->Find(NewHandle);
 	check(NewInstance != nullptr);
 
 	NewInstance->DefTag = DefTag;

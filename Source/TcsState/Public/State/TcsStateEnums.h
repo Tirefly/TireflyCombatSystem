@@ -60,16 +60,17 @@ enum class EStateRemoveCause : uint8
 
 
 
-// 施加结果（D3-7 ApplyState 回执）：本轮可达 Applied / Refreshed / Rejected 三档
+// 施加结果（D3-7 ApplyState 回执）：**四档全部可达**（R5 Task 5 起）
 // 枚举值前缀 EAR_ 是 ApplyResult 的缩写
 //
-// **两档本轮不可达**（各自归属见注释）：`Stacked` 需五轴共存决策（R5 Task 5）；
-// **拒绝原因的具名细分**归 R5.5-e（关系表族）——本轮只有 `Rejected` 一档 + 日志。
+// **判据归堆叠策略**（`state-stacking-policies` 能力）：无同组实例 ⇒ `Applied`；同组**同来源**
+// （续杯）⇒ `Refreshed`；同组**异来源**且未满仓 ⇒ `Stacked`；满仓 ⇒ `Rejected` 或替换后 `Applied`。
+// **拒绝原因的具名细分**仍归 R5.5-e（关系表族）——今天只有 `Rejected` 一档 + 日志。
 UENUM(BlueprintType)
 enum class EApplyResult : uint8
 {
-	EAR_Applied = 0		UMETA(DisplayName = "已施加", ToolTip = "建出新实例（无同组成活实例）"),
-	EAR_Refreshed = 1	UMETA(DisplayName = "已刷新", ToolTip = "命中同组成活实例，按刷新语义更新原实例（本轮判据 = 同单位 + 同 DefTag）"),
-	EAR_Stacked = 2		UMETA(DisplayName = "已叠层", ToolTip = "同组未满仓，层数 +1（需五轴共存决策——R5 Task 5 落地后可达）"),
-	EAR_Rejected = 3	UMETA(DisplayName = "被拒绝", ToolTip = "施加未成立（定义未登记 / 目标无效 / 满仓拒绝）"),
+	EAR_Applied = 0		UMETA(DisplayName = "已施加", ToolTip = "建出新实例（组内无实例，或满仓按替换政策摘旧建新）"),
+	EAR_Refreshed = 1	UMETA(DisplayName = "已刷新", ToolTip = "命中同组**同来源**实例（续杯）：在原实例上按刷新语义更新，层数不变"),
+	EAR_Stacked = 2		UMETA(DisplayName = "已叠层", ToolTip = "同组**异来源**加入且未满仓：层数 +1（R5 Task 5 起可达）"),
+	EAR_Rejected = 3	UMETA(DisplayName = "被拒绝", ToolTip = "施加未成立（定义未登记 / 目标无效 / 满仓拒绝 / 自定义决策不接受）"),
 };

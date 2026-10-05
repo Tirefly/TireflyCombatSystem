@@ -39,13 +39,15 @@ FStateDefBase（抽象，编辑器隐藏）          ← 本模块定义
 - ~~`UCombatStateRegistry`~~ → **`UTcsStateSubsystem : UWorldSubsystem`**（2026-10-04 R5 收窄轮定，见 §12.3；原命名与 06 文档统一待办就此结案）：中央注册表 per-unit 桶（`FCombatEntityHandle → 桶`）；军官组件与 Mass 桶只是访问适配器（桶指针缓存+代际校验）；桶只存数据与索引，操作全在引擎函数 `FStateOps`。
 
 ### 3.2 堆叠与刷新（D3-4，FBuffDef 字段）
-`FStateStackPolicy` 五轴（每轴枚举**值 0=默认/None，值 1=Custom**——Custom 选中→编辑器暴露 `TInstancedStruct` 决策策略（struct 单字段，D3-7 v3））：
-- `GroupBy`：None / PerSource / PerInstigator / PerTag(自定义分组 Tag)
+`FStateStackPolicy` 五轴（每轴枚举**值 0 = 默认**；需要逃逸的轴以**高位置位**作 Custom——Custom 选中→编辑器暴露**裸 `FInstancedStruct`** 决策策略载荷（手写 `BaseStruct` 元数据收窄选择器，D3-7 v3））：
+- `GroupBy`：None / PerSource / PerInstigator / Custom（~~PerTag(自定义分组 Tag)~~ **2026-10-05 裁撤**：组键基座含 `DefTag`，而分组词取自定义自身 ⇒ 同一 `DefTag` 内恒定 ⇒ 该档与 `None` 完全同义；其唯一有意义的读法"不同定义共享一个组"要求**组内多条实例**，属另一套层模型 ⇒ 台账 `STAT-7`）
 - `MaxStacks`：int（组内最大层数，≤0=无限；2026-09-02 由 Capacity 改回——用户拍板回归 Stack 词汇）
-- `Overflow`：RejectNew / ReplaceOldest / ReplaceNewest（**升级替换不内建**——StackChanged 满仓触发行→Apply 强力→Remove 原，D3-14；状态级重定向留未来）
-- `ValueStack`：KeepMax / AddValues / PerStackValue
+- `Overflow`：RejectNew / ReplaceExisting（~~ReplaceOldest / ReplaceNewest~~ **2026-10-05 裁撤**："一组一条实例"下两者同义；**升级替换不内建**——StackChanged 满仓触发行→Apply 强力→Remove 原，D3-14；状态级重定向留未来）
+- `ValueStack`：KeepMax / AddValues / PerStackValue（`PerStackValue` **2026-10-05 标记为本轮零行为**：合规实现需"层数读口 + 按层参数源"，否则退化成 §3.5 明文撤回的 FollowStacks ⇒ 台账 `STAT-6`）
 - `StackDurationPolicy`：None / RefreshRemainingToTotal（**D3-17 终定轴名与值域**——TCS 原样；RefreshRemaining/Add 撤出 v1，无业务场景，需求出现再加）
-组合覆盖 TCS 四 Merger 全部行为（NoMerge=None+∞；UseNewest=1+ReplaceOldest；UseOldest=1+RejectNew；StackByInstigator=PerInstigator+层叠）；Merger 策略类**删除**。
+组合覆盖 TCS 四 Merger 行为（NoMerge ≈ None+∞（**近似**：得到的是"一条实例、层数累加、默认轴下数值与时长都不变"；"每次施加独立成实例"改用 Custom 决策 Fragment 表达）；UseNewest=1+ReplaceExisting；UseOldest=1+RejectNew；StackByInstigator=PerInstigator+层叠）；Merger 策略类**删除**。
+
+**层模型（2026-10-05 定，本节与 §5 的读法前提）**：**层数记在一条实例内**（`FTcsStateInstance.Stacks`），**组内至多一条实例**；"续杯 / 叠层"的判据 = **施加方换没换**（同来源 ⇒ 刷新、异来源 ⇒ 叠一层；**未声明来源按同来源处理**）。完整决策树、事件面与三条如实边界见 `openspec/specs/state-stacking-policies` 能力与 §12.9。
 
 ### 3.3 Duration 与 Period（FBuffDef 字段，2026-09-02 细化）
 - **Duration 拆分（D3-13）**：`EDurationPolicy{Finite, Infinite}` + `DurationTime`（Finite 时有效，FTcsParamValue——原"字面量|Param"，PV 系列 2026-09-11 换型）；快照于 apply/refresh（D3-12）；Infinite=无到期条目永不过期（≤0 魔法值废除）；暂停/变速由泵统一。
@@ -231,3 +233,18 @@ FStateDefBase（抽象，编辑器隐藏）          ← 本模块定义
 | 7 | **账本条目的 `Source` = 状态实例的来源句柄**（`FTcsStateInstance::Source`），刷新 MUST NOT 更换；模板行 → 账本条目的字段映射的唯一声明处 = `FTcsAttrModInstance::MakeFromDef(Row, Operand, Source)`（实现住 `TcsAttrModDef.h` 文件末——行类型在那里才完备；header-only `inline` ⇒ 不需要模块导出宏） | "**同一个状态实例 = 同一个来源**"是 Task 6 内联触发行退订要复用的同一条锚点（一次按来源摘除清掉该实例的**两族**条目）。字段映射放在**同时拥有两个形状**的模块里，上层只负责"求值 + 转规范值"，R6 技能侧物化复用同一处 |
 | 8 | **`TSoftObjectPtr` 取值顺序 = 先 `Get()`、未加载才 `LoadSynchronous()`** | 命中已加载对象时 MUST NOT 发加载请求；且该顺序使**装置瞬态模板**成为可行夹具（瞬态对象无资产路径，`LoadSynchronous()` 解不出）。GC 可达性由状态门面对登记表副本里 `TSoftObjectPtr` 的 ARO 承担 |
 | 9 | **"零红字"的准确读法 = 零*非预期*红字**：`Tcs.Test.Slice.Run` 固有 3 条预期 Warning（19f 未登记定义 ×1 / 20j 无限时值时长操作 ×2），装置头部 MUST 逐条列出预期红字与归属 | 本轮实测发现装置头部原写"红字都在 `.Reject`"与事实不符（会让复核者把预期当故障）。**验收报告引用"零红字"时 MUST 同时给出预期红字清单** |
+
+### 12.9 Task 5 落地口径（2026-10-05，R5）
+
+| # | 口径 | 依据 / 后果 |
+|---|---|---|
+| 1 | **层模型 = 甲案**（用户 2026-10-05 拍板）：**层数记在一条实例内**（`FTcsStateInstance.Stacks`）、**组内至多一条实例**；替换 = 先走完整移除链摘掉旧条、再建新条 | 三条代价如实登记（§3.2 与台账）：legacy `NoMerge` 只能**近似**；`Overflow` 的后两档在"一组一条实例"下**同义**（裁撤）；"按分组词分组"**不可表达**（裁撤）。**被否的乙案**（层 = 独立实例）能让四行等价表逐字成立，但 `KeepMax` 必须补"代表层"选举机制（否则 N 条实例各挂一份修正器、账本天然累加 ⇒ `KeepMax` 与 `AddValues` 观测不可分），且 `Stacks` 变层序、`Applied`/`Expired` 按层各广播一次——新机制最多而当时零内容消费者 |
+| 2 | **四档回执判据**：同组**同来源**（续杯）⇒ `EAR_Refreshed`（层数不变）；同组**异来源** → 未满仓 ⇒ `EAR_Stacked`（+1）；满仓 ⇒ `EAR_Rejected`（无广播）或按 `Overflow` 替换后 `EAR_Applied` | **只有这一读法**让计划 Step 2 的"未满仓则 `Stacks++`"与 Step 3 的"同组**同来源**的重新施加 = `Refresh`"同时成立，且四档全部可达（否则 `Refreshed` 或 `Stacked` 必有一档成为死档）。实测四档全可达（`EVID-2026-10-05-state-stacking-policies` §1） |
+| 3 | **未声明来源（无效句柄）视为"同来源"**（通配） | 来源句柄在门面处按无效值发号（每次一枚新号）⇒ 若"未声明"被判成"换了施加方"，任何不关心来源的调用方在默认策略（层数无限）下**每次施加都叠一层**——一个只在长跑里才显形的错误。**副作用（好消息）**：既有装置检查 19c / 21e（"重复施加 ⇒ `Refreshed`"）无需改动即可继续成立。⇒ **生命周期长于一次施加的调用方 MUST 传稳定的 `Source`**（它既是级联锚点也是"续杯 / 叠层"判据） |
+| 4 | **两处裁档**（零消费者时裁，无迁移面）：`EGB_PerTag` + `GroupTag` 字段；`EOP_ReplaceOldest` / `EOP_ReplaceNewest` | 前者见 §3.2（基座含 `DefTag` ⇒ 与 `None` 同义）；后者在"一组一条实例"下是同义动作。**同族第四例**：`EVS_PerStackValue` **不裁但标记零行为**（它的合规实现是新增机制、不是死档；且 §3.5 明文撤回它的退化形态）⇒ 台账 `STAT-6` |
+| 5 | **`StackChanged` 的广播判据 = 层数真的变了**；叠层路径顺序 = **`StackChanged` 先于 `Refreshed`**（两笔载荷的 `Stacks` 均为新层数） | 计划 Step 2 的括号注（替换路径也播 `StackChanged`）与事件词的既定语义（"层数变化"）冲突 ⇒ 以词义为准（替换的观测量 = `Removed` + `Applied` 两笔）。定序判据用**同一订阅者的处理序号**（计数器只能证"都到了"） |
+| 6 | **Custom 决策 Fragment**：`USTRUCT(meta = (Hidden))` + 三个**中性默认**方法（`IsSameGroup` / `ShouldAccept` / `ResolveStacks`，禁 `= 0` 与 `PURE_VIRTUAL`）；载体 = **裸 `FInstancedStruct`** + 手写 `meta = (BaseStruct = ...)`；框架**零具体策略**（宿主样本住 LAC `TcsDev`） | 计划 Step 4 的 `TInstancedStruct<…>` 是全仓 2026-09-24 已换型的旧写法（该载体在宿主脚本层导出为空壳 ⇒ 宿主配不了策略）。**"解析一次"纪律**：把"找成员 + 出决策"拆成两次调用会让**同一次施加**刷 2 条重复 Warning ⇒ 合成单一入口 `ResolveStackDecision(Request, Bucket, Policy)` |
+| 7 | **数值叠加在物化边界按层成倍**（`OPK_Literal` ⇒ `Literal × Stacks`；`OPK_AttributeScaled` ⇒ `Coefficient × Stacks`） | 物化边界是"值"的唯一收口处（值约定转换也在那里），且每次物化**从模板重算**（`Out.Reset()` + 逐行重建）⇒ 乘层数不自我累积、条数不随层变。**顺序硬约束**：调用方 MUST **先写层数再物化**（"层数先落、数值后算"），反过来会让本次叠层的数值停在旧层数——无编译期保护，靠注释与装置读数钉住 |
+| 8 | **时长刷新轴在"时间重挂点"读**：`ScheduleTime` 在刷新路径上按 `StackDurationPolicy` 决定"不覆写 `DurationRemaining`（保留剩余）"还是"回满额"；首挂恒回满额 | 原实现**无条件回满额** ⇒ `ESD_None` 这一档**在实现上从未存在**（Task 3 落 `ScheduleTime` 时该轴还是"只落形状"，无人读它）。判据：这是**实现缺陷**（规格 §3.2/§3.3 与计划 Step 3 都要求按轴），不是"计划没写"。保留那一支靠"不覆写"实现——`PushExpiry` 按字段值排到期时刻 |
+| 9 | **满仓拒绝 = 业务结果（`Log`）**；**载荷缺失/类型不符 = 配置错误（`Warning`）**；后者只住拒绝命令 | 拒绝是策略的正常结局之一（不是故障）；"选了逃逸位却没挂策略"是作者错误。且"任何**故意触发失败输出**的检查 MUST 独立成 opt-in 命令"（`MEM-20261004-27`）⇒ 该检查住 `Tcs.Test.Slice.Reject`（检查 K） |
+| 10 | **组键基座含 `DefTag`** ⇒ **不同 `DefTag` 的实例永不共组** | 一条实例 = 一个定义的数据（快照、修正器、事件载荷全按该定义来）⇒ 跨定义共组在甲案下会退化成"B 定义去顶 A 定义的实例"，语义是坏的。它同时是第 4 条裁撤的根据 |

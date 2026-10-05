@@ -144,8 +144,19 @@ void FTcsStateOps::ScheduleTime(
 	}
 	else
 	{
-		Instance.DurationRemaining = EvaluateTotalDuration(
-			Subsystem, Def, Snapshot, Instance.Unit, Instance.Instigator, ParamTable);
+		// 刷新路径的剩余时长按 `StackDurationPolicy` 定（R5 Task 5）：`ESD_None` = **保留剩余**
+		// （只重挂条目、不动计时），`ESD_RefreshRemainingToTotal` = 回满额；**首挂（`bRefresh == false`）
+		// 恒为满额**。保留的那一支靠"不覆写 `DurationRemaining`"实现——`PushExpiry` 按字段值排到期时刻。
+		const bool bKeepDurationRemaining = bRefresh
+			&& Def.StackPolicy.StackDurationPolicy == EStackDurationPolicy::ESD_None
+			&& Instance.DurationRemaining > 0.0;
+
+		if (!bKeepDurationRemaining)
+		{
+			Instance.DurationRemaining = EvaluateTotalDuration(
+				Subsystem, Def, Snapshot, Instance.Unit, Instance.Instigator, ParamTable);
+		}
+
 		PushExpiry(Subsystem, Instance);
 	}
 

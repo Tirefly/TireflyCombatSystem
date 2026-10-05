@@ -391,16 +391,25 @@
 
 **依赖**：Task 4
 
-- [ ] **Step 1: 五轴定义**——`EGroupByPolicy{ EGB_None = 0, EGB_PerSource = 1, EGB_PerInstigator = 2, EGB_PerTag = 3, EGB_Custom = 1<<4 }`（**值 0 = 默认/None、Custom 走逃逸位**：0 与 Custom 位各自的语义 MUST 在枚举注释里写清）；`MaxStacks`（`≤0` = 无限）；`EOverflowPolicy{ RejectNew, ReplaceOldest, ReplaceNewest }`；`EValueStackPolicy{ KeepMax, AddValues, PerStackValue }`；`EStackDurationPolicy{ None, RefreshRemainingToTotal }`。
-- [ ] **Step 2: 组键与共存决策**——组键 = `GroupBy` 四态的确定性组合（`PerSource` → 来源句柄；`PerInstigator` → 发起者句柄；`PerTag` → 自定义分组 Tag）；命中组内按 `MaxStacks` 与 `Overflow` 决策：`RejectNew`（拒绝并返回 `EAR_Rejected`）/ `ReplaceOldest` / `ReplaceNewest`（移除旧实例 + 新施加 + 广播 `StackChanged`）；未满仓则 `Stacks++` + 广播。
-- [ ] **Step 3: 刷新语义**——同组同来源的重新施加 = `Refresh`：按 `ValueStack` 更新数值（`KeepMax` 取大 / `AddValues` 累加 / `PerStackValue` 按层取值）→ **快照重建**（新 payload 覆盖，D3-12）→ 按 `StackDurationPolicy` 决定剩余时长（`RefreshRemainingToTotal` = 回到满额）→ `EPR_*` 作用于周期条目 → 广播 `TcsEvent.State.Refreshed`。
-- [ ] **Step 4: Custom 决策 Fragment（唯一的策略落点）**——`FTcsStateStackDecisionFragment`（`USTRUCT(meta = (Hidden))`，USTRUCT 反射基类 + 虚分派 + 中性默认实现）：`virtual bool ShouldAccept(...)` / `virtual int32 ResolveStacks(...)` 一类**按决策种类**的抽象；`FStateStackPolicy` 以 `TInstancedStruct<FTcsStateStackDecisionFragment>` 持有一个 Custom 位；**策略实例归 Def 资产持有**（单字段暴露，类/载荷配对 bug 类消失）。
+- [x] **Step 1: 五轴定义**——`EGroupByPolicy{ EGB_None = 0, EGB_PerSource = 1, EGB_PerInstigator = 2, EGB_PerTag = 3, EGB_Custom = 1<<4 }`（**值 0 = 默认/None、Custom 走逃逸位**：0 与 Custom 位各自的语义 MUST 在枚举注释里写清）；`MaxStacks`（`≤0` = 无限）；`EOverflowPolicy{ RejectNew, ReplaceOldest, ReplaceNewest }`；`EValueStackPolicy{ KeepMax, AddValues, PerStackValue }`；`EStackDurationPolicy{ None, RefreshRemainingToTotal }`。
+- [x] **Step 2: 组键与共存决策**——组键 = `GroupBy` 四态的确定性组合（`PerSource` → 来源句柄；`PerInstigator` → 发起者句柄；`PerTag` → 自定义分组 Tag）；命中组内按 `MaxStacks` 与 `Overflow` 决策：`RejectNew`（拒绝并返回 `EAR_Rejected`）/ `ReplaceOldest` / `ReplaceNewest`（移除旧实例 + 新施加 + 广播 `StackChanged`）；未满仓则 `Stacks++` + 广播。
+- [x] **Step 3: 刷新语义**——同组同来源的重新施加 = `Refresh`：按 `ValueStack` 更新数值（`KeepMax` 取大 / `AddValues` 累加 / `PerStackValue` 按层取值）→ **快照重建**（新 payload 覆盖，D3-12）→ 按 `StackDurationPolicy` 决定剩余时长（`RefreshRemainingToTotal` = 回到满额）→ `EPR_*` 作用于周期条目 → 广播 `TcsEvent.State.Refreshed`。
+- [x] **Step 4: Custom 决策 Fragment（唯一的策略落点）**——`FTcsStateStackDecisionFragment`（`USTRUCT(meta = (Hidden))`，USTRUCT 反射基类 + 虚分派 + 中性默认实现）：`virtual bool ShouldAccept(...)` / `virtual int32 ResolveStacks(...)` 一类**按决策种类**的抽象；`FStateStackPolicy` 以 `TInstancedStruct<FTcsStateStackDecisionFragment>` 持有一个 Custom 位；**策略实例归 Def 资产持有**（单字段暴露，类/载荷配对 bug 类消失）。
   **MUST NOT** 预建 `IValueDomainPolicy` / `ICostPolicy`（零消费者，Q-6）。
-- [ ] **Step 5: 编译 + 冒烟**——四种组合各跑一遍：`None + ∞`（`NoMerge` 等价）/ `MaxStacks=1 + ReplaceOldest`（`UseNewest` 等价）/ `MaxStacks=1 + RejectNew`（`UseOldest` 等价）/ `PerInstigator + AddValues`（`StackByInstigator` 等价）——**组合覆盖 TCS 四个旧 Merger 的行为**（规格 §3.2 的等价表即验收清单）；另跑一个 Custom 策略样本。
+- [x] **Step 5: 编译 + 冒烟**——四种组合各跑一遍：`None + ∞`（`NoMerge` 等价）/ `MaxStacks=1 + ReplaceOldest`（`UseNewest` 等价）/ `MaxStacks=1 + RejectNew`（`UseOldest` 等价）/ `PerInstigator + AddValues`（`StackByInstigator` 等价）——**组合覆盖 TCS 四个旧 Merger 的行为**（规格 §3.2 的等价表即验收清单）；另跑一个 Custom 策略样本。
 
 **验收信号**：五轴组合下 `Stacks` / 数值 / 剩余时长的行为与规格 §3.2 等价表逐条一致；Custom 策略被真实调用（日志可证）。
 
 **非目标**：不内建 Overflow 升级替换（规格明文：走"`StackChanged` 满仓触发行 → `ApplyState` 强力 → `RemoveState` 原"三步组合）；不做状态级重定向（R5.5-d 邻域）。
+
+> **Task 5 落地结果（2026-10-05）**：Step 1–5 **全勾**；提案 `add-state-stacking-policies` 归档为 `2026-10-05-add-state-stacking-policies`（**新能力 `state-stacking-policies` ×6 ADDED** + `state-instance-lifecycle` ×2 MODIFIED），`openspec validate --all --strict --no-interactive` = **31 passed / 0 failed**、`changes/` 零活动提案。
+> - **验收读数**：双配置编译**零 warning / 零 error**；`Tcs.Test.Slice.Run` **即时 53/0 + 延迟累计 60/0**（新增 22a–22m）、`Tcs.Test.Slice.Reject` **11/0**（新增 K）。证据 = `EVID-2026-10-05-state-stacking-policies`（双区段哈希 `0841f12a…` / `dc3917a9…`、复算脚本、**十二条边界**）。
+> - **五处对计划文本的订正**：① Step 1 的 `GroupBy` 四态 ⇒ **三态 + Custom**（`EGB_PerTag` 与 `GroupTag` 裁撤：组键基座含 `DefTag`、分组词取自定义自身 ⇒ 该档与 `None` 完全同义；用户当场拍板）；② Step 1 的 `EOverflowPolicy` 三档 ⇒ **两档**（替换最旧 / 替换最新在「一组一条实例」下同义）；③ Step 2 括号注（替换也播 `StackChanged`）⇒ **只在层数真变化时播**（以事件词语义为准）；④ Step 4 的 `TInstancedStruct<…>` ⇒ **裸 `FInstancedStruct` + 手写 `BaseStruct` 元数据**（全仓 2026-09-24 换型口径）；⑤ Step 5 首行等价表 `NoMerge = None + ∞` ⇒ 加**近似**注（真正「每次施加独立成实例」改用 Custom 决策 Fragment 表达——本轮装置样本即此用法）。
+> - **一处实现缺陷（本轮发现并修）**：`ScheduleTime` 在刷新路径上**无条件回满额** ⇒ `EStackDurationPolicy::ESD_None`（不动时长）这一档**在实现上从未存在**；本轮改为在时间重挂点按轴读，两档读数可分（回满额 8.000 / 保留 3.000）。
+> - **一处实施期口径（超出计划）**：**未声明来源按「同来源」处理**（否则不关心来源的调用方在默认策略下**每次施加都叠一层**）；副作用 = 既有检查 19c / 21e **无需改动**即可继续成立。
+> - **一处交付物面收缩**：计划写的 `Private/State/TcsStateStackPolicy.cpp` **未建**（策略是纯数据头、无实现体）；决策词汇（`FTcsStateStackRequest` / `FTcsStateStackDecision`）与 Fragment 基类**同住一个头**（`TcsStateStackFragment.h`；同族先例 = Task 4 的反射壳与纯类本体同头）。
+> - **三条边界入册台账**（53 ⇒ 56）：`STAT-6`（`PerStackValue` 零行为）/ `STAT-7`（跨定义共享层数组）/ `STAT-8`（逐层来源归属）。
+> - **一处非本轮引入的文案偏差（登记、未改）**：拒绝面检查 I 的内联文案写「预期 2 条 Warning」，实测该检查只产生 1 条——它不是验收锚点（头部状态面总数 9 与实测一致），交 Task 8 对账一趟处理。
 
 ---
 

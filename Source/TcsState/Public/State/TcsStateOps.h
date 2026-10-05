@@ -16,8 +16,12 @@ class UTcsStateSubsystem;
 class UTcsClockSubsystem;
 class ITcsEntityLevelProvider;
 class ITcsParamTableReader;
+struct FStateBucket;
+struct FStateStackPolicy;
 struct FTcsBuffDef;
 struct FTcsStateEvaluateContext;
+struct FTcsStateStackDecision;
+struct FTcsStateStackRequest;
 struct FTcsTimeEntryHandle;
 
 
@@ -36,7 +40,8 @@ struct FTcsTimeEntryHandle;
  * 文件划分：本头 + `TcsStateOps.cpp`（施加与移除）/ `TcsStateOps_Query.cpp`（查询）/
  * `TcsStateOps_Events.cpp`（Tag 定义与广播）/ `TcsStateOps_Snapshot.cpp`（快照构建与时长求值）/
  * `TcsStateOps_Lifetime.cpp`（时长 / 周期条目入堆与撤堆、时长操作）/
- * `TcsStateOps_Modifier.cpp`（属性访问解析点 + 修正器挂载与摘除）。
+ * `TcsStateOps_Modifier.cpp`（属性访问解析点 + 修正器挂载与摘除）/
+ * `TcsStateOps_Stack.cpp`（五轴共存决策 + 刷新与叠层的更新流水）。
  *
  * **导出宏是必需项**（`WAIT-9` 判据："该符号是否被跨模块引用"）：宿主侧装置（`TcsDev`）直接调
  * `MakeContext` 等静态成员 ⇒ 不带 `TCSSTATE_API` 必 `LNK2019`（2026-10-05 实测）。
@@ -48,10 +53,14 @@ class TCSSTATE_API FTcsStateOps
 
 public:
 	/**
-	 * 施加（或刷新）一个状态——`UTcsStateSubsystem::ApplyState` 的实现体。
+	 * 施加（或按共存策略刷新 / 叠层 / 替换）一个状态——`UTcsStateSubsystem::ApplyState` 的实现体。
 	 *
-	 * **本轮共存判据 = 同单位 + 同 `DefTag`**（`GroupBy = None` 语义）：命中即在原实例上刷新，
-	 * 否则新建。**此处是 R5 Task 5 五轴决策的替换点**（见方法内注释的锚记）。
+	 * **共存判据归 `Def.StackPolicy` 五轴**（R5 Task 5 落地，原"同单位 + 同 `DefTag` 即刷新"的暂用判据已替换）：
+	 * 组键 = `(单位, DefTag)` + 轴附加项，命中后按容量与溢出政策决定刷新 / 叠层 / 替换 / 拒绝。
+	 * 决策与更新流水住 `TcsStateOps_Stack.cpp`，本函数只做校验、决策分派与"新建"一支。
+	 *
+	 * **`Source` 是级联锚点也是"续杯 / 叠层"的判据**：生命周期长于一次施加的调用方 MUST 传稳定的
+	 * 来源句柄；传无效值时门面会发新号，共存决策按"未声明来源"处理（视为同来源 ⇒ 续杯）。
 	 *
 	 * @param Subsystem 状态门面（提供登记表、桶、发号器与广播面）。
 	 * @param Target 被施加方实体。
@@ -60,7 +69,7 @@ public:
 	 * @param Instigator 发起者实体（无效则取 `Target`——"谁施加的"缺省即被施加方）。
 	 * @param ParamTable 施加方参数表（空 = 引用类参数源落兜底）。
 	 * @param Overrides 施加方参数覆盖（参与快照构建）。
-	 * @return 返回施加结果。
+	 * @return 返回施加结果（`Applied` / `Refreshed` / `Stacked` / `Rejected` 四档均可达）。
 	 */
 	static EApplyResult Apply(
 		UTcsStateSubsystem& Subsystem,
@@ -68,6 +77,59 @@ public:
 		FGameplayTag DefTag,
 		FTcsSourceHandle Source,
 		FTcsCombatEntityHandle Instigator,
+		const TScriptInterface<ITcsParamTableReader>& ParamTable,
+		const TMap<FGameplayTag, double>& Overrides);
+
+#pragma endregion
+
+
+// 堆叠（共存决策与刷新）
+#pragma region Stacking
+
+public:
+	/**
+	 * 共存决策（**纯函数**：只算不写；实例字段由 `RefreshStacked` 写入）。
+	 *
+	 * 单次入口：**在桶内找同组成员 + 出决策一次做完**——决策载荷只解析一次（解析失败会留 `Warning`，
+	 * 分成两次调用会让一次施加刷出 2 条重复 Warning）。组键判定与决策树见 `state-stacking-policies` 能力。
+	 *
+	 * 决策树：无成员 ⇒ 新建；Custom 不接受 ⇒ 拒绝；满仓 ⇒ 按溢出政策拒绝或替换；
+	 * 未满仓 ⇒ 同来源续杯（层数不变）/ 异来源叠一层（层数由 Custom 或内置规则给出）。
+	 *
+	 * @param Request 本次施加的决策输入。
+	 * @param Bucket 被施加方单位的桶。
+	 * @param Policy 该定义的堆叠策略。
+	 * @return 返回决策结果（`ExistingHandle` = 命中的同组成员；无成员时无效）。
+	 */
+	static FTcsStateStackDecision ResolveStackDecision(
+		const FTcsStateStackRequest& Request,
+		const FStateBucket& Bucket,
+		const FStateStackPolicy& Policy);
+
+	/**
+	 * 刷新 / 叠层的**全部更新流水**（层数 → 快照重建 → 修正器重挂 → 时长重挂 → 广播）。
+	 *
+	 * 顺序有两条硬约束：① **层数先落**（物化器按 `ValueStack` 读它算数值，层数后落会让本次
+	 * 叠层的数值停留在旧层数）；② **广播最后**（`StackChanged` 先于 `Refreshed`，两笔载荷均为新层数）。
+	 *
+	 * 挂载提交会广播（属性变更事件）⇒ 订阅者可重入状态操作 ⇒ 本函数在提交后 MUST 重新定位实例与桶；
+	 * 实例已被重入移除时按"已完成但已无意义"处理：留 `Warning`、不补播事件、回执仍按决策档给。
+	 *
+	 * @param Subsystem 状态门面。
+	 * @param Def 状态定义内容（取策略、等级基准与修正器模板）。
+	 * @param Instance 命中的既有实例（**须已在册**；层数会被就地更新）。
+	 * @param Request 本次施加的决策输入（提供发起者 / 单位 / 定义身份与参数表位）。
+	 * @param Decision 共存决策结果（提供目标层数与决策种类）。
+	 * @param ParamTable 施加方参数表（快照重建与时值求值用）。
+	 * @param Overrides 施加方参数覆盖（快照重建用）。
+	 * @return 返回施加结果（`Stacked` = 层数变化；`Refreshed` = 层数不变）。
+	 */
+	static EApplyResult RefreshStacked(
+		UTcsStateSubsystem& Subsystem,
+		const FTcsBuffDef& Def,
+		FTcsStateInstance& Instance,
+		const FTcsStateStackRequest& Request,
+		const FTcsStateStackDecision& Decision,
 		const TScriptInterface<ITcsParamTableReader>& ParamTable,
 		const TMap<FGameplayTag, double>& Overrides);
 
