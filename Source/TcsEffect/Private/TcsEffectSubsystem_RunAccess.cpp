@@ -121,3 +121,34 @@ FTcsCombatEntityHandle UTcsEffectSubsystem::GetRunInstigator(FTcsChainRunHandle 
 	const FTcsChainRun* Run = RunPool.Resolve(Handle.GetInner());
 	return Run ? Run->Context.Instigator : FTcsCombatEntityHandle();
 }
+
+FTcsSourceHandle UTcsEffectSubsystem::GetRunSource(FTcsChainRunHandle Handle) const
+{
+	ensure(IsInGameThread());
+
+	// 代际校验先于解析（`Resolve` 对悬空句柄会 ensure——本组方法按"竞态不 ensure"口径自行前置校验）
+	if (!RunPool.IsValid(Handle.GetInner()))
+	{
+		return FTcsSourceHandle();
+	}
+
+	// `TTcsInstancePool::Resolve` 是非 const 成员（池的解析口与"入库/出库"同批声明）——本读口只取
+	// 黑板里的一个句柄、不改池，故用 `const_cast` 抹平接口不对称（同款先例 =
+	// `TcsStateOps_Lifetime.cpp` 的 `const_cast<FTcsStateInstance*>`）。前置的 `IsValid` 保证
+	// `Resolve` 不会走到它的 ensure 分支。
+	const FTcsChainRun* Run = const_cast<UTcsEffectSubsystem*>(this)->RunPool.Resolve(Handle.GetInner());
+	return Run ? Run->Context.RunSource : FTcsSourceHandle();
+}
+
+FTcsSourceHandle UTcsEffectSubsystem::GetRunCausedBy(FTcsChainRunHandle Handle) const
+{
+	ensure(IsInGameThread());
+
+	if (!RunPool.IsValid(Handle.GetInner()))
+	{
+		return FTcsSourceHandle();
+	}
+
+	const FTcsChainRun* Run = const_cast<UTcsEffectSubsystem*>(this)->RunPool.Resolve(Handle.GetInner());
+	return Run ? Run->Context.CausedBy : FTcsSourceHandle();
+}

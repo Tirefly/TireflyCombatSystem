@@ -201,7 +201,8 @@ EApplyResult FTcsStateOps::RefreshStacked(
 	const bool bStackChanged = Decision.NewStacks != Instance.Stacks;
 	const EApplyResult Result = bStackChanged ? EApplyResult::EAR_Stacked : EApplyResult::EAR_Refreshed;
 
-	// ① 层数与归属字段。**`Source` 刻意不动**——它是级联撤销锚点，已被触发行/修正器按原值登记过；
+	// ① 层数与归属字段。**两个句柄都刻意不动**：`Source` 是"谁最先施加的"（续杯 / 叠层的判据基座），
+	// `CascadeAnchor` 是级联撤销锚点——两者都已被触发行/修正器按原值登记过；
 	// `Instigator` 反过来：它答"最近一次施加是谁发起的"，故随本次施加更新。
 	Instance.Stacks = Decision.NewStacks;
 	Instance.Level = Def.LevelBase;
@@ -212,7 +213,7 @@ EApplyResult FTcsStateOps::RefreshStacked(
 	MakeContext(Ctx, Subsystem, Request.Unit, Instance.Instigator, Def.LevelBase, ParamTable);
 	BuildSnapshot(Instance.ParamSnapshot, Def, Ctx, Overrides);
 
-	// ③ 修正器重挂：先按来源摘旧、再按新快照挂新（同一批内完成，条数不累加）。
+	// ③ 修正器重挂：先按级联锚点摘旧、再按新快照挂新（同一批内完成，条数不累加）。
 	// 数值随层数的部分在**物化边界**按 `ValueStack` 乘上当前层数——`Instance.Stacks` 已在①写入，
 	// 故物化器读到的是本次施加之后的层数（顺序有意：层数先落，数值后算）。
 	MountModifiers(Subsystem, Def, Instance, /*bStripFirst=*/true);

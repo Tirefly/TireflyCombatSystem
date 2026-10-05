@@ -19,13 +19,18 @@ class UTcsAttributeSubsystem;
  * **为什么要有这一层**（而不是让引擎函数直接 `World->GetSubsystem<UTcsAttributeSubsystem>()`）：
  * 本轮裁定"状态层直接依赖属性门面"（Q-2 甲案——注入位是给**宿主词汇**用的，而属性账本是 TCS
  * 自家实现）。为了把"直接依赖"这件事的**影响面钉死在可替换的最小范围内**，取用点集中到本类：
- * 将来若真要补 `ITcsAttributeAccess` 一类的注入契约（台账 `R-7`），**只换这一个文件的实现**，
- * 调用点（挂载 / 摘除）一行不动。
+ * 将来若真要补 `ITcsAttributeAccess` 一类的注入契约（台账 `R-7`），**只换 `UTcsAttributeSubsystem::Resolve`
+ * 那一处实现**（2026-10-05 起"怎么找到门面"归 TcsAttribute 的单一查找点，见 `attribute-pipeline`
+ * 能力的「属性门面的解析点」需求），本类与调用点（挂载 / 摘除）一行不动。
  *
  * **暴露面同样是纪律**（本类的形状即约束）：本轮允许触碰的属性 API **上限**是
- * `ApplyModifier` / `RemoveBySource` / `EvaluateCurrent` 三个语义面 + 事务对（`BeginBatch` / `Commit`）
+ * `ApplyModifier` / `RemoveBySource` 两个语义面 + 事务对（`BeginBatch` / `Commit`）
  * + 一个存在性判据（`IsLedgerReady`，它只是"账本认不认识这个单位"，MUST NOT 用于取值）。
  * 除这些之外 MUST NOT 暴露任何属性 API——需要新能力时先改本类（让改动可审计）。
+ *
+ * **2026-10-05 订正（R5 Task 6）**：本注释原先声称允许面含 `EvaluateCurrent`，但本类**从未暴露**它、
+ * TcsState 侧也零消费者 ⇒ 措辞收回。属性**取值口**的第一个消费者是 TcsEffect 侧的 `AttributeCompare`
+ * 条件，它走自己的白名单薄壳（`FTcsEffectAttributeAccess`），不抬到本类。
  *
  * **事务对为什么在允许面内**：逐条挂载若不开批，N 条修正器 = N 次重算 + N 次广播（重入窗口放大 N 倍）；
  * 而"一个来源的条目一次性收口"是账本侧既有的语义（`BeginBatch` / `Commit`）。

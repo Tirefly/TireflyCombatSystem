@@ -74,6 +74,15 @@ FTcsChainRunHandle UTcsEffectSubsystem::ExecuteChain(FGameplayTag ChainId, FTcsE
 	FTcsChainRunHandle Handle;
 	Handle.SetInner(RunPool.Allocate());
 
+	// 链运行态来源锚点（**身份**）：调用方未自带时发一枚进程唯一新号 ⇒「同一次运行 = 同一个施加方」。
+	// 子链不在此列——`RunSubChain` 起子链前显式另发新号（见 `TcsEffectSubsystem_StepProtocol.cpp`）。
+	// 发号器**无状态**（计数器已出线到 `TcsSourceHandle.cpp` 的匿名 namespace，见 `WAIT-6` 收束），
+	// 故这里的临时对象调用是安全的——"每实例一份计数器"的旧缺陷已随 R5 Task 0 修掉。
+	if (!Context.RunSource.IsValid())
+	{
+		Context.RunSource = FTcsSourceHandleRegistry().Allocate();
+	}
+
 	FTcsChainRun* Run = RunPool.Resolve(Handle.GetInner());
 	Run->ChainId = ChainId;
 	Run->PC = 0;

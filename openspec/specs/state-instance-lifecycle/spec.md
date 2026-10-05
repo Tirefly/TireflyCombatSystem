@@ -35,15 +35,18 @@ TcsState MUST 提供 `FTcsStateHandle`（`USTRUCT(BlueprintType)`）：两字段
 
 TcsState MUST 提供 `FTcsStateInstance`——**纯数据**记录，字段分三组：
 
-- **身份与归属**：`DefTag`（`FGameplayTag`）/ `Handle` / `Source`（`FTcsSourceHandle`，发号经统一发号器）/ `Instigator`（`FTcsCombatEntityHandle`）/ `Unit`（宿主单位——句柄里没有单位段，自持后 `GetState` 才是 O(1) 定位）；
+- **身份与归属**：`DefTag`（`FGameplayTag`）/ `Handle` / `Source`（`FTcsSourceHandle`——**施加方来源句柄**，见下）/ `CascadeAnchor`（`FTcsSourceHandle`——**级联撤销锚点**，见下）/ `Instigator`（`FTcsCombatEntityHandle`）/ `Unit`（宿主单位——句柄里没有单位段，自持后 `GetState` 才是 O(1) 定位）；
 - **数值与阶段**：`Stacks`（`int32`，从 1 起）/ `Level`（`int32`）/ `Phase`（`EStatePhase`）/ `ParamSnapshot`（`FTcsParamSnapshot`——施加瞬间冻结的生效数值，形状与构建规则见 `state-param-snapshot` 能力）；
 - **时间**：`DurationRemaining` / `PeriodRemaining`（`double`）/ `ExpiryEntry`（时值到期条目锚点）/ `PeriodEntry`（周期到期条目锚点）。
 
-`Source` MUST 在**每次施加**时经 `FTcsSourceHandleRegistry::Allocate()` 取新值（进程内唯一、永不复用）——它就是"同一个状态 = 同一个来源"的级联锚点（触发行退订与属性修正器摘除按它一次清干净）。
+**两个句柄的分工 MUST 守死（2026-10-05 解耦，判据见下）**：
+
+- `CascadeAnchor` MUST 在**建出实例**时经 `FTcsSourceHandleRegistry::Allocate()` 取新值（进程内唯一、永不复用）；**刷新 / 叠层 MUST NOT 更换它**，替换路径是新实例 ⇒ 新锚点。它就是"撤销只摘本实例"的精确锚点——属性修正器条目与状态施加期登记的触发行都按它挂、按它一次摘净（`state-modifier-materialization` 与 `effect-trigger`）；
+- `Source` MUST 是**施加方来源句柄**：调用方声明时沿用（同一施加方多次施加 ⇒ 同值），未声明时由门面发号（每次一枚新号）。它承担两件事——共存决策的"续杯 / 叠层"判据（`state-stacking-policies`）与生命周期事件载荷的归属读数；**MUST NOT 被当作撤销锚点**（一个来源可施加多个不同定义，按它撤销会互相误摘——这正是解耦的判据）。
 
 **时值到期与周期到期 MUST 各持一个条目锚点**（`ExpiryEntry` / `PeriodEntry`）：`Finite` 与 `Period > 0` 是可同时成立的两个语义，挤在一个锚点里会让"撤销旧条目"分不清撤的是哪一条。
 
-**MUST NOT** 持有：策略（`FInstancedStruct` / `TInstancedStruct` 作配置载体）、事件载荷、订阅句柄、任何 `UObject` / `TWeakObjectPtr<UObject>`（D3-7 v2 与 D2-9 纪律：值语义记录是池化与后续操作复制的地基）。
+**MUST NOT** 持有：策略（`FInstancedStruct` / `TInstancedStruct` 作配置载体）、事件载荷、订阅句柄、任何 `UObject` / `TWeakObjectPtr<UObject>`（D3-7 v2 与 D2-9 纪律：值语义记录是池化与后续操作复制的地基）。**内联触发行同样不例外**：实例 MUST NOT 存触发行句柄，退订一律按 `CascadeAnchor` 级联。
 
 **`ParamSnapshot` 内的 `SourceRef` 不构成本条的例外**：它是**已求值来源的副本**（值语义，非策略引用），作用是 Debug 可见取值来源与 Live 化零结构迁移；其内层若含对象引用，由门面的 `AddReferencedObjects` 统一补引用（GC 纪律，见 `state-param-snapshot` 能力）。
 
@@ -54,8 +57,13 @@ TcsState MUST 提供 `FTcsStateInstance`——**纯数据**记录，字段分三
 
 #### Scenario: 两次施加得到互异的来源句柄
 
-- **WHEN** 对同一单位连续施加同一 `DefTag` 两次（两次各自建出实例）
-- **THEN** 两个实例的 `Source` 互异且均非 0
+- **WHEN** 对同一单位连续施加同一 `DefTag` 两次，且共存策略使两次各自建出实例（`EGB_Custom` 判不同组 / `EGB_PerSource` 且两次来源不同）
+- **THEN** 两个实例的 `Source` 互异且均非 0，且 `CascadeAnchor` 亦互异
+
+#### Scenario: 同一来源的两个实例撤销互不牵连
+
+- **WHEN** 以**同一个声明来源**先后施加两个**不同 `DefTag`** 的状态（各自建出实例、各自挂修正器），随后移除其中一个
+- **THEN** 被移除者的修正器与触发行被摘净，另一实例的修正器与触发行**不受影响**（两实例的 `CascadeAnchor` 互异；按 `Source` 撤销会互相误摘，故撤销一律按锚点）
 
 #### Scenario: 时值与周期各持条目锚点
 
@@ -213,7 +221,9 @@ TcsState MUST 原生声明六枚框架事件 tag（`UE_DECLARE_GAMEPLAY_TAG_EXTE
 
 **阶段机**：`EStatePhase{ Inactive / Active / Expiring }`，合法迁移 `Inactive → Active`（施加成功）、`Active → Expiring`（进入移除流程）、`Expiring → Inactive`（槽位释放）；**非法迁移 = `ensure`**（配置错误语义，与脏句柄的竞态口径分开）。
 
-**撤销顺序**：MUST 先广播后释放槽位——订阅者在回调里仍能 `GetState` 读到该实例（否则"收到移除事件却查不到实例"）。**该顺序的前置一步**：进入撤销流程时 MUST 先撤销该实例的到期与周期条目（条目持句柄，槽位复用后回调仍会到达；先撤条目才不产生无谓回调）。
+**撤销顺序**：MUST 先广播后释放槽位——订阅者在回调里仍能 `GetState` 读到该实例（否则"收到移除事件却查不到实例"）。**该顺序的前置两步**（2026-10-05 由"一步"扩为"两步"）：进入撤销流程时 MUST 先（①）按实例的级联锚点摘除属性修正器**并退订该实例的施加期登记物**（内联触发行；行为 Fragment 的订阅退订与①同处，见 `state-behavior-fragments` 的「行为订阅的生命周期接线」），再（②）撤销该实例的到期与周期条目。①排在广播之前的意义 = **该实例自己的触发行 MUST NOT 看见自己的 `Removed` / `Expired`**（"状态在，行为就在"的对偶：状态走了，行为先走）；②的意义 = 条目持句柄，槽位复用后回调仍会到达——先撤条目才不产生无谓回调。
+
+**接线顺序（施加侧的对偶）**：`Applied` 广播**之前** MUST 已完成修正器挂载、内联触发行登记与（若该 Def 配了行为 Fragment）行为订阅——订阅者在 `Applied` 回调里读到的属性已是挂载后的数值，且新登记的触发行**能看见自己的 `Applied`**。
 
 `UnregisterUnit` MUST 对该单位每条在册实例逐条广播 `Removed` 后删桶。
 
@@ -256,3 +266,8 @@ TcsState MUST 原生声明六枚框架事件 tag（`UE_DECLARE_GAMEPLAY_TAG_EXTE
 
 - **WHEN** 移除一个带未到期条目的实例后推进时钟越过其原到期时刻
 - **THEN** 不出现该实例的第二笔事件（条目已在撤销流程中被撤掉）
+
+#### Scenario: 移除前已退订本实例的触发行
+
+- **WHEN** 一个带内联触发器行的实例被移除或到期（其触发行订阅了 `TcsEvent.State.Removed` / `Expired`）
+- **THEN** 退订发生在广播之前——该实例自己的触发行**不会**因自己的死亡事件起链

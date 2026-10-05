@@ -7,6 +7,7 @@
 #include "StructUtils/InstancedStruct.h"
 
 #include "Handle/TcsCombatEntityHandle.h"
+#include "Handle/TcsSourceHandle.h"
 
 
 
@@ -35,6 +36,24 @@ public:
 
 	// 触发事件载荷（无事件触发时为默认构造——R3 手动触发的常态）
 	FInstancedStruct EventPayload;
+
+#pragma endregion
+
+
+// 来源（R5 Task 6：链运行态的"身份 + 因果边"两件事 MUST 分开——
+// 口径与判据见 `effect-interpreter` 能力的「链运行态来源锚点与因果边」需求）
+#pragma region Attribution
+
+public:
+	// 本次运行的**来源锚点**（身份）：由本次运行产生的东西（`ApplyState` / `ModifyAttribute`）继承它
+	// ⇒ 同一运行内同源（续杯）、跨运行异源（可叠层）。子链另发新号，不沿用父链的。
+	FTcsSourceHandle RunSource;
+
+	// 本次运行的**因果边**（溯源读数）：谁启动了我——触发行起链 = 该行的 `Source`（定义期登记的行是该
+	// 行的来源句柄、状态施加期登记的行是该状态实例的级联锚点）；子链 = 父链的 `RunSource`；宿主直调可无。
+	// **MUST NOT 参与撤销或共存判定**（原始版既有结论：父来源生命周期可先于子级结束、域之间不应按来源
+	// 互相影响生命周期）——撤销一律按各实例自己的锚点。
+	FTcsSourceHandle CausedBy;
 
 #pragma endregion
 

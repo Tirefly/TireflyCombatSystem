@@ -470,6 +470,12 @@ public:
 	UFUNCTION()
 	FTcsCombatEntityHandle GetRunInstigator(FTcsChainRunHandle Handle);
 
+	// 链运行态来源锚点（**观测读数**：宿主装置与将来的 Explain 面板读它；脚本可达面归 R8 Explain 轮，故本处不加 UFUNCTION）
+	FTcsSourceHandle GetRunSource(FTcsChainRunHandle Handle) const;
+
+	// 链运行态因果边（同上：只读观测面）
+	FTcsSourceHandle GetRunCausedBy(FTcsChainRunHandle Handle) const;
+
 #pragma endregion
 
 

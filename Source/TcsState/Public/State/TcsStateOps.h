@@ -59,8 +59,9 @@ public:
 	 * 组键 = `(单位, DefTag)` + 轴附加项，命中后按容量与溢出政策决定刷新 / 叠层 / 替换 / 拒绝。
 	 * 决策与更新流水住 `TcsStateOps_Stack.cpp`，本函数只做校验、决策分派与"新建"一支。
 	 *
-	 * **`Source` 是级联锚点也是"续杯 / 叠层"的判据**：生命周期长于一次施加的调用方 MUST 传稳定的
+	 * **`Source` 是"续杯 / 叠层"的判据**（施加方身份）：生命周期长于一次施加的调用方 MUST 传稳定的
 	 * 来源句柄；传无效值时门面会发新号，共存决策按"未声明来源"处理（视为同来源 ⇒ 续杯）。
+	 * **撤销锚点不是它**：级联撤销走实例的 `CascadeAnchor`（门面为每条实例恒发新号，调用方无从指定）。
 	 *
 	 * @param Subsystem 状态门面（提供登记表、桶、发号器与广播面）。
 	 * @param Target 被施加方实体。
@@ -251,22 +252,62 @@ public:
 		bool bStripFirst);
 
 	/**
-	 * 按来源级联摘除该实例的修正器（批内提交）——移除 / 到期路径的撤销步骤之一。
+	 * 按**级联锚点**级联摘除该实例的修正器（批内提交）——移除 / 到期路径的撤销步骤之一。
 	 *
 	 * **为什么会开一个批**：`RemoveBySource` 在批外会立即 flush + 广播；批内则只标脏，
-	 * 由本函数紧随其后的 `Commit` 一次性收口（一个来源的 N 条修正器 = 一次重算 + 一次广播）。
+	 * 由本函数紧随其后的 `Commit` 一次性收口（一个锚点的 N 条修正器 = 一次重算 + 一次广播）。
 	 *
 	 * **调用位置有硬约束**：它可能广播（`Commit`），故调用方 MUST 在**取实例指针之前**调用它，
 	 * 之后重新定位桶与实例（`FTcsStateOps::Remove` 即按此顺序书写）。
 	 *
 	 * @param Subsystem 状态门面。
 	 * @param Unit 单位实体句柄。
-	 * @param Source 来源句柄（= 状态实例的来源句柄）。
+	 * @param Source 级联锚点（= `FTcsStateInstance::CascadeAnchor`；**不是**"施加方来源句柄"）。
 	 */
 	static void StripModifiers(
 		UTcsStateSubsystem& Subsystem,
 		FTcsCombatEntityHandle Unit,
 		FTcsSourceHandle Source);
+
+#pragma endregion
+
+
+// 内联触发行（TRIG-4 的行为半）
+#pragma region TriggerRows
+
+public:
+	/**
+	 * 登记该实例的内联触发行（`Def.Triggers` 逐条）——`Source` = 实例的**级联锚点**。
+	 *
+	 * **调用时机有硬约束**：MUST 排在 `Applied` 广播**之前**——新登记的行要能看见自己的 `Applied`
+	 * （"状态在，行为就在"的起点）；排在其后则"施加瞬间的行为"永远不触发。
+	 *
+	 * **撤销口径 = 按锚点级联**（`UnregisterTriggerRowsBySource`）：实例 MUST NOT 存行句柄
+	 * （D3-7 v2 纪律：订阅句柄归注册表），锚点唯一 ⇒ 一次摘净且不误伤别条实例。
+	 *
+	 * 门面不可得（世界拆解期）⇒ `Warning` + 跳过：状态本身照常生效（状态与触发行是两套登记）。
+	 *
+	 * @param Subsystem 状态门面（取世界用）。
+	 * @param Instance 目标实例（只读它的 `Unit` / `CascadeAnchor`）。
+	 * @param Def 状态定义内容（取 `Triggers`）。
+	 */
+	static void WireTriggerRows(
+		UTcsStateSubsystem& Subsystem,
+		const FTcsStateInstance& Instance,
+		const FTcsBuffDef& Def);
+
+	/**
+	 * 退订该实例的内联触发行（按级联锚点一次摘净）。
+	 *
+	 * **调用时机有硬约束**：MUST 排在 `Removed` / `Expired` 广播**之前**——该实例自己的行
+	 * MUST NOT 因自己的死亡事件起链（"状态走了，行为先走"）。
+	 *
+	 * @param Subsystem 状态门面（取世界用）。
+	 * @param Instance 目标实例（只读它的 `CascadeAnchor`）。
+	 */
+	static void UnwireTriggerRows(
+		UTcsStateSubsystem& Subsystem,
+		const FTcsStateInstance& Instance);
 
 #pragma endregion
 

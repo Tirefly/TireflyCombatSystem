@@ -77,7 +77,7 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "Tcs|State|Event")
 	FGameplayTag DefTag;
 
-	// 归属来源句柄（级联撤销锚点——触发行退订与属性修正器摘除按它清）
+	// 施加方来源句柄（"谁施加的"——续杯 / 叠层判据的读数；撤销锚点见实例的 `CascadeAnchor`）
 	FTcsSourceHandle Source;
 
 	// 发起者实体（可与被施加方不同）

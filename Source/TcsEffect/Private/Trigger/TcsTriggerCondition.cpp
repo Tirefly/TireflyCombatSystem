@@ -2,6 +2,7 @@
 
 #include "Trigger/TcsTriggerCondition.h"
 
+#include "Attribute/TcsEffectAttributeAccess.h"
 #include "TcsEffectLogChannel.h"
 
 
@@ -251,10 +252,65 @@ namespace
 
 		return RandomValue < Condition->Probability;
 	}
+
+	/**
+	 * AttributeCompare（2026-10-05 R5 Task 6）：读上下文 `Caster` 的属性**当前值**后按方向比较。
+	 *
+	 * 两档失败面（见 `FTcsTriggerCondition_AttributeCompare` 头注释）：不可求值 ⇒ 静默不通过；
+	 * **键在账本上不存在 ⇒ 不通过 + Warning**（`EvaluateCurrent` 对"键不存在"与"值为 0"同读数，
+	 * 不区分就会让"键写错"表现成"按 0 比较"、可能与阈值比较后静默通过）。
+	 *
+	 * **依赖边界**：经 `FTcsEffectAttributeAccess`（TcsEffect 唯一属性门面取用处）——本条件是
+	 * TcsEffect 使用**下层**领域模块 `TcsAttribute` 的第二个真实消费者（第一个是 `ModifyAttribute` 步骤）。
+	 */
+	bool TestTriggerConditionAttributeCompare(const FInstancedStruct& ConditionData, const FTcsTriggerContext& Context, double /*RandomValue*/)
+	{
+		const FTcsTriggerCondition_AttributeCompare* Condition = ConditionData.GetPtr<FTcsTriggerCondition_AttributeCompare>();
+		if (!Condition || !Condition->Attribute.IsValid() || !Context.Caster.IsValid())
+		{
+			// 未配置 / 主体未知 = 不可求值：不通过、零红字（"条件未过不是故障"口径）
+			return false;
+		}
+
+		const FTcsEffectAttributeAccess Access = FTcsEffectAttributeAccess::Resolve(Context.World);
+		if (!Access.IsValid() || !Access.IsLedgerReady(Context.Caster))
+		{
+			// 无世界读数 / 该单位没有属性账本：同上——不通过、零红字
+			return false;
+		}
+
+		if (!Access.HasAttribute(Context.Caster, Condition->Attribute))
+		{
+			// 键写错 = 配置错误：**不静默按 0 比较**（与"未注册条件类型 ⇒ 不过 + Warning"同款 fail-closed）
+			UE_LOG(LogTcsEffect, Warning,
+				TEXT("触发条件 AttributeCompare：属性 %s 在该单位账本上不存在——按不通过处理（单位=%lld）"),
+				*Condition->Attribute.ToString(), Context.Caster.Id);
+			return false;
+		}
+
+		const double Current = Access.EvaluateCurrent(Context.Caster, Condition->Attribute);
+
+		switch (Condition->Comparison)
+		{
+		case ETcsAttributeComparison::EAC_Greater:
+			return Current > Condition->Threshold;
+
+		case ETcsAttributeComparison::EAC_Less:
+			return Current < Condition->Threshold;
+
+		case ETcsAttributeComparison::EAC_LessOrEqual:
+			return Current <= Condition->Threshold;
+
+		case ETcsAttributeComparison::EAC_GreaterOrEqual:
+		default:
+			return Current >= Condition->Threshold;
+		}
+	}
 }
 
 UE_DEFINE_TRIGGER_CONDITION_EVALUATOR(FTcsTriggerCondition_HasAllTags, TestTriggerConditionHasAllTags)
 UE_DEFINE_TRIGGER_CONDITION_EVALUATOR(FTcsTriggerCondition_Chance, TestTriggerConditionChance)
+UE_DEFINE_TRIGGER_CONDITION_EVALUATOR(FTcsTriggerCondition_AttributeCompare, TestTriggerConditionAttributeCompare)
 
 
 

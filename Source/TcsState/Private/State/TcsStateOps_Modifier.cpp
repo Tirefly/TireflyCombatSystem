@@ -18,7 +18,10 @@
 FTcsStateAttributeAccess FTcsStateAttributeAccess::Resolve(const UWorld* World)
 {
 	FTcsStateAttributeAccess Access;
-	Access.AttributeSubsystem = World ? World->GetSubsystem<UTcsAttributeSubsystem>() : nullptr;
+
+	// "怎么找到门面"归 TcsAttribute 的单一查找点（2026-10-05：将来补注入契约只换那一处）
+	Access.AttributeSubsystem = UTcsAttributeSubsystem::Resolve(World);
+
 	return Access;
 }
 
@@ -94,8 +97,8 @@ void FTcsStateOps::MountModifiers(
 
 	if (bStripFirst)
 	{
-		// 刷新路径：按来源摘除旧条目——同一来源句柄，摘掉的正是本实例上次挂的那些
-		Access.RemoveBySource(Instance.Unit, Instance.Source);
+		// 刷新路径：按**级联锚点**摘除旧条目——同一锚点，摘掉的正是本实例上次挂的那些
+		Access.RemoveBySource(Instance.Unit, Instance.CascadeAnchor);
 	}
 
 	for (const FTcsAttrModInstance& Modifier : Modifiers)

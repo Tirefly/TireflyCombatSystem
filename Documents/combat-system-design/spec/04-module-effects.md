@@ -15,13 +15,13 @@
 ## 1. 模块边界
 
 - 消费者：M3（生命周期事件被订阅）、M5（技能编排链）、M6（权威/镜像接线）、TcsDamage/TcsTargeting/TcsCue（领域步骤注册进执行器注册表）。
-- 依赖：TcsCore、TcsAttribute。**注册制分派（D4-14）**：本模块是纯机制层（解释器+控制流步骤+执行器注册表+自注册宏），不依赖任何领域模块；Damage/Heal/ModifyFlow 步骤+执行器住 TcsDamage（09 文档）、SelectTargets 住 TcsTargeting、ApplyState 住 TcsState、PlayCue 住 TcsCue；反向禁止。
+- 依赖：TcsCore、TcsAttribute。**注册制分派（D4-14）**：本模块是纯机制层（解释器+控制流步骤+执行器注册表+自注册宏），**不依赖上层领域模块**（依赖铁律 `Core ← {Notation, Attribute} ← Effect ← {Damage, Targeting, State} ← Skill`；`TcsAttribute` 在它**下层**，允许——**2026-10-05 首次真实使用这条边**：`ModifyAttribute` 步骤与 `AttributeCompare` 条件经 `FTcsEffectAttributeAccess` 取属性门面）；Damage/Heal/ModifyFlow 步骤+执行器住 TcsDamage（09 文档）、SelectTargets 住 TcsTargeting、ApplyState 住 TcsState、PlayCue 住 TcsCue；反向禁止。
 
 ## 2. 类型词汇（对外）
 
 ### 2.1 链与步骤（D4-3 终版：15 原语）
 - `FEffectStep`：`FInstancedStruct` 容器；步骤类型 = **15 个数据 struct（D4-16 终版）**，按归属分两半——**本模块 9**：控制流 6（WaitDelay/**WaitEvent**/Branch/Parallel/Repeat/RunSubChain）+ ModifyAttribute + SetVar + OnError；**领域模块自注册 6（D4-14）**：Damage/Heal/ModifyFlow（TcsDamage）、SelectTargets（TcsTargeting）、ApplyState（TcsState）、PlayCue（TcsCue）。修订史：WaitUntil→WaitEvent（事件回调挂起替代条件轮询）、Gate 并入开闸事件、ModifyFlow 新增（提交流程属性修正，见 09 文档）、SpawnProjectile/SpawnArea 移除（D4-16）。
-- **原语实现状态（2026-10-04，R4 收束回写）：15 个中已落地 8 个** —— 本模块 5（`WaitDelay`（R3）/ `WaitEvent` / `Branch` / `RunSubChain` / `SetVar`（四者 R4 Task 3.5，提案 `add-chain-primitives-and-target-sorting`，证据 `EVID-2026-10-04-chains-primitives`））+ 领域侧 3（`Damage`（R3）/ `ModifyFlow`（R4 Task 3，端到端见 `EVID-2026-10-04-modifier-channel`）/ `SelectTargets`（R3））。**余 7 个**：`Parallel` / `Repeat` / `OnError` / `ModifyAttribute`（R5）、`Heal`（R5，随治疗流程）、`ApplyState`（R5，与 M3 同批）、`PlayCue`（R8，随 TcsCue）。**节内其余描述仍是设计意图**——"这一轮到哪儿"的权威登记在 `PLN-R4` 注记与 `LEDGER-deferred`，本节只标已落地项，MUST NOT 当作"全部已实现"来读。
+- **原语实现状态（2026-10-05，R5 Task 6 回写）：15 个中已落地 10 个** —— 本模块 6（`WaitDelay`（R3）/ `WaitEvent` / `Branch` / `RunSubChain` / `SetVar`（四者 R4 Task 3.5，提案 `add-chain-primitives-and-target-sorting`，证据 `EVID-2026-10-04-chains-primitives`）/ **`ModifyAttribute`（R5 Task 6，2026-10-05；本模块对下层 `TcsAttribute` 的首次真实使用）**）+ 领域侧 4（`Damage`（R3）/ `ModifyFlow`（R4 Task 3，端到端见 `EVID-2026-10-04-modifier-channel`）/ `SelectTargets`（R3）/ **`ApplyState`（R5 Task 6，2026-10-05，住 TcsState）**）。**余 5 个**：`Parallel` / `Repeat` / `OnError`（R5.5-a）、`Heal`（R5.5-b）、`PlayCue`（R8，随 TcsCue）。**节内其余描述仍是设计意图**——"这一轮到哪儿"的权威登记在 `plans/plan-r5-state-layer.md` 注记与 `LEDGER-deferred`，本节只标已落地项，MUST NOT 当作"全部已实现"来读。
 - `FEffectChain`：有序步骤数组 + 元数据（`MaxStepsPerFrame` 熔断上限，默认 CVar 可调）。
 - `FEffectContext`（黑板，可池化）：`Caster / Instigator / EventPayload(FInstancedStruct) / Targets / Variables / **CapturedAttrs** / 注入引用（ICombatEntityQuery/IRelationResolver 等宿主能力契约，链构建时装配）`——黑板即上下文（与 09 文档同构）。
 - **原语集合扩展 = 新增 step struct（Authoring 第三层）**；Custom 逃逸位规约管策略枚举，不管类型族。

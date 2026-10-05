@@ -102,6 +102,10 @@ EApplyResult FTcsStateOps::Apply(
 	NewInstance->Handle = NewHandle;
 	NewInstance->Unit = Target;
 	NewInstance->Source = Source.IsValid() ? Source : Subsystem.SourceRegistry.Allocate();
+
+	// 级联锚点：**每实例恒发新号**（与 `Source` 解耦——一个来源可施加多个不同定义，
+	// 按来源撤销会互相误摘；锚点保证"撤销只摘本实例"）。
+	NewInstance->CascadeAnchor = Subsystem.SourceRegistry.Allocate();
 	NewInstance->Instigator = Instigator.IsValid() ? Instigator : Target;
 	NewInstance->Stacks = 1;
 	NewInstance->Level = Def->LevelBase;
@@ -114,7 +118,7 @@ EApplyResult FTcsStateOps::Apply(
 	MakeContext(Ctx, Subsystem, Target, NewInstance->Instigator, Def->LevelBase, ParamTable);
 	BuildSnapshot(NewInstance->ParamSnapshot, *Def, Ctx, Overrides);
 
-	// 修正器物化 + 挂载（施加路径无需先摘：来源句柄是本次施加才发放的，账本上不可能有同来源条目）。
+	// 修正器物化 + 挂载（施加路径无需先摘：级联锚点是本次施加才发放的，账本上不可能有同锚点条目）。
 	// 位置在广播之前——订阅者在 `Applied` 回调里读到的属性已是挂载后的数值。
 	MountModifiers(Subsystem, *Def, *NewInstance, /*bStripFirst=*/false);
 
@@ -131,6 +135,10 @@ EApplyResult FTcsStateOps::Apply(
 
 	// 时间条目（放在广播之前——订阅者读到的是完整的实例）
 	ScheduleTime(Subsystem, *LiveInstance, *Def, LiveInstance->ParamSnapshot, ParamTable, /*bRefresh=*/false);
+
+	// 内联触发行接线（`TRIG-4` 的行为半）：**排在 `Applied` 广播之前**——新登记的行要能看见自己的
+	// `Applied`（"状态在，行为就在"的起点）；行以实例的**级联锚点**为来源 ⇒ 撤销时一次摘净。
+	WireTriggerRows(Subsystem, *LiveInstance, *Def);
 
 	Broadcast(Subsystem, Tag_TcsEvent_State_Applied, *LiveInstance, EStateRemoveCause::ESRC_Removed);
 
@@ -171,12 +179,16 @@ bool FTcsStateOps::Remove(
 	const FGameplayTag DefTag = Found->DefTag;
 	const FTcsSourceHandle Source = Found->Source;
 
+	// 撤销锚点 = **级联锚点**（不是来源句柄：来源是"谁施加的"，一个来源可挂多个定义 ⇒ 按它摘会误摘）
+	const FTcsSourceHandle CascadeAnchor = Found->CascadeAnchor;
+
 	// **修正器摘除排在"取实例指针"之前**（顺序有理由，不是随手排的）：`StripModifiers` 内的批提交
 	// 会重算 + 广播（属性变更事件），订阅者可在其中重入状态操作（移除本实例 / 注销单位）——
 	// 先摘除、再重新定位桶与实例，下面两道既有守卫（桶不存在 / 实例查不到）就同时接住了重入造成的失效。
-	// 完整撤销顺序：**摘除修正器 → 撤时间条目 → `Expiring` → 广播 → 归还槽位**。
-	// 两处撤销（修正器 / 时间条目）都排在广播之前 ⇒ 订阅者读到的是"已经还清"的属性值与实例。
-	StripModifiers(Subsystem, Unit, Source);
+	// 完整撤销顺序：**摘除修正器 → 退订内联触发行 → 撤时间条目 → `Expiring` → 广播 → 归还槽位**。
+	// 三处撤销都排在广播之前 ⇒ 订阅者读到的是"已经还清"的属性值、行与实例；其中退订排在广播之前
+	// 还有一层意义：**该实例自己的触发行 MUST NOT 因自己的死亡事件起链**（"状态走了，行为先走"）。
+	StripModifiers(Subsystem, Unit, CascadeAnchor);
 
 	FStateBucket* Bucket = Subsystem.Registry.FindBucket(Unit);
 	if (!Bucket)
@@ -195,6 +207,10 @@ bool FTcsStateOps::Remove(
 		// 摘除提交期间被重入者移除（或单位已注销）——按已移除处理，不重复归还槽位
 		return false;
 	}
+
+	// 退订内联触发行（撤销顺序第二段）：不广播（纯登记表操作）⇒ 不受"取实例指针之前"那条约束，
+	// 但必须排在广播之前——理由见上面的顺序注释。
+	UnwireTriggerRows(Subsystem, *Instance);
 
 	CancelTimeEntries(Subsystem, *Instance);
 	Transit(Subsystem, Instance, EStatePhase::ESP_Expiring);

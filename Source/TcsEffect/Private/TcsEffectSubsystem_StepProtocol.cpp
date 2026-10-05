@@ -42,9 +42,14 @@ ETcsStepResult UTcsEffectSubsystem::RunChildChainStep(FTcsChainRunHandle Parent,
 		return ETcsStepResult::TSR_Completed;
 	}
 
-	// 首入：起链前取齐黑板。`ExecuteChain` 的形参是**值语义** ⇒ 拷贝发生在进入其函数体之前
-	//（即"起链前"），故无需先落一个局部副本再拷第二次
-	const FTcsChainRunHandle Child = ExecuteChain(ChainId, ParentRun->Context);
+	// 首入：起链前取齐黑板。`ExecuteChain` 的形参是**值语义** ⇒ 拷贝发生在进入其函数体之前（即"起链前"）。
+	// 子链把父链黑板整份拿来当底稿，但**来源两件事按"每一次运行"重算**（2026-10-05 R5 Task 6）：
+	// ① 身份另发新号（子链是独立的施加方，不沿用父链锚点）；② 因果边指向父链的运行锚点（逐跳成边）。
+	FTcsEffectContext ChildContext = ParentRun->Context;
+	ChildContext.RunSource = FTcsSourceHandleRegistry().Allocate();
+	ChildContext.CausedBy = ParentRun->Context.RunSource;
+
+	const FTcsChainRunHandle Child = ExecuteChain(ChainId, MoveTemp(ChildContext));
 
 	// 起链之后 MUST NOT 再用任何起链前的运行态指针（池扩容即搬移）——下面一律按句柄走
 	if (!Child.IsValid())

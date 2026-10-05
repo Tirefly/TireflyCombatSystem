@@ -6,18 +6,22 @@
 #include "GameplayTagContainer.h"
 #include "StructUtils/InstancedStruct.h"
 
+#include "Attribute/TcsAttributeComparison.h"
 #include "Handle/TcsCombatEntityHandle.h"
 
 #include "TcsTriggerCondition.generated.h"
+
+class UWorld;
 
 
 
 /**
  * 触发期上下文（**最小集**）：条件求值的数据面——只含本批条件真正需要的字段。
  *
- * **MUST NOT 为将来的条件预建字段**（零消费者不预建）：`AttributeCompare` 需要属性读取注入、
- * `VariableCompare` 需要变量存储、`GateCheck` 读 M5 的 `BoolSwitches`——三者今天都零消费者，
- * 各自落地时**再扩本结构**（那时它们有真实消费者，字段形状才定得准）。
+ * **MUST NOT 为将来的条件预建字段**（零消费者不预建）：`VariableCompare` 需要变量存储、
+ * `GateCheck` 读 M5 的 `BoolSwitches`——两者今天仍零消费者，各自落地时**再扩本结构**
+ * （那时它们有真实消费者，字段形状才定得准）。**2026-10-05 更新**：`AttributeCompare` 已落地，
+ * 它带来的 `World` 字段就是按本口径扩进来的（见下）。
  *
  * 与流程侧上下文的分工：`FTcsDamageFlowContext` 是**流程内**（三层值空间 + 黑板 + 参与者），
  * 本结构是**触发期**（事件刚到达、尚未起链）——两者不是一回事，MUST NOT 互相替换。
@@ -46,6 +50,18 @@ public:
 	// 主体（从事件载荷解析；取不到时为默认构造——"载荷类型未知"不是契约违规，不 ensure）
 	UPROPERTY()
 	FTcsCombatEntityHandle Caster;
+
+	/**
+	 * 世界读数（2026-10-05 新增，`AttributeCompare` 的真实消费者）。
+	 *
+	 * **为什么需要它**：条件求值器签名只收"条件数据 + 上下文 + 随机值"，**拿不到世界**；
+	 * 而要读属性账本就必须先解析世界（`UTcsAttributeSubsystem::Resolve(World)`）。故把世界放进
+	 * 求值器唯一能看见的数据面——由构造上下文的求值器（`UTcsTriggerEvaluator`）填入。
+	 *
+	 * **非 `UPROPERTY`**：触发期瞬时读数（不序列化、不进资产、不被任何人持有跨帧）；
+	 * 未填（`nullptr`）时**依赖世界的条件按"不可求值"处理**（返回不通过，不 ensure）。
+	 */
+	const UWorld* World = nullptr;
 
 #pragma endregion
 };
@@ -299,6 +315,39 @@ struct TCSEFFECT_API FTcsTriggerCondition_Chance
 	// 通过概率 [0,1]（`RandomValue < Probability` 即通过）
 	UPROPERTY(EditAnywhere, Category = "Tcs|Effect|Trigger", meta = (ClampMin = "0.0", ClampMax = "1.0"))
 	double Probability = 0.0;
+};
+
+
+
+/**
+ * 属性比较条件（第三条内置条件，D4-5 剩余条件之一；2026-10-05 R5 Task 6 落地）。
+ *
+ * **做什么**：读触发上下文 `Caster` 的该属性**当前值**（经属性访问解析点 `EvaluateCurrent`），
+ * 按 `Comparison` 与 `Threshold` 比较——比较词住 `TcsAttribute`（`ETcsAttributeComparison`），
+ * 本结构只是"条件数据"的载体（与 `HasAllTags` / `Chance` 同款：纯数据、零虚函数）。
+ *
+ * **失败面分两档（都不 ensure）**：
+ * - `Attribute` 无效 / `Caster` 无效 / 上下文无 `World` / 该单位无属性账本 ⇒ **不通过、零红字**；
+ * - `Attribute` 有效但**账本上没有这个键** ⇒ **不通过 + 一条 Warning**：`EvaluateCurrent` 对
+ *   "键不存在"与"值恰为 0"给同一个读数（0.0），不区分就会让"键写错"表现成"按 0 参与比较"
+ *   （可能与阈值比较后**静默通过**）。该红字属**拒绝面**。
+ */
+USTRUCT()
+struct TCSEFFECT_API FTcsTriggerCondition_AttributeCompare
+{
+	GENERATED_BODY()
+
+	// 被比较的属性键（无效 = 未配置 ⇒ 不通过、零红字）
+	UPROPERTY(EditAnywhere, Category = "Tcs|Effect|Trigger")
+	FGameplayTag Attribute;
+
+	// 比较方向（词住 TcsAttribute；默认"大于等于"）
+	UPROPERTY(EditAnywhere, Category = "Tcs|Effect|Trigger")
+	ETcsAttributeComparison Comparison = ETcsAttributeComparison::EAC_GreaterOrEqual;
+
+	// 阈值
+	UPROPERTY(EditAnywhere, Category = "Tcs|Effect|Trigger")
+	double Threshold = 0.0;
 };
 
 

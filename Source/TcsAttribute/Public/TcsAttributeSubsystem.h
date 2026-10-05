@@ -52,6 +52,29 @@ public:
 #pragma endregion
 
 
+// 解析
+#pragma region Resolve
+
+public:
+	/**
+	 * 解析本世界的属性门面（**唯一查找点**，2026-10-05 R5 Task 6 落地）。
+	 *
+	 * **为什么要有它**：`TcsState` 与 `TcsEffect` 两个消费模块各持一个"属性访问解析点"
+	 * （各自的**白名单薄壳**），但"怎么找到门面"这件事 MUST 只有一份实现——将来若补属性访问
+	 * **注入契约**（`ITcsAttributeAccess`，台账 `R-7`），**只换这一处**，两个消费模块的解析点
+	 * 一行不动（口径见 `attribute-pipeline` 能力的「属性门面的解析点」需求）。
+	 *
+	 * **非确保**：非游戏世界或该世界无本子系统时返回 `nullptr`，调用方按"该单位无属性账本"的
+	 * 既有分支处置（`Log` 级、零红字），MUST NOT ensure。
+	 *
+	 * @param World 目标世界（可为 `nullptr`）。
+	 * @return 返回属性门面；不可得时为 `nullptr`。
+	 */
+	static UTcsAttributeSubsystem* Resolve(const UWorld* World);
+
+#pragma endregion
+
+
 // 单位注册
 #pragma region Unit
 

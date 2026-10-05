@@ -30,10 +30,12 @@ namespace
 			return ETcsStepResult::TSR_Completed;
 		}
 
-		// 链侧上下文**最小映射**：本批只有 `Caster` 有来源（`EventTag` / `ClassificationTags` 在链侧
-		// 无来源 ⇒ 依赖它们的条件恒不通过——明示接受的限制，见头文件与台账）
+		// 链侧上下文**最小映射**：本批 `Caster` 与 `World` 有来源（`EventTag` / `ClassificationTags`
+		// 在链侧无来源 ⇒ 依赖它们的条件恒不通过——明示接受的限制，见头文件与台账）。
+		// `World`（2026-10-05 补）：`AttributeCompare` 要经它解析属性门面；漏填会让该条件**静默恒不通过**。
 		FTcsTriggerContext TriggerContext;
 		TriggerContext.Caster = Context.Caster;
+		TriggerContext.World = Facade->GetWorld();
 
 		// 条件求值：空数组 = 无条件通过（`EvaluateTriggerConditions` 的既有语义）；
 		// 随机值取自门面种子流——与触发行同款可复现口径（求值内部 MUST NOT 自行取随机数）

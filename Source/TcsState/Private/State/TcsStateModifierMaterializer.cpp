@@ -103,8 +103,9 @@ void FTcsStateModifierMaterializer::Materialize(
 			}
 		}
 
-		// ④ 装配（字段映射的唯一声明处；`Source` = 状态实例的来源句柄 ⇒ 一次级联摘除全清）
-		Out.Add(FTcsAttrModInstance::MakeFromDef(Template, Operand, Instance.Source));
+		// ④ 装配（字段映射的唯一声明处；`Source` = 实例的**级联锚点** ⇒ 一次级联摘除全清，
+		// 且同一个施加方来源挂多个定义时互不误摘）
+		Out.Add(FTcsAttrModInstance::MakeFromDef(Template, Operand, Instance.CascadeAnchor));
 	}
 
 	UE_LOG(LogTcsState, Log, TEXT("状态修正器物化：定义=%s 单位=%lld 模板=%d 条目=%d 来源=%llu"),

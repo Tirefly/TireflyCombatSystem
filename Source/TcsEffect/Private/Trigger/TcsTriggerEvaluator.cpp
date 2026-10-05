@@ -70,6 +70,10 @@ void UTcsTriggerEvaluator::HandleEvent_Implementation(FGameplayTag EventTag, con
 		Context.ClassificationTags = PayloadInfo.ClassificationTags;
 		Context.Caster = PayloadInfo.Caster;
 
+		// 世界读数：条件求值器签名里没有世界，而读属性账本（`AttributeCompare`）必须先解析世界——
+		// 由本处填入（非 UPROPERTY 的瞬时读数；门面已失效时留空 ⇒ 依赖世界的条件按不可求值处理）
+		Context.World = Facade ? Facade->GetWorld() : nullptr;
+
 		if (!PassesConditions(Instance->Def, Context))
 		{
 			if (!Instance->Def.bConditionMissIsSilent)
@@ -88,6 +92,11 @@ void UTcsTriggerEvaluator::HandleEvent_Implementation(FGameplayTag EventTag, con
 		ChainContext.Caster = Context.Caster;
 		ChainContext.EventPayload = Payload;
 		// Targets 本轮留空：完整"事件载荷 → 目标"通路需真实带目标的载荷类型（台账 DAMAGE-1）
+
+		// 因果边（溯源读数）：本次运行由**这一行**触发 ⇒ 记该行的来源句柄（定义期登记的行 = 该行的
+		// 来源句柄；状态施加期登记的行 = 该状态实例的级联锚点）。它只作溯源——**身份**走
+		// `RunSource`（由 `ExecuteChain` 发号），因果边 MUST NOT 参与撤销或共存判定。
+		ChainContext.CausedBy = Instance->Source;
 
 		UE_LOG(LogTcsEffect, Verbose, TEXT("触发求值：行命中（事件=%s 链=%s 主体=%lld）"),
 			*EventTag.ToString(), *ChainId.ToString(), Context.Caster.Id);

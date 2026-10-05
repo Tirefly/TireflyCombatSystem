@@ -33,6 +33,12 @@ void UTcsAttributeSubsystem::Deinitialize()
 	Super::Deinitialize();
 }
 
+UTcsAttributeSubsystem* UTcsAttributeSubsystem::Resolve(const UWorld* World)
+{
+	// 唯一查找点：两个消费模块的白名单薄壳都以它为实现（将来补注入契约只换这里）
+	return World ? World->GetSubsystem<UTcsAttributeSubsystem>() : nullptr;
+}
+
 FTcsCombatEntityHandle UTcsAttributeSubsystem::RegisterUnit(FName UnitName)
 {
 	const FTcsCombatEntityHandle Unit = EntityRegistry.Allocate();

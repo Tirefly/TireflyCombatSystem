@@ -430,21 +430,29 @@
 
 **依赖**：Task 5
 
-- [ ] **Step 1: `FTcsStepApplyState`（TcsState 领域步骤）**——字段：`FTcsCombatEntityHandle Target`（无效则取 `Context.Targets[0]`，仍无效 ⇒ 软失败）/ `FGameplayTag DefTag` / `TMap<FGameplayTag, double> Overrides`。
+- [x] **Step 1: `FTcsStepApplyState`（TcsState 领域步骤）**——字段：`FTcsCombatEntityHandle Target`（无效则取 `Context.Targets[0]`，仍无效 ⇒ 软失败）/ `FGameplayTag DefTag` / `TMap<FGameplayTag, double> Overrides`。
   执行体照 `FTcsStepSetVar` 形状（即时步骤、无挂起）：经 `Run.Owner->GetWorld()` 取 `UTcsStateSubsystem` → `ApplyState(...)`。
   **来源句柄 = 本次链运行态**（`Run.Self` 或链级来源位——实施时按"来源应表达谁施加的"定，并在头注释写明）；失败 ⇒ `Warning` + `TSR_Completed`（**不断链**），仅 `DefTag` 不可解析时 ⇒ `Error` + 断链。
-- [ ] **Step 2: `FTcsStepModifyAttribute`（TcsEffect 机制原语）**——字段：`FTcsCombatEntityHandle Target` / `FGameplayTag Attribute` / `ETcsAttributeOp Op`（复用 M2 枚举，**不新造词表**）/ `FTcsParamValue Operand`。
+- [x] **Step 2: `FTcsStepModifyAttribute`（TcsEffect 机制原语）**——字段：`FTcsCombatEntityHandle Target` / `FGameplayTag Attribute` / `ETcsAttributeOp Op`（复用 M2 枚举，**不新造词表**）/ `FTcsParamValue Operand`。
   执行体经 `Run.Owner->GetWorld()` + **属性访问解析点** 取 `UTcsAttributeSubsystem` → 构造一次性 `FTcsAttrModInstance`（`Source` = 链运行态来源）→ `ApplyModifier`。
   **边界**：`TcsEffect` 本轮首次 include `TcsAttribute`——头注释 MUST 写明"允许依赖**下层**领域模块（Attribute），MUST NOT 依赖上层（Damage/Targeting/State/Skill）"。
-- [ ] **Step 3: `AttributeCompare` 触发条件**——求值器注册进 `FTcsTriggerConditionRegistry`：条件数据 `{ FGameplayTag Attribute; ETcsAttributeComparison Comparison; double Threshold; }`（`Greater/Less/GreaterOrEqual/LessOrEqual`）；求值经属性访问解析点读 `EvaluateCurrent`（**与 Step 2 共用同一解析点**）。头注释写明"依赖属性读取注入位（本轮 = 直接依赖 `UTcsAttributeSubsystem`）"。
-- [ ] **Step 4: 内联触发行（`TRIG-4`）**——`Apply` 时逐条 `Def.Triggers` 构造 `FTcsEffectTriggerInstance{ Def, Source = 状态实例来源句柄 }` → `UTcsEffectSubsystem::RegisterTriggerRow(...)`（**来源句柄取自 Task 0 的统一发号器**，与修正器物化**共用同一个来源句柄**——同一个状态 = 同一个来源，摘除一次全清）；`Remove/Expire` 时 `UnregisterTriggerRowsBySource(同一句柄)`。规格背书：`openspec/specs/effect-trigger/spec.md`「施加状态时登记 ⇒ `Source` = 状态实例句柄」。
-- [ ] **Step 5: 行为 Fragment 订阅挂接**——`FTcsStateBehaviorFragment`（`USTRUCT(meta=(Hidden))`，反射基类 + 中性默认实现）：`TArray<FGameplayTag> Interests` + `virtual void OnStateEvent(const FGameplayTag& EventTag, const FInstancedStruct& Payload, const FStateBehaviorContext& Ctx)`；`Apply` 时按 `Interests` 向总线订阅（`Source` = 状态句柄，复用 D4-1 的订阅配对 + 来源级联退订机制），`Remove/Expire` 自动退订。**`FragmentSet` 归 Def 持有**（实例零策略）。
-- [ ] **Step 6: 编译 + 冒烟**——一条链：`ApplyState(buff)` → buff 的 `Triggers` 订阅 `TcsEvent.State.Applied` → 起一条行为链 → 行为链里 `ModifyAttribute` 改属性 → `RemoveState` 后触发行级联退订、修正器级联摘除。
-- [ ] **Step 7: 规格同步**——`SPEC-03-effects` 的"纯机制层"边界句改述为"**不依赖上层领域模块**"（Q-2 缓解②）；`SPEC-02-states` §1 的 `FStepApplyState` 落地状态更新。
+- [x] **Step 3: `AttributeCompare` 触发条件**——求值器注册进 `FTcsTriggerConditionRegistry`：条件数据 `{ FGameplayTag Attribute; ETcsAttributeComparison Comparison; double Threshold; }`（`Greater/Less/GreaterOrEqual/LessOrEqual`）；求值经属性访问解析点读 `EvaluateCurrent`（**与 Step 2 共用同一解析点**）。头注释写明"依赖属性读取注入位（本轮 = 直接依赖 `UTcsAttributeSubsystem`）"。
+- [x] **Step 4: 内联触发行（`TRIG-4`）**——`Apply` 时逐条 `Def.Triggers` 构造 `FTcsEffectTriggerInstance{ Def, Source = 状态实例来源句柄 }` → `UTcsEffectSubsystem::RegisterTriggerRow(...)`（**来源句柄取自 Task 0 的统一发号器**，与修正器物化**共用同一个来源句柄**——同一个状态 = 同一个来源，摘除一次全清）；`Remove/Expire` 时 `UnregisterTriggerRowsBySource(同一句柄)`。规格背书：`openspec/specs/effect-trigger/spec.md`「施加状态时登记 ⇒ `Source` = 状态实例句柄」。
+- [x] **Step 5: 行为 Fragment 订阅挂接**——`FTcsStateBehaviorFragment`（`USTRUCT(meta=(Hidden))`，反射基类 + 中性默认实现）：`TArray<FGameplayTag> Interests` + `virtual void OnStateEvent(const FGameplayTag& EventTag, const FInstancedStruct& Payload, const FStateBehaviorContext& Ctx)`；`Apply` 时按 `Interests` 向总线订阅（`Source` = 状态句柄，复用 D4-1 的订阅配对 + 来源级联退订机制），`Remove/Expire` 自动退订。**`FragmentSet` 归 Def 持有**（实例零策略）。
+- [x] **Step 6: 编译 + 冒烟**——一条链：`ApplyState(buff)` → buff 的 `Triggers` 订阅 `TcsEvent.State.Applied` → 起一条行为链 → 行为链里 `ModifyAttribute` 改属性 → `RemoveState` 后触发行级联退订、修正器级联摘除。
+- [x] **Step 7: 规格同步**——`SPEC-03-effects` 的"纯机制层"边界句改述为"**不依赖上层领域模块**"（Q-2 缓解②）；`SPEC-02-states` §1 的 `FStepApplyState` 落地状态更新。
 
 **验收信号**：链里施加状态成功；buff 自带行为链被自己的生命周期事件驱动；来源级联一次摘干净（触发行 + 修正器同源）。
 
 **非目标**：`Heal` / `Parallel` / `Repeat` / `OnError`（R5.5-a/b）；链侧中断/取消（M5/R6）；`ApplyState` 的操作复制（R7）。
+
+> **Task 6 落地结果（6a 部分，2026-10-05）**：
+> - **新增类型面**：`FTcsStepApplyState`（TcsState，`Public|Private/Chain/` 新目录 + 自注册）· `FTcsStepModifyAttribute`（TcsEffect + 自注册）· `ETcsAttributeComparison`（TcsAttribute 新头）+ `UTcsAttributeSubsystem::Resolve`（**唯一门面查找点**）+ `FTcsEffectAttributeAccess`（TcsEffect 侧白名单薄壳，`Private/Attribute/`）· `FTcsTriggerCondition_AttributeCompare`（第三条内置条件：数据住 `Public/Trigger/TcsTriggerCondition.h`、求值器 + 自注册住 `Private/Trigger/TcsTriggerCondition.cpp`）· `TcsStateOps_Trigger.cpp`（内联触发行登记 / 退订；TcsState 内**唯一** include `TcsEffectSubsystem.h` 处）· `FTcsStateInstance::CascadeAnchor`（级联锚点，与 `Source` 解耦）· `FTcsEffectContext::RunSource` / `CausedBy`（链运行态"身份 + 因果边"）+ `UTcsEffectSubsystem::GetRunSource` / `GetRunCausedBy`（只读观测面，**非 `UFUNCTION`**）。
+> - **七处计划文本订正（逐条留痕）**：① Step 1 的"来源句柄 = 本次链运行态（`Run.Self` 或链级来源位）"**无落点**——`FTcsChainRun`（11 字段）与 `FTcsEffectContext` 本无来源位，`Self` 是运行态自身句柄且类型换不成 `FTcsSourceHandle` ⇒ 改为**黑板新增 `RunSource`**（起链发新号、**子链另发**）。② Step 1 的"仅 `DefTag` 不可解析时 ⇒ `Error` + **断链**"**不可表达**——`ETcsStepResult` 只有 `Completed` / `Running` 两档，**步骤无法中断链**（断链只发生在"执行器未登记"时，由门面自己做）⇒ 统一为 `Warning` / `Error` + `TSR_Completed`，软失败接管归 `OnError`（R5.5-a）。③ Step 3 写的 `Public/Trigger/TcsTriggerCondition.cpp` **不存在该形态**（条件求值器住 `Private/Trigger/`）。④ Step 4 的"与修正器物化**共用同一个来源句柄**"改为共用同一**锚点**——`Source` 已退回"施加方身份"（一个来源可施加多个定义，按它撤销会互相误摘 ⇒ 走 `CascadeAnchor`）。⑤ Step 5 的 `OnStateEvent` **补 `const`**（片段住 Def、解析出来是 `const FTcsBuffDef*`）+ 订阅承接形态补明（**每兴趣 Tag 一条订阅 + 共享 Handler**，先例 `FTcsChainEventWaitRegistry`；**不**搞每实例 UObject）——**该步属 6b，未实施**。⑥ Step 2 的计划文件 `Private/Chain/TcsAttributeAccess.h/.cpp` 改为"**单载具查找点**（`UTcsAttributeSubsystem::Resolve`，用户 2026-10-05 拍板）+ **两模块各自白名单薄壳**"（TcsState 侧不动、TcsEffect 侧新增 `Private/Attribute/TcsEffectAttributeAccess.*`）。⑦ `FTcsTriggerContext` 需**补 `World`**（求值器签名拿不到世界），**且两个构造点都必须填**——本轮实测 `TcsStepBranch` 也构造该上下文，漏填会让链里的 `AttributeCompare` **静默恒不通过**（无红字、无日志）。
+> - **验收读数**（PIE 全绿；双配置编译均 `Result: Succeeded`）：即时 **61/0**（新增 23a–23h）、延迟段收束 **68/0**、`.Reject` **11/0**；`Run` 区段红字**恰 3 条** = 装置头部既有清单（19f ×1 / 20j ×2）。关键读数：23a `Source.Id=115` / `CascadeAnchor.Id=116` **互异**；23b 自己的 `Applied` 起链一次（护甲 5.000→20.000）；23c 自己的 `Removed` **不起链**（计数 1→1、回退 20.000→10.000）；23d 登记表 **2→4→2**；23e 10.000→17.000；23f ①② 不变 / ③ 80.000→87.000；23g 同来源两实例增量 **25.000**、**移除只掉 10.000**；23h 两次运行 `RunSource` 互异且各自 = 实例 `Source`、触发行起链 `CausedBy.Id=116` = 主探针实例 `CascadeAnchor.Id`。证据 = `EVID-2026-10-05-state-chain-primitives`（双区段哈希 `2cfa09fe…f801f` / `7458a999…632f34`）。
+> - **一处模型级发现（首轮实测，已入台账 `TRIG-6`）**：内联触发行是"**事件 Tag 级**"规则、**不过滤载荷与单位** ⇒ 一个实例登记的行会被世界里**任何**同 Tag 事件引爆（含别的实例的 `Applied`）；首轮 23g 因此得 30.000 / 计数 2（即时 `60/1`），修法 = **调整夹具施加顺序**（次定义先 ⇒ 串扰窗口为零），期望值一行未改。
+> - **交付面收缩（两处）**：`TcsState/Public|Private/Chain/` 为**本轮新建目录**；Step 5 的 `TcsStateBehaviorFragment.h` 与 `TcsStateOps_Behavior.cpp` **未建**（6b 范围）。
+> - **6b（`add-state-behavior-fragments`）未实施**：行为 Fragment 契约 / Def 载体 `Fragments` / 订阅表 + 共享 Handler / 两处接线 / 检查 23i–23l **全部待做**；其提案已过门禁并留在 `changes/` 里（`openspec list` 应显示 **1 个活动提案**）。
 
 ---
 
