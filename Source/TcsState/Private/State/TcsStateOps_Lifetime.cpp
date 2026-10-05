@@ -92,12 +92,14 @@ void FTcsStateOps::PushPeriod(UTcsStateSubsystem& Subsystem, FTcsStateInstance& 
 			Instance->PeriodEntry = FTcsTimeEntryHandle();
 			Instance->PeriodRemaining = 0.0;
 
-			FTcsStateOps::Broadcast(*Subsystem, Tag_TcsEvent_State_Periodic, *Instance, EStateRemoveCause::ESRC_Removed);
+			const FTcsStateInstance PeriodSnapshot = *Instance;
+			FTcsStateOps::Broadcast(*Subsystem, Tag_TcsEvent_State_Periodic, PeriodSnapshot, EStateRemoveCause::ESRC_Removed);
 
 			// 广播会让订阅者增删状态 ⇒ 实例指针不可跨广播使用，重新取一次
 			FTcsStateInstance* AfterBroadcast = const_cast<FTcsStateInstance*>(FTcsStateOps::Find(*Subsystem, Handle));
-			if (!AfterBroadcast)
+			if (!AfterBroadcast || AfterBroadcast->PeriodEntry.IsValid())
 			{
+				// 自移除时不重挂；回调已刷新重挂时不重复挂第二枚条目。
 				return;
 			}
 
@@ -181,7 +183,17 @@ void FTcsStateOps::ScheduleTime(
 
 	if (bImmediate)
 	{
-		Broadcast(Subsystem, Tag_TcsEvent_State_Periodic, Instance, EStateRemoveCause::ESRC_Removed);
+		const FTcsStateHandle Handle = Instance.Handle;
+		const FTcsStateInstance PeriodSnapshot = Instance;
+		Broadcast(Subsystem, Tag_TcsEvent_State_Periodic, PeriodSnapshot, EStateRemoveCause::ESRC_Removed);
+
+		// 回调可自移除、注销单位或嵌套刷新；不可继续使用原 Instance 引用。
+		FTcsStateInstance* AfterBroadcast = const_cast<FTcsStateInstance*>(Find(Subsystem, Handle));
+		if (AfterBroadcast && !AfterBroadcast->PeriodEntry.IsValid())
+		{
+			PushPeriod(Subsystem, *AfterBroadcast);
+		}
+		return;
 	}
 
 	PushPeriod(Subsystem, Instance);

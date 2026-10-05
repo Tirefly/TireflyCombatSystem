@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "StructUtils/InstancedStruct.h"
 
 #include "Handle/TcsInstanceHandle.h"
 #include "Handle/TcsSourceHandle.h"
@@ -84,7 +85,7 @@ struct TCSEFFECT_API FTcsEffectTriggerHandle
  * | 登记时机 | `Source` = | 典型场景 |
  * |---|---|---|
  * | 定义加载期（全局常驻） | 系统/DefLibrary 来源句柄 | 系统级规则（"任何单位死亡时…"） |
- * | **施加状态时**（per-instance） | **该状态实例句柄** | **Buff 行为**——"状态在，行为就在" |
+ * | **施加状态时**（per-instance） | **该状态实例的 `CascadeAnchor`** | **Buff 行为**——"状态在，行为就在" |
  *
  * 第二行是 `09 §2.3` 原文"订阅随 Source 生命周期自动退订——'状态在，修改器就在'天然成立"
  * 的机制落点：BuffDef 内联的触发行在状态施加时注册（Source = 状态实例句柄）、
@@ -125,6 +126,16 @@ public:
 	 * **不序列化是正确语义**：句柄是运行期发号的，本就不该进内容资产。
 	 */
 	FTcsSourceHandle Source;
+
+	/**
+	 * 本行绑定的实例主体（运行期反射值；状态内联行装 `FTcsStateHandle`）。
+	 *
+	 * 空值 = 未绑定的全局规则。带主体的局部事件只投递给主体类型和值均相同的绑定行；
+	 * 非实例事件（载荷读取器未给 Subject）仍按既有 Tag 语义投递给绑定行。
+	 * 仅用于事件路由：退订仍按 `Source`（状态行 = `CascadeAnchor`），不执行 `EventPayloadFilter`。
+	 */
+	UPROPERTY()
+	FInstancedStruct Subject;
 
 	// 自身句柄（退订 / 点灯 / 求值器回填上下文时用）
 	UPROPERTY()

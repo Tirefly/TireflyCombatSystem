@@ -13,7 +13,7 @@
 
 
 /**
- * 载荷主体信息（触发求值期从事件载荷读出的全部内容）——**载荷能提供的就这些**。
+ * 载荷主体信息（触发求值期从事件载荷读出的单位、实例主体与分类内容）。
  *
  * **为什么需要它（本类型的立项理由）**：`FTcsTriggerContext` 需要 `Caster` 与 `ClassificationTags`，
  * 但 `TcsEffect` **MUST NOT 认识任何领域载荷类型**（依赖铁律 `Core←Attribute←Effect←{Damage,…}`，
@@ -36,6 +36,16 @@ public:
 	// 主体（从载荷解析；无读取器或载荷不含主体时为空句柄）
 	UPROPERTY()
 	FTcsCombatEntityHandle Caster;
+
+	/**
+	 * 事件所属的实例主体（运行期反射值；状态事件装 `FTcsStateHandle`）。
+	 *
+	 * TcsEffect 不认识内层的领域类型：路由先要求主体类型完全相同，再用反射结构比较值。
+	 * 空主体表示非实例局部事件（Damage / 未登记读取器的自定义载荷等），维持既有 Tag 路由；
+	 * 只有载荷与行都声明主体时才进行实例匹配。该字段与内容侧 `EventPayloadFilter` 无关。
+	 */
+	UPROPERTY()
+	FInstancedStruct Subject;
 
 #pragma endregion
 
@@ -111,7 +121,8 @@ struct TCSEFFECT_API FTcsTriggerPayloadReaderRegistrar
 
 /**
  * 触发载荷读取器注册表（**按载荷反射类型分派**）：**由载荷类型的属主模块自登记**
- * （TcsDamage 的收集事件读取器住 TcsDamage）——TcsEffect 对载荷类型**零硬编码**。
+ * （TcsDamage 的收集事件、TcsState 的生命周期事件读取器各住自己的模块）——
+ * TcsEffect 对载荷类型**零硬编码**。
  *
  * 与另两张注册表的关系（TCS 的"属主自登记"惯例，三处同构）：
  * | 注册表 | 键 | 登记方 |

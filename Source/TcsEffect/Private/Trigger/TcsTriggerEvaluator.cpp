@@ -4,6 +4,7 @@
 
 #include "TcsEffectLogChannel.h"
 #include "TcsEffectSubsystem.h"
+#include "UObject/Class.h"
 
 
 
@@ -45,21 +46,40 @@ void UTcsTriggerEvaluator::HandleEvent_Implementation(FGameplayTag EventTag, con
 	// 门面未注入随机源时返回固定值——D0-1 确定性纪律（求值内部 MUST NOT 取随机数）
 	for (const FTcsEffectTriggerHandle& Handle : Candidates)
 	{
-		// 代际校验 + 取值拷贝：不跨 `ExecuteChain` 持实例指针（起链可能触发新登记 → TArray 扩容搬移）
-		const FTcsEffectTriggerInstance* Instance = Facade->FindTriggerRow(Handle);
-		if (!Instance)
+		// 条件求值可进入宿主回调，回调能登记/摘除行并让 TArray 搬移。
+		// 先复制整行（配置、Subject 与 Source），实例指针只在这个无回调的小作用域内使用。
+		FTcsEffectTriggerInstance RowSnapshot;
 		{
-			continue;
+			const FTcsEffectTriggerInstance* Instance = Facade->FindTriggerRow(Handle);
+			if (!Instance)
+			{
+				continue;
+			}
+			RowSnapshot = *Instance;
+		}
+
+		// 门①的实例主体路由：仅在事件与行都给 Subject 时筛选；未绑定的全局行继续收全部事件，
+		// Damage / 自定义外部事件未给 Subject 时，绑定行也维持既有 Tag 语义。
+		// 精确类型相同后才比较反射值——TcsEffect 不 include 任何状态/技能句柄类型。
+		if (RowSnapshot.Subject.IsValid() && PayloadInfo.Subject.IsValid())
+		{
+			const UScriptStruct* SubjectType = PayloadInfo.Subject.GetScriptStruct();
+			if (RowSnapshot.Subject.GetScriptStruct() != SubjectType ||
+				!SubjectType->CompareScriptStruct(
+					RowSnapshot.Subject.GetMemory(), PayloadInfo.Subject.GetMemory(), 0))
+			{
+				continue;
+			}
 		}
 
 		// 门② 执行闸（最廉价先判）
-		if (!PassesExecutionGate(Instance->Def))
+		if (!PassesExecutionGate(RowSnapshot.Def))
 		{
 			continue;
 		}
 
 		// 门③ 行级点灯
-		if (!PassesGateTags(Instance->Def))
+		if (!PassesGateTags(RowSnapshot.Def))
 		{
 			continue;
 		}
@@ -69,39 +89,38 @@ void UTcsTriggerEvaluator::HandleEvent_Implementation(FGameplayTag EventTag, con
 		Context.EventTag = EventTag;
 		Context.ClassificationTags = PayloadInfo.ClassificationTags;
 		Context.Caster = PayloadInfo.Caster;
+		Context.World = Facade->GetWorld();
 
-		// 世界读数：条件求值器签名里没有世界，而读属性账本（`AttributeCompare`）必须先解析世界——
-		// 由本处填入（非 UPROPERTY 的瞬时读数；门面已失效时留空 ⇒ 依赖世界的条件按不可求值处理）
-		Context.World = Facade ? Facade->GetWorld() : nullptr;
-
-		if (!PassesConditions(Instance->Def, Context))
+		if (!PassesConditions(RowSnapshot.Def, Context))
 		{
-			if (!Instance->Def.bConditionMissIsSilent)
+			if (!RowSnapshot.Def.bConditionMissIsSilent)
 			{
-				// 条件未过是**正常业务路径**，不是故障——只记 Verbose（M8 Explain 面板的数据源）
+				// 只用快照：即使条件回调删除本行，失败日志也不会读悬空实例。
 				UE_LOG(LogTcsEffect, Verbose, TEXT("触发求值：行条件未过（事件=%s 链=%s）"),
-					*EventTag.ToString(), *Instance->Def.EffectChainId.ToString());
+					*EventTag.ToString(), *RowSnapshot.Def.EffectChainId.ToString());
 			}
 			continue;
 		}
 
-		// 起链装配：链 id 取值拷贝后**立即脱离实例引用**（ExecuteChain 可能使登记表扩容）
-		const FGameplayTag ChainId = Instance->Def.EffectChainId;
+		// 回调可能移除本行（包括状态撤销带来的级联退订）；旧句柄失配时不得继续起链。
+		// 新登记行即使复用同一槽位也有新代际，不会被误当成本行。
+		if (!Facade->FindTriggerRow(Handle))
+		{
+			continue;
+		}
+
+		const FGameplayTag ChainId = RowSnapshot.Def.EffectChainId;
 
 		FTcsEffectContext ChainContext;
 		ChainContext.Caster = Context.Caster;
 		ChainContext.EventPayload = Payload;
-		// Targets 本轮留空：完整"事件载荷 → 目标"通路需真实带目标的载荷类型（台账 DAMAGE-1）
-
-		// 因果边（溯源读数）：本次运行由**这一行**触发 ⇒ 记该行的来源句柄（定义期登记的行 = 该行的
-		// 来源句柄；状态施加期登记的行 = 该状态实例的级联锚点）。它只作溯源——**身份**走
-		// `RunSource`（由 `ExecuteChain` 发号），因果边 MUST NOT 参与撤销或共存判定。
-		ChainContext.CausedBy = Instance->Source;
+		// Targets 留空：主体身份只用于路由与条件，不在本处扩成目标选择机制。
+		ChainContext.CausedBy = RowSnapshot.Source;
 
 		UE_LOG(LogTcsEffect, Verbose, TEXT("触发求值：行命中（事件=%s 链=%s 主体=%lld）"),
 			*EventTag.ToString(), *ChainId.ToString(), Context.Caster.Id);
 
-		// 链未登记时 ExecuteChain 已有拒绝面（Error + 不起链），此处不重复校验
+		// 链未登记时 ExecuteChain 已有拒绝面（Error + 不起链），此处不重复校验。
 		Facade->ExecuteChain(ChainId, MoveTemp(ChainContext));
 	}
 }

@@ -3,6 +3,7 @@
 #include "Def/TcsBuffDefAsset.h"
 
 #include "Parameter/TcsParamValueSource.h"
+#include "State/TcsStateBehaviorFragment.h"
 #include "TcsValueConvention.h"
 
 
@@ -146,6 +147,27 @@ EDataValidationResult UTcsBuffDefAsset::IsDataValid(FDataValidationContext& Cont
 		{
 			Context.AddError(FText::FromString(FString::Printf(
 				TEXT("Triggers[%d].EffectChainId 无效：命中后无链可执行"), TriggerIndex)));
+			Result = EDataValidationResult::Invalid;
+		}
+	}
+
+	// 行为片段的两条作者期规则：空载荷与类型不符分别报出，运行期降级不代替配置检查。
+	for (int32 FragmentIndex = 0; FragmentIndex < BuffDef.Fragments.Num(); ++FragmentIndex)
+	{
+		const FInstancedStruct& Fragment = BuffDef.Fragments[FragmentIndex];
+		if (!Fragment.IsValid())
+		{
+			Context.AddError(FText::FromString(FString::Printf(
+				TEXT("Fragments[%d] 载荷为空：请选择行为片段，或删除该空项"), FragmentIndex)));
+			Result = EDataValidationResult::Invalid;
+			continue;
+		}
+
+		if (!Fragment.GetScriptStruct()->IsChildOf(FTcsStateBehaviorFragment::StaticStruct()))
+		{
+			Context.AddError(FText::FromString(FString::Printf(
+				TEXT("Fragments[%d] 类型不符：%s 不是状态行为片段"),
+				FragmentIndex, *Fragment.GetScriptStruct()->GetName())));
 			Result = EDataValidationResult::Invalid;
 		}
 	}

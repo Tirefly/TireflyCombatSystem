@@ -29,6 +29,16 @@ bool UTcsStateSubsystem::DoesSupportWorldType(const EWorldType::Type WorldType) 
 
 void UTcsStateSubsystem::Deinitialize()
 {
+	// 行为先退订：清桶/清 Def 之前完成配对，并打印前后计数以支持跨 PIE 残留复核。
+	const int32 BehaviorSubscriptionsBefore = BehaviorRegistry.GetSubscriptionCount();
+	const int32 BehaviorInstancesBefore = BehaviorRegistry.GetInstanceCount();
+	BehaviorRegistry.Reset(GetEventBus());
+	BehaviorHandler = nullptr;
+	UE_LOG(LogTcsState, Log,
+		TEXT("状态行为反初始化：订阅 %d→%d 实例 %d→%d"),
+		BehaviorSubscriptionsBefore, BehaviorRegistry.GetSubscriptionCount(),
+		BehaviorInstancesBefore, BehaviorRegistry.GetInstanceCount());
+
 	// **先逐条撤销时间条目**（时值 + 周期）：条目持句柄，桶清空后回调仍会到达——
 	// 靠代际校验兜底是"能成立"，但每次世界切换都会往堆里留一批无谓条目。
 	// 顺序 = 撤条目 → 清桶 → 复位登记表。
@@ -47,6 +57,7 @@ void UTcsStateSubsystem::Deinitialize()
 
 	Registry.Reset();
 	RegisteredDefs.Reset();
+	InRemovalBroadcastHandles.Reset();
 
 	Super::Deinitialize();
 }

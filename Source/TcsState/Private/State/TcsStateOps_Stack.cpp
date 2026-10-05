@@ -223,35 +223,59 @@ EApplyResult FTcsStateOps::RefreshStacked(
 	FTcsStateInstance* Live = LiveBucket ? LiveBucket->Find(Handle) : nullptr;
 	if (!Live)
 	{
-		// 重入移除的极端路径：本次更新（快照 + 账本 + 层数）已完成，实例却已不在册 ⇒
-		// 不再补播事件（对已不在册的实例广播是错语义）；回执按决策档给，Warning 说明它已无意义。
-		UE_LOG(LogTcsState, Warning,
+		// 更新已完成，回调合法移除实例时不再补播事件，回执仍按决策档给。
+		UE_LOG(LogTcsState, Log,
 			TEXT("状态%s后实例已不在册（挂载提交期间被重入移除）：单位=%lld 定义=%s 句柄=%d/%d"),
 			TcsStackOps_DecisionToString(Decision.Kind), Request.Unit.Id, *Request.DefTag.ToString(),
 			Handle.Index, Handle.Generation);
 		return Result;
 	}
 
-	Transit(Subsystem, Live, EStatePhase::ESP_Expiring);
-
-	// 时间条目重挂放在**广播之前**：订阅者在回调里读到的时值/周期已是本次施加的结果
-	// （放在广播之后会让回调读到上一轮的剩余时长——一处只有靠时序才能发现的错值）
-	ScheduleTime(Subsystem, *Live, Def, Live->ParamSnapshot, ParamTable, /*bRefresh=*/true);
-
-	// ④ 广播顺序（硬约束）：**层数变化先播、刷新后播**——层数在刷新前就已就位，
-	// 两笔载荷的 `Stacks` 都是新层数；层数没变（续杯）时只有 `Refreshed` 一笔。
-	if (bStackChanged)
+	// 属性提交可以注销定义；只使用提交后重新解析的定义，不跨回调持旧 Def 引用。
+	const FTcsBuffDef* LiveDef = Subsystem.GetRegisteredStateDef(Request.DefTag);
+	if (!LiveDef)
 	{
-		Broadcast(Subsystem, Tag_TcsEvent_State_StackChanged, *Live, EStateRemoveCause::ESRC_Removed);
+		return Result;
 	}
 
-	Broadcast(Subsystem, Tag_TcsEvent_State_Refreshed, *Live, EStateRemoveCause::ESRC_Removed);
-	Transit(Subsystem, Live, EStatePhase::ESP_Active);
+	if (Live->Phase != EStatePhase::ESP_Expiring)
+	{
+		Transit(Subsystem, Live, EStatePhase::ESP_Expiring);
+	}
+
+	// 时间重挂的 Immediate 周期事件也可能移除本实例，返回后必须重新定位。
+	ScheduleTime(Subsystem, *Live, *LiveDef, Live->ParamSnapshot, ParamTable, /*bRefresh=*/true);
+	Live = Subsystem.Registry.Find(Request.Unit, Handle);
+	if (!Live)
+	{
+		return Result;
+	}
+
+	// 层数变化先播、刷新后播；每一笔都是值快照，不跨广播持实例或桶指针。
+	const FTcsStateInstance EventSnapshot = *Live;
+	if (bStackChanged)
+	{
+		Broadcast(Subsystem, Tag_TcsEvent_State_StackChanged, EventSnapshot, EStateRemoveCause::ESRC_Removed);
+	}
+
+	Live = Subsystem.Registry.Find(Request.Unit, Handle);
+	if (Live)
+	{
+		// 同次更新的两笔载荷保持相同层数；重入后的 Live 只用作活性检查，不覆写事件快照。
+		Broadcast(Subsystem, Tag_TcsEvent_State_Refreshed, EventSnapshot, EStateRemoveCause::ESRC_Removed);
+	}
+
+	// Refreshed 回调可以自移除或嵌套刷新。只恢复仍在册且仍处过渡态的实例。
+	Live = Subsystem.Registry.Find(Request.Unit, Handle);
+	if (Live && Live->Phase == EStatePhase::ESP_Expiring)
+	{
+		Transit(Subsystem, Live, EStatePhase::ESP_Active);
+	}
 
 	UE_LOG(LogTcsState, Log, TEXT("状态%s：单位=%lld 定义=%s 句柄=%d/%d 层数=%d 快照=%d 条 剩余=%.3f"),
 		TcsStackOps_DecisionToString(Decision.Kind), Request.Unit.Id, *Request.DefTag.ToString(),
-		Live->Handle.Index, Live->Handle.Generation, Live->Stacks, Live->ParamSnapshot.Num(),
-		Live->DurationRemaining);
+		EventSnapshot.Handle.Index, EventSnapshot.Handle.Generation, EventSnapshot.Stacks, EventSnapshot.ParamSnapshot.Num(),
+		EventSnapshot.DurationRemaining);
 
 	return Result;
 }

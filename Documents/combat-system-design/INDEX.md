@@ -4,13 +4,13 @@
 - **类型**：治理（入口索引）
 - **状态**：生效中（2026-09-29 建立，取代原 `README.md` 的"文档清单"职能）
 - **权威范围**：本文回答"**该读哪一篇**"。编号含义见 `GLOSSARY.md`；写法纪律见 `docs-convention.md`；逐条拍板流水见 `LOG-DECISIONS`。
-- **最后更新**：2026-10-05（R5 Task 6（6a）落地：链原语与行为面接线）
+- **最后更新**：2026-10-05（R5 Task 6（6b）落地：状态行为 Fragment 与状态载荷自筛——Task 6 两半全部落地）
 
 ---
 
 ## 1. 现状一句话
 
-TCS 战斗系统设计已完成 **M0–M9 全部决策拍板**，实施 **R4 轮已收束**（触发行与伤害修改器通道），下一步 = **R5 轮（M3 状态层，`TcsState`）**（Task 0 前置契约、Task 1 模块 + Def 资产族、Task 2 实例与生命周期、Task 3 参数快照与时间语义、**Task 4 修正器物化**已于 2026-10-04 落地、**Task 5 五轴堆叠与刷新政策**已于 2026-10-05 落地、**Task 6（6a）链原语与行为面接线**已于 2026-10-05 落地（**6b 行为 Fragment 未开工**））：
+TCS 战斗系统设计已完成 **M0–M9 全部决策拍板**，实施 **R4 轮已收束**（触发行与伤害修改器通道），下一步 = **R5 轮（M3 状态层，`TcsState`）**（Task 0 前置契约、Task 1 模块 + Def 资产族、Task 2 实例与生命周期、Task 3 参数快照与时间语义、**Task 4 修正器物化**已于 2026-10-04 落地、**Task 5 五轴堆叠与刷新政策**已于 2026-10-05 落地、**Task 6 链原语与行为面接线（6a / 6b 两半）**已于 2026-10-05 落地）：
 
 - **R1/R2/R3 已完成**（核心 + 属性 + 六模块竖切，7 项人工检查点全通过）；
 - **R4 已完成（2026-10-04）**——七个 Task（1 / 2 / 2.5 / 3 / 3.5 / 4 / 5）全部完成：触发行三段（数据形状 → 登记表与四道门求值器 → 独立资产载体 `UTcsEffectTriggerDefAsset` 与定义库装配）+ **伤害修改器唯一通道（D7-6）端到端**（破甲 `30 → 15`）+ 四个链原语（`SetVar` / `Branch` / `RunSubChain` / `WaitEvent`）与 P-A 目标排序相位。**四份证据**：`EVID-2026-10-04-trigger-def-asset` / `EVID-2026-10-04-chains-primitives` / `EVID-2026-10-04-modifier-channel` / `EVID-2026-09-30-modifyflow-acceptance`；`openspec validate --all --strict` = **26 passed / 0 failed**、`openspec/changes/` **零活动提案**。**唯一留白** = Task 3.5 的 `tasks.md` 6.6 三条降级路径（归 M5）；
@@ -21,7 +21,8 @@ TCS 战斗系统设计已完成 **M0–M9 全部决策拍板**，实施 **R4 轮
   - **Task 3 验收已过（2026-10-04）**——数值与时间两条腿落地：**参数快照**（`FTcsParamSnapshot` + 值约定在写入点转规范值 + 纯 C++ 读取适配器）/ **四个等级源 + 宿主实体等级读口**（`ITcsEntityLevelProvider` + 派生上下文 `FTcsStateEvaluateContext`）/ **Duration-Period 到期堆**（重复到期条目 + `PeriodRefresh` 三态 + 时长操作堆同步）/ **R4.5-b 宿主参数源插槽**（`ITcsParamSourceHost` + `FTcsParamSource_HostDelegate`）。读数 = `Tcs.Test.Slice.Run` 即时 **32/0** + 延迟段 **39/0**（新增 `20a`–`20l`）、`Tcs.Test.Slice.Reject` **9/0**（新增 H/I）、双配置编译零 warning 零 error；证据 `EVID-2026-10-04-state-param-snapshot-and-level-sources`。
   - **Task 4 验收已过（2026-10-04）**——**状态第一次真的改得动数值**（D3-19 修正器物化）：`ModifierRows` 模板 → M2 账本条目（`Source` = 实例来源句柄）、模板里的引用类操作数**从该实例自己的快照取值**（经新增的**反射壳 + RAII 栈式绑定**把快照装进 `Ctx.ParamTable`）、施加/刷新**同批内**挂载且排在生命周期广播之前、移除/到期**按同一来源一次摘净**。读数 = `Tcs.Test.Slice.Run` 即时 **40/0** + 延迟段累计 **47/0**（新增 `21a`–`21h`）、`Tcs.Test.Slice.Reject` **10/0**（新增 J）、双配置编译零 warning 零 error；关键读点 = 护甲 `5.000 → -15.000`（快照 `-20`，模板兜底 `-999` **未被取用**）与定序读数"属性变更 **37** < `Applied` **38**"；证据 `EVID-2026-10-04-state-modifier-materialization`。**下一步 = Task 5（五轴堆叠与刷新政策）**。
   - **Task 5 验收已过（2026-10-05）**——**同一 buff 的重复施加首次有确定语义**（五轴堆叠与刷新政策）：组键三态（不分组 / 按来源 / 按发起者）+ Custom 逃逸位、`MaxStacks` 与溢出两档、数值叠加（取最大 / 累加）、时长刷新（不动 / 回满额）；`EApplyResult` **四档全部实测可达**、`TcsEvent.State.StackChanged` **首次有真实广播**（叠层路径，且定序早于 `Refreshed`）；宿主自定义决策 Fragment 被真实调用（样本恒不同组 ⇒ 每次新建）。读数 = `Tcs.Test.Slice.Run` 即时 **53/0** + 延迟累计 **60/0**（新增 `22a`–`22m`）、`Tcs.Test.Slice.Reject` **11/0**（新增 `K`）；证据 `EVID-2026-10-05-state-stacking-policies`（双区段哈希 `0841f12a…` / `dc3917a9…`）。**同轮修掉一处实现缺陷**：`ScheduleTime` 刷新恒回满额 ⇒ `ESD_None`（不动时长）那一档此前**在实现上从未存在**。
-  - **Task 6（6a）验收已过（2026-10-05）**——**链里首次能施加状态、能改属性；状态自己的内联触发行首次有真实登记与退订**：`FTcsStepApplyState` / `FTcsStepModifyAttribute`（两个领域步骤 + 自注册，`TcsEffect` 首次真实使用到 `TcsAttribute` 这条**下层**边）+ `AttributeCompare`（第三条内置条件，实测能**门控**起链）+ **级联锚点与施加方身份解耦**（`CascadeAnchor` ≠ `Source`：一个来源可施加多个定义，按来源撤销会互相误摘）+ **链运行态"身份 + 因果边"**（`RunSource` 每运行一枚新号 / `CausedBy` 触发行起链 = 该行所属实例的锚点；**因果边 MUST NOT 参与撤销或共存判定**）。读数 = `Tcs.Test.Slice.Run` 即时 **61/0** + 延迟段收束 **68/0**（新增 `23a`–`23h`）、`Tcs.Test.Slice.Reject` **11/0**；证据 `EVID-2026-10-05-state-chain-primitives`（双区段哈希 `2cfa09fe…` / `7458a999…`）。**首轮唯一失败 23g（60/1）的真因是一条模型级发现**：内联触发行是"**事件 Tag 级**"规则、不过滤载荷与单位 ⇒ 跨实例串扰（入台账 `TRIG-6`）；**同轮还修掉一处跨文件缺陷**（`TcsStepBranch` 漏填 `Context.World` ⇒ 链里的 `AttributeCompare` 会静默恒不通过）。**6b（行为 Fragment）未开工**。
+  - **Task 6（6a）验收已过（2026-10-05）**——**链里首次能施加状态、能改属性；状态自己的内联触发行首次有真实登记与退订**：`FTcsStepApplyState` / `FTcsStepModifyAttribute`（两个领域步骤 + 自注册，`TcsEffect` 首次真实使用到 `TcsAttribute` 这条**下层**边）+ `AttributeCompare`（第三条内置条件，实测能**门控**起链）+ **级联锚点与施加方身份解耦**（`CascadeAnchor` ≠ `Source`：一个来源可施加多个定义，按来源撤销会互相误摘）+ **链运行态"身份 + 因果边"**（`RunSource` 每运行一枚新号 / `CausedBy` 触发行起链 = 该行所属实例的锚点；**因果边 MUST NOT 参与撤销或共存判定**）。读数 = `Tcs.Test.Slice.Run` 即时 **61/0** + 延迟段收束 **68/0**（新增 `23a`–`23h`）、`Tcs.Test.Slice.Reject` **11/0**；证据 `EVID-2026-10-05-state-chain-primitives`（双区段哈希 `2cfa09fe…` / `7458a999…`）。**首轮唯一失败 23g（60/1）的真因是一条模型级发现**：内联触发行是"**事件 Tag 级**"规则、不过滤载荷与单位 ⇒ 跨实例串扰（入台账 `TRIG-6`）；**同轮还修掉一处跨文件缺陷**（`TcsStepBranch` 漏填 `Context.World` ⇒ 链里的 `AttributeCompare` 会静默恒不通过）。
+  - **Task 6（6b）验收已过（2026-10-05）**——**状态首次有了作者面的行为回调，且状态事件第一次能按实例身份自筛**：`FTcsStateBehaviorFragment`（兴趣 Tag 列表 + 单个 `const` 泛化回调）住 `FTcsBuffDef.Fragments`，按**每兴趣 Tag 一条订阅**（共享 Handler 由门面 `UPROPERTY` 强持有、计数配对）接线——施加时接线排在 `Applied` 广播**之前**、移除 / 到期退订排在广播**之前**、刷新**不重挂**；**首个状态载荷读取器** + **两侧泛型主体匹配**（`TRIG-6` 甲案）把触发行从"事件 Tag 级规则"收窄为"**绑定行只认自己的实例主体**"，`TcsEffect` 仍**不反向依赖** `TcsState`；**句柄身份修复**（出线进程唯一正奇数代际，修掉"各桶各自发号 ⇒ 跨单位同号"的缺陷）与 **`STAT-5` 有限重入守卫**（旁表只覆盖真正的移除广播窗口）同轮落地。读数 = **两连 PIE**（同进程 `StopPIE → StartPIE`）各即时 **65/0** + 延迟段收束 **72/0**（新增 `23i`–`23l`）、`Tcs.Test.Slice.Reject` **11/0**；`Run` 红字**恰 3 条**（与 6a 同，**本轮未加故意红字**）；证据 `EVID-2026-10-05-state-behavior-fragments`（冻结快照 `05218d83…` + 三段区段哈希）。**关键读数**：23g **恢复"先主后次"** 后仍 `+25.000 / 计数 1`（即 `TRIG-6` 那条串扰**不再靠夹具顺序规避**）、23l 第二轮 `旧句柄拒绝=是` 且两轮各有 `状态行为反初始化：订阅 1→0 实例 1→0`。**⇒ R5 Task 6 两半全部完成；`openspec/changes/` 零活动提案。**
   - **R6–R8 未开工**（技能层 → 集成层 → 表现与编辑器工具）。
 
 > **最容易误判的一条**：原 `README.md` 里 plan3 的状态写着"待执行 / 5 Task"，**那是过期信息**（README 已于 2026-09-29 拆分为导航页，内容迁入 `log/`）——plan3 的 Task 1/2 已完成、R4 已扩容为 7 个 Task、并已于 2026-10-04 **全轮收束**。以本文 §1 与 `PLN-R4` 为准。
@@ -35,9 +36,9 @@ TCS 战斗系统设计已完成 **M0–M9 全部决策拍板**，实施 **R4 轮
 | **了解系统全貌** | `SPEC-00-core`～`SPEC-10-presentation`（11 篇模块规格） | 一篇一个模块，统一模板：模块边界 / 类型词汇 / 入口服务 / 网络姿态 / 非目标 / 依据 / 验收钩子。**注意编号 ≠ 文件序**：`SPEC-09` 主题词是 `editor`（文件 `spec/08-…`） |
 | **只想知道某个模块对外是什么** | 该模块 `SPEC` 的 §1 模块边界 + §2 类型词汇 | — |
 | **想知道"当初为什么这么定"** | `GLOSSARY.md` 查到决策编号 → 按 §4 的落点进对应 `LOG-xx` / `DEC-xx` | 决策理由只住决策文档，不住规格 |
-| **要知道哪些事还没做** | `LEDGER-deferred`（跨轮遗留台账，58 条） | 唯一待办登记册；按轮次分组 |
+| **要知道哪些事还没做** | `LEDGER-deferred`（跨轮遗留台账，59 条） | 唯一待办登记册；按轮次分组 |
 | **要知道某能力现在到底通没通** | `SPEC-TRACE`（契约追踪矩阵）+ `EVID-*`（证据） | 矩阵区分"静态实现 / glue / PIE 已验证 / 未验证" |
-| **要接着干活（实施）** | `PLN-R5`（**R5 进行中**；含《R5–R8 轮次路线图》+《R5.5 批次表》） | 已完成轮次的计划：`PLN-R3-1`、`PLN-R3-2`、`PLN-R4`（**R4 已完成**，保留《R4.5 批次表》）。**R5 的开工首动作已完成**——R5 区段已通读并折进 `PLN-R5` §0.1，`SPEC-02-states` §12 是实施视角的收窄结论。**Task 1 已落地并收束（2026-10-04，双配置编译零 warning / 零 error + PIE 20/0 + 7b 零红字；提案已归档、四份 delta、`changes/` 零活动提案）**；下一步 = Task 2（实例 / 注册表 / 门面 / 生命周期事件——**MUST 先开提案 `add-state-instance-lifecycle`**） |
+| **要接着干活（实施）** | `PLN-R5`（**R5 进行中**；含《R5–R8 轮次路线图》+《R5.5 批次表》） | 已完成轮次的计划：`PLN-R3-1`、`PLN-R3-2`、`PLN-R4`（**R4 已完成**，保留《R4.5 批次表》）。**R5 的开工首动作已完成**——R5 区段已通读并折进 `PLN-R5` §0.1，`SPEC-02-states` §12 是实施视角的收窄结论。**Task 1 已落地并收束（2026-10-04，双配置编译零 warning / 零 error + PIE 20/0 + 7b 零红字；提案已归档、四份 delta、`changes/` 零活动提案）**；**Task 2–5 已落地**（各自提案已归档）；**Task 6 两半（6a / 6b）已于 2026-10-05 全部落地并归档**（即时 65/0 + 延迟 72/0 + `.Reject` 11/0，两连 PIE）——下一步 = **Task 7（端到端验收与证据）**，其后 Task 8 收束（**MUST 先开提案** `verify-state-layer-e2e`） |
 | **写涉及"反射"字样的文本** | `LEDGER-terminology`（**MUST 先通读**） | 该词在本仓承载 5 种含义，有唯一处方措辞 |
 | **要查某个缩写/编号** | `GLOSSARY.md` | 15 个编号族 + 逐条注册表 |
 | **要新增或改写文档** | `CONVENTION` | 类型/状态词/身份块/引用格式 |
@@ -154,7 +155,7 @@ combat-system-design/
 
 | ID | 内容 | 规模 |
 |---|---|---|
-| `LEDGER-deferred` | 跨轮遗留输入台账（**唯一待办登记册**）：按轮次分组的 58 条 + 变更记录 | 58 条 |
+| `LEDGER-deferred` | 跨轮遗留输入台账（**唯一待办登记册**）：按轮次分组的 59 条 + 变更记录 | 59 条 |
 | `LEDGER-reflection` | 反射未解决项（`R-1`~`R-6`）+ 逐项专项调研登记册 | 6 项 |
 | `LEDGER-terminology` | 「反射」术语规约（一词五义的唯一处方措辞）——**写含"反射"的文本前 MUST 通读** | — |
 
@@ -187,6 +188,8 @@ combat-system-design/
 | `EVID-2026-10-05-state-stacking-policies` | **R5 Task 5 验收（五轴堆叠与刷新政策）**：`Tcs.Test.Slice.Run` 即时 **53/0** + 延迟段累计 **60/0**（新增 `22a`–`22m`）、`Tcs.Test.Slice.Reject` **11/0**（新增 `K`）；四档回执全可达 / `StackChanged` 首次广播且先于 `Refreshed` / `AddValues` 账本读数成倍（5→15→25）/ 满仓替换换句柄 / 时长两档可分（8.000 vs 3.000）/ 宿主决策样本被真实调用；双区段哈希 + 复算脚本 + **十二条边界** | Task 5 验收锚点 |
 
 | `EVID-2026-10-05-state-chain-primitives` | **R5 Task 6（6a）验收（链原语与行为面接线）**：`Tcs.Test.Slice.Run` 即时 **61/0** + 延迟段收束 **68/0**（新增 `23a`–`23h`）、`Tcs.Test.Slice.Reject` **11/0**；**关键读点 = 身份与锚点解耦**（23a `Source.Id=115` / `CascadeAnchor.Id=116` 互异）、**"状态在，行为就在"的对偶**（23b 自己的 `Applied` 起链一次、23c 自己的 `Removed` **不起链**、23d 登记表 `2→4→2`）、**同来源两实例撤销互不牵连**（23g 移除只掉 10.000）、**因果边真的可读**（23h 触发行起链 `CausedBy.Id` = 主探针实例 `CascadeAnchor.Id`、宿主直调为空）；含**首轮唯一失败（23g `60/1`）与其根因**（内联触发行**事件 Tag 级、不过滤载荷** ⇒ 跨实例串扰，已入台账 `TRIG-6`）+ 一处跨文件实现缺陷（`Branch` 漏填 `Context.World` ⇒ 条件静默恒不通过）+ 十一章边界 | Task 6（6a）验收锚点；提案 = `add-state-chain-primitives`（4 新能力 + 4 改能力） |
+
+| `EVID-2026-10-05-state-behavior-fragments` | **R5 Task 6（6b）验收（状态行为 Fragment 与状态载荷自筛）**：**两连 PIE**（同进程 `StopPIE → StartPIE`）各即时 **65/0** + 延迟段收束 **72/0**（新增 `23i`–`23l`）、`Tcs.Test.Slice.Reject` **11/0**；**关键读点 = 行为接线两侧硬约束**（23i 自身 `Applied` 一次 + `subs=4`/`instances=1` + 读取器 `Caster=Instigator/退Unit`、`Subject=Handle`；23k 自己的 `Removed` **不起行为**、外部递归移除 `返回=false`）、**状态载荷按实例自筛与外部扇出的对偶**（23j `刷新A/B=1/0` 与 `空外部载荷=1/1`；`订阅4→4不重挂`）、**`TRIG-6` 甲案在"先主后次"下成立**（23g 恢复原顺序仍 `+25.000 / 计数 1`）、**跨世界零残留与旧句柄拒绝**（23l 第二轮 `旧句柄拒绝=是`、两轮 `状态行为反初始化 订阅 1→0 实例 1→0`）；含冻结快照 + **三段区段哈希** + 复算脚本 + 一处身份缺陷（各桶各自发号 ⇒ 跨单位同号，按裁定 8 甲案修）+ 一处守卫宽度修正（`Expiring` ≠ 正在移除）+ **十二条边界** | Task 6（6b）验收锚点；提案 = `add-state-behavior-fragments`（1 新能力 + 3 改能力）；消费台账 `STAT-5`、落地 `TRIG-6`、新增 `STAT-9` |
 
 ### 4.7 治理（`GOV`）
 

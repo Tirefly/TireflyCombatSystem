@@ -2,6 +2,30 @@
 
 #include "State/TcsStateRegistry.h"
 
+#include "TcsStateLogChannel.h"
+
+
+
+namespace
+{
+	// 出线到 TcsState DLL：跨桶、跨世界共用，世界拆解不复位。奇数为在册，偶数为释放态。
+	uint32 GTcsStateRegistryNextGeneration = 1;
+
+	uint32 AllocateStateRegistryGeneration()
+	{
+		check(IsInGameThread());
+		if (GTcsStateRegistryNextGeneration > static_cast<uint32>(MAX_int32))
+		{
+			// 反射句柄的 int32 上限不能回绕：即便 Shipping 也必须拒绝身份复用。
+			UE_LOG(LogTcsState, Fatal, TEXT("状态实例代际空间已耗尽，不能复用旧身份"));
+		}
+
+		const uint32 Generation = GTcsStateRegistryNextGeneration;
+		GTcsStateRegistryNextGeneration += 2;
+		return Generation;
+	}
+}
+
 
 
 // 槽位
@@ -11,13 +35,13 @@ FTcsStateHandle FStateBucket::AllocateSlot()
 	if (FreeSlots.Num() > 0)
 	{
 		SlotIndex = FreeSlots.Pop(EAllowShrinking::No);
-		SlotGenerations[SlotIndex] += 1;
+		SlotGenerations[SlotIndex] = AllocateStateRegistryGeneration();
 	}
 	else
 	{
 		SlotIndex = static_cast<uint32>(Instances.Num());
 		Instances.Emplace();
-		SlotGenerations.Add(1);
+		SlotGenerations.Add(AllocateStateRegistryGeneration());
 	}
 
 	return MakeHandle(SlotIndex);

@@ -312,6 +312,35 @@ public:
 #pragma endregion
 
 
+// 行为片段（Def 配置与订阅旁表）
+#pragma region Behavior
+
+public:
+	/**
+	 * 接线行为兴趣，必须排在 Applied 广播之前；零片段不创建 Handler、不占订阅。
+	 *
+	 * @param Subsystem 状态门面（拥有注册表与 Handler 强引用）。
+	 * @param Instance 已在册实例（只读身份，不存实例指针）。
+	 * @param Def 定义内容（片段配置只由 Def 持有）。
+	 */
+	static void WireBehaviors(
+		UTcsStateSubsystem& Subsystem,
+		const FTcsStateInstance& Instance,
+		const FTcsBuffDef& Def);
+
+	/**
+	 * 摘除实例的全部行为兴趣，必须排在 Removed / Expired 广播之前。
+	 *
+	 * @param Subsystem 状态门面。
+	 * @param Instance 待移除实例（只读其身份）。
+	 */
+	static void UnwireBehaviors(
+		UTcsStateSubsystem& Subsystem,
+		const FTcsStateInstance& Instance);
+
+#pragma endregion
+
+
 // 查询
 #pragma region Query
 

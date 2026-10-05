@@ -47,6 +47,8 @@ void FTcsStateOps::WireTriggerRows(
 		FTcsEffectTriggerInstance RowInstance;
 		RowInstance.Def = Row;
 		RowInstance.Source = Instance.CascadeAnchor;
+		// 实例主体与撤销锚点分开：主体只管局部事件投递，Source 仍负责按锚点级联退订。
+		RowInstance.Subject = FInstancedStruct::Make<FTcsStateHandle>(Instance.Handle);
 		EffectSubsystem->RegisterTriggerRow(RowInstance);
 	}
 

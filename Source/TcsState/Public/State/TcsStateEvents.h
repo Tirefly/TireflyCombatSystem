@@ -49,7 +49,7 @@ extern TCSSTATE_API FNativeGameplayTag Tag_TcsEvent_State_Periodic;
  * 状态生命周期事件载荷（D3-7 生命周期事件全集）：六枚事件共用一种载荷形状。
  *
  * **为什么六枚共用一个形状**：订阅者拿到的永远是"哪个状态的哪一次生命周期动作"——
- * 六个字段（实例身份 + 定义身份 + 来源 + 发起者 + 层数 + 等级）在六枚上口径一致，
+ * 实例身份、定义身份、所属单位、来源、发起者、层数与等级在六枚上口径一致，
  * 各写一个 struct 会让订阅侧复制六份解析代码。差异只有 `Cause`：它**仅 `Expired` / `Removed`
  * 有意义**（其余四枚里无意义，读它属调用方责任）。
  *
@@ -72,6 +72,10 @@ public:
 	// 实例句柄（回调内可据此调 `GetState` 读实例）
 	UPROPERTY(BlueprintReadOnly, Category = "Tcs|State|Event")
 	FTcsStateHandle Handle;
+
+	// 状态所属的单位（读取器在 Instigator 无效时以它作为 Caster，不回查可能正在释放的实例）
+	UPROPERTY(BlueprintReadOnly, Category = "Tcs|State|Event")
+	FTcsCombatEntityHandle Unit;
 
 	// 定义身份（状态 Def 的 `DefTag`）
 	UPROPERTY(BlueprintReadOnly, Category = "Tcs|State|Event")

@@ -9,8 +9,8 @@
 // GC 补引用
 void FTcsTriggerRegistry::AddReferencedObjects(FReferenceCollector& Collector, UObject* ReferencingObject)
 {
-	// 逐行补引用：本表非 UPROPERTY 成员（GC 的 RefLink 走不到），而行的定义侧含
-	// FInstancedStruct（条件/载荷预筛）——其内层可放宿主自定义 struct 的 UPROPERTY 对象引用。
+	// 逐行补引用：本表非 UPROPERTY 成员，GC 的 RefLink 走不到。
+	// 遍历整个反射实例，覆盖 Def 的条件/载荷预筛以及运行期 Subject 的内层对象引用。
 	// 只有**已分配槽位**需要遍历（空闲槽内容已在摘除时清空）。
 	for (uint32 SlotIndex = 0; SlotIndex < static_cast<uint32>(Rows.Num()); ++SlotIndex)
 	{
@@ -20,7 +20,7 @@ void FTcsTriggerRegistry::AddReferencedObjects(FReferenceCollector& Collector, U
 		}
 
 		Collector.AddPropertyReferencesWithStructARO(
-			FTcsEffectTriggerDef::StaticStruct(), &Rows[SlotIndex].Def, ReferencingObject);
+			FTcsEffectTriggerInstance::StaticStruct(), &Rows[SlotIndex], ReferencingObject);
 	}
 }
 

@@ -25,8 +25,9 @@ struct FTcsStateTag
  * 且 **`-1` 与 `TTcsInstanceHandle::InvalidIndex(0xFFFFFFFF)` 位模式相同**，转换无损）。
  *
  * **句柄相对其发放方有义**：`Index` / `Generation` 的语义由**桶**（`FStateBucket`）定义——
- * 下标是桶内槽位、代际是桶内槽位复用计数（分配与释放各 +1，奇数 = 已分配）。
- * 故 MUST NOT 把句柄跨世界或跨门面重用（`Generation` 是全局防御网而非世界标识）。
+ * 下标是桶内槽位；代际由 TcsState 出线发号器统一分配（进程内不复用的奇数号）。
+ * 不同桶或新世界即使复用同一下标，也不会拿到相同的实例身份；释放后该槽代际 +1 置为偶数。
+ * 句柄仍 MUST NOT 跨世界重用；旧世界身份在新门面上无法命中。
  *
  * **`Index` 可能为 0**（首个槽位）⇒ 有效性判据是"`Generation` 非 0"，**不是**"下标非 0"。
  */
@@ -39,7 +40,7 @@ struct TCSSTATE_API FTcsStateHandle
 	UPROPERTY(BlueprintReadOnly, Category = "Tcs|State")
 	int32 Index = -1;
 
-	// 代际计数（分配与释放各 +1，首个有效代际为 1；0 = 从未分配）
+	// 进程内不复用的分配代际（奇数）；释放置偶数，0 = 从未分配
 	UPROPERTY(BlueprintReadOnly, Category = "Tcs|State")
 	int32 Generation = 0;
 

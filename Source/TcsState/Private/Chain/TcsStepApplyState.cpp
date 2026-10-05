@@ -69,16 +69,19 @@ namespace
 			return ETcsStepResult::TSR_Completed;
 		}
 
-		// 来源 = 本次运行的**来源锚点**（身份：同一运行内同源 ⇒ 续杯；两次运行异源 ⇒ 可叠层）；
-		// 参数表留空（链侧无参数表载体），覆盖表来自步骤配置。
+		// 施加可同步起其它链并搬移运行态池，也可注销本链定义；副作用前复制输入与日志身份。
+		const FGameplayTag ChainId = Run.ChainId;
+		const FTcsSourceHandle RunSource = Context.RunSource;
+		const FTcsCombatEntityHandle Instigator = Context.Instigator;
+		const FTcsStepApplyState StepSnapshot = *Step;
 		const TScriptInterface<ITcsParamTableReader> EmptyParamTable;
 		const EApplyResult Result = StateSubsystem->ApplyState(
-			Target, Step->DefTag, Context.RunSource, Context.Instigator, EmptyParamTable, Step->Overrides);
+			Target, StepSnapshot.DefTag, RunSource, Instigator, EmptyParamTable, StepSnapshot.Overrides);
 
 		// 四档回执全部是业务结果（`Rejected` 亦然）⇒ `Log` 级：常规验收命令保持零非预期红字
 		UE_LOG(LogTcsState, Log, TEXT("ApplyState[%s]: 单位=%lld 定义=%s 回执=%d 来源=%llu 覆盖=%d 条"),
-			*Run.ChainId.ToString(), Target.Id, *Step->DefTag.ToString(), static_cast<int32>(Result),
-			Context.RunSource.Id, Step->Overrides.Num());
+			*ChainId.ToString(), Target.Id, *StepSnapshot.DefTag.ToString(), static_cast<int32>(Result),
+			RunSource.Id, StepSnapshot.Overrides.Num());
 
 		return ETcsStepResult::TSR_Completed;
 	}

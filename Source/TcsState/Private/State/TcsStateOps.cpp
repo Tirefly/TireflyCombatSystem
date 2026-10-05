@@ -127,25 +127,37 @@ EApplyResult FTcsStateOps::Apply(
 	FTcsStateInstance* LiveInstance = LiveBucket ? LiveBucket->Find(NewHandle) : nullptr;
 	if (!LiveInstance)
 	{
-		UE_LOG(LogTcsState, Warning,
+		UE_LOG(LogTcsState, Log,
 			TEXT("状态施加后实例已不在册（挂载提交期间被重入移除）：单位=%lld 定义=%s 句柄=%d/%d"),
 			Target.Id, *DefTag.ToString(), NewHandle.Index, NewHandle.Generation);
 		return EApplyResult::EAR_Applied;
 	}
 
+	// 挂载提交也可能注销 Def，不能继续使用提交前的定义指针。
+	const FTcsBuffDef* LiveDef = Subsystem.GetRegisteredStateDef(DefTag);
+	if (!LiveDef)
+	{
+		UE_LOG(LogTcsState, Log, TEXT("状态施加接线已停止：挂载期间定义被注销（单位=%lld 定义=%s）"),
+			Target.Id, *DefTag.ToString());
+		return EApplyResult::EAR_Applied;
+	}
+
 	// 时间条目（放在广播之前——订阅者读到的是完整的实例）
-	ScheduleTime(Subsystem, *LiveInstance, *Def, LiveInstance->ParamSnapshot, ParamTable, /*bRefresh=*/false);
+	ScheduleTime(Subsystem, *LiveInstance, *LiveDef, LiveInstance->ParamSnapshot, ParamTable, /*bRefresh=*/false);
 
 	// 内联触发行接线（`TRIG-4` 的行为半）：**排在 `Applied` 广播之前**——新登记的行要能看见自己的
 	// `Applied`（"状态在，行为就在"的起点）；行以实例的**级联锚点**为来源 ⇒ 撤销时一次摘净。
-	WireTriggerRows(Subsystem, *LiveInstance, *Def);
+	WireTriggerRows(Subsystem, *LiveInstance, *LiveDef);
+	WireBehaviors(Subsystem, *LiveInstance, *LiveDef);
 
-	Broadcast(Subsystem, Tag_TcsEvent_State_Applied, *LiveInstance, EStateRemoveCause::ESRC_Removed);
+	// 行为回调可移除自己或注销单位；广播后不使用原实例指针，日志也只读这一份值快照。
+	const FTcsStateInstance AppliedSnapshot = *LiveInstance;
+	Broadcast(Subsystem, Tag_TcsEvent_State_Applied, AppliedSnapshot, EStateRemoveCause::ESRC_Removed);
 
 	UE_LOG(LogTcsState, Log, TEXT("状态施加：单位=%lld 定义=%s 句柄=%d/%d 来源=%llu 等级=%d 快照=%d 条 剩余=%.3f 周期=%.3f"),
 		Target.Id, *DefTag.ToString(), NewHandle.Index, NewHandle.Generation,
-		LiveInstance->Source.Id, LiveInstance->Level, LiveInstance->ParamSnapshot.Num(),
-		LiveInstance->DurationRemaining, LiveInstance->PeriodRemaining);
+		AppliedSnapshot.Source.Id, AppliedSnapshot.Level, AppliedSnapshot.ParamSnapshot.Num(),
+		AppliedSnapshot.DurationRemaining, AppliedSnapshot.PeriodRemaining);
 
 	return EApplyResult::EAR_Applied;
 }
@@ -172,6 +184,12 @@ bool FTcsStateOps::Remove(
 		return false;
 	}
 
+	// 仅拒绝 Remove 的终止事件广播窗口重入；刷新也使用 Expiring 过渡态，不能按 Phase 一刀拒绝。
+	if (Subsystem.InRemovalBroadcastHandles.Contains(Handle))
+	{
+		return false;
+	}
+
 	// 先把单位与槽位下标取出来（**按值**）：广播之后本函数不再持实例指针
 	// （订阅者可在回调里增删状态，槽位可能被复用）。
 	const FTcsCombatEntityHandle Unit = Found->Unit;
@@ -185,7 +203,7 @@ bool FTcsStateOps::Remove(
 	// **修正器摘除排在"取实例指针"之前**（顺序有理由，不是随手排的）：`StripModifiers` 内的批提交
 	// 会重算 + 广播（属性变更事件），订阅者可在其中重入状态操作（移除本实例 / 注销单位）——
 	// 先摘除、再重新定位桶与实例，下面两道既有守卫（桶不存在 / 实例查不到）就同时接住了重入造成的失效。
-	// 完整撤销顺序：**摘除修正器 → 退订内联触发行 → 撤时间条目 → `Expiring` → 广播 → 归还槽位**。
+	// 完整撤销顺序：**摘除修正器 → 退订触发行与行为片段 → 撤时间条目 → `Expiring` → 广播 → 归还槽位**。
 	// 三处撤销都排在广播之前 ⇒ 订阅者读到的是"已经还清"的属性值、行与实例；其中退订排在广播之前
 	// 还有一层意义：**该实例自己的触发行 MUST NOT 因自己的死亡事件起链**（"状态走了，行为先走"）。
 	StripModifiers(Subsystem, Unit, CascadeAnchor);
@@ -211,19 +229,29 @@ bool FTcsStateOps::Remove(
 	// 退订内联触发行（撤销顺序第二段）：不广播（纯登记表操作）⇒ 不受"取实例指针之前"那条约束，
 	// 但必须排在广播之前——理由见上面的顺序注释。
 	UnwireTriggerRows(Subsystem, *Instance);
+	UnwireBehaviors(Subsystem, *Instance);
 
 	CancelTimeEntries(Subsystem, *Instance);
-	Transit(Subsystem, Instance, EStatePhase::ESP_Expiring);
+	// 刷新回调可以进入移除链，此时已经处于 Expiring，不重复执行同相位迁移。
+	if (Instance->Phase != EStatePhase::ESP_Expiring)
+	{
+		Transit(Subsystem, Instance, EStatePhase::ESP_Expiring);
+	}
 
 	// 广播前把实例复制一份：广播会让订阅者改桶（槽位可能被复用），故不用引用跨过广播。
 	// **复制的是广播当时的快照**（阶段 = `Expiring`，正是"移除中"的语义）。
 	const FTcsStateInstance Snapshot = *Instance;
+	Subsystem.InRemovalBroadcastHandles.Add(Handle);
 	Broadcast(Subsystem, Cause == EStateRemoveCause::ESRC_Expired ? Tag_TcsEvent_State_Expired : Tag_TcsEvent_State_Removed,
 		Snapshot, Cause);
+	Subsystem.InRemovalBroadcastHandles.Remove(Handle);
 
-	// 归还槽位（`ReleaseSlot` 清槽内容 + 代际 +1 使旧句柄悬空；销毁路径不需过渡守卫——
-	// 槽位内容立刻被清零，"Stage 矩阵"对本实例到此为止）
-	Bucket->ReleaseSlot(SlotIndex);
+	// 广播可注销整个桶，也可使该句柄失效；重新定位后才归还，防双次归还或误释放复用槽位。
+	FStateBucket* ReleaseBucket = Subsystem.Registry.FindBucket(Unit);
+	if (ReleaseBucket && ReleaseBucket->Find(Handle))
+	{
+		ReleaseBucket->ReleaseSlot(SlotIndex);
+	}
 
 	UE_LOG(LogTcsState, Log, TEXT("状态移除：单位=%lld 定义=%s 句柄=%d/%d 原因=%d 来源=%llu"),
 		Unit.Id, *DefTag.ToString(), Handle.Index, Handle.Generation, static_cast<int32>(Cause), Source.Id);

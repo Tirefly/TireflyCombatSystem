@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameplayTagContainer.h"
+#include "StructUtils/InstancedStruct.h"
 #include "Parameter/TcsParamValue.h"
 #include "State/TcsStateEnums.h"
 #include "State/TcsStateStackPolicy.h"
@@ -23,8 +24,9 @@
  * （施法时段是另一套语义），字段划分判据见 `FTcsStateDefBase` 的说明。
  *
  * **行为面（内联触发行位）**：`Triggers` 是 `TRIG-4` 的落点——buff 自己的生命周期事件触发行**内联进 Def**
- * （区别于 `UTcsEffectTriggerDefAsset` 那条"独立资产"载体）；施加时登记、`Source` = 状态实例来源句柄、
- * 移除/到期按同一句柄级联退订，登记与退订时机归 `effect-trigger` 能力（R5 Task 6 接线）。
+ * （区别于 `UTcsEffectTriggerDefAsset` 那条"独立资产"载体）；施加时登记、`Source` = 实例级联锚点，
+ * 移除/到期按同一锚点级联退订。行为 Fragment 则由 `Fragments` 持有（精确兴趣 Tag + const 回调），
+ * 订阅句柄归旁表，不进状态实例；两类行为都在施加广播前接线、移除广播前退订。
  *
  * **关系字段本轮只落形状**：`Blocks` / `Requires` / `Priority` / `Cancels` 的**检查器**归 R5.5-e
  * （字段语义未定稿）——字段可先就位，但 MUST NOT 为它们造机制，零消费者如实登记。
@@ -79,9 +81,14 @@ public:
 #pragma region Behavior
 
 public:
-	// 内联触发行（`TRIG-4`）：施加时登记为该状态实例的触发行，`Source` = 实例来源句柄
+	// 内联触发行（TRIG-4）：Source = 实例 CascadeAnchor；Subject = 实例 Handle
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Buff Def|Behavior")
 	TArray<FTcsEffectTriggerDef> Triggers;
+
+	// 行为片段由 Def 持有，实例不持策略；载具沿用 2026-09-24 裸 FInstancedStruct 换型口径。
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Buff Def|Behavior",
+		meta = (BaseStruct = "/Script/TcsState.TcsStateBehaviorFragment"))
+	TArray<FInstancedStruct> Fragments;
 
 #pragma endregion
 

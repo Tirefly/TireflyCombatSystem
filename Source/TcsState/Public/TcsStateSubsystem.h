@@ -12,6 +12,7 @@
 
 #include "Host/TcsEntityLevelProvider.h"
 
+#include "State/TcsStateBehaviorRegistry.h"
 #include "State/TcsStateEnums.h"
 #include "State/TcsStateHandle.h"
 #include "State/TcsStateInstance.h"
@@ -22,6 +23,7 @@
 
 class UTcsEventBusSubsystem;
 class UTcsClockSubsystem;
+class UTcsStateBehaviorHandler;
 
 
 
@@ -337,6 +339,19 @@ public:
 #pragma endregion
 
 
+// 行为订阅观测
+#pragma region Behavior
+
+public:
+	// 本世界行为总线订阅数（每个有效兴趣 Tag 一条，不随实例数增长）
+	int32 GetBehaviorSubscriptionCount() const;
+
+	// 至少登记一个有效行为兴趣的实例数
+	int32 GetBehaviorInstanceCount() const;
+
+#pragma endregion
+
+
 // 内核
 #pragma region Core
 
@@ -365,6 +380,11 @@ public:
 	UTcsStateParamTableReader* GetParamTableReader();
 
 private:
+	// 共享 Handler 的唯一派发入口：快照句柄、状态载荷自筛、逐片段回调前重解析。
+	void DispatchBehaviorEvent(FGameplayTag EventTag, const FInstancedStruct& Payload);
+
+	friend class UTcsStateBehaviorHandler;
+
 	// 广播一次状态事件（载荷由实例快照 + 原因拼装；总线不可得时 Warning 并丢弃——不 ensure）
 	void BroadcastStateEvent(FGameplayTag EventTag, const FTcsStateInstance& Instance, EStateRemoveCause Cause);
 
@@ -386,6 +406,16 @@ private:
 
 	// 来源发号器（施加时发放实例的来源句柄；Task 0 的统一发号器 = 进程内唯一、永不复用）
 	FTcsSourceHandleRegistry SourceRegistry;
+
+	// 行为兴趣旁表（只持值身份和弱引用，不持策略，不需要 ARO）
+	FTcsStateBehaviorRegistry BehaviorRegistry;
+
+	// 仅覆盖 Remove 的终止事件广播窗口，刷新过渡态不在此集合；不改实例结构或原阶段时序。
+	TSet<FTcsStateHandle> InRemovalBroadcastHandles;
+
+	// 首个非空行为载体接线时懒建；总线与注册表弱持有，唯一 GC 强引用归本门面。
+	UPROPERTY()
+	TObjectPtr<UTcsStateBehaviorHandler> BehaviorHandler;
 
 	// 宿主等级读口（未注入 = 空接口；`UPROPERTY` 持有以满足 TScriptInterface 的 GC 纪律）
 	UPROPERTY()

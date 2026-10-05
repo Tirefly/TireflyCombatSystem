@@ -48,6 +48,7 @@ void UTcsStateSubsystem::BroadcastStateEvent(
 
 	FTcsStateEventPayload Payload;
 	Payload.Handle = Instance.Handle;
+	Payload.Unit = Instance.Unit;
 	Payload.DefTag = Instance.DefTag;
 	Payload.Source = Instance.Source;
 	Payload.Instigator = Instance.Instigator;

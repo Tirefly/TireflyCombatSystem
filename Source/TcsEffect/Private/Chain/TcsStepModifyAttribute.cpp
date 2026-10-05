@@ -59,19 +59,25 @@ namespace
 			return ETcsStepResult::TSR_Completed;
 		}
 
+		// 数值来源与提交可进入宿主/事件回调；不跨这些调用保留运行态或步骤定义引用。
+		const FGameplayTag ChainId = Run.ChainId;
+		const FTcsSourceHandle RunSource = Context.RunSource;
+		const FTcsCombatEntityHandle Instigator = Context.Instigator;
+		const FTcsStepModifyAttribute StepSnapshot = *Step;
+
 		// 运算数求值：链侧无参数表（引用类源落兜底）；主体取目标、发起者取黑板
 		FTcsParamEvaluateContext EvalContext;
 		EvalContext.Subject = Target;
-		EvalContext.Instigator = Context.Instigator;
-		const double Value = Step->Operand.Evaluate(EvalContext);
+		EvalContext.Instigator = Instigator;
+		const double Value = StepSnapshot.Operand.Evaluate(EvalContext);
 
 		// 一条常驻账本条目（`Source` = 本次运行的来源锚点 ⇒ 同一次运行挂上的条目可按它回收）
 		FTcsAttrModInstance Modifier;
-		Modifier.Target = Step->Attribute;
-		Modifier.Op = Step->Op;
+		Modifier.Target = StepSnapshot.Attribute;
+		Modifier.Op = StepSnapshot.Op;
 		Modifier.Operand.Kind = ETcsOperandKind::OPK_Literal;
 		Modifier.Operand.Literal = Value;
-		Modifier.Source = Context.RunSource;
+		Modifier.Source = RunSource;
 
 		// 单条也开批：批内只标脏，最外层 `Commit` 才重算 + 广播（属性面的唯一提交点纪律）
 		Access.BeginBatch(Target);
@@ -79,8 +85,8 @@ namespace
 		Access.Commit(Target);
 
 		UE_LOG(LogTcsEffect, Log, TEXT("ModifyAttribute[%s]: 单位=%lld 属性=%s 带=%d 值=%.6f 来源=%llu 结果=%s"),
-			*Run.ChainId.ToString(), Target.Id, *Step->Attribute.ToString(), static_cast<int32>(Step->Op),
-			Value, Context.RunSource.Id, bApplied ? TEXT("已挂载") : TEXT("被拒"));
+			*ChainId.ToString(), Target.Id, *StepSnapshot.Attribute.ToString(), static_cast<int32>(StepSnapshot.Op),
+			Value, RunSource.Id, bApplied ? TEXT("已挂载") : TEXT("被拒"));
 
 		return ETcsStepResult::TSR_Completed;
 	}
