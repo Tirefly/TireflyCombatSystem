@@ -12,6 +12,7 @@
 
 
 class FReferenceCollector;
+class UTcsAttrModDef;
 class UTcsBuffDefAsset;
 class UTcsEffectChainDef;
 class UTcsEffectTriggerDefAsset;
@@ -27,18 +28,21 @@ struct FTcsEffectTriggerDef;
  * 先枚举消费场景含无世界者，再定级别）。
  *
  * 职责边界（**只做资产发现与注册，不做执行**——执行归各领域门面）：
- * - **发现**（**三条按类路径**）：链资产 `UTcsEffectChainDef`（`DiscoverChainDefs`）、触发定义资产
+ * - **发现**（**四条按类路径**）：链资产 `UTcsEffectChainDef`（`DiscoverChainDefs`）、触发定义资产
  *   `UTcsEffectTriggerDefAsset`（`DiscoverTriggerDefs`）、状态定义资产 `UTcsBuffDefAsset`
- *   （`DiscoverStateDefs`，**2026-10-04 R5 Task 1**）——均走 `IAssetRegistry::GetAssetsByClass`
+ *   （`DiscoverStateDefs`，**2026-10-04 R5 Task 1**）、修正器模板资产 `UTcsAttrModDef`
+ *   （`DiscoverAttrModDefs`，**2026-10-05 R5 Task 7**）——均走 `IAssetRegistry::GetAssetsByClass`
  *   （**不依赖 `PrimaryAssetTypesToScan` 注册**——该注册属 M6 轮，且未注册时 AssetManager 按类型
  *   查询会**静默返回空**，排障成本高，见台账 INTEG-3）；
  * - **校验**：双真相（`Chain.ChainId != ChainId`）/ 空 id / 重复登记 → 计入失败清单 + Error，不静默跳过；
  *   触发定义侧另有四条（空 `TriggerTag` / 空 `Def.EventTag` / 空 `Def.EffectChainId` / 身份重复）；
  *   **状态定义侧的四条是身份级**（加载失败或类型不符 / 空 `DefTag` / 空 `Def.StatusTag` / `DefTag` 重复）
  *   ——内容级规则（参数键重复、内联触发行缺项、时值来源为空、描述缺项）全归资产 `IsDataValid`，
- *   发现期只判"这条资产能不能被按 tag 寻址"；
+ *   发现期只判"这条资产能不能被按 tag 寻址"；**修正器模板侧同为身份级三条**（加载失败或类型不符 /
+ *   空 `TemplateTag` / `TemplateTag` 重复——`Def.Target`、操作数、值约定的内容规则归资产 `IsDataValid`）；
  * - **按名解析**：链定义按 `ChainId` 缓存（`ResolveChain`）、触发定义按 `TriggerTag` 缓存
- *   （`ResolveTriggerDef`）、状态定义按 `DefTag` 缓存（`ResolveStateDef`）；
+ *   （`ResolveTriggerDef`）、状态定义按 `DefTag` 缓存（`ResolveStateDef`）、修正器模板按 `TemplateTag`
+ *   缓存（`ResolveAttrModDef`）；
  * - **就绪状态机**：`OnDefinitionsReady` **单出口**（幂等）——M6 双层引导的最小版（06 §4 硬规则①）；
  * - **装配到世界**：见下条。
  *
@@ -112,6 +116,12 @@ public:
 	 *
 	 * @param InThis 本对象（引擎静态 ARO 签名约定，须自行 Cast）。
 	 * @param Collector GC 引用收集器。
+	 *
+	 * **修正器模板缓存（`AttrModDefs` / `AttrModDefAssets`，2026-10-05 R5 Task 7）不进本函数**——
+	 * 同一条判据"容器是否 GC 可见"给出的结论是**不需要**：`AttrModDefs` 虽也是非 `UPROPERTY` 的 `TMap`，
+	 * 但它**只持有资产对象本身**（没有包在 `FInstancedStruct` 里的内层对象引用可漏），且每个入索引的
+	 * 资产都同时进 `AttrModDefAssets` 这个 `UPROPERTY` 数组 ⇒ GC 经 `RefLink` 已能看见。
+	 * 这也划出本轮的边界：**索引容器与保活容器成对出现时，保活责任归后者**。
 	 */
 	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
 
@@ -182,6 +192,19 @@ public:
 	 */
 	const FTcsBuffDef* ResolveStateDef(FGameplayTag DefTag) const;
 
+	/**
+	 * 按身份解析已缓存的修正器模板（未登记返回 nullptr——正常查询路径，不 ensure）。
+	 *
+	 * 与 `ResolveStateDef` 同款（裸指针 + 不 ensure）。**消费角色 = 发现/索引路径自身**：
+	 * `ModifierRows` 今天走**资产直引用**（`TSoftObjectPtr<UTcsAttrModDef>`，物化器只 `Get()`/`LoadSynchronous()`
+	 * 取对象），故本方法的**运行期调用者为零**——它存在是为了让模板身份词有解析锚点（台账 `ATTR-1` 的关闭依据）。
+	 * 与 `StateDef` 在 R5 Task 1 的处境同形（"只入缓存、暂无消费者"），不是预建根。
+	 *
+	 * @param TemplateTag 模板身份（`AttrModDef` 根）。
+	 * @return 返回修正器模板资产；未缓存返回 nullptr。
+	 */
+	const UTcsAttrModDef* ResolveAttrModDef(FGameplayTag TemplateTag) const;
+
 #pragma endregion
 
 
@@ -197,6 +220,9 @@ private:
 
 	// 发现并加载全部状态定义资产（扫描 → 逐资产四校验 → 按身份去重 → 入缓存；失败项进清单）
 	void DiscoverStateDefs();
+
+	// 发现并加载全部修正器模板资产（扫描 → 逐资产三校验（加载失败或类型不符 / 身份非空 / 身份重复）→ 入缓存；失败项进清单）
+	void DiscoverAttrModDefs();
 
 	// 装配已缓存定义进指定世界（幂等：同一世界不重复登记；链在前、触发行在后；状态定义不参与）
 	void SeedWorld(UWorld* World);
@@ -216,6 +242,10 @@ private:
 	// 状态定义缓存（Const 内容；键 = DefTag）——持有形态与失效判据同上
 	TMap<FGameplayTag, TUniquePtr<FTcsBuffDef>> StateDefs;
 
+	// 修正器模板缓存（键 = TemplateTag）。**持有资产对象本身而非内容副本**——模板的"内容"就是资产
+	// （`Def` 行 + 身份），没有可分离的 const 值类型可拷；故本容器是索引，GC 可见性由下面的资产数组承担。
+	TMap<FGameplayTag, TObjectPtr<UTcsAttrModDef>> AttrModDefs;
+
 	// 定义资产缓存（GC 锚定：缓存的是定义内容，但资产对象本身也需存活以免重载）
 	UPROPERTY()
 	TArray<TObjectPtr<UTcsEffectChainDef>> ChainDefAssets;
@@ -227,6 +257,10 @@ private:
 	// 状态定义资产缓存（GC 锚定，理由同上）
 	UPROPERTY()
 	TArray<TObjectPtr<UTcsBuffDefAsset>> StateDefAssets;
+
+	// 修正器模板资产缓存（GC 锚定，理由同上——`AttrModDefs` 索引非 UPROPERTY，靠本数组保活）
+	UPROPERTY()
+	TArray<TObjectPtr<UTcsAttrModDef>> AttrModDefAssets;
 
 	// 来源句柄分配器（进程内原子发号；本类只在自己 `Initialize` 时用一次）
 	FTcsSourceHandleRegistry TriggerSourceRegistry;

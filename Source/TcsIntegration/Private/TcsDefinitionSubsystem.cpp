@@ -5,6 +5,7 @@
 #include "AssetRegistry/ARFilter.h"
 #include "AssetRegistry/AssetData.h"
 #include "AssetRegistry/IAssetRegistry.h"
+#include "Attribute/TcsAttrModDef.h"
 #include "Chain/TcsEffectChain.h"
 #include "Chain/TcsEffectChainDef.h"
 #include "Def/TcsBuffDef.h"
@@ -26,6 +27,7 @@ void UTcsDefinitionSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	DiscoverChainDefs();
 	DiscoverTriggerDefs();
 	DiscoverStateDefs();
+	DiscoverAttrModDefs();
 
 	// 触发行来源句柄：本类在世界装配期登记触发行时作 `Source`（"定义库来源"这一级联退订锚点，发放一次）
 	TriggerSeedSource = TriggerSourceRegistry.Allocate();
@@ -40,8 +42,8 @@ void UTcsDefinitionSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	WorldInitDelegateHandle = FWorldDelegates::OnPostWorldInitialization.AddUObject(
 		this, &UTcsDefinitionSubsystem::HandlePostWorldInitialization);
 
-	UE_LOG(LogTcsIntegration, Log, TEXT("UTcsDefinitionSubsystem: 定义库就绪——链定义 %d 条，触发定义 %d 条，状态定义 %d 条，失败 %d 条"),
-		ChainDefs.Num(), TriggerDefs.Num(), StateDefs.Num(), FailureList.Num());
+	UE_LOG(LogTcsIntegration, Log, TEXT("UTcsDefinitionSubsystem: 定义库就绪——链定义 %d 条，触发定义 %d 条，状态定义 %d 条，修正器模板 %d 条，失败 %d 条"),
+		ChainDefs.Num(), TriggerDefs.Num(), StateDefs.Num(), AttrModDefs.Num(), FailureList.Num());
 
 	for (const FString& Failure : FailureList)
 	{
@@ -64,6 +66,8 @@ void UTcsDefinitionSubsystem::Deinitialize()
 	TriggerDefAssets.Empty();
 	StateDefs.Empty();
 	StateDefAssets.Empty();
+	AttrModDefs.Empty();
+	AttrModDefAssets.Empty();
 	TriggerSeedSource = FTcsSourceHandle();
 	FailureList.Empty();
 	bRuntimeReady = false;
