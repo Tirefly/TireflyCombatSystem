@@ -2,9 +2,9 @@
 
 - **文档 ID**：`SPEC-02-states`
 - **类型**：SPEC / 模块规格
-- **状态**：PENDING（**R5 实施中，2026-10-04 起**——落地范围与切分见 §12；已落地：Task 1（Def 资产族，§12.5）、Task 2（实例与生命周期，§12.6）、**Task 3（参数快照 / 等级源 / Duration-Period 到期堆，§12.7）**）
+- **状态**：ACTIVE（**R5 核心已落地，2026-10-05 收束**——Task 0~7 全部完成，落地范围与切分见 §12；**本轮不落**的条款逐条带归属于 §12.2，不落不等于未定）
 - **权威范围**：TcsState（M3）Def 层级、实例存储、五轴堆叠、关系表、快照；理由住 LOG-01-states
-- **最后更新**：2026-10-04
+- **最后更新**：2026-10-05（R5 收束：Task 7 落地口径新增 §12.11 + R5 落地总账 §12.12；§3.3 事件词订正为新根名；§11 验收钩子改为"已验 / 未验"对账表）
 
 - 日期：2026-09-02
 - 状态：**v2 定稿**——全部增补（D3-10~12 等）已折入正文；修订记录见文末
@@ -51,7 +51,7 @@ FStateDefBase（抽象，编辑器隐藏）          ← 本模块定义
 
 ### 3.3 Duration 与 Period（FBuffDef 字段，2026-09-02 细化）
 - **Duration 拆分（D3-13）**：`EDurationPolicy{Finite, Infinite}` + `DurationTime`（Finite 时有效，FTcsParamValue——原"字面量|Param"，PV 系列 2026-09-11 换型）；快照于 apply/refresh（D3-12）；Infinite=无到期条目永不过期（≤0 魔法值废除）；暂停/变速由泵统一。
-- **Period**：`0/未设=无周期（默认）`；机制 = M3 注册**重复到期条目**到堆 → 每周期发 `Combat.State.Periodic` 事件（payload 带 StateHandle + **当前 Stacks + Level**）；默认**等首个周期**，"施加即生效"写进 apply 响应链；**`PeriodRefresh{Keep(默认)/Reset(重置周期计时)/Immediate(立即执行一次并重置)}`**——堆叠刷新对周期计时器的影响（D3-13）。
+- **Period**：`0/未设=无周期（默认）`；机制 = M3 注册**重复到期条目**到堆 → 每周期发 `TcsEvent.State.Periodic` 事件（payload 带 StateHandle + **当前 Stacks + Level**）；默认**等首个周期**，"施加即生效"写进 apply 响应链；**`PeriodRefresh{Keep(默认)/Reset(重置周期计时)/Immediate(立即执行一次并重置)}`**——堆叠刷新对周期计时器的影响（D3-13）。**落地态（2026-10-05）**：词为原生声明 `TcsStateEvents.h` 的 `Tag_TcsEvent_State_Periodic`（换根后新名，正文旧名 `Combat.State.Periodic` 已作废）；产生者 = Task 3 的周期条目、消费实证 = Task 7 检查 S11/S12（`PeriodicDelta=1` / 累计 3 次）。
 
 ### 3.4 关系表（裁决 1 + D3-3 + 形状扩展）
 - 字段形状（裁决 1 增补）：`{ Status, Blocks, Requires, Priority, Cancels }`——FBuffDef 字段（约束施加态共存）；**FSkillDef 同形状字段**（语义映射：Block=禁止激活、Require=激活前提、Priority=顶替优先级、Cancels=激活时取消指定运行/状态——姿态切换），共享通用关系检查器（主体类型化：状态实例/施法运行）。
@@ -130,10 +130,30 @@ FStateDefBase（抽象，编辑器隐藏）          ← 本模块定义
 - v2 增补 13（2026-10-04，**R5 Task 2 落地**）：运行态骨架物化——`FTcsStateHandle` / `FTcsStateInstance` / `FTcsStateRegistry`（per-unit 桶 + 槽位代际）/ `FTcsStateOps`（引擎函数，三拆）/ `UTcsStateSubsystem`（世界门面 + 定义登记口）/ `EStatePhase`+`EStateRemoveCause`+`EApplyResult` 三枚举 / 六枚生命周期事件 tag + 载荷 `FTcsStateEventPayload` 落地；**§3.1 的实现名与 §3.3 的 tag 名就此定型**（见 **§12.6**）。
   **§3.1 正文的两处落地订正**：① `FStateInstance` 的实现名是 **`FTcsStateInstance`**（成族）且**非反射结构体**（只在 C++ 侧流转；进总线的载荷是 `FTcsStateEventPayload`）；② 实例**自持 `Unit`（宿主单位）**并**只持 `DefTag`（定义身份）**——`GetDef()` 解析缓存在本轮**不落**（热路径不回查 Def 的承诺登记在 §12.6 第 3 条，快照构建落地后才有意义）。
   **§4 的门面归位**：`ApplyState` / `RemoveState` / `ExpireState` / `GetState` / `ForEachState` 已落；`ExtendDuration` / `SetRemaining` 本轮只落**签名 + 拒绝面**（堆同步归 Task 3）；`SetLevel` / `GetLevel` / `CheckRelations` 仍归后续（§12.2）。
+- v2 增补 14（2026-10-04，**R5 Task 3 落地**）：数值与时间两条腿——`FTcsParamSnapshot` 与快照构建（`ConvertToCanonical` 首次点亮）、四个等级源 + `ITcsEntityLevelProvider`（**接口住本模块**、走派生上下文，非 Core）、Duration-Period 重复到期条目与 `PeriodRefresh` 三态、`ExtendDuration` / `SetRemaining` 的堆同步。落地口径 = **§12.7**；证据 `EVID-2026-10-04-state-param-snapshot-and-level-sources`。
+- v2 增补 15（2026-10-04，**R5 Task 4 落地**）：**修正器物化（D3-19）**——`ModifierRows` 模板 → M2 账本条目（`Source` = 实例来源句柄）、引用类操作数**从该实例自己的快照取值**（反射壳 + RAII 栈式绑定）、施加/刷新同批内挂载、移除/到期按同一来源一次摘净。落地口径 = **§12.8**；证据 `EVID-2026-10-04-state-modifier-materialization`。
+- v2 增补 16（2026-10-05，**R5 Task 5 落地**）：**五轴堆叠与刷新政策**——**层模型裁定甲案**（层数记在一条实例内、组内至多一条实例）、组键三态 + Custom 逃逸位、`MaxStacks` 与溢出两档、数值叠加两档、时长刷新两档；**两处裁档**（`EGB_PerTag`+`GroupTag`；`EOP_ReplaceOldest`/`ReplaceNewest`）与 `EVS_PerStackValue` 标记零行为。落地口径 = **§12.9**；证据 `EVID-2026-10-05-state-stacking-policies`。
+- v2 增补 17（2026-10-05，**R5 Task 6 落地，6a + 6b 两半**）：6a——`FTcsStepApplyState` / `FTcsStepModifyAttribute` 自注册、内联触发行登记与按锚点退订、`CascadeAnchor` 与 `Source` 解耦、链运行态 `RunSource` + `CausedBy` 与两个只读读数口、`AttributeCompare` 第三条内置条件；6b——行为 Fragment 契约（每兴趣 Tag 一条订阅 + 共享 Handler）、首个状态载荷读取器与泛型主体匹配、`FTcsStateRegistry` 出线进程唯一发号（身份修复）、`STAT-5` 有限重入守卫。落地口径 = **§12.10**（6a 十一条 + 6b 四条）；证据 `EVID-2026-10-05-state-chain-primitives` / `-state-behavior-fragments`。
+- v2 增补 18（2026-10-05，**R5 Task 7 落地 + R5 收束**）：端到端竖切（`Tcs.Test.State.Run` / `.Reject`）+ **首批真内容资产**（4 枚）+ `AttrModDef` 根落地（10 → 11，`ATTR-1` 闭合）+ 定义库第四条发现路径与第四计数。**正文订正**：§3.3 的 `Combat.State.Periodic` 改为换根后新名 `TcsEvent.State.Periodic`（并标注产生者与消费实证）；§11 验收钩子改为"已验 / 未验"对账表；身份块状态 `PENDING` → **`ACTIVE`**。落地口径 = **§12.11**；R5 全轮总账 = **§12.12**；证据 `EVID-2026-10-05-state-layer-pie`。规格提案 = `verify-state-layer-e2e`（1 新能力 + 3 改能力）**已于 2026-10-06 归档**为 `changes/archive/2026-10-06-verify-state-layer-e2e/`（**归档日为 10-06 机器日期，非计划预写的 10-05**）；归档后 `specs/state-layer-e2e-validation/`（四需求）落盘、`gameplay-tag-governance` 的 `## Purpose` 根数手工 10 → 11 补正，`validate --all --strict` = **34 / 0**、能力数 33 → **34**、`changes/` 零活动提案。
 
 ## 11. 验收钩子
 
 竖切剧本第 6 项（**新增纯数据链资产零 C++**——M9 收尾轮后 buff 验证改测试 Source/链数据，M3 状态桶不在 R3）由 M2 兑现；关系表级联重评、到期堆、Custom 策略、快照重建（refresh）在 M3 轮人工检查路径。
+
+**R5 收束时的对账（2026-10-05）**——本节各钩子逐条改为"已验 / 未验"两态，**未验的仍是留白，不得读成已验**；证据 = `EVID-2026-10-05-state-layer-pie`（端到端竖切，含 15 条实测检查）与 R5 Task 1~6 的六份单元证据。
+
+| 验收钩子 | 状态 | 证据 / 留白 |
+|---|---|---|
+| **同一实例串起六个能力面**（定义解析 → 快照冻结 → 真资产修正器物化 → 内联触发行起链 → 周期回调 → 到期回收与属性复原） | ✅ **已验** | `Tcs.Test.State.Run` 两轮 **15/0**，零非预期红字、复现性摘要逐字相同；真内容资产驱动（`DA_State_E2E` + `DA_ModDef_E2E` + `DA_Chain_E2E_Apply` / `DA_Chain_E2E_Behavior`）；`EVID-2026-10-05-state-layer-pie` §1 |
+| **属性复原与"常驻"两面读数互证**（状态修正器按锚点摘净 / 链条目按设计常驻） | ✅ **已验** | S14 `Armor` 复原 `5.000`（+25 覆写到期摘净）；S15 `Attack` 停在 `25.000`（−5 链写入常驻）——两面读数同轮取得，证明"状态挂 `CascadeAnchor`、链挂 `RunSource`"的落点差异**可观测**；`CHAIN-7`（链挂条目无框架侧回收触发点）据此登记 |
+| **内联触发行按锚点退订** | ✅ **已验** | S13 效果门面触发行计数回到施加前读数；实现侧 = `UnregisterTriggerRowsBySource(CascadeAnchor)`（§12.10 第 7 条） |
+| **可复现性** | ✅ **已验（口径已订正）** | 两轮比对的判据 = **复现性摘要行逐字相同 + 各检查结论相同**，**MUST NOT** 落在区段字节上（进程内一次性惰性初始化日志只写一次；见 §12.11 第 1 条） |
+| **关系表级联重评** | ⛔ **未验** | 关系表检查器整体归 R5.5-e（字段语义未定稿，§12.2）；本轮只落字段形状、零消费者 |
+| **Custom 策略** | ✅ **已验（限堆叠决策一支）** | 宿主自定义决策 Fragment 被真实调用（样本恒不同组 ⇒ 每次新建）；Task 5 检查 22；**关系表/槽位竞争侧的 Custom 仍未落**（R5.5-e） |
+| **快照重建（refresh）** | ✅ **已验** | Task 4 检查 21e（重复施加 ⇒ `Refreshed`，同批内摘旧挂新、快照按新 payload 重建）；Task 5 检查 22 叠层刷新路径 |
+| **`PeriodRefresh` 三态** | 🟡 **部分** | 只验了 `Keep`（默认档）；`Reset` / `Immediate` 本轮无内容消费者（证据 §6 边界）；`ExtendDuration` 的**延长上限未定**（D3-15 原文未定，实现为不钳到总时长） |
+| **技能参数行分派（`UTcsSkillModDef`）** | ⛔ **未验** | 类型与 `TcsSkill` 今天都不存在（§12.2，归 R5.5-f / R6） |
+| **操作复制（网络姿态）** | ⛔ **未验** | 网络姿态整体未开工（§12.2，归 R7 `WAIT-3`） |
 
 ## 增补：时值拆分/Overflow/生命周期操作/关系表组织（2026-09-02，v5 增补）
 
@@ -268,3 +288,28 @@ FStateDefBase（抽象，编辑器隐藏）          ← 本模块定义
 | 13 | **状态载荷自筛 + 泛型主体匹配**（6b，`TRIG-6` 甲案）：补**首个状态**载荷读取器（`Caster` = 有效 `Instigator` 否则新增字段 `Unit`；`Subject` = `FTcsStateHandle`）；载荷信息与触发行实例各持反射 `FInstancedStruct Subject`，**两侧均有效**时须精确 `UScriptStruct` 一致 + `CompareScriptStruct(A, B, 0)` 值相等才命中；**未绑定的全局行与外部无 `Subject` 事件保留原 Tag 路由** | `TcsEffect` MUST NOT 反向依赖 `TcsState`（铁律）⇒ 泛型主体装在**反射 `FInstancedStruct`** 里、匹配用"脚本结构同一性 + 反射值相等"，**不引入对上层类型的依赖**。**行为 Fragment 侧的对应语义**：只对状态载荷按单参数 `GetPtr<FTcsStateEventPayload>()` + `Handle` 相等自筛；**非状态载荷（含自定义 reader 给出 `Subject` 者）仍按兴趣向全部存活实例扇出**（`Subject` 只约束 effect-trigger 的绑定行）。**验收读数** = 23g **恢复"先主后次"顺序**后仍 `+25.000 / 计数增量 1`（6a 首轮 `30 / 2` 正是该顺序的症状）⇒ 不再依赖夹具顺序规避 |
 | 14 | **身份修复（6b，裁定 8 甲案）**：`FTcsStateRegistry` 的分配代际改由**出线（模块级）进程唯一发号器**发出——每次分配取**不复用的正奇数**、释放 `+1` 置偶数、**世界拆解不复位**、`int32` 正值空间耗尽 `Fatal`（不回绕）；句柄**仍是** `(Index, Generation)` 两反射字段，API 不变 | **缺陷**：原实现**各桶各自从代际 1 起发** ⇒ 两个单位的**首个**实例都得到 `{Index=0, Generation=1}`，而 `GetState(Handle)` **扫描所有桶**且句柄里**没有单位段** ⇒ 拿 A 单位首实例的句柄会命中 B 单位的首实例（错单位 / 错移除 / 事件误路由）。**被否乙案**（句柄加 `Unit` 段）需迁移反射面与全部消费者 ⇒ `Unit` 本轮只加到**事件载荷**上。**读数** = 23j `旧句柄0/57拒绝`（同 PIE 内）+ 23l 第二轮 `旧句柄拒绝=是`（跨世界不复位） |
 | 15 | **`STAT-5` 有限重入守卫的宽度**（6b）：`UTcsStateSubsystem::InRemovalBroadcastHandles` **只**在**真正的移除广播窗口**成对标记 / 解除（进入广播前加入、广播返回后移除）⇒ 递归 `Remove` 同句柄返回 `false` 静默、不重复广播与释放。**MUST NOT** 用"`Phase == ESP_Expiring`"当"正在移除"的判据 | `Expiring` **不是**"正在移除"的同义词——`RefreshStacked` 在刷新期间**也临时用 `Expiring`**（`TcsStateOps_Stack.cpp:235–249`）⇒ 按阶段判会**静默拒绝**合法的 `Refreshed` 自移除（最坏的一类错：不报错、只少做事）。**同批闭合**六处"广播 / 副作用后仍读旧指针"（`Apply` / `RefreshStacked` / `EPR_Immediate` / `PushPeriod` / `TcsStepApplyState` / `TcsStepModifyAttribute`）⇒ 统一"**副作用前取值快照、副作用后按句柄重查**"。**边界**：本条**只**承诺"递归 `Remove` 同句柄"这一支；终止广播内**同定义重施**那一支未修（台账 `STAT-9`） |
+
+### 12.11 Task 7 落地口径（2026-10-05，R5；端到端竖切与首批真内容资产）
+
+| # | 口径 | 依据 / 后果 |
+|---|---|---|
+| 1 | **可复现性判据 MUST NOT 落在区段字节上**：判据改为"**复现性摘要行逐字相同 + 各检查结论相同**"，摘要只留不变量（`Decoupled=1` / `PerOK=1` 一类） | 两轮 `State.Run` 区段 **85 vs 84 行** / **13,726 vs 13,620 字节**，逐行归一化求差集得**唯一**差异 = `FTcsEffectStepExecutorRegistry: 步骤执行器登记表已解析（共 10 类）`（只第一轮出现）。真因 = **进程内一次性惰性初始化** ⇒ 与 `FTcsSourceHandle.Id`（进程内单调计数器，实测 `2/3` → `25/26` → `48/49`）同族、**按构造不可复现**。**掩蔽坑**：宽 pattern 会同时命中 Damage 侧的 `FTcsFlowStepExecutorRegistry`（`L3387`）⇒ grep MUST 带模块前缀 |
+| 2 | **"现象只在重建二进制后消失"本身就是陈旧 DLL 的判据**：取证期 MUST NOT 用 Live Coding | S8 / S14 的残留旧算术**只在重编后**消失；Live Coding 能给"编译通过"的假象而**不更新交付二进制**。故本轮口径 = **先构建、后取证**（先关编辑器跑完整双配置 UBT，再进 PIE 取数） |
+| 3 | **跨快照的行号 MUST 按内容重定位、MUST NOT 按偏移量推算** | 证据 §1.1/§1.2 的"日志行"列曾**整体偏移一行**——起因是从作废快照按**区段端点做算术偏移**重映射，而两份快照的区段基址不同。修法 = 全部按**内容正则**重定位（`检查 S\d+` / `检查 [a-g]`，42 处引用逐条复核） |
+| 4 | **"检查编号 ↔ 标题"对照表 MUST 从日志行逐字提取**（`检查 S\d+：`） | 一份交付伴随物（提交信息）曾按 `plan.md` Task 7 Step 2 的**措辞**与既往轮次的编号**习惯**推断该对照表 ⇒ 11/15 条标题与实测不符，且其中一条声称的读数**本轮根本不存在**。**判据**：`plan.md` / `design.md` / 既往提交信息**都不是**合法来源——**计划描述"要验什么"，不等于"实测标题是什么"**。真值以证据（标题逐字取自日志、四列齐备）为准 |
+| 5 | **周期面判据 MUST 是下界、MUST NOT 是等式** | S11 在 0.60s 拍采样得 `PeriodicDelta=1`，到 S12（2.60s）累计已 **3** 次，同一物理量在两个采样点读数不同（tick ≈ 0.65 / 1.31 / 1.98s）⇒ 判据 = `PeriodicDelta >= 1` |
+| 6 | **行为链落点 = `Attribute.Attack`（−5，常驻）；状态修正器模板保持 `Attribute.Armor`（+Y，到期摘净）**（用户拍板甲案） | 判据 = 状态修正器挂 `Instance.CascadeAnchor`（到期按锚点摘净）、链条目挂 `Context.RunSource`（无人回收）⇒ **两读数互为对照、各自可判**（S14 `Armor` 复原 `5.000` / S15 `Attack` 停在 `25.000`）。**否决乙案**（把链改到会被状态到期一起回退的属性上）——那会让验收变成对实现的**追认**（既有场景逐字不改即已满足） |
+| 7 | **`AttrModDef` 根落地（10 → 11）——"触发条件型"条目第一次真的被触发** | 本条要求的**真内容资产**修正器模板使"资产身份必须有 tag 载体"成立 ⇒ `ATTR-1` 原判"零解析消费者 ⇒ 不开根"的**前提消失**。落法 = 按"一角色一根"定根 + 定义库**第四条按类发现路径**（`DiscoverAttrModDefs` / `ResolveAttrModDef`）+ 就绪行第四计数。**残留边界（如实）**：`ResolveAttrModDef` 运行期调用者**为零**（物化仍走 `ModifierRows` 资产直引用）；该根下只有 `Check` 形态一个词 |
+| 8 | **首个状态载荷读取器与内联触发行接线在端到端路径上的验证** = S13（按锚点退订）；**链挂条目常驻** = S15 ⇒ 台账 `CHAIN-7` | 见 §12.10 第 6/7 条（实现口径）与证据 §1.2、§6 边界 8 |
+
+### 12.12 R5 落地总账（2026-10-05 收束）
+
+**八个 Task 全部完成**，逐 Task 的落地口径 = §12.5~§12.11。本轮的**证据面**为 **七份**：`EVID-2026-10-04-tcs-state-def-asset`（Task 1）/ `-state-instance-lifecycle`（Task 2）/ `-state-param-snapshot-and-level-sources`（Task 3）/ `-state-modifier-materialization`（Task 4）/ `EVID-2026-10-05-state-stacking-policies`（Task 5）/ `-state-chain-primitives` + `-state-behavior-fragments`（Task 6 6a/6b）/ **`EVID-2026-10-05-state-layer-pie`（Task 7 端到端）**。
+
+**本轮落地面（按 §12.1 逐条兑现）**：§2 Def 形状与资产族、§3.1 实例与 per-unit 桶、§3.2 五轴堆叠、§3.3 Duration/Period、§3.5 四型等级源与读口、§3.6 参数快照、§4 门面、§5 生命周期 + **修正器物化** + **行为 Fragment 订阅挂接**、§6 `ApplyState` 步骤与内联触发行。**一处扩张**：`AttrModDef` 根（10 → 11）与定义库第四发现路径——它不是原计划条款，而是**验收要求真内容资产**倒逼出的实现（§12.11 第 7 条）。
+
+**本轮不落面**（逐条归属见 §12.2）：§3.4 关系表检查器与级联重评、§3.7 就绪状态机、技能参数行分派、网络操作复制。
+
+**如实边界（二十条，逐条见证据 §6）**：单机/单世界/单 PIE 进程；Shipping **只验编译、从未运行**；`StateLevel*` 只验**数组型**；`LevelProvider` 读口本轮未被消费；内容资产 `Fragments` 留空（D2 口径）；`PeriodRefresh` 只验 `Keep`；`ExtendDuration` 上界未定；`STAT-9` 刻意未修；`ResolveAttrModDef` 零调用者；`AttrModDef` 根下词薄；模板操作数配等级源未验；链挂条目常驻（`CHAIN-7`）；`ModifyAttribute` 不等同 Instant（`CHAIN-8`）；行为刷新路径；空片段 Warning；`Expired` 行为退订；全局触发行兼容；typed 自定义载荷；`Interests` 层级；脚本可达为零；递归终止性。
+
+**收束门禁**：`openspec validate --all --strict --no-interactive` = **34 passed / 0 failed**；`openspec/changes/` **零活动提案**——`verify-state-layer-e2e` **已于 2026-10-06 归档**为 `changes/archive/2026-10-06-verify-state-layer-e2e/`（**归档日 = 10-06 机器日期，非计划预写的 10-05，已就地留痕**）；归档后能力数 33 → **34**。计划状态 = **已完成**；R5.5 批次表移交**保持 `ACTIVE`** 承载（同 `PLN-R4` 先例）。

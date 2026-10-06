@@ -4,7 +4,7 @@
 - **类型**：SPEC / 模块规格
 - **状态**：ACTIVE
 - **权威范围**：TcsEffect（M4）链与步骤、触发行、目标选择、宿主插槽；理由住 LOG-02-effects
-- **最后更新**：2026-10-04
+- **最后更新**：2026-10-05
 
 > **换根注记（2026-10-01）**：本文 tag 名已随提案 `reroot-gameplay-tag-vocabulary` 换根——旧前缀 `Tcs.Event.*` / `Tcs.Flow.Key.*` / `Tcs.Flow.Template.*` / `Tcs.Attr.*` / `Tcs.Chain.*` 依次成为 `TcsEvent.*` / `DamageFlowKey.*` / `DamageFlowTemplate.*` / `Attribute.*` / `EffectChain.*`；本文正文一律用新名，旧名仅存于本注记与 `log/`、`ledger/`、`evidence/` 等历史文件。
 
@@ -47,7 +47,7 @@
 | `Cues` | ❌ **已删除** | Task 1 形态精修删除（TcsCue 模块未敲定，留字段 = 给策划假控件）；TcsCue 落地时加回 |
 
 - **载体（R4 Task 2.5）**：独立资产 `UTcsEffectTriggerDefAsset`（住 TcsIntegration，`TriggerTag` 为内容身份）经 DefLibrary 发现并**装配为触发行**（`Source` = 定义库来源句柄）；**内联位**（`SkillDef` / `BuffDef` 的 `TArray<FTcsEffectTriggerDef>`）待 R5/R6。
-- **条件落地面**：`HasAllTags` 与 `Chance` 已实现——**内置条件与自定义条件走同一注册表**（不分内外两套路径）；`AttributeCompare` / `VariableCompare` / `GateCheck` / Custom 未落地。
+- **条件落地面（2026-10-05 R5 收束订正）**：**三条**已实现——`HasAllTags` / `Chance`（R4）+ **`AttributeCompare`（R5 Task 6，第三条内置条件，本模块对下层 `TcsAttribute` 经 `FTcsEffectAttributeAccess` 取门面；实测能门控起链，见 `EVID-2026-10-05-state-chain-primitives` 检查 23f）**——**内置条件与自定义条件走同一注册表**（不分内外两套路径）；`TcsTriggerCondition.cpp` 现有三条自注册宏与该清单逐条对应。**未落地**：`VariableCompare`（等变量存储消费者）/ `GateCheck`（读 M5 `BoolSwitches`，归 R6）/ Custom 逃逸位——登记在台账 `TRIG-5`。
 - **求值顺序 = 四道门**（R4 Task 2）：`事件 Tag 路由 → ExecutionGate → GateTags → Conditions → 起链`——顺序有意义：网络闸最廉价先判，条件最贵最后判。
 - **载荷读取器**（Task 2 机制 + Task 3 首个属主登记）：`FTcsTriggerPayloadReaderRegistry` 由**载荷类型的属主模块**自登记（TcsDamage 的收集事件读取器给出 `Caster ← Attacker`、分类标签直通）——机制层不认识任何领域载荷类型，这是依赖铁律的兑现形态。
 - **留位项与剩余条件的唯一待办登记** = `LEDGER-deferred` 的 `TRIG-5`（2026-10-04 补登）。
@@ -190,6 +190,7 @@
 - v2 增补 2（2026-09-02，M9 追问轮同步）：折入 D4-14~16（注册制分派+依赖层级反转——依赖收窄为 Core/Attribute；15 原语终版与步骤归属；TcsTargeting；Spawn 残留清理）；§9 例二冷却表述对齐 D5-15/16。
 - v2 增补 3（2026-09-23，标识体系 tag 化改造回写）：§9 例一触发行 Filter 与链 id 改 tag 口径（原 `Filter DefId=Burn`）；本节为走查预演形态，示意名不写全 tag 路径。落点 = 提案 `switch-identifiers-to-gameplay-tags`（2026-09-22 归档）。
 - v2 增补 4（2026-10-04，R4 收束回写）：**§2.1 补原语实现状态**（15 个中已落地 8 个 + 余 7 个的归属轮次）；**§2.2 补字段级"落地 / 留位"对照表**（七个活字段 / 两个留位字段 / `Cues` 已删除）+ 载体与条件落地面 + 四道门顺序 + 载荷读取器机制；**§12 补 R4 验收实证与留白**。落点 = R4 轮收束（`PLN-R4` Task 5；证据 `EVID-2026-10-04-trigger-def-asset` / `-chains-primitives` / `-modifier-channel`）。
+- v2 增补 5（2026-10-05，R5 收束回写）：**§2.1 原语实现状态 8 → 10**（+`ModifyAttribute` / `ApplyState`，两者均 R5 Task 6）；**§2.2 条件落地面订正**（`AttributeCompare` 由"未落地"改为已实现——该行自 R4 起即过期）；**§12 补 R5 增量对账表**（`ApplyState` / `ModifyAttribute` / `AttributeCompare` / 内联触发行 / 链运行态可读面 五项 ✅，`Parallel`/`Repeat`/`OnError` 与打断仍 ⛔）。落点 = R5 轮收束（`PLN-R5` Task 8；证据 `EVID-2026-10-05-state-chain-primitives` / `-state-layer-pie`）。
 
 ## 12. 验收钩子
 
@@ -206,3 +207,15 @@
 | **打断** | ⛔ **未验** | 无公开取消/释放入口（台账 `CHAIN-6`）⇒"运行态释放即解锚"的事件锚分支不可达；"打断与取消"归 M5 轮 |
 | **重定向挂/摘** | ⛔ **未验** | `FFlowRedirect` 模板重定向整套未落地（台账 `STAT-3`，归 R5） |
 | **GateTags 开闸事件**（§2.4 唤醒源④） | 🟡 **部分** | 门③（`GateTags` 全亮才通过）已实证，并成为内容行的启停控制面；**"开闸即发事件 + `WaitEvent` 语法糖"未实现** |
+
+**R5 收束时的增量对账（2026-10-05）**——本节在 R4 表之上补 R5 触及的钩子，**未打勾的仍是留白**：
+
+| 验收钩子 | 状态 | 证据 / 留白 |
+|---|---|---|
+| **`ApplyState` 领域步骤端到端** | ✅ **已实证** | 链里首次能施加状态：`FTcsStepApplyState` 自注册生效、`Source` = 黑板 `RunSource`；端到端（内容资产驱动的链 → 状态实例 → 全生命周期）见 `EVID-2026-10-05-state-layer-pie`；单元面见 `EVID-2026-10-05-state-chain-primitives`（23a/23h） |
+| **`ModifyAttribute` 链原语（机制侧私有写入原语）** | ✅ **已实证** | 本模块对下层 `TcsAttribute` 的**首次真实使用**（经 `FTcsEffectAttributeAccess`）；`Source` = `RunSource`。**边界**：它落的是**修正器层**，效力**不等同** GAS Instant（会被 `Override` 整体抹掉、参与复利、可按来源摘除）⇒ 台账 `CHAIN-8`；且链挂条目**无框架侧回收触发点**（`CHAIN-7`） |
+| **`AttributeCompare` 条件门控** | ✅ **已实证** | 检查 23f：同一份含 `ModifyAttribute` 的链体，条件过则改得动账本、不过则账本不动；`FTcsTriggerContext` 补 `World`（求值器填入）——**该字段的落地同时暴露一处跨文件缺陷**（`TcsStepBranch` 也构造该上下文却未填 `World` ⇒ 条件会静默恒不通过） |
+| **内联触发行（Def 内联位）** | ✅ **已实证** | 施加时以实例 `CascadeAnchor` 登记（排在 `Applied` 广播之前）、移除/到期按同一锚点级联退订（排在广播之前）；`UnregisterTriggerRowsBySource` 单点调用。**边界**：本轮只验内联位，独立资产位在 R4 已验，两者共用登记机制 |
+| **链运行态身份与因果边的可读面** | ✅ **已实证** | `RunSource`（每运行一枚新号、子链另发）+ `CausedBy`（触发行起链 = 该行 `Source`）；两个只读读数口 `GetRunSource` / `GetRunCausedBy`。**未覆盖**：**溯源树**（祖先遍历 / Explain 面板 / 按血缘回放）归 R8（台账 `TOOLS-7`）。**因果边 MUST NOT 参与撤销或共存判定** |
+| **`Parallel` / `Repeat` / `OnError`** | ⛔ **未验** | 三者结构体存在但执行器未实现（归 R5.5-a）；`OnError` 的"Explain 线索"产出面另归 M8（`TOOLS-6`） |
+| **打断 / 取消** | ⛔ **未验** | 与 R4 同（无公开取消入口，台账 `CHAIN-6`）；R5 未改变这一点 |

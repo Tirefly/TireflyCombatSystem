@@ -4,18 +4,18 @@
 - **类型**：治理（入口索引）
 - **状态**：生效中（2026-09-29 建立，取代原 `README.md` 的"文档清单"职能）
 - **权威范围**：本文回答"**该读哪一篇**"。编号含义见 `GLOSSARY.md`；写法纪律见 `docs-convention.md`；逐条拍板流水见 `LOG-DECISIONS`。
-- **最后更新**：2026-10-05（R5 **Task 7 落地**：状态层端到端验收 + **首批真内容资产** + `AttrModDef` 第四计数；`AttrModDef` 根 10 → 11）
+- **最后更新**：2026-10-06（R5 **Task 8 收束完成**：八个 Task 全部收束、**提案 `verify-state-layer-e2e` 已归档**（`2026-10-06-verify-state-layer-e2e`）、`openspec/changes/` **零活动提案**、能力数 **34**；台账 62 条、`Probe` 段位漂移立 `TOOLS-8`；下一步 = **R6（M5 技能层 `TcsSkill`）**）
 
 ---
 
 ## 1. 现状一句话
 
-TCS 战斗系统设计已完成 **M0–M9 全部决策拍板**，实施 **R4 轮已收束**（触发行与伤害修改器通道），下一步 = **R5 轮（M3 状态层，`TcsState`）**（Task 0 前置契约、Task 1 模块 + Def 资产族、Task 2 实例与生命周期、Task 3 参数快照与时间语义、**Task 4 修正器物化**已于 2026-10-04 落地、**Task 5 五轴堆叠与刷新政策**已于 2026-10-05 落地、**Task 6 链原语与行为面接线（6a / 6b 两半）**已于 2026-10-05 落地、**Task 7 端到端验收与首批真内容资产**已于 2026-10-05 落地）：
+TCS 战斗系统设计已完成 **M0–M9 全部决策拍板**，实施 **R4 轮已收束**（触发行与伤害修改器通道）、**R5 轮已收束**（M3 状态层 `TcsState`——Task 0~8 全部完成并取证，提案于 2026-10-06 归档），下一步 = **R6 轮（M5 技能层，`TcsSkill`）**（R5 的八个 Task：Task 0 前置契约、Task 1 模块 + Def 资产族、Task 2 实例与生命周期、Task 3 参数快照与时间语义、Task 4 修正器物化、Task 5 五轴堆叠与刷新政策、Task 6 链原语与行为面接线（6a / 6b 两半）、Task 7 端到端验收与首批真内容资产，均已于 2026-10-04 / 2026-10-05 落地；**Task 8 收束**已于 2026-10-05 完成文档面、**2026-10-06 完成归档**）：
 
 - **R1/R2/R3 已完成**（核心 + 属性 + 六模块竖切，7 项人工检查点全通过）；
 - **R4 已完成（2026-10-04）**——七个 Task（1 / 2 / 2.5 / 3 / 3.5 / 4 / 5）全部完成：触发行三段（数据形状 → 登记表与四道门求值器 → 独立资产载体 `UTcsEffectTriggerDefAsset` 与定义库装配）+ **伤害修改器唯一通道（D7-6）端到端**（破甲 `30 → 15`）+ 四个链原语（`SetVar` / `Branch` / `RunSubChain` / `WaitEvent`）与 P-A 目标排序相位。**四份证据**：`EVID-2026-10-04-trigger-def-asset` / `EVID-2026-10-04-chains-primitives` / `EVID-2026-10-04-modifier-channel` / `EVID-2026-09-30-modifyflow-acceptance`；`openspec validate --all --strict` = **26 passed / 0 failed**、`openspec/changes/` **零活动提案**。**唯一留白** = Task 3.5 的 `tasks.md` 6.6 三条降级路径（归 M5）；
 - **R4.5「脚本通道收口」**（**非正式轮号**，2026-09-29 立 / 2026-09-30 落档）：a 已闭环、b/c 未开工——见 `PLN-R4` 的《R4.5 批次表》；
-- **R5 已开工（2026-10-04）**——计划已产出（`PLN-R5`，**含《R5–R8 轮次路线图》与《R5.5 批次表》**），`SPEC-02-states` 已按实施视角收窄（其 §12），六条口径裁决已入 `LOG-DECISIONS`；**Task 1 已落地**（`TcsState` 成第 8 个模块 + 状态 Def 资产族 + 定义库第三条发现路径 + `StateDef` tag 根 9 → 10）；**Task 2 已落地**（状态实例 / per-unit 桶与代际 / 世界门面 / 六枚生命周期事件 + **状态定义改为逐世界登记**）；
+- **R5 已收束（2026-10-04 开工 / 2026-10-05 收束）**——计划 `PLN-R5`（**含《R5–R8 轮次路线图》与《R5.5 批次表》**），`SPEC-02-states` 已按实施视角收窄（其 §12），六条口径裁决已入 `LOG-DECISIONS`；**Task 1 已落地**（`TcsState` 成第 8 个模块 + 状态 Def 资产族 + 定义库第三条发现路径 + `StateDef` tag 根 9 → 10）；**Task 2 已落地**（状态实例 / per-unit 桶与代际 / 世界门面 / 六枚生命周期事件 + **状态定义改为逐世界登记**）；
   - **Task 0（前置契约）已于同日落地**——`FTcsParamEvaluateContext` 补 `Subject` / `EffectiveLevel`、`FTcsParamEnumerableSource` 基类落地、来源发号器改**进程唯一**（`WAIT-6` 消费；修法含一处必要偏离 = 出线 + 导出宏），双配置编译**零 warning**；**PIE 回归已过**（`Tcs.Test.Slice.Run` 19/0 + 延迟 7b、零红字，含"级联摘除恰 1 条"的行为级实证；证据 `EVID-2026-10-04-param-context-and-source-issuer`）。
   - **Task 2 验收已过**——`Tcs.Test.Slice.Run` 即时 **26/0**（新增检查 19a–19f）+ 延迟 7b PASS、区间零红字；`Tcs.Test.Slice.Reject` **7/7**（新增状态面 E/F/G）；证据 `EVID-2026-10-04-state-instance-lifecycle`。
   - **Task 3 验收已过（2026-10-04）**——数值与时间两条腿落地：**参数快照**（`FTcsParamSnapshot` + 值约定在写入点转规范值 + 纯 C++ 读取适配器）/ **四个等级源 + 宿主实体等级读口**（`ITcsEntityLevelProvider` + 派生上下文 `FTcsStateEvaluateContext`）/ **Duration-Period 到期堆**（重复到期条目 + `PeriodRefresh` 三态 + 时长操作堆同步）/ **R4.5-b 宿主参数源插槽**（`ITcsParamSourceHost` + `FTcsParamSource_HostDelegate`）。读数 = `Tcs.Test.Slice.Run` 即时 **32/0** + 延迟段 **39/0**（新增 `20a`–`20l`）、`Tcs.Test.Slice.Reject` **9/0**（新增 H/I）、双配置编译零 warning 零 error；证据 `EVID-2026-10-04-state-param-snapshot-and-level-sources`。
@@ -23,7 +23,7 @@ TCS 战斗系统设计已完成 **M0–M9 全部决策拍板**，实施 **R4 轮
   - **Task 5 验收已过（2026-10-05）**——**同一 buff 的重复施加首次有确定语义**（五轴堆叠与刷新政策）：组键三态（不分组 / 按来源 / 按发起者）+ Custom 逃逸位、`MaxStacks` 与溢出两档、数值叠加（取最大 / 累加）、时长刷新（不动 / 回满额）；`EApplyResult` **四档全部实测可达**、`TcsEvent.State.StackChanged` **首次有真实广播**（叠层路径，且定序早于 `Refreshed`）；宿主自定义决策 Fragment 被真实调用（样本恒不同组 ⇒ 每次新建）。读数 = `Tcs.Test.Slice.Run` 即时 **53/0** + 延迟累计 **60/0**（新增 `22a`–`22m`）、`Tcs.Test.Slice.Reject` **11/0**（新增 `K`）；证据 `EVID-2026-10-05-state-stacking-policies`（双区段哈希 `0841f12a…` / `dc3917a9…`）。**同轮修掉一处实现缺陷**：`ScheduleTime` 刷新恒回满额 ⇒ `ESD_None`（不动时长）那一档此前**在实现上从未存在**。
   - **Task 6（6a）验收已过（2026-10-05）**——**链里首次能施加状态、能改属性；状态自己的内联触发行首次有真实登记与退订**：`FTcsStepApplyState` / `FTcsStepModifyAttribute`（两个领域步骤 + 自注册，`TcsEffect` 首次真实使用到 `TcsAttribute` 这条**下层**边）+ `AttributeCompare`（第三条内置条件，实测能**门控**起链）+ **级联锚点与施加方身份解耦**（`CascadeAnchor` ≠ `Source`：一个来源可施加多个定义，按来源撤销会互相误摘）+ **链运行态"身份 + 因果边"**（`RunSource` 每运行一枚新号 / `CausedBy` 触发行起链 = 该行所属实例的锚点；**因果边 MUST NOT 参与撤销或共存判定**）。读数 = `Tcs.Test.Slice.Run` 即时 **61/0** + 延迟段收束 **68/0**（新增 `23a`–`23h`）、`Tcs.Test.Slice.Reject` **11/0**；证据 `EVID-2026-10-05-state-chain-primitives`（双区段哈希 `2cfa09fe…` / `7458a999…`）。**首轮唯一失败 23g（60/1）的真因是一条模型级发现**：内联触发行是"**事件 Tag 级**"规则、不过滤载荷与单位 ⇒ 跨实例串扰（入台账 `TRIG-6`）；**同轮还修掉一处跨文件缺陷**（`TcsStepBranch` 漏填 `Context.World` ⇒ 链里的 `AttributeCompare` 会静默恒不通过）。
   - **Task 6（6b）验收已过（2026-10-05）**——**状态首次有了作者面的行为回调，且状态事件第一次能按实例身份自筛**：`FTcsStateBehaviorFragment`（兴趣 Tag 列表 + 单个 `const` 泛化回调）住 `FTcsBuffDef.Fragments`，按**每兴趣 Tag 一条订阅**（共享 Handler 由门面 `UPROPERTY` 强持有、计数配对）接线——施加时接线排在 `Applied` 广播**之前**、移除 / 到期退订排在广播**之前**、刷新**不重挂**；**首个状态载荷读取器** + **两侧泛型主体匹配**（`TRIG-6` 甲案）把触发行从"事件 Tag 级规则"收窄为"**绑定行只认自己的实例主体**"，`TcsEffect` 仍**不反向依赖** `TcsState`；**句柄身份修复**（出线进程唯一正奇数代际，修掉"各桶各自发号 ⇒ 跨单位同号"的缺陷）与 **`STAT-5` 有限重入守卫**（旁表只覆盖真正的移除广播窗口）同轮落地。读数 = **两连 PIE**（同进程 `StopPIE → StartPIE`）各即时 **65/0** + 延迟段收束 **72/0**（新增 `23i`–`23l`）、`Tcs.Test.Slice.Reject` **11/0**；`Run` 红字**恰 3 条**（与 6a 同，**本轮未加故意红字**）；证据 `EVID-2026-10-05-state-behavior-fragments`（冻结快照 `05218d83…` + 三段区段哈希）。**关键读数**：23g **恢复"先主后次"** 后仍 `+25.000 / 计数 1`（即 `TRIG-6` 那条串扰**不再靠夹具顺序规避**）、23l 第二轮 `旧句柄拒绝=是` 且两轮各有 `状态行为反初始化：订阅 1→0 实例 1→0`。**⇒ R5 Task 6 两半全部完成；`openspec/changes/` 零活动提案。**
-  - **Task 7 验收已过（2026-10-05）**——**状态层首次由真内容资产走通到底，且"修正器模板"成为定义库第四计数**：新建 4 个内容资产（`DA_ModDef_E2E` 修正器模板 / `DA_State_E2E` buff / `DA_Chain_E2E_Apply` 施加链 / `DA_Chain_E2E_Behavior` 行为链），链路 = 链施加 → 建实例（`DurationTime` 2.00s 有限时值）→ 内联触发行在 `Applied` 上再入起行为链 → **模板经快照 `ParamRef` 跨资产取到覆盖值 25.0** 落到护甲 → 0.50s 周期回调 → 2.60s 到期回收、触发行按锚点退订、**护甲精确复原**，而**行为链改的攻击停在 X−5**（链挂条目按设计常驻）。读数 = `Tcs.Test.State.Run` **两轮各 15/0 且复现性摘要逐字相同**、`Tcs.Test.State.Reject` **7/0**；**回归逐字不变**（`Slice.Run` 即时 **65/0** + 延迟 **72/0**、`Slice.Reject` **11/0**）；定义库就绪行 = `链 11 / 触发 2 / 状态 2 / 修正器模板 1 / 失败 0`（逐项吻合 §5.5 增量核对表）。插件侧新增 `ResolveAttrModDef` 身份解析与索引（`AttrModDef` 根 **10 → 11**，`ATTR-1` 闭合）；证据 `EVID-2026-10-05-state-layer-pie`（冻结快照 `db630575…` + 五段区段哈希）。**同轮留痕十条缺陷/事实（见证据 §4：六处缺陷 + 四条通道事实/教训）**（六处缺陷：内容资产 `ParamRef.Key` 笔误致取兜底 −999、事件面基线晚取致 `Applied` 增量恒 0、检查 S8/S14 残留旧算术 + 陈旧 DLL、摘要口径过宽、证据表格行号整体偏一行、**提交信息里的检查清单按计划文本推断而未读日志（11/15 条标题不符、S10 声称的"定序"读数本轮不存在）**；另四条通道事实/教训：UBT 与 Live Coding 互斥且后者掩盖陈旧 DLL、MCP 无 `IsDataValid` 入口、惰性初始化日志只写一次、Slate ref 不跨进程且日志随重启轮转），**并订正 `tasks.md` §6.3**（"全部读数逐字相同"过宽——句柄 id 进程单调、周期次数帧驱动）。**⚠️ 取证口径**：先关编辑器跑**完整双配置 UBT 构建**（Editor `7.96s` / Shipping `28.16s`，各 `Result: Succeeded`、零 warning 零 error），**再在重建后的二进制上重跑全部验收** ⇒ 证据全部读数对应**交付二进制**，而非 Live Coding 打过补丁的进程。**⇒ 下一步 = Task 8 收束。**
+  - **Task 7 验收已过（2026-10-05）**——**状态层首次由真内容资产走通到底，且"修正器模板"成为定义库第四计数**：新建 4 个内容资产（`DA_ModDef_E2E` 修正器模板 / `DA_State_E2E` buff / `DA_Chain_E2E_Apply` 施加链 / `DA_Chain_E2E_Behavior` 行为链），链路 = 链施加 → 建实例（`DurationTime` 2.00s 有限时值）→ 内联触发行在 `Applied` 上再入起行为链 → **模板经快照 `ParamRef` 跨资产取到覆盖值 25.0** 落到护甲 → 0.50s 周期回调 → 2.60s 到期回收、触发行按锚点退订、**护甲精确复原**，而**行为链改的攻击停在 X−5**（链挂条目按设计常驻）。读数 = `Tcs.Test.State.Run` **两轮各 15/0 且复现性摘要逐字相同**、`Tcs.Test.State.Reject` **7/0**；**回归逐字不变**（`Slice.Run` 即时 **65/0** + 延迟 **72/0**、`Slice.Reject` **11/0**）；定义库就绪行 = `链 11 / 触发 2 / 状态 2 / 修正器模板 1 / 失败 0`（逐项吻合 §5.5 增量核对表）。插件侧新增 `ResolveAttrModDef` 身份解析与索引（`AttrModDef` 根 **10 → 11**，`ATTR-1` 闭合）；证据 `EVID-2026-10-05-state-layer-pie`（冻结快照 `db630575…` + 五段区段哈希）。**同轮留痕十条缺陷/事实（见证据 §4：六处缺陷 + 四条通道事实/教训）**（六处缺陷：内容资产 `ParamRef.Key` 笔误致取兜底 −999、事件面基线晚取致 `Applied` 增量恒 0、检查 S8/S14 残留旧算术 + 陈旧 DLL、摘要口径过宽、证据表格行号整体偏一行、**提交信息里的检查清单按计划文本推断而未读日志（11/15 条标题不符、S10 声称的"定序"读数本轮不存在）**；另四条通道事实/教训：UBT 与 Live Coding 互斥且后者掩盖陈旧 DLL、MCP 无 `IsDataValid` 入口、惰性初始化日志只写一次、Slate ref 不跨进程且日志随重启轮转），**并订正 `tasks.md` §6.3**（"全部读数逐字相同"过宽——句柄 id 进程单调、周期次数帧驱动）。**⚠️ 取证口径**：先关编辑器跑**完整双配置 UBT 构建**（Editor `7.96s` / Shipping `28.16s`，各 `Result: Succeeded`、零 warning 零 error），**再在重建后的二进制上重跑全部验收** ⇒ 证据全部读数对应**交付二进制**，而非 Live Coding 打过补丁的进程。**⇒ Task 7 验收完成；下一步 = Task 8 收束（**已于 2026-10-05 完成文档面、2026-10-06 完成归档**）。**
   - **R6–R8 未开工**（技能层 → 集成层 → 表现与编辑器工具）。
 
 > **最容易误判的一条**：原 `README.md` 里 plan3 的状态写着"待执行 / 5 Task"，**那是过期信息**（README 已于 2026-09-29 拆分为导航页，内容迁入 `log/`）——plan3 的 Task 1/2 已完成、R4 已扩容为 7 个 Task、并已于 2026-10-04 **全轮收束**。以本文 §1 与 `PLN-R4` 为准。
@@ -37,9 +37,9 @@ TCS 战斗系统设计已完成 **M0–M9 全部决策拍板**，实施 **R4 轮
 | **了解系统全貌** | `SPEC-00-core`～`SPEC-10-presentation`（11 篇模块规格） | 一篇一个模块，统一模板：模块边界 / 类型词汇 / 入口服务 / 网络姿态 / 非目标 / 依据 / 验收钩子。**注意编号 ≠ 文件序**：`SPEC-09` 主题词是 `editor`（文件 `spec/08-…`） |
 | **只想知道某个模块对外是什么** | 该模块 `SPEC` 的 §1 模块边界 + §2 类型词汇 | — |
 | **想知道"当初为什么这么定"** | `GLOSSARY.md` 查到决策编号 → 按 §4 的落点进对应 `LOG-xx` / `DEC-xx` | 决策理由只住决策文档，不住规格 |
-| **要知道哪些事还没做** | `LEDGER-deferred`（跨轮遗留台账，61 条） | 唯一待办登记册；按轮次分组 |
+| **要知道哪些事还没做** | `LEDGER-deferred`（跨轮遗留台账，62 条） | 唯一待办登记册；按轮次分组 |
 | **要知道某能力现在到底通没通** | `SPEC-TRACE`（契约追踪矩阵）+ `EVID-*`（证据） | 矩阵区分"静态实现 / glue / PIE 已验证 / 未验证" |
-| **要接着干活（实施）** | `PLN-R5`（**R5 进行中**；含《R5–R8 轮次路线图》+《R5.5 批次表》） | 已完成轮次的计划：`PLN-R3-1`、`PLN-R3-2`、`PLN-R4`（**R4 已完成**，保留《R4.5 批次表》）。**R5 的开工首动作已完成**——R5 区段已通读并折进 `PLN-R5` §0.1，`SPEC-02-states` §12 是实施视角的收窄结论。**Task 1 已落地并收束（2026-10-04，双配置编译零 warning / 零 error + PIE 20/0 + 7b 零红字；提案已归档、四份 delta、`changes/` 零活动提案）**；**Task 2–5 已落地**（各自提案已归档）；**Task 6 两半（6a / 6b）已于 2026-10-05 全部落地并归档**（即时 65/0 + 延迟 72/0 + `.Reject` 11/0，两连 PIE）；**Task 7（端到端验收 + 首批真内容资产）已于 2026-10-05 落地**（`Tcs.Test.State.Run` 两轮各 15/0、`.Reject` 7/0；回归 65/0 + 72/0 + 11/0 **逐字不变**；`AttrModDef` 根 10 → 11）——下一步 = **Task 8（收束）**；**MUST 先开提案**（Task 7 提案 `verify-state-layer-e2e` 已产出待归档） |
+| **要接着干活（实施）** | `PLN-R5`（**R5 已收束**；含《R5–R8 轮次路线图》+《R5.5 批次表》） | 已完成轮次的计划：`PLN-R3-1`、`PLN-R3-2`、`PLN-R4`（**R4 已完成**，保留《R4.5 批次表》）。**Task 1–5 已落地**（各自提案已归档）；**Task 6 两半（6a / 6b）已于 2026-10-05 全部落地并归档**（即时 65/0 + 延迟 72/0 + `.Reject` 11/0，两连 PIE）；**Task 7（端到端验收 + 首批真内容资产）已于 2026-10-05 落地**（`Tcs.Test.State.Run` 两轮各 15/0、`.Reject` 7/0；回归 65/0 + 72/0 + 11/0 **逐字不变**；`AttrModDef` 根 10 → 11）；**Task 8 收束已完成**：设计文档 / `SPEC-TRACE` / 台账 / 两册日志 / `INDEX` 五面回写 + **提案 `verify-state-layer-e2e` 已归档为 `changes/archive/2026-10-06-verify-state-layer-e2e/`**（**归档日为 10-06 机器日期，非计划预写的 10-05**，已就地留痕）+ 两处 `## Purpose` 手工补正 ⇒ `openspec/changes/` **零活动提案**、`openspec validate --all --strict` = **34 passed / 0 failed**、能力数 33 → **34**；**下一步 = R6（M5 技能层 `TcsSkill`）** |
 | **写涉及"反射"字样的文本** | `LEDGER-terminology`（**MUST 先通读**） | 该词在本仓承载 5 种含义，有唯一处方措辞 |
 | **要查某个缩写/编号** | `GLOSSARY.md` | 15 个编号族 + 逐条注册表 |
 | **要新增或改写文档** | `CONVENTION` | 类型/状态词/身份块/引用格式 |
@@ -73,7 +73,7 @@ combat-system-design/
 
 | 层 | 载体 | 管什么 | 冲突时 |
 |---|---|---|---|
-| **可执行需求** | `openspec/specs/<能力>/spec.md`（**26 条能力规格**） | MUST / Scenario——代码必须满足的行为 | **规格优先**（它进 `openspec validate --strict`） |
+| **可执行需求** | `openspec/specs/<能力>/spec.md`（**34 条能力规格**） | MUST / Scenario——代码必须满足的行为 | **规格优先**（它进 `openspec validate --strict`） |
 | **设计意图** | 本工作区 `SPEC-*` / `DEC-*` / `LOG-*` | 为什么这么设计、边界在哪、否决了什么 | 规格未覆盖处以此为准 |
 | **项目约定** | `openspec/project.md` | 命名标准、依赖铁律、测试策略、过网结构纪律 | 全局约定优先 |
 
@@ -132,7 +132,7 @@ combat-system-design/
 | ID | 轮次 | 内容 | 状态 |
 |---|---|---|---|
 | `PLN-R4` | **R4（已完成）** | 触发行与伤害修改器通道；**含《R4.5 批次表》（非正式轮号）**——R5–R8 路线图已于 2026-10-04 移交 `PLN-R5` | **已完成（2026-10-04）**：Task 1 / 2 / 2.5 / 3 / 3.5 / 4 / 5 全勾；**R4.5 的 b/c 仍未开工**（故本文档保持 `ACTIVE`，继续承载《R4.5 批次表》直到那两批收口） |
-| `PLN-R5` | **R5（进行中）** | M3 状态层（`TcsState`）核心竖切：Task 0~8；**含《R5–R8 轮次路线图》（现行排期真相源）+《R5.5 批次表》（非正式轮号）** | **进行中（2026-10-04）**：**Task 0 已落地**（Step 1/2/3 落地并勾选、Step 4 两半均过）；**Task 1 已收束**（Step 1~7 全勾、提案四 delta 归档、PIE 20/0 + 7b）；**Task 2~7 已立项并验收**（各自提案已归档或待归档）；**Task 7 已落地（2026-10-05）**——仅余 **Task 8（收束）** |
+| `PLN-R5` | **R5（已完成）** | M3 状态层（`TcsState`）核心竖切：Task 0~8；**含《R5–R8 轮次路线图》（现行排期真相源）+《R5.5 批次表》（非正式轮号）** | **已完成（2026-10-05 收束 / 2026-10-06 归档）**：Task 0~8 **全部收束**（Task 8 = 收束：设计文档回写 / `SPEC-TRACE` 增量 / 台账勾销与对账 / 两册日志 / `INDEX` 同步 / **提案归档** / 本计划回写；检查点卡按门控刷新）；提案归档为 `changes/archive/2026-10-06-verify-state-layer-e2e/`、`openspec validate --all --strict` = **34 passed / 0 failed**、`openspec/changes/` **零活动提案**、能力数 33 → **34**。本文档**保持 `ACTIVE`**——继续承载《R5.5 批次表》（八批未开工）与《R5–R8 轮次路线图》（同 `PLN-R4` 承载《R4.5 批次表》的先例） |
 | `PLN-R3-vertical-slice` | R3 | 竖切验收剧本（7 项人工检查单） | 冻结（7/7 已验） |
 | `PLN-R3-1` | R3 | 计划一：Core + Attribute（Task 0–6） | 冻结（全部完成） |
 | `PLN-R3-2` | R3 | 计划二：Effect + Targeting + Damage + Integration（Task 0–7） | 冻结（全部完成并验收） |
@@ -144,11 +144,11 @@ combat-system-design/
 |---|---|---|---|
 | **R4**（**已完成 2026-10-04**） | M4a 触发行 + 伤害修改器通道 + 原语补齐 | R3 已收束 | `DAMAGE-1`（部分）/`DAMAGE-2`（部分）/`DAMAGE-3`（部分）/`DAMAGE-4`（边界）；新增 `CHAIN-1`~`CHAIN-6`、`TRIG-1`~`TRIG-5` |
 | **R4.5**（**非正式轮号**，**2026-10-04 重排后仅剩两处**） | 脚本通道收口（不占正式轮） | — | 不消费台账条目；权威登记 = `LEDGER-reflection` 的 `R-1` / `R-2`。**重排**：`R-1`（参数源插槽）并入 `PLN-R5` Task 3；`R-2` 后段（两张注册表插槽）排到 R6 开工前 |
-| **R5**（**进行中，2026-10-04 开工**） | M3 状态层（`TcsState`）核心竖切 | R4 已收束 | `STAT-2`（**已部分消费**）、`DAMAGE-5`（**已消费**）、`WAIT-6`（**已消费**）、`TRIG-4`、`TRIG-5`（部分）、`DAMAGE-2`（`ModifyAttribute` 一支）、`ATTR-1`（**已闭合**，2026-10-05 Task 7）；**新增 `CHAIN-7` / `CHAIN-8`**（均归 R5，见 `LEDGER-deferred`）——前三项随 Task 0 于 2026-10-04 标结 |
-| **R5.5**（**非正式轮号**） | 原语与消费余额（R5 与 R6 之间，不占正式轮） | R5 核心落地 | `DAMAGE-2` 余 3、`DAMAGE-3` 余、`DAMAGE-4`、`STAT-3`、关系表族；八批明细见 `PLN-R5` 的《R5.5 批次表》 |
+| **R5**（**已完成 2026-10-05**） | M3 状态层（`TcsState`）核心竖切 | R4 已收束 | `STAT-2`（**已部分消费**）、`DAMAGE-5`（**已消费**）、`WAIT-6`（**已消费**）、`TRIG-4`（**已消费**，2026-10-05 Task 6 内联位落地）、`TRIG-5`（**部分消费**——仅 `AttributeCompare` 一支）、`DAMAGE-2`（**部分消费**——仅 `ModifyAttribute` 一支）、`ATTR-1`（**已闭合**，2026-10-05 Task 7）；**新增 `CHAIN-7` / `CHAIN-8`**（Task 7）；`STAT-3` / `DAMAGE-3` 余 `Heal` / `DAMAGE-4` 三项**本轮未触及** ⇒ 已改判 R5.5（见下行）。**前六项**（`STAT-2` / `DAMAGE-5` / `WAIT-6` / `TRIG-4` / `TRIG-5` / `DAMAGE-2`）的勾销时点见 `LEDGER-deferred` 变更记录 |
+| **R5.5**（**非正式轮号**） | 原语与消费余额（R5 与 R6 之间，不占正式轮） | R5 核心落地（**已收束 2026-10-05**） | **四项改判入本批（2026-10-05 Task 8）**：`DAMAGE-2` 余 3（`Parallel`/`Repeat`/`OnError` → **R5.5-a**）、`DAMAGE-3` 余 `Heal`（→ **R5.5-b**）、`DAMAGE-4`（→ **R5.5-c**）、`STAT-3`（→ **R5.5-d**）；另有关系表族（→ R5.5-e）与技能参数行分派 / `R-7` / `SCRIPT-9`（f/g/h）；八批明细见 `PLN-R5` 的《R5.5 批次表》 |
 | **R6** | M5 技能层（`TcsSkill`） | R5（`FSkillDef` 继承 `FStateDefBase`） | `STAT-1`、`CORE-1`（若成立） |
-| **R7** | M6 集成层（两级单位 / StateTree / AttributeSet / 加载层） | R6 | `INTEG-1`~`INTEG-3`、`WAIT-2`/`WAIT-5`/`WAIT-6` |
-| **R8** | M7 表现 + M8 编辑器与工具 | R7 | `PRES-1`、`TOOLS-1`~`TOOLS-6`、`WAIT-1`/`WAIT-4`/`WAIT-9`/`WAIT-10` |
+| **R7** | M6 集成层（两级单位 / StateTree / AttributeSet / 加载层） | R6 | `INTEG-1`~`INTEG-3`、`WAIT-2`/`WAIT-5`（**`WAIT-6` 已于 2026-10-04 随 R5 Task 0 消费，不再列此**——2026-10-05 Task 8 纠错） |
+| **R8** | M7 表现 + M8 编辑器与工具 | R7 | `PRES-1`、`TOOLS-1`~`TOOLS-8`、`WAIT-1`/`WAIT-4`/`WAIT-9`/`WAIT-10` |
 
 > 弹性：R6 可能拆两轮；`INTEG-3` 的加载层可拆独立轮；`WAIT-*` 条目在触发条件成立时随当轮消费。**`R4.5` 是非正式轮号**（不占正式轮）——逐批状态见 `PLN-R4` 的《R4.5 批次表》。
 
@@ -156,7 +156,7 @@ combat-system-design/
 
 | ID | 内容 | 规模 |
 |---|---|---|
-| `LEDGER-deferred` | 跨轮遗留输入台账（**唯一待办登记册**）：按轮次分组的 61 条 + 变更记录 | 61 条 |
+| `LEDGER-deferred` | 跨轮遗留输入台账（**唯一待办登记册**）：按轮次分组的 62 条 + 变更记录 | 62 条 |
 | `LEDGER-reflection` | 反射未解决项（`R-1`~`R-6`）+ 逐项专项调研登记册 | 6 项 |
 | `LEDGER-terminology` | 「反射」术语规约（一词五义的唯一处方措辞）——**写含"反射"的文本前 MUST 通读** | — |
 

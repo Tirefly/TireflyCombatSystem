@@ -4,7 +4,7 @@
 - **类型**：SPEC / 模块规格
 - **状态**：ACTIVE
 - **权威范围**：TcsAttribute（M2）词表、聚合管线、事务与读侧契约；D2-* 理由住 LOG-00-core
-- **最后更新**：2026-10-01
+- **最后更新**：2026-10-05（R5 收束：§2.2 的一致性待办结案——`UCombatStateRegistry` 已作废、与 `UCombatWorldRegistrySubsystem` 由"命名统一"改判为分工）
 
 > **换根注记（2026-10-01）**：本文 tag 名已随提案 `reroot-gameplay-tag-vocabulary` 换根——旧前缀 `Tcs.Event.*` / `Tcs.Flow.Key.*` / `Tcs.Flow.Template.*` / `Tcs.Attr.*` / `Tcs.Chain.*` 依次成为 `TcsEvent.*` / `DamageFlowKey.*` / `DamageFlowTemplate.*` / `Attribute.*` / `EffectChain.*`；本文正文一律用新名，旧名仅存于本注记与 `log/`、`ledger/`、`evidence/` 等历史文件。
 
@@ -69,7 +69,7 @@
 - **当前值**：`CachedCurrent` = 派生缓存非权威——聚合管线唯一生产者，惰性重算（脏则算）；永远可由 Base+修正器+公式重建（操作复制+客户端重算的地基）。
 - **FAttributeModifierInstance**：挂在被修饰属性的 **ModifierSlots**（槽位自由链表/数组+freelist，M0 池机制复用；TCS/AbilityKit 同款）：`{Handle, Op, Operand, Source, SortKey}`（**2026-09-23 删 `Tag`**——同款零消费者）；Source 级联移除；聚合收集按属性遍历（零查找）。
 - **三种修正器存放地总表**：实体属性修正器→FAttributeStore 属性槽（Source 级联）；技能参数修正→FLearnedSkillEntry 参数链集（M5）；流程属性修正→FDamageFlowContext 流程属性容器（TcsDamage，流程结束即弃）——同一形状（Source 级联），作用域容器不同。
-- **一致性待办**：03 文档 `UCombatStateRegistry` 与 06 文档 `UCombatWorldRegistrySubsystem` 命名统一（M6 拥有世界子系统壳；M2/M3/M5 域 Store 挂载方式实施期定）。
+- **一致性待办（✅ 已结案 2026-10-05，R5 收束）**：~~03 文档 `UCombatStateRegistry` 与 06 文档 `UCombatWorldRegistrySubsystem` 命名统一~~——**该待办的前提已消失**：`UCombatStateRegistry` 于 R5 收窄轮**作废**（全库零命中），状态桶改由 **`UTcsStateSubsystem : UWorldSubsystem`** 承担（与 `UTcsAttributeSubsystem` 同构，见 `SPEC-02-states` §3.1 / §12.3）；`UCombatWorldRegistrySubsystem`（`SPEC-05-integration` §2.1）**仍有效但属 R7/M6**。两者不再是"同一件事的两个名字"，而是**分工**：**状态桶归 TcsState，实体注册与就绪门禁归集成层**。M2/M3/M5 域 Store 的挂载方式随各自模块落地而定（M2 已落、M3 已落），本行不再挂账。
 
 ### 2.3 读侧契约
 - `ICombatAttributeProvider`（UINTerface，M2 对外唯一契约）：`GetBaseValue / GetCurrentValue(FGameplayTag)`、`PeekPending`。军官组件与 Mass 存储桶适配器都实现它（计算器不关心单位载体——M6 的适配在此收敛）。

@@ -27,7 +27,7 @@
 
 | ID | 事项 | 根因类 | 现状 | 归属 | 状态 |
 |---|---|---|---|---|---|
-| **R-1** | **参数源族宿主插槽**（`FTcsParamValueSource` 虚分派脚本不可达） | ② 虚分派 | 未解决（SCRIPT-8 只覆盖选择器族，参数源族无转发器） | **SCRIPT-8 归档后独立小提案**（用户 2026-09-24 拍板）；**★ 2026-10-04 排定：并入 [`PLN-R5`](../plans/plan-r5-state-layer.md) Task 3 Step 9**（与四个等级源同族、同验证面；理由 = 按"离第一个真实消费者最近"排）；**与 R-2 后段 / P-A 评分器同构**——见下文《宿主插槽家族的耦合关系》 | **✅ 已调研并拍板**（2026-09-24；三项开放问题全定，待落地） |
+| **R-1** | **参数源族宿主插槽**（`FTcsParamValueSource` 虚分派脚本不可达） | ② 虚分派 | 未解决（SCRIPT-8 只覆盖选择器族，参数源族无转发器） | **SCRIPT-8 归档后独立小提案**（用户 2026-09-24 拍板）；**★ 2026-10-04 排定：并入 [`PLN-R5`](../plans/plan-r5-state-layer.md) Task 3 Step 9**（与四个等级源同族、同验证面；理由 = 按"离第一个真实消费者最近"排）；**与 R-2 后段 / P-A 评分器同构**——见下文《宿主插槽家族的耦合关系》 | **✅ 已落地并闭环（2026-10-05，R5 Task 3 Step 9）**——**同批落地**（2026-10-04 排定并入 Task 3）：接口 `ITcsParamSourceHost` + 转发源 `FTcsParamSource_HostDelegate` 住 `TcsCore/Public/Parameter/TcsParamSourceHost.h`（**接口与转发器同住一头**，同族先例 `TcsParamSource_AttributeScaled.h`）；连带给基类补 `virtual ~FTcsParamValueSource() = default;`（多态基类正确性要求，否则经基类指针删除是 UB）。**证据**：`EVID-2026-10-04-state-param-snapshot-and-level-sources` §⑤⑦——**静态面 + 行为面双证**。**残留边界（如实）**：只验了 C++ 侧宿主源；**脚本（C#）侧自定义源仍未实测**（"能导出 ≠ 能往返"，同 R4.5-b 的教训）；见该证据 §5 边界 |
 | **R-2** | **条件求值器 / 载荷读取器注册表反射入口**（SCRIPT-2 未被 SCRIPT-8 替代的部分） | ③ 签名 | 部分被 SCRIPT-8 替代（步骤执行器有 UObject 基类，条件/载荷读取器没有）；**跨世界寿命缺陷已于 2026-09-29 修复**（见右栏） | **R-1 紧邻独立提案**（用户 2026-09-27 拍板）；**★ 2026-10-04 排定：后段（两张注册表插槽）排到 R6 开工前**（消费者 = 宿主专属条件 / **SkillCost**——用户 2026-09-27 原话点名）；与 R-1 / P-A 评分器同构——见下文《宿主插槽家族的耦合关系》 | **✅ 已调研并拍板**（2026-09-27）。**★ 2026-09-29 部分闭环**：随提案 `harden-registry-cross-world-lifetime` 落地——4 张注册表获得**寿命语义**（对象/世界弱引用）+ 失效判据 + 拒绝门收窄为"同世界活对象重复" + `Unregister`/`GetDynamicKeys` + 门面 `Deinitialize` 按世界撤销；**两次 PIE 实测通过**（`拒绝重复登记` 零命中，见 `EVID-2026-09-29-registry-lifetime`）。**仍未落地**：两张注册表的**宿主脚本插槽**（`BlueprintType` 升格 + `Register(UScriptStruct*, UObject*)` 反射入口）——仍待 R-2 的独立提案 |
 | **R-3** | **`ITcsEntityQuery` 反射化**（`EnumerateEntities` 的 `TFunctionRef` 形参 + 门面 `SetEntityQuery` 无 `UFUNCTION`） | ③ 签名 | 并入 SCRIPT-8 但 SCRIPT-8 非目标明示"不做" | 台账 SCRIPT-5 | **⚖ 已裁决：不换**（2026-09-29，`DEC-04` 裁定 ③）——`TFunctionRef` = 宿主提供回调、框架遍历中同步调用且**不持有**；UObject 化会把契约由"拉"改"推"、把分配推进热路径，且 R0 §9 明文"蓝图不承诺"。**不再调研、不再挂待办** |
 | **R-4** | **上下文整体反射化**（SCRIPT-3：`FTcsEffectContext` 可做 / `FTcsChainRun` 需包壳 / `FTcsDamageFlowContext` 依赖 OnConsumed 分层） | ① 不可反射成员 + 结构形状 | 降为可选（SCRIPT-8"传句柄"已绕过主要场景） | 台账 SCRIPT-3 + DAMAGE-4（前置） | 待调研（**前置 = R-6 落定**）——R-6 已由 `DEC-04` 裁定 ④ 定向：走"`OnConsumed` 改事件/原语语义"，**与 DAMAGE-4 同批** |
@@ -51,14 +51,14 @@
 
 **影响面**：`FTcsParamValue.Source` 是**全插件数值载体**——链步骤 `DamageBase`、修正器 `Operand`、流程 `Operand`、`FormulaParams` 全走它。所有需要"数值来源策略"的地方，脚本都配不了新源类型。
 
-**现状证据（已核）**：
-- `Source/TcsCore/Public/Parameter/` 只有 `TcsParamSource_Literal` / `TcsParamSource_ParamRef`（+ `TcsParamTableReader` 接口），**无任何 Host/转发类型**；全库 grep `ParamSourceHost` 零命中；
-- 台账 SCRIPT-8 原文自认："PV-5（'delegate/接口插槽（宿主 C++ 绑定）'——当时只规划到参数源，**未延伸到选择器**，本条补上）"——即**参数源的插槽在 PV-5 已规划、但从未落地**；SCRIPT-8 补的是选择器，参数源反而留在原地；
+**现状证据（已核；2026-10-05 R5 收束订正——原文写于落地前，保留以记现场）**：
+- ~~`Source/TcsCore/Public/Parameter/` 只有 `TcsParamSource_Literal` / `TcsParamSource_ParamRef`（+ `TcsParamTableReader` 接口），**无任何 Host/转发类型**；全库 grep `ParamSourceHost` 零命中~~ ⇒ **已不成立（2026-10-04）**：`TcsParamSourceHost.h` 落地（接口 `ITcsParamSourceHost` + 转发源 `FTcsParamSource_HostDelegate` + 基类虚析构），`ParamSourceHost` 全库命中见该头与四个等级源侧的消费；
+- 台账 SCRIPT-8 原文自认："PV-5（'delegate/接口插槽（宿主 C++ 绑定）'——当时只规划到参数源，**未延伸到选择器**，本条补上）"——即**参数源的插槽在 PV-5 已规划、但从未落地**；SCRIPT-8 补的是选择器，参数源反而留在原地；**该欠账已于 2026-10-04 还清**（本条闭环）；
 - `TcsParamValueSource.h:FTcsParamEvaluateContext`（上下文 MUST 反射可见的注释）与 `TcsParamValueSource.h:FTcsParamValueSource`（基类声明）确认当前形态。
 
-**归属**：建议 R5（与 `ApplyState` / `ModifyAttribute` 同批——这些步骤都要配数值源，是真实消费者出现之时）。
+**归属**：~~建议 R5（与 `ApplyState` / `ModifyAttribute` 同批——这些步骤都要配数值源，是真实消费者出现之时）~~ ⇒ **已按此归属落地**（`PLN-R5` Task 3 Step 9，2026-10-04）。
 
-**状态**：**✅ 已调研并拍板**（2026-09-24 启动、同日拍板；三项开放问题全定，见「调研记录 · 调研 R-1：参数源族宿主插槽（2026-09-24，**✅ 已拍板**）」）——与总表 R-1 行同口径；**待落地**（独立小提案，紧邻 R-2）。
+**状态**：**✅ 已落地并闭环（2026-10-05 收束标记）**——调研拍板（2026-09-24）→ 排期并入 `PLN-R5` Task 3（2026-10-04）→ **当日落地**（接口 + 转发器 + 虚析构）→ 证据 `EVID-2026-10-04-state-param-snapshot-and-level-sources` §⑤⑦（静态面 + 行为面双证）。**残留边界**：脚本（C#）侧自定义源**仍未实测**——见总表行与本册末《宿主插槽家族的耦合关系》。
 
 ---
 
@@ -377,6 +377,7 @@ bool AllowsValueConvention();                                // 第二个虚函�
 
 ## 变更记录
 
+- **2026-10-05 R-1 落地并闭环（R5 Task 8 收束标记）**：**`R-1` 参数源族宿主插槽**由"已拍板待落地"改为 **✅ 已落地并闭环**——随 `PLN-R5` **Task 3 Step 9** 落地（2026-10-04 排定并入、当日落地）：接口 `ITcsParamSourceHost` + 转发源 `FTcsParamSource_HostDelegate`（同住 `TcsCore/Public/Parameter/TcsParamSourceHost.h`，同族先例 = `TcsParamSource_AttributeScaled.h`）+ 基类补 `virtual ~FTcsParamValueSource() = default;`。**证据** = `EVID-2026-10-04-state-param-snapshot-and-level-sources` §⑤⑦（**静态面 + 行为面双证**）。**同批两处改动**：① **总表行**状态栏与现状栏重写（原"未解决 / 未落地"已不成立）；② **明细节**的《现状证据》原写"全库 grep `ParamSourceHost` 零命中"——该判据随落地失效，**保留原文并划改**（记现场），并在《归属》《状态》两处补闭环链。**残留边界（如实）**：只验了 C++ 侧宿主源，**脚本（C#）侧自定义源仍未实测**（"能导出 ≠ 能往返"，同 R4.5-b 教训）——见该证据 §5 边界。**R-1 的闭环不影响 R-2 / R-7**：`R-2` 后段（两张注册表插槽）仍排 R6 开工前，`R-7`（属性访问**写侧**插槽）仍待触发。
 - **2026-09-24 建立**：用户拍板"未解决项留档 + 逐项专项调研，每项调研完评审、讨论完再落档"。收录 **R-1 ~ R-6** 六项（R-1 参数源族为本次讨论新发现；R-2~R-6 为既有台账条目的反射专项视图）。启动**调研 R-1**（待评审）。
 - **2026-09-27 R-2 评审完成（用户确认）**：需求边界 = 必需项（宿主需专属条件类型，甚至专属 SkillCost）；载荷读取器零登记并入 plan3 Task 3；R-2 与 R-1 紧邻独立提案；寿命缺陷先实测只记录 + TCS 侧兜底优先；开放问题 ⑤ 撤掉（伪问题）。解法 A 通过（用户点出其与初版 UObject-CDO 策略模式同族）、解法 B 否。**发现跨世界寿命缺陷**（SCRIPT-8 已落地代码中即存在，注册表进程级 vs 持有世界级）——已记录待实测。
 - **2026-09-29 `DEC-04` 裁定落定（用户拍板 §7 五项全接受）**：本册 **3 行改判**——**R-3 由"待调研"改为"⚖ 已裁决：不换"**（`TFunctionRef` 的语义/热路径/蓝图不承诺三条判据不随时间改变，不再挂待办）；**R-6 由"已登记待办"改为"⚖ 已裁决"**（`OnConsumed` 改事件/原语语义，与 `DAMAGE-4` 同批）；**R-4 的前置获定向**（R-6 已裁定，待 `DAMAGE-4` 落定后启动）。**R-1 / R-2 状态不变**（仍"已调研并拍板，待落地"），但落地顺序获确认：**先做 A 类值语义改造**（`DEC-04` 裁定 ⑤），它是 R-2 跨世界寿命兜底的前置护栏。条目总数不变（6 项）。
