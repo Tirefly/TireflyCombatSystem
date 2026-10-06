@@ -302,3 +302,181 @@
   - **⑧ Step 6 提案归档与门禁（✅ 已于 2026-10-06 执行完毕）**：`openspec archive verify-state-layer-e2e --yes` ⇒ 归档为 **`changes/archive/2026-10-06-verify-state-layer-e2e/`**（**⚠️ 归档日 = 10-06 机器日期，非计划预写的 `2026-10-05-…`**——内容收束于 10-05、归档动作跨零点发生在 10-06；**不改目录名**：那是归档器产物，手工改名会制造第二真相源。同族先例 = Task 4"10-04 收束 / 归档于 10-05 零点后"）。归档器应用 `+5 added / ~4 modified / -0 / →0`（`state-layer-e2e-validation` 新能力 ×4 + `gameplay-tag-governance` ×3 + `integration-entity` ×1 + `attribute-types` ×1，与提案逐条吻合）。**两处手工补正已做**：① 新能力 `state-layer-e2e-validation` 的 `## Purpose`（归档器原写 `TBD - created by archiving …`）→ 手写正式 Purpose（含"为何需要它 / 边界"）；② `gameplay-tag-governance` 的 `## Purpose` 根数 **10 → 11**，并补"根数沿革 MUST 与需求内根表同步"注记（**归档器只替换需求、不动 `Purpose`** ⇒ 该缺口 MUST 每次增根手工同步）。**归档前为何暂缓（留痕）**：`tasks.md` §8.1 明写"提案经**用户复核**后归档"⇒ 该项是本轮唯一需**用户拍板**的动作，**MUST NOT 由 agent 径自归档**；用户批准后执行。**门禁复核**：`validate --all --strict --no-interactive` = **34 passed / 0 failed**、活动提案 **1 → 0**、能力数 **33 → 34**、`openspec list` 无活动提案。**两条归档器提示（如实记）**：`⚠ Why section should not exceed 1000 characters`（非阻塞）与 `⚠ 4 incomplete task(s)`（§8 四项——**正是归档这一趟使它们成立**，归档后 `tasks.md` 随提案移入 `archive/`，故被归档副本里仍显示未勾，属预期而非缺陷）。
   - **⑨ Step 7 计划回写与检查点卡（✅ 已完成）**：`PLN-R5` 全文回写（Step 1~7 逐条勾选并标注实际完成态 + Task 8 落地结果块含**六处与计划文本的偏移**）；本计划状态保持 **`ACTIVE`**（同 `PLN-R4` 先例——R5.5 批次表仍由它承载）；检查点卡 `MEM-20261004-12` 按 `harness-retro` 模板**经用户门控后刷新**（`task-open` → `active` + 新增《收束》节 + §下一步 改写为 R6）。
   - **⑩ 未完成项（如实）**：`TOOLS-8` 治理专项未开工（本轮只登记）；检查 `I` 文案未修（刻意）；`ResolveAttrModDef` 运行期零调用者；`STAT-9` 未修；Shipping 只验编译；脚本（C#）侧自定义参数源未实测。**归档动作本身无遗留**（提案 / 规格 / 门禁三项均已收口）；**`SPEC-TRACE` 的两行补落**已与归档后的规格面一致（`gameplay-tag-governance` 根表 11、`integration-entity` 发现路径 4 条均已在 `openspec/specs/` 生效）。**本条与 Task 7 的 ⑫ 一并构成"R5 收束时仍在册的未覆盖项"**，权威清单 = 证据 §6 与台账。
+
+- **2026-10-06 Task 0 落地（`PLN-R6` 前置：`R-2` 后段两张注册表的宿主脚本插槽）**：提案 **`add-trigger-host-slots`**（`effect-trigger` MODIFIED ×2：触发条件最小集 / 触发载荷读取器）。**性质** = `R4.5-c` 欠下的后半，用户裁定为 **R6 的硬前置**（Task 0）。**完成度如实声明**：Step 1~5 **已勾选**（代码 + 双配置编译闭环）；**Step 6 的"能导出 ≠ 能往返"运行期取证未执行**，故 Step 6 保持未勾选、提案**未归档**。
+  - **① 落地规模**：TCS 仓改 4 文件（`TcsEffectSubsystem.h` +99 / `TcsTriggerCondition.h` +72 / `TcsTriggerPayloadReader.h` +58 / `TcsEffectSubsystem.cpp` +15）+ **新增** `Private/TcsEffectSubsystem_HostSlots.cpp`（194 行）；LAC 仓改 4 文件（`TcsDevGcProbeDriver.h` +56 / `.cpp` +37 / `TcsDevGcProbe.cpp` +57 / `TcsDevGcProbeDriver.cs` +23 / `DefaultGameplayTags.ini` +2 词）+ **新增 6 个 C# 夹具**（`TcsDevGcHostCondition.cs` 39 / `TcsDevGcHostPayload.cs` 31 / `TcsDevGcHostSlots.cs` 97 / `TcsDevGcHostSlotsProbe.cs` 416 / `TcsDevGcHostProbeCondition.cs` 27 / `TcsDevGcHostProbePayload.cs` 21）。
+  - **② 三处与计划文本的偏移（**均已订正计划与 `tasks.md`**）**：**其一**——实现文件是 `Private/TcsEffectSubsystem_HostSlots.cpp`，计划/`tasks.md` 原写 `Private/Trigger/TcsTriggerHostSlots.cpp`（随本模块既有 `_Run` / `_RunAccess` / `_ChainWait` / `_Trigger` / `_StepProtocol` 门面分片惯例）；**拆分动因 = 300 行风格上限**（拆前 397 行 ⇒ 229 + 194）。**其二**——宿主装置**扩展现有 `TcsDevGcProbe`**，原稿写的 `TcsDevSkillCostProbe.*` **不建**（用户裁定 `probe_host`：复用既有装置）。**其三**——脚本可达面**纯 C# 为主 + 一处 C++ 补强**（用户裁定 `probe_route`），且该"一处"经**逐项实测后收窄为仅 `PublishProbeEvent`**：另五件候选实测都不需要——`RegisterTriggerRow`/`UnregisterTriggerRow` 本就有反射面；`FTcsEffectTriggerInstance::Source` 虽填不了（非 `UPROPERTY`），但 `RegisterRow` 只校验 `EventTag`/`EffectChainId`/总线（`TcsTriggerRegistry.cpp:22-33`）⇒ 默认 `Source` 的行照常登记照常起链，**本 Task 任一验收面都不依赖它**；`GetRunCausedBy`/`GetRunSource` 确无反射面，但因果锚点**已由 R5 检查 23f 单独取证**（`TcsDevSliceRig.cpp:2519` 用装置自持发号器）⇒ 重造属"零消费者预建"。**证据与理由写在 `TcsDevGcProbeDriver.h:111-124`**（删除的五件助手不留注释残迹）。
+  - **③ 两处真实缺陷（实施中发现，均非原稿预见；两条同型 = "文档承诺了一个做不到的面"）**：**其一**——原稿写门面"同世界活对象重复 ⇒ 返回 false"，而两张注册表的 `Register` 返回 **`void`** ⇒ 调用侧**分不出拒绝与成功**，`tasks.md 5.7` 的负对照根本不可能成立。**修法 = 拒绝判在门面**（`Register` 前显式 `Registry::Get().Find(...)`；`Find` 顺带做寿命校验 ⇒ 失效条目仍走替换路径），`ensureMsgf` + `return false`，头注释改为"**判在门面、不靠注册表返回值**"。**其二**——原交付物列了"对应 `Unregister`"但实施时漏了，而**建立可重臂的探针正需要它**（`RegisterStepExecutor` 无撤销口 ⇒ 老五槽位在同一 PIE 会话不可重跑；条件/载荷两表**有** `Unregister` ⇒ 它俩可以）。补齐 `UnregisterConditionEvaluator` / `UnregisterPayloadReader`，四口均在 `TcsEffectSubsystem.generated.cs` 有 C# 面（`:555` / `:586`）。
+  - **④ 撤销口刻意不收缩强持有数组（记下来免得后人"补全"成缺陷）**：`UnregisterXxx` **不**同步收缩 `RegisteredConditionEvaluators` / `RegisteredPayloadReaders`。**理由 = 不对称代价**——多留一个引用只是过度持有（对象随门面回收，无害）；误删一个**仍被别的动态键引用**的对象会让那条键**静默失效**（WAIT-8 形态，表现为"条件不生效"而非崩溃）。要正确收缩须让注册表开出"键 → 对象"反查面，为良性收益扩公开面不划算。
+  - **⑤ 拒绝面独立成命令（本轮复犯，**第三次**；纪律早已在册）**：初版把"故意触发 `ensureMsgf`"的拒绝面检查放进常规 `Verify` 路径，会打破"常规验收命令零红字"这条验收信号。**修法** = 驱动新增 `VerifyRejections` 挂点（`BlueprintNativeEvent` + `.cpp` 默认实现——**缺体即 `LNK2001`**，本轮实际撞到）+ 装置新增 **`Tcs.Test.Gc.Reject`** 独立命令（照 `Tcs.Test.State.Reject` 先例）。**纪律来源 = `lessons/MEM-20260916-01` 第 3 条**；该卡 effectiveness 已记 2026-09-21 一次未注入导致的复犯。**根因（本轮的新认识）**：`tasks.md 5.7` **原就写了 `.Reject`**，是**我在实施时没照做**——"计划写了"不等于"实施时照做"，凡涉及 ensure/报错的验收项 MUST 在实施时按 `tasks.md` **逐条回读**，不能凭记忆。
+  - **⑥ 拒绝面自带键、与会话键隔离（否则制造假失败）**：新增 `FTcsDevGcHostProbeCondition` / `FTcsDevGcHostProbePayload` 两个**只作注册表键**的脚本结构体。若拿会话键做"真撤真换"取证，会抽掉会话对象的强持有 ⇒ 随后的 `Verify` 报"已被回收"的**假失败**。命令同时做到**自足**（`GetWorldSubsystem` 回退 + 起止各撤一次两个探针键 ⇒ 可重复执行、无残留），8 项条件侧 + 3 项载荷侧判据，**判据取返回值、不数红字**。
+  - **⑦ 判据加强 = 把替代解释关掉（本 Task 最值钱的设计点）**：同一事件上绑 **3 行 = 2 行条件恒过 + 1 行恒不过**（原设 2 行皆过）。一次广播同时证三件事：载荷读取增量 = **1**（"每事件一次"——读取点在行循环外，`TcsTriggerEvaluator.cpp:43`）、条件求值增量 = **3**（每行各判一次）、**扣血 = 2 × 单发**（只有条件过的行起链）。**第三条是"条件取值真的门控了链"的唯一判据**——只绑恒过的行时，"返回值被尊重"与"返回值被忽略（恒当通过）"**完全无法区分**（后者会扣 3 发）。**跨轮沿用判据**：设计行为验证的**行数构成**时，MUST 至少留一行"预期不过"，否则任何"取值被忽略"的实现都能全绿通过。
+  - **⑧ 两处机制事实经源码复核后确认（非推测，供后续轮复用）**：**其一**——触发行的订阅走 `EED_Immediate`（`TcsTriggerRegistry.cpp:187`），而 `PublishImmediate` **当场同步派发**（`TcsEventBus.h:180`）⇒ "发布后立刻读账本"这条取数方式成立（无需等帧）。**其二**——真扣血依赖链首步 `SelectTargets`（起链时黑板目标集为空，`TcsTriggerEvaluator.cpp:117`）⇒ 链 MUST 以选择器开头。
+  - **⑨ 一处取证纪律的现场教训（自查发现并修）**：用 `String.Replace` 勾选计划步骤时**忘了它作用于全局** ⇒ 把 **Task 1~7（全部未开工）的 Step 1~5 一并误标为完成**，一次制造 35 处幻影"已完成"。**修法** = 全部还原后**按行号白名单**只勾 Task 0 的 192~196 行。**判据（跨轮沿用）**：**MUST NOT 用全局字符串替换改"状态标记"**（`- [ ]` / `status:` / 计数）——这类标记在多任务文档里**必然重名**；MUST 按行号或含唯一上下文的锚点改，且改完 MUST **反查总数**（本轮反查即抓到：预期 5 处已勾、实际 40 处）。
+  - **⑩ 一处行尾符缺陷（自查发现并修）**：`Config/DefaultGameplayTags.ini` 在被编辑后**整文件由 LF 翻成 CRLF**（HEAD 与同目录其余 5 个 `.ini` 均为 LF）⇒ `git diff` 从"真实 3 行改动"膨胀为**全文件翻转**。**修法** = `-replace "\r\n","\n"` + `UTF8Encoding($false)` 重写，diff 收窄回 3 行。**判据**：改动含 `.ini` / `.md` / `.cs` 等**文本资产**后 MUST 抽查 `CRLF` 计数（本轮 16 个改动文件全查，仅此 1 处中招）；**根因** = PowerShell 的 `Set-Content` / `[System.IO.File]::WriteAllLines` 会用平台默认行尾，**MUST 用 `WriteAllText` + 显式 LF**。
+  - **⑪ 编译与门禁（本次实况）**：`LegendAutoChessEditor Win64 Development` = `Result: Succeeded`；`LegendAutoChess Win64 Shipping` = `Result: Succeeded`；`openspec validate --all --strict --no-interactive` = **35 passed / 0 failed**（34 能力 + 1 活动提案）；`openspec validate add-trigger-host-slots --strict` = valid。产物新鲜度已核（`UnrealEditor-TcsEffect.dll` / `UnrealEditor-TcsDev.dll` / Shipping exe 均晚于对应源码）。
+  - **⑭ ⚠ 一处真实的启用缺陷（收尾自查发现并修——**若不修，本次 PIE 验收必然失败**）**：**C# 侧我用错了构建命令**。原先跑的是 `dotnet build Script/LegendAutoChessCS/LegendAutoChessCS.csproj -c Debug`，它把产物写到 `Script/LegendAutoChessCS/bin/Debug/net10.0/`——**而运行时加载的是 `Binaries/Managed/net10.0/LegendAutoChessCS.dll`**，两者是不同文件。实测在场证据：运行时那份还是 **01:12:48 / 61,440 B** 的旧产物，**字节级检索确认它不含本轮任何一个新类型**（`FTcsDevGcHostCondition` / `UTcsDevGcHostConditionEvaluator` / `UTcsDevGcHostPayloadReader` / `FTcsDevGcHostProbeCondition` 全部 missing），而 `dotnet build` 那份是 86,016 B 且含全部新类型。**后果**：PIE 里 `Tcs.Test.Gc.Arm` 会因找不到脚本类型而失败（`VerifyRejections` 同）——**不是代码缺陷，是产物没送到运行时读取的位置**。
+    **修法（正确命令，本仓 2026-10-06 实测通过）**：
+    ```powershell
+    & "[EngineRoot]\Engine\Build\BatchFiles\RunUAT.bat" BuildUserSolution `
+      -ScriptDir="[ProjectPath]\Plugins\UnrealSharp\Build\Scripts" `
+      -Project="[ProjectPath]\[ProjectName].uproject" `
+      -OutputPath="[ProjectPath]\Binaries\Managed\net10.0" `
+      -TargetConfiguration=Development clp=ErrorsOnly
+    ```
+    **成功判据（实测输出形状，与 `unrealsharp-agent-skill` 的 §推荐命令 3 逐条吻合）**：`Running dotnet publish on <项目>/Script (configuration: Release)` → 各装配两行 `LegendAutoChessCS -> …\Binaries\Managed\net10.0\` → `Emitting assembly load order 'UserCode' for assemblies: …` → **`BUILD SUCCESSFUL` + `ExitCode=0`**；产物核对 = `Binaries/Managed/net10.0/LegendAutoChessCS.dll` 与 `UserCode.LoadOrder.json` 的 **mtime 一并刷新**（实测同时为 19:23:02，DLL 61,440 → **84,480 B**，新类型字节级全部到位）。
+    **两条纪律（跨轮沿用，本次是首犯）**：**其一**——**C# 侧 MUST NOT 用 `dotnet build` 当验收/部署手段**：它只证明"能编译"，不证明"运行时会加载到"。UnrealSharp 的产物落点是 `Binaries/Managed/<TFM>/`，**只有 UAT `BuildUserSolution` 会写那里**（且它把 Development 映射为 **Release** 编译，`-c Debug` 连配置都不对）。**其二**——**"编译通过"类自证 MUST 落到"运行时读的那份产物"上**：核查方式 = 比对**运行时路径**的 mtime + **字节级类型检索**（或比大小/哈希），MUST NOT 只看构建命令的 exit code。**旁证**：`dotnet build` 全程 0 warning / 0 error，**缺陷完全静默**——这正是"能导出 ≠ 能往返"在构建链上的同族形态（`MEM-20261006-01` 的"warning 计数误导"是同一族）。**同批**：`⑪` 里原写的"`dotnet build` 0/0"**已删除**——它不是本 Task 的有效验收面。
+  - **⑫ 文档面回写（本轮同批完成）**：`PLN-R6` Task 0 交付物按落地实况订正 + Step 1~5 勾选 + 第五轮变更记录；`tasks.md` 3.5/3.6 落地订正、**新增 3.7**（`Unregister` 对）、5.1~5.3 名称订正、5.6 判据加强、5.7 纪律订正、已实施项勾选；**`LEDGER-reflection` 四处改写**（家族表行 /《同构点》段 /《⚠ 不一致》→"已消解" /《当前结论》末段插形态裁决）+ R-2 总表行关闭记录 + 明细节状态句 + 2026-09-29 条追注 + 变更记录新条；`GLOSSARY` `R-1`/`R-2` 两行（`R-1` 同表同病，原亦写"待落地"）；`INDEX` §R4.5 行；`LOG-DECISIONS` 新条。
+  - **⑬ 未完成项（如实）**：**Step 6 的运行期往返取证未执行**（需人工在 PIE 跑 `Tcs.Test.Gc.Arm` → `obj gc` → `Tcs.Test.Gc.Verify`，再单独跑 `Tcs.Test.Gc.Reject`）⇒ **本 Task 尚不能判"已验证"**，提案**未归档**、证据包 `EVID-*` 未写。**两仓均未提交**（无授权）。**`TcsDevGcProbe.cpp` 的命令帮助文本仍是一般化表述**（未点名两个新槽位）。**装置整体不可重臂**（老五槽的 `RegisterStepExecutor` 无撤销口），该边界已写进 C# 类注释，但**新两槽本身可重臂**——这个区别 MUST NOT 被读成"整个装置可重跑"。
+
+---
+
+### 2026-10-06 第六轮：Task 1 开工前的事实预核 + 命名归一（无 Task 实施改动）
+
+**性质**：**等外部输入（人工 PIE 读数）期间做的零阻塞前置核查**——不属于任何 Task 的验收面，但直接决定 Task 1 能否一次做对。之所以值得做：本轮计划的每个 Task 都从设计语料汇总，**语料里的是概念名与规划态描述**，若某条引用不实，会在写到一半才炸（那时改计划的成本远高于现在）。
+
+**① 逐条实测：10 项引用全部为真，无一处错引**
+
+| # | 计划声称 | 实测 | 判定 |
+|---|---|---|---|
+| 1 | `uplugin` 模块 8 条 → 9 | 实测 **8** 条（`TcsCore`…`TcsIntegration`） | ✅ |
+| 2 | openspec 能力 34 → 35 | `specs/` = **34** 目录，活动提案 = 1（`--all` 报 35） | ✅ |
+| 3 | tag 根 11 → 12 | `gameplay-tag-governance:5`/`:7` 均写 **11** | ✅ |
+| 4 | `FTcsStateDefBase` 白拿六字段 | `TcsStateDefBase.h:34-95` = `StatusTag`/`LevelBase`/`MaxLevel`/`Params`/`Descriptions`/`ModifierRows` **逐字吻合** | ✅ |
+| 5 | 照 `TcsState.Build.cs` 体例 | 含 `PCHUsage` + 8 项依赖，与计划列的 9 项同构 | ✅ |
+| 6 | `ETcsParamMode` 含 `EPM_Live` | `TcsParamRow.h:20`，注释明写"**技能侧的实时通道用；R5 状态层不用**" | ✅ |
+| 7 | 照 `UTcsStateDef` 的 `PrimaryAssetType` 体例 | `TcsStateDef.h:45`/`:60`；且 `:20` **本就点名 `UTcsSkillDef` 是 R6 目标** | ✅ |
+| 8 | 定义库"第五条"发现路径 + "第五计数" | `TcsDefinitionSubsystem.h:31` 实测**四条** `Discover*Defs`；就绪日志 `TcsDefinitionSubsystem.cpp:45-46` 实测**四个计数** | ✅ |
+| 9 | `UTcsEffectTriggerDefAsset` 在 TcsIntegration（**不在** TcsEffect） | 实测 `Source/TcsIntegration/Public/Trigger/TcsEffectTriggerDefAsset.h` | ✅ |
+| 10 | `TcsDescriptionEntry.h:53` + `state-def-asset` 写"技能面板归 R6" | 两处均确实写着 | ✅ |
+
+**Task 4 的类型引用同批核过**：`FTcsParamValue`（`TcsParamValue.h:35`）、`ETcsAttributeOp`（`TcsAttrModInstance.h:30`）、`FoldTcsAttributeBands`（`TcsAttributeBandFold.h:115`，**签名与文档"该键无参数行则 0"语义逐字吻合**）、`FTcsAttributeBandEntry`（其 `OverridePriority` **仅 `TAO_Override` 读**，与计划"`OverridePriority = SortKey`"一致）。另发现 `dec-02-fold-display:144` **独立地**把 `FTcsNumericParamModifier` 指向 **TcsSkill**——与 Task 4 的落点自洽（一处外部佐证）。
+
+**★ ② 抓到一个真实的缺陷类（不是错引，是"该定名而未定名"）：概念名被抄进了计划正文**
+
+- **机制**：`openspec/project.md:22` 定"实现类型带 `Tcs` 前缀……**设计文档中的类型名是概念名 —— 执行时以 plan 为准**"。本计划由设计语料汇总，于是把语料的**概念名**直接抄进正文 —— **而本计划正是"执行时的准"**，抄概念名等于**把定名权丢给实施者**。
+- **在场证据**：**同一类型两种写法并存**——`FEntrySelector` ×5 / `FTcsEntrySelector` ×1；`FBoolSwitchRow` 亦两种并存。照此实施必生"一名两物"或"实施者自行拍板"。
+- **归一判据是数出来的、不是偏好**：`F` 结构体 **`FTcs` 中缀 98.6%**（71/72；唯一裸名 `FStateStackPolicy`）；`U` 类 **无一例外**；`I` 接口 **12/12 = 100%**。
+- **★ 例外同样重要——`E` 枚举 MUST NOT 归一**：实测两族并存（`ETcs*` 15 个 / 裸名 8 个，如 `EDurationPolicy`/`EStatePhase`）⇒ 本轮 `ECastInstancing` / `ECastQueryMode` / `EMainChainStart` **保持裸名是对的**。**"不归一"与"归一"是同一判据的两面**——只按"统一加 Tcs"一刀切会纠正出新的不一致。
+- **处置**：新增 **§0.7 命名归一对照表**（8 条归一 + **明确免归一两类**），并按表**全文执行归一**；§0.7 区段外**零裸名残留**（按**内容锚定**复核，非按行号算术偏移）。
+- **免归一的两类（写明理由，防后人过度纠正）**：① **R6.5 批次表里的概念名**（`FCooldownTrack` / `FCooldownPolicy` / `FCooldownTiming` / `FCostConfig` / `FBoolSwitchModifier` / `FCastAttrCapture`）——该表头已声明"非正式轮号""只登记批次与状态"，**未到定名时点**；② **`FSkillDef` / `FStateDefBase`**——§0.4 ① 已明确它们是**引用语料原文**，MUST NOT 改成实现名（改了会与所引语料不符）。
+- **最省事的自检信号（已写进 §0.7）**：文件名规范是"去前缀字母后与类型同名"⇒ **文件名本身就是类型名的反证**——`TcsPhaseSpan.h` 里装 `FPhaseSpan` **自相矛盾**，一眼可辨。
+
+**③ 本轮纪律（跨轮）**：**从设计语料抄类型名进计划正文时，MUST 逐名过一遍归一判据**（语料里的是概念名，计划里 MUST 是实现名）。**信号** = 计划正文出现**裸名 `F`/`I` 前缀**且它与已定文件名的 `Tcs` 形式不符。
+
+**④ 归一执行中我自己的一个缺陷（当场发现并修，留痕）——批量替换把"解释该替换的那两行"也改了**
+
+- **现象**：§0.7 末尾的"**同批订正两处**"两行，左列（**订正前**的写法）被同一次批量替换一并改掉 ⇒ 一度读成 `FTcsPhaseSpan → FTcsPhaseSpan` / `FTcsEntrySelector → FTcsEntrySelector`（**左右同形，映射信息尽失**）。这是"把说明文档和被执行对象混在同一遍替换里"的典型。
+- **根因**：脚本只按"裸名 → 实现名"匹配，**没有把"本节的左列 MUST 保留裸名"作为排除面写进去**。我当时确实做了排除区（`### 0.7` → `MUST NOT 归一的两类`），但**排除区的下界取错了**——它止于"免归一说明"，而**"同批订正两处"在它之后**，于是落在被替换区内。
+- **修法**：改回左列裸名、右列实现名，并把"左列 = 订正前"的语义补明（原文没点明左右含义，即使没被替换也是模糊的）。
+- **★ 跨轮纪律（已同批写进 §0.7）**：**在文内做全文重命名时，MUST 先枚举"哪些区段是解释该重命名的、其旧名 MUST 被保留"**（对照表 / 变更记录 / 更正说明 / 本节此类"订正前→订正后"行），把它作为**排除区**；改完 **MUST 抽查排除区**——**只验"目标是否都改了"会漏掉"该保留的是否被误改"**。
+- **同族**：`MEM-20261004-09` 变体 C（"想插入却写成替换"）——那次错在**方向**，这次错在**范围**；两者同属"替换的边界没核"。**信号**：替换前后**行内出现同一个名字两次**（`X → X`）即已中招。
+
+---
+
+### 2026-10-06 第七轮：Task 1 提案起草（`add-tcs-skill-module`）——三处真实缺陷在起草中被抓
+
+**性质**：Task 0 的运行期取证仍在等人工 PIE 读数，而 `PLN-R6` 明写 Task 1"**依赖：无**（可与 Task 0 并行）"⇒ 起草 Task 1 的 OpenSpec 提案是下一件**必须经用户复核**的事。**实施仍未开工**（提案未获批）。
+
+**① 结构照同构前身，不另起炉灶**
+
+`2026-10-04-add-tcs-state-module`（R5 Task 1）触及的**正是同样四个能力**——`plugin-descriptor` / `integration-entity` / `gameplay-tag-governance` / 新 Def 能力——且同样是"模块数 8 → 9"。故直接以它为结构模型。两处差异：① 本变更**无需 RENAMED**（R5 已把需求标题的轮次标签去掉，标题现在就是 `模块物化声明`）；② 状态轮要**新建族基类**，本轮是**继承**（`FTcsSkillDefData : FTcsStateDefBase`，白拿六字段）。
+
+**② ★ 三处真实缺陷（都不是"字写错"，而是会在实施期或归档期才暴露）**
+
+| # | 缺陷 | 为什么危险 | 处置 |
+|---|---|---|---|
+| 1 | **`ParamChainRows` 是编译期不可能满足的字段位** | 计划 Task 1 Step 2 要它在 `FTcsSkillDefData` 里，而其元素类型 `FTcsNumericParamModifier` 是 **Task 4 Step 1** 的交付物 ⇒ 本 Task 时**不存在**；`UPROPERTY TArray<T>` **要求元素类型完整**（UHT 需完整类型生成反射）⇒ **不能前向声明占位**。原稿留的是"先给字段位或延后到 Task 4，按实施顺序定"的**二选一 hedge** | **裁定延后到 Task 4**；Task 4 Step 4 写明回补动作（补字段 + MODIFIED 增补需求 + 勾掉 `tasks.md 2.7`） |
+| 2 | **`FCastAttrCapture` 被错列进"免归一清单"** | §0.7 把它与冷却/Cost 概念名并列，理由是"住在 R6.5 批次表"——**实测该表 0 命中**，而 Task 1 Step 2 恰恰要落它 ⇒ 它是 **R6 类型**、MUST 归一 | 从免归一清单移除 + 补进对照表 + 正文归一为 `FTcsCastAttrCapture` |
+| 3 | **Task 1 Step 7b 要改 `TcsState` 的文件，而交付物清单里没有它** | `TcsDescriptionEntry.h:53` 住 `Source/TcsState/Public/Def/`，Step 7b 明确要改它的过期注释；但交付物列表只列了新模块与 `TcsIntegration` ⇒ 实施时会漏改，或**验收时被误读成"动了状态层"** | 补进交付物，并**显式登记"本轮唯一一处 TcsState 改动，零行为零契约"** |
+
+**★ 缺陷 1 的教训（值得跨轮）**：计划的"**按实施顺序定**"是一种**欠债标记**，不是可以留到实施期的自由选择——它 MUST 在**提案期**关掉。理由：实施期改的是**规格面**（需求已写、提案已批），而提案期改只是改稿。**信号**：起草提案时遇到计划里的"二选一 / 视情况 / 按顺序定"，MUST 当场用**硬约束**（编译期要求、类型完整性、依赖顺序）把它关掉，MUST NOT 原样抄进规格。
+
+**★ 缺陷 2 的教训（值得跨轮）**：**免归一的判据 MUST 是"该名实际住哪个 Task"，MUST NOT 是"名字像哪一批"**。我整批把"带 Cooldown/Cost/AttrCapture 字样的"都当 R6.5，于是漏掉了 AttrCapture 其实在 R6。**可执行核验**：对免归一清单里每个名，去**目标 Task 的正文** grep 一次——命中即证明它属该 Task、不属免归一。
+
+**③ 一处主动收紧而非抓错**：`UTcsSkillModDef` 的边界。Task 4 Step 4 说 `ParamChainRows`"可内联或引用 `UTcsSkillModDef` 模板"，而同级"非目标"说"不做 `UTcsSkillModDef` 的技能侧参数行分派（R6.5-f）"——**两句并存会被读成矛盾**。已写明：本轮 `UTcsSkillModDef` **只作引用目标**（引用其 `TemplateTag` 身份），**MUST NOT** 在 `TcsSkill` 内建模板解析/分派器。
+
+**④ MODIFIED delta 的完整性做了机械化验（不靠目测）**
+
+"MODIFIED 必须整块粘贴、否则归档时丢细节"是既有纪律，但过去靠人眼。本轮写了脚本：把三条 MODIFIED 需求逐块从源规格提取、与 delta 逐块比对——
+
+| 能力 | 源场景 | delta 场景 | 缺失标题 | 源文行丢失 |
+|---|---|---|---|---|
+| `plugin-descriptor` | 3 | 4 | **0** | 0（除有意改写的"八个→九个"那行） |
+| `integration-entity` | 12 | 14 | **0** | 0 |
+| `gameplay-tag-governance` | 6 | 7 | **0** | 0 |
+
+⇒ 该纪律从此有了**可执行核验手段**（提取 + 比对），MUST NOT 退回目测。
+
+**⑤ 门禁读数（本次）**：`openspec validate add-tcs-skill-module --strict --no-interactive` = **valid**；`--all --strict` = **36 passed / 0 failed（36 items）**。**数从 35 涨到 36 的含义 MUST 说清**：34 规格 + **2** 活动提案（`add-trigger-host-slots` + `add-tcs-skill-module`）；**能力数仍是 34**，本提案**归档后**才是 35。两仓仍**未提交**。**Task 0 Step 6 的运行期往返取证仍未执行**（等人工 PIE 读数）。
+
+---
+
+### 2026-10-06 第八轮：Task 0 收口前的静态面尽收（等 PIE 读数期间）+ 抓出三处文档缺陷
+
+**性质**：用户裁定「**暂停 Task 1，先收口 Task 0**」。PIE 读数仍未到，故把 Task 0 里**不依赖运行期读数**的部分全部做完——过程中抓出**三处真缺陷**，其中两处是**陈旧命名/陈旧数字**这类"看着对、一查就错"的类型。
+
+**① 台账 `:287` 的模块名是虚构的：`TcsTrigger`**
+
+`tasks.md 6.1` 要求订正家族表**三处**（`:271` / `:277` / `:287`）。前两处早已改完，第三处一直挂着。本轮去改才发现 `:287` 写着：
+
+> 改动面横跨 `TcsCore`（参数源）/ **`TcsTrigger`**（条件求值器）/ `TcsTargeting`（评分器）三个模块
+
+**`TcsTrigger` 这个模块从不存在**。实测证据三条：① `Source/` 下 8 个模块目录里没有它；② `.uplugin` 里没有它，`git log -S'"TcsTrigger"' -- TireflyCombatSystem.uplugin` **零命中**（即历史上也从未有过）；③ 全库遍布 `TcsTrigger` 但**几乎全是文件前缀**（`TcsTriggerCondition.h` / `TcsTriggerEvaluator.h` 等），**当模块名用的极少数**。
+
+**★ 第三条判据本轮订正过两次，过程记在这里**：本条先前写"命中 **1783** 处，其中 **1782** 处是文件前缀"——**该数字不成立**：本轮把六种统计口径全跑了一遍（TCS 插件排除构建产物 = 820/809；含 `Intermediate` = 2244/2233；插件 + LAC `Source` = 836/825；全 LAC 排除构建产物 = **858/847**；全 LAC 含全部 = 2293/2282；仅 `Source/` = 262/262），**没有任何口径能得到 1783**。
+
+**真正稳的判据不是总数，而是"裸用数"**：把"后面不跟标识符字符"的命中挑出来（即真的当独立名字用，而不是文件名前缀），六种口径下**一律是 11 处**——其中 **1 处是缺陷本身**（台账 `:287`），其余 10 处是**我自己写的留痕文字**（`decisions-log` / `implementation-log` / `tasks.md` 里引述这个缺陷）与 1 处检测器假阳性（`changes/archive/…-add-effect-trigger-row/proposal.md:5` 的 glob `` `FTcsTrigger*` ``）。**⇒ 判据 MUST 用"裸用数"这种与语料规模无关的量，MUST NOT 用总数**：总数会随"你为它写多少留痕"而增长（本轮就从 817 涨到 858），**即你越记录它、它越像到处都在用**。
+
+⇒ 已按实证订正为 `TcsEffect` 并留痕。**教训**：`tasks.md` 点名"订正三处"时，我先前只改了两处就以为差不多了——**"待订正清单"是债，不是备忘**；而且这第三处之所以一直没人动，恰恰因为**它读起来毫无异常**（模块名混在一串真模块名里，不像笔误）。
+
+**② 计划的装置名指向一个已退役的类**
+
+`PLN-R6` Task 0 Step 6 写「MUST 复用 `Script/LegendAutoChessCS/` 的 **`ATcsHostScriptingE2EProbe`** 那套」。实测：该类**真实存在过**（`public partial class ATcsHostScriptingE2EProbe : AActor`），但**已退役**——LAC `7c1889a`（**2026-10-03**，随 tag 换根"整批退役探针装置：6 个 C# 探针类 + 2 个探针 BP + 关卡引用"），其能力由 `TcsDevGcProbe` 两段式命令**恢复**（`TcsDevGcProbeDriver.cs:18-20` 自述："退役前该问题由 `ATcsHostScriptingE2EProbe` 的 `POST_GC` 段回答；本驱动把同一测量能力恢复成两段式可重复命令"）。
+
+**★ 我先前对它的定性是错的，本轮订正**：计划 `:223` 原写它"是落笔时的**拟定名**"——**不成立**。它是**真实类**，错在**陈旧引用**（计划成文 2026-10-04，退役在前一天 10-03）。**这两种错的处置完全不同**：拟定名只是"名字没定"，陈旧引用则意味着**照计划复盘的人会去找一个已被删掉的类**。已按性质分列三类：拟定文件名 / 拟建但裁定不建 / **真实存在过但已退役**。
+
+**③ 计划自称的行数对不上实测**
+
+计划两处写「拆前 397 行 ⇒ 拆后 **229 + 191**」。实测 `TcsEffectSubsystem.cpp` = **228**、`TcsEffectSubsystem_HostSlots.cpp` = **194**（末行有换行，故按 `split('\n')` 数是 229 / 195）。⇒ 订正为 **229 + 195**，并**同批写下计数口径**（本文一律按"文件真实行数"计，`split('\n')` 会各多算 1）。
+
+**顺带**：把该模块 `Private/` 下全部 8 个 `.cpp` 都量了一遍，**无一越 300 行上限**（最大 `TcsEffectSubsystem_Run.cpp` 288 行）——拆分理由本身没问题，错的只是那个数字。
+
+**④ 本轮完成的可勾项**
+
+- `tasks.md 6.1` ✅（含上面 ① 的订正）
+- `tasks.md 5.1 / 5.2 / 5.3` ✅——这三项是**代码交付物**（复用既有装置、一处 C++ 补强、C# 派生实现），**已实现且经字节级验证在产物内**：`UnrealEditor-TcsEffect.dll` 含 `RegisterConditionEvaluator` / `RegisterPayloadReader` / 两个 `Unregister` / 两个接口名 / 两条中文拒绝串；`UnrealEditor-TcsDev.dll` 含 `PublishProbeEvent` / `VerifyRejections` / 三条命令名；`LegendAutoChessCS.dll` 含四个宿主类型 + `VerifyRejections` / `VerifyHostSlots` / `VerifyHostSlotsNegatives` / `RunHostSlotsBaseline`。**产物 mtime 均晚于各自源码**（18:49 > 18:46 / 18:43 > 18:42 / 19:23 > 19:20），对应关系未破。
+- **进度**：`tasks.md` **22 / 29**。剩余 7 项（5.4~5.7、6.2~6.4）**全部**需要 PIE 读数，无静态可推进项。
+
+**⑤ 一处如实登记的边界**：插槽**重入性**与装置**整体重入性**是两件事。两个新登记口**有 `Unregister`** ⇒ 新槽位可重臂；但 `RegisterStepExecutor` **无撤销口**且 `Arm` 在任何槽位失败即中止（`TcsDevGcProbe.cpp:307-313`）⇒ **同一 PIE 会话内第二次正例 `Arm` 必然被拒**。该区分已写在 `TcsDevGcHostSlotsProbe.cs` 类注与 `tasks.md 3.7`，**MUST NOT** 被读成"整个装置可重跑"。
+
+---
+
+### 2026-10-06 第九轮（续）：Task 0 取证收官 —— 四命令全绿、两轮可复现、提案归档
+
+**① 这是 R6 的第一个"实测而非静态"进展**。用户解锁 PIE 后，本轮**自己**驱动引擎跑完四命令（此前 5.4② / 5.5 / 5.6 / 5.7 四项卡在"需要 PIE 读数"）：
+
+| # | 命令 | 读数 |
+|---|---|---|
+| 1 | `Tcs.Test.Gc.Arm` | **5 PASS / 0 FAIL** |
+| 2 | `obj gc` | 真实原生 GC |
+| 3 | `Tcs.Test.Gc.Verify` | **7 PASS / 0 FAIL**（7/7 弱引用存活；GC 后再广播仍扣血 2） |
+| 4 | `Tcs.Test.Gc.Reject` | **3 PASS / 0 FAIL**（聚合 11 项布尔全真） |
+
+**合计 15 PASS / 0 FAIL**；两轮独立 PIE（`StopPIE` → `StartPie`）判定行 **17/17 逐字相同**。证据包 = `EVID-2026-10-06-trigger-host-slots`；提案归档为 `2026-10-06-add-trigger-host-slots`；`tasks.md` **29 / 30**（唯一留空 = 5.5b）。
+
+**② "条件取值真的门控了链"是本轮最有价值的一条**：判据设计成"一次广播绑 **3 行 = 2 行条件恒过 + 1 行恒不过**"——若只绑恒过的行，"返回值被尊重"与"返回值被忽略（恒当通过）"**读数完全相同**，无法区分。实测扣血 **2**（而非 3）⇒ 门控成立；同时另有载荷读取增量 **1**（每事件一次）与条件求值增量 **3**（按行计）两个读数。
+
+**③ 引擎机制当场验证了一条设计纪律**：`ensure` 的**同一调用点每会话只打印一次**（`AssertionMacros.h:364-365` 原文）。第 1 轮 `Reject` 出 **12 条**红字、第 2 轮出 **0 条**，而两轮 11 项布尔**全 `True`** ⇒ **若按"数红字"判通过，第 2 轮会假失败**。`tasks.md 5.7` 早已把判据定在"登记口返回值"上，本轮实测证明那不是风格偏好而是**正确性要求**。
+
+**④ 顺带订正两处真缺陷（都不是文档措辞，而是会导致失败或误判的）**：
+
+- **构建命令笔误**：`RunUAT BuildUserSolution` 的 `-Project` 参数写成 `LegendAutoChss.uproject`（**少一个 `e`**）⇒ 16 秒后 `PathUtilities.GetProjectRootFolder` 异常 + `ExitCode=1 (Error_Unknown)` + `BUILD FAILED`。**这是硬失败、不是警告**，任何人照抄都会撞上。已订正并在 EVID §3.3 留痕。
+- **`Script/*.cs` 落盘即触发 UnrealSharp 热重载**：本轮为改一句注释编辑了 `TcsDevGcProbeDriver.cs`，产物 `LegendAutoChessCS.dll` 立刻由 `84480 B` 变 `84992 B`（**改动发生在取证之后**，一度使"产物晚于源码"这条证据属性失效）。用正确命令重建后 **SHA256 逐字节回到证据值 `8255CDEA2E1E87E6`** ⇒ 读数仍对应同一产物身份，**无需重跑 PIE**。**纪律**：取证后 MUST NOT 再动 `.cs`，哪怕只改注释。
+  - **连带教训（我自己的）**：我起初把 `TcsDevGcProbeDriver.cs:22` 的"覆盖五个脚本槽位"读成**过期数**（装置现挂七槽）并动手改。**读全了两个 partial 文件后确认原文是对的**——该文件只负责既有五槽，另两槽住 `TcsDevGcHostSlotsProbe.cs`（其类注 `:15` 明写"原文件已经背了五个槽位"）。**改一处声称之前，先确认它的口径边界**；否则会用一个"更正"制造一个新缺陷，还会白白作废已验证的产物。
+
+**⑤ 跨世界半（5.5b）留空 + 升级留痕**：新增两个 scenario 各含"世界 B 查询视为未命中"一半，**未实测**。本轮**两次 PIE 确实先后造了两个世界**，但该分支**仍未被触发**——`UTcsEffectSubsystem::Deinitialize`（`TcsEffectSubsystem.cpp:48-61`）会在世界结束时把两张表的动态条目**显式撤干净**，故世界 B 走"键不存在 ⇒ 正常登记"路径（日志为 `已登记宿主求值器`），**不是**"跨世界失效 ⇒ 移除 + Warning"路径。**否证判据**：全日志 `LogTcsEffect` Warning 里"属另一世界 / 已被回收"两种文案零命中（唯一出处 = `TcsTriggerCondition.cpp:125-141` / `TcsTriggerPayloadReader.cpp:124-141`）。
+  - **这不是新发现，而是把旧结论升级**：`EVID-2026-09-29-registry-lifetime-pie` §证据边界第 1、2 条**早已如实登记该面零行为验证**（原文"均未被触发——因为显式撤销总是先行清干净"），用户 2026-09-27 已裁定"先实测但只做记录，不因结果改变设计"。**本轮新增价值 = 从"从未验过"升级为"两次独立 PIE 复核仍不成立"**，据此新入册 **`WAIT-11`**；用户 2026-10-06 裁定**照常归档 + 留痕**（同 2026-09-29 先例）。**MUST NOT** 因归档读成"已验"。
+
+**⑥ 计数口径又踩一次（第四次同类）**：`openspec spec list --long | <行过滤>` 数出能力 **35**，而 `Get-ChildItem openspec/specs -Directory` 数出 **34**——**目录数是权威**（前者把表头/warning 行也算了）。且本变更 delta **只有 `## MODIFIED Requirements`**、`effect-trigger` **已存在** ⇒ **归档不新增能力，34 → 34 不变**（与含 `## ADDED` 的 `add-tcs-skill-module` 不同，后者归档时才 +1）。
+  - **订正一处我先前写错的预测**：我曾在 `tasks.md 6.4` 写"归档后 items 仍为 36"——**错**。`validate --all` 的 items = 能力数 + 活跃变更数 ⇒ 归档前 34+2 = **36**，归档后 34+1 = **35**。**实测正是 35**。归档动作同时把变更数 2→1，故**items 数会下降**，这不能当作归档失败的信号。

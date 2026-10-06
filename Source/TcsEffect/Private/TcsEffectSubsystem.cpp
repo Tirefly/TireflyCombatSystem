@@ -45,6 +45,21 @@ void UTcsEffectSubsystem::Deinitialize()
 	}
 	RegisteredStepExecutors.Reset();
 
+	// 宿主脚本条件求值器 / 载荷读取器：同款撤销（2026-10-06，R-2 后段）。
+	// 注意 `TScriptInterface` 数组必须先于注册表撤销清空——注册表的失效判据虽自足，
+	// 但本数组是 GC 强持有的唯一来源，先清数组再撤注册表会留下"对象已可回收、注册表仍有效"的窗口。
+	for (const UScriptStruct* DynamicConditionStruct : FTcsTriggerConditionRegistry::Get().GetDynamicKeys())
+	{
+		FTcsTriggerConditionRegistry::Get().Unregister(DynamicConditionStruct);
+	}
+	RegisteredConditionEvaluators.Reset();
+
+	for (const UScriptStruct* DynamicPayloadStruct : FTcsTriggerPayloadReaderRegistry::Get().GetDynamicKeys())
+	{
+		FTcsTriggerPayloadReaderRegistry::Get().Unregister(DynamicPayloadStruct);
+	}
+	RegisteredPayloadReaders.Reset();
+
 	Super::Deinitialize();
 }
 

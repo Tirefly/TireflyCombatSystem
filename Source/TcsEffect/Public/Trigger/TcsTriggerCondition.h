@@ -29,8 +29,17 @@ class UWorld;
  * **扩展方式（待落地）**：设计承诺"上下文扩展 = 结构体继承 + 源内 checked cast"
  * （PV-1 机制，`FTcsParamEvaluateContext` 先例）。**R4 不实现**——今天零消费者，
  * 且"Buff 生命周期参数（StateHandle/Stacks/Level）"这一批扩展要等 M3 落地才有真实数据源。
+ *
+ * **2026-10-06 升格 `BlueprintType`（`R-2` 后段）**：本类型作宿主脚本插槽
+ * `ITcsTriggerConditionEvaluator::Test` 的形参——`BlueprintNativeEvent` 会触发 UHT 蓝图参数校验
+ * （`UhtFunction.cs` 的 `IsValidForBlueprint` 一族），非 `BlueprintType` 的 `USTRUCT` 拿不到
+ * blueprint cap、插槽编译不过（判据与 SCRIPT-8 对 `FTcsChainRunHandle` 的处置同款）。
+ * **承诺面代价为零**：消费本类型的门面方法仍是裸 `UFUNCTION()`（无 specifier ⇒ 脚本可达、
+ * 蓝图节点图不可见），故升格不让任何东西意外进入蓝图承诺面。
+ * **`World` 非 `UPROPERTY`，升格后对脚本层不可见**——这正是想要的：它是触发期瞬时读数，
+ * 脚本侧要读世界 MUST 经门面按句柄访问器取，MUST NOT 靠上下文里的裸指针。
  */
-USTRUCT()
+USTRUCT(BlueprintType)
 struct TCSEFFECT_API FTcsTriggerContext
 {
 	GENERATED_BODY()
@@ -62,6 +71,67 @@ public:
 	 * 未填（`nullptr`）时**依赖世界的条件按"不可求值"处理**（返回不通过，不 ensure）。
 	 */
 	const UWorld* World = nullptr;
+
+#pragma endregion
+};
+
+
+
+/**
+ * 条件求值器宿主插槽（**宿主契约**，`R-2` 后段 / 2026-10-06）：让宿主（UnrealSharp / 蓝图 /
+ * 任意 UE 脚本语言）为**自己的**条件类型定义求值语义，而不是只能从内置条件里挑一个。
+ *
+ * **为什么需要它**：`FTcsTriggerConditionRegistry::Register` 是纯 C++ 面——`FTcsTriggerConditionTest`
+ * 是 `TFunction`，**无 `USTRUCT` 宏、无法进 UHT 签名面**，故方法无法标 `UFUNCTION()`，脚本层触达不到。
+ * 解法 = **宿主契约接口 + 门面薄转发入口**（同族先例 `ITcsParamSourceHost` / `ITcsTargetScorerHost`）：
+ * 宿主实现本接口，门面把 `TScriptInterface` 包成 `TFunction` 转发进**既有**注册表。
+ * **内置条件与注册值类型全部不动**（双轨并存：内置走静态自注册 C++ 快路径、零反射开销；
+ * 插槽只服务宿主扩展，多一次 `UFunction::Invoke` 是明示接受的取舍）。
+ *
+ * **形态裁定（Q-12，2026-10-06 用户拍板；取代 `LEDGER-reflection` 家族表的字面）**：
+ * - **为什么是 `UINTERFACE` 而不是 `UCLASS` 基类**：宿主**既有类**（角色 / 组件 / 任意 `UObject`）
+ *   可直接实现本接口——一个类能同时实现多个插槽，不必为每个插槽专造一个对象。
+ * - **为什么不造 `USTRUCT` 转发器**：转发器的用途是把"脚本定义的结构体无 C++ 类型
+ *   （`CppStructOps == nullptr` ⇒ vtable 位为 0 ⇒ 野调用）"接进 `USTRUCT` 虚分派体系；
+ *   而本注册表的注册值类型是 `TFunction`、**没有策略基类可继承** ⇒ 转发器**无对象可接**。
+ *   硬造它就必须先发明一个 `USTRUCT` 策略基类并**改掉注册值类型**——那正是 SCRIPT-8
+ *   刻意绕开的 SCRIPT-2 路线（`TcsStepExecutor.h` 自注"比换 `TFunction` 签名改动面小得多"）。
+ * - **语言可达性与转发器无关**：决定因素是"宿主面对的契约是否为 `UObject` 反射类型"——
+ *   `UINTERFACE(Blueprintable)` + `BlueprintNativeEvent` 即 UE 原生反射分发，语言无关。
+ *
+ * **形参 MUST NOT 带 `const`**（`BlueprintNativeEvent` 上的 `const` 会让 UHT 生成错误的 thunk 签名，
+ * 硬规则；先例 `ITcsEntityLevelProvider::GetEntityLevel` / `ITcsParamTableReader::TryGetNumericParam`）。
+ */
+UINTERFACE(MinimalAPI, Blueprintable)
+class UTcsTriggerConditionEvaluator : public UInterface
+{
+	GENERATED_BODY()
+};
+
+/**
+ * 条件求值器宿主契约（实现方 = 宿主；门面 = `UTcsEffectSubsystem::RegisterConditionEvaluator`）。
+ *
+ * **求值器 MUST 是纯函数语义**（D0-1 确定性纪律）：随机值由调用方注入（`RandomValue`），
+ * 实现方 MUST NOT 自取随机数——否则同输入不同输出、回放失效。
+ */
+class ITcsTriggerConditionEvaluator
+{
+	GENERATED_BODY()
+
+// 求值契约
+#pragma region Test
+
+public:
+	/**
+	 * 求值一条宿主自定义条件。
+	 *
+	 * @param ConditionData 条件数据（只读；内层类型即宿主登记时用的 struct）。
+	 * @param Context 触发期上下文（只读；`World` 字段对脚本层不可见——要读世界经门面取）。
+	 * @param RandomValue 注入随机值 [0,1)（仅概率类条件用）。
+	 * @return 返回条件是否通过。
+	 */
+	UFUNCTION(BlueprintNativeEvent)
+	bool Test(const FInstancedStruct& ConditionData, const FTcsTriggerContext& Context, double RandomValue);
 
 #pragma endregion
 };

@@ -4,7 +4,7 @@
 - **类型**：SPEC / 模块规格
 - **状态**：ACTIVE
 - **权威范围**：TcsEffect（M4）链与步骤、触发行、目标选择、宿主插槽；理由住 LOG-02-effects
-- **最后更新**：2026-10-05
+- **最后更新**：2026-10-06
 
 > **换根注记（2026-10-01）**：本文 tag 名已随提案 `reroot-gameplay-tag-vocabulary` 换根——旧前缀 `Tcs.Event.*` / `Tcs.Flow.Key.*` / `Tcs.Flow.Template.*` / `Tcs.Attr.*` / `Tcs.Chain.*` 依次成为 `TcsEvent.*` / `DamageFlowKey.*` / `DamageFlowTemplate.*` / `Attribute.*` / `EffectChain.*`；本文正文一律用新名，旧名仅存于本注记与 `log/`、`ledger/`、`evidence/` 等历史文件。
 
@@ -49,7 +49,8 @@
 - **载体（R4 Task 2.5）**：独立资产 `UTcsEffectTriggerDefAsset`（住 TcsIntegration，`TriggerTag` 为内容身份）经 DefLibrary 发现并**装配为触发行**（`Source` = 定义库来源句柄）；**内联位**（`SkillDef` / `BuffDef` 的 `TArray<FTcsEffectTriggerDef>`）待 R5/R6。
 - **条件落地面（2026-10-05 R5 收束订正）**：**三条**已实现——`HasAllTags` / `Chance`（R4）+ **`AttributeCompare`（R5 Task 6，第三条内置条件，本模块对下层 `TcsAttribute` 经 `FTcsEffectAttributeAccess` 取门面；实测能门控起链，见 `EVID-2026-10-05-state-chain-primitives` 检查 23f）**——**内置条件与自定义条件走同一注册表**（不分内外两套路径）；`TcsTriggerCondition.cpp` 现有三条自注册宏与该清单逐条对应。**未落地**：`VariableCompare`（等变量存储消费者）/ `GateCheck`（读 M5 `BoolSwitches`，归 R6）/ Custom 逃逸位——登记在台账 `TRIG-5`。
 - **求值顺序 = 四道门**（R4 Task 2）：`事件 Tag 路由 → ExecutionGate → GateTags → Conditions → 起链`——顺序有意义：网络闸最廉价先判，条件最贵最后判。
-- **载荷读取器**（Task 2 机制 + Task 3 首个属主登记）：`FTcsTriggerPayloadReaderRegistry` 由**载荷类型的属主模块**自登记（TcsDamage 的收集事件读取器给出 `Caster ← Attacker`、分类标签直通）——机制层不认识任何领域载荷类型，这是依赖铁律的兑现形态。
+- **载荷读取器**（Task 2 机制 + Task 3 首个属主登记 + **R-2 后段宿主插槽 2026-10-06**）：`FTcsTriggerPayloadReaderRegistry` 由**载荷类型的属主模块**自登记（TcsDamage 的收集事件读取器给出 `Caster ← Attacker`、分类标签直通）——机制层不认识任何领域载荷类型，这是依赖铁律的兑现形态。
+- **★ 两张注册表的宿主脚本插槽（`R-2` 后段，2026-10-06 落地，`PLN-R6` Task 0）**：条件求值器与载荷读取器此前只有 C++ 静态自注册路径（宿主专属条件类型 / 专属载荷读取器无法用脚本定义）。现补宿主口：**宿主契约** = `UTcsTriggerConditionEvaluator`/`ITcsTriggerConditionEvaluator`（`UINTERFACE(MinimalAPI, Blueprintable)`，`bool Test(const FInstancedStruct&, const FTcsTriggerContext&, double)`）与 `UTcsTriggerPayloadReader`/`ITcsTriggerPayloadReader`（`FTcsTriggerPayloadInfo Read(const FInstancedStruct&)`）；**门面四口** = `RegisterConditionEvaluator` / `UnregisterConditionEvaluator` / `RegisterPayloadReader` / `UnregisterPayloadReader`（均 `UFUNCTION()`，返回 `bool`）。**注册值仍为 `TFunction`、无转发器**——门面把 `TScriptInterface` 包成 `TFunction` 转发进既有注册表，**键与查表逻辑零改动**。**"每事件一次"语义保住**（读取点在行循环外，`TcsTriggerEvaluator.cpp:43`）。**拒绝面判在门面**（`Register` 返回 `void` ⇒ 门面须自行 `Find` 判同键，否则调用侧分不出拒绝与成功）；**强持有** = 门面 `UPROPERTY` 数组（`TScriptInterface` 本身不构成 GC 强引用），与 2026-09-29 的寿命弱引用表互补成两半。`FTcsTriggerContext` / `FTcsTriggerPayloadInfo` 为此升格 `BlueprintType`（承诺面零代价：消费它们的门面方法仍是无 specifier 的 `UFUNCTION()`）。**准入状态**：双配置编译 0/0 已闭环，**运行期往返取证待执行**。
 - **留位项与剩余条件的唯一待办登记** = `LEDGER-deferred` 的 `TRIG-5`（2026-10-04 补登）。
 
 ### 2.3 目标选择（D4-4 终定；**v2 策略化**——D4-4 v2/D4-15 v2，规格详见 [SPEC-06-targeting](../spec/10-module-targeting.md)）
@@ -101,8 +102,8 @@
 | 机制 | 现状用于 | 脚本可达 | 处置 |
 |---|---|---|---|
 | **虚分派（vtable）** | 选择器 / 过滤器 / 参数源 | ❌ **物理不可达**（脚本 struct 无 C++ 类型 ⇒ `CppStructOps == nullptr` ⇒ vtable 位为 0 ⇒ 野调用；**引擎层面无解**） | 加"宿主委托"插槽类型**转发** |
-| **注册表 + `TFunction`** | 步骤执行器 / 条件求值器 | ⚠️ **差一层签名**（键可反射、值不可） | 加 UObject 执行器基类替代注册值 |
-| **UObject + `BlueprintNativeEvent`** | `UTcsEventHandler` / `ITcsAttributeProvider` | ✅ **可达**（已实测） | **插槽路线的底座** |
+| **注册表 + `TFunction`** | 步骤执行器 / 条件求值器 / 载荷读取器 | ⚠️ **差一层签名**（键可反射、值不可） | ~~加 UObject 执行器基类替代注册值~~ → **订正（2026-10-06，`R-2` 后段落地）**：**保留 `TFunction` 注册值**，改在门面加"键 + `TScriptInterface`"登记口，由门面把脚本对象包成 `TFunction` 转发进既有注册表；宿主契约用 `UINTERFACE(MinimalAPI, Blueprintable)` + `BlueprintNativeEvent`。**理由**：语言可达性只由"宿主面对的契约是否为 `UObject` 反射类型"决定，**与注册值载体无关**；而 `TFunction` 注册值**没有策略基类可继承 ⇒ 转发器无对象可接**，走"替换注册值"就得上 `USTRUCT` 策略基类 = SCRIPT-2 路线（SCRIPT-8 已明写"改动面大得多"而刻意绕开）。**依据与四处先例见 `LEDGER-reflection`《宿主插槽家族的耦合关系》** |
+| **UObject + `BlueprintNativeEvent`** | `UTcsEventHandler` / `ITcsAttributeProvider` / **条件求值器 / 载荷读取器（2026-10-06 起）** | ✅ **可达**（已实测） | **插槽路线的底座** |
 
 - **三类插槽（已落地，台账 SCRIPT-8）**：
   - **①目标选择/过滤**：`ITcsTargetSelectorHost` / `ITcsTargetFilterHost`（`UINTERFACE + Blueprintable`）+ 转发器 `FTcsSelHostDelegate` / `FTcsFilterHostDelegate`（USTRUCT 策略子类，持 `TScriptInterface` 纯转发）。**转发是必需的**——选择器族走虚分派，脚本物理不可达。
@@ -191,6 +192,7 @@
 - v2 增补 3（2026-09-23，标识体系 tag 化改造回写）：§9 例一触发行 Filter 与链 id 改 tag 口径（原 `Filter DefId=Burn`）；本节为走查预演形态，示意名不写全 tag 路径。落点 = 提案 `switch-identifiers-to-gameplay-tags`（2026-09-22 归档）。
 - v2 增补 4（2026-10-04，R4 收束回写）：**§2.1 补原语实现状态**（15 个中已落地 8 个 + 余 7 个的归属轮次）；**§2.2 补字段级"落地 / 留位"对照表**（七个活字段 / 两个留位字段 / `Cues` 已删除）+ 载体与条件落地面 + 四道门顺序 + 载荷读取器机制；**§12 补 R4 验收实证与留白**。落点 = R4 轮收束（`PLN-R4` Task 5；证据 `EVID-2026-10-04-trigger-def-asset` / `-chains-primitives` / `-modifier-channel`）。
 - v2 增补 5（2026-10-05，R5 收束回写）：**§2.1 原语实现状态 8 → 10**（+`ModifyAttribute` / `ApplyState`，两者均 R5 Task 6）；**§2.2 条件落地面订正**（`AttributeCompare` 由"未落地"改为已实现——该行自 R4 起即过期）；**§12 补 R5 增量对账表**（`ApplyState` / `ModifyAttribute` / `AttributeCompare` / 内联触发行 / 链运行态可读面 五项 ✅，`Parallel`/`Repeat`/`OnError` 与打断仍 ⛔）。落点 = R5 轮收束（`PLN-R5` Task 8；证据 `EVID-2026-10-05-state-chain-primitives` / `-state-layer-pie`）。
+- v2 增补 6（2026-10-06，R6 Task 0 = `R-2` 后段落地回写）：**§2.2 载荷读取器段补"宿主脚本插槽"条**（两契约 + 门面四口 + 无转发器 + 每事件一次 + 拒绝判在门面 + 强持有/弱引用两半）；**§5b 三类插槽的机制表订正两行**——"注册表 + `TFunction`"行的处置由 **"加 UObject 执行器基类替代注册值"** 改为 **"保留 `TFunction` + 门面加登记口"**（原字面被 `R-2` 形态裁定取代，**保留原文并划改**），并把条件求值器 / 载荷读取器并入"UObject + `BlueprintNativeEvent`"那一行的"现状用于"列（它们自本轮起确属该机制）。**同批**：`最后更新` → 2026-10-06。落点 = `PLN-R6` Task 0；形态依据见 `LEDGER-reflection`《宿主插槽家族的耦合关系》；**准入状态 = 编译面已闭环、运行期往返取证待执行**。
 
 ## 12. 验收钩子
 

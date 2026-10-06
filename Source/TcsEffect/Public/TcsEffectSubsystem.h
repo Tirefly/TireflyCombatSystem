@@ -15,6 +15,8 @@
 #include "Host/TcsEntityQuery.h"
 #include "Pool/TcsInstancePool.h"
 #include "Trigger/TcsEffectTriggerInstance.h"
+#include "Trigger/TcsTriggerCondition.h"
+#include "Trigger/TcsTriggerPayloadReader.h"
 #include "Trigger/TcsTriggerRegistry.h"
 
 #include "TcsEffectSubsystem.generated.h"
@@ -162,6 +164,94 @@ public:
 	 */
 	UFUNCTION()
 	bool RegisterStepExecutor(const UScriptStruct* StepStruct, UTcsStepExecutor* Executor);
+
+	/**
+	 * 登记**宿主脚本条件求值器**（2026-10-06，`R-2` 后段的条件求值器插槽）。
+	 *
+	 * 内部把 `Evaluator` 包成 `TFunction` 转发进既有条件求值器注册表——**键与查表逻辑零改动**，
+	 * 内置条件的静态自注册宏路径（`UE_DEFINE_TRIGGER_CONDITION_EVALUATOR`）原样保留（**双轨并存**）。
+	 *
+	 * **形态（Q-12，2026-10-06 用户拍板）**：宿主契约是 `UINTERFACE(Blueprintable)`（宿主**既有类**
+	 * 可直接实现，不必为插槽专造对象），门面把 `TScriptInterface` 包成 `TFunction` 转发。
+	 * **MUST NOT 造 `USTRUCT` 转发器**——本注册值类型是 `TFunction`、无策略基类可继承 ⇒ 转发器无对象
+	 * 可接；硬造就须先发明策略基类并改掉注册值类型（SCRIPT-8 刻意绕开的 SCRIPT-2 路线）。
+	 *
+	 * **GC 与寿命（两半都要，缺一有洞）**：① **强持有**——`Evaluator` 进
+	 * `RegisteredConditionEvaluators`（`UPROPERTY` 数组）；**裸 C++ 注册表持不住对象引用**
+	 * （不经 GC 的 `RefLink`），不持有则被静默回收，表现为"条件不生效"而非崩溃（WAIT-8 形态）。
+	 * ② **弱引用**——注册表同时记录该对象与**本世界**的弱引用，据此判"这条登记还属不属于当前世界"。
+	 * **注意载体差异**：`TScriptInterface` 本身不是 `UObject*`，故本条 MUST 显式把
+	 * `GetObject()` 交给注册表作寿命对象（`TScriptInterface` 的持有不替代上面的强持有）。
+	 *
+	 * 拒绝面（配置错误 → ensure + 返回 false）：`ConditionStruct` 为空、宿主对象为空、
+	 * **同键已有有效登记**（含内置条件的静态自注册项——它们在插件加载时就占了键；无论哪种，
+	 * 一律保留首个。既有登记已失效时**替换**而非拒绝）。
+	 *
+	 * **判在门面、不靠注册表返回值**：注册表的 `Register` 是 `void` ⇒ 调用侧分不出拒绝与成功；
+	 * 而本口返回值是宿主脚本唯一的判据面（"重复登记被拒"这条负对照靠它，否则只能翻 ensure 日志）。
+	 *
+	 * **反射面**：`UFUNCTION()` 无 specifier——脚本层可达、蓝图节点图不可见（口径同门面其余方法，
+	 * R0 §9"蓝图不承诺"）。宿主**实现**插槽不受此限（接口是 `Blueprintable`）。
+	 *
+	 * @param ConditionStruct 条件 struct 的反射类型（注册表键）。
+	 * @param Evaluator 宿主求值器实现（实现 `ITcsTriggerConditionEvaluator` 的任意 UObject）。
+	 * @return 返回是否登记成功。
+	 */
+	UFUNCTION()
+	bool RegisterConditionEvaluator(
+		const UScriptStruct* ConditionStruct,
+		TScriptInterface<ITcsTriggerConditionEvaluator> Evaluator);
+
+	/**
+	 * 登记**宿主脚本载荷读取器**（2026-10-06，`R-2` 后段的载荷读取器插槽）。
+	 *
+	 * 内部把 `Reader` 包成 `TFunction` 转发进既有载荷读取器注册表——**键与查表逻辑零改动**，
+	 * 属主模块的静态自注册路径（`UE_DEFINE_TRIGGER_PAYLOAD_READER`）原样保留（**双轨并存**）。
+	 *
+	 * **"每事件一次"语义 MUST 保住**：求值器对同一次事件的多行订阅只读一次载荷、各行共用结果；
+	 * 本入口只替换"读取器"这一层，MUST NOT 让读取点退化到每行循环里。
+	 *
+	 * GC 与寿命、拒绝面、反射面：全部同 `RegisterConditionEvaluator`（强持有进
+	 * `RegisteredPayloadReaders` + 注册表弱引用；`GetObject()` 显式交出；同键有效登记被拒）。
+	 *
+	 * @param PayloadStruct 载荷 struct 的反射类型（注册表键）。
+	 * @param Reader 宿主读取器实现（实现 `ITcsTriggerPayloadReader` 的任意 UObject）。
+	 * @return 返回是否登记成功。
+	 */
+	UFUNCTION()
+	bool RegisterPayloadReader(
+		const UScriptStruct* PayloadStruct,
+		TScriptInterface<ITcsTriggerPayloadReader> Reader);
+
+	/**
+	 * 撤销一条**宿主登记**的条件求值器（2026-10-06，与 `RegisterConditionEvaluator` 配对）。
+	 *
+	 * **为什么这个口必须存在**（与步骤执行器插槽的关键差异）：`RegisterStepExecutor` **没有**
+	 * 对应的撤销口 ⇒ 同一类型在本世界只能登记一次、**同一 PIE 会话无法重臂**；而本插槽的两张
+	 * 注册表（与其寿命表）本就支持撤销 ⇒ 缺了这个门面口，"重新布置一次探针"会被自己的
+	 * 重复登记门挡住，表现为**装置不可重跑**而不是配置错误。
+	 *
+	 * **只撤动态登记**：内置条件是代码而非登记（不在注册表寿命表里），对它们的键调用本口
+	 * 返回 false 且**不动内置路径**（`FTcsTriggerConditionRegistry::Unregister` 的既有语义）。
+	 * 键为空同样返回 false。
+	 *
+	 * @param ConditionStruct 条件 struct 的反射类型（注册表键）。
+	 * @return 返回是否真的撤销了一条动态登记。
+	 */
+	UFUNCTION()
+	bool UnregisterConditionEvaluator(const UScriptStruct* ConditionStruct);
+
+	/**
+	 * 撤销一条**宿主登记**的载荷读取器（与 `RegisterPayloadReader` 配对）。
+	 *
+	 * 语义与拒绝面同 `UnregisterConditionEvaluator`：只撤动态登记，内置/属主模块的
+	 * 静态自注册项不受影响（对它们的键返回 false）。
+	 *
+	 * @param PayloadStruct 载荷 struct 的反射类型（注册表键）。
+	 * @return 返回是否真的撤销了一条动态登记。
+	 */
+	UFUNCTION()
+	bool UnregisterPayloadReader(const UScriptStruct* PayloadStruct);
 
 #pragma endregion
 
@@ -583,6 +673,15 @@ private:
 	// 与 Templates 的 WAIT-8 修复同款形态）
 	UPROPERTY()
 	TArray<TObjectPtr<UTcsStepExecutor>> RegisteredStepExecutors;
+
+	// 宿主脚本条件求值器 / 载荷读取器（**UPROPERTY 持有是必需的**：两张注册表都是裸 C++ 容器，
+	// 不经 GC 的 RefLink——不持有则宿主对象被静默回收，表现为"条件不生效 / 读不出主体"而非崩溃。
+	// 与 RegisteredStepExecutors 同款纪律。注意 TScriptInterface 的持有不替代此处的强持有。）
+	UPROPERTY()
+	TArray<TScriptInterface<ITcsTriggerConditionEvaluator>> RegisteredConditionEvaluators;
+
+	UPROPERTY()
+	TArray<TScriptInterface<ITcsTriggerPayloadReader>> RegisteredPayloadReaders;
 
 	// 触发求值器（**UPROPERTY 持有是必需的**：总线订阅表持弱引用——不 root 会被 GC 掉、
 	// 订阅静默失效。宿主 `UTcsDevScreenObserver` 的既有注释即该现象的先例）

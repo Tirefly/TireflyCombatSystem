@@ -23,8 +23,14 @@
  * **空标签集的语义（显式交付，不是遗漏）**：无读取器时标签集为空集，而
  * `FTcsTriggerCondition_HasAllTags` 在空集上匹配非空 Tag 数组**恒不过**（条件的既有语义）——
  * 故内容侧若要用该条件，MUST 有读取器提供标签集。
+ *
+ * **2026-10-06 升格 `BlueprintType`（`R-2` 后段）**：本类型作宿主脚本插槽
+ * `ITcsTriggerPayloadReader::Read` 的**返回类型**——`BlueprintNativeEvent` 会触发 UHT 蓝图参数校验
+ * （返回值同受校验），非 `BlueprintType` 的 `USTRUCT` 拿不到 blueprint cap、插槽编译不过
+ * （判据与 SCRIPT-8 对 `FTcsChainRunHandle` 的处置同款）。**承诺面代价为零**：消费本类型的
+ * 门面方法仍是裸 `UFUNCTION()`，故升格不让任何东西意外进入蓝图承诺面。
  */
-USTRUCT()
+USTRUCT(BlueprintType)
 struct TCSEFFECT_API FTcsTriggerPayloadInfo
 {
 	GENERATED_BODY()
@@ -57,6 +63,56 @@ public:
 	// 分类标签集（`HasAllTags` 条件的匹配面；无读取器时为空集）
 	UPROPERTY()
 	TArray<FGameplayTag> ClassificationTags;
+
+#pragma endregion
+};
+
+
+
+/**
+ * 载荷读取器宿主插槽（**宿主契约**，`R-2` 后段 / 2026-10-06）：让宿主（UnrealSharp / 蓝图 /
+ * 任意 UE 脚本语言）为自己定义的载荷类型提供"读出主体信息"的能力。
+ *
+ * **为什么需要它**：`FTcsTriggerPayloadReaderRegistry::Register` 是纯 C++ 面（`TFunction` 不可反射），
+ * 脚本层触达不到；解法与条件求值器插槽同款——**宿主契约接口 + 门面薄转发入口**。
+ * **属主模块登记的领域读取器全部不动**（双轨并存：它们走静态自注册 C++ 快路径）。
+ *
+ * **形态裁定（Q-12，2026-10-06 用户拍板）**：`UINTERFACE` 而非 `UCLASS` 基类（宿主既有类可直接
+ * 实现，一个类能挂多个插槽）；**不造 `USTRUCT` 转发器**（本注册值类型是 `TFunction`、无策略基类
+ * 可继承 ⇒ 转发器无对象可接；硬造 = 改注册值类型 = SCRIPT-8 刻意绕开的 SCRIPT-2 路线）。
+ * 语言可达性由"宿主面对的契约是否为 `UObject` 反射类型"决定，与转发器无关。
+ *
+ * **形参 MUST NOT 带 `const`**（`BlueprintNativeEvent` 上的 `const` 会让 UHT 生成错误的 thunk 签名，
+ * 硬规则；先例 `ITcsEntityLevelProvider::GetEntityLevel`）。
+ */
+UINTERFACE(MinimalAPI, Blueprintable)
+class UTcsTriggerPayloadReader : public UInterface
+{
+	GENERATED_BODY()
+};
+
+/**
+ * 载荷读取器宿主契约（实现方 = 宿主；门面 = `UTcsEffectSubsystem::RegisterPayloadReader`）。
+ */
+class ITcsTriggerPayloadReader
+{
+	GENERATED_BODY()
+
+// 读取契约
+#pragma region Read
+
+public:
+	/**
+	 * 从事件载荷读出主体信息。
+	 *
+	 * **"每事件一次"语义 MUST 保住**：求值器对同一次事件的多行订阅**只读一次载荷**、各行共用
+	 * 同一份结果；本插槽只替换"读取器"这一层，实现方 MUST NOT 依赖"每行被调用一次"。
+	 *
+	 * @param Payload 事件载荷（只读；内层类型即宿主登记时用的 struct）。
+	 * @return 返回读出的主体信息；读不出就返回默认构造（空 Caster / 空标签集 / 空 Subject）。
+	 */
+	UFUNCTION(BlueprintNativeEvent)
+	FTcsTriggerPayloadInfo Read(const FInstancedStruct& Payload);
 
 #pragma endregion
 };
