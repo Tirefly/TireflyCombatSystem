@@ -139,7 +139,7 @@
 | 概念（文档用词） | 实现名 | 住哪 |
 |---|---|---|
 | 数值参数行 `{Key, Base, Mode, ValueConvention}` | `FTcsNumericParamRow` | TcsState（FSkillDef 继承白拿） |
-| 布尔开关行 | `FTcsBoolSwitchRow` | TcsState |
+| 布尔开关行 | `FTcsBoolSwitchRow` | TcsSkill（2026-10-06 R6 Task 1 Q-8 改判；原判 TcsState——消费者只有技能侧，`SPEC-02-states` 零命中） |
 | 参数行 Mode | `ETcsParamMode{ Snapshot, Live }` | TcsState |
 | 参数修正行（原 `FNumericParamModifier`） | `FTcsNumericParamModifier` | TcsSkill |
 | Def 资产基类（**身份 tag** + IsDataValid 校验挂点） | `UTcsStateDef`（对应 `FStateDefBase` 家族；备选 `UTcsStateDefBase`） | TcsState |

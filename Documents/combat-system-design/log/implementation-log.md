@@ -467,7 +467,8 @@
 
 **② "条件取值真的门控了链"是本轮最有价值的一条**：判据设计成"一次广播绑 **3 行 = 2 行条件恒过 + 1 行恒不过**"——若只绑恒过的行，"返回值被尊重"与"返回值被忽略（恒当通过）"**读数完全相同**，无法区分。实测扣血 **2**（而非 3）⇒ 门控成立；同时另有载荷读取增量 **1**（每事件一次）与条件求值增量 **3**（按行计）两个读数。
 
-**③ 引擎机制当场验证了一条设计纪律**：`ensure` 的**同一调用点每会话只打印一次**（`AssertionMacros.h:364-365` 原文）。第 1 轮 `Reject` 出 **12 条**红字、第 2 轮出 **0 条**，而两轮 11 项布尔**全 `True`** ⇒ **若按"数红字"判通过，第 2 轮会假失败**。`tasks.md 5.7` 早已把判据定在"登记口返回值"上，本轮实测证明那不是风格偏好而是**正确性要求**。
+**③ 引擎机制当场验证了一条设计纪律**：`ensure` 的**同一调用点每进程只打印一次**（`AssertionMacros.h:364-365` 原文说 "in a session"，但实测机制是**进程级**——见下条订正）。第 1 轮 `Reject` 出 **12 条**红字、第 2 轮出 **0 条**，而两轮 11 项布尔**全 `True`** ⇒ **若按"数红字"判通过，第 2 轮会假失败**。`tasks.md 5.7` 早已把判据定在"登记口返回值"上，本轮实测证明那不是风格偏好而是**正确性要求**。
+  - **2026-10-06 订正（把"每会话"收紧为"每进程 / 每调用点"）**：两轮的 `StopPIE` → `StartPIE` 之间**确实换了 PIE 会话**（13:40:33 有 teardown），第 2 轮仍出 **0 条** ⇒ 抑制状态**不随 PIE 会话重置**。机制（引擎源码实测）：`UE_ENSURE_IMPL` 传入 `::bGEnsureHasExecuted<FileLineHashForEnsure(__FILE__, __LINE__)>`——`template <uint64 Uid> std::atomic<uint8>`（`AssertionMacros.h:403-404`）、按"文件名 djb2 高 32 位 + 行号低 32 位"散列（`:406-415`）；判据在 `CheckEnsureFailed` 里与全局 `GEnsureResetState`（`AssertionMacros.cpp:150`，初值 1）比较（`:946-961`），**只有 `core.ResetEnsureState` 控制台命令**（`:151-158`）能重置。本日志区段内**无任何重置调用** ⇒ 该轮 0 条红字与"换会话"无关，是**同一进程内同一调用点已被抑制**。**先前的"每会话"措辞不准确**，`TcsDevGcProbeDriver.h:62` 的"每站点每进程只上报一次"才是对的。
 
 **④ 顺带订正两处真缺陷（都不是文档措辞，而是会导致失败或误判的）**：
 
@@ -480,3 +481,69 @@
 
 **⑥ 计数口径又踩一次（第四次同类）**：`openspec spec list --long | <行过滤>` 数出能力 **35**，而 `Get-ChildItem openspec/specs -Directory` 数出 **34**——**目录数是权威**（前者把表头/warning 行也算了）。且本变更 delta **只有 `## MODIFIED Requirements`**、`effect-trigger` **已存在** ⇒ **归档不新增能力，34 → 34 不变**（与含 `## ADDED` 的 `add-tcs-skill-module` 不同，后者归档时才 +1）。
   - **订正一处我先前写错的预测**：我曾在 `tasks.md 6.4` 写"归档后 items 仍为 36"——**错**。`validate --all` 的 items = 能力数 + 活跃变更数 ⇒ 归档前 34+2 = **36**，归档后 34+1 = **35**。**实测正是 35**。归档动作同时把变更数 2→1，故**items 数会下降**，这不能当作归档失败的信号。
+---
+
+### 2026-10-06 第十轮：R6 Task 1 落地 —— TcsSkill 模块入场、Def 资产族、第五条发现路径
+
+**① 用户批准后实施**。Task 0 两仓提交推送确认（TCS `39f56cd` / LAC `83ad15a`，子模块指针一致）后，用户批准 Task 1 的模块部分（Def / 发现 / 验收三项此前已通过）。
+
+**② 交付物（插件侧）**：
+
+| 项 | 落点 |
+|---|---|
+| 模块 | `Source/TcsSkill/`（`Build.cs` / 模块壳零注册 / `LogTcsSkill` 独立通道）+ `.uplugin` 末尾追加第 9 条 |
+| 数据形状 | `FTcsSkillDefData : FTcsStateDefBase`（白拿六字段，本类补 `BoolSwitches` / `Phases` / 查询三档 / `AttrCaptureList` / 主链 / `Instancing` / 关系字段 / `Triggers`） |
+| 附属类型 | `FTcsBoolSwitchRow`（**住 TcsSkill**，Q-8） / `FTcsPhaseSpan` / `FTcsCastAttrCapture` / 三个施法枚举 |
+| 资产 | `UTcsSkillDef : UTcsStateDef`（`PrimaryAssetType = "TcsSkillDef"` + `GetPrimaryAssetId` 覆写 + 六类作者期校验） |
+| 表行 | `FTcsSkillDefTableRow`（`DefTag` 内容身份 / `RowName` 编辑期定位） |
+| 发现路径 | `TcsDefinitionSubsystem_Skill.cpp`（`DiscoverSkillDefs` 三项身份级校验 / `ResolveSkillDef` / 第五计数） |
+| GC | `TcsDefinitionSubsystem_GC.cpp`（四份缓存逐条 `AddPropertyReferencesWithStructARO`，从主文件拆出以守住 300 行） |
+
+**③ 交付物（宿主侧验收装置）**：`TcsDevSkillDefProbe` 三条命令——`Prepare`（创作真资产 `DA_SkillDef_E2E`，已存在只核对不覆写）/ `Run`（17 项：发现计数、解析、资产身份、字段保真、`IsDataValid == Valid`、表行往返）/ `Reject`（六类缺陷各注入一份瞬态副本 + 空时段表的反向对照）。按 `_Internal.h` 拆分三文件，各 80 / 150 / 157 行。
+
+**④ 双配置实测**：`LegendAutoChessEditor Win64 Development` 与 `LegendAutoChess Win64 Shipping` **均 `Result: Succeeded`，零 warning / 零 error**（日志里唯一命中 "warning"/"error" 的两行是 UHT 命令行参数 `-WarningsAsErrors` 的文本，非真实告警）。
+
+**⑤ 实施中发现并订正的缺陷（六处，都是"会导致失败或误判"的）**：
+
+- **`TcsDefinitionSubsystem_GC.cpp` include 了不存在的头**：写 `Trigger/TcsEffectTriggerDef.h`（该文件不存在，真实头是 `Trigger/TcsEffectTrigger.h`）⇒ `fatal error C1083`、`Result: Failed`。**这是编译器拦下的，不是猜的**。
+- **`Deinitialize` 漏清技能缓存**：其余四组缓存都 `Empty()` 了，`SkillDefs` / `SkillDefAssets` 漏掉 ⇒ 违反本文件既有的"确定性清理"纪律（定义库降级后旧内容仍可被解析）。
+- **`RegisterRejectionCommand` 声明后未定义**：会 `LNK2019`。
+- **`TcsSkillLogChannel.h` 多了导出宏**：其余八个日志通道均为裸 `DECLARE_LOG_CATEGORY_EXTERN`。
+- **探针 `Add` 自身数组元素**（我自己写的）：`Params.Add(Params[0])` 在扩容时元素引用悬空 ⇒ 先取副本再 `Add`。
+- **宿主 ini 里写了裸根词 `SkillDef`**（我自己写的）：既有 ini **从不声明裸根**（`StateDef` / `AttrModDef` / `EffectTriggerDef` 都只有具体词，父节点由子词隐式创建）⇒ 已删。
+
+**⑥ 一处"改对了方向但改错了范围"的自纠**：批量勾选计划时脚本把 Task 3 / Task 4 的 `Step 8：编译与验收` 也当成 Task 1 的行，误加了本轮说明 ⇒ 按出现次数精确定位并回滚那两处，**Task 1 之外的 Step 全部保持原样**（复核：312 行之后 `- [x]` 命中数 = 0）。
+
+**⑦ 未勾选项（如实登记）**：`tasks.md` 的 **7.3**（归档动作本身未执行——须经用户批准）、**7.5 / 7.6**（`IsDataValid` 正反两路与就绪计数须**人工在 PIE 内**执行 `Run` / `Reject` 后才有点读数；本轮只交付装置）保持未勾选。计划 `PLN-R6` Task 1 的 Step 8 同理。
+
+**⑧ 校验**：`openspec validate add-tcs-skill-module --strict` = valid；`--all` = **35 passed / 0 failed**；能力目录 **34** + 活动提案 **1** + 归档 **45**（与预期口径一致，未提前计入 `skill-def-asset`）。
+
+**⑨ 未提交**：本轮**零 git 提交**（等待用户 Review）。
+
+---
+
+### 2026-10-07 第十一轮：R6 Task 1 取证收官 —— 三条命令 28 PASS / 0 FAIL
+
+**① 用户执行，本轮读数取证**。命令序列（与装置设计一致）：`Tcs.Test.SkillDef.Prepare`（非 PIE）→ **重启 PIE** → `Tcs.Test.SkillDef.Run`（PIE 内）→ `Tcs.Test.SkillDef.Reject`（非 PIE）。三条各执行**恰好 1 次**。
+
+| # | 命令 | 读数 |
+|---|---|---|
+| 1 | `Tcs.Test.SkillDef.Prepare` | **2 PASS / 0 FAIL**（新建资产校验 `Valid` + 已保存） |
+| 2 | `Tcs.Test.SkillDef.Run` | **17 PASS / 0 FAIL**（`SkillDefCount=1`，失败清单 `0`） |
+| 3 | `Tcs.Test.SkillDef.Reject` | **11 PASS / 0 FAIL**（R0 基线 + R1a/R1b/R2/R3/R4a/R4b/R5/R6a/R6b + R7 反向对照） |
+
+**合计 28 PASS / 0 FAIL**。证据包 = `EVID-2026-10-07-skill-def-asset`（含区段哈希 + 复算脚本 + 8 条边界）。
+
+**② ★ 本轮最强的一条证据：发现路径**真在读内容目录**。同一进程内两次 PIE 会话的第五计数**：第 1 次（`Prepare` 之前）`发现技能定义资产 0 个` → 就绪 `技能定义 0 条`；第 2 次（`Prepare` 落盘后重启 PIE）`发现技能定义资产 1 个` → 就绪 `技能定义 1 条`。**唯一变量 = 磁盘多了一个 `.uasset`**（mtime 落在两次会话之间）⇒ 若是硬编码、若发现路径没真跑、若缓存跨会话复用，这个数**都不会变**。这条同时证明了"**新资产须下一次 PIE 才可见**不是装置缺陷，而是定义库 `Initialize` 只发现一次的既定生命周期"。
+
+**③ 拒绝面的 R0 与 R7 是本清单里最有价值的两条**（设计时即如此安排，实测兑现）：**R0**（基线本身判 `Valid`）证明"`Invalid` 是被注入的那条规则拦下的"——没有它，基线自己先 `Invalid` 就没有对照面；**R7**（空时段表不构成错误）证明校验**不是"拦下一切"的假实现**——没有它，R1a~R6b 全绿也说明不了什么。11 例互不干扰地各自判对。
+
+**④ 环境噪声已排除（不是"有红字就失败"）**：全日志 1 条 `Error` + 5 条 `Warning`，**逐条核过**：`LogGameFeatures: Error`（GameFeature 资产规则，历史备份日志**同样 1 条**）、`.uplugin` 版本串解析警告（**同样 1 条**）、TSR/D3D12RHI、MCP 插件 EULA、编辑器布局版本 —— **全部为环境固有，与本次改动无关**；唯一涉及本任务的是 `:2456` 的 `Failed to find object 'TcsSkillDef …'`，那是 `Prepare` **幂等探测"资产尚不存在"**的预期输出（紧接着就创建成功并落盘）。**`TcsSkill` 相关的 Warning/Error = 0**（该行以外的全部命中为空）。
+
+**⑤ 一处口径复核**：证据文档里我先按**拆分重建前**的记忆写了 `LegendAutoChess-Win64-Shipping.exe` 尺寸与 `UnrealEditor-TcsDev.dll` 路径，**两处都错**。实测订正为 `169,667,584 B`（`8:52:19`）与 `Binaries/Win64/UnrealEditor-TcsDev.dll` `510,464 B`（`8:51:55`）。**同族纪律**：n 轮前记下的产物尺寸 MUST 在写进证据前**重新测**——拆分/重建都会改它。
+
+**⑥ 边界如实登记（8 条，进 EVID §5）**：技能运行态零验证（激活/时段/参数链/主链起链全归后续 Task）；`GateCheck` 求值器不存在（R6.5-e）；`ParamChainRows` 按计划未声明（Task 4）；`Prepare` 的幂等路径**只走了"创建"半**（"已存在则只核对"那半未触发）；`Reject` 只覆盖 6 类 11 例（未穷举）；**单次运行，无二次独立复现**（与 Task 0 的"两轮逐字比对"不同）；`IsEntityReady` 归 Task 2；跨世界面本 Task 不涉及。
+
+**⑦ 校验与文档同步**：`openspec validate --all --strict` = **35 passed / 0 failed**；能力 **34** + 活动提案 **1** + 归档 **45**。`INDEX.md` 的 `evidence/` 计数 **18 → 19** 已同步（该行是"该读哪一篇"的路标，漏更新会让人以为漏读）。`tasks.md` **7.5 / 7.6 转为已勾选**（有实测读数）；**7.3 仍留未勾选**——归档动作本身未执行，须经用户批准。
+
+**⑧ 未提交**：本轮**零 git 提交**（等待用户 Review）。

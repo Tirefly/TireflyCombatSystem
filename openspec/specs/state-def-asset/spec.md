@@ -54,7 +54,7 @@ TcsNotation 只拥有**词汇约定**与视图机制——"描述配置空间（
 **本轮 MUST NOT 建视图策略族**：`FTcsParamView` 基类（`BuildText` / `IsCompatible`）、四个内置视图（`Value` / `Series` / `Range` / `Attribute`）、`FTcsViewBuildContext` / `FTcsViewProbe` 与组装器全部归 R8（`SPEC-07-notation` §2.2），
 故本轮 `View` 是**普通 `FInstancedStruct`、不带 `meta = (BaseStruct=…)`**；`FTcsParamView` 落地时 MUST 回补该约束（类型限制届时由 `meta` 收紧），MUST NOT 用"Kind 枚举 + 载荷"的旧形态过渡。
 
-**消费者登记**：本轮 `Descriptions` **零真实消费者**（渲染归 R8、技能面板归 R6）——只落字段与作者期校验，如实登记。
+**消费者登记**：本轮 `Descriptions` **零真实消费者**（渲染归 R8、技能面板归 **R8**——面板依赖 `FTcsParamView` 视图策略族，而该族被同一份规格明文钉在 R8；2026-10-06 R6 Task 1 改判，原写"技能面板归 R6"）——只落字段与作者期校验，如实登记。
 
 #### Scenario: 字段能承载多入口与多视图槽
 

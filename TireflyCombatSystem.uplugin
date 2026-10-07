@@ -55,6 +55,11 @@
 			"Name": "TcsIntegration",
 			"Type": "Runtime",
 			"LoadingPhase": "Default"
+		},
+		{
+			"Name": "TcsSkill",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
 		}
 	]
 }

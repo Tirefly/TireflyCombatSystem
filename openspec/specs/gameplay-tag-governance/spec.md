@@ -2,9 +2,9 @@
 
 ## Purpose
 
-TCS 插件侧 GameplayTag 词表的**规范载体**：钉死插件那 **11 个根段**与各自的消费角色，规定归属规则（框架词汇 vs 宿主内容词汇 vs 验证词）、一角色一根、根名判据（含"根名互不为真前缀"）、检查词的 `Check` 子段约定、深度上限，以及 `TcsStateParam` / `DamageCategory` 等易误读根的语义边界。
+TCS 插件侧 GameplayTag 词表的**规范载体**：钉死插件那 **12 个根段**与各自的消费角色，规定归属规则（框架词汇 vs 宿主内容词汇 vs 验证词）、一角色一根、根名判据（含"根名互不为真前缀"）、检查词的 `Check` 子段约定、深度上限，以及 `TcsStateParam` / `DamageCategory` 等易误读根的语义边界。
 
-> **根数沿革（MUST 与需求内根表同步，勿只改一处）**：9 → 10（2026-10-04 增 `StateDef`，R5 Task 1）→ **11**（2026-10-05 增 `AttrModDef`，R5 Task 7，台账 `ATTR-1` 按期闭合）。**本 `## Purpose` 的数字 MUST 与下方根表的行数一致**——归档器**只替换「需求」、不碰本段**，故每次增根都要**手工**同步此处的数字（`verify-state-layer-e2e` 归档时即为手工补的一处，见 `CONVENTION` §6.6）。
+> **根数沿革（MUST 与需求内根表同步，勿只改一处）**：9 → 10（2026-10-04 增 `StateDef`，R5 Task 1）→ 11（2026-10-05 增 `AttrModDef`，R5 Task 7，台账 `ATTR-1` 按期闭合）→ **12**（2026-10-06 增 `SkillDef`，R6 Task 1）。**本 `## Purpose` 的数字 MUST 与下方根表的行数一致**——归档器**只替换「需求」、不碰本段**，故每次增根都要**手工**同步此处的数字（`verify-state-layer-e2e` 归档时即为手工补的一处，见 `CONVENTION` §6.6）。
 
 **边界**：本能力只管**插件那一半**。宿主侧 5 个根段的规范载体在 LAC 仓的 `host-gameplay-tag-registry` 能力，本规格只**引用**不复制（两边各登自己那一半）。跨项目的通用治理规则（根名判据、深度上限、`DevComment` 义务、受限 tag 机制、改名与重定向口径）住在用户级 `unreal-gameplay-tags` 技能，同样只引用不复制。
 

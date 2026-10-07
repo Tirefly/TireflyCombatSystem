@@ -28,6 +28,7 @@ void UTcsDefinitionSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	DiscoverTriggerDefs();
 	DiscoverStateDefs();
 	DiscoverAttrModDefs();
+	DiscoverSkillDefs();
 
 	// 触发行来源句柄：本类在世界装配期登记触发行时作 `Source`（"定义库来源"这一级联退订锚点，发放一次）
 	TriggerSeedSource = TriggerSourceRegistry.Allocate();
@@ -42,8 +43,8 @@ void UTcsDefinitionSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	WorldInitDelegateHandle = FWorldDelegates::OnPostWorldInitialization.AddUObject(
 		this, &UTcsDefinitionSubsystem::HandlePostWorldInitialization);
 
-	UE_LOG(LogTcsIntegration, Log, TEXT("UTcsDefinitionSubsystem: 定义库就绪——链定义 %d 条，触发定义 %d 条，状态定义 %d 条，修正器模板 %d 条，失败 %d 条"),
-		ChainDefs.Num(), TriggerDefs.Num(), StateDefs.Num(), AttrModDefs.Num(), FailureList.Num());
+	UE_LOG(LogTcsIntegration, Log, TEXT("UTcsDefinitionSubsystem: 定义库就绪——链定义 %d 条，触发定义 %d 条，状态定义 %d 条，修正器模板 %d 条，技能定义 %d 条，失败 %d 条"),
+		ChainDefs.Num(), TriggerDefs.Num(), StateDefs.Num(), AttrModDefs.Num(), SkillDefs.Num(), FailureList.Num());
 
 	for (const FString& Failure : FailureList)
 	{
@@ -68,49 +69,13 @@ void UTcsDefinitionSubsystem::Deinitialize()
 	StateDefAssets.Empty();
 	AttrModDefs.Empty();
 	AttrModDefAssets.Empty();
+	SkillDefs.Empty();
+	SkillDefAssets.Empty();
 	TriggerSeedSource = FTcsSourceHandle();
 	FailureList.Empty();
 	bRuntimeReady = false;
 
 	Super::Deinitialize();
-}
-
-
-
-void UTcsDefinitionSubsystem::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector)
-{
-	UTcsDefinitionSubsystem* This = CastChecked<UTcsDefinitionSubsystem>(InThis);
-
-	// 三份定义缓存都非 UPROPERTY（TUniquePtr 容器）——GC 只走 RefLink 看不见它们，故在此手动补引用。
-	// 缓存内容里的 FInstancedStruct（链的 Steps / 触发定义的 Conditions / 状态定义的参数行与描述视图）
-	// 内层可放宿主自定义 struct 的 UPROPERTY 对象引用（D4-16 类型不设限），须靠本函数保活
-	// （引擎 UDataTable::AddReferencedObjects 对 RowMap 用的同一招，见头文件说明）。
-	for (const TPair<FGameplayTag, TUniquePtr<FTcsEffectChain>>& Pair : This->ChainDefs)
-	{
-		if (const FTcsEffectChain* Chain = Pair.Value.Get())
-		{
-			Collector.AddPropertyReferencesWithStructARO(FTcsEffectChain::StaticStruct(), const_cast<FTcsEffectChain*>(Chain), This);
-		}
-	}
-
-	for (const TPair<FGameplayTag, TUniquePtr<FTcsEffectTriggerDef>>& Pair : This->TriggerDefs)
-	{
-		if (const FTcsEffectTriggerDef* TriggerDef = Pair.Value.Get())
-		{
-			Collector.AddPropertyReferencesWithStructARO(FTcsEffectTriggerDef::StaticStruct(), const_cast<FTcsEffectTriggerDef*>(TriggerDef), This);
-		}
-	}
-
-	// 状态定义缓存：参数行的数值来源与描述的视图载荷都是 FInstancedStruct（内层可放对象引用）
-	for (const TPair<FGameplayTag, TUniquePtr<FTcsBuffDef>>& Pair : This->StateDefs)
-	{
-		if (const FTcsBuffDef* BuffDef = Pair.Value.Get())
-		{
-			Collector.AddPropertyReferencesWithStructARO(FTcsBuffDef::StaticStruct(), const_cast<FTcsBuffDef*>(BuffDef), This);
-		}
-	}
-
-	Super::AddReferencedObjects(InThis, Collector);
 }
 
 

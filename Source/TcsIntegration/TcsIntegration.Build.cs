@@ -22,6 +22,8 @@ public class TcsIntegration : ModuleRules
 			"TcsDamage",
 			// 状态定义发现（UTcsDefinitionSubsystem 按类扫描 UTcsBuffDefAsset，2026-10-04 R5 Task 1）
 			"TcsState",
+			// 技能定义发现（UTcsDefinitionSubsystem 按类扫描 UTcsSkillDef，2026-10-06 R6 Task 1）
+			"TcsSkill",
 			// 定义资产发现（UTcsDefinitionSubsystem 按类扫描）——Engine 里的那条是过渡期临时依赖
 			// （Engine.Build.cs:98 "Here until we update all modules using AssetRegistry to add a dependency on it"），
 			// 本模块显式声明，不靠 Engine 转发

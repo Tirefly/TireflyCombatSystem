@@ -16,9 +16,11 @@ class UTcsAttrModDef;
 class UTcsBuffDefAsset;
 class UTcsEffectChainDef;
 class UTcsEffectTriggerDefAsset;
+class UTcsSkillDef;
 struct FTcsBuffDef;
 struct FTcsEffectChain;
 struct FTcsEffectTriggerDef;
+struct FTcsSkillDefData;
 
 
 
@@ -28,10 +30,11 @@ struct FTcsEffectTriggerDef;
  * 先枚举消费场景含无世界者，再定级别）。
  *
  * 职责边界（**只做资产发现与注册，不做执行**——执行归各领域门面）：
- * - **发现**（**四条按类路径**）：链资产 `UTcsEffectChainDef`（`DiscoverChainDefs`）、触发定义资产
+ * - **发现**（**五条按类路径**）：链资产 `UTcsEffectChainDef`（`DiscoverChainDefs`）、触发定义资产
  *   `UTcsEffectTriggerDefAsset`（`DiscoverTriggerDefs`）、状态定义资产 `UTcsBuffDefAsset`
  *   （`DiscoverStateDefs`，**2026-10-04 R5 Task 1**）、修正器模板资产 `UTcsAttrModDef`
- *   （`DiscoverAttrModDefs`，**2026-10-05 R5 Task 7**）——均走 `IAssetRegistry::GetAssetsByClass`
+ *   （`DiscoverAttrModDefs`，**2026-10-05 R5 Task 7**）、技能定义资产 `UTcsSkillDef`
+ *   （`DiscoverSkillDefs`，**2026-10-06 R6 Task 1**）——均走 `IAssetRegistry::GetAssetsByClass`
  *   （**不依赖 `PrimaryAssetTypesToScan` 注册**——该注册属 M6 轮，且未注册时 AssetManager 按类型
  *   查询会**静默返回空**，排障成本高，见台账 INTEG-3）；
  * - **校验**：双真相（`Chain.ChainId != ChainId`）/ 空 id / 重复登记 → 计入失败清单 + Error，不静默跳过；
@@ -40,9 +43,11 @@ struct FTcsEffectTriggerDef;
  *   ——内容级规则（参数键重复、内联触发行缺项、时值来源为空、描述缺项）全归资产 `IsDataValid`，
  *   发现期只判"这条资产能不能被按 tag 寻址"；**修正器模板侧同为身份级三条**（加载失败或类型不符 /
  *   空 `TemplateTag` / `TemplateTag` 重复——`Def.Target`、操作数、值约定的内容规则归资产 `IsDataValid`）；
+ *   **技能定义侧同为身份级三条**（加载失败或类型不符 / 空 `DefTag` / `DefTag` 重复——
+ *   参数、施法时段、主链、内联触发行与描述的内容规则归资产 `IsDataValid`）；
  * - **按名解析**：链定义按 `ChainId` 缓存（`ResolveChain`）、触发定义按 `TriggerTag` 缓存
  *   （`ResolveTriggerDef`）、状态定义按 `DefTag` 缓存（`ResolveStateDef`）、修正器模板按 `TemplateTag`
- *   缓存（`ResolveAttrModDef`）；
+ *   缓存（`ResolveAttrModDef`）、技能定义按 `DefTag` 缓存（`ResolveSkillDef`）；
  * - **就绪状态机**：`OnDefinitionsReady` **单出口**（幂等）——M6 双层引导的最小版（06 §4 硬规则①）；
  * - **装配到世界**：见下条。
  *
@@ -63,6 +68,9 @@ struct FTcsEffectTriggerDef;
  * 生命周期）——只发现不登记 = 资产零消费者（同触发行那条的理由）。Task 1 只做缓存是因为当时还没有
  * 消费方；"缓存那一步不建任何每世界结构"今天照样成立（故 `SeedWorld` 的判据现看三类定义）。
  * **依赖方向仍是单向的**：本类（`TcsIntegration`）→ `TcsState` 的登记口，门面 MUST NOT 反查本类。
+ *
+ * **技能定义不装配到世界（2026-10-06 R6 Task 1）**：只缓存内容、由消费方按需 `ResolveSkillDef`
+ * 解析，不建任何每世界结构；本轮运行期消费者为零，账本与门禁归后续 Task 2。
  *
  * **MUST NOT 持可变运行态**（Const 面：缓存的是定义，不是运行态；触发行本身住世界级子系统）。
  *
@@ -98,12 +106,13 @@ public:
 
 public:
 	/**
-	 * GC 引用收集（**三份定义缓存的 GC 可见持有**，2026-10-04）——**必需**。
+	 * GC 引用收集（**四份定义缓存的 GC 可见持有**，2026-10-06 R6 Task 1 扩展）——**必需**。
 	 *
-	 * 为什么必须自己实现：`ChainDefs` / `TriggerDefs` / `StateDefs` 都是本类的**非 `UPROPERTY` 成员**
-	 * （`TMap<FGameplayTag, TUniquePtr<...>>`），GC 的 `RefLink` 遍历**走不到它们**；而三份缓存的内容里
+	 * 为什么必须自己实现：`ChainDefs` / `TriggerDefs` / `StateDefs` / `SkillDefs` 都是本类的**非 `UPROPERTY` 成员**
+	 * （`TMap<FGameplayTag, TUniquePtr<...>>`），GC 的 `RefLink` 遍历**走不到它们**；而四份缓存的内容里
 	 * 都有 `FInstancedStruct`（链 = `Steps`、触发定义 = `Conditions` / `EventPayloadFilter`、
-	 * 状态定义 = 参数行的数值来源 / 描述的视图载荷），其**内层内存可以放宿主自定义 struct 的
+	 * 状态定义 = 参数行的数值来源 / 描述的视图载荷；技能定义还含施法时段、查询片段与内联触发行），
+	 * 其**内层内存可以放宿主自定义 struct 的
 	 * `UPROPERTY` 对象引用**（D4-16 类型不设限）⇒ 不补引用即**静默回收**
 	 * （表现为"步骤/条件/参数行里那个对象变成空引用"，不是崩溃）。
 	 *
@@ -152,6 +161,12 @@ public:
 	const TArray<FString>& GetFailureList() const
 	{
 		return FailureList;
+	}
+
+	// 返回已缓存的技能定义条数，供宿主核对发现结果与就绪日志。
+	int32 GetSkillDefCount() const
+	{
+		return SkillDefs.Num();
 	}
 
 #pragma endregion
@@ -205,6 +220,17 @@ public:
 	 */
 	const UTcsAttrModDef* ResolveAttrModDef(FGameplayTag TemplateTag) const;
 
+	/**
+	 * 按身份解析已缓存的技能定义（未登记返回 nullptr——正常查询路径，不 ensure）。
+	 *
+	 * 与 `ResolveStateDef` 同款：返回内容副本的裸指针，`TUniquePtr` 持有使地址稳定；
+	 * 指针在定义库反初始化时失效。技能定义只缓存、不做世界装配；本轮运行期消费者为零。
+	 *
+	 * @param DefTag 技能定义身份（`SkillDef` 根）。
+	 * @return 返回技能定义数据；未缓存返回 nullptr。
+	 */
+	const FTcsSkillDefData* ResolveSkillDef(FGameplayTag DefTag) const;
+
 #pragma endregion
 
 
@@ -224,6 +250,9 @@ private:
 	// 发现并加载全部修正器模板资产（扫描 → 逐资产三校验（加载失败或类型不符 / 身份非空 / 身份重复）→ 入缓存；失败项进清单）
 	void DiscoverAttrModDefs();
 
+	// 发现并加载全部技能定义资产（加载或类型 / 身份有效 / 身份去重三项校验 → 入缓存；失败项进清单）
+	void DiscoverSkillDefs();
+
 	// 装配已缓存定义进指定世界（幂等：同一世界不重复登记；链在前、触发行在后；状态定义不参与）
 	void SeedWorld(UWorld* World);
 
@@ -241,6 +270,9 @@ private:
 
 	// 状态定义缓存（Const 内容；键 = DefTag）——持有形态与失效判据同上
 	TMap<FGameplayTag, TUniquePtr<FTcsBuffDef>> StateDefs;
+
+	// 技能定义缓存（Const 内容副本；键 = DefTag）——持有形态与失效判据同上，不参与世界装配
+	TMap<FGameplayTag, TUniquePtr<FTcsSkillDefData>> SkillDefs;
 
 	// 修正器模板缓存（键 = TemplateTag）。**持有资产对象本身而非内容副本**——模板的"内容"就是资产
 	// （`Def` 行 + 身份），没有可分离的 const 值类型可拷；故本容器是索引，GC 可见性由下面的资产数组承担。
@@ -261,6 +293,10 @@ private:
 	// 修正器模板资产缓存（GC 锚定，理由同上——`AttrModDefs` 索引非 UPROPERTY，靠本数组保活）
 	UPROPERTY()
 	TArray<TObjectPtr<UTcsAttrModDef>> AttrModDefAssets;
+
+	// 技能定义资产缓存（GC 锚定；内容副本的内层对象引用另由 AddReferencedObjects 收集）
+	UPROPERTY()
+	TArray<TObjectPtr<UTcsSkillDef>> SkillDefAssets;
 
 	// 来源句柄分配器（进程内原子发号；本类只在自己 `Initialize` 时用一次）
 	FTcsSourceHandleRegistry TriggerSourceRegistry;

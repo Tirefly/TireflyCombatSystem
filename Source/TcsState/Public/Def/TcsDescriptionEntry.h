@@ -50,7 +50,7 @@ public:
  * **住 TcsState**：`DEC-02-fold-display` 的命名批"住哪"表明写"描述视图槽位 / 配置条目 → TcsState
  * （Def 形状所在）"；TcsNotation 只拥有**词汇约定**与视图机制（`SPEC-07-notation` §1 边界）。
  *
- * **本轮零真实消费者**（渲染归 R8、技能面板归 R6）：只落字段与作者期校验（规则见 `state-def-asset` 能力）。
+ * **本轮零真实消费者**（渲染归 R8、技能面板归 **R8**——面板依赖 `FTcsParamView` 视图策略族，该族归 R8；2026-10-06 R6 Task 1 改判）：只落字段与作者期校验（规则见 `state-def-asset` 能力）。
  */
 USTRUCT(BlueprintType)
 struct TCSSTATE_API FTcsDescriptionEntry

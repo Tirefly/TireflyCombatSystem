@@ -61,7 +61,7 @@ combat-system-design/
 ├── log/                ← 决策日志 LOG-*（8 篇：按模块轮次分片 + 拍板流水 + 实施记录）
 ├── plans/              ← 实施计划 PLN-*（7 篇：R3 计划一二 + 竖切剧本 + 内容指南 + R4 计划 + R5 计划 + **R6 计划**）
 ├── research/           ← 调研 RSCH-*（8 篇：AbilityKit 三路 + 复制 + 脚本 + C# + 目标吸收 + 边界审计）
-├── evidence/           ← 证据 EVID-*（18 篇 PIE 取证，带 SHA-256 或区段哈希）
+├── evidence/           ← 证据 EVID-*（19 篇 PIE 取证，带 SHA-256 或区段哈希）
 ├── ledger/             ← 台账与规约 LEDGER-*（3 篇活文档）
 └── HISTORICAL/         ← 历史存档（模块地图提案 v1，已被 DEC-00 §9 取代）
 ```
