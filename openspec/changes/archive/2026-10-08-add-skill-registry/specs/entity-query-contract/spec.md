@@ -1,9 +1,4 @@
-# entity-query-contract Specification
-
-## Purpose
-定义实体查询的注入契约——框架向宿主索取「世界里有哪些实体、它们各自在哪、是否存活」的唯一接口，并明确句柄语义、稳定遍历序与不依赖 Actor 的边界。
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: 实体查询注入契约
 
