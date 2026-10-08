@@ -4,7 +4,7 @@
 - **类型**：治理（入口索引）
 - **状态**：生效中（2026-09-29 建立，取代原 `README.md` 的"文档清单"职能）
 - **权威范围**：本文回答"**该读哪一篇**"。编号含义见 `GLOSSARY.md`；写法纪律见 `docs-convention.md`；逐条拍板流水见 `LOG-DECISIONS`。
-- **最后更新**：2026-10-06（**R6 Task 0 已落地并归档**：`R-2` 后段的两张注册表宿主脚本插槽完成（提案 `add-trigger-host-slots` → 归档 `2026-10-06-add-trigger-host-slots`），PIE 四命令 **15 PASS / 0 FAIL**、两轮可复现；`openspec/changes/` **1 个活动提案**（`add-tcs-skill-module`，**待用户批准**）、能力数 **34**（本变更为 MODIFIED-only，不增能力）；台账 **69 条**（`LEDGER-deferred` **62** + `LEDGER-reflection` **7**；本轮新入册 `WAIT-11`，HEAD 时 68）、`Probe` 段位漂移仍挂 `TOOLS-8`（**归后续轮，MUST NOT 在 R6 内修**）；下一步 = **Task 1~N（`TcsSkill` 模块 + Def 资产族）**，**Task 1 实施暂停待用户逐项复核**）
+- **最后更新**：2026-10-08（**R6 Task 1 已落地并归档**：`TcsSkill` 第九模块 + 技能 Def 资产族 + 第五条按类发现路径完成，PIE 三命令 **28 PASS / 0 FAIL**；提案 `add-tcs-skill-module` → 归档 `2026-10-08-add-tcs-skill-module`，`openspec/changes/` **零活动提案**、**能力数 34 → 35**（新增 `skill-def-asset`），`openspec validate --all --strict` = **35 passed / 0 failed**；台账 **69 条**（`LEDGER-deferred` **62** + `LEDGER-reflection` **7**；本轮 `CHAIN-7` **就地闭合**，总数不变）、`Probe` 段位漂移仍挂 `TOOLS-8`（**归后续轮，MUST NOT 在 R6 内修**）；下一步 = **Task 2（已学技能账本 + 六道门禁）**，此前 **L-3 / L-2 / L-6 三项悬置决策已裁定并写入计划**）
 
 ---
 
@@ -38,7 +38,7 @@ TCS 战斗系统设计已完成 **M0–M9 全部决策拍板**，实施 **R4 轮
 | **了解系统全貌** | `SPEC-00-core`～`SPEC-10-presentation`（11 篇模块规格） | 一篇一个模块，统一模板：模块边界 / 类型词汇 / 入口服务 / 网络姿态 / 非目标 / 依据 / 验收钩子。**注意编号 ≠ 文件序**：`SPEC-09` 主题词是 `editor`（文件 `spec/08-…`） |
 | **只想知道某个模块对外是什么** | 该模块 `SPEC` 的 §1 模块边界 + §2 类型词汇 | — |
 | **想知道"当初为什么这么定"** | `GLOSSARY.md` 查到决策编号 → 按 §4 的落点进对应 `LOG-xx` / `DEC-xx` | 决策理由只住决策文档，不住规格 |
-| **要知道哪些事还没做** | `LEDGER-deferred`（跨轮遗留台账，62 条） | 唯一待办登记册；按轮次分组 |
+| **要知道哪些事还没做** | `LEDGER-deferred`（跨轮遗留台账，63 条） | 唯一待办登记册；按轮次分组 |
 | **要知道某能力现在到底通没通** | `SPEC-TRACE`（契约追踪矩阵）+ `EVID-*`（证据） | 矩阵区分"静态实现 / glue / PIE 已验证 / 未验证" |
 | **要接着干活（实施）** | `PLN-R5`（**R5 已收束**；含《R5–R8 轮次路线图》+《R5.5 批次表》） | 已完成轮次的计划：`PLN-R3-1`、`PLN-R3-2`、`PLN-R4`（**R4 已完成**，保留《R4.5 批次表》）。**Task 1–5 已落地**（各自提案已归档）；**Task 6 两半（6a / 6b）已于 2026-10-05 全部落地并归档**（即时 65/0 + 延迟 72/0 + `.Reject` 11/0，两连 PIE）；**Task 7（端到端验收 + 首批真内容资产）已于 2026-10-05 落地**（`Tcs.Test.State.Run` 两轮各 15/0、`.Reject` 7/0；回归 65/0 + 72/0 + 11/0 **逐字不变**；`AttrModDef` 根 10 → 11）；**Task 8 收束已完成**：设计文档 / `SPEC-TRACE` / 台账 / 两册日志 / `INDEX` 五面回写 + **提案 `verify-state-layer-e2e` 已归档为 `changes/archive/2026-10-06-verify-state-layer-e2e/`**（**归档日为 10-06 机器日期，非计划预写的 10-05**，已就地留痕）+ 两处 `## Purpose` 手工补正 ⇒ `openspec/changes/` **零活动提案**、`openspec validate --all --strict` = **34 passed / 0 failed**、能力数 33 → **34**；**下一步 = R6（M5 技能层 `TcsSkill`）** |
 | **写涉及"反射"字样的文本** | `LEDGER-terminology`（**MUST 先通读**） | 该词在本仓承载 5 种含义，有唯一处方措辞 |
@@ -74,7 +74,7 @@ combat-system-design/
 
 | 层 | 载体 | 管什么 | 冲突时 |
 |---|---|---|---|
-| **可执行需求** | `openspec/specs/<能力>/spec.md`（**34 条能力规格**） | MUST / Scenario——代码必须满足的行为 | **规格优先**（它进 `openspec validate --strict`） |
+| **可执行需求** | `openspec/specs/<能力>/spec.md`（**35 条能力规格**） | MUST / Scenario——代码必须满足的行为 | **规格优先**（它进 `openspec validate --strict`） |
 | **设计意图** | 本工作区 `SPEC-*` / `DEC-*` / `LOG-*` | 为什么这么设计、边界在哪、否决了什么 | 规格未覆盖处以此为准 |
 | **项目约定** | `openspec/project.md` | 命名标准、依赖铁律、测试策略、过网结构纪律 | 全局约定优先 |
 
@@ -157,7 +157,7 @@ combat-system-design/
 
 | ID | 内容 | 规模 |
 |---|---|---|
-| `LEDGER-deferred` | 跨轮遗留输入台账（**唯一待办登记册**）：按轮次分组的 62 条 + 变更记录 | 62 条 |
+| `LEDGER-deferred` | 跨轮遗留输入台账（**唯一待办登记册**）：按轮次分组的 63 条 + 变更记录 | 63 条 |
 | `LEDGER-reflection` | 反射未解决项（`R-1`~`R-6`）+ 逐项专项调研登记册 | 6 项 |
 | `LEDGER-terminology` | 「反射」术语规约（一词五义的唯一处方措辞）——**写含"反射"的文本前 MUST 通读** | — |
 

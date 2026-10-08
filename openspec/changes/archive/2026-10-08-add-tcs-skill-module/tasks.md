@@ -4,7 +4,7 @@
 > **本清单是 Task 1 的验收面**：每一项都 MUST 在实施后回读本文件逐条勾选（`MEM-20260916-01` 第 3 条的教训：**"计划写了"不等于"实施时照做"**）。
 >
 > **勾选状态口径（2026-10-06）**：`[x]` = 代码/文档已落地**并有本轮实测取证**；`[ ]` = 尚未取得证据。
-> 7.5 / 7.6 依赖**人工在 PIE 内执行宿主装置**，故在本轮结束时仍未勾选——装置已交付（见 §8）。
+> 7.5 / 7.6 依赖**人工在 PIE 内执行宿主装置**——用户已于 2026-10-07 执行完毕（`Prepare` → 重启 PIE → `Run` → `Reject`，合计 28 PASS / 0 FAIL），故两项**已勾选**，读数见各行与 `EVID-2026-10-07-skill-def-asset`。装置交付说明见 §8。
 
 ## 1. 模块入场
 
@@ -57,7 +57,7 @@
 
 - [x] 7.1 `LegendAutoChessEditor Win64 Development` 编译 **0 error / 0 warning**
 - [x] 7.2 `LegendAutoChess Win64 Shipping` 编译 **0 error / 0 warning**（双配置）
-- [ ] 7.3 `openspec validate --all --strict --no-interactive` 全绿（**已取证：35 passed / 0 failed；主规格能力数 34 + 活动变更 1**）；**归档动作本身未执行**——本提案新增 `skill-def-asset` 只计入活动变更，归档后才核实主规格能力数 **34 → 35** 并完成 6.1 的能力计数回写。**归档须经用户批准，故本项保持未勾选**
+- [x] 7.3 `openspec validate --all --strict --no-interactive` 全绿（**归档前取证：35 passed / 0 failed；主规格能力数 34 + 活动变更 1**）；**归档动作已获用户批准并执行（2026-10-08）**——`add-tcs-skill-module` 移入 `archive/2026-10-08-add-tcs-skill-module/`，`skill-def-asset` 进入主规格库，主规格能力数核实 **34 → 35**，`project.md` 能力计数回写随之完成（见 6.1）。**归档后复验**：`openspec validate --all --strict` = **35 passed / 0 failed**（= 35 能力 + 0 活动变更）
 - [x] 7.4 `.uplugin` diff 复核：既有 8 条**一字未动**，`TcsSkill` 在末尾
 - [x] 7.5 PIE 内配一条真技能资产（`DA_SkillDef_E2E`，`DefTag = SkillDef.Check.*`），`IsDataValid` **正反两路**可复现（正例 `Valid`；逐类缺陷各报一次错）——**2026-10-07 实测**：正例 `D16` PASS（`Valid` 且 0 error、非 `NotValidated`）；拒绝面 `R0` 基线 PASS + `R1a/R1b/R2/R3/R4a/R4b/R5/R6a/R6b` 六类 11 例逐类被拦下 + `R7` 空时段表反向对照 PASS。证据 = `EVID-2026-10-07-skill-def-asset` §1.2 / §1.3
 - [x] 7.6 就绪日志含**第五计数**且与内容目录实际条数一致、失败 **0**——**2026-10-07 实测**：第一次 PIE 会话 `技能定义 0 条`（资产尚未创建）⇒ `Prepare` 落盘 ⇒ 重启 PIE 后 `技能定义 1 条`，两次均 `失败 0 条`，与 `发现技能定义资产 0/1 个` 一致。**`0 → 1` 的唯一变量是磁盘上多了一个 `.uasset`** ⇒ 同时证明发现路径真在读内容目录。证据 = 同上 §2
@@ -73,4 +73,4 @@
 
 **读数以 UTF-8 日志为准**（控制台回显为 ANSI，中文会显示为 `?`）：`Saved/Logs/LegendAutoChess.log` 内按 `TcsDevSkillDefProbe` 过滤，判据 = `SUMMARY Run: Failed=0` 与 `SUMMARY Reject: Failed=0`。
 
-> **7.5 / 7.6 保持未勾选的理由（如实登记）**：本轮交付的是**装置与代码**，两项验收要求的是**人工在编辑器内执行后的读数**。本轮结束时用户尚未执行该序列 ⇒ 无证据即不勾选（`MEM-20260916-01` 的同一纪律）。装置本身已随编辑器构建通过并被 `-WarningsAsErrors` 覆盖。
+> **7.5 / 7.6 的取证经过（如实登记）**：本轮交付的是**装置与代码**，两项验收要求的是**人工在编辑器内执行后的读数**。交付当晚用户尚未执行该序列，故当时**如实保持未勾选**（`MEM-20260916-01` 的同一纪律）；2026-10-07 用户执行完毕后**按实测读数补勾**（三条命令各执行一次，`Prepare` 2/0 → `Run` 17/0 → `Reject` 11/0，合计 **28 PASS / 0 FAIL**）。装置本身已随编辑器构建通过并被 `-WarningsAsErrors` 覆盖。

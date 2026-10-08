@@ -48,14 +48,16 @@
 
 `TcsIntegration` MUST 提供 `UTcsDefinitionSubsystem`（GameInstance 级），职责：按类发现定义资产 → 校验 → 缓存 → 就绪标记 → 装配到每个世界。
 
-- **发现**：`IAssetRegistry::GetAssetsByClass`（不依赖 `PrimaryAssetTypesToScan` 注册——属 M6 轮）；**四条按类发现路径**：
+- **发现**：`IAssetRegistry::GetAssetsByClass`（不依赖 `PrimaryAssetTypesToScan` 注册——属 M6 轮）；**五条按类发现路径**：
   链资产 `UTcsEffectChainDef`（`DiscoverChainDefs`）、触发定义资产 `UTcsEffectTriggerDefAsset`（`DiscoverTriggerDefs`，**2026-10-04 新增**）、
   状态定义资产 `UTcsBuffDefAsset`（`DiscoverStateDefs`，**2026-10-04 R5 Task 1 新增**）、
   修正器模板资产 `UTcsAttrModDef`（`DiscoverAttrModDefs`，**2026-10-05 R5 Task 7 新增**——该资产族此前**全库零发现路径**，其身份词 `TemplateTag` 因此零解析消费者，即台账 `ATTR-1`）；
+  技能定义资产 `UTcsSkillDef`（`DiscoverSkillDefs`，**2026-10-06 R6 Task 1 新增**）；
 - **校验**：空身份 / 双真相 / 重复登记 → 计入失败清单 + Error，不静默跳过。**2026-09-22 改造：空身份判定从 `ChainId.IsNone()` 改为 `!ChainId.IsValid()`**；
 - **按 tag 解析**：`ResolveChain(FGameplayTag ChainId)`（**2026-09-22 改造：参数类型改 tag**）、`ResolveTriggerDef(FGameplayTag TriggerTag)`（**2026-10-04 新增**）
   与 `ResolveStateDef(FGameplayTag DefTag) -> const FTcsBuffDef*`（**2026-10-04 R5 Task 1 新增**）、
-  `ResolveAttrModDef(FGameplayTag TemplateTag) -> const UTcsAttrModDef*`（**2026-10-05 R5 Task 7 新增**）——均返回缓存内容的裸指针（修正器模板返回**资产对象本身**，因为消费者要的是它能被直接物化），未命中返回 nullptr（正常查询路径，不 ensure）；
+  `ResolveAttrModDef(FGameplayTag TemplateTag) -> const UTcsAttrModDef*`（**2026-10-05 R5 Task 7 新增**）、
+  `ResolveSkillDef(FGameplayTag DefTag) -> const FTcsSkillDefData*`（**2026-10-06 R6 Task 1 新增**）——均返回缓存内容的裸指针（修正器模板返回**资产对象本身**，因为消费者要的是它能被直接物化；技能定义返回**数据视图**，因为消费者要的是 `FTcsSkillDefData`），未命中返回 nullptr（正常查询路径，不 ensure）；
 - **装配到世界**：`OnPostWorldInitialization` 时把缓存定义登记进该世界的消费方子系统（幂等——同一世界只装配一次）。**2026-10-04 扩展**：链装配之后，MUST 把每条触发定义登记为该世界的**触发行**
   （`UTcsEffectSubsystem::RegisterTriggerRow`），`Source` = 定义库自持的来源句柄（`FTcsSourceHandleRegistry::Allocate` 在 `Initialize` 时发放一次）。
   这是 `effect-trigger` 规格"**定义加载期登记**（全局常驻规则）→ `Source` = 系统/DefLibrary 来源句柄"那条的实现落点——**只发现不登记即等于资产零消费者**（策划填了不生效）。装配结果 MUST 进日志（就绪行含触发定义条数，世界装配行含已装配行数）；
@@ -74,8 +76,12 @@
   `DefTag` 无效或重复登记（**正常路径下不可达**——发现期已去重）MUST 留 **Warning** 并继续处理其余定义，MUST NOT 中断装配、MUST NOT 用 Error；
 - **"不被装配到世界"那条场景的今日读法（2026-10-04 R5 Task 2 澄清）**：本条描述的是**本类的缓存步骤**——`StateDefs` 缓存本身 MUST NOT 建任何每世界结构（与链 / 触发行"装配即登记"不同）；
   "登记进状态门面"是**第二步、由世界装配路径发起**，不改变第一步的边界。**来源句柄**：本条不为状态定义单独发号（状态实例的来源句柄归状态门面在施加时发放，Task 0 的统一发号器）；
-- **去重键** = 链 `ChainId` / 触发定义 `TriggerTag` / 状态定义 `DefTag` / 修正器模板 `TemplateTag`（各自与资产身份同键）——同一键的两个资产 = 内容冲突，MUST 拒绝后一个并入失败清单（口径同链的"重复登记"，不静默覆写）；
-- **GC 引用收集（2026-10-04 新增，必需；2026-10-05 边界澄清）**：本类 MUST 覆写 `AddReferencedObjects` 并逐条走**三份非 `UPROPERTY` 缓存**（`ChainDefs` / `TriggerDefs` / `StateDefs`）——它们都是本类的**非 `UPROPERTY` 成员**，GC 的 `RefLink` 遍历**走不到它们**，
+- **技能定义的发现期校验（2026-10-06 R6 Task 1 新增）**：三个**身份级**判据 MUST 计入失败清单——资产加载失败或类型不符 / `DefTag` 无效 / `DefTag` 与另一技能定义资产重复。
+  同款边界：内容级规则 MUST NOT 在此重复（`Params` / `BoolSwitches` 键重复、`ModifierRows` 空引用、`Phases` 内 `Duration` 来源为空、`Triggers` 内 `EventTag` / `EffectChainId` 无效、`CastChainId` 无效、描述配置项缺项 全归资产 `IsDataValid`，见 `skill-def-asset` 能力）——发现期只判"这条资产能不能被按 tag 寻址"；
+- **技能定义不做世界装配（2026-10-06 R6 Task 1 新增）**：技能定义只进缓存、由消费方按需 `ResolveSkillDef` 解析，MUST NOT 在 `OnPostWorldInitialization` 里建任何每世界结构——它的消费形态是"运行期按 tag 取 Def"（Task 2 起的账本与门禁），不是"逐世界登记一次"的常驻规则（那是触发行的语义）。
+  **如实记入边界**：`ResolveSkillDef` 的运行期调用者本轮为**零**，本路径交付的是**身份解析与索引**（资产身份 `[PrimaryAssetType, DefTag]` 可寻址、重复身份在发现期被拦、就绪日志出第五计数）；
+- **去重键** = 链 `ChainId` / 触发定义 `TriggerTag` / 状态定义 `DefTag` / 修正器模板 `TemplateTag` / 技能定义 `DefTag`（各自与资产身份同键）——同一键的两个资产 = 内容冲突，MUST 拒绝后一个并入失败清单（口径同链的"重复登记"，不静默覆写）；
+- **GC 引用收集（2026-10-04 新增，必需；2026-10-05 边界澄清）**：本类 MUST 覆写 `AddReferencedObjects` 并逐条走**四份非 `UPROPERTY` 缓存**（`ChainDefs` / `TriggerDefs` / `StateDefs` / `SkillDefContent`）——它们都是本类的**非 `UPROPERTY` 成员**，GC 的 `RefLink` 遍历**走不到它们**，
   而缓存内容的 `FInstancedStruct` 内层可放宿主自定义 struct 的 `UPROPERTY` 对象引用（D4-16 类型不设限）⇒ 不补引用即**静默回收**。判据是"**容器是否 GC 可见**"，与"值语义还是指针语义"无关（同款先例 = `FTcsTriggerRegistry::AddReferencedObjects`）。
   **修正器模板缓存不在此列（MUST 记录理由）**：`AttrModDefs` 缓存的是**资产对象本身**，MUST 照既有两容器模式锚定——`UPROPERTY` 的 `TArray<TObjectPtr<UTcsAttrModDef>>` 保活（同 `StateDefAssets` 的形状），tag→资产 的索引 `TMap` 为非 `UPROPERTY`（它指向的对象已由该数组锚定）。
   故本函数**无需**为它补引用。**这正是"判据 = 容器是否 GC 可见"的应用**：同一类里两种容器、两种处理，不是因为类型不同，而是因为可见性不同。
@@ -141,3 +147,13 @@
 
 - **WHEN** 某 `UTcsAttrModDef` 资产的 `TemplateTag` 无效（空 tag）
 - **THEN** 该资产计入失败清单并被跳过（它无法构成 `[PrimaryAssetType, TemplateTag]` 身份，也无从按 tag 寻址）；其余资产仍可用
+
+#### Scenario: 技能定义按身份被发现与解析
+
+- **WHEN** 内容目录首次出现一个 `UTcsSkillDef` 资产（`DefTag` 有效），GameInstance 初始化后检查
+- **THEN** 发现路径扫到它、`ResolveSkillDef(DefTag)` 返回该资产的内容、就绪日志含技能定义计数；且该资产**不产生**任何每世界登记（触发行数与状态门面定义数不因它变化）
+
+#### Scenario: 技能定义的四类失败进失败清单
+
+- **WHEN** 技能定义资产的 `DefTag` 无效，或两个资产的 `DefTag` 相同，或资产加载失败 / 类型不符
+- **THEN** 该资产被跳过并计入失败清单（含路径与原因）、不被缓存、其余资产仍可用；MUST NOT 出现 Error / ensure（发现期只判身份，不判内容）
