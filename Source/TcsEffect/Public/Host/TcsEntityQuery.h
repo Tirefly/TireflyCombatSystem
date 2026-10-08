@@ -22,10 +22,10 @@ class UTcsEntityQuery : public UInterface
  * 实体查询契约（机制层定义、宿主实现，D4-14 / 04 §2.1 / 10 §2.3）：TcsEffect 不持任何"世界有哪些
  * 战斗实体"的知识——遍历、定位、存活都是宿主本体论，由宿主/上层经本接口注入。
  *
- * **一切以实体身份句柄（`FTcsCombatEntityHandle`）为准**（三支能力见下）：链与流程只流动句柄，
+ * **一切以实体身份句柄（`FTcsCombatEntityHandle`）为准**（四支能力见下）：链与流程只流动句柄，
  * **MUST NOT 依赖 Actor**——无 Actor 的实体（未来 Mass）因此天然可被表达（06 §33"Mass 适配核心零改动"
  * 的前提）。**句柄 → Actor 的映射归宿主**（谁注册实体谁掌握映射）；机制层需要定位时问 `GetLocation`，
- * 需要存活时问 `IsAlive`，不自行持有 Actor 生命周期引用。
+ * 需要存活时问 `IsAlive`，需要"能不能在它身上操作"时问 `IsEntityReady`，不自行持有 Actor 生命周期引用。
  *
  * 哪些东西算战斗实体（单位 / 场景物 / 陷阱）由宿主实现决定——框架不裁决。
  *
@@ -59,10 +59,36 @@ public:
 	/**
 	 * 存活判定（**宿主本体论**：死亡规则归宿主——框架不认识"存活"）。
 	 *
+	 * **与 `IsEntityReady` 是正交轴，MUST NOT 互相代替**：本问答"**宿主认为它活着吗**"
+	 * （死亡触发的被动、复活技能应当为 `false` 但**可放**）；后者答"**框架能不能在它身上操作**"
+	 * （待销毁的尸体应当为 `false`）。两者都不随时间改变，故 MUST NOT 合并。
+	 *
 	 * @param Entity 实体句柄。
 	 * @return 返回实体是否存活（未知句柄返回 false）。
 	 */
 	virtual bool IsAlive(FTcsCombatEntityHandle Entity) = 0;
+
+	/**
+	 * 可操作性判定（**R6 追加，Q-11 裁定**）：框架能不能在这个实体上操作——技能门禁第一道的判据。
+	 *
+	 * **为什么需要它而不是用 `IsAlive`**（三条实测依据）：
+	 * ① `IsAlive` 的 PIE 实现是"**映射里还有这个句柄**"（`TcsPieEntityQuery.cpp:71`）而**不是"活着"**，
+	 *    其类注释自认"框架不认识死亡" ⇒ 拿它当门禁会**双向误判**（死亡触发的被动 / 复活技能被误杀；
+	 *    待销毁尸体被误放）；
+	 * ② 设计 `06-module-integration.md` §4 指定的门禁第一道原词就是"实体状态 **Ready**"，
+	 *    而持有该状态机的 `UCombatWorldRegistrySubsystem` **属 R7、今天不存在** ⇒ R6 必须有替身，
+	 *    本方法与设计 1:1 对应；
+	 * ③ 加方法的破坏面为零（全仓实现仅 1 个、`IsAlive` 调用点为 0）。
+	 *
+	 * **⚠ R7 转发纪律（两处都要写，缺一即失效）**：世界注册表（`GetEntityState`）落地后，
+	 * 本方法 **MUST 改为 `GetEntityState(handle) == Ready` 的转发**，**MUST NOT** 成为与状态机并列的
+	 * **第二真相**。落点 = ① 本注释（就近）；② `LEDGER-deferred` 的 R7 区段（远侧兜底，
+	 * 已于 2026-10-08 落成）。
+	 *
+	 * @param Entity 实体句柄。
+	 * @return 返回实体当前是否可操作（未知句柄返回 false）。
+	 */
+	virtual bool IsEntityReady(FTcsCombatEntityHandle Entity) = 0;
 
 #pragma endregion
 };

@@ -26,9 +26,9 @@ class AActor;
  * `Two headers with the same name is not allowed`——UHT 要求全项目头文件名唯一，与模块无关）。
  * 故本文件 = `TcsPieEntityQuery.h`、类 = `UTcsPieEntityQuery`。
  *
- * 职责（`ITcsEntityQuery` 三支能力，全部以**句柄**为参数——机制层不认识 Actor）：
+ * 职责（`ITcsEntityQuery` 四支能力，全部以**句柄**为参数——机制层不认识 Actor）：
  * - `EnumerateEntities`：遍历带 `UTcsCombatEntityComponent` 的 Actor 并吐句柄（**稳定序 = 注册序**）；
- * - `GetLocation` / `IsAlive`：经本类持有的映射解析（组件注册时登记、注销时移除）。
+ * - `GetLocation` / `IsAlive` / `IsEntityReady`：经本类持有的映射解析（组件注册时登记、注销时移除）。
  *
  * **映射归属纪律**：句柄由属性门面（`UTcsAttributeSubsystem::RegisterUnit`）发号，本类只记
  * "句柄 → Actor"的对应关系。机制层（TcsEffect/TcsTargeting/TcsDamage）MUST NOT 依赖本映射；
@@ -87,6 +87,16 @@ public:
 
 	// 存活判定（宿主本体论：本实现 = "组件仍注册且 Actor 有效"）
 	virtual bool IsAlive(FTcsCombatEntityHandle Entity) override;
+
+	/**
+	 * 可操作性判定（**PIE 简化实现**）。
+	 *
+	 * **⚠ 本实现与 `IsAlive` 重合，真项目 MUST 分开覆写**：PIE 环境里"能操作"与"还活着"恰好同解
+	 * （句柄在映射里且 Actor 有效），故此处直接复用同一判据；但两者是**正交轴**——
+	 * 真实项目里"死亡但可操作"（复活技能 / 死亡触发的被动）与"存活但不可操作"（待销毁尸体）
+	 * 都必须能被表达，那时 MUST 用项目自己的实体状态机覆写本方法。
+	 */
+	virtual bool IsEntityReady(FTcsCombatEntityHandle Entity) override;
 
 #pragma endregion
 

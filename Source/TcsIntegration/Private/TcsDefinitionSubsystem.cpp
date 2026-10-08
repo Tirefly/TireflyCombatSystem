@@ -9,6 +9,7 @@
 #include "Chain/TcsEffectChain.h"
 #include "Chain/TcsEffectChainDef.h"
 #include "Def/TcsBuffDef.h"
+#include "Def/TcsSkillDefData.h"
 #include "Engine/World.h"
 #include "Engine/GameInstance.h"
 #include "Trigger/TcsEffectTriggerDefAsset.h"
@@ -16,6 +17,7 @@
 
 #include "TcsEffectSubsystem.h"
 #include "TcsIntegrationLogChannel.h"
+#include "TcsSkillSubsystem.h"
 #include "TcsStateSubsystem.h"
 
 
@@ -150,8 +152,8 @@ void UTcsDefinitionSubsystem::DiscoverChainDefs()
 
 void UTcsDefinitionSubsystem::SeedWorld(UWorld* World)
 {
-	// 无内容即返回的判据 = 三类定义**全空**（状态定义也算内容——只装状态定义的世界同样要装配）
-	if (!World || (ChainDefs.Num() == 0 && TriggerDefs.Num() == 0 && StateDefs.Num() == 0))
+	// 无内容即返回的判据 = 四类定义**全空**（状态/技能定义也算内容——只装它们的世界同样要装配）
+	if (!World || (ChainDefs.Num() == 0 && TriggerDefs.Num() == 0 && StateDefs.Num() == 0 && SkillDefs.Num() == 0))
 	{
 		return;
 	}
@@ -172,6 +174,11 @@ void UTcsDefinitionSubsystem::SeedWorld(UWorld* World)
 	// 状态门面（R5 Task 2）：状态定义逐世界登记进它。存在性由世界子系统机制保证
 	// （与 EffectSubsystem 同批实例化），故此处不做门禁——但取不到就静默跳过该批（非游戏世界）
 	UTcsStateSubsystem* StateSubsystem = World->GetSubsystem<UTcsStateSubsystem>();
+
+	// 技能门面（R6 Task 2）：技能定义逐世界登记进它（**改判**——Task 1 时"只进缓存"的前提是
+	// 运行期消费者为零，而账本正是那个消费者：它的读取面全都要定义内容，且 TcsSkill 不能反向
+	// 依赖本类（成环）⇒ 定义 MUST 经登记口单向写进门面）
+	UTcsSkillSubsystem* SkillSubsystem = World->GetSubsystem<UTcsSkillSubsystem>();
 
 	int32 Registered = 0;
 	for (const TPair<FGameplayTag, TUniquePtr<FTcsEffectChain>>& Pair : ChainDefs)
@@ -229,12 +236,29 @@ void UTcsDefinitionSubsystem::SeedWorld(UWorld* World)
 		}
 	}
 
+	// 技能定义 → 该世界的技能门面（**排在链 / 触发行 / 状态定义之后**——与状态定义同档：
+	// 顺序只要求"不早于消费方存在"，技能定义与链/触发行/状态定义之间无引用关系）。
+	// **不与本类共享生命周期**：门面按值拷一份，故本类缓存被清（世界切换 / 反初始化）
+	// 不会让门面手里的定义悬空。
+	// 身份取自缓存键（= 资产侧 `UTcsSkillDef::DefTag`）——身份归资产，内容归数据 struct。
+	int32 RegisteredSkillDefs = 0;
+	if (SkillSubsystem)
+	{
+		for (const TPair<FGameplayTag, TUniquePtr<FTcsSkillDefData>>& Pair : SkillDefs)
+		{
+			if (Pair.Value.IsValid() && SkillSubsystem->RegisterSkillDef(Pair.Key, *Pair.Value))
+			{
+				++RegisteredSkillDefs;
+			}
+		}
+	}
+
 	SeededWorld = World;
 
 	UE_LOG(LogTcsIntegration, Log,
-		TEXT("UTcsDefinitionSubsystem: 已装配到世界 %s——链定义 %d/%d 条，触发行 %d/%d 条，状态定义 %d/%d 条"),
+		TEXT("UTcsDefinitionSubsystem: 已装配到世界 %s——链定义 %d/%d 条，触发行 %d/%d 条，状态定义 %d/%d 条，技能定义 %d/%d 条"),
 		*World->GetName(), Registered, ChainDefs.Num(), RegisteredRows, TriggerDefs.Num(),
-		RegisteredStateDefs, StateDefs.Num());
+		RegisteredStateDefs, StateDefs.Num(), RegisteredSkillDefs, SkillDefs.Num());
 }
 
 void UTcsDefinitionSubsystem::HandlePostWorldInitialization(UWorld* World, const UWorld::InitializationValues IVS)

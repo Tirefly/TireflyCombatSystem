@@ -74,3 +74,12 @@ bool UTcsPieEntityQuery::IsAlive(FTcsCombatEntityHandle Entity)
 	const TWeakObjectPtr<AActor>* Found = EntityToActor.Find(Entity);
 	return Found && Found->IsValid();
 }
+
+bool UTcsPieEntityQuery::IsEntityReady(FTcsCombatEntityHandle Entity)
+{
+	// **PIE 简化**：此处"能操作"与"还活着"同解（句柄在映射里且 Actor 有效），故复用同一判据。
+	// 但两者是正交轴——真项目 MUST 分开覆写：死亡触发的被动 / 复活技能应 IsAlive == false 而可放，
+	// 待销毁尸体应 IsAlive == true 而不可放。MUST NOT 因为此处重合就把两个方法合并
+	// （`ITcsEntityQuery` 的契约注释已写明正交性，`IsAlive` 属不许删名单）。
+	return IsAlive(Entity);
+}
