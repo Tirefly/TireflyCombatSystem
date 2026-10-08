@@ -95,6 +95,30 @@ bool FSkillBucket::IsValidHandle(const FTcsSkillEntryHandle& Handle) const
 	return Find(Handle) != nullptr;
 }
 
+FTcsLearnedSkillEntry* FSkillBucket::FindByDefTag(FGameplayTag DefTag)
+{
+	return const_cast<FTcsLearnedSkillEntry*>(static_cast<const FSkillBucket*>(this)->FindByDefTag(DefTag));
+}
+
+const FTcsLearnedSkillEntry* FSkillBucket::FindByDefTag(FGameplayTag DefTag) const
+{
+	// "同一单位会同一个技能"至多一条（授予路径按 `DefTag` 刷新而非新建）⇒ 先命中即唯一
+	for (int32 SlotIndex = 0; SlotIndex < SlotGenerations.Num(); ++SlotIndex)
+	{
+		if ((SlotGenerations[SlotIndex] & 1u) == 0u)
+		{
+			continue;
+		}
+
+		if (Entries[SlotIndex].DefTag == DefTag)
+		{
+			return &Entries[SlotIndex];
+		}
+	}
+
+	return nullptr;
+}
+
 void FSkillBucket::ForEach(TFunctionRef<bool(const FTcsLearnedSkillEntry&)> Visitor) const
 {
 	for (int32 SlotIndex = 0; SlotIndex < SlotGenerations.Num(); ++SlotIndex)

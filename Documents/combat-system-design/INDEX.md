@@ -4,7 +4,7 @@
 - **类型**：治理（入口索引）
 - **状态**：生效中（2026-09-29 建立，取代原 `README.md` 的"文档清单"职能）
 - **权威范围**：本文回答"**该读哪一篇**"。编号含义见 `GLOSSARY.md`；写法纪律见 `docs-convention.md`；逐条拍板流水见 `LOG-DECISIONS`。
-- **最后更新**：2026-10-08（**R6 Task 2 已落地、取证并归档**：已学技能账本（`TcsSkillRegistry` / `TcsSkillOps`）+ 技能定义逐世界登记口 + 账本参数读取面 + 门禁第一道 `IsEntityReady`；**三轮取证**，第三轮 `SkillDef.Run` 17/0 + `Registry.Run` 17/0 + `Gate` 4/0 + `Reject` 7/0 = **45 PASS / 0 FAIL**；提案 `add-skill-registry` → 归档 `2026-10-08-add-skill-registry`（**+4 新增 / ~2 修改 / -0 删除**），`openspec/changes/` **零活动提案**、**能力数 35 → 36**（新增 `skill-registry`），`openspec validate --all --strict` = **36 passed / 0 failed**；台账 **71 条**（`LEDGER-deferred` **64** + `LEDGER-reflection` **7**）、`Probe` 段位漂移仍挂 `TOOLS-8`（**归后续轮，MUST NOT 在 R6 内修**）；下一步 = **Task 3（施法运行态与六道门禁）**，此前 **L-3 / L-2 / L-6 / L-5 四项悬置决策已全部裁定并写入计划**）
+- **最后更新**：2026-10-08（**R6 Task 3 已落地、取证并归档**：施法运行态 `FTcsCastRun` 池 + 六道具名门禁 `TryActivate` + 激活期参数快照 + 主链起链 + 施法事件四枚，**同批并入删除**技能侧 `AttrCapture` 整套（判据 = 零消费者 + 机制重叠 + 技能侧已被参数快照占满；**连带不建** `FTcsSkillAttributeAccess`）。**★ 取证方式发生关键转变：由 agent 自主无头完成**（`UnrealEditor-Cmd -game`，此前四轮误判为"必须用户手动跑 PIE"）——`Run` **26 PASS / 0 FAIL** + `Reject` **10 PASS / 0 FAIL**，**零 ensure / 零 Fatal**、`Run` 段零红字、**两轮复现性达标**，且 `C15`（ARO 保活）**带决定性阴性对照**（关 ARO ⇒ 24/2、读数 `存活=否`；开 ⇒ 26/0）。提案 `add-cast-run-and-gates` → 归档 `2026-10-09-add-cast-run-and-gates`（**+5 新增 / ~3 修改 / -0 删除**），**能力数 36 → 37**（新增 `skill-cast-runtime`），`openspec/changes/` **零活动提案**、`validate --all --strict` = **37 passed / 0 failed**。台账 **72 条**（`LEDGER-deferred` **65** + `LEDGER-reflection` **7**；Task 3 首轮取证期新增 `WAIT-12` = 实体查询注入点分散在两处门面，**待用户裁决**）、`Probe` 段位漂移仍挂 `TOOLS-8`（**归后续轮，MUST NOT 在 R6 内修**）；下一步 = **Task 4（参数链带式折叠）**，此前 **L-3 / L-2 / L-6 / L-5 四项悬置决策已全部裁定并写入计划**）
 
 ---
 
@@ -38,7 +38,7 @@ TCS 战斗系统设计已完成 **M0–M9 全部决策拍板**，实施 **R4 轮
 | **了解系统全貌** | `SPEC-00-core`～`SPEC-10-presentation`（11 篇模块规格） | 一篇一个模块，统一模板：模块边界 / 类型词汇 / 入口服务 / 网络姿态 / 非目标 / 依据 / 验收钩子。**注意编号 ≠ 文件序**：`SPEC-09` 主题词是 `editor`（文件 `spec/08-…`） |
 | **只想知道某个模块对外是什么** | 该模块 `SPEC` 的 §1 模块边界 + §2 类型词汇 | — |
 | **想知道"当初为什么这么定"** | `GLOSSARY.md` 查到决策编号 → 按 §4 的落点进对应 `LOG-xx` / `DEC-xx` | 决策理由只住决策文档，不住规格 |
-| **要知道哪些事还没做** | `LEDGER-deferred`（跨轮遗留台账，64 条） | 唯一待办登记册；按轮次分组 |
+| **要知道哪些事还没做** | `LEDGER-deferred`（跨轮遗留台账，65 条） | 唯一待办登记册；按轮次分组 |
 | **要知道某能力现在到底通没通** | `SPEC-TRACE`（契约追踪矩阵）+ `EVID-*`（证据） | 矩阵区分"静态实现 / glue / PIE 已验证 / 未验证" |
 | **要接着干活（实施）** | `PLN-R5`（**R5 已收束**；含《R5–R8 轮次路线图》+《R5.5 批次表》） | 已完成轮次的计划：`PLN-R3-1`、`PLN-R3-2`、`PLN-R4`（**R4 已完成**，保留《R4.5 批次表》）。**Task 1–5 已落地**（各自提案已归档）；**Task 6 两半（6a / 6b）已于 2026-10-05 全部落地并归档**（即时 65/0 + 延迟 72/0 + `.Reject` 11/0，两连 PIE）；**Task 7（端到端验收 + 首批真内容资产）已于 2026-10-05 落地**（`Tcs.Test.State.Run` 两轮各 15/0、`.Reject` 7/0；回归 65/0 + 72/0 + 11/0 **逐字不变**；`AttrModDef` 根 10 → 11）；**Task 8 收束已完成**：设计文档 / `SPEC-TRACE` / 台账 / 两册日志 / `INDEX` 五面回写 + **提案 `verify-state-layer-e2e` 已归档为 `changes/archive/2026-10-06-verify-state-layer-e2e/`**（**归档日为 10-06 机器日期，非计划预写的 10-05**，已就地留痕）+ 两处 `## Purpose` 手工补正 ⇒ `openspec/changes/` **零活动提案**、`openspec validate --all --strict` = **34 passed / 0 failed**、能力数 33 → **34**；**下一步 = R6（M5 技能层 `TcsSkill`）** |
 | **写涉及"反射"字样的文本** | `LEDGER-terminology`（**MUST 先通读**） | 该词在本仓承载 5 种含义，有唯一处方措辞 |
@@ -74,7 +74,7 @@ combat-system-design/
 
 | 层 | 载体 | 管什么 | 冲突时 |
 |---|---|---|---|
-| **可执行需求** | `openspec/specs/<能力>/spec.md`（**36 条能力规格**） | MUST / Scenario——代码必须满足的行为 | **规格优先**（它进 `openspec validate --strict`） |
+| **可执行需求** | `openspec/specs/<能力>/spec.md`（**37 条能力规格**） | MUST / Scenario——代码必须满足的行为 | **规格优先**（它进 `openspec validate --strict`） |
 | **设计意图** | 本工作区 `SPEC-*` / `DEC-*` / `LOG-*` | 为什么这么设计、边界在哪、否决了什么 | 规格未覆盖处以此为准 |
 | **项目约定** | `openspec/project.md` | 命名标准、依赖铁律、测试策略、过网结构纪律 | 全局约定优先 |
 
@@ -157,7 +157,7 @@ combat-system-design/
 
 | ID | 内容 | 规模 |
 |---|---|---|
-| `LEDGER-deferred` | 跨轮遗留输入台账（**唯一待办登记册**）：按轮次分组的 64 条 + 变更记录 | 64 条 |
+| `LEDGER-deferred` | 跨轮遗留输入台账（**唯一待办登记册**）：按轮次分组的 65 条 + 变更记录 | 65 条 |
 | `LEDGER-reflection` | 反射未解决项（`R-1`~`R-7`）+ 逐项专项调研登记册 | 7 项 |
 | `LEDGER-terminology` | 「反射」术语规约（一词五义的唯一处方措辞）——**写含"反射"的文本前 MUST 通读** | — |
 
@@ -196,6 +196,7 @@ combat-system-design/
 | `EVID-2026-10-06-trigger-host-slots` | **R6 Task 0 验收（`R-2` 宿主脚本插槽后段）**：宿主用**纯 C#**（无 C++、无蓝图）定义的两个插槽内容，在**真实原生 GC 之后**仍被保活且**仍被抵达**——条件求值器与载荷读取器各被调用，且**条件取值真的门控了链**（绑 3 行 = 2 行条件过 + 1 行不过 ⇒ **只扣 2 份血**）；"每事件一次"语义在载荷读取侧成立；**两轮**（同会话内各自 `StopPIE → StartPIE`）判定行序列 **17/17 逐字相同**、各 **15 PASS / 0 FAIL**；含区段哈希 + 复算脚本 + 如实边界清单 | R6 Task 0 验收锚点；提案 = `add-trigger-host-slots`（`R-2` 后段，`LEDGER-reflection` 的 `R-2` 就此闭环）。**★ 本行与下行是 2026-10-08 补入的**——两篇证据此前**从未入表**（表停更于 `2026-10-05`，而实际证据已增至 21 篇），补齐时同步订正树计数 |
 | `EVID-2026-10-07-skill-def-asset` | **R6 Task 1 验收（`TcsSkill` 模块 + 技能 Def 资产族 + 第五条发现路径）**：技能定义资产**真被内容目录发现**——第一次 PIE 会话 `0` 条 ⇒ `Prepare` 落盘 ⇒ 重启 PIE 后 **`1` 条**，**`0 → 1` 的唯一变量是磁盘上多了一个 `.uasset`**（构造性证据，非硬编码）；可**按 `DefTag` 解析**、主资产身份 = `[PrimaryAssetType, DefTag]`、**继承白拿的字段与施法语义逐项保真**、合法资产判 **`Valid`**（非 `NotValidated`）、表行往返保真且 **`RowName` ≠ `DefTag`**；作者期校验对**六个配置错误类别逐一拦下**（含"空时段表合法"的反向对照）。**合计 28 PASS / 0 FAIL**（`Run` 17 + `Reject` 11）；含冻结快照 + 区段哈希 + 复算脚本 + **八条边界** + 一处机制表述订正（ensure 的 **"每进程/每调用点"**，非"每会话"） | R6 Task 1 验收锚点；提案 = `add-tcs-skill-module`（已归档 `2026-10-08-add-tcs-skill-module`）；能力数 34 → **35**（新增 `skill-def-asset`）。**★ 本行为 2026-10-08 补入**（此前从未入表） |
 | `EVID-2026-10-08-skill-registry` | **R6 Task 2 验收（已学技能账本 + 定义登记口 + 门禁第一道）**：**三轮取证，判据以第三轮为准** —— 第三轮 `SkillDef.Run` **17/0** + `Registry.Run` **17/0** + `Gate` **4/0** + `Reject` **7/0** = **45 PASS / 0 FAIL**；**关键读点 = 门禁判据的可证伪性**——`UTcsPieEntityQuery` 下 `IsAlive` 与 `IsEntityReady` **必然重合** ⇒ 真实现**分不出**"用了 Ready"与"误用了 Alive"；装置用**发散探针** `UTcsDevSkillGateQuery` 让两问**答案相反**，`G2`（Alive=真/Ready=假 ⇒ **必拒**）与 `G3`（Alive=假/Ready=真 ⇒ **必放**）因此互为反向对照。另：`L2` 用 `CompareScriptStruct` 证明**门面副本与定义库缓存逐字段一致**、`L7` 读到真资产字面量 17、`L10` 等级 `clamp(0, LevelBase + Σ)` 含**负值钳到 0**、`L14` 代际推进且旧句柄被拒。**★ 三轮结构**：第一轮（修复前）核对读数时抓到**两处缺陷**——`R2` **名不副实**（tag 未在 ini 声明 ⇒ 返回空 tag ⇒ 与 `R3` 同义）、拒绝面把"调用方错误"误报成"内容缺口"；修复后第二轮**行为级复验**；第三轮**补第二个验收资产**（`DA_SkillDef_E2E_Second`）⇒ **两条受内容规模限制的残留项清账**：`6.5`「按来源级联恰摘 1 条」**按字面实测**（同单位两条不同 `DefTag` ⇒ 读数 **2 → 1**、剩余 = 另一个 `DefTag`）、`6.4-①` 计数跃迁以 **`1 → 2`** 同构复现（唯一变量 = 磁盘多一个 `.uasset`）。**同批修两处"内容脆性"**（`D3`/`L1` 的 `== 1` → `>= 1`：内容条数不是契约）。**意外收获**：用户跑两次 `Prepare` ⇒ **`EVID-2026-10-07-skill-def-asset` §5 边界 4（幂等路径只走了创建半）就此闭合**。含三轮区段哈希 + 复算脚本 + **十九项如实边界**（含"首会话 3 条 FAIL = 天然阴性对照"与"判据放宽后计数精确性不再被验"） | R6 Task 2 验收锚点；提案 = `add-skill-registry`（`skill-registry` ADDED ×4 + `entity-query-contract` MODIFIED + `integration-entity` MODIFIED） |
+| `EVID-2026-10-08-skill-cast-runtime` | **R6 Task 3 验收（施法运行态 + 六道具名门禁 + 事件四枚）**：`Run` **26 PASS / 0 FAIL** + `Reject` **10 PASS / 0 FAIL**（最终基线 `snapshot-R6Task3-run12.log` / `-reject5.log`），**全日志零 `ensure` / 零 `Fatal`**、`Run` 段**零红字**、**两轮复现性达标**（摘要逐字相同 + 26 项结论零差异）。**★ 决定性阴性对照**：把池的 ARO 遍历临时改为 `if(false)` 并重编 ⇒ `Run` **26/0 → 24/2**、`C15` 读数 **`存活=是` → `存活=否`**（差异恰为 `C15` 两条），还原后复跑回 26/0 ⇒ **证明该检查能真检出 ARO 失效、非恒过假阳性**。**★ 本包最重要的副产品 = 取证方式的转变**：由 **agent 自主无头完成**（`UnrealEditor-Cmd -game`），此前**连续四轮误判为"必须用户关编辑器并手动跑 PIE"**；并沉淀三条配套纪律（Live Coding 只阻断编辑器目标 / 无头取证 MUST 重建它所加载的目标 / `Move-Item` 保留 mtime 会让 UBT 跳过重编）。含五份快照 SHA256 + 复算命令 + **八条如实边界**（门禁只 4 道可拒、无自然终结路径、可打断性只验一档、`-game` 下资产发现为 0 等） | R6 Task 3 验收锚点；提案 = `add-cast-run-and-gates`（`skill-cast-runtime` ADDED ×5 + `skill-registry`/`skill-def-asset`/`instance-handle-pool` 各 MODIFIED） |
 
 ### 4.7 治理（`GOV`）
 

@@ -29,6 +29,7 @@
   3. **流程属性黑板**（容器=`FTcsFlowAttributes`：键+每键修正链+封闭五带运算（同 M2，Custom op 砍除——D2-7；值域策略逃逸走 IValueDomainPolicy 同款形态），M2 语义复用——**折叠统一调用 TcsAttribute 共享带式折叠纯函数（D5-5 v3：M2 属性聚合 / M5 参数链 / 本容器三处共用，勿私建第二份）**，作用域=流程用完即弃）——**伤害计算的工作值**（BaseHitRate/BaseDamage/FinalDamage 等就是临时变量）；内建步骤读写的键名是**标准步骤库的契约**（M8 校验/Explain 认识）——**契约键归框架**（`DamageFlowKey.*` 原生声明，2026-09-22 tag 化），**项目键自由 tag、无注册表**；也是 ModifyFlow 提交的落点。
 - **分类 Tag 集**：来源标签（流程启动时由 Damage 步骤配置写入）+ 元素标签（Element 步骤由 delegate 解析后写入，修改器可改）——修改器匹配键（"受火伤+20%"按 Tag 过滤收集事件）、免疫/减伤候选匹配（"免疫火焰"）、FDamageRecord 记录维度；词表归项目，插件只搬运与匹配。
 - **AttrCapture**：`FDamageFlowConfig.AttrCaptureList{AttrKey, From: Instigator/Target}`——FlowStart 时从 M2 捕获进 CapturedAttrs 快照；属性读默认 Live、捕获命中读快照（**流程内读取一致性**——中途 buff 过期不追溯）；"本次攻击攻击力+10%"双路径：捕获命中→改 CapturedAttrs（随流程消失，零账本污染）／未捕获→FlowSource 临时修正器挂真实账本。
+  - **★ 2026-10-08 技能侧同款半句已废（本行只记技能侧，本行的伤害侧语义不动）**：设计曾另有**技能侧**的 `CastConfig.AttrCaptureList`（`SPEC-04-skill` §2 / D5-12 v2），**该半已整体删除**（三条判据：零消费者 + 与**流程属性黑板** `FTcsFlowAttributes`（作用域 = 流程用完即弃）+ `FlowModify` **机制重叠** + 技能侧已被参数快照占满）。**本行（伤害流程侧）不受影响**：`FTcsDamageFlowContext::CapturedAttrs` 仍归台账 `WAIT-7`，其触发条件（"第一个属性修正型伤害修改器"）**不因此改变**——**MUST NOT** 把技能侧删除读成"`WAIT-7` 已关闭或交付"。落点 = 提案 `add-cast-run-and-gates`。
 - `FlowSource`：**每流程唯一 FSourceHandle——作用域修改器的归属锚点**："本次攻击+X%"类临时修改挂 M2 账本、Source=FlowSource，流程结束 `RemoveBySource` 级联摘除（O(1)，复用 D2-2）；替代文章 CopyOnWrite（零拷贝）。
 
 ### 2.2 流程模板：标准步骤库 + 官方默认模板（D7-5）

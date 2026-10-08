@@ -2,8 +2,35 @@
 
 #include "TcsSkillSubsystem.h"
 
+#include "Skill/TcsCastOps.h"
 #include "Skill/TcsSkillOps.h"
 #include "TcsSkillLogChannel.h"
+
+
+
+// 激活（薄壳：门禁裁决与运行态全部住 FTcsCastOps——设计文档 §3.1 的既定分工）
+ESkillActivateResult UTcsSkillSubsystem::TryActivate(
+	FTcsCombatEntityHandle Unit,
+	FGameplayTag DefTag,
+	FTcsCastRunHandle* OutRun)
+{
+	return FTcsCastOps::Activate(*this, Unit, DefTag, OutRun);
+}
+
+bool UTcsSkillSubsystem::TerminateCastRun(FTcsCastRunHandle RunHandle)
+{
+	return FTcsCastOps::TerminateRun(*this, RunHandle);
+}
+
+const FTcsCastRun* UTcsSkillSubsystem::GetCastRun(FTcsCastRunHandle RunHandle) const
+{
+	return FTcsCastOps::Find(*const_cast<UTcsSkillSubsystem*>(this), RunHandle);
+}
+
+int32 UTcsSkillSubsystem::GetCastRunCount() const
+{
+	return FTcsCastOps::CountRuns(*const_cast<UTcsSkillSubsystem*>(this));
+}
 
 
 

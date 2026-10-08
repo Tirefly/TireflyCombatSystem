@@ -3,27 +3,34 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Pool/TcsInstancePool.h"
 #include "Subsystems/WorldSubsystem.h"
 
 #include "Handle/TcsCombatEntityHandle.h"
 #include "Handle/TcsSourceHandle.h"
 #include "Host/TcsEntityQuery.h"
 
+#include "Def/TcsSkillActivateResult.h"
 #include "Def/TcsSkillDefData.h"
+#include "Skill/TcsCastRun.h"
+#include "Skill/TcsCastRunHandle.h"
 #include "Skill/TcsSkillEntryHandle.h"
 #include "Skill/TcsSkillRegistry.h"
 
 #include "TcsSkillSubsystem.generated.h"
+
+class UTcsEventBusSubsystem;
 
 
 
 /**
  * 技能门面（M5 技能层唯一入口）：世界级子系统，持**per-unit 已学技能账本**与**本世界的技能定义登记表**。
  *
- * 分工：本类 = 门面（世界过滤 / 定义登记 / 授予与撤销 / 账本读取面 / 门禁第一道的判据持有）；
- * `FTcsSkillRegistry` = 登记表（per-unit 桶 + 槽位代际）；**`FTcsSkillOps` = 引擎函数**
- * （授予 / 撤销 / 按来源级联 / 解析 / 读取的流程逻辑）——**桶只存数据与索引，操作全在引擎函数**，
- * 这是设计文档 §3.1 的既定分工，同 `UTcsStateSubsystem` / `FTcsStateOps` 的处置。
+ * 分工：本类 = 门面（世界过滤 / 定义登记 / 授予与撤销 / 账本读取面 / 门禁第一道的判据持有 / 激活入口）；
+ * `FTcsSkillRegistry` = 账本登记表（per-unit 桶 + 槽位代际）；`TTcsInstancePool` = 施法运行态池；
+ * **`FTcsSkillOps` = 账本引擎函数**（授予 / 撤销 / 按来源级联 / 解析 / 读取的流程逻辑）、
+ * **`FTcsCastOps` = 施法引擎函数**（六道门禁裁决 / 运行态建与终结 / 快照构建 / 起链 / 广播）——
+ * **桶只存数据与索引，操作全在引擎函数**，这是设计文档 §3.1 的既定分工，同 `UTcsStateSubsystem` 的处置。
  * 本类的同名方法因此都是**薄壳**（一行转发），保证门面签名稳定而流程改动不碰 UE 生命周期样板。
  *
  * 非 Tickable：账本无时间语义（冷却归 `R6.5`）。
@@ -63,15 +70,21 @@ public:
 	virtual void Deinitialize() override;
 
 	/**
-	 * GC 引用收集（**技能定义登记表的 GC 可见持有**）。
+	 * GC 引用收集（**技能定义登记表 + 施法运行态池的 GC 可见持有**）。
 	 *
-	 * 为什么必须自己实现：`RegisteredDefs` 是 `TMap<FGameplayTag, TUniquePtr<FTcsSkillDefData>>`——
-	 * 本类的**非 `UPROPERTY` 成员**，GC 的 `RefLink` 遍历**走不到它**；而定义内容里有
-	 * `FInstancedStruct`（`CastQueryFragment` / 参数行的数值来源 / 内联触发行），其**内层内存可以放
-	 * 宿主自定义 struct 的 `UPROPERTY` 对象引用** ⇒ 不补引用即**静默回收**
-	 * （表现为"参数行/查询片段里那个对象变成空引用"，不是崩溃）。
+	 * 为什么必须自己实现（**两处非 UPROPERTY 容器**）：
+	 * ① `RegisteredDefs` 是 `TMap<FGameplayTag, TUniquePtr<FTcsSkillDefData>>`；
+	 * ② `CastRuns` 是 `TTcsInstancePool`（元素住 `TArray`）——
+	 * 本类的**非 `UPROPERTY` 成员**，GC 的 `RefLink` 遍历**走不到它们**；而两者的内容里都有
+	 * `FInstancedStruct`（定义的 `CastQueryFragment` / 参数行的数值来源；运行态的参数快照条目
+	 * `SourceRef`），其**内层内存可以放宿主自定义 struct 的 `UPROPERTY` 对象引用** ⇒ 不补引用即
+	 * **静默回收**（表现为"参数行/查询片段/快照来源里那个对象变成空引用"，不是崩溃）。
 	 *
 	 * **判据是"容器是否 GC 可见"，与"值语义还是指针语义"无关**——与 `UTcsStateSubsystem` 同款。
+	 * **手法差异（MUST 守）**：定义侧走 `AddPropertyReferencesWithStructARO`（`FTcsSkillDefData`
+	 * **是**反射结构体，有 `StaticStruct()`）；快照侧 MUST 逐条走
+	 * `FInstancedStruct::AddStructReferencedObjects`（`FTcsParamSnapshotEntry` **不是**反射结构体，
+	 * 没有 `StaticStruct()` 可给）——与状态门面对实例快照的处置逐字同款。
 	 *
 	 * **账本条目（`FTcsLearnedSkillEntry`）不在本函数范围内**：它按纪律 MUST NOT 持任何 `UObject` 引用
 	 * （见 `TcsSkillRegistry.h`），故无需补引用。
@@ -228,6 +241,84 @@ public:
 #pragma endregion
 
 
+// 施法运行态的 GC 遍历口
+#pragma region CastRunGC
+
+public:
+	/**
+	 * GC 引用收集专用：遍历在册施法运行态。
+	 *
+	 * **⚠ 为什么不能直接用 `CastRuns.ForEach`（2026-08-10 首轮 PIE 实测暴露的真实缺陷）**：
+	 * `TTcsInstancePool` 的**每一个**进入点（含 `ForEach` / `Resolve` / `IsValid`）都无条件
+	 * `ensure(IsInGameThread())`（`TcsInstancePool.h:29/54/69/91/109`），而**GC 的引用收集不在游戏线程上**
+	 * （实测 callstack：`FRealtimeGC::CollectReferencesForGC` → `AddReferencedObjects` → `ForEach`
+	 * ⇒ 每次 GC 都留一条 `Ensure condition failed: IsInGameThread()` 红字，**与池空不空无关**）。
+	 * ⇒ ARO 内 MUST NOT 走池的公开进入点。
+	 *
+	 * **本函数因此只做"读连续缓冲"这一件事**：按 `Generations` 的奇偶跳过空闲槽
+	 * （与池的 `ForEach` **同一判据**，只是**不带线程断言**），并对每个在册槽回调。
+	 * **MUST NOT** 在此做任何改状态的事（GC 期改状态是另一类错误）——纯读。
+	 *
+	 * @param Visitor 访问者（只读运行态）。
+	 */
+	void ForEachCastRunForGC(TFunctionRef<void(const FTcsCastRun&)> Visitor) const;
+
+#pragma endregion
+
+
+// 激活
+#pragma region Activate
+
+public:
+	/**
+	 * 尝试激活一个已学技能——六道**具名**门禁（`SAR_*`）+ 建运行态 + 建快照 + 起主链 + 发 `OnCastStarted`。
+	 *
+	 * **门禁序**：实体 Ready → 已学 → 冷却（`R6.5` 占位）→ Instancing 四路分流 → CanAfford（`R6.5` 占位）
+	 * → 定义可解析。**每道具名返回**（修 TCS 报告 09 的门禁内联缺陷）。
+	 *
+	 * **为什么 MUST NOT 收"施法上下文"形参**（设计 §4 的 `Context`）：本 Task **无消费者**——
+	 * 链侧 `SelectTargets` 自填目标集、`Instigator` 缺省 = 施法者。收一个无人填的形参即
+	 * **"零消费者预建"**；归属 = 出现"宿主指定目标集施法"的真实消费者时。
+	 *
+	 * **无反射面**：形参含未反射化句柄（本轮不加 `UFUNCTION`——施法面的脚本读写面归台账 `SCRIPT-10`）。
+	 *
+	 * @param Unit 施法单位。
+	 * @param DefTag 技能定义身份。
+	 * @param OutRun 输出运行态句柄（可选；失败时不写）。
+	 * @return 返回激活结果（具名）。
+	 */
+	ESkillActivateResult TryActivate(
+		FTcsCombatEntityHandle Unit,
+		FGameplayTag DefTag,
+		FTcsCastRunHandle* OutRun = nullptr);
+
+	/**
+	 * 终结一个施法运行态（发 `OnCastInterrupted` + 摘账本句柄 + 归还池槽位 + 按来源回收链挂条目）。
+	 *
+	 * **Task 3 的唯一内建调用者是顶替路径**；打断与自然完成归 Task 5——三条终结点届时
+	 * MUST 汇聚到同一例程（台账 `CHAIN-7` 的落点纪律）。
+	 *
+	 * @param RunHandle 运行态句柄。
+	 * @return 返回是否确实终结了一个在册运行态。
+	 */
+	bool TerminateCastRun(FTcsCastRunHandle RunHandle);
+
+	/**
+	 * 按句柄取施法运行态（悬空句柄返回 nullptr 且不 ensure——时序竞态是正常路径）。
+	 *
+	 * **无反射面**：返回裸 struct 指针（UHT 表达不了）。
+	 *
+	 * @param RunHandle 运行态句柄。
+	 * @return 返回运行态；悬空句柄返回 nullptr。
+	 */
+	const FTcsCastRun* GetCastRun(FTcsCastRunHandle RunHandle) const;
+
+	// 在册施法运行态数（观测与装置断言用；**验收读数取它**，MUST NOT 取"TryActivate 被调用几次"）
+	int32 GetCastRunCount() const;
+
+#pragma endregion
+
+
 // 账本参数读取面
 #pragma region ParamRead
 
@@ -322,6 +413,15 @@ public:
 	}
 
 	/**
+	 * 取事件总线（施法事件广播用；世界拆解期返回 `nullptr`——**非确保**，调用方按丢弃处理）。
+	 *
+	 * 同款先例 = `UTcsStateSubsystem::GetEventBus`（状态门面为广播状态事件而持的同一读口）。
+	 *
+	 * @return 返回总线；世界无该子系统时返回 nullptr。
+	 */
+	UTcsEventBusSubsystem* GetEventBus() const;
+
+	/**
 	 * 门禁第一道：实体是否可操作。
 	 *
 	 * **判据来源 = 注入的 `ITcsEntityQuery::IsEntityReady`**，**MUST NOT** 用 `IsAlive` 代替——
@@ -347,15 +447,27 @@ public:
 
 private:
 	/**
-	 * 引擎函数（`FTcsSkillOps`）需要读写下面三个成员——故开放**最小集**（friend 类不给访问域继承：
-	 * 引擎函数访问这些成员靠的是 friend 声明，而非把它们放到 public）。门面只做世界过滤与登记口，
-	 * 授予 / 撤销 / 解析 / 读取的流程逻辑全在引擎函数里（设计文档 §3.1 的既定分工，同
+	 * 引擎函数（`FTcsSkillOps` / `FTcsCastOps`）需要读写下面的成员——故开放**最小集**（friend 类不给
+	 * 访问域继承：引擎函数访问这些成员靠的是 friend 声明，而非把它们放到 public）。门面只做世界过滤、
+	 * 定义登记与注入面，账本与施法的流程逻辑全在引擎函数里（设计文档 §3.1 的既定分工，同
 	 * `UTcsStateSubsystem` 对 `FTcsStateOps` 的处置）。
 	 */
 	friend class FTcsSkillOps;
+	friend class FTcsCastOps;
 
 	// per-unit 已学技能注册表（桶 + 槽位代际）
 	FTcsSkillRegistry Registry;
+
+	/**
+	 * 施法运行态池（一次激活一个实例）。
+	 *
+	 * **元素住 `TArray` ⇒ 扩容即搬移**：调用方 MUST NOT 跨"可能触发池扩容的调用"缓存
+	 * `FTcsCastRun*`（同 `FTcsChainRun` 的持有纪律）。
+	 *
+	 * **GC 纪律**：池是本类的非 `UPROPERTY` 成员，而运行态里的 `ParamSnapshot` 可持对象引用
+	 * ⇒ `AddReferencedObjects` MUST 覆盖它（见该函数注释）。
+	 */
+	TTcsInstancePool<FTcsCastRun, FTcsCastRunTag> CastRuns;
 
 	// 技能定义登记表（键 = DefTag；TUniquePtr 持有使解析返回的指针地址稳定）
 	TMap<FGameplayTag, TUniquePtr<FTcsSkillDefData>> RegisteredDefs;

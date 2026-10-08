@@ -100,6 +100,34 @@ public:
 	}
 
 	/**
+	 * GC 引用收集专用的**只读遍历**（2026-10-08 新增；起因 = 一处真实缺陷）。
+	 *
+	 * **为什么必须有它**：GC 的引用收集**不在游戏线程上**，而本池的**每一个**"正常"进入点
+	 * （`Allocate` / `Free` / `Resolve` / `IsValid` / `ForEach` / `Reset`）都无条件
+	 * `ensure(IsInGameThread())`（D0-4 单游戏线程假设）⇒ **宿主门面在 `AddReferencedObjects` 里
+	 * 遍历本池会每次 GC 留一条红字**（实测：`FRealtimeGC::CollectReferencesForGC` →
+	 * `AddReferencedObjects` → `ForEach` → `Ensure condition failed: IsInGameThread()`，
+	 * **与池空不空无关**，且 `ensure` 每站点每进程只报一次 ⇒ 症状是"偶尔一条红字"，极易被忽略）。
+	 *
+	 * **它 MUST 保持的三条纪律**：① **纯读**——MUST NOT 在此改任何状态（GC 期改状态是另一类错误）；
+	 * ② **判据与 `ForEach` 逐字相同**（按代际奇偶跳过空闲槽、按槽位 Index 升序），MUST NOT 引入
+	 * 第二套"哪些槽在册"的判定；③ **MUST NOT 代替 `ForEach` 被用于常规逻辑**——它**没有**线程断言，
+	 * 拿它做业务遍历等于静默放弃 D0-4 的单线程纪律。**用途只有一个：GC 的 ARO。**
+	 *
+	 * @param Fn 访问者（只读实例）。
+	 */
+	void ForEachForGC(TFunctionRef<void(const TInstanceType&)> Fn) const
+	{
+		for (uint32 SlotIndex = 0; SlotIndex < static_cast<uint32>(Instances.Num()); ++SlotIndex)
+		{
+			if ((Generations[SlotIndex] & 1u) == 1u)
+			{
+				Fn(Instances[SlotIndex]);
+			}
+		}
+	}
+
+	/**
 	 * 重置（宿主子系统 Deinitialize 的确定性清空口，与 FTcsExpiryHeap::Reset 同款纪律）：
 	 * 按"当前已分配槽位数"一次性回落占用统计后清空三数组——旧句柄全部代际失配。
 	 * 不逐槽清理实例内容：**持有外部资源的实例由调用方在 Reset 前自行清理**（与 Free 同款零策略）。

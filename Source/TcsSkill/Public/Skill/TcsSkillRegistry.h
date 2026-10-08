@@ -154,6 +154,24 @@ public:
 	bool IsValidHandle(const FTcsSkillEntryHandle& Handle) const;
 
 	/**
+	 * 按内容身份找条目（**同一单位"会同一个技能"至多一条** ⇒ 命中即唯一，先命中先返回）。
+	 *
+	 * **为什么给这个口**：激活路径拿到的输入是 `(单位, DefTag)` 而不是句柄，而逐个 `ForEach`
+	 * 自己找会把"遍历期间不得增删"的纪律散到每个调用点。本函数只做查找、不改桶。
+	 *
+	 * **返回值是裸指针**：桶内元素地址在**本函数返回后**仍稳定（不涉及增删），但调用方
+	 * MUST NOT 跨"可能增删桶"的调用（如撤销、或广播后重入）缓存它——那类路径下 MUST 重新查找
+	 * （激活路径的顶替分支即如此处理）。
+	 *
+	 * @param DefTag 技能定义身份。
+	 * @return 返回条目指针；无该技能返回 nullptr。
+	 */
+	FTcsLearnedSkillEntry* FindByDefTag(FGameplayTag DefTag);
+
+	// 按内容身份找条目（只读重载；语义同上）
+	const FTcsLearnedSkillEntry* FindByDefTag(FGameplayTag DefTag) const;
+
+	/**
 	 * 遍历在册条目（**按槽位下标升序**——稳定序，同输入同输出是可复现验收的前提）。
 	 * 访问者返回 false 即提前终止。
 	 *

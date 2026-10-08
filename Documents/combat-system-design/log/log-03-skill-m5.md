@@ -45,7 +45,7 @@
 
 | D5-12 | **StateParamSnapshot 终定**（Skill 侧）：FCastRun.ParamSnapshot——activate 时一次性解析全部生效参数（EffectiveLevel/Cost 实值/各时段 Duration/链参数），链与时段读快照；持续修正器 live 通道不受影响；opt-in 实时为唯一例外；收益=预演/可预测/回放输入 | 已拍板 2026-09-02 |
 
-| D5-12 v2 | **双维度快照终定**（Skill 侧）：①参数表 Mode 列——Snapshot(默认)/Live（Live 实时走 Entry 账本求值）；②**AttrCapture 声明列表进 CastConfig**{AttrKey, From: Instigator/Target}——activate 时捕获进 FCastRun.Context.CapturedAttrs；属性读默认 Live、捕获命中读快照；"本次攻击+10%"双路径（捕获→改 Context / 未捕获→FlowSource 临时修正器） | 已拍板 2026-09-02 |
+| D5-12 v2 | **双维度快照终定**（Skill 侧）：①参数表 Mode 列——Snapshot(默认)/Live（Live 实时走 Entry 账本求值）；②**~~AttrCapture 声明列表进 CastConfig~~**{AttrKey, From: Instigator/Target}——~~activate 时捕获进 FCastRun.Context.CapturedAttrs；属性读默认 Live、捕获命中读快照~~；"本次攻击+10%"双路径（~~捕获→改 Context~~ / 未捕获→FlowSource 临时修正器）。**★ 2026-10-08 第 ② 维整体删除（用户裁定，原文保留以记现场）**：该维判定为**零消费者 + 机制重叠 + 技能侧已被参数快照占满**（三条判据见 `SPEC-04-skill` §2 与 `PLN-R6` Task 3 Step 5）；**第 ① 维（参数表 Mode 列）不受影响、继续有效**。**边界**：伤害流程侧的 `CapturedAttrs` 归台账 `WAIT-7`，**不因此改变**。落点 = 提案 `add-cast-run-and-gates` | 已拍板 2026-09-02；**2026-10-08 第 ② 维删除** |
 
 | D5-13 | **实例-定义引用规范终定**：Entry 权威=DefId（+EffectiveDefId）；GetDef() 解析缓存；**FCastRun 执行期零回查 Def**（ParamSnapshot 冻结一切） | 已拍板 2026-09-02 |
 
