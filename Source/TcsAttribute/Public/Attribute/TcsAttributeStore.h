@@ -20,7 +20,7 @@
  */
 struct FTcsAttributeStore
 {
-	// 属性实例表（键 = 属性名；每属性一条，实例自持边界与修正器槽位）
+	// 属性实例表（键 = 属性名；每属性一条，实例自持边界与修正器条目集）
 	TMap<FGameplayTag, FTcsAttributeInstance> Attributes;
 
 	// 冻结暂存区（键 = 属性名；**整条实例进出**——RemoveAttribute 冻结、AddAttribute 解冻优先）

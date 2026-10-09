@@ -8,6 +8,7 @@
 #include "Handle/TcsSourceHandle.h"
 
 #include "Skill/TcsCastRunHandle.h"
+#include "Skill/TcsNumericParamModifier.h"
 #include "Skill/TcsSkillEntryHandle.h"
 
 
@@ -89,6 +90,36 @@ public:
 	 * 本字段此刻存在的理由是**数组元素类型必须完整**——它是 `FTcsCastRunHandle` 在本任务落地的唯一原因。
 	 */
 	TArray<FTcsCastRunHandle> RunHandles;
+
+#pragma endregion
+
+
+// 参数账本
+#pragma region NumericParamModInstances
+
+public:
+	/**
+	 * 参数修正器条目集（D5-19 参数账本；形如 M2 `FTcsAttributeInstance::AttrModInstances`
+	 * 的"每个条目各持一套"）——它是**激活期物化 / 外部施加 / 按来源级联摘除**三者的共同落点。
+	 *
+	 * **命名规则（2026-10-09 立，与 M2 同一条）**：容器字段名 = **元素类型名的复数形式**
+	 * （`FTcsNumericParamModInstance` → `NumericParamModInstances`）。**`Slot` 一词保留给
+	 * "可按下标寻址、可复用、带代际的空位"**——本容器不满足该形状（只有 `.Add` / `.RemoveAll` /
+	 * `.Num()` / 范围遍历），且 `Slot` 在本文件里另有**真**含义（`FSkillBucket` 的
+	 * `AllocateSlot` / `ReleaseSlot` / `SlotGenerations` / `FreeSlots`）⇒ `Slots` 后缀会让
+	 * 同一个词在同一个头文件里指两样东西。本条原为 `ParamSlots`。
+	 *
+	 * **元素类型 = 账本侧 `FTcsNumericParamModInstance`（纯 C++、无对象引用）**：
+	 * 本结构体住桶内的 `TArray`（**非 `UPROPERTY` 容器、元素还是非反射 struct**）⇒ GC 看不见它，
+	 * 故**若**这里换成定义侧的 `FTcsNumericParamModifier`（`Operand` 是可持 `TScriptInterface` 的
+	 * `FTcsParamValue`），那些对象会被**静默回收**（症状 = 参数链里的源变成空引用，不崩溃）。
+	 * 取账本侧形状后，本条**依然**满足下方 GC 纪律（账本 MUST NOT 持 `UObject` 引用），
+	 * 门面 `AddReferencedObjects` **MUST NOT** 为此新增遍历。
+	 *
+	 * **来源成对性**：凡写入本数组的条目 MUST 带 `Source`，且该 `Source` MUST 能被
+	 * `FTcsParamChainOps::RemoveParamModifiersBySource` 摘除（判据 = 不存在"摘不掉的条目"）。
+	 */
+	TArray<FTcsNumericParamModInstance> NumericParamModInstances;
 
 #pragma endregion
 };

@@ -53,8 +53,74 @@ FStateDefBase（抽象，M3 定义：词表/FragmentSet/通用默认参数 Level
 - 施法事件（核心词汇 FStruct）：`OnCastStarted / OnCastPhaseChanged / OnCastCompleted / OnCastInterrupted`。
 
 ### 3.4 参数修正与选择器（D5-5/D5-6/D5-9）
-- **参数双表与修正器两结构**：`FTcsNumericParamModifier{ParamKey, Op: Add/PercentAdd/Mul/FlatAdd/Override（**D5-5 v3：与 M2 同一套五带**；原 `AddPct` 命名与 M2 `PercentAdd` 失步已修；Custom op 砍除 2026-09-02 不变——计算在上游传入终值）, Operand: FTcsParamValue（PV 系列 2026-09-11 换型——Literal/ParamRef/AttributeScaled 等源；**复合运算即参数链**：{Add, AttributeScaled(AttackPower)} + {Mul, ParamRef(DamageRate)} 两行折叠 = "攻击力×倍率"，PV-7）, Source, SortKey, CompeteGroup(GameplayTag, 可选), ValueConvention（D5-18 v3：链行 Operand 补约定列）}` 与 `FBoolSwitchModifier{SwitchKey, Value, Source}`（D5-5 v2 命名统一，原 FLogicGateModifier）；**参数链 = 带式聚合**（**D5-5 v3：与 M2 完全同式、顺序无关**——`Override` 存在取组内**最大值**直接作为结果（FlatAdd 一并被覆盖），否则 `((初值 + ΣAdd) × (1 + ΣPercentAdd)) × ΠMul + ΣFlatAdd`；带权同 M2 `Override 0 / Add 10 / PercentAdd 15 / Mul 20 / FlatAdd 30`，**SortKey 退化为带权、不再承担排序语义**；**折叠初值 = 该键参数行的求值结果，无参数行则 0**；**折叠器单份住 TcsAttribute**，M2 属性聚合 / M5 参数链 / TcsDamage 流程属性三处共用——02 §2.2a"同一形状、作用域容器不同"的复用落点）；Source 注销级联撤销；**特殊键 `Level`**（EffectiveLevel 修正，DNF 式 +1 = Add+1）；**CompeteGroup（D5-19）**：读侧竞争组——折叠前按组分桶，组内解析值最大者进折叠（账本全量、Source 撤销自动递补，无休眠池）；"取优先级最高"=**Override 组取最大值**（与 M2 一致；D5-5 v3 取代原 `Override+SortKey` 口径），值竞争与优先级竞争可共存（先选优后**按带**折叠）；同组跨 Op 校验器提示。
-- `FEntrySelector{Mode: All/ByTag/ById/Custom, Params}`——外部来源选择作用于哪些已学条目。
+- **参数双表与修正器两结构**：`FTcsNumericParamModifier{ParamKey, Op: Add/PercentAdd/Mul/FlatAdd/Override（**D5-5 v3：与 M2 同一套五带**；原 `AddPct` 命名与 M2 `PercentAdd` 失步已修；Custom op 砍除 2026-09-02 不变——计算在上游传入终值）, Operand: FTcsParamValue（PV 系列 2026-09-11 换型——Literal/ParamRef/AttributeScaled 等源；**复合运算即参数链**：{Add, AttributeScaled(AttackPower)} + {Mul, ParamRef(DamageRate)} 两行折叠 = "攻击力×倍率"，PV-7）, Source, ~~SortKey~~, CompeteGroup(GameplayTag, 可选), ValueConvention（D5-18 v3：链行 Operand 补约定列）}` 与 `FBoolSwitchModifier{SwitchKey, Value, Source}`（D5-5 v2 命名统一，原 FLogicGateModifier）；**参数链 = 带式聚合**（**D5-5 v3：与 M2 完全同式、顺序无关**——~~`Override` 存在取组内**最大值**直接作为结果~~（FlatAdd 一并被覆盖），否则 `((初值 + ΣAdd) × (1 + ΣPercentAdd)) × ΠMul + ΣFlatAdd`；带权同 M2 `Override 0 / Add 10 / PercentAdd 15 / Mul 20 / FlatAdd 30`，~~**SortKey 退化为带权、不再承担排序语义**~~；**折叠初值 = 该键参数行的求值结果，无参数行则 0**；**折叠器单份住 TcsAttribute**，M2 属性聚合 / M5 参数链 / TcsDamage 流程属性三处共用——02 §2.2a"同一形状、作用域容器不同"的复用落点）；Source 注销级联撤销；**特殊键 `Level`**（EffectiveLevel 修正，DNF 式 +1 = Add+1；**该键由 TcsSkill 原生声明**为 `TcsStateParam.Level`，见下方订正 ③）；**CompeteGroup（D5-19）**：读侧竞争组——折叠前按组分桶，组内解析值最大者进折叠（账本全量、Source 撤销自动递补，无休眠池）；~~"取优先级最高"=**Override 组取最大值**~~（与 M2 一致；D5-5 v3 取代原 `Override+SortKey` 口径），值竞争与优先级竞争可共存（先选优后**按带**折叠）；同组跨 Op 校验器提示。
+
+> ⑥ **定义侧 `FTcsNumericParamModifier` MUST NOT 携带 `Source`**（2026-10-09 用户质疑后订正）：
+> 上一段字段表里的 `Source` **是假字段**——`FTcsSourceHandle` 是**非反射纯 C++ struct**
+> （`TcsSourceHandle.h:20` 裸 `struct`）⇒ 不能作 `UPROPERTY`（UHT 产物实测：该类型反射属性
+> **无 `Source`**）⇒ **既不进细节面板、也不进资产**；且定义侧物化路径盖的是 `FTcsCastRun.RunSource`、
+> **根本不读行上的值**（全库唯一读 `Row.Source` 的是外部施加路径）。**语义根因**：
+> **"源"从来不是"这一行"的属性**——同一个 `ParamChainRows[0]`，甲玩家靠装备给、乙玩家靠天赋给
+> ⇒ **来源因实例而异，属实例而非 Def**。M2 的形状即此（`FTcsAttrModDefTableRow` 无 `Source`，
+> 它是 `MakeFromDef(Row, Operand, InSource)` 的**形参**）。⇒ `Source` 只住账本侧，由**施加方**给出：
+> 定义侧物化传 `RunSource`，外部施加经 `ApplyParamModifiers` 的 **`Source` 形参**；
+> 且**来源无效时 MUST 拒绝施加**（无锚点的条目摘不掉 ⇒ 违反成对性判据）。
+> **账本侧命名同批订正**：`FTcsNumericParamInstance` → **`FTcsNumericParamModInstance`**
+> （与 M2 `FTcsAttr**Mod**Instance` 逐字同构；命名规则 = **`[表词] + Mod + 面后缀`**；
+> 布尔侧表词 = `BoolSwitch` ⇒ 将来是 `FTcsBoolSwitchModifier` / `FTcsBoolSwitchModInstance`）。
+
+> **★ 就地订正（2026-10-09，TCS R6 Task 4 落地时；MUST 保留原文，勿抹除本注）**——上一段有三处
+> 与**实现事实**失步，三处**同时**存在且互相矛盾，故按"保留原文 + 就地注明"处置
+> （判据 = 本仓 `MEM-20261009-01`「设计文本的字段表是意图速写，MUST NOT 当形状真相」）：
+>
+> ① **`SortKey` 与 `OverridePriority` 是两个字段，不是"退化"关系**。原文只列 `SortKey` 并说它
+> "退化为带权、不再承担排序语义"——**同一句又说 Override"取组内最大值"**，而最大值口径本该由谁
+> 承担完全没有字段。实现（照 M2）是**两字段并存**：`OverridePriority` = 仅 `TAO_Override` 带读的
+> 强弱排座次（**折叠器读它**）；`SortKey` = 同带内展示/审计位（**折叠器不读**，带序唯一真相在 `Op`）。
+> 依据 `TcsAttrModDef.h:79/:88`、`TcsAttributeBandFold.h:134/:137`、`:17` 明文"SortKey 不参与折叠"。
+> **MUST NOT 令 `OverridePriority = SortKey`**——那会让 M5 的 Override 胜负判据与 M2 **不同**。
+>
+> ② **Override 不是"取组内最大值"，而是三级比较**：`优先级大者胜 → 优先级打平才按策略比数值 →
+> 仍打平比有符号值`（`IsStrongerTcsOverride`，`TcsAttributeBandFold.h:71-89`）。"取最大值"只是
+> **默认策略**（`OTB_Max`）下的表现形式。技能参数**没有"属性定义"这一层**，故 M5 一律取折叠器
+> 默认策略（先例 = 同族第三处消费者 TcsDamage 的 `TcsFlowAttributes.cpp:45` 两实参调用）。
+>
+> ③ **特殊键 `Level` 的"词"由框架原生声明，且声明方 = `TcsState`**（2026-10-09 用户裁定，其后经用户
+> 追问再订正声明模块）：`TcsStateParam` 根的**一般键**归宿主 ini（内容归属），但 `Level` 是**框架自己
+> 解释的词**（`clamp(0, LevelBase + Σ)` 这条公式写在 D3-11 里）⇒ 按 `gameplay-tag-governance`
+> 「框架契约词 MUST 由插件模块原生声明」落为原生 tag `TcsStateParam.Level`
+> （`TcsState/Public/Param/TcsStateParamKeys.h`）。**为什么住 `TcsState` 而不是 `TcsSkill`**：
+> ① `LevelBase` / `MaxLevel` 两个字段声明在 `FTcsStateDefBase`（技能 Def **继承**它）——**M5 没有自己的
+> "等级定义"层**，等级本体论在状态侧；② **依赖方向**：`TcsSkill` 已依赖 `TcsState`，声明在上游则两侧
+> 消费零成本，若声明在 `TcsSkill` 则状态侧将来消费就要**反向依赖、成环**。
+> 若下放宿主配置，宿主漏配 ⇒ `Level` 修正**静默失效**（数值照进账本、等级永不动、零报错）。
+>
+> **另两处同批订正（形状层，非本节原文）**：④ `FTcsEntrySelector` 的 `EMode` 需要自己的
+> `ETcsEntrySelectorMode` 枚举（全仓无现成枚举可复用）——"零新枚举"的口径只覆盖**修正器的三个
+> 字段类型**（`Op`/`Operand`/`ValueConvention` 复用既有），不覆盖选择器；⑤ `ParamChainRows`
+> 的**求值参数表** = 本次施法运行态的参数快照（`ParamRef` 类操作数从它取值），而
+> `GetNumericParam` 走**实时**通道（参数行初值 + 账本槽位折叠）——快照**不是**公共读口的冻结来源
+> （判据：快照住每次 run，而读口签名无 run 段，且同一 Entry 可有两个 run 并存 ⇒ "读哪一次"无唯一答案）。
+
+- ~~`FEntrySelector{Mode: All/ByTag/ById/Custom, Params}`~~——外部来源选择作用于哪些已学条目。
+  **★ 就地订正（2026-10-09 用户裁定，MUST 保留原文）**：上句的档位集合**已作废**，实现名 = `FTcsSkillEntrySelector`
+  （**名字带 `Skill` 段**：它只服务技能账本条目）。三处修正：
+  - **`ByTag` → `ByDefTag`**：原档名含混——它读的是条目的 `DefTag`（内容身份），而"Tag"在 TCS 里同时指
+    属性词/状态词/事件词/参数键等七八种东西 ⇒ 档名 MUST 与字段名 `DefTag` 对齐。
+  - **原 `ById` 档删除**（删的理由 MUST 记录，防后人"照旧稿加回来"）：它按 `FTcsSkillEntryHandle`
+    （`Index` + `Generation`）精确命中，而该句柄是**运行时产物**——编辑器里没有、也无法预先填出合法值
+    ⇒ 对"以配置为入口的外部施加"而言**这一档等于不存在**（只有代码能传）。且"按 Id 筛"的**历史由来**
+    （Def 资产身份原为 `FName DefId`）**已于 2026-09-22 全量迁移到 `GameplayTag`（`DefTag`）**
+    ⇒ 其正当形态就是**按 tag 筛**，已被 `ByDefTag` 覆盖（同一份内容身份不需要两档）。
+  - **新增 `ByCategoryTags` 空壳**（承接删除位，**本轮只留壳不落机制**）：目标形态 = 按定义上的
+    **类别标识容器**（`FGameplayTagContainer`——如一个 Buff 同具"火属性伤害 + 异常状态"，一个技能同具
+    "左手/右手/双手释放（三选一）+ 投掷类 + 引导类"）筛选，规则**倾向复用引擎 `FGameplayTagQuery`**
+    （`HasAll` / `HasAny` 等表达式）。**只留壳的判据**：① **载体不存在**——`StateDef` 侧的类别标识容器
+    字段尚未新增（用户裁定"所有 StateDef 都应新增"，属**独立变更**）；② **规则与档名未拍板**——用户明示
+    "后续可能改名 `ByCategoryTag` / `ByCategoryTags`，**还要讨论**"；③ **可能另立模块**——用户指出 GameplayTag
+    筛选机制在 TCS 里将是重要角色、**甚至可能单独开一个 `TcsGameplayTag` 模块** ⇒ 现在写进 `TcsSkill`
+    内部将来极可能要搬家。⇒ 本档行为与 `Custom` 档同款：**具名报出未实现 + 零修正被施加**。
+  - **台账登记**：`STAT-10`（类别标识载体 + 筛选规则 + 模块归属，三项一并裁）。
 - **Def 自带参数修正行（PV-9，2026-09-11 采纳）**：`SkillDef.ParamChainRows`——声明作用域恒为本条目自身的 `FTcsNumericParamModifier` 行（可内联或引用 UTcsSkillModDef 模板），**无 FEntrySelector**（该选择器保持专属外部施加场景）；激活期物化进本条目参数链，Source=施法运行句柄，结算/打断级联摘除（与 ModifierRows 同生命周期语义）。**复合参数 = 链行带式折叠**（"攻击力×倍率 + y" = {Add, AttributeScaled(AttackPower)} + {Mul, ParamRef(DamageRate)} + {FlatAdd, ParamRef(DamageAddition)}，PV-7 + D5-5 v3 带式口径，任意书写顺序）；State/Buff 侧参数为快照单值、无账本链，暂不需要对应机制。
 - **技能级替换（D5-9 修订 2026-09-11：移除 EffectiveDefId 技能级重定向）**：~~`FSkillRedirect` 重定向栈~~ 撤除——整体逻辑替换 = **直接换成新 Skill（新学习身份/Entry：Grant/Revoke，或 ReplaceSkill 链步骤原语判定树候补）**，不做同 Entry 跨 Def 漂移。动机（用户）：Entry↔Def 一对一后参数键空间绝对纯净，SkillDef 内 ParamRef 同域解析零歧义（PV-2.d 收束）；旧方案"保留身份、跨 Def 漂移"会让 Entry 上按旧 Def 键空间声明的参数修正器全部悬空。**让渡模式由三粒度收窄**：参数级（NumericSkillModifier/BoolSwitchModifier）→ 链级（链重定向栈，保留）→ 技能级 = 新 Skill。等级/冷却进度/形态进度不跨替换继承（需要则宿主显式迁移）。
 - **多形态路由（D5-14 移除后的组合范式，2026-09-11）**：无内建形态解析——各形态是独立 Entry；"当前形态" = 阶段标识 StateInstance（Tag 门禁）；**ParamRef 恒解析于 Entry 自身 `DefTag` 参数表**（PV-2.d 终版钉死——无条件）。
@@ -71,7 +137,7 @@ FStateDefBase（抽象，M3 定义：词表/FragmentSet/通用默认参数 Level
 
 - `GrantSkill / RevokeSkill(unit, DefTag, Source)`
 - `TryActivate(unit, SkillId, Context) -> ESkillActivateResult`：**显式门禁序列**（实体 Ready → 已学 → 冷却 → Instancing 顶替/并存判定 → CanAfford → Def 校验；每道门具名原因——修 TCS 门禁内联缺陷）
-- `CancelCast(run, Reason)`；`ApplyParamModifiers(unit, FEntrySelector, TArrayView<FParamModifier>)`；`MaterializeModifiers(unit, TemplateIds, ParamContext, Source)`（D5-19 宿主命令式入口——与声明式 ModifierRows 共用同一物化器）；`AdjustCooldown / ResetCooldown(unit, EntryHandle, Track, Delta|Clear)`（D5-16 事件源——改动轨状态发 OnCooldownUpdated）；`GetNumericParam / IsSwitchSet / GetLevel`
+- `CancelCast(run, Reason)`；~~`ApplyParamModifiers(unit, FEntrySelector, TArrayView<FParamModifier>)`~~（**实现名 `FTcsSkillEntrySelector`**，见 §3.4 的就地订正）；`MaterializeModifiers(unit, TemplateIds, ParamContext, Source)`（D5-19 宿主命令式入口——与声明式 ModifierRows 共用同一物化器）；`AdjustCooldown / ResetCooldown(unit, EntryHandle, Track, Delta|Clear)`（D5-16 事件源——改动轨状态发 `OnCooldownUpdated`）；`GetNumericParam / IsSwitchSet / GetLevel`
 
 ## 5. 关键机制
 

@@ -100,7 +100,7 @@ public:
 	bool SetBaseValue(FTcsCombatEntityHandle Unit, const FGameplayTag& Attribute, double NewBaseValue);
 
 	/**
-	 * 按来源级联摘除（D2-2）：扫描该单位全部属性的修正器槽位**与冻结暂存区**，
+	 * 按来源级联摘除（D2-2）：扫描该单位全部属性的修正器条目集**与冻结暂存区**，
 	 * 摘除 Source 匹配的条目 → 标脏 → 重算 → 按变更规则广播。
 	 *
 	 * @param Unit 单位句柄。

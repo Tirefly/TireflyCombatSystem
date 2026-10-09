@@ -10,6 +10,15 @@
 - 状态：**讨论记录 / 未来优化抽屉**——本轮无拍板、无设计变更；触发时机 = M3 落地后的 1000 单位压测数据
 - 动机（用户原话）：中央注册表、非 Tick 聚合等设计都以千人战场（Mass）为目标；"Mass 的核心优化策略我记得就是连续内存，所以想看看 TCS 未来能不能在框架基底就实现"——针对 BuffInstance / SkillInstance / SkillEntry / Attribute / AttributeModifier 的**连续内存访问 + 动态增删改查**
 
+> **实施注记（2026-10-09，按 `docs-convention` §7「冻结」只追加、正文不改）**：本文正文出现的
+> `ModifierSlots` / `ParamSlots` 应读作 **`AttrModInstances`** / **`NumericParamModInstances`**
+> （提案 `refactor-rename-modifier-ledger-fields`）。**改名判据** = 容器字段名 MUST 取元素类型名的
+> 复数形式（`FTcsAttrModInstance` → `AttrModInstances`；`FTcsNumericParamModInstance` →
+> `NumericParamModInstances`），**`Slot` 一词保留给"可按下标寻址、可复用、带代际的空位"**。
+> 旧名沿袭自 AbilityKit 的"修改器槽位自由链表"，而本仓早已拆掉槽壳、元素直接就是修正器条目。
+> 详见 `PLN-R6` 的「本次改名」落地记录与提案 `refactor-rename-modifier-ledger-fields`。
+
+
 ## 1. 结论先行
 
 1. **原语已在手**：`TTcsInstancePool`（稠密数组 + 代际 + FreeList，plan1 Task 1）就是 DOD 存储核——"动态增删改查 + 连续内存"的**机制问题已解**：增 = FreeList 弹槽/尾追加 O(1)；删 = Swap-with-last + Generation+1 O(1)；查/遍历 = 稠密数组顺序访问；稳定引用 = 句柄 Index+Generation（D0-2）。

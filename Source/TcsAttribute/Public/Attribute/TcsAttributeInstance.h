@@ -39,6 +39,17 @@ struct FTcsAttributeInstance
 	// 覆盖带同优先级裁决策略（定义侧展开——热路径不回查定义；含义见 ETcsAttrOverrideTieBreak）
 	ETcsAttrOverrideTieBreak OverrideTieBreak = ETcsAttrOverrideTieBreak::OTB_Max;
 
-	// 修正器槽位（挂在**被修饰属性**上——聚合按属性遍历，零查找；Source 级联摘除）
-	TArray<FTcsAttrModInstance> ModifierSlots;
+	/**
+	 * 修正器条目集（挂在**被修饰属性**上——聚合按属性遍历，零查找；Source 级联摘除）。
+	 *
+	 * **命名规则（2026-10-09 立，MUST 遵守）**：容器字段名 = **元素类型名的复数形式**
+	 * （`FTcsAttrModInstance` → `AttrModInstances`）。判据可自检：**字段名 MUST 能从元素类型名推出来**。
+	 * **`Slot` 一词保留给"可按下标寻址、可复用、带代际的空位"**（本模块内如池的 `FreeList`、
+	 * 各桶的 `SlotGenerations`）——本容器既不可按下标寻址、也不复用、也不带代际
+	 * （只有 `.Add` / `.RemoveAll` / `.Num()` / 范围遍历）⇒ **MUST NOT** 以 `Slots` 命名。
+	 * 本条原为 `ModifierSlots`——那个后缀沿袭自 AbilityKit 的"修改器槽位自由链表"
+	 * （`ModifierSlot{Handle, ModifierData, NextFree, Active}`），而本仓早已拆掉槽壳、
+	 * 元素直接就是修正器条目 ⇒ 后缀描述的是一个**已不存在**的包装层。
+	 */
+	TArray<FTcsAttrModInstance> AttrModInstances;
 };

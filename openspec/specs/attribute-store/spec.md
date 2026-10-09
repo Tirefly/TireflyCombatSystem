@@ -41,12 +41,14 @@
 
 - `RegisterAttributeDef(const FGameplayTag& Attribute, const FTcsAttributeDefData& DefData)`：宿主 / DefLibrary 加载定义资产后登记（`UTcsAttributeDef::Def` 即定义数据、`DefTag` 即属性身份）；属性 tag 由调用方显式给出。拒绝面（ensure + false）：属性 tag 无效、同 tag 重复登记（D2-1：词表重名 = 加载期错误，不得静默覆写）。
 - `FindAttributeDef(FGameplayTag)`：查回已登记定义（未登记返回 nullptr，**正常查询路径不 ensure**）。
-- `AddAttribute(Unit, FGameplayTag)`：**解冻优先**——若暂存区已有同一 tag 实例则整条搬回（基础值/边界/值域模式/修正器槽位原样保留，MUST 输出解冻日志）；否则按定义数据新建实例（初值 `BaseValue`、`CachedCurrent = BaseValue`（占位：结算前的缓存值不对外承诺）、**`bDirty = true`（新建即脏：值域收口/既有修正器/动态边界都由管线在结算时生效）**、`ModifierSlots` 空，MUST 输出新建日志）。拒绝面（ensure + false）：单位未注册、属性 tag 无效、该单位已持有同 tag 属性、**定义未登记**（仅新建路径需要定义）、定义数据的动态边界自引用（D2-4）。
-- `RemoveAttribute(Unit, FGameplayTag)`：**冻结**——把整条实例（含基础值/边界/值域模式/槽位内容）从 `Attributes` 搬入暂存区 `FrozenAttributes`，MUST **不销毁、不丢弃槽位内容**，MUST 输出冻结日志（含属性 tag 与槽位数）。拒绝面（ensure + false）：单位未注册、属性 tag 无效、该单位未持有此属性。
+- `AddAttribute(Unit, FGameplayTag)`：**解冻优先**——若暂存区已有同一 tag 实例则整条搬回（基础值/边界/值域模式/修正器条目集原样保留，MUST 输出解冻日志）；否则按定义数据新建实例（初值 `BaseValue`、`CachedCurrent = BaseValue`（占位：结算前的缓存值不对外承诺）、**`bDirty = true`（新建即脏：值域收口/既有修正器/动态边界都由管线在结算时生效）**、`AttrModInstances` 空，MUST 输出新建日志）。拒绝面（ensure + false）：单位未注册、属性 tag 无效、该单位已持有同 tag 属性、**定义未登记**（仅新建路径需要定义）、定义数据的动态边界自引用（D2-4）。
+- `RemoveAttribute(Unit, FGameplayTag)`：**冻结**——把整条实例（含基础值/边界/值域模式/修正器条目集）从 `Attributes` 搬入暂存区 `FrozenAttributes`，MUST **不销毁、不丢弃修正器条目**，MUST 输出冻结日志（含属性 tag 与修正器条目数）。拒绝面（ensure + false）：单位未注册、属性 tag 无效、该单位未持有此属性。
 - **事务纪律（2026-09-18 增补）**：`AddAttribute` / `RemoveAttribute` / `SetBaseValue` MUST 走与修正器写入**同一 store 变更路径与同一事务纪律**——批内与批内挂 modifier 的可见性/重算/广播行为一致；施加到**已无实例**的属性上的修正器 MUST 被忽略并留日志（不 ensure——框架允许动态增删且不做来源追溯）。
 - `SetBaseValue(Unit, FGameplayTag, double)`（**2026-09-18 增补**，02 §2.2a 的"等级成长 = 宿主升级事务改基值"落点）：改写基础值 → 标脏 → 按事务纪律重算/广播（批外 = 隐式批，立即生效）。拒绝面（ensure + false）：单位未注册、属性 tag 无效、该单位未持有此属性。
 
 实例 MUST NOT 持有定义数据或资产的引用（热路径不回查定义）。定义数据的**资产 → 载荷**解析归 DefLibrary（M6）/ 词表（M8）——本能力无 DataTable / 资产加载路径。
+
+**字段名（2026-10-09 改名）**：本能力引用的修正器容器字段名 MUST 为 **`AttrModInstances`**——命名规则见 `attribute-types` 能力的"账本修正器与属性实例"需求（容器字段名 = 元素类型名复数；`Slot` 保留给可寻址/可复用的空位）。本能力正文一律以该名指代。
 
 #### Scenario: 定义先登记后按 tag 添加
 
@@ -82,7 +84,7 @@
 #### Scenario: 添加属性 = 解冻优先
 
 - **WHEN** 属性被冻结后（期间其基础值可能被宿主改过）再次对该单位调用 `AddAttribute`
-- **THEN** 暂存区整条搬回：基础值/边界/值域模式/修正器槽位与冻结前一致（**不回落到定义默认值**），并输出解冻日志；暂存区该条目消失
+- **THEN** 暂存区整条搬回：基础值/边界/值域模式/修正器条目集与冻结前一致（**不回落到定义默认值**），并输出解冻日志；暂存区该条目消失
 
 #### Scenario: 属性增删与修正器同事务
 

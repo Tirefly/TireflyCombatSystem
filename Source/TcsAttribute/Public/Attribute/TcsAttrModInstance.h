@@ -172,7 +172,7 @@ struct FTcsAttrModOperand
 
 /**
  * 修正器实例（运行侧账本条目，D2-2 权威完整形状）：纯 C++ struct——挂在被修饰属性的
- * ModifierSlots 上，Source 为级联撤销锚点（来源注销 → 按 Source 全量摘除）。
+ * AttrModInstances 上，Source 为级联撤销锚点（来源注销 → 按 Source 全量摘除）。
  * 与模板 `UTcsAttrModDef` 成对（Def = 模板 / Instance = 按模板物化出的账本条目——命名与
  * 全插件"定义资产 ↔ 池化实例"的分野一致）。
  *

@@ -30,9 +30,9 @@
 
 **连带（MUST 记录）**：删除后 `TcsSkill` 对属性门面（`UTcsAttributeSubsystem` 及其白名单薄壳）**零依赖** ⇒ 本模块 MUST NOT 新建属性访问白名单薄壳（那是"为零消费者预建"）；`attribute-pipeline` 能力要求的"两模块各自白名单薄壳"**不扩为三处**。
 
-**参数链行 `ParamChainRows` MUST NOT 在本轮声明（2026-10-06 边界裁决，MUST 记录理由）**：其元素类型 `FTcsNumericParamModifier` 是 **Task 4** 的交付物（`TcsNumericParamModifier.h`），本 Task 在 Task 4 之前 ⇒ 该类型**尚不存在**。`USTRUCT` 的**反射数组属性要求元素类型完整**（`TArray<T>` 作 `UPROPERTY` 时 UHT 需完整类型），故**不能用前向声明占位**，也 MUST NOT 临时造一个"同形但不同名"的类型（那会制造第二真相）。⇒ 本字段**延后到 Task 4 一并落地**（Task 4 以 MODIFIED 增补本需求），本 Task 的形状需求 MUST NOT 出现该字段。**这不是遗漏，是实施顺序的必然**——计划 `PLN-R6` Task 1 Step 2 原文已交代该字段"按实施顺序定"，本裁定即其落点。
+**参数链行 `ParamChainRows` 已在本轮声明（2026-10-09，Task 4 按上条裁定自己的约定回补）**：Task 1 曾以"元素类型 `FTcsNumericParamModifier` 尚不存在、`UPROPERTY TArray<T>` 要求元素类型完整"为由把该字段**延后到 Task 4**，并明文约定"Task 4 以 MODIFIED 增补本需求"。本变更即 Task 4 ⇒ 该类型已落地（`Skill/TcsNumericParamModifier.h`），字段随之下落：`TArray<FTcsNumericParamModifier> ParamChainRows`。
 
-**结构性字段 MUST NOT 落在本类**（零消费者不预建 + 轮次切分）：**冷却策略与 Cost 配置归 R6.5**——本类 MUST NOT 声明任何冷却轨道 / 冷却时机 / Cost 策略 / Cost 时机字段；`FTcsEntrySelector` 引用位归 Task 4 的宿主命令式入口（其类型同样在 Task 4 落地），本类 MUST NOT 声明。
+**该字段的表达式边界（MUST 记录，防后人误读为"漏做模板引用"）**：本 Task **只落内联一种形态**——`ParamChainRows` 的元素是**内联的**修正器行。计划原文曾说它"可内联、也可**引用** `UTcsSkillModDef` 的模板身份（`TemplateTag`）"，但**实测 `UTcsSkillModDef` 在全仓 `Source/` 零命中**（269 个文件全扫）⇒ **该类型尚不存在，"引用目标"没有载体**。⇒ 模板引用路径**整体归 `R6.5-f`**（其批次内容原文即"`UTcsSkillModDef` 技能侧参数行分派"，模板资产本属它）；现在为"引用"造一个只有 `TemplateTag`、**无任何解析消费者**的资产类，正是"零消费者不预建"。**声明作用域**恒为**本条目自身**的修正器行，**无 `FTcsEntrySelector`**（该选择器保持专属"外部施加"场景）。**结构性字段 MUST NOT 落在本类**（零消费者不预建 + 轮次切分）：**冷却策略与 Cost 配置归 R6.5**——本类 MUST NOT 声明任何冷却轨道 / 冷却时机 / Cost 策略 / Cost 时机字段；`FTcsEntrySelector` 引用位归 Task 4 的宿主命令式入口（其类型同样在 Task 4 落地），本类 MUST NOT 声明。
 
 **`TcsSkill` MUST NOT 依赖 `TcsDamage` / `TcsTargeting`**：链步骤是 `FInstancedStruct` 数据、运行时经执行器注册表分派，本模块代码 MUST NOT 具名任何领域步骤类型。
 
@@ -58,8 +58,12 @@
 
 #### Scenario: 参数链行延后到 Task 4
 
+> 场景标题里的「延后到 Task 4」是**建立时的轮次标签**（本仓裁定：`#### Scenario:` 标题在 MODIFIED
+> 语义下**不可改名**，先例 = `archive/2026-10-04-add-tcs-state-module/specs/plugin-descriptor/spec.md:18`）
+> ——本场景的**判据已随 Task 4 现况化**。
+
 - **WHEN** 检查本轮落地后的 `FTcsSkillDefData` 字段列表
-- **THEN** **不含** `ParamChainRows`（其元素类型 `FTcsNumericParamModifier` 尚不存在，`UPROPERTY TArray<T>` 要求元素类型完整 ⇒ 不能前向声明占位）；本 Task 的编译 MUST NOT 依赖该类型
+- **THEN** **含** `TArray<FTcsNumericParamModifier> ParamChainRows`（其元素类型已由 Task 4 交付 ⇒ 满足 `UPROPERTY TArray<T>` 的「元素类型完整」要求）；**不含**模板引用形态（`UTcsSkillModDef` 全仓 `Source/` 零命中 ⇒ 引用目标无载体，该路径归 `R6.5-f`）
 
 #### Scenario: 属性捕获字段与类型已整体移除
 

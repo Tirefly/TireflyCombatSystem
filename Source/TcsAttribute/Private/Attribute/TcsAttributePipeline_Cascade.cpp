@@ -18,21 +18,21 @@ int32 FTcsAttributePipeline::RemoveBySource(FTcsCombatEntityHandle Unit, const F
 		return 0;
 	}
 
-	// 单槽位表的按来源摘除（返回摘除条数）
-	const auto StripBySource = [&Source](TArray<FTcsAttrModInstance>& Slots) -> int32
+	// 单条目集的按来源摘除（返回摘除条数）
+	const auto StripBySource = [&Source](TArray<FTcsAttrModInstance>& Instances) -> int32
 	{
-		const int32 Before = Slots.Num();
-		Slots.RemoveAll([&Source](const FTcsAttrModInstance& Modifier) { return Modifier.Source == Source; });
-		return Before - Slots.Num();
+		const int32 Before = Instances.Num();
+		Instances.RemoveAll([&Source](const FTcsAttrModInstance& Modifier) { return Modifier.Source == Source; });
+		return Before - Instances.Num();
 	};
 
 	int32 RemovedCount = 0;
 	bool bAnyInstanceChanged = false;
 
-	// ① 实例槽位（正常路径：来源级联撤销 D2-2）
+	// ① 实例条目集（正常路径：来源级联撤销 D2-2）
 	for (TPair<FGameplayTag, FTcsAttributeInstance>& Pair : Store->Attributes)
 	{
-		const int32 Removed = StripBySource(Pair.Value.ModifierSlots);
+		const int32 Removed = StripBySource(Pair.Value.AttrModInstances);
 		if (Removed > 0)
 		{
 			Pair.Value.bDirty = true;
@@ -41,11 +41,11 @@ int32 FTcsAttributePipeline::RemoveBySource(FTcsCombatEntityHandle Unit, const F
 		}
 	}
 
-	// ② 冻结暂存区（**必须扫描**：来源可能在属性被冻结期间结束——只在槽位里找会让其修正器永久滞留，
+	// ② 冻结暂存区（**必须扫描**：来源可能在属性被冻结期间结束——只在条目集里找会让其修正器永久滞留，
 	//    属性被解冻时凭空多出数值，比丢数值更难查）
 	for (TPair<FGameplayTag, FTcsAttributeInstance>& Pair : Store->FrozenAttributes)
 	{
-		const int32 Removed = StripBySource(Pair.Value.ModifierSlots);
+		const int32 Removed = StripBySource(Pair.Value.AttrModInstances);
 		if (Removed > 0)
 		{
 			// 冻结实例同样标脏：解冻后必须重算——否则会把"已被撤销来源的旧缓存值"带回（静默多数值）

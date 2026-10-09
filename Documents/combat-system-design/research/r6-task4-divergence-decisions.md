@@ -8,7 +8,7 @@
 
 ## 差异 1（已定）：双形状 —— 定义侧 `FTcsParamValue` / 账本侧**已解析值**
 
-**用户裁决 = A（照 M2 双形状）**，账本侧名 **`FTcsNumericParamInstance`**。
+**用户裁决 = A（照 M2 双形状）**，账本侧名 **`FTcsNumericParamModInstance`**。
 
 证据：`TcsAttrModInstance.h:105`（`FTcsAttrModOperandDef`，`USTRUCT`，`FTcsParamValue Literal`）
 vs `:156`（`FTcsAttrModOperand`，**纯 C++**，`double Literal`）+ `:152-153` 注释

@@ -103,7 +103,7 @@ bool FTcsAttributePipeline::ApplyModifier(
 		return false;
 	}
 
-	Instance->ModifierSlots.Add(Modifier);
+	Instance->AttrModInstances.Add(Modifier);
 	Instance->bDirty = true;
 
 	// 未开批 = 隐式批：立即重算 + 广播
@@ -226,9 +226,9 @@ double FTcsAttributePipeline::ComputeFoldedValue(
 	FTcsCombatEntityHandle Unit, FTcsAttributeStore& Store, const FTcsAttributeInstance& Instance)
 {
 	TArray<FTcsAttributeBandEntry> Entries;
-	Entries.Reserve(Instance.ModifierSlots.Num());
+	Entries.Reserve(Instance.AttrModInstances.Num());
 
-	for (const FTcsAttrModInstance& Modifier : Instance.ModifierSlots)
+	for (const FTcsAttrModInstance& Modifier : Instance.AttrModInstances)
 	{
 		double Value = Modifier.Operand.Literal;
 

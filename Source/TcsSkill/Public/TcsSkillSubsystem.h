@@ -14,6 +14,8 @@
 #include "Def/TcsSkillDefData.h"
 #include "Skill/TcsCastRun.h"
 #include "Skill/TcsCastRunHandle.h"
+#include "Skill/TcsSkillEntrySelector.h"
+#include "Skill/TcsNumericParamModifier.h"
 #include "Skill/TcsSkillEntryHandle.h"
 #include "Skill/TcsSkillRegistry.h"
 
@@ -241,6 +243,52 @@ public:
 #pragma endregion
 
 
+// 参数链（外部施加）
+#pragma region ParamChain
+
+public:
+	/**
+	 * 外部施加参数修正器（D5-19）：把一批修正器物化后追加进**选择器命中的**每个条目的参数账本。
+	 *
+	 * **参数链轮的施工入口**：`FTcsSkillEntrySelector` 表达作用域（四档各有字段载体），
+	 * `FTcsNumericParamModifier` 是定义侧行。定义自带的行不走这里——它们由
+	 * `FTcsCastOps::Activate` 在激活期物化（声明作用域恒为本条目自身）。
+	 *
+	 * **两个未实现档（`ESS_ByCategoryTags` / `ESS_Custom`）MUST 具名报出"未实现"且零施加**
+	 * （分别归台账 `STAT-10` 与 `R6.5-g`）。
+	 *
+	 * **`Source` 是形参而不是"修正器行自带的来源"**（2026-10-09 订正）：来源**因实例而异**
+	 * （同一批修正器可由装备给、也可由天赋给）⇒ 它属于**这一次施加**，不属于那条声明。
+	 * **来源无效 ⇒ 本函数拒绝并零施加**（无锚点的条目摘不掉，会违反成对性判据）。
+	 *
+	 * **无反射面**：形参含未反射化句柄与 C++ 容器（本轮不加 `UFUNCTION`——脚本读写面归 `SCRIPT-10`）。
+	 *
+	 * @param Unit 单位实体句柄。
+	 * @param Selector 条目选择器。
+	 * @param Modifiers 定义侧修正器行。
+	 * @param Source 本次施加的来源锚点（级联摘除用，由调用方声明"这次是谁给的"）。
+	 * @return 返回是否至少命中一个条目并施加。
+	 */
+	bool ApplyParamModifiers(
+		FTcsCombatEntityHandle Unit,
+		const FTcsSkillEntrySelector& Selector,
+		const TArray<FTcsNumericParamModifier>& Modifiers,
+		FTcsSourceHandle Source);
+
+	/**
+	 * 按来源级联摘除参数修正器（摘该单位全部条目的 `NumericParamModInstances` 中 `Source` 匹配者）。
+	 *
+	 * **读数 = 返回摘除条数**；`0` 条命中 = 正常路径（**不 ensure**）。
+	 *
+	 * @param Unit 单位实体句柄。
+	 * @param Source 归属来源句柄。
+	 * @return 返回摘除的修正器条数。
+	 */
+	int32 RemoveParamModifiersBySource(FTcsCombatEntityHandle Unit, FTcsSourceHandle Source);
+
+#pragma endregion
+
+
 // 施法运行态的 GC 遍历口
 #pragma region CastRunGC
 
@@ -454,6 +502,7 @@ private:
 	 */
 	friend class FTcsSkillOps;
 	friend class FTcsCastOps;
+	friend class FTcsParamChainOps;
 
 	// per-unit 已学技能注册表（桶 + 槽位代际）
 	FTcsSkillRegistry Registry;

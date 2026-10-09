@@ -9,6 +9,15 @@
 
 ---
 
+> **实施注记（2026-10-09，按 `docs-convention` §7「冻结」只追加、正文不改）**：本文正文出现的
+> `ModifierSlots` / `ParamSlots` 应读作 **`AttrModInstances`** / **`NumericParamModInstances`**
+> （提案 `refactor-rename-modifier-ledger-fields`）。**改名判据** = 容器字段名 MUST 取元素类型名的
+> 复数形式（`FTcsAttrModInstance` → `AttrModInstances`；`FTcsNumericParamModInstance` →
+> `NumericParamModInstances`），**`Slot` 一词保留给"可按下标寻址、可复用、带代际的空位"**。
+> 旧名沿袭自 AbilityKit 的"修改器槽位自由链表"，而本仓早已拆掉槽壳、元素直接就是修正器条目。
+> 详见 `PLN-R6` 的「本次改名」落地记录与提案 `refactor-rename-modifier-ledger-fields`。
+
+
 ## 1. ★ 我原提案的核心错误：把"双形状"合成了一个
 
 M2 属性侧**刻意保留两套形状**（设计裁定 **D2-13「Operand 双形状（B 方案，用户拍板）」**，
@@ -96,7 +105,7 @@ ApplyModifier(Unit, Modifier):
 ## 4. 名词归属（防我另造名）
 
 - 设计给账本条目定的字段名 = **`参数修正链集`**（`spec/05-module-skill.md:44`，`FLearnedSkillEntry` 字段表内）。
-- **全仓零命中**的我拟名：`FTcsParamModInstance` / `FTcsNumericParamInstance` / `FTcsParamChain` / `FTcsParamLedger`。
+- **全仓零命中**的我拟名：`FTcsParamModInstance` / `FTcsNumericParamModInstance` / `FTcsParamChain` / `FTcsParamLedger`。
 - 既有族命名惯例（`TcsAttrModInstance.h:184-186`）：`TcsAttrMod*` 前缀 = 修正器族；
   `Def` = 模板、`Instance` = 账本条目 ⇒ 技能侧应对应为 **`FTcsSkillParamMod*`** 或
   沿用 `TcsNumericParam*`（计划 Task 4 用的家族名）。**本命名需用户确认**（见下）。
@@ -108,7 +117,7 @@ ApplyModifier(Unit, Modifier):
 | 点 | 裁决 |
 |---|---|
 | 账本侧形状 | **A：照 M2 做双形状**（定义侧 `FTcsParamValue`，账本侧已解析 `double`/同款） |
-| 账本侧命名 | **`FTcsNumericParamInstance`**（对齐 `FTcsAttrModInstance` 的 Def/Instance 分野） |
+| 账本侧命名 | **`FTcsNumericParamModInstance`**（对齐 `FTcsAttrModInstance` 的 Def/Instance 分野） |
 | Apply 作用目标 | **A：落在条目上**——每个已学条目持自己的参数修正器槽位（照 `FTcsAttributeInstance::ModifierSlots`） |
 
 ---
@@ -151,7 +160,7 @@ ApplyModifier(Unit, Modifier):
 **⇒ 本轮（Task 4）只做数值侧参数账本；布尔侧的 `FBoolSwitchModifier`（及其账本条目 `FTcsBoolSwitchModInstance`）归 `R6.5-e`。**
 **这样切分的实质理由**：布尔修正器**没有聚合计算**（无折叠器可共用），它的价值全在"与 `GateCheck` 条件求值器配对"——而 `GateCheck` 求值器住 `TcsEffect` 条件系统，属 R6.5-e 的同批交付。**先落一个零消费者的布尔修正器 = 零消费者预建**（本仓反复拦的形态）。
 
-**★ 但有一条 MUST 记录的形状预留**：Task 4 若把"条目持参数修正器槽位"定为**单槽位数组**（`TArray<FTcsNumericParamInstance> ParamSlots`），则 R6.5-e 的布尔槽位**应是并列的第二个数组**（`TArray<FTcsBoolSwitchParamInstance> BoolSlots`）而非挤进同一数组 —— 理由同 M2：`ModifierSlots` 之所以能只用一个数组，是因为五带**同属一个代数**；布尔与数值**不同代数**，混装会让"折叠"必须按元素类型分派（M2 无此概念）。**该预留只写进注释与提案，MUST NOT 现在就建空数组**（零消费者不预建）。
+**★ 但有一条 MUST 记录的形状预留**：Task 4 若把"条目持参数修正器槽位"定为**单槽位数组**（`TArray<FTcsNumericParamModInstance> ParamSlots`），则 R6.5-e 的布尔槽位**应是并列的第二个数组**（`TArray<FTcsBoolSwitchModInstance> BoolSlots`）而非挤进同一数组 —— 理由同 M2：`ModifierSlots` 之所以能只用一个数组，是因为五带**同属一个代数**；布尔与数值**不同代数**，混装会让"折叠"必须按元素类型分派（M2 无此概念）。**该预留只写进注释与提案，MUST NOT 现在就建空数组**（零消费者不预建）。
 
 
 ---

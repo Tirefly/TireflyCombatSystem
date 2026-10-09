@@ -13,6 +13,15 @@
 
 ---
 
+> **实施注记（2026-10-09，按 `docs-convention` §7「冻结」只追加、正文不改）**：本文正文出现的
+> `ModifierSlots` / `ParamSlots` 应读作 **`AttrModInstances`** / **`NumericParamModInstances`**
+> （提案 `refactor-rename-modifier-ledger-fields`）。**改名判据** = 容器字段名 MUST 取元素类型名的
+> 复数形式（`FTcsAttrModInstance` → `AttrModInstances`；`FTcsNumericParamModInstance` →
+> `NumericParamModInstances`），**`Slot` 一词保留给"可按下标寻址、可复用、带代际的空位"**。
+> 旧名沿袭自 AbilityKit 的"修改器槽位自由链表"，而本仓早已拆掉槽壳、元素直接就是修正器条目。
+> 详见 `PLN-R6` 的「本次改名」落地记录与提案 `refactor-rename-modifier-ledger-fields`。
+
+
 ## 零、裁决结论（2026-09-17）
 
 **D2-14 属性存在性：能力与推荐用法分开书写。**

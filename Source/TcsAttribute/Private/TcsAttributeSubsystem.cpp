@@ -129,15 +129,15 @@ bool UTcsAttributeSubsystem::AddAttribute(
 		return false;
 	}
 
-	// 解冻优先：暂存区已有同名实例 → 整条搬回（基础值/边界/值域模式/槽位原样保留）
+	// 解冻优先：暂存区已有同名实例 → 整条搬回（基础值/边界/值域模式/修正器条目原样保留）
 	if (FTcsAttributeInstance* FrozenInstance = Store->FrozenAttributes.Find(Attribute))
 	{
-		const int32 SlotCount = FrozenInstance->ModifierSlots.Num();
+		const int32 SlotCount = FrozenInstance->AttrModInstances.Num();
 		Store->Attributes.Add(Attribute, MoveTemp(*FrozenInstance));
 		Store->FrozenAttributes.Remove(Attribute);
 
 		UE_LOG(LogTcsAttribute, Log,
-			TEXT("UTcsAttributeSubsystem: 属性解冻 Unit=%llu Attribute=%s 槽位=%d（基础值取回冻结前的值）"),
+			TEXT("UTcsAttributeSubsystem: 属性解冻 Unit=%llu Attribute=%s 修正器条目=%d（基础值取回冻结前的值）"),
 			Unit.Id, *Attribute.GetTagName().ToString(), SlotCount);
 
 		return true;
@@ -197,7 +197,7 @@ bool UTcsAttributeSubsystem::RemoveAttribute(
 		return false;
 	}
 
-	// 冻结：整条实例搬入暂存区（不销毁、不丢槽位内容——装备穿脱不丢等级加成、buff 效果不丢）
+	// 冻结：整条实例搬入暂存区（不销毁、不丢修正器条目——装备穿脱不丢等级加成、buff 效果不丢）
 	FTcsAttributeInstance* Instance = Store->Attributes.Find(Attribute);
 	if (!ensureMsgf(Instance != nullptr,
 		TEXT("UTcsAttributeSubsystem::RemoveAttribute: 该单位未持有此属性（单位 Id=%lld，属性 %s）"),
@@ -206,12 +206,12 @@ bool UTcsAttributeSubsystem::RemoveAttribute(
 		return false;
 	}
 
-	const int32 SlotCount = Instance->ModifierSlots.Num();
+	const int32 SlotCount = Instance->AttrModInstances.Num();
 	Store->FrozenAttributes.Add(Attribute, MoveTemp(*Instance));
 	Store->Attributes.Remove(Attribute);
 
 	UE_LOG(LogTcsAttribute, Log,
-		TEXT("UTcsAttributeSubsystem: 属性冻结 Unit=%llu Attribute=%s 槽位=%d（可被同名添加解冻恢复）"),
+		TEXT("UTcsAttributeSubsystem: 属性冻结 Unit=%llu Attribute=%s 修正器条目=%d（可被同名添加解冻恢复）"),
 		Unit.Id, *Attribute.GetTagName().ToString(), SlotCount);
 
 	return true;

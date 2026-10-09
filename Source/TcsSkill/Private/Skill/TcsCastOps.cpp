@@ -7,9 +7,12 @@
 
 #include "Def/TcsSkillDefData.h"
 #include "Skill/TcsCastEvents.h"
+#include "Skill/TcsParamChain.h"
 #include "Skill/TcsSkillRegistry.h"
+#include "State/TcsStateParamTableReader.h"
 #include "TcsSkillLogChannel.h"
 #include "TcsSkillSubsystem.h"
+#include "TcsStateSubsystem.h"
 
 
 
@@ -230,7 +233,7 @@ ESkillActivateResult FTcsCastOps::Activate(
 	FTcsCastRunHandle RunHandle;
 	RunHandle.SetInner(Inner);
 
-	// **★ 先整体重置再用**（2026-10-08 静态自查抓到的一处真实潜伏缺陷）：
+	// **先整体重置再用**（2026-10-08 静态自查抓到的一处真实潜伏缺陷）：
 	// `TTcsInstancePool::Allocate` 复用空闲槽时**只改代际、不重建元素**（池的零策略纪律明文
 	// "Free 不清零槽位内容"）⇒ 若逐个字段赋值，**任何未显式赋值的字段都会带上"上一任占用者"的值**。
 	// 本轮就有一个：`PhaseExpiryEntry`（Task 3 零写入者）会留着上一个 run 的到期句柄——今天无害
@@ -255,6 +258,12 @@ ESkillActivateResult FTcsCastOps::Activate(
 
 	// ── 激活期参数快照（**时序：门禁全过之后、任何后续读取之前**） ──────────
 	// **MUST NOT 在门禁之前构建**（门禁失败即白算一份快照）。
+	//
+	// **快照的用途（2026-10-09 用户裁定 A′，本注是防误读的唯一说明）**：它是**求值期的参数表载体**
+	// ——物化 `ParamChainRows` 时，引用类操作数（`ParamRef`）即从它取键值（先例 = 状态侧的
+	// `FTcsStateModifierMaterializer` 把 `Instance.ParamSnapshot` 经 `FTcsStateSnapshotScope`
+	// 装进 `Ctx.ParamTable`）。**它不是"公共读口的冻结来源"**：`GetNumericParam` 走实时通道
+	// （参数行初值 + 账本槽位折叠），MUST NOT 被读成"读它拿冻结值"。
 	{
 		FTcsParamEvaluateContext Ctx;
 		MakeContext(Ctx, Unit, Entry->Level);
@@ -262,6 +271,47 @@ ESkillActivateResult FTcsCastOps::Activate(
 		// 本轮无覆盖值来源（`TryActivate` 不收施法上下文形参）⇒ 传空表
 		static const TMap<FGameplayTag, double> EmptyOverrides;
 		BuildSkillSnapshot(Run->ParamSnapshot, *Def, Ctx, EmptyOverrides);
+	}
+
+	// ── 激活期物化定义自带的参数链行（PV-9） ─────────────────────────────
+	//
+	// **业务上这一步在做什么**：策划在技能资产上写的那些"算式行"（比如"攻击力 × 倍率"），
+	// 是在**这里**第一次真正被算出来、并落到这个技能的账本上。在此之前它们只是配置数据。
+	// 算出来的值在本次施法期间**固定**（放第二次技能会重算，且上一条痕迹已清干净）。
+	//
+	// **为什么必须先绑参数表**：算式里凡是用「参数引用」取值的行，都要去**本技能参数表**里
+	// 查键（比如"倍率"这一项）。而这张表就是**本次施法快照**。不绑 ⇒ 引用取不到值、
+	// **静默落各自兜底**（不报错、不崩溃，只是数值悄悄不对）。
+	//
+	// 实现要点：`Source` 一律 = **本 run 的 `RunSource`** ⇒ 随施法终结按来源一次摘净。
+	// 作用域覆盖整段物化（退出时按栈恢复上一份绑定——嵌套天然正确，同状态侧先例）。
+	// 状态门面不可得（世界拆解 / 单测无状态门面）时退化为"无参数表"：引用类源落各自兜底，
+	// **不 ensure、不红字**（与 `UTcsStateParamTableReader` 可空的口径一致）。
+	{
+		UTcsStateSubsystem* StateSubsystem = Subsystem.GetWorld()
+			? Subsystem.GetWorld()->GetSubsystem<UTcsStateSubsystem>() : nullptr;
+
+		FTcsStateSnapshotScope Scope(
+			StateSubsystem ? StateSubsystem->GetParamTableReader() : nullptr,
+			&Run->ParamSnapshot);
+
+		FTcsParamChainOps::MaterializeParamChainRows(
+			Subsystem, *Def, *Entry, Scope.GetTable(), Run->RunSource);
+	}
+
+	// ── 生效等级（`Level` 键的接线：重算并写回 run） ──────────────────────
+	//
+	// **业务上这一步在做什么**：策划可以在参数链行里填 `Level` 键来改**技能生效等级**
+	// （"某天赋让这个技能等级 +2"）。上一步刚把那些行落进账本，所以**必须排在它之后**算，
+	// 否则会漏掉它们。等级定了之后本次施法不变（术语："运行中升级不追溯"——中途升级
+	// 只会改下次施法，不会改正在飞的那一发）。
+	//
+	// 实现要点：`EffectiveLevel = clamp(0, LevelBase + Σ参数账本 Level 键修正)`。
+	// **如实登记的边界**：本步是**单趟**——`Level` 键自身若配"按等级取档"的数值源，它读到的
+	// 是折叠前的等级（`Entry->Level`）；等级修正链套等级链不存在于设计语料，不为其预建多趟收敛。
+	if (FTcsCastRun* LevelRun = ResolveRun(Subsystem, RunHandle))
+	{
+		LevelRun->Level = FTcsParamChainOps::EvaluateEffectiveLevel(Subsystem, *Entry, Def);
 	}
 
 	// **起链前的读数先拷出来**：起链会同步执行链步骤，而链步骤可改状态/属性并广播 ⇒
@@ -327,6 +377,23 @@ bool FTcsCastOps::TerminateRun(UTcsSkillSubsystem& Subsystem, FTcsCastRunHandle 
 	if (Entry)
 	{
 		Entry->RunHandles.Remove(RunHandle);
+
+		// ②' **按 `RunSource` 级联摘除本 run 物化的参数链行**（`add-skill-param-chain` 的明文条款：
+		// "物化时 `Source` MUST = 本施法运行态来源句柄 ⇒ 随施法终结**级联摘除**，生命周期语义与基类
+		// `ModifierRows` 同款"）。
+		//
+		// **业务上不摘会怎样（这是玩家能直接感觉到的错）**：物化是"每次激活都追加"（同一技能
+		// 可先后放多次，各带自己的 `RunSource`）；终结时不摘 ⇒ 加成**逐次累积**，表现为
+		// **"放两次技能，参数翻倍"**。而且它是**静默**的——只放一次技能时读数完全正常，
+		// 所以"只验一次激活"的检查必漏（本处正是我 Task 3 漏读规格原文留下的洞，Task 4 补上）。
+		// 摘除按来源全量命中 ⇒ 只摘本次 run 那一批，其它 run 的条目原样保留。
+		//
+		// **与 Task 5 的分工（MUST NOT 混淆）**：这里摘的是**技能自己定义侧物化的行**
+		// （`SkillDef.ParamChainRows`，落账本时来源就是 `RunSource`）。而台账 `CHAIN-7` 的
+		// "链挂条目回收"（链步骤经 `Context.RunSource` 挂到 M2 属性账本的那些修正器）仍归
+		// **Task 5 Step 3 的施法终结三路统一回收例程**——两者来源句柄相同、但**账本不同**
+		// （一个在 M5 技能账本、一个在 M2 属性账本），互不代劳。
+		FTcsParamChainOps::RemoveParamModifiersBySource(Subsystem, Unit, RunCopy.RunSource);
 
 		// ② 广播**打断**事件（**MUST NOT** 广播完成事件——顶替不是完成：照抄 GAS 会让配
 		// `OnCastCompleted` 起链的旧技能在被顶替的瞬间真的打出主链，即玩家连点两下、
