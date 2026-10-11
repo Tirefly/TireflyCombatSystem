@@ -159,7 +159,7 @@ TCS 插件侧 GameplayTag 词表的**规范载体**：钉死插件那 **12 个�
 
 **为什么唯一性可以由根名自己承担**：UE 的 tag 命名空间全局共享（引擎 + 全部插件 + 商城内容同处一棵树），唯一性确实必须有人承担——但这份唯一性由**根名**承担即可，不要求统一的命名空间前缀。代价是把"一刀切的前缀保护"换成了"**逐根的唯一性论证**"：引入第三方内容或新插件时 MUST 回头查根段注册表有没有撞车。
 
-本插件 11 个根名的由来（2026-10-04 增 `StateDef`；2026-10-05 增 `AttrModDef`）：
+本插件 12 个根名的由来（2026-10-04 增 `StateDef`；2026-10-05 增 `AttrModDef`；**2026-10-06 R6 Task 1 增 `SkillDef`**）：
 
 | 根 | 唯一化限定 | 角色名 |
 |---|---|---|
@@ -173,9 +173,10 @@ TCS 插件侧 GameplayTag 词表的**规范载体**：钉死插件那 **12 个�
 | `EffectTriggerDef` | `EffectTrigger`（`Def` 是泛指词、MUST 加限定，限定词取机制名） | `Def` |
 | `StateDef` | `State`（`Def` 是泛指词、MUST 加限定，限定词取机制名） | `Def` |
 | `AttrModDef` | `AttrMod`（`Def` 是泛指词、MUST 加限定；限定词取**机制名** `AttrMod`——修正器模板，而非 `Attribute`，见下条） | `Def` |
+| `SkillDef` | `Skill`（`Def` 是泛指词、MUST 加限定，限定词取机制名） | `Def` |
 | `DamageCategory` | `Damage`（`Category` 是泛指词、MUST 加限定，限定词取机制名） | `Category` |
 
-**`AttrModDef` / `StateDef` 两个 `Def` 根的并存论证（MUST，防"一根两角色"误读）**：两者角色名同为 `Def`（"定义资产身份"），但**消费角色不同**——`StateDef` 解析 `UTcsBuffDefAsset`（状态定义），`AttrModDef` 解析 `UTcsAttrModDef`（修正器模板）；按「一角色一根」的判据（两条**不同的代码路径** = 两个角色），二者 MUST 各自成根，MUST NOT 合并为 `Def.<族>.<名>` 一类一根两 facet 的形态。限定词取机制名正是为了在**同角色名**下把两个机制钉唯一。
+**`AttrModDef` / `StateDef` / `SkillDef` 三个 `Def` 根的并存论证（MUST，防"一根两角色"误读）**：三者角色名同为 `Def`（"定义资产身份"），但**消费角色不同**——`StateDef` 解析 `UTcsBuffDefAsset`（状态定义）、`AttrModDef` 解析 `UTcsAttrModDef`（修正器模板）、**`SkillDef` 解析 `UTcsSkillDef`（技能定义，2026-10-06 R6 Task 1 增）**；按「一角色一根」的判据（两条**不同的代码路径** = 两个角色），三者 MUST 各自成根，MUST NOT 合并为 `Def.<族>.<名>` 一类一根两 facet 的形态。限定词取机制名正是为了在**同角色名**下把三个机制钉唯一。**★ 2026-10-11 订正**：本段标题原写"**两个**"，是 `SkillDef` 落地时**漏改的旧数**（同批另有两处 `11 个根` 同款陈旧——`此`类计数 MUST 随新根落地同批回改）。
 
 **与宿主根 `Attribute` 的撞车回查（MUST，逐根唯一性论证的记录）**：`AttrModDef` 与宿主侧属性名根 `Attribute` 前 4 字符相同（`Attr`）。二者**互不为真前缀**（`Attribute` 的第 5 字符为 `i`、`AttrModDef` 为 `M`），故不命中"互不为前缀"禁令，也不存在"订阅 `Attribute` 命中 `AttrModDef.*`"的部分匹配风险；但仍 MUST 在本文留下这次回查记录——**同前缀段的两个根是未来最可能撞车的一对**，引入新的属性机制词时 MUST 重查。
 
@@ -210,12 +211,12 @@ tag 路径深度 MUST ≤ 4 段。第 4 段是**留给未来变化的余量，MU
 
 **分类细化的手段 = 增根不增层**（沿用既有口径"增域不增层"）：要细分就新增根，或换更精确的词，MUST NOT 在既有路径上继续加层。
 
-**度量（2026-10-05 订正）**：本插件 **11 个根**的代表词全部 ≤ 3 段——`TcsEvent.<域>.<名>` 3 段（余 1 段）；`DamageFlowKey.<键>` / `DamageFlowTemplate.<Id>` / `EffectChain.<Id>` / `TcsStateParam.<键>` / `EffectChainRunVar.<键>` / `EffectTriggerGate.<词>` / `EffectTriggerDef.<名>` / `StateDef.<名>` / `AttrModDef.<名>` / `DamageCategory.<词>` 2 段（余 2 段）；
+**度量（2026-10-05 订正）**：本插件 **12 个根**（**2026-10-11 R6 Task 7 收束订正**）的代表词全部 ≤ 3 段——`TcsEvent.<域>.<名>` 3 段（余 1 段）；`DamageFlowKey.<键>` / `DamageFlowTemplate.<Id>` / `EffectChain.<Id>` / `TcsStateParam.<键>` / `EffectChainRunVar.<键>` / `EffectTriggerGate.<词>` / `EffectTriggerDef.<名>` / `StateDef.<名>` / `AttrModDef.<名>` / `DamageCategory.<词>` 2 段（余 2 段）；
 **检查词**（`<功能根>.Check.<名>`）占 3 段——比同根正式词多用 1 段，仍余 1 段。换根前 `Tcs.Event.Damage.<名>` / `Tcs.Flow.Key.<键>` / `Tcs.Flow.Template.<Id>` 三族**全部卡在 4 段零余量**。
 
 #### Scenario: 每个根至少留一段余量
 
-- **WHEN** 检查本插件 11 个根下现有词的段数
+- **WHEN** 检查本插件 12 个根下现有词的段数
 - **THEN** 每族都存在未被用满的余量（3 段族余 1 段、2 段族余 2 段，含 `Check` 词后仍余 1 段），不存在 4 段词
 
 #### Scenario: 细分走增根而不是加层

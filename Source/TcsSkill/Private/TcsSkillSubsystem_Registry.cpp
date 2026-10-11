@@ -17,10 +17,9 @@ ESkillActivateResult UTcsSkillSubsystem::TryActivate(
 	return FTcsCastOps::Activate(*this, Unit, DefTag, OutRun);
 }
 
-bool UTcsSkillSubsystem::TerminateCastRun(FTcsCastRunHandle RunHandle)
-{
-	return FTcsCastOps::TerminateRun(*this, RunHandle);
-}
+// **`TerminateCastRun` / `CancelCast` / 查询契约住在 `TcsSkillSubsystem_CastPhase.cpp`**
+// （Task 5 把施法运行态面的薄壳归到那一片，与本片的"账本面薄壳"分开——
+// 本文件保留 `TryActivate` / `GetCastRun*` / 授予撤销 / 访问，改动面最小）。
 
 const FTcsCastRun* UTcsSkillSubsystem::GetCastRun(FTcsCastRunHandle RunHandle) const
 {

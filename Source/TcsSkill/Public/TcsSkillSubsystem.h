@@ -14,6 +14,7 @@
 #include "Def/TcsSkillDefData.h"
 #include "Skill/TcsCastRun.h"
 #include "Skill/TcsCastRunHandle.h"
+#include "Skill/TcsChainRedirect.h"
 #include "Skill/TcsSkillEntrySelector.h"
 #include "Skill/TcsNumericParamModifier.h"
 #include "Skill/TcsSkillEntryHandle.h"
@@ -22,6 +23,7 @@
 #include "TcsSkillSubsystem.generated.h"
 
 class UTcsEventBusSubsystem;
+class UTcsClockSubsystem;
 
 
 
@@ -319,7 +321,8 @@ public:
 
 public:
 	/**
-	 * 尝试激活一个已学技能——六道**具名**门禁（`SAR_*`）+ 建运行态 + 建快照 + 起主链 + 发 `OnCastStarted`。
+	 * 尝试激活一个已学技能——六道**具名**门禁（`SAR_*`）+ 建运行态 + 建快照 + 起主链 + 发 `OnCastStarted`
+	 * + **瞬发当刻完成**（空时段表）或**排定首段到期条目**（非空时段表）。
 	 *
 	 * **门禁序**：实体 Ready → 已学 → 冷却（`R6.5` 占位）→ Instancing 四路分流 → CanAfford（`R6.5` 占位）
 	 * → 定义可解析。**每道具名返回**（修 TCS 报告 09 的门禁内联缺陷）。
@@ -341,15 +344,83 @@ public:
 		FTcsCastRunHandle* OutRun = nullptr);
 
 	/**
-	 * 终结一个施法运行态（发 `OnCastInterrupted` + 摘账本句柄 + 归还池槽位 + 按来源回收链挂条目）。
+	 * 终结一个施法运行态（四路汇聚的唯一入口——回收动作与事件分岔见 `FTcsCastOps::FinishCastRun`）。
 	 *
-	 * **Task 3 的唯一内建调用者是顶替路径**；打断与自然完成归 Task 5——三条终结点届时
-	 * MUST 汇聚到同一例程（台账 `CHAIN-7` 的落点纪律）。
+	 * **本口发的是 `OnCastInterrupted`**（等价"顶替"档）；**完成**档与**打断**档各有自己的入口
+	 * （激活流程末尾的完成终结 / `CancelCast`），三者最终都落到同一个例程上。
 	 *
 	 * @param RunHandle 运行态句柄。
 	 * @return 返回是否确实终结了一个在册运行态。
 	 */
 	bool TerminateCastRun(FTcsCastRunHandle RunHandle);
+
+	/**
+	 * **打断一个施法运行态**（`CancelCast`）：先过查询契约，不可打断 ⇒ 拒绝且运行态原样继续。
+	 *
+	 * 结算序与"止于未来不追溯"的语义见 `FTcsCastOps::CancelCast`。
+	 *
+	 * @param RunHandle 运行态句柄。
+	 * @return 返回是否真的打断了（已终结）。
+	 */
+	bool CancelCast(FTcsCastRunHandle RunHandle);
+
+	/**
+	 * 当前这次施法能不能被打断（D5-1 查询契约）——**打断结算与宿主移动系统询问的唯一合法入口**。
+	 *
+	 * **宿主 MUST NOT 自行读 `FTcsSkillDefData` 的开关字段代判**（那会在三档之间制造第二真相）。
+	 * 三档分派与两处具名降级见 `FTcsCastOps::IsInterruptibleNow`。
+	 *
+	 * @param RunHandle 运行态句柄。
+	 * @return 返回当前是否可打断（悬空句柄 ⇒ false，不 ensure）。
+	 */
+	bool IsInterruptibleNow(FTcsCastRunHandle RunHandle);
+
+	/**
+	 * 当前是否允许移动（宿主移动系统询问）。
+	 *
+	 * @param RunHandle 运行态句柄。
+	 * @return 返回当前是否允许移动（悬空句柄 ⇒ false，不 ensure）。
+	 */
+	bool CanMoveNow(FTcsCastRunHandle RunHandle);
+
+	/**
+	 * 取当前时段下标（观测与装置断言用）。
+	 *
+	 * @param RunHandle 运行态句柄。
+	 * @return 返回当前时段下标；悬空句柄返回 `-1`（**与"第 0 段"可区分**——0 是合法下标）。
+	 */
+	int32 GetCastPhaseIndex(FTcsCastRunHandle RunHandle) const;
+
+	/**
+	 * 取本 run **实际起来的链身份**（重定向的验收读数取它）。
+	 *
+	 * **为什么必须有这个读口**：链运行态不持链身份 ⇒ 从 `ChainRunHandle` 反查不到"这次起的是哪条链"。
+	 * 若装置改取"解析函数返回了什么"或"重定向表里有几条"，那是在测解析而不是测起链。
+	 *
+	 * @param RunHandle 运行态句柄。
+	 * @return 返回实际起的链身份；未起链或悬空句柄返回空 tag。
+	 */
+	FGameplayTag GetCastActiveChainId(FTcsCastRunHandle RunHandle) const;
+
+	// 挂载一条链重定向（`Source` 无效 / 身份无效 ⇒ 拒绝并返回 false）
+	bool MountChainRedirect(const FTcsChainRedirectEntry& Entry, FTcsSourceHandle Source);
+
+	// 按来源级联摘除链重定向（返回摘除条数；0 条命中 = 正常路径，不 ensure）
+	int32 UnmountChainRedirectsBySource(FTcsSourceHandle Source);
+
+	// 本世界在册链重定向记录数（观测与装置断言用）
+	int32 GetChainRedirectCount() const;
+
+	/**
+	 * 注入链重定向 Custom 契约（注入点**形状**；其求值归 `R6.5-g`）。
+	 *
+	 * **`nullptr` 是配置状态不是错误**（同 `SetEntityQuery` 的口径）：未注入时解析路径
+	 * **不报**"未实现"——没有东西被拒绝求值。已注入 ⇒ 具名 `Warning` 报未实现并跳过
+	 * （MUST NOT 静默忽略，那会让宿主以为它生效了）。
+	 *
+	 * @param InResolver 宿主实现（可传空以撤销注入）。
+	 */
+	void SetChainRedirectResolver(TScriptInterface<ITcsChainRedirectResolver> InResolver);
 
 	/**
 	 * 按句柄取施法运行态（悬空句柄返回 nullptr 且不 ensure——时序竞态是正常路径）。
@@ -470,6 +541,20 @@ public:
 	UTcsEventBusSubsystem* GetEventBus() const;
 
 	/**
+	 * 取时钟泵门面（时段到期的入堆与取消口；世界拆解期返回 `nullptr`——调用方须容忍）。
+	 *
+	 * **为什么是公开口**：时段入堆/撤堆发生在引擎函数（`FTcsCastOps`）里，它本来就够得着门面私有区；
+	 * 但"取另一个子系统的指针"是任何调用方都要做的事，藏起来只会让下一处再往 friend 名单加一个名字。
+	 * 返回裸指针即"可能为空"的显式声明。同款先例 = `UTcsStateSubsystem::GetClockSubsystem`。
+	 *
+	 * **门面只转交读口，MUST NOT 持有到期堆**：`FTcsExpiryHeap` 是泵私有，消费者一律经本口拿到的
+	 * `UTcsClockSubsystem` 调 `PushExpiry` / `CancelExpiry`（`AdvanceTo` 保持泵私有）。
+	 *
+	 * @return 返回时钟泵；世界无该子系统时返回 nullptr。
+	 */
+	UTcsClockSubsystem* GetClockSubsystem() const;
+
+	/**
 	 * 门禁第一道：实体是否可操作。
 	 *
 	 * **判据来源 = 注入的 `ITcsEntityQuery::IsEntityReady`**，**MUST NOT** 用 `IsAlive` 代替——
@@ -523,6 +608,36 @@ private:
 
 	// 学习来源发号器（未声明来源时由本门面发号；进程内唯一、永不复用）
 	FTcsSourceHandleRegistry SourceRegistry;
+
+	/**
+	 * 链重定向栈（D5-7 链级让渡；账本侧）。
+	 *
+	 * **零 GC 负担**：记录只含 tag / 句柄 / 整数，**无任何 `UObject` 引用**（见该类型的类注释）
+	 * ⇒ `AddReferencedObjects` MUST NOT 为它新增遍历。
+	 */
+	FTcsChainRedirectRegistry ChainRedirects;
+
+	/**
+	 * **在飞终结标记集**：终结例程已进入广播窗口的 run 句柄。
+	 *
+	 * **它修的是 Task 3 留下的真实缺陷**：`FinishCastRun` 的事件广播是**当场同步派发**
+	 * ⇒ 订阅者可在回调内**重入终结同一句柄**。Task 3 只挡住了"双次归还槽位"这一半
+	 * （靠归还前复核池句柄是否仍有效），**"打断事件发两次"当时仍然存在**
+	 * （`TcsCastOps.cpp` 的旧注释自认，其归属即本轮）。
+	 *
+	 * **体例照状态侧已验证的解法**：`UTcsStateSubsystem::InRemovalBroadcastHandles`
+	 * （进出广播窗口**成对**标记 / 解除）⇒ 递归终结同句柄**返回 false 且静默**，
+	 * 既不重复广播、也不重复归还槽位。**判据 = 订阅者重入一次，`Interrupted` 仍为 1。**
+	 *
+	 * **为什么是"进出成对"而不是"终结即加入、永不删"**：本集是**窗口**（广播期间），
+	 * 不是"已终结"的历史——广播结束即须移除，否则池槽位复用给新 run（同 `Index`、新 `Generation`）
+	 * 时不会误伤（句柄含代际，本已不撞），但**同一句柄的后续合法终结**会被永久拒绝。
+	 */
+	TSet<FTcsCastRunHandle> InFinishBroadcastHandles;
+
+	// 宿主链重定向 Custom 契约（未注入 = 空接口；`UPROPERTY` 持有以满足 TScriptInterface 的 GC 纪律）
+	UPROPERTY()
+	TScriptInterface<ITcsChainRedirectResolver> ChainRedirectResolver;
 
 	// 宿主实体查询读口（未注入 = 空接口；`UPROPERTY` 持有以满足 TScriptInterface 的 GC 纪律）
 	UPROPERTY()

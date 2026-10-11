@@ -29,21 +29,30 @@ bool UTcsSkillSubsystem::DoesSupportWorldType(const EWorldType::Type WorldType) 
 
 void UTcsSkillSubsystem::Deinitialize()
 {
-	// **四者都要清**：运行态池 / 登记表 / 账本 / 注入的实体查询接口。
+	// **六者都要清**：运行态池 / 登记表 / 账本 / 注入的实体查询接口 /
+	// 链重定向栈（含宿主契约）/ 在飞终结标记集。
 	// 不清注入的接口会让"未注入 ⇒ 降级放行"这条路径在跨世界后**再也测不到**
 	// （上一世界注入的实现一直生效，表现为门禁第一道永远走宿主判定）。
+	//
+	// **在飞终结标记集 MUST 清**：它只在"某次终结还没走完"的窗口内有意义；跨世界残留会让
+	// 新世界里同 `(Index, Generation)` 的 run **再也终结不掉**（返回 false 且静默）——
+	// 症状是"技能放不出去也结束不了"，远离根因。状态侧同款（`InRemovalBroadcastHandles.Reset()`）。
 	const int32 EntriesBefore = Registry.NumEntries();
 	const int32 DefsBefore = RegisteredDefs.Num();
 	const int32 RunsBefore = FTcsCastOps::ResetAll(*this);
+	const int32 RedirectsBefore = ChainRedirects.Num();
 
 	Registry.Reset();
 	RegisteredDefs.Reset();
+	ChainRedirects.Reset();
+	InFinishBroadcastHandles.Reset();
 	EntityQuery = TScriptInterface<ITcsEntityQuery>();
+	ChainRedirectResolver = TScriptInterface<ITcsChainRedirectResolver>();
 
 	UE_LOG(LogTcsSkill, Log,
-		TEXT("技能门面反初始化：账本条目 %d→%d 已登记定义 %d→%d 施法运行态 %d→%d，实体查询已清空"),
+		TEXT("技能门面反初始化：账本条目 %d→%d 已登记定义 %d→%d 施法运行态 %d→%d 链重定向 %d→%d，注入接口已清空"),
 		EntriesBefore, Registry.NumEntries(), DefsBefore, RegisteredDefs.Num(),
-		RunsBefore, GetCastRunCount());
+		RunsBefore, GetCastRunCount(), RedirectsBefore, ChainRedirects.Num());
 
 	Super::Deinitialize();
 }

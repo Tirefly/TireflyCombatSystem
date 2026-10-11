@@ -71,3 +71,107 @@
 | PV-10 | **源的可枚举能力**（2026-09-14）：`FTcsParamEnumerableSource : FTcsParamValueSource`（Core 可选能力基类）+ `Enumerate(Level, OutValues, OutCurrentIndex)` / `GetIndexForLevel`；**索引解析唯一真相在源、`Evaluate` 同源**；不可枚举源配序列展示 = M8 报错（载体 09-15 随 D5-17 v3 改 Series 视图 + IsCompatible 探针）；曲线源区间零能力可用、序列表待需求；随 TcsState 等级源同批落地 | 已拍板 2026-09-14 |
 
 | **身份载体修订（2026-09-22）** | **本文档所有 `DefId` / "任意 FName 键" 应读作 tag 口径**：`FLearnedSkillEntry.DefId` → `DefTag: FGameplayTag`；D5-5 的"任意 FName 键 + 每键修正链" → **任意 `FGameplayTag` 键**；`ParamRef{Key: FName}` → `{Key: FGameplayTag}`；D5-9/D5-13/D5-14 里的 `EffectiveDefId` / `DefId` 一律读作身份 tag。原 `FName` 载体被**有据重开**（提案 `switch-identifiers-to-gameplay-tags`；理由见 m0min-m2 文档 D2-1 修订行）。**注意**：D5-17 v3 描述配置里的 `TextKey` / `DescriptionId` / `SlotName` **不在此列**（StringTable 键与展示槽名，非内容引用——口径见 11 文档）。 | 已拍板 2026-09-22 |
+
+---
+
+## ★ 附注：`D5-7` 链重定向的**不可替代内核**与它的**坏招牌**（2026-10-10 追加）
+
+> **为什么有这一段**：2026-10-10 的讨论中出现一条会反复出现的疑问——**"『3 段斩→5 段斩』这种带职业判定与数值判定的需求，用 `BoolSwitch` + 现有功能也能做，`ChainRedirect` 是不是多余？"**
+> 该疑问**当时的直觉是对的**，但它停在"没有可复核的事实清单"上。本段把**判据钉死**，
+> **下次同一疑问出现时直接读本段，不必重新论证**（用户 2026-10-10 裁定：`D5-7` 与示例**先原样保留**，本段只作依据留档）。
+
+### 一、该直觉成立在哪：`D5-7` 的招牌示例是**弱的**
+
+本文档《关键机制串联（3 段斩→5 段斩的双解）》一节把 `D5-7` 的示例定为"段数 3 → 5"。
+但按 `D5-8` 自己钉的分工——**"参数改数值、重定向换结构"**——**"段数"本身就是一个数值**；
+而"剑魂职业 + 技能等级 > 5"是**谓词**。谓词 + 数值的天然归属是**条件**与**参数链**，不是映射表。
+
+⇒ **该示例是 `D5-7` 的坏招牌，MUST NOT 被当作 `D5-7` 的代表用例**；`D5-7` 的正当内核见下节。
+
+### 二、`D5-7` 不可替代的那**一条**能力
+
+**让「外部的声明方」（状态 / 装备 / 天赋）在不触碰技能链资产的前提下换掉"这个技能走哪条链"，
+并自带多来源仲裁与按来源成对摘除。**
+
+对照"在链里放一个 `FTcsStepBranch`"：
+
+| 维度 | 链内 `FTcsStepBranch` | `D5-7` 链重定向栈 |
+|---|---|---|
+| 谁做决定 | **链的作者**（须预先想到这个变化） | **外部声明方**（不改技能资产） |
+| 多来源竞争 | 无（一条链一个分支） | `Priority` 大者胜、打平取**后挂者**（`FTcsChainRedirectRegistry::Resolve`） |
+| 生命周期 | 随链 | **随来源**（`UnmountBySource` 级联摘除） |
+| 前提 | 一个能表达该判定的**条件类型** | 一套**声明载体**（今天**没有**，见 §四） |
+
+⇒ 它换的是「**条件表达力**」↔「**声明管线**」：**判定输入是谓词时它不划算**（§一）；
+**要"多来源、免改资产、卸下即失效"时它是唯一形状**。
+
+### 三、事实清单（全部可复核；格式按 `CONVENTION` §5 用 `路径:符号名`）
+
+1. **今天链里连"职业判定"都做不了。** 链侧条件上下文的来源受限——`ExecuteStepBranch`
+   （`TcsEffect/Private/Chain/TcsStepBranch.cpp`）只填 `Caster` 与 `World`；`TcsEffect/Public/Chain/TcsStepBranch.h`
+   自述：`EventTag` / `ClassificationTags` **在链侧无来源** ⇒ **依赖它们的条件恒不通过**。
+   「剑魂」是身份标签 ⇒ 要 `HasAllTags` ⇒ **在链里恒不通过**；而"技能等级 > 5"**没有任何条件类型能读**。
+2. **内置条件只有三个**（`UE_DEFINE_TRIGGER_CONDITION_EVALUATOR`，`TcsTriggerCondition.cpp`）：
+   `FTcsTriggerCondition_HasAllTags` / `_Chance` / `_AttributeCompare`。**没有**读 BoolSwitch 的 `GateCheck`、
+   **没有**读 `Entry.Level` 的条件。
+3. **注册的效果步骤只有十个**（`UE_DEFINE_EFFECT_STEP_EXECUTOR`，全仓）：`SelectTargets` / `ApplyState` /
+   `Branch` / `ModifyAttribute` / `RunSubChain` / `SetVar` / `WaitDelay` / `WaitEvent` / `ModifyFlow` / `Damage`。
+   **没有 `Repeat`** ⇒ §一的"数值解"今天同样走不通（`Repeat` 归 `R5.5-a`，见 [`LEDGER-deferred`](../ledger/deferred-inputs-ledger.md)）。
+4. **被提议替代的 `BoolSwitch` 两半都不存在**：写侧 `FTcsBoolSwitchModifier`、读侧 `GateCheck` 条件——
+   全仓 `Source/` **零命中**（唯一条提及是 `TcsNumericParamModifier.h` 的一句注释）。两者同归
+   [`PLN-R6`](../plans/plan-r6-skill-layer.md) 的 `R6.5-e` 批次。
+5. **重定向今天没有任何定义侧载体。** `FTcsChainRedirectEntry` 全仓只出现在三处：结构体定义、
+   栈内记录 `FRecord`、门面形参 `UTcsSkillSubsystem::MountChainRedirect`。
+   **没有任何 Def 持有它的字段**（`FTcsBuffDef` 与 `FTcsSkillDefData` 均无）⇒ `D5-7` 原词
+   "**声明在状态/装备 Def**"那半**完全未落地**；`TcsChainRedirect.h` 自述"技能侧本轮零资产载体"，
+   今天唯一挂载入口是 **C++ 形参**。
+6. **已落地的部分**：`FTcsChainRedirectRegistry`（`Mount` / `UnmountBySource` / `Resolve` / `Num` / `Reset`）
+   + 门面四个口 + 三级解析 `FTcsCastOps::ResolveCastChainId`，**已实现并已取证**——
+   `EVID-2026-10-10-skill-cast-phases` 的 `P5` 五段读数（基线 / 挂上 / 高优先 / 后挂 / 摘除），
+   挂摘成对 **3 → 0**。
+
+### 四、今天**用不了**的三处（MUST NOT 读成"已可用"）
+
+1. `EMainChainStart::MCS_Custom` 主链启动档——**具名未实现**：配了它报 `Warning` 且**不起链**（归 `R6.5-g`）。
+2. `ITcsChainRedirectResolver`（Custom 重定向契约）——**"可声明、不可求值"**：注入实现后解析
+   **不调用它**，只报 `Warning` 后取数据栈档（归 `R6.5-g`）。
+3. **无资产载体**（§三·5）⇒ 今天只能 C++ 挂。
+
+### 五、判别先例：同族的 `D5-9` 已被撤除
+
+**技能级**重定向 `D5-9` 已于 **2026-09-11 撤除**，理由正是"**用另一条路更好**"
+（`Entry↔Def` 一对一保证参数键空间纯净）。⇒ **"某条重定向该不该收窄"在本仓是有先例的问题类型**；
+`D5-7` 若将来被裁，先例应引 `D5-9`（见 [`LOG-DECISIONS`](decisions-log.md) 与
+[`SPEC-04-skill`](../spec/05-module-skill.md) §3.4）。
+
+### 六、本段的**边界**（MUST NOT 外推）
+
+- **不改任何决策**：`D5-7` 及其示例原样保留（用户 2026-10-10 裁定"先留着"）。
+- **不含裁定结论**：本段只把「事实清单 + 不可替代内核 + 坏招牌」钉住，**为将来的裁定提供可复核依据**。
+- **台账未登记条目**（用户裁定不登记）⇒ 本段是这条待裁项的**唯一载体**。
+
+---
+
+## ★ R6 轮（M5 技能层）实施期口径与收束（2026-10-11 追加；按 `docs-convention` §7「冻结」只追加、正文不改）
+
+> **本节的地位**：`LOG-03-skill` 正文是 **D5-1~D5-19 的拍板定义处**（FROZEN）。本节只登记**实施期新定的口径**与**本轮收束结论**，**不改任何既有决策**。实施视角的完整收窄（落地 / 不落面带归属 / 实现名对照）住 **`SPEC-04-skill` §11**，本节只记**决策面**的增补。
+
+### 一、实施期新定的三条口径（正文未覆盖）
+
+1. **顶替语义三条**（2026-10-07，R6 Task 3 实施期定）：① 旧 run 发 `OnCastInterrupted`、**MUST NOT** 发 `OnCastCompleted`；② 顶替**受 `IsInterruptibleNow()` 门禁**（不可打断段 ⇒ 顶替被拒、返回 `SAR_AlreadyActive`）；③ 顶替 = **打断的一种终止形态**、复用同一枚事件，**MUST NOT** 新增第三枚终止事件。**与 GAS 的两处刻意分歧**：GAS 的 `bRetriggerInstancedAbility` 不查可打断性、且以 `EndAbility(bWasCancelled=false)` 结束（把"被顶替"报成"完成"）——**两处都 MUST NOT 照抄**。
+2. **瞬发 = 空时段表 = 激活当刻完成**（2026-10-09 用户裁定**甲′**）⇒ 施法终结是**四路**（全时段走完 / **瞬发当刻完成** / 打断 / 顶替），非正文所暗示的三路。**为什么非补不可**：空 `Phases` 意味着**没有任何时段到期** ⇒ "全时段走完"对瞬发技能**永不成立**；缺第四路时瞬发只能靠**打断**结束（把一次成功施法报成"被打断"，且池槽位与账本 `RunHandles` 永久占用）。**纪律**：四路**汇聚同一个终结例程**，**只在"发哪一枚终止事件"处分岔**。
+3. **`BoolSwitches` 落 `TcsSkill`**（2026-10-06 Q-8 改判）：`FTcsBoolSwitchRow` 与持有它的 Def **同域**；依据 = 四路 grep 实测其消费者**只有技能侧**（`SPEC-02-states` 全文零命中）。`ETcsParamMode` 仍从 `TcsState` 复用（零新编译边）。
+
+### 二、三条口径裁决（收束轮复核，**均不改正文**）
+
+1. **`STAT-1`（折叠器单份三处共用）✅ 已消费**（2026-10-09，R6 Task 4）：三处落点齐备——`TcsAttributePipeline.cpp`（M2，全仓首个消费者）/ `TcsFlowAttributes.cpp`（TcsDamage 流程属性黑板）/ **`TcsParamChain_Evaluate.cpp`（M5 技能参数链，本项）**。**收束自检**：`Source/` 全仓**真实调用点恰 3 处**（**MUST 数调用点，MUST NOT 数符号总命中**——注释会让计数虚高）。
+2. **`CORE-1`（原生侧层级匹配）条件仍不成立**（2026-10-11 复核）：R6 的事件订阅方是**触发行**（`FTcsEffectTriggerDef.EventTag` **逐条具名**）+ 宿主脚本（动态委托，已支持部分匹配），**全库无任何代码路径需要订阅 `TcsEvent.Cast` 父 tag 收全部施法事件** ⇒ `TcsEventBus` 的**精确匹配语义本轮不动**（改它属跨模块 blast radius 且无真实消费者）。保持"待触发"。
+3. **`WAIT-7`（AttrCapture）归属已改判且不因此关闭**（2026-10-08）：技能侧那半（`CastConfig.AttrCaptureList` / `FCastRun.CapturedAttrs`）**已整体删除**（三轮判据：零消费者 + 与流程属性黑板/`FlowModify` 机制重叠 + 技能侧已被参数快照占满）；**而**流程侧 `FTcsDamageFlowContext.CapturedAttrs` 仍是"字段就位、无填充者无读取者"，**触发条件不变**。**MUST NOT** 把技能侧的删除读成"`WAIT-7` 已关闭"。
+
+### 三、R6 收束结论（2026-10-11）
+
+- **计划 `PLN-R6` 的 Task 0~7 全部完成并取证**；**两个提案同日归档**（`add-cast-phases-and-interrupt` / `verify-skill-layer-e2e`）⇒ **`openspec/changes/` 归零**、**能力数 38 → 40**。
+- **六份证据**：`EVID-2026-10-06-trigger-host-slots`（Task 0）/ `2026-10-07-skill-def-asset`（T1）/ `2026-10-08-skill-registry`（T2）/ `2026-10-08-skill-cast-runtime`（T3）/ `2026-10-09-skill-param-chain`（T4）/ `2026-10-10-skill-cast-phases`（T5）/ **`2026-10-11-skill-layer-e2e`（T6）**。
+- **`D5-7`（技能级重定向）的现状**：D5-9 修订（2026-09-11）已把**技能级**重定向整体移除；**链级**重定向（`FTcsChainRedirect`）本轮落地并通过验收（含优先级与后挂者胜）。**本文 §《附注：`D5-7` 链重定向的不可替代内核与它的坏招牌》仍然是那条待裁项的唯一载体**（用户裁定不登记台账、不改 D5-7 本身）——**R6 收束 MUST NOT 被读成"那条待裁项已裁"**。
+- **未落面改判 `R6.5`**（七个批次 `a`~`g` 全部未开工）：冷却多轨道与三事件 / `FCooldownTiming` 四档 / Cost 策略×时机 / `FBoolSwitchModifier` + `GateCheck` / `UTcsSkillModDef` 参数行分派 / 多形态组合范式完整走查。**《R6.5 批次表》的关账块**（`PLN-R6`）已补：依赖**从"等 R6"变为"随时可开"**，且 `CQM_Custom` / `MCS_Custom` 两档须**一起**补（本轮二者都是**具名未实现 + 回退默认档**）。
+- **一条可复用的收束纪律（本轮沉淀，已写进 `INDEX` §5）**：**"计数声称"MUST 全库同批回改**——同一个数常在 **3~5 处**重复，且**没有校验器报警**。R6 收束实测两例：`gameplay-tag-governance` 的 `11 个根` 在 `SkillDef` 落地后**漏改三处**（由来表 / 度量 / scenario）、且"两个 `Def` 根"实为**三个**；`GLOSSARY` 的四个编号族计数各差 2~33。
