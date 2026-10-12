@@ -2,11 +2,48 @@
 
 - **文档 ID**：`PLN-R6.5-CC`
 - **类型**：PLAN / 轮次计划
-- **状态**：DRAFT（待用户复核 §0 裁定后开工）
-- **权威范围**：本轮范围 / §0 裁定（逐条待复核）/ Task 骨架 / 验收面 / 边界。**不在本文**：`SPEC-04-skill` 正文回写（Task 5 做）、冷却侧（不属本轮）。
-- **最后更新**：2026-10-12（**v2 重写**：用户改点为策略模式，取代 v1 的"成本组"方案）
-- **上游**：`PLN-R6.5-1`（批次 `a`~`d`，已收束）；台账 **`COST-3`**（消耗的"检查 / 提交"扩展点）
-- **轮号**：本计划**不占 `R6.5` 批次表 `a`~`g` 号**——`a`~`g` 立于 R6 开工前，彼时无此需求。它是 `R6.5-1` 的**同域续作**（同批文件、同一装置）。**MUST NOT** 与未开工的 `R6.5-2`（`e`/`f`/`g`）混编。
+- **状态**：**COMPLETED（2026-10-12 收束）**——Task 0 / 1 / 2 / 3 全部落地并取证；Task 4（收束归档）进行中
+- **权威范围**：本轮范围 / §0 裁定 / Task 骨架 / 验收面 / 边界。**不在本文**：`SPEC-04-skill` 正文回写（Task 4 做）、冷却侧（不属本轮）。
+- **最后更新**：2026-10-12（**收束回写**：Task 0~3 落地读数见 §5；裁定 R11/R12/R13 已定并实施）
+
+---
+
+## 5. 落地实况（2026-10-12 收束时回写；**本节是"计划 vs 实际"的对账**）
+
+| Task | 状态 | 实际交付 |
+|---|---|---|
+| **Task 0** 类型层换型 | ✅ | `ETcsSkillCostTiming`（四档，含 `ECT_None` 默认）/ `FTcsSkillCostConfig{Timing, CostMode}` / `FTcsSkillCostPolicy`（中性默认 + `Hidden` + 虚析构）/ `FTcsSkillCostPolicy_ResourceAttr` / `FTcsCostContext`（纯 C++ 非反射）；**删** `ETcsCostPolicy` 三档 + `FTcsCostConfig` |
+| **Task 0b** 冷却侧改名（R12） | ✅ | `ETcsCooldownTiming` → `ETcsSkillCooldownTiming`（**只改类型名、值不动**；归档与历史日志旧字面保留） |
+| **Task 1** 脚本面宿主插槽 | ✅ | `TcsCostPolicyHost.h`：`UTcsSkillCostPolicyHost` / `ITcsSkillCostPolicyHost`（`UINTERFACE(MinimalAPI, Blueprintable)` + `BlueprintNativeEvent`）+ `FTcsSkillCostPolicy_HostDelegate` 转发器（`TScriptInterface` + **空 Host ⇒ fail-closed** + `Execute_*`） |
+| **Task 2** 分派 + 原子性 | ✅ | `ResolvePolicy` / `MakeContext` 唯一解析点；`CanAffordCost` / `CommitCost` 分派；`None` 短路；**空策略 ⇒ fail-closed**；框架用 `BeginBatch`/`Commit` 包策略提交 |
+| **Task 3** 装置 + 取证 | ✅ | K 面四条（K1/K2 宿主策略被真实调用、K3 空 Host fail-closed、K5 无残留批）；`g` 判据**取反**；双配置 0/0；UHT 产物核对 |
+| **Task 4** 收束归档 | 进行中 | 台账 `COST-3` / `COST-2` 闭合；证据档 `EVID-2026-10-12-cost-policy`；`SPEC-04` / `INDEX` / `GLOSSARY` / `LOG-DECISIONS` 回写 |
+
+### 5.1 ★ 与原计划的三处偏离（MUST 读，防照旧稿派活）
+
+1. **§0.4 D1 的"内建策略也走同一套"被原样实施**，但**命名词根按 R11 统一为 `Policy`**
+   （原草稿写过 `FTcsSkillCostMode_ResourceAttr` / `FTcsCostContext` —— 实际是
+   `FTcsSkillCostPolicy_ResourceAttr` / `FTcsSkillCostContext`）。
+2. **§0.3 纠正二（原子性）在实施期被进一步更正**：我原写"批可同时给全有全无与防重入"，
+   **源码核实后改为"批只推迟重算+广播、不提供回滚"** ⇒ "全有全无"的实际保障是**先判后扣**。
+   详见 `TcsCostOps.h` 的注释与 `EVID-2026-10-12-cost-policy` §5.2。
+3. **§0.2 的"成本组整体作废"已执行**：`FTcsCostGroup` / `ETcsCostCombineMode` /
+   `FTcsCostDetail` / `ResolveCostPlan` **一律未建**（用户裁定框架不提供组合代数）。
+
+### 5.2 一处**计划未预见**的实施坑（MUST 留痕）
+
+**`UCLASS` MUST 住头文件**：装置用的宿主策略类最初住 `.cpp`（且一度住匿名命名空间）
+⇒ UHT 不为其生成反射代码 ⇒ `C2143 syntax error: missing ';' before '<class-head>'`。
+**本轮两次命中**，最终移进 `TcsDevSliceRig_CooldownCost.h`。
+**判据**：UCLASS/USTRUCT/UENUM 的**类型名 MUST 在全局作用域、且住头文件**（UHT 只扫头文件）。
+
+### 5.3 验收读数（与冻存基线逐条比对）
+
+- `Tcs.Test.CooldownCost.Run`：**立即面 28/0 + 尾段 31/0**（基线 24/27 + 新增 4 条 K；
+  **零 flips、零 FAIL**）
+- `Tcs.Test.CooldownCost.Reject`：**7/0**
+- R6 回归 `Tcs.Test.SkillLayer.Run`：**24/0**，`[复现性摘要]` 与基线**逐字相同**
+- 双配置编译 **0 error / 0 warning**；`openspec validate --all --strict` **42 passed / 0 failed**
 
 ---
 

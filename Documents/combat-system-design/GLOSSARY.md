@@ -319,6 +319,7 @@
 | `PLN-R4` | `plans/plan-r4-trigger-row.md` | 实施计划（R4 计划三，**含 R4.5 批次表**；R5–R8 路线图已于 2026-10-04 移交 `PLN-R5`） |
 | `PLN-R5` | `plans/plan-r5-state-layer.md` | 实施计划（R5：M3 状态层，**含 R5–R8 路线图（现行真相源）+ R5.5 批次表**） |
 | `PLN-R6` | `plans/plan-r6-skill-layer.md` | 实施计划（R6：M5 技能层，**含 R6.5 批次表**；**已完成 2026-10-11**） |
+| `PLN-R6.5-CC` | `plans/plan-r65-cost-policy.md` | 实施计划（R6.5-CC：**消耗策略化**；`R6.5` 的同域续作、**不占批次表 `a`~`g` 号**；含 R11/R12/R13 三条追加裁定；**2026-10-12 建立并收束**） |
 | `PLN-R6.5-1` | `plans/plan-r6.5-cooldown-and-cost.md` | 实施计划（R6.5-1：冷却与消耗，批次 `a`~`d`；**首个拥有 Task 骨架的非正式轮**，2026-10-11 建立 / **Task 0~5 于 2026-10-12 落地取证**） |
 | `PLN-R3-content-guide` | `plans/plan-r3-content-guide.md` | 实施计划（竖切内容资产指南） |
 | `RSCH-abilitykit-editor` | `research/abilitykit-extract-editor-determinism.md` | 调研（AbilityKit C 路） |
@@ -339,6 +340,7 @@
 | `EVID-2026-10-04-modifier-channel` | `evidence/2026-10-04-modifier-channel-pie.md` | 证据（**修改器通道端到端验收**：两轮 `.Run` 各 19/0 且关键行逐字一致 + 一轮 `.Reject` 4/0；含快照 SHA-256 与八条边界） |
 | `EVID-2026-10-11-r65-cooldown-cost` | `evidence/2026-10-11-r65-cooldown-cost.md` | 证据（**R6.5-1 冷却与消耗竖切**：无头 `Run` **18/0** + 含跨帧尾段 **21/0**（两轮逐字相同）+ `.Reject` **7/0**；**编辑器 PIE 面亦已补取**——同为 18/0 + 21/0 + 7/0，两轮独立 PIE 世界逐字相同、跨 PIE 残留通过（✅ 两条路线现已同版本：基线 DLL + 新夹具，缺口已闭合，见同档 §1.1）；R6 回归 24/0 摘要逐字相同；**抓出 1 处产品缺陷 + 3 处装置缺陷 + 2 处夹具缺陷（补取 PIE 所得，见其 §4.4）**） |
 | `EVID-2026-10-11-skill-layer-e2e` | `evidence/2026-10-11-skill-layer-e2e.md` | 证据（R6 Task 6 技能层端到端竖切：`Run` 24/0 + `Reject` 7/0；`CHAIN-7` 三路成对读数 + 阴性对照） |
+| `EVID-2026-10-12-cost-policy` | `evidence/2026-10-12-cost-policy.md` | 证据（**R6.5-CC 消耗策略化**：策略模式 + 脚本面宿主插槽；`Run` **28/0 + 31/0**、`Reject` **7/0**、R6 回归 **24/0**；**`COST-3` 硬判据 = 宿主策略被真实调用且扣减量由策略决定（7.0 ≠ 配置 30）**；含两处自我纠正：判据不变量与"批不给回滚"） |
 | `EVID-2026-10-12-skill-numeric-param` | `evidence/2026-10-12-skill-numeric-param.md` | 证据（**R6.5-1 参数化批次**：`Duration` / `Amount` 换 `FTcsParamValue` + `CostAmount` 契约键；两路线 `Run` **24/0 + 27/0**、`Reject` **7/0**、R6 回归 **24/0**；**装置当场抓出我自己引入的一处设计缺陷**——"钳 0"把负基数与减免过度压成同一个值） |
 
 > **⚠ 本映射表存在一处既有缺口（2026-10-12 发现，如实登记、本轮不补）**：上表 `EVID-*` 行**只到

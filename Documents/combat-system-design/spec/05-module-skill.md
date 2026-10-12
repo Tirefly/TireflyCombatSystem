@@ -4,7 +4,7 @@
 - **类型**：SPEC / 模块规格
 - **状态**：ACTIVE（**R6 核心已落地，2026-10-11 收束**——Task 0~7 全部完成并取证、两个提案已归档；落地范围与切分见 §11，**本轮不落**的条款逐条带归属于 §11.2，"不落"不等于"未定"）
 - **权威范围**：TcsSkill（M5）账本/施法/冷却/Cost/参数链；理由住 LOG-03-skill 与 DEC-02-fold-display
-- **最后更新**：2026-10-12（**`SCRIPT-9` 误归因改正 + `COST-3` 入册回写**：§3.6 与 §11 的 `CustomFragment` 阻塞登记由 `SCRIPT-9` 改指 **`COST-3`**（真因 = 扩展点形状未裁，非属性反射面缺失），§11.2 补一行扩展点批次行。**前次（同日）**：**R6.5-1 落地回写**：§3.5 / §3.6 各加落地注记（含四处落地名订正与三处新增公开口）；§11.1 门禁可拒性时态到期；§11.2 前四行加"处置"列；§11.3 补冷却/Cost/事件三行实现名；§9 加 v3 修订行。**前次** 2026-10-11（R6 收束：新增 §11 实施范围与切分——落地面 / 不落面带归属 / 实现名对照 / 四条错前提更正回写 / 三条口径裁决 / 两处正文就地订正 / 边界；身份块状态 PENDING → ACTIVE））
+- **最后更新**：2026-10-12（**`PLN-R6.5-CC` 策略化批次落地回写**：§2 加策略模式落地注记（含三处口径被取代的交代）；§11.2 两行（`COST-2` / `COST-3`）改判为 **✅ 已闭合**；§11.3 的 Cost 族实现名整行改写（旧名一律作废）。**前次（同日）**：**`SCRIPT-9` 误归因改正 + `COST-3` 入册回写**：§3.6 与 §11 的 `CustomFragment` 阻塞登记由 `SCRIPT-9` 改指 **`COST-3`**（真因 = 扩展点形状未裁，非属性反射面缺失），§11.2 补一行扩展点批次行。**前次（同日）**：**R6.5-1 落地回写**：§3.5 / §3.6 各加落地注记（含四处落地名订正与三处新增公开口）；§11.1 门禁可拒性时态到期；§11.2 前四行加"处置"列；§11.3 补冷却/Cost/事件三行实现名；§9 加 v3 修订行。**前次** 2026-10-11（R6 收束：新增 §11 实施范围与切分——落地面 / 不落面带归属 / 实现名对照 / 四条错前提更正回写 / 三条口径裁决 / 两处正文就地订正 / 边界；身份块状态 PENDING → ACTIVE））
 
 - 日期：2026-09-02
 - 状态：**v2 定稿**——全部增补（D5-9~12、D3-10/11 Skill 侧等）已折入正文；修订记录见文末
@@ -75,6 +75,33 @@ FStateDefBase（抽象，M3 定义：词表/FragmentSet/通用默认参数 Level
 > - **`v1 单资源` 维持**：多资源（DNF 式"蓝+血+道具"）**未做**，已入台账 **`COST-2`**
 >   （触发条件型；届时形状 = 成本组 `FTcsCostGroup{TArray<FTcsCostConfig>, ERequireMode}`，
 >   **且 MUST 一并重审**"成本提交的原子性"与 \(SPEC-04 明文的"MUST NOT 用 `BeginBatch` 造事务"\)）。
+
+> **★★ 2026-10-12 `PLN-R6.5-CC` 策略化批次落地注记（上两段原文逐字保留；本段取代其中三处口径，MUST 读）**：
+> 用户同日**改点策略模式**——"`CanAfford` / `CommitCost` 不应该由框架写死，
+> 应该允许扩展"、"感觉也不需要 `ETcsCostPolicy`，直接用策略模式就好"、
+> "TCS 自带一个 `ResourceAttr`，但也遵循这套方案，而不是直接把 `ResourceAttr` 写死在代码里"。
+> **落地形状**：
+> - **时机**：`ETcsCostTiming` → **`ETcsSkillCostTiming`**，四档且**新增 `ECT_None`**——
+>   它是"不消耗"的**唯一**入口（取代原 `ECP_None` 枚举档）。
+>   **冷却侧同批改名** `ETcsSkillCooldownTiming`（保持这对姊妹枚举对称；只改类型名）。
+> - **配置**：`FTcsCostConfig` → **`FTcsSkillCostConfig{ Timing, CostMode: FInstancedStruct }`**；
+>   `ETcsCostPolicy` 三档**整体退役**。
+> - **策略族**：`FTcsSkillCostPolicy`（`USTRUCT` 虚分派基类，**中性默认 + `meta=(Hidden)`**，
+>   虚析构；**MUST NOT 用 `=0` / `PURE_VIRTUAL`**——后者在 Development/Shipping 行为分叉）
+>   + `FTcsSkillCostPolicy_ResourceAttr`（**内建也走同一套**）
+>   + `FTcsSkillCostPolicy_HostDelegate` / `ITcsSkillCostPolicyHost`（**脚本面宿主插槽**，
+>   `UINTERFACE(MinimalAPI, Blueprintable)` + `BlueprintNativeEvent`）。
+> - **行为**：`CanAfford` / `CommitCost` **分派给策略**；`Timing == None` ⇒ 不看策略、零日志；
+>   **`Timing != None` 而策略为空 ⇒ fail-closed**（拦 + `Warning`）。
+> - **原子性**：框架用 `BeginBatch` / `Commit` 包住策略提交（**推翻旧禁令**）。
+>   **★ 一处必须澄清的边界**：批**只推迟"重算 + 广播"、不提供回滚**
+>   （`SetBaseValue` 写入是立即的）⇒ **"全有全无"的实际保障 = 先判后扣**，不是批本身。
+> - **⇒ 三处口径被取代**（上两段里的旧字面保留作痕迹，**MUST NOT 据其派活**）：
+>   ① `FCostConfig{Policy: …}` 的**枚举档形状**（现为一策略实例）；
+>   ② `ECP_CustomFragment` 的"**具名未实现 + 回退 `None`**"（现为真实现，且空策略改为拦住）；
+>   ③ `COST-2` 的"届时形状 = 成本组 `FTcsCostGroup`"——**该预判被用户明确否决**
+>   （"框架不提供 `All` / `Group`，宿主项目如果有需求自己去实现就好了，三消耗可以一起塞进一个策略中"）。
+>   台账 `COST-2` / `COST-3` **均已闭合**；证据 = `EVID-2026-10-12-cost-policy`。
 - **关系字段**（同 BuffDef 形状）：语义映射 Block=禁止激活（沉默/缴械）、Require=激活前提、Priority=顶替优先级、Cancels=激活时取消指定运行/状态（姿态切换）；
 - **主链**：`CastChainId` + `MainChainStart{OnCastStarted(默认)|OnPhaseEnter(Tag)|OnCastCompleted|Custom}`（旋风斩类前摇技能配 OnCastCompleted）；
 - `bSingleInstance` → **`ECastInstancing{InstancePerExecution / InstancePerEntity}`** + **`bRetriggerOnActive`**（D5-11，GAS 对齐；Static 不做）。**语义（2026-10-07 R6 裁定，原语料只给枚举名未给语义，此处补齐）**：`InstancePerExecution` = **并存**（同一施法者连点两次可各自推时段，互不干涉）；`InstancePerEntity` = **单一实例复用**（在飞时按 `bRetriggerOnActive` 分流：**默认 `false` ⇒ 驳回**，返具名原因 `AlreadyActive`；`true` ⇒ **顶替**）。**顶替 = 打断的一种终止形态**：旧运行态发 `OnCastInterrupted`（**MUST NOT** 发 `OnCastCompleted`）、**不起其主链**；且**受 `IsInterruptibleNow()` 门禁**（当前时段不可打断 ⇒ 顶替被拒）。**与 GAS 的两处刻意分歧**（MUST NOT 照抄）：① GAS 顶替走 `EndAbility(bWasCancelled = false)`，在 TCS 会让配 `OnCastCompleted` 起链的旧技能**在被顶替瞬间真打出主链**；② GAS 顶替**绕过** `CanBeCanceled`，本仓明确不采用。**依据**：`GameplayAbilityTypes.h:52-54`（并存原文）、`AbilitySystemComponent_Abilities.cpp:1831-1852`（驳回路径与日志原文）、`:1915-1918`（每次新建、无在飞检查）、`GameplayAbility.cpp:741-743` vs `:802-849`（顶替不经 `CanBeCanceled`）；
@@ -372,8 +399,8 @@ M5 专项人工检查路径：门禁六态逐态触发；冷却策略/时机切�
 | **`AttributeScaled` 参数源** | §3.4 参数链的四源之一 | **全仓无实现者**（要求宿主提供 `ITcsAttributeProvider`，今天为零）⇒ 配了只落兜底值；归**触发条件** | ❌ 未落（不变） |
 | **Cost 减免通道** | §3.6 的 `Amount` | **触发条件型**（台账 `COST-1`） | ✅ **已落（2026-10-12）**——但**形状与原记不同**：原记"加系数键 `CostPct`"，**用户改点 B 案 = `Amount` 换 `FTcsParamValue` + 契约键 `CostAmount` 走带式折叠**（判据：纯系数表达不了**固定值减免**）。见 `parametrize-skill-numeric-fields` |
 | **`FTcsCooldownTrack::Duration` 的 `Param` 形态** | §3.5 的 `Duration(字面量\|Param)` | **触发条件型**（台账 `COOLDOWN-1`） | ✅ **已落（2026-10-12）**——`FTcsParamValue`；**★ 注意：§3.5 正文早在 2026-09-11 就写着这个形态，代码滞后至此才补上**（见 §3.5 注记的"文档先行、代码滞后"） |
-| **多资源消耗（成本组）** | §3.6 的 `v1 单资源` | **触发条件型**（台账 `COST-2`，2026-10-12 新登记） | ❌ 未落——DNF 式"蓝+血+道具"；届时形状 = 成本组，且 MUST 一并重审原子性 |
-| **消耗的"检查 / 提交"扩展点（`ECP_CustomFragment` 真实现）** | §2「Cost（D5-10 v2）」的"检查（CanAfford）与提交（Pay）**成对走策略**"、§3.6 的 `ICostPolicy` | **触发条件型**（台账 `COST-3`，2026-10-12 新登记；**原把该档阻塞记为 `SCRIPT-9`，2026-10-12 改正**） | ❌ 未落——今天 `CanAffordCost` / `CommitCost` 写死在框架内；**正确形态 = 宿主插槽家族**（非 `D5-10` 原写的 `ICostPolicy` `USTRUCT` 基类——那条对脚本侧不可达）。**与 `COST-2` 的关系 = 可分离**：`COST-2` 的"道具"项依赖本条，本条不依赖 `COST-2` |
+| **多资源消耗（成本组）** | §3.6 的 `v1 单资源` | **触发条件型**（台账 `COST-2`，2026-10-12 新登记） | **✅ 已闭合（2026-10-12，`PLN-R6.5-CC` 裁定 R13——改判 = 宿主策略自答）**：DNF 式"蓝+血+道具"**不是框架原语**——用户裁定"框架不提供 `All` / `Group`，宿主自己实现就好，三消耗可以一起塞进一个策略"（判据 = "多条怎么组合"是**宿主的玩法结论**）。**⇒ 原记的"届时形状 = 成本组 `FTcsCostGroup`"被明确否决**；宿主写一个策略一次扣完即可（扩展点 = 下一条） |
+| **消耗的"检查 / 提交"扩展点** | §2「Cost（D5-10 v2）」的"检查（CanAfford）与提交（Pay）**成对走策略**"、§3.6 的 `ICostPolicy` | **触发条件型**（台账 `COST-3`，2026-10-12 新登记；**原把该档阻塞记为 `SCRIPT-9`，2026-10-12 改正**） | **✅ 已闭合（2026-10-12，`PLN-R6.5-CC` Task 0~1）**：`FTcsSkillCostPolicy`（虚分派基类 + `Hidden`）+ `FTcsSkillCostPolicy_ResourceAttr`（内建也走同一套）+ `ITcsSkillCostPolicyHost` / `FTcsSkillCostPolicy_HostDelegate`（脚本面宿主插槽）；`ETcsCostPolicy` 枚举**整体退役**。**★ 硬判据（装置 K 面）**：宿主策略的 `CanAfford` / `CommitCost` **各被真实调用 ≥1 次**，且**扣减量由策略决定**（策略返回 7 ≠ 配置 30）。证据 = `EVID-2026-10-12-cost-policy` §3 |
 
 ### 11.3 实现名对照（正文概念名 → 落地实现名，MUST 按右侧引用）
 
@@ -386,7 +413,7 @@ M5 专项人工检查路径：门禁六态逐态触发；冷却策略/时机切�
 | `FPhaseSpan` | **`FTcsPhaseSpan`** |
 | `NumericParameters` / `BoolSwitches` | **`Params`**（`FTcsNumericParamRow`）/ **`BoolSwitches`**（`FTcsBoolSwitchRow`） |
 | `FCooldownTrack` / `FCooldownPolicy` / `FCooldownTiming` | **`FTcsCooldownTrack`** / **`FTcsCooldownPolicy`** / **`ETcsCooldownTiming`**（2026-10-12 `R6.5-1` 落地；运行态 = `FTcsCooldownTrackState` / `FTcsCooldownGroupState` / `FTcsCooldownOps`） |
-| `ECostPolicy` / `FCostConfig` | **`ETcsCostPolicy`** / **`FTcsCostConfig`**；**`Timing` 的枚举名定为 `ETcsCostTiming`**（正文原本未定名）——**MUST NOT 再引用 `ECostPolicy` 那个旧写法**（2026-10-12 `R6.5-1` 落地；运行态 = `FTcsCostOps` / `UTcsCostEventRelay`） |
+| `ECostPolicy` / `FCostConfig` | ~~**`ETcsCostPolicy`** / **`FTcsCostConfig`**~~ → **★ 2026-10-12 `PLN-R6.5-CC` 策略化改点后一律作废，MUST NOT 再引用**：时机 = **`ETcsSkillCostTiming`**（原 `ETcsCostTiming`，四档含 `ECT_None`）；配置 = **`FTcsSkillCostConfig`**；策略 = **`FTcsSkillCostPolicy`** / **`FTcsSkillCostPolicy_ResourceAttr`** / **`FTcsSkillCostPolicy_HostDelegate`**（脚本面宿主契约 = `ITcsSkillCostPolicyHost`）。`ETcsCostPolicy` 枚举**整体退役**（枚举与策略并存 = 同一件事两个入口） |
 | `ITcsCooldownTimingFragment` | ❌ **整体删除、MUST NOT 补回**（自定义时机 = `ECT_Manual` 档 + 宿主自调 `StartCooldown`，**不需要载体**；判据见 `PLN-R6.5-1` §0.2 裁决 ①） |
 | `OnCooldownStarted` / `OnCooldownUpdated` / `OnCooldownEnded` / `OnCostApplied`（事件名） | **`TcsEvent.Cast.CooldownStarted`** / **`.CooldownUpdated`** / **`.CooldownEnded`** / **`.CostApplied`**——**落地名去掉 `On` 前缀**（`TcsEvent.Cast` 根下既有四枚零 `On` 前缀，按同族对称；MUST NOT 照抄 `On*`） |
 | payload 的 `SkillId` 字段 | **`DefTag`**（`EffectiveDefId` 已整体移除，"用哪份定义"的唯一答案就是它；**MUST NOT 为 `SkillId` 发明类型**） |
