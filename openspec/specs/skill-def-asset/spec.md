@@ -20,7 +20,8 @@
 - **关系字段**（同 `FTcsBuffDef` 形状）：`Blocks` / `Requires` / `Priority` / `Cancels`；
 - **内联触发行**：`TArray<FTcsEffectTriggerDef> Triggers`；
 - **冷却策略**：`FTcsCooldownPolicy Cooldown`（**2026-10-11 本轮落地**——见下方"冷却与 Cost 字段的落地"）；
-- **消耗配置**：`FTcsCostConfig Cost`（同上）。
+- **消耗配置**：`FTcsSkillCostConfig Cost`（**2026-10-12 类型名由 `FTcsCostConfig` 改**，
+  见下方"消耗字段的策略化"）。
 
 **属性捕获声明列表 MUST NOT 存在（2026-10-08 删除，MUST 记录理由以免后人"补回"）**：本类**先前**含 `TArray<FTcsCastAttrCapture> AttrCaptureList`，本变更**整体删除**该字段与 `FTcsCastAttrCapture` / `ETcsCastAttrCaptureFrom` 类型。删除判据三条**同时成立**：
 
@@ -38,7 +39,7 @@
 
 **冷却与 Cost 字段的落地（2026-10-11，`R6.5-1` Task 0 回补；MUST 记录理由以免后人误读为"R6 漏写"）**：
 
-- 形状 = `FTcsCooldownPolicy Cooldown`（`Def/TcsCooldownTypes.h`）+ `FTcsCostConfig Cost`（`Def/TcsCostTypes.h`），
+- 形状 = `FTcsCooldownPolicy Cooldown`（`Def/TcsCooldownTypes.h`）+ `FTcsSkillCostConfig Cost`（`Def/TcsCostTypes.h`），
   两个类型均由本轮交付、均为 `USTRUCT(BlueprintType)` 纯数据（零行为）；
 - **R6 §11.2 曾把"冷却策略 / Cost 配置"记为明确不落的字段**，当时的判据即本仓的"**零消费者不预建**"
   ——类型虽已可写，但**没有任何机制读它**，落一个只有字段、无门禁、无到期堆、无事件的配置面，
@@ -47,14 +48,18 @@
   **⇒ MUST NOT 读成"R6 当初写漏了"**——那是同一条纪律的正确执行（当时落 = 有字段无机制）。
 - **本轮只落字段形状，不含行为**：门禁③（`SAR_OnCooldown`）与门禁⑤（`SAR_CannotAfford`）的真实现、
   到期堆驱动、CDR 生效、四枚事件的发布，分别归 `R6.5-1` 的 Task 1 / 2 / 3 / 4。
-- **`ECP_CustomFragment` 档本轮具名未实现**（记 `Warning` + 回退 `ECP_None`）。
-  **★ 阻塞登记已于 2026-10-12 改正（原记"其消费者是宿主脚本写属性，而 `FTcsAttrModInstance` 是纯 C++ struct、
-  非反射（台账 `SCRIPT-9` / `R5.5-h` 均未开工）⇒ 今天物理不可达"——该归因不成立，MUST 读）**：
-  **真阻塞 = 扩展点形状从未裁定**（`D5-10` 只给了 `ICostPolicy` 这个 `USTRUCT` 策略基类形状，
-  而该形状对脚本侧物理不可达）⇒ 归台账 **`COST-3`**。**原记不成立的两个独立理由**：
-  ① Cost 侧明文 **MUST NOT 用 `ApplyModifier`**、必须直写基值，而 `SetBaseValue` **有** `UFUNCTION`
-  ⇒ 需要的那一半早已可达（`SCRIPT-9` 缺的是 `ApplyModifier` / `RemoveBySource`，本档**用不到**）；
-  ② **更根本：宿主自定义消耗根本不经过 TCS 属性写入面**（在宿主自己的背包系统里扣"无色小晶块"）。
+
+**★ 消耗字段的策略化（2026-10-12，`PLN-R6.5-CC`；MUST 读，防据旧字面派活）**：
+
+- **类型名 `FTcsCostConfig` → `FTcsSkillCostConfig`**：形状由
+  `{Policy 枚举, Timing, ResourceAttr, Amount}` 改为 **`{Timing, CostMode}`**——
+  "消耗什么 / 怎么付"从**枚举档位**改为**策略对象**（`CostMode` 是裸 `FInstancedStruct`，
+  由 `meta = (BaseStruct = "...TcsSkillCostPolicy")` 收窄，装 `FTcsSkillCostPolicy` 的派生实例）；
+- **默认值语义不变**：`Timing` 默认 `ECT_None` = **不消耗、恒可付、零日志**
+  （与换型前 `Policy = ECP_None` **逐字同义**）；
+- **本字段的"不消耗"表达 = `Timing == ECT_None`**（**MUST NOT** 用"空 `CostMode`"表达——
+  那在 `Timing != None` 时是**配置错误**，fail-closed）；
+- **资产迁移成本 = 0**（实测：全仓 `.uasset` 扫 `Cost` / `ResourceAttr` / `Cooldown` 零命中）。
 
 **`TcsSkill` MUST NOT 依赖 `TcsDamage` / `TcsTargeting`**：链步骤是 `FInstancedStruct` 数据、运行时经执行器注册表分派，本模块代码 MUST NOT 具名任何领域步骤类型。
 
@@ -80,7 +85,7 @@
 > ——**本场景的判据已随 `R6.5-1` Task 0 现况反转**，见下。
 
 - **WHEN** 检查 `R6.5-1` Task 0 落地后的 `FTcsSkillDefData` 字段列表
-- **THEN** **含** `FTcsCooldownPolicy Cooldown` 与 `FTcsCostConfig Cost` 两个字段（R6.5-1 落地、消费者同批到位）；**不含** `FTcsEntrySelector` 引用位字段（该路径归批次 `f` 的 `UTcsSkillModDef`，实测该类型全仓 `Source/` 零命中）
+- **THEN** **含** `FTcsCooldownPolicy Cooldown` 与 `FTcsSkillCostConfig Cost` 两个字段（R6.5-1 落地、消费者同批到位；消耗字段的类型名于 2026-10-12 策略化时由 `FTcsCostConfig` 改为此名）；**不含** `FTcsEntrySelector` 引用位字段（该路径归批次 `f` 的 `UTcsSkillModDef`，实测该类型全仓 `Source/` 零命中）
 
 #### Scenario: 参数链行延后到 Task 4
 
@@ -104,7 +109,8 @@
 #### Scenario: 冷却与 Cost 两字段默认取值最保守
 
 - **WHEN** 新建一个 `UTcsSkillDef` 资产且不显式设置冷却与消耗
-- **THEN** `Cooldown.Tracks` 为空数组（**恒可放**）、`Cooldown.Timing == ECT_OnCastStarted`、`Cost.Policy == ECP_None`（**恒可付、零日志**）——两者都不改变既有施法流程的走向
+- **THEN** `Cooldown.Tracks` 为空数组（**恒可放**）、`Cooldown.Timing == ECT_OnCastStarted`、
+  `Cost.Timing == ECT_None`（**恒可付、零日志**）——两者都不改变既有施法流程的走向
 
 ### Requirement: 布尔开关行的归属
 

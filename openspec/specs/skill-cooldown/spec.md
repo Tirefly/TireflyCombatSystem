@@ -1,7 +1,7 @@
 # skill-cooldown Specification
 
 ## Purpose
-定义技能冷却的**数据形状与运行态**：策略族 `ETcsCooldownTiming` / `FTcsCooldownTrack` / `FTcsCooldownPolicy`（形状），`FTcsCooldownOps` 的多轨计时线（自身轨 + **单位级共享组轨 = 真公共冷却**）、CDR 契约键与起冷时刻快照、到期驱动与改轨/清轨、门禁③「冷却中」的**唯一判据实现**，以及终结路径上的时机分派与三枚事件——让「技能放不出来」的第二层理由（冷却）成为**可表达、可查询、可驱动**的运行事实，而不是一个恒过的占位分支。
+定义技能冷却的**数据形状与运行态**：策略族 `ETcsSkillCooldownTiming` / `FTcsCooldownTrack` / `FTcsCooldownPolicy`（形状），`FTcsCooldownOps` 的多轨计时线（自身轨 + **单位级共享组轨 = 真公共冷却**）、CDR 契约键与起冷时刻快照、到期驱动与改轨/清轨、门禁③「冷却中」的**唯一判据实现**，以及终结路径上的时机分派与三枚事件——让「技能放不出来」的第二层理由（冷却）成为**可表达、可查询、可驱动**的运行事实，而不是一个恒过的占位分支。
 
 ## Requirements
 
@@ -9,12 +9,17 @@
 
 `TcsSkill` MUST 提供冷却策略的**纯数据**形状（零行为——同 `FTcsBoolSwitchRow` 的处置）：
 
-- `UENUM(BlueprintType) ETcsCooldownTiming`（**四档**）：
+- `UENUM(BlueprintType) ETcsSkillCooldownTiming`（**四档**）：
   `ECT_OnCastStarted`（**默认**：激活成功后立即起）/ `ECT_OnCastCompleted`（施法走完全部时段、
   **或瞬发当刻完成**时起）/ `ECT_OnCastInterrupted`（被打断**或被顶替**时起）/ `ECT_Manual`
   （**框架不自动起**，由宿主在自己的逻辑处调 `StartCooldown`）；
 - `USTRUCT(BlueprintType) FTcsCooldownTrack{ FTcsParamValue Duration; FGameplayTag GroupTag; }`；
-- `USTRUCT(BlueprintType) FTcsCooldownPolicy{ TArray<FTcsCooldownTrack> Tracks; ETcsCooldownTiming Timing; }`。
+- `USTRUCT(BlueprintType) FTcsCooldownPolicy{ TArray<FTcsCooldownTrack> Tracks; ETcsSkillCooldownTiming Timing; }`。
+
+**★ 类型名于 2026-10-12 由 `ETcsCooldownTiming` 改为 `ETcsSkillCooldownTiming`**（`PLN-R6.5-CC` 裁定 R12）：
+与消耗侧的 `ETcsSkillCostTiming` **同批加域前缀**，以保持这一对姊妹枚举的对称。
+**只改类型名——四档的枚举值与语义一律不动**；归档提案与历史日志里的旧字面保留作现场记录，
+**MUST NOT 改写**（本仓既有"换根注记"纪律同款）。
 
 **各字段的语义与判据（MUST 守死）**：
 
@@ -63,8 +68,10 @@
 
 #### Scenario: 两个 Timing 枚举各自独立
 
-- **WHEN** 比较 `ETcsCooldownTiming` 与 `ETcsCostTiming` 的档位集
-- **THEN** 两者**不是同一个枚举**、也**不互相"覆盖"**：冷却侧**无** `OnEvent` 档（冷却起因永远在本模块手里）、消耗侧**无** `OnCastInterrupted` 档（判据见 `skill-cost` 的同名需求）
+- **WHEN** 比较 `ETcsSkillCooldownTiming` 与 `ETcsSkillCostTiming` 的档位集
+- **THEN** 两者**不是同一个枚举**、也**不互相"覆盖"**：冷却侧**无** `None` 档与 `OnEvent` 档
+  （冷却起因永远在本模块手里）、消耗侧**无** `OnCastInterrupted` 档
+  （判据见 `skill-cost` 的同名需求）
 
 #### Scenario: 时长是参数源载体且默认字面量零
 
@@ -211,7 +218,7 @@
 
 ### Requirement: 冷却的终结侧触发点与时机分派
 
-冷却的 `ETcsCooldownTiming` MUST 接到**四路终结的唯一汇聚点**上：
+冷却的 `ETcsSkillCooldownTiming` MUST 接到**四路终结的唯一汇聚点**上：
 
 - **挂点 = `FTcsCastOps::FinishCastRun`**（末段走完 / 瞬发当刻 / 打断 / 顶替四路**全部汇聚**到它，
   且其签名自带 `ECastFinishReason Reason`）⇒ **一处分派即可覆盖四路**。
