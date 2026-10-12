@@ -14,7 +14,7 @@
 
 
 
-// 消耗**已提交**事件 Tag（产生者 = `FTcsCostOps::CommitCost` 的 `ECP_ResourceAttr` 档成功路径）。
+// 消耗**已提交**事件 Tag（产生者 = 策略 `CommitCost` 的成功路径；内建 = `FTcsSkillCostPolicy_ResourceAttr`）。
 //
 // **`CanAfford` 失败 MUST NOT 发本事件**（`D5-16` 明文："CanAfford 失败不发——`TryActivate` 返回值覆盖"）：
 // 门禁的拒绝面已经有 `SAR_CannotAfford` 这个具名读数，再发一枚"没扣成"的事件纯属噪音
@@ -62,7 +62,7 @@ public:
 #pragma region Cost
 
 public:
-	// 被扣的属性（`ECP_ResourceAttr` 档的 `ResourceAttr`）
+	// 被扣的属性（**内建属性资源策略**才有；宿主自定义策略扣什么框架不认识 ⇒ 留无效）
 	UPROPERTY(BlueprintReadOnly, Category = "Tcs|Skill|Cost Event")
 	FGameplayTag ResourceAttr;
 

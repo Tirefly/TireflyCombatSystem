@@ -14,6 +14,6 @@ UE_DEFINE_GAMEPLAY_TAG_COMMENT(Tag_TcsSkillParam_CooldownPct,
 // 消耗修正契约键定义（2026-10-12 用户裁定：Cost 走与 CDR 同构的"参数键折叠"通道）
 UE_DEFINE_GAMEPLAY_TAG_COMMENT(Tag_TcsSkillParam_CostAmount,
 	"TcsStateParam.CostAmount",
-	"消耗修正契约键：本键上的修正经五带折叠作用于 `FTcsCostConfig::Amount` 的求值结果 "
+	"消耗修正契约键：本键上的修正经五带折叠作用于 `FTcsSkillCostPolicy_ResourceAttr::Amount` 的求值结果 "
 	"（**初值 = Amount 本身的求值**，不是 0）⇒ 百分比减免用 TAO_PercentAdd、固定值减免用 "
 	"TAO_FlatAdd；由拥有消耗语义的 TcsSkill 原生声明，宿主零配置即生效");

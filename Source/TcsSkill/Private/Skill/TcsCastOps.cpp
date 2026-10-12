@@ -309,7 +309,7 @@ ESkillActivateResult FTcsCastOps::Activate(
 	// **★ 提交失败 ⇒ 返回 `SAR_CannotAfford` 且 MUST NOT 建 run**（与"门禁没过"同一返回值——
 	// 对调用方而言两者是同件事："现在放不出来，因为付不起"）。日志区分二者：**门禁判不足是正常
 	// 业务**（上面那条 `Log`），**提交时失败是真实异常**（`CommitCost` 内部的 `Warning`）。
-	if (Def->Cost.Timing == ETcsCostTiming::ECT_OnCastStarted)
+	if (Def->Cost.Timing == ETcsSkillCostTiming::ECT_OnCastStarted)
 	{
 		// **★ 传 `Entry`**（同门禁⑤：减免修正器住条目上，不传就会扣错数）
 		double AppliedAmount = 0.0;
@@ -398,10 +398,10 @@ ESkillActivateResult FTcsCastOps::Activate(
 	// **排在广播之前**：订阅者收到 `OnCastStarted` 时若去查 `IsOnCooldown`，
 	// 应当已经能读到"在冷却"——否则宿主会看到"事件说开始了、查询说没冷却"这个自相矛盾的瞬间。
 	//
-	// **`OnCastStarted` 是冷却的默认档**（`ETcsCooldownTiming` 的 0 值）：多数技能配的就是它。
+	// **`OnCastStarted` 是冷却的默认档**（`ETcsSkillCooldownTiming` 的 0 值）：多数技能配的就是它。
 	// 其余三档在此**零动作**（`OnCastCompleted` / `OnCastInterrupted` 归终结路径的
 	// `DispatchCooldownTiming`；`Manual` 归宿主自己调 `StartCooldown`）。
-	if (Def->Cooldown.Timing == ETcsCooldownTiming::ECT_OnCastStarted)
+	if (Def->Cooldown.Timing == ETcsSkillCooldownTiming::ECT_OnCastStarted)
 	{
 		FTcsCooldownOps::StartCooldownOnEntry(Subsystem, Unit, EntryHandleForResolve);
 
@@ -867,9 +867,9 @@ void FTcsCastOps::DispatchCooldownTiming(
 	// **同族教训**：`SPEC-04-skill` §3.3 的实施注记已就"空 `Phases` 意味着没有任何时段到期
 	// ⇒ 原句'全时段走完'对瞬发永不成立"留过同款教训；本轮 MUST NOT 复犯。
 	const bool bInterruptedPath = (Reason != ECastFinishReason::ECFR_Completed);
-	const ETcsCooldownTiming WantedTiming = bInterruptedPath
-		? ETcsCooldownTiming::ECT_OnCastInterrupted
-		: ETcsCooldownTiming::ECT_OnCastCompleted;
+	const ETcsSkillCooldownTiming WantedTiming = bInterruptedPath
+		? ETcsSkillCooldownTiming::ECT_OnCastInterrupted
+		: ETcsSkillCooldownTiming::ECT_OnCastCompleted;
 
 	// **`ECT_Manual` 档框架什么都不做**（含日志）——它的定义就是"宿主自己调 `StartCooldown`"，
 	// 框架做任何事都违背它。故本函数对 `ECT_Manual` **零动作**（下面的比较自然把它排除：
@@ -896,11 +896,11 @@ void FTcsCastOps::DispatchCostTiming(
 	// - `Manual`：宿主自己调 `PayCost`，**框架零动作**（"某个特定事件触发消耗"这类项目玩法
 	//   归这一档——2026-10-12 用户裁定删除 `ECT_OnEvent`，判据见 `TcsCostTypes.h`）。
 	//
-	// **为什么 `OnCastCompleted` 档只在"完成"路触发**：`ETcsCostTiming` **刻意没有**
+	// **为什么 `OnCastCompleted` 档只在"完成"路触发**：`ETcsSkillCostTiming` **刻意没有**
 	// `OnCastInterrupted` 档（判据：`D5-4` 已砍返还，该档两种读法一为重复一为荒谬——
 	// 详见 `TcsCostTypes.h`）。⇒ 被打断 / 被顶替时**不提交**：这正是 `OnCastStarted` 档
 	// 存在的意义（"施法开始时扣"已经覆盖了"被打断也扣了"）。
-	if (Def.Cost.Timing != ETcsCostTiming::ECT_OnCastCompleted)
+	if (Def.Cost.Timing != ETcsSkillCostTiming::ECT_OnCastCompleted)
 	{
 		return;
 	}

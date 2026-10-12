@@ -20,16 +20,12 @@
 
 
 
-// 生效值求值
-double FTcsCostOps::ResolveEffectiveCost(
-	UTcsSkillSubsystem& Subsystem,
-	FTcsCombatEntityHandle Unit,
-	int32 Level,
-	const FTcsCostConfig& Config,
-	const FTcsLearnedSkillEntry* Entry,
-	double* OutBaseAmount)
+// 生效值求值（内建策略：属性资源）
+double FTcsSkillCostPolicy_ResourceAttr::ResolveEffectiveAmount(
+	const FTcsSkillCostContext& Context,
+	double* OutBaseAmount) const
 {
-	// **① 基数 = `Config.Amount` 自身的求值**（2026-10-12 换型为 `FTcsParamValue`）。
+	// **① 基数 = `Amount` 自身的求值**（2026-10-12 换型为 `FTcsParamValue`）。
 	//
 	// 求值上下文**与参数链其余各点逐字同款**（`Subject`/`Instigator` = 单位、
 	// `EffectiveLevel` = 本次生效等级）——**这是"按等级配消耗"能成立的唯一原因**：
@@ -39,24 +35,22 @@ double FTcsCostOps::ResolveEffectiveCost(
 	// **参数表恒空**（同 `MakeContext` 的既有边界）：技能侧引用类源（`ParamRef`）在
 	// 这个时点没有"更外层参数表"可查 ⇒ 落各自兜底（不报错、不崩溃）。
 	FTcsParamEvaluateContext Ctx;
-	Ctx.Subject = Unit;
-	Ctx.Instigator = Unit;
-	Ctx.EffectiveLevel = Level;
+	Ctx.Subject = Context.Unit;
+	Ctx.Instigator = Context.Unit;
+	Ctx.EffectiveLevel = Context.Level;
 	Ctx.ParamTable = TScriptInterface<ITcsParamTableReader>();
 
-	const double BaseAmount = Config.Amount.Evaluate(Ctx);
-
-	(void)Subsystem;	// 纯求值：折叠器是纯函数、不需要子系统；形参保留以对齐同族签名
+	const double BaseAmount = Amount.Evaluate(Ctx);
 
 	// **无条目 ⇒ 无修正器可折叠 ⇒ 基数即结果**。
 	//
-	// **这条支路存在的理由（MUST 保留）**：装置与宿主会**直接构造一份 `FTcsCostConfig`**
-	// 去测配置边界（无效 `ResourceAttr` / 负值 / `CustomFragment`）——那种场景**没有账本条目**，
-	// 而"配置边界"的判据本来就只依赖 `Config` 自身。强行要求传条目会迫使那些调用点
+	// **这条支路存在的理由（MUST 保留）**：装置与宿主会**直接构造一份配置**
+	// 去测配置边界（无效 `ResourceAttr` / 负值）——那种场景**没有账本条目**，
+	// 而"配置边界"的判据本来就只依赖配置自身。强行要求传条目会迫使那些调用点
 	// 造一个假条目（那就成了"为测试造真相"）。
-	if (!Entry)
+	if (!Context.Entry)
 	{
-		// 无减免 ⇒ 基数即结果（**仍钳 0**：负基数的拦截归 `CanAffordCost`，
+		// 无减免 ⇒ 基数即结果（**仍钳 0**：负基数的拦截归 `CanAfford`，
 		// 它经 `OutBaseAmount` 拿到**未钳**的原值，见下方收口处的判据）
 		if (OutBaseAmount)
 		{
@@ -76,15 +70,15 @@ double FTcsCostOps::ResolveEffectiveCost(
 	// **符号方向由作者给出**：`Amount` 是"要付多少"，减免是**减少**它
 	// ⇒ 作者写 `PercentAdd = -0.3` / `FlatAdd = -10`（负数即减免，与属性侧同款直觉）。
 	const double Folded = FTcsParamChainOps::FoldParamKeyWithBase(
-		*Entry, Tag_TcsSkillParam_CostAmount, BaseAmount);
+		*Context.Entry, Tag_TcsSkillParam_CostAmount, BaseAmount);
 
 	// **★ 一处 MUST 分开的两件事（本装置拒绝面检查 `d` 实测抓到的设计缺陷，MUST 保留本注）**：
 	//
-	// 初版把"钳 0"当成唯一的收口，于是**"负基数"被钳成 0 ⇒ `CanAffordCost` 的
-	// `EffectiveAmount < 0` 守卫永远不触发** ⇒ 检查 `d`（`Amount = -50` 应恒不可付）
+	// 初版把"钳 0"当成唯一的收口，于是**"负基数"被钳成 0 ⇒ `CanAfford` 的
+	// 负值守卫永远不触发** ⇒ 检查 `d`（`Amount = -50` 应恒不可付）
 	// 从 `false` 变成 `true`（**红字当场报出，见证据档**）。两者语义完全不同：
 	// - **负基数**（作者把 `Amount` 直接填成 -50）= **配置错误**，是"倒给资源"的漏洞形态
-	//   ⇒ MUST 拦住（判据在 `CanAffordCost`）；
+	//   ⇒ MUST 拦住（判据在 `CanAfford`）；
 	// - **折叠后转负**（基数 30、减免 -100）= **减免过度**，是**合法的配置结果**
 	//   （"这个 buff 让技能免费"）⇒ MUST 钳 0、MUST NOT 报错。
 	// ⇒ 收口因此**不能只留一个数**：调用方要能区分"基数本来是多少"与"减免后剩多少"。
@@ -99,56 +93,18 @@ double FTcsCostOps::ResolveEffectiveCost(
 
 
 // 门禁
-bool FTcsCostOps::CanAffordCost(
-	UTcsSkillSubsystem& Subsystem,
-	FTcsCombatEntityHandle Unit,
-	const FTcsCostConfig& Config,
-	FString* OutReason,
-	const FTcsLearnedSkillEntry* Entry)
+bool FTcsSkillCostPolicy_ResourceAttr::CanAfford(
+	const FTcsSkillCostContext& Context,
+	FString* OutReason) const
 {
-	// ── `ECP_None`：**正确声明"不消耗"** ⇒ 恒可付、**零日志** ──
-	// 这是"不消耗"的**唯一正确表达**（`FTcsCostConfig::Policy` 的默认档）。
-	// 它与"想配消耗但没配清"是两件事——后者一律拦住 + Warning（见下）。
-	if (Config.Policy == ETcsCostPolicy::ECP_None)
-	{
-		return true;
-	}
+	// ── 三类"配错"（一律 fail-closed） ──
+	//
+	// **注意本函数不再处理"不消耗"**：那个判定（`Timing == ECT_None`）**住在分派层**
+	// （`FTcsCostOps::CanAffordCost`）——策略只在"确实要付"时被调到。
+	// **判据**：`None` 是**时机**的属性（框架认识），不是**策略**的属性
+	// （策略不该被问到"要不要付"）。
 
-	// ── `ECP_CustomFragment`：**本轮具名未实现** ⇒ 按 None 处理（恒可付）+ **具名 Warning** ──
-	//
-	// **MUST NOT 静默当作 `ECP_None`**：静默会让宿主以为它生效了（"我配了自定义消耗，怎么不扣？"
-	// 而日志上一切正常）。
-	//
-	// **★ 阻塞登记已于 2026-10-12 改正（原记"属性写入面物理不可达 / `SCRIPT-9`"——该归因不成立）**：
-	// 真阻塞 = **扩展点形状从未裁定**（`D5-10` 只给了 `ICostPolicy` 这个 `USTRUCT` 策略基类形状，
-	// 而**该形状对脚本侧物理不可达**——脚本定义的 struct 无 C++ 类型 ⇒ `CppStructOps == nullptr`
-	// ⇒ vtable 位为 0 ⇒ 野调用，同 `FTcsParamValueSource` 的实测判据）。⇒ 归台账 **`COST-3`**。
-	// **原记不成立的两个独立理由（各自都足以推翻）**：
-	// ① 本族明文 **MUST NOT 用 `ApplyModifier`**、必须直写基值（见 `CommitCost` 的三条判据），
-	//    而 `SetBaseValue`（`TcsAttributeSubsystem.h:180`）**有** `UFUNCTION` ⇒ 需要的那一半早已可达；
-	//    `SCRIPT-9` 缺的是 `ApplyModifier` / `RemoveBySource`（本档**用不到**）。
-	// ② **更根本：宿主自定义消耗根本不经过 TCS 的属性写入面**——扣"无色小晶块"是在
-	//    **宿主自己的背包系统**里减数量。原记把"框架的属性存储"与"宿主的资源存储"当成了同一件事。
-	//
-	// **为什么降级而不是拦死**：该档**没配错**——它只是"框架尚未实现"。拦死会让"用了新档位的技能
-	// 全部放不出来"，而回退 None 是"按不消耗走"这个明确选定的行为。
-	//
-	// **⚠ 但 MUST NOT 把本档与 `CQM_Custom` 的降级简单类比**（一处真实差异，勿照抄）：
-	// `CQM_Custom` 回退到 `DefSwitches` —— **一个有定义的行为**；本档回退 `None` = **免费**，
-	// **不是一个安全的默认**。本文件下面"属性门面不可得"一节自己写着"资源都没法查就放技能，
-	// 等于免费放——那是'配置了消耗却静默不生效'的最坏形态" ⇒ 同一个失败类别，此处放过。
-	// **这是"该档应尽早兑现"的独立理由**（兑现它等于堵掉一个会静默免费放的洞）。
-	if (Config.Policy == ETcsCostPolicy::ECP_CustomFragment)
-	{
-		UE_LOG(LogTcsSkill, Warning,
-			TEXT("消耗策略 ECP_CustomFragment 本轮未实现——按不消耗处理"
-				"（阻塞 = 扩展点形状未裁，见台账 COST-3；⚠ 注意本档回退 = 免费放，不是安全默认）"));
-		return true;
-	}
-
-	// ── `ECP_ResourceAttr` 档的三类"配错"（一律 fail-closed） ──
-
-	if (!Config.ResourceAttr.IsValid())
+	if (!ResourceAttr.IsValid())
 	{
 		// "想配消耗但没填消耗什么" ⇒ 拦住并报出（**MUST NOT** 静默按"不消耗"放过）
 		if (OutReason)
@@ -157,25 +113,22 @@ bool FTcsCostOps::CanAffordCost(
 		}
 
 		UE_LOG(LogTcsSkill, Warning,
-			TEXT("消耗配置错误：Policy=ECP_ResourceAttr 但 ResourceAttr 无效（单位=%lld）——判定为不可付"),
-			Unit.Id);
+			TEXT("消耗配置错误：属性资源策略的 ResourceAttr 无效（单位=%lld）——判定为不可付"),
+			Context.Unit.Id);
 		return false;
 	}
 
-	// **★ 求本次生效的消耗量（2026-10-12 B 形状：基数求值 ⊕ `CostAmount` 键上的减免折叠）**。
+	// **★ 求本次生效的消耗量（基数求值 ⊕ `CostAmount` 键上的减免折叠）**。
 	//
-	// **为什么求值排在这里**：上面两条 `None` / `CustomFragment` 分支**恒可付且不看数值**
-	// ⇒ 为它们求值是白算（同"门禁不过就别建快照"的既有口径）。
+	// **为什么求值排在这里**：上面那条"无效 tag"分支恒不可付且不看数值
+	// ⇒ 为它求值是白算（同"门禁不过就别建快照"的既有口径）。
 	//
-	// **等级从哪来**：`Entry` 存在时取**条目等级**（等级表参数源读的就是它）；
-	// 无条目（装置验配置边界）时取 0——那种场景的判据不依赖等级。
+	// **等级从哪来**：上下文里的 `Level` 由分派层填（条目等级；无条目时为 0）。
 	//
-	// **`OutBaseAmount` MUST 取**：负**基数**的拦截依赖它（见 `ResolveEffectiveCost` 的注释
+	// **`OutBaseAmount` MUST 取**：负**基数**的拦截依赖它（见 `ResolveEffectiveAmount` 的注释
 	// ——"钳 0"会把"负基数"与"减免过度"压成同一个值，而前者必须拦）。
-	const int32 ResolveLevel = Entry ? Entry->Level : 0;
 	double BaseAmount = 0.0;
-	const double EffectiveAmount = ResolveEffectiveCost(
-		Subsystem, Unit, ResolveLevel, Config, Entry, &BaseAmount);
+	const double EffectiveAmount = ResolveEffectiveAmount(Context, &BaseAmount);
 
 	// **负值判据看的是"未钳的基数"（★ 装置拒绝面检查 `d` 抓到的设计缺陷的修法）**：
 	// 负的**基数**（作者把 `Amount` 直接填成 -50）是"倒给资源"的漏洞形态 ⇒ 在这里拦。
@@ -193,7 +146,7 @@ bool FTcsCostOps::CanAffordCost(
 
 		UE_LOG(LogTcsSkill, Warning,
 			TEXT("消耗配置错误：Amount = %.3f < 0（单位=%lld 属性=%s）——判定为不可付"),
-			BaseAmount, Unit.Id, *Config.ResourceAttr.ToString());
+			BaseAmount, Context.Unit.Id, *ResourceAttr.ToString());
 		return false;
 	}
 
@@ -213,8 +166,8 @@ bool FTcsCostOps::CanAffordCost(
 	// ——而"属性没加"与"资源不足"是两种含义完全不同的红字
 	// （`TcsEffectAttributeAccess.h:72` 是同一条判据的既有表述："条件求值要区分二者才能把
 	// '键写错'报出来"）。
-	UTcsAttributeSubsystem* Attribute = Subsystem.GetWorld()
-		? Subsystem.GetWorld()->GetSubsystem<UTcsAttributeSubsystem>() : nullptr;
+	UTcsAttributeSubsystem* Attribute = Context.Subsystem->GetWorld()
+		? Context.Subsystem->GetWorld()->GetSubsystem<UTcsAttributeSubsystem>() : nullptr;
 
 	if (!Attribute)
 	{
@@ -228,25 +181,25 @@ bool FTcsCostOps::CanAffordCost(
 
 		UE_LOG(LogTcsSkill, Warning,
 			TEXT("消耗判定失败：属性门面不可得（单位=%lld 属性=%s）——判定为不可付"),
-			Unit.Id, *Config.ResourceAttr.ToString());
+			Context.Unit.Id, *ResourceAttr.ToString());
 		return false;
 	}
 
 	double BaseValue = 0.0;
-	if (!Attribute->TryGetBaseValue(Unit, Config.ResourceAttr, BaseValue))
+	if (!Attribute->TryGetBaseValue(Context.Unit, ResourceAttr, BaseValue))
 	{
 		// **未持有 ≠ 基值为 0**：如实报出"该单位没有这个属性"（最常见的原因是宿主忘了
 		// `AddAttribute`，或属性 tag 写错）——这与"资源不足"是两种不同的红字。
 		if (OutReason)
 		{
 			*OutReason = FString::Printf(TEXT("该单位未持有属性 %s"),
-				*Config.ResourceAttr.ToString());
+				*ResourceAttr.ToString());
 		}
 
 		UE_LOG(LogTcsSkill, Warning,
 			TEXT("消耗判定失败：单位未持有该属性（单位=%lld 属性=%s 需要 %.3f）"
 				"——若这是意料之外，检查宿主是否 AddAttribute 了该属性"),
-			Unit.Id, *Config.ResourceAttr.ToString(), EffectiveAmount);
+			Context.Unit.Id, *ResourceAttr.ToString(), EffectiveAmount);
 		return false;
 	}
 
@@ -262,7 +215,7 @@ bool FTcsCostOps::CanAffordCost(
 
 		UE_LOG(LogTcsSkill, Log,
 			TEXT("消耗判定：资源不足（单位=%lld 属性=%s 基值=%.3f 需要=%.3f）"),
-			Unit.Id, *Config.ResourceAttr.ToString(), BaseValue, EffectiveAmount);
+			Context.Unit.Id, *ResourceAttr.ToString(), BaseValue, EffectiveAmount);
 		return false;
 	}
 
@@ -272,44 +225,35 @@ bool FTcsCostOps::CanAffordCost(
 
 
 // 提交
-bool FTcsCostOps::CommitCost(
-	UTcsSkillSubsystem& Subsystem,
-	FTcsCombatEntityHandle Unit,
-	const FTcsCostConfig& Config,
-	double* OutApplied,
-	const FTcsLearnedSkillEntry* Entry)
+bool FTcsSkillCostPolicy_ResourceAttr::CommitCost(
+	const FTcsSkillCostContext& Context,
+	double* OutApplied) const
 {
 	if (OutApplied)
 	{
 		*OutApplied = 0.0;
 	}
 
-	if (Config.Policy == ETcsCostPolicy::ECP_None)
-	{
-		// 零动作（正确声明"不消耗"）——零日志
-		return true;
-	}
+	// **注意本函数不再处理"不消耗"与"策略缺失"**：那两项判定住在**分派层**
+	// （`FTcsCostOps::CommitCost`）——策略只在"确实要付且策略存在"时被调到。
 
-	if (Config.Policy == ETcsCostPolicy::ECP_CustomFragment)
+	if (!ResourceAttr.IsValid())
 	{
-		// 具名 Warning + **零提交**（MUST NOT 静默当作 None：静默会让"配了却没扣"无法解释）
+		// "想配消耗但没填消耗什么" ⇒ 零提交 + `Warning`（与 `CanAfford` 同判据）
 		UE_LOG(LogTcsSkill, Warning,
-			TEXT("消耗提交跳过：ECP_CustomFragment 本轮未实现（零扣减）"
-				"（阻塞 = 扩展点形状未裁，见台账 COST-3；原记 SCRIPT-9 已于 2026-10-12 改正）"));
+			TEXT("消耗提交跳过：属性资源策略的 ResourceAttr 无效（单位=%lld）"), Context.Unit.Id);
 		return false;
 	}
 
-	// **★ 求本次生效的消耗量**——与 `CanAffordCost` **调同一个函数**（MUST NOT 各算一份：
+	// **★ 求本次生效的消耗量**——与 `CanAfford` **调同一个函数**（MUST NOT 各算一份：
 	// "门禁判的数"与"真扣的数"必须一致，那正是本仓 TOCTOU 防护的实质）。
 	//
 	// **本行 MUST NOT 被优化成"沿用门禁那次的结果"**：门禁与提交之间隔着建 run / 快照 /
 	// 物化等步骤，期间修正器可能已变（`ApplyParamModifiers` 是宿主可随时调的口）。
-	const int32 ResolveLevel = Entry ? Entry->Level : 0;
 	double CommitBaseAmount = 0.0;
-	const double EffectiveAmount = ResolveEffectiveCost(
-		Subsystem, Unit, ResolveLevel, Config, Entry, &CommitBaseAmount);
+	const double EffectiveAmount = ResolveEffectiveAmount(Context, &CommitBaseAmount);
 
-	// **负基数 MUST 在此也拦**（与 `CanAffordCost` 同判据）：
+	// **负基数 MUST 在此也拦**（与 `CanAfford` 同判据）：
 	// 正常路径下门禁已拦过，但本函数**可被独立调用**（`PayCost` 公开口 / 装置验边界）
 	// ⇒ 缺这道守卫时负基数会**照扣**（`Base - (-50)` = 倒给资源）。
 	// **判据取未钳的基数**（同门禁：把"负基数"与"减免过度"分开）。
@@ -317,24 +261,24 @@ bool FTcsCostOps::CommitCost(
 	{
 		UE_LOG(LogTcsSkill, Warning,
 			TEXT("消耗提交被拒：Amount 为负（%.3f）——会让技能倒给资源（单位=%lld 属性=%s）"),
-			CommitBaseAmount, Unit.Id, *Config.ResourceAttr.ToString());
+			CommitBaseAmount, Context.Unit.Id, *ResourceAttr.ToString());
 		return false;
 	}
 
 	if (EffectiveAmount == 0.0)
 	{
-		// "消耗 0 点" = 不消耗 ⇒ 零动作、零日志（与 `CanAffordCost` 同口径）。
+		// "消耗 0 点" = 不消耗 ⇒ 零动作、零日志（与 `CanAfford` 同口径）。
 		// **本条也是"减免到免费"的落点**：减免折到 0 ⇒ 不扣、零日志、不发事件。
 		return true;
 	}
 
-	UTcsAttributeSubsystem* Attribute = Subsystem.GetWorld()
-		? Subsystem.GetWorld()->GetSubsystem<UTcsAttributeSubsystem>() : nullptr;
+	UTcsAttributeSubsystem* Attribute = Context.Subsystem->GetWorld()
+		? Context.Subsystem->GetWorld()->GetSubsystem<UTcsAttributeSubsystem>() : nullptr;
 	if (!Attribute)
 	{
 		UE_LOG(LogTcsSkill, Warning,
 			TEXT("消耗提交失败：属性门面不可得（单位=%lld 属性=%s）"),
-			Unit.Id, *Config.ResourceAttr.ToString());
+			Context.Unit.Id, *ResourceAttr.ToString());
 		return false;
 	}
 
@@ -344,13 +288,13 @@ bool FTcsCostOps::CommitCost(
 	// （基值 + 全部修正器）。拿它减会在有修正器时**多减**（扣掉的是"当前值 − Amount"，
 	// 写回的却是基值 ⇒ 修正器那部分的量被一起扣掉了）。判据 = 写入点与读取点 MUST 是同一层。
 	double BaseValue = 0.0;
-	if (!Attribute->TryGetBaseValue(Unit, Config.ResourceAttr, BaseValue))
+	if (!Attribute->TryGetBaseValue(Context.Unit, ResourceAttr, BaseValue))
 	{
 		// 门禁那一侧已按"未持有 ⇒ 不可付"拦住；走到这里说明**门禁之后属性被移除了**
 		// （TOCTOU 的真实形态）⇒ 如实报出并拒绝提交。
 		UE_LOG(LogTcsSkill, Warning,
 			TEXT("消耗提交失败：单位已不持有该属性（单位=%lld 属性=%s）——门禁后属性被移除"),
-			Unit.Id, *Config.ResourceAttr.ToString());
+			Context.Unit.Id, *ResourceAttr.ToString());
 		return false;
 	}
 
@@ -358,11 +302,11 @@ bool FTcsCostOps::CommitCost(
 
 	// **提交失败 MUST 被报出**：`SetBaseValue` 自身对"单位未注册 / 属性名为空 / 未持有"返回 false
 	// （含 `ensureMsgf` 红字）⇒ MUST NOT 假设它一定成功，否则 `PayCost` 会报成功而资源没扣。
-	if (!Attribute->SetBaseValue(Unit, Config.ResourceAttr, NewBaseValue))
+	if (!Attribute->SetBaseValue(Context.Unit, ResourceAttr, NewBaseValue))
 	{
 		UE_LOG(LogTcsSkill, Warning,
 			TEXT("消耗提交失败：属性写回被拒（单位=%lld 属性=%s 目标基值=%.3f）"),
-			Unit.Id, *Config.ResourceAttr.ToString(), NewBaseValue);
+			Context.Unit.Id, *ResourceAttr.ToString(), NewBaseValue);
 		return false;
 	}
 
@@ -373,19 +317,165 @@ bool FTcsCostOps::CommitCost(
 
 	UE_LOG(LogTcsSkill, Log,
 		TEXT("消耗已提交：单位=%lld 属性=%s %.3f → %.3f（扣 %.3f）"),
-		Unit.Id, *Config.ResourceAttr.ToString(), BaseValue, NewBaseValue, EffectiveAmount);
+		Context.Unit.Id, *ResourceAttr.ToString(), BaseValue, NewBaseValue, EffectiveAmount);
 
-	// **消耗事件在此发（成功后）**——`CanAfford` 失败**不发**（`D5-16` 明文："CanAfford 失败不发
+	// **消耗事件不在此发**——`CanAfford` 失败**不发**（`D5-16` 明文："CanAfford 失败不发
 	// ——`TryActivate` 返回值覆盖"）：门禁拒绝面已有 `SAR_CannotAfford` 这个具名读数，
 	// 再发一枚"没扣成"的事件纯属噪音（订阅者还得自己判"这枚事件是真的扣了还是没扣"）。
 	//
-	// **`CommitCost` 只拿得到 `Unit` 与 `Config`，拿不到条目身份** ⇒ 载荷的 `EntryHandle` / `DefTag`
-	// 由调用方（`PayCostForEntry`）补发；此处先发一枚"单位级"的部分载荷会造出两种载荷形状
-	// ⇒ 改由 `PayCostForEntry` 在拿到条目后统一发（见该函数），本函数**只负责扣减**。
-	// **这是一处刻意的职责切分**：`CommitCost` 是"纯扣减"（它连技能都不需要知道——
+	// **本函数只拿得到 `Unit` 与 `Context`，拿不到条目身份** ⇒ 载荷的 `EntryHandle` / `DefTag`
+	// 由调用方补发；此处先发一枚"单位级"的部分载荷会造出两种载荷形状
+	// ⇒ 由拿到条目的调用方统一发（见 `PayCostForEntry` / `TcsCastOps`），本函数**只负责扣减**。
+	// **这是一处刻意的职责切分**：策略的 `CommitCost` 是"纯扣减"（它连技能都不需要知道——
 	// 激活路径的 `OnCastStarted` 档就是直调它），发事件需要条目身份，属调用方的事。
 	return true;
 }
+
+// ── 分派层（框架只做"要不要付 / 付哪一个策略"的判断，具体扣减归策略） ──────────────
+
+const FTcsSkillCostPolicy* FTcsCostOps::ResolvePolicy(const FTcsSkillCostConfig& Config)
+{
+	// **单参数 `GetPtr<T>()`**（判据见头文件）：空载荷与类型不符**都**返回 `nullptr`
+	// ⇒ 一个判据覆盖两种降级。**MUST NOT 用双模板参数重载**（Shipping 下完全不校验类型）。
+	return Config.CostMode.GetPtr<FTcsSkillCostPolicy>();
+}
+
+
+
+FTcsSkillCostContext FTcsCostOps::MakeContext(
+	UTcsSkillSubsystem& Subsystem,
+	FTcsCombatEntityHandle Unit,
+	const FTcsLearnedSkillEntry* Entry)
+{
+	FTcsSkillCostContext Context;
+	Context.Subsystem = &Subsystem;
+	Context.Unit = Unit;
+	Context.Entry = Entry;
+	// **等级从条目取**（等级表参数源读的就是它）；无条目 = 装置验配置边界场景，取 0。
+	Context.Level = Entry ? Entry->Level : 0;
+	return Context;
+}
+
+
+
+bool FTcsCostOps::CanAffordCost(
+	UTcsSkillSubsystem& Subsystem,
+	FTcsCombatEntityHandle Unit,
+	const FTcsSkillCostConfig& Config,
+	FString* OutReason,
+	const FTcsLearnedSkillEntry* Entry)
+{
+	// ── `ECT_None`：**正确声明"不消耗"** ⇒ 恒可付、**零日志、不看策略** ──
+	// 这是"不消耗"的**唯一正确表达**（2026-10-12 用户裁定：Timing 为 None ⇒ 后面一概不管）。
+	// **MUST NOT** 顺手去看 `CostMode`（那会把"声明不消耗"与"策略没接上"混成一类）。
+	if (Config.Timing == ETcsSkillCostTiming::ECT_None)
+	{
+		return true;
+	}
+
+	// ── `Timing != None` 但策略缺失/类型不符 ⇒ **配置错误，fail-closed** ──
+	//
+	// **MUST NOT 静默按"不消耗"放过**：那会让"想配消耗但没配清"表现成"一切正常"
+	//（本仓反复在拦的那类 bug，见头文件的"三类分开处置"表）。
+	// **与换型前的行为差异 = 收紧**：换型前的 `ECP_CustomFragment` 降级是**免费放**，
+	// 现在空策略**拦住**（判据见头文件）。
+	const FTcsSkillCostPolicy* Policy = ResolvePolicy(Config);
+	if (!Policy)
+	{
+		if (OutReason)
+		{
+			*OutReason = TEXT("CostMode 为空或类型不符（想配消耗但没接上策略）");
+		}
+
+		UE_LOG(LogTcsSkill, Warning,
+			TEXT("消耗配置错误：Timing 非 None 但 CostMode 为空/类型不符（单位=%lld）——判定为不可付"),
+			Unit.Id);
+		return false;
+	}
+
+	// ── 分派给策略（**门禁与提交点在这里走同一个权威**） ──
+	const FTcsSkillCostContext Context = MakeContext(Subsystem, Unit, Entry);
+	return Policy->CanAfford(Context, OutReason);
+}
+
+
+
+bool FTcsCostOps::CommitCost(
+	UTcsSkillSubsystem& Subsystem,
+	FTcsCombatEntityHandle Unit,
+	const FTcsSkillCostConfig& Config,
+	double* OutApplied,
+	const FTcsLearnedSkillEntry* Entry)
+{
+	if (OutApplied)
+	{
+		*OutApplied = 0.0;
+	}
+
+	// ── `ECT_None` ⇒ 零动作、零日志（不看策略） ──
+	if (Config.Timing == ETcsSkillCostTiming::ECT_None)
+	{
+		return true;
+	}
+
+	// ── 策略缺失 ⇒ 零提交 + `Warning`（与 `CanAffordCost` 同判据） ──
+	const FTcsSkillCostPolicy* Policy = ResolvePolicy(Config);
+	if (!Policy)
+	{
+		UE_LOG(LogTcsSkill, Warning,
+			TEXT("消耗提交跳过：Timing 非 None 但 CostMode 为空/类型不符（单位=%lld）"),
+			Unit.Id);
+		return false;
+	}
+
+	const FTcsSkillCostContext Context = MakeContext(Subsystem, Unit, Entry);
+
+	// **★ 原子性：框架把策略的整个提交包进属性批（2026-10-12 用户裁定）**。
+	//
+	// **批给什么、不给什么（MUST 读，防误判——源码核实 2026-10-12）**：
+	// - **给**：重算与广播推迟到最外层 `Commit`（`BatchDepth` 嵌套计数）+ **订阅者看不到中间态**
+	//   ⇒ **关闭重入窗口**（"第一条扣减广播 → 订阅者花掉资源 → 第二条扣不动"）。
+	// - **不给**：**回滚**。`FTcsAttributePipeline::SetBaseValue` 的写入是**立即**的
+	//   （`Instance->BaseValue = NewBaseValue;`），批只推迟 `Recalculate`。
+	// - ⇒ **"全有全无"的实际保障 = 先判后扣**（调用方 MUST 先过 `CanAffordCost`），
+	//   **MUST NOT** 把批当作事务/回滚来依赖。
+	//
+	// **★ 一处必须的守卫（本框架包批引入的新问题）**：`BeginBatch` / `Commit` 对**未注册单位**
+	// 会触发 `ensureMsgf`（红字）。内建属性策略不可能走到那里（它先要 `TryGetBaseValue` 成功
+	// ⇒ 单位必然已注册），但**宿主自定义策略**可能"没注册单位也判可付" ⇒ 框架包批会**替宿主
+	// 多报一条 ensure**。故包批前用**不 ensure** 的 `ResolveStore` 探测；未注册时**不包批**
+	// （策略照常提交，其自身失败面自行上报）。
+	UTcsAttributeSubsystem* Attribute = Subsystem.GetWorld()
+		? Subsystem.GetWorld()->GetSubsystem<UTcsAttributeSubsystem>() : nullptr;
+
+	const bool bCanWrapInBatch = (Attribute != nullptr)
+		&& (Attribute->ResolveStore(Unit) != nullptr);
+
+	if (bCanWrapInBatch)
+	{
+		// **批的边界 = 紧邻本策略的提交**，MUST NOT 圈进施法激活的其它属性改动
+		// （如 `MaterializeParamChainRows`）——圈的边界就是"这一次消耗"。
+		Attribute->BeginBatch(Unit);
+	}
+
+	double Applied = 0.0;
+	const bool bCommitted = Policy->CommitCost(Context, &Applied);
+
+	if (bCanWrapInBatch)
+	{
+		// **提交点唯一**：批内多次变更只重算一次、每属性最多广播一次（`TcsAttributeSubsystem.h:287`）。
+		Attribute->Commit(Unit);
+	}
+
+	if (OutApplied)
+	{
+		*OutApplied = Applied;
+	}
+
+	return bCommitted;
+}
+
+
 
 bool FTcsCostOps::PayCostForEntry(
 	UTcsSkillSubsystem& Subsystem,
@@ -439,16 +529,15 @@ bool FTcsCostOps::PayCostForEntry(
 void FTcsCostOps::BroadcastCostApplied(
 	UTcsSkillSubsystem& Subsystem,
 	const FTcsLearnedSkillEntry& Entry,
-	const FTcsCostConfig& Config,
+	const FTcsSkillCostConfig& Config,
 	double AppliedAmount)
 {
-	// **只对"真的扣了一笔"发**：`ECP_None` / 扣减量 `<= 0` / `CustomFragment`（零扣减）都不是
-	// "扣了一笔"——发它们会让订阅者收到无意义的通知（且 `CanAfford` 失败也已经不发）。
+	// **只对"真的扣了一笔"发**：扣减量 `<= 0` 不是"扣了一笔"（"消耗 0 点"与"不消耗"
+	// 都不是）——发它们会让订阅者收到无意义的通知（且 `CanAfford` 失败也已经不发）。
 	//
-	// **判据取 `AppliedAmount` 而非 `Config.Amount`**（2026-10-12 B 形状换型连带）：
-	// 换型后 `Config.Amount` 是**参数源载体**、不是数字；而"有没有真扣"这件事
-	// **只有实际扣减量知道**（减免到 0 的时刻恰好就是"没扣"）。
-	if (Config.Policy != ETcsCostPolicy::ECP_ResourceAttr || AppliedAmount <= 0.0)
+	// **判据取实际扣减量而不是配置基数**：配置里的 `Amount` 是**参数源载体**、不是数字；
+	// 而"有没有真扣"只有**实际扣减量**知道（减免到 0 的那一刻恰好就是"没扣"）。
+	if (AppliedAmount <= 0.0)
 	{
 		return;
 	}
@@ -464,8 +553,17 @@ void FTcsCostOps::BroadcastCostApplied(
 	Payload.EntryHandle = Entry.Handle;
 	Payload.Unit = Entry.Unit;
 	Payload.DefTag = Entry.DefTag;
-	Payload.ResourceAttr = Config.ResourceAttr;
-	// **`Amount` 取"实际扣掉的量"**（2026-10-12 B 形状连带）：它是**求值 ⊕ 减免之后**的结果
+
+	// **★ 载荷的 `ResourceAttr` 是内建策略专属字段（如实登记）**：只有内建属性资源策略
+	// 才有一个明确的"被扣属性"；**宿主自定义策略**扣什么框架不认识 ⇒ 该字段留无效。
+	// **MUST NOT** 为此去猜（那等于让框架认识宿主的资源语义）。
+	if (const FTcsSkillCostPolicy_ResourceAttr* ResourcePolicy =
+		Config.CostMode.GetPtr<FTcsSkillCostPolicy_ResourceAttr>())
+	{
+		Payload.ResourceAttr = ResourcePolicy->ResourceAttr;
+	}
+
+	// **`Amount` 取"实际扣掉的量"**：它是**求值 ⊕ 减免之后**的结果
 	// ——订阅者（UI 扣血飘字 / 资源条动效）要的正是"这一发花了多少"，而不是配置里的基数。
 	Payload.Amount = AppliedAmount;
 

@@ -189,7 +189,7 @@ public:
 	 * - `EvaluateParamKey` 的初值取**该键的参数行**（`Def->Params` 里 `Key` 匹配那行）——
 	 *   适用于"这个键的数值由**参数表**声明"（如 `CooldownPct`、`Level`）；
 	 * - **本函数**的初值由**调用方**给出——适用于"基数住在**字段**里、修正挂在**键**上"
-	 *   的形态（如 `FTcsCostConfig::Amount`：基数是字段的 `FTcsParamValue` 求值结果，
+	 *   的形态（如 `FTcsSkillCostPolicy_ResourceAttr::Amount`：基数是字段的 `FTcsParamValue` 求值结果，
 	 *   而减免是 `CostAmount` 键上的修正器）。
 	 * ⇒ 两者**不可互相替代**：用前者表达后者会要求作者把基数同时写在参数表里
 	 * （同一件事两个入口，且两处不一致时无人能说出哪个是对的）。

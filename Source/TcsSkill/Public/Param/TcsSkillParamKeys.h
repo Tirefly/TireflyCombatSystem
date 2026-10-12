@@ -40,7 +40,7 @@ extern TCSSKILL_API FNativeGameplayTag Tag_TcsSkillParam_CooldownPct;
 /**
  * 技能域参数表的**框架契约键**（消耗修正根）。
  *
- * **它是什么**：`FTcsCostConfig::Amount` 的**修正键**——本键上的修正经**五带折叠**
+ * **它是什么**：`FTcsSkillCostPolicy_ResourceAttr::Amount` 的**修正键**——本键上的修正经**五带折叠**
  * 作用于该字段的求值结果（**初值 = `Amount` 自己的求值**，不是 0）。
  *
  * **为什么需要它（2026-10-12 用户裁定）**：`Amount` 换成 `FTcsParamValue` 只解决了

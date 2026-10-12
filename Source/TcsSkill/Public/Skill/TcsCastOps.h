@@ -193,7 +193,7 @@ public:
 	 * `Manual` 由宿主自己调 `PayCost`（框架零动作——"某个特定事件触发消耗"这类项目玩法归这一档，
 	 * 2026-10-12 用户裁定删除 `ECT_OnEvent`，判据见 `TcsCostTypes.h`）。
 	 *
-	 * **被打断 / 被顶替时 MUST NOT 提交**：`ETcsCostTiming` 刻意没有 `OnCastInterrupted` 档
+	 * **被打断 / 被顶替时 MUST NOT 提交**：`ETcsSkillCostTiming` 刻意没有 `OnCastInterrupted` 档
 	 * （`D5-4` 已砍返还 ⇒ 该档两种读法一为重复一为荒谬）。"施法开始时扣"这一档已经覆盖了
 	 * "被打断也扣了"这个语义。
 	 *

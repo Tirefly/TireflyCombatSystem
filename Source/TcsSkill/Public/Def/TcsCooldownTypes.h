@@ -14,9 +14,17 @@
  * 冷却时机（`D5-15` 原文的 Strategy 之外的另一维："**什么时候**起冷却"）。
  *
  * **四档，且刻意没有 `OnEvent`**：冷却是"施法这个动作**自己带来**的后果"，它的起因永远在本模块
- * 手里（激活成功 / 终结 / 宿主手动）——不需要"等别人的事件"。**Cost 侧才需要 `OnEvent`**
- * （见 `ETcsCostTiming` 的判据）。两套 Timing 枚举**各自独立**，MUST NOT 合并成一个
- * （判据见 `PLN-R6.5-1` §0.2 裁决 ③）。
+ * 手里（激活成功 / 终结 / 宿主手动）——不需要"等别人的事件"。
+ * ~~**Cost 侧才需要 `OnEvent`**（见 `ETcsCostTiming` 的判据）~~ —— **★ 2026-10-12 后半句作废**：
+ * Cost 侧的 `OnEvent` 档**也已整体删除**（同一日用户裁定，理由 = "某个特定事件"是**项目词汇**，
+ * 框架只认识"施法事务自身的边界"）⇒ **两套 Timing 枚举今天都没有 `OnEvent` 档**。
+ * 但它们**仍然各自独立**，MUST NOT 合并成一个（判据见 `PLN-R6.5-1` §0.2 裁决 ③：
+ * 两枚举的**档位集本就不同**——Cost 侧无 `OnCastInterrupted`，冷却侧无 `None`）。
+ *
+ * **★ 改名留痕（2026-10-12，`PLN-R6.5-CC` 裁定 R12）**：本类型原名 **`ETcsCooldownTiming`**，
+ * 与 Cost 侧（`ETcsSkillCostTiming`）**同批加域前缀**以保持这一对姊妹枚举的对称。
+ * **只改类型名，枚举值与语义一律不动**；归档提案与历史日志里的旧字面保留作现场记录，
+ * **MUST NOT 改写**（本仓既有"换根注记"纪律同款）。
  *
  * **为什么没有 `Custom` 档**（2026-10-11 用户裁定，MUST NOT 补回）：自定义时机 = "**不自动执行，
  * 让宿主在自己的确定逻辑处手动调用**"⇒ 那正是本枚举的 `ECT_Manual` 档，**不需要任何 Payload /
@@ -28,7 +36,7 @@
  * `UMETA(ToolTip=...)` 冲突并**直接编译失败**（本仓实测）。语义一律写进 `UMETA`。
  */
 UENUM(BlueprintType)
-enum class ETcsCooldownTiming : uint8
+enum class ETcsSkillCooldownTiming : uint8
 {
 	ECT_OnCastStarted = 0		UMETA(DisplayName = "施法开始", ToolTip = "激活成功后立即起冷却（默认档）"),
 
@@ -62,7 +70,7 @@ public:
 	 * 本轨时长的**基数**（秒）。
 	 *
 	 * **★ 2026-10-12 用户裁定：由静态 `double` 换型为 `FTcsParamValue`（参数源载体）**——
-	 * 判据与 Cost 侧 `FTcsCostConfig::Amount` **逐字同构**（台账 `COOLDOWN-1` 与 `COST-1`
+	 * 判据与 Cost 侧 `FTcsSkillCostPolicy_ResourceAttr::Amount` **逐字同构**（台账 `COOLDOWN-1` 与 `COST-1`
 	 * **同一技术根因**：技能侧数值字段缺参数化载体 ⇒ MUST 同批裁）：
 	 * ① 按等级配时长（"1 级 8s / 2 级 6s"）靠等级表参数源；
 	 * ② 按来源配时长（`HostDelegate` / `ParamRef` 等既有源）；
@@ -142,7 +150,7 @@ public:
 	 * 每轨各配一个时机只会造出"自身轨已起、组轨还没起"这种没有语义的中间态。
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Cooldown Policy")
-	ETcsCooldownTiming Timing = ETcsCooldownTiming::ECT_OnCastStarted;
+	ETcsSkillCooldownTiming Timing = ETcsSkillCooldownTiming::ECT_OnCastStarted;
 
 #pragma endregion
 };

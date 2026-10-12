@@ -626,7 +626,7 @@ public:
 	 *
 	 * @param Unit 单位实体句柄。
 	 * @param Entry 账本条目句柄。
-	 * @return 返回是否提交成功（`ECP_None` 档恒 true；付不起 / 悬空 / 定义取不到 ⇒ false）。
+	 * @return 返回是否提交成功（`ECT_None` 档恒 true；付不起 / 悬空 / 定义取不到 ⇒ false）。
 	 */
 	bool PayCost(FTcsCombatEntityHandle Unit, FTcsSkillEntryHandle Entry);
 

@@ -237,18 +237,20 @@ public:
 	FTcsCooldownPolicy Cooldown;
 
 	/**
-	 * 消耗配置（`D5-10`）——**默认 `ECP_None` = 不消耗、恒可付**。
+	 * 消耗配置（`D5-10`）——**默认 `Timing = ECT_None` = 不消耗、恒可付**。
 	 *
-	 * 落地时点同上一字段。**`ECP_CustomFragment` 档本轮具名未实现**（记 `Warning` + 回退 `None`）：
-	 * **★ 阻塞已于 2026-10-12 改正（原记"属性写入面物理不可达 / `SCRIPT-9`"——该归因不成立）**：
-	 * 真阻塞 = **扩展点形状从未裁定**（`D5-10` 只给了 `ICostPolicy` 这个 `USTRUCT` 策略基类形状，
-	 * 而它对脚本侧物理不可达）⇒ 归台账 **`COST-3`**。原记之所以不成立有两个独立理由：
-	 * ① Cost 侧明文 **MUST NOT 用 `ApplyModifier`**、必须直写基值，而 `SetBaseValue` **有** `UFUNCTION`；
-	 * ② 宿主自定义消耗**根本不经过 TCS 属性写入面**（在宿主自己的背包系统里扣）。
-	 * 详见 `TcsCostOps.cpp` 的 `CanAffordCost` / `CommitCost` 同批注记。
+	 * **★ 2026-10-12 用户改点（策略模式）**：本字段的类型由 `FTcsCostConfig`
+	 * （`{Policy 枚举, Timing, ResourceAttr, Amount}`）换成 **`FTcsSkillCostConfig`**
+	 * （`{Timing, CostMode: FInstancedStruct}`）——"付什么 / 怎么付"从**枚举档位**改为
+	 * **策略对象**，内建属性资源策略（`FTcsSkillCostPolicy_ResourceAttr`）**也走同一套**。
+	 *
+	 * **原阻塞登记的去向（`COST-3`）**：本字段原注释记"`ECP_CustomFragment` 档具名未实现
+	 * （阻塞 = `SCRIPT-9`）"——**该归因已于 2026-10-12 改正**（`SCRIPT-9` 不成立：本档 MUST NOT 用
+	 * `ApplyModifier`，且宿主自定义消耗**不经过 TCS 属性写入面**）。真阻塞 = **扩展点形状未裁**，
+	 * 归台账 **`COST-3`**；**该扩展点由本轮的策略基类 + 脚本面转发器兑现** ⇒ `COST-3` 随之闭合。
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Skill Def|Cost")
-	FTcsCostConfig Cost;
+	FTcsSkillCostConfig Cost;
 
 #pragma endregion
 };
