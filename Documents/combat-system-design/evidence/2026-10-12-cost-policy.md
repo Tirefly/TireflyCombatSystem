@@ -142,6 +142,33 @@ if (Store->BatchDepth == 0 && PushEvalStack(Attribute)) { Recalculate(...); }  /
 
 ---
 
+## 6b. ★ 收束期发现：规格与代码**已经分叉**（本档的另一条独立产出）
+
+**现象**：代码在本轮**先**改并取证，而 `openspec/specs/`（**与代码同等级的权威事实**）
+仍描述已被删除的类型——**grep 旧类型名抓到 41 处**（`ETcsCostPolicy` / `FTcsCostConfig` /
+`ECP_None` / `ECP_ResourceAttr` / `ECP_CustomFragment` / `ETcsCostTiming` / `ETcsCooldownTiming`）。
+
+**为什么校验器没报警**：`openspec validate --all --strict` 全程 **42 passed / 0 failed** ——
+它只校验**格式与场景完整性**，**不校验类型是否还存在**。
+⇒ **一个被删掉的公开类型可以在规格里静默留存任意久**。
+
+**处置**：补提案 `add-cost-policy-mode`（`+0 ~6 -0`，逐需求零丢失预检通过）并归档为
+`2026-10-13-add-cost-policy-mode`；三条能力（`skill-cost` / `skill-cooldown` /
+`skill-def-asset`）的规格与代码对齐。
+
+**★ 沉淀的判据（可复用）**：**每次删/改公开类型后，MUST grep 旧名全库**
+（含 `openspec/specs/`），**不能只依赖 `openspec validate` 的绿灯**。
+该判据与 `INDEX` §5「计数声称 MUST 全库同批回改」同族——
+**都是"校验器管不到的文本一致性"**，只能靠主动反查。
+
+**一处编辑纪律（本轮实证）**：MODIFIED delta **必须粘贴完整需求原文**，
+且**场景标题不可改名**（归档器按标题匹配；改名会被判"丢失场景"而**拒绝归档**——
+本轮实测报错："MODIFIED ... omits scenario(s) the current spec still has"）。
+本仓既有处置 = **保留历史标题 + 就地注明"判据已反转"**
+（先例 `skill-def-asset` 的"冷却与 Cost 字段不在本轮"场景）。
+
+---
+
 ## 7. 边界（MUST NOT 外推）
 
 1. **单机 / 单世界 / 单进程**；全部读数为无头 `UnrealEditor-Cmd`。
