@@ -5,6 +5,9 @@
 #include "EventBus/TcsEventBusSubsystem.h"
 
 #include "Skill/TcsCastOps.h"
+#include "Skill/TcsCooldownOps.h"
+#include "Skill/TcsCostOps.h"
+#include "Skill/TcsSkillOps.h"
 #include "TcsSkillLogChannel.h"
 
 
@@ -29,14 +32,42 @@ bool UTcsSkillSubsystem::DoesSupportWorldType(const EWorldType::Type WorldType) 
 
 void UTcsSkillSubsystem::Deinitialize()
 {
-	// **六者都要清**：运行态池 / 登记表 / 账本 / 注入的实体查询接口 /
-	// 链重定向栈（含宿主契约）/ 在飞终结标记集。
+	// **七者都要清**：运行态池 / 登记表 / 账本 / 注入的实体查询接口 /
+	// 链重定向栈（含宿主契约）/ 在飞终结标记集 / **单位级组冷却槽**。
 	// 不清注入的接口会让"未注入 ⇒ 降级放行"这条路径在跨世界后**再也测不到**
 	// （上一世界注入的实现一直生效，表现为门禁第一道永远走宿主判定）。
 	//
 	// **在飞终结标记集 MUST 清**：它只在"某次终结还没走完"的窗口内有意义；跨世界残留会让
 	// 新世界里同 `(Index, Generation)` 的 run **再也终结不掉**（返回 false 且静默）——
 	// 症状是"技能放不出去也结束不了"，远离根因。状态侧同款（`InRemovalBroadcastHandles.Reset()`）。
+	//
+	// **组冷却槽 MUST 清（且不能只 `Reset` 表）**：每个槽持一枚到期堆句柄，而堆挂在**时钟子系统**上
+	// ——不撤锚点就删表，那些条目会**活到各自到期**并回调一个已不存在的槽
+	// （症状：世界拆解后仍有回调空跑；而槽表已空 ⇒ 回调静默丢弃，属"静默无效但占着池槽"）。
+	//
+	// **★ 撤锚点 MUST 先确认时钟仍活着（fresh-context 复核抓到的 Important 缺陷）**：
+	// 本类的 `Deinitialize` 与时钟子系统的拆解顺序**不保证**（两者都是世界子系统）。
+	// `FTcsExpiryHeap::Reset()` 清条目与回调、但**不失效代际** ⇒ 时钟已拆完时再 `CancelExpiry`
+	// 会**二次递减** `Tcs.Core.ExpiryHeapDepth` 并释放一个陈旧槽位（症状 = 拆解期堆深度计数变负）。
+	// **判据 = 本仓既有先例**：`FTcsStateBehaviorRegistry::Reset` 对总线用的正是
+	// `if (Bus && Bus->IsInitialized())`——`IsInitialized()` 的语义是"**Initialize 已调用、
+	// Deinitialize 尚未调用**"（`WorldSubsystem.h:102`），正好回答"这个时钟现在还能撤锚点吗"。
+	int32 GroupSlotsBefore = 0;
+	for (const TPair<FTcsCombatEntityHandle, TMap<FGameplayTag, FTcsCooldownGroupState>>& Pair : CooldownGroups)
+	{
+		GroupSlotsBefore += Pair.Value.Num();
+		if (UTcsClockSubsystem* Clock = GetClockSubsystem(); Clock && Clock->IsInitialized())
+		{
+			for (const TPair<FGameplayTag, FTcsCooldownGroupState>& SlotPair : Pair.Value)
+			{
+				if (SlotPair.Value.ExpiryEntry.IsValid())
+				{
+					Clock->CancelExpiry(SlotPair.Value.ExpiryEntry);
+				}
+			}
+		}
+	}
+
 	const int32 EntriesBefore = Registry.NumEntries();
 	const int32 DefsBefore = RegisteredDefs.Num();
 	const int32 RunsBefore = FTcsCastOps::ResetAll(*this);
@@ -46,15 +77,85 @@ void UTcsSkillSubsystem::Deinitialize()
 	RegisteredDefs.Reset();
 	ChainRedirects.Reset();
 	InFinishBroadcastHandles.Reset();
+	CooldownGroups.Reset();
+
 	EntityQuery = TScriptInterface<ITcsEntityQuery>();
 	ChainRedirectResolver = TScriptInterface<ITcsChainRedirectResolver>();
 
 	UE_LOG(LogTcsSkill, Log,
-		TEXT("技能门面反初始化：账本条目 %d→%d 已登记定义 %d→%d 施法运行态 %d→%d 链重定向 %d→%d，注入接口已清空"),
+		TEXT("技能门面反初始化：账本条目 %d→%d 已登记定义 %d→%d 施法运行态 %d→%d 链重定向 %d→%d 组冷却槽 %d→0，注入接口已清空"),
 		EntriesBefore, Registry.NumEntries(), DefsBefore, RegisteredDefs.Num(),
-		RunsBefore, GetCastRunCount(), RedirectsBefore, ChainRedirects.Num());
+		RunsBefore, GetCastRunCount(), RedirectsBefore, ChainRedirects.Num(), GroupSlotsBefore);
 
 	Super::Deinitialize();
+}
+
+
+
+// 冷却（薄壳转发——流程逻辑全在 `FTcsCooldownOps`，本类只保持签名稳定）
+bool UTcsSkillSubsystem::IsOnCooldown(FTcsCombatEntityHandle Unit, FTcsSkillEntryHandle Entry)
+{
+	return FTcsCooldownOps::IsEntryOnCooldownByHandle(*this, Unit, Entry, nullptr);
+}
+
+double UTcsSkillSubsystem::GetCooldownRemaining(FTcsCombatEntityHandle Unit, FTcsSkillEntryHandle Entry, int32 TrackIndex)
+{
+	return FTcsCooldownOps::GetTrackRemaining(*this, Unit, Entry, TrackIndex);
+}
+
+double UTcsSkillSubsystem::GetCooldownTotal(FTcsCombatEntityHandle Unit, FTcsSkillEntryHandle Entry, int32 TrackIndex)
+{
+	return FTcsCooldownOps::GetTrackTotal(*this, Unit, Entry, TrackIndex);
+}
+
+int32 UTcsSkillSubsystem::GetCooldownTrackCount(FTcsCombatEntityHandle Unit, FTcsSkillEntryHandle Entry)
+{
+	return FTcsCooldownOps::GetTrackCount(*this, Unit, Entry);
+}
+
+void UTcsSkillSubsystem::AdjustCooldown(FTcsCombatEntityHandle Unit, FTcsSkillEntryHandle Entry, int32 TrackIndex, double Delta)
+{
+	FTcsCooldownOps::AdjustTrack(*this, Unit, Entry, TrackIndex, Delta);
+}
+
+void UTcsSkillSubsystem::ResetCooldown(FTcsCombatEntityHandle Unit, FTcsSkillEntryHandle Entry, int32 TrackIndex)
+{
+	FTcsCooldownOps::ClearTrack(*this, Unit, Entry, TrackIndex);
+}
+
+int32 UTcsSkillSubsystem::StartCooldown(FTcsCombatEntityHandle Unit, FTcsSkillEntryHandle Entry)
+{
+	return FTcsCooldownOps::StartCooldownOnEntry(*this, Unit, Entry);
+}
+
+
+
+// 消耗（薄壳转发——流程逻辑全在 `FTcsCostOps`）
+bool UTcsSkillSubsystem::PayCost(FTcsCombatEntityHandle Unit, FTcsSkillEntryHandle Entry)
+{
+	return FTcsCostOps::PayCostForEntry(*this, Unit, Entry);
+}
+
+bool UTcsSkillSubsystem::CanAfford(FTcsCombatEntityHandle Unit, FTcsSkillEntryHandle Entry)
+{
+	const FTcsLearnedSkillEntry* Learned = FTcsSkillOps::Find(*this, Unit, Entry);
+	if (!Learned)
+	{
+		// 悬空 / 未学 ⇒ false（不 ensure——正常查询路径）
+		return false;
+	}
+
+	const FTcsSkillDefData* Def = GetRegisteredSkillDef(Learned->DefTag);
+	if (!Def)
+	{
+		return false;
+	}
+
+	// **★ 传 `Learned`（2026-10-12 B 形状）**：本口是宿主"预先灰掉按钮"用的查询，
+	// 而 `CostAmount` 键上的**减免修正器住在条目上** ⇒ 不传就会报**未减免**的基数，
+	// 宿主据此灰按钮就会与实际提交点的判定**不一致**
+	// （"UI 说不付得起、真按下去却付得起"或反之——正是本仓反复拦的自相矛盾）。
+	return FTcsCostOps::CanAffordCost(*this, Unit, Def->Cost, nullptr, Learned);
 }
 
 UTcsEventBusSubsystem* UTcsSkillSubsystem::GetEventBus() const

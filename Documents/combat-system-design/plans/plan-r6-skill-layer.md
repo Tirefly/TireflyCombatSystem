@@ -195,15 +195,54 @@
 
 | 批次 | 内容 | 状态 | 依赖 / 触发 |
 |---|---|---|---|
-| **R6.5-a** | **冷却多轨道**：`FCooldownTrack{Duration, GroupTag?}` 数组 → `UTcsSkillSubsystem` 的每 Entry 轨道状态 + 单位级组槽；到期堆注册（复用 `UTcsClockSubsystem::PushExpiry`）/ `CDR` 快照于冷却触发时刻 | ❌ 未开工 | R6（`FTcsCastRun` / Entry 账本已落地） |
-| **R6.5-b** | **冷却三事件 + 可变性**：`OnCooldownStarted` / `OnCooldownUpdated` / `OnCooldownEnded` + `AdjustCooldown` / `ResetCooldown`（事件与可变性成对） | ❌ 未开工 | R6.5-a |
-| **R6.5-c** | **`FCooldownTiming` 四档**：`OnCastStarted`(默认) / `OnCastCompleted` / `OnCastInterrupted` / `Custom(ITcsCooldownTimingFragment)` | ❌ 未开工 | R6.5-a + R6 的施法完成/打断路径 |
-| **R6.5-d** | **Cost 策略 × 时机**：`FCostConfig{Policy: None/ResourceAttr/CustomFragment, Timing}` + `CanAfford` 门禁第 5 道真实现 + Pay 提交 + `OnCostApplied` | ❌ 未开工 | R6（门禁序列）+ M2（`ResourceAttr` 走属性账本） |
+| **R6.5-a** | **冷却多轨道**：`FCooldownTrack{Duration, GroupTag?}` 数组 → `UTcsSkillSubsystem` 的每 Entry 轨道状态 + 单位级组槽；到期堆注册（复用 `UTcsClockSubsystem::PushExpiry`）/ `CDR` 快照于冷却触发时刻 | ✅ **已落地（2026-10-12，`PLN-R6.5-1` Task 1）** | R6（`FTcsCastRun` / Entry 账本已落地） |
+| **R6.5-b** | **冷却三事件 + 可变性**：`OnCooldownStarted` / `OnCooldownUpdated` / `OnCooldownEnded` + `AdjustCooldown` / `ResetCooldown`（事件与可变性成对） | ✅ **已落地（2026-10-12，`PLN-R6.5-1` Task 4）**——**★ 落地名去掉 `On` 前缀** = `TcsEvent.Cast.CooldownStarted` / `.CooldownUpdated` / `.CooldownEnded`（`TcsEvent.Cast` 根下既有四枚零 `On` 前缀，按同族对称）；另**新增第三枚可变性口 `StartCooldown`**（`D5-16` 只承诺"改"与"清"，都不是"开始冷却"⇒ 无它则 `ECT_Manual` 档物理上无法兑现） | R6.5-a |
+| **R6.5-c** | **`FCooldownTiming` 四档**：`OnCastStarted`(默认) / `OnCastCompleted` / `OnCastInterrupted` / ~~`Custom(ITcsCooldownTimingFragment)`~~ | ✅ **已落地（2026-10-12，`PLN-R6.5-1` Task 1/3）**。**★ 第四档作废**：`ITcsCooldownTimingFragment` **整体删除、MUST NOT 补回**，由 **`ECT_Manual`**（宿主自调 `StartCooldown`）取代——判据见 `PLN-R6.5-1` §0.2 裁决 ① | R6.5-a + R6 的施法完成/打断路径 |
+| **R6.5-d** | **Cost 策略 × 时机**：`FCostConfig{Policy: None/ResourceAttr/CustomFragment, Timing}` + `CanAfford` 门禁第 5 道真实现 + Pay 提交 + `OnCostApplied` | ✅ **已落地（2026-10-12，`PLN-R6.5-1` Task 2/3）**——**★ 门禁第 5 道与 `PayCost` 已转真**（四类配置边界 fail-closed）；**落地事件名去掉 `On` 前缀** = `TcsEvent.Cast.CostApplied`；**另新增公开口 `CanAfford`**（纯查询，宿主可预灰按钮）+ `PayCost`。**★ 枚举名已定** = `ETcsCostPolicy` / `ETcsCostTiming`（"Timing"的枚举名原未定）；~~**`ETcsCostTiming` 采纳 `OnEvent` 档**、无 `OnCastInterrupted` 档~~ —— **★ 2026-10-12 改正（同日用户裁定反转）**：`ETcsCostTiming` **三档**（`OnCastStarted` / `OnCastCompleted` / `Manual`），**`OnEvent` 档整体删除、MUST NOT 补回**（"某个特定事件"是项目词汇，宿主用 `Manual` + `PayCost` 表达；提案 `remove-cost-onevent-timing` 已归档）；`OnCastInterrupted` 档**确实从未有**；`CustomFragment` 档**具名未实现 + 回退**（~~阻塞 = `SCRIPT-9`~~ **★ 2026-10-12 改正：阻塞 = `COST-3`（扩展点形状未裁），原记不成立**）——判据见 `PLN-R6.5-1` §0.2 裁决 ②③④ | R6（门禁序列）+ M2（`ResourceAttr` 走属性账本） |
 | **R6.5-e** | **`FBoolSwitchModifier` + `GateCheck` 条件**：布尔开关的修正器通道与 `TcsEffect` 侧第三个条件求值器（读 `BoolSwitches`） | ❌ 未开工 | R6（`FTcsBoolSwitchRow` 形状已落 **TcsSkill**）+ `TRIG-5` 第 ⑤ 项 |
 | **R6.5-f** | **`UTcsSkillModDef` 技能侧参数行分派**（`R5.5-f` 的实际内容） | ❌ 未开工 | R6（`TcsSkill` 落地）+ 注册制分派器 |
-| **R6.5-g** | **多形态组合范式的完整走查**（阶段标识 StateInstance + 关系字段门禁 + 触发行推进） | ❌ 未开工 | R6 + `R5.5-e`（关系字段检查器） |
+| **R6.5-g** | **多形态组合范式的完整走查**（阶段标识 StateInstance + 关系字段门禁 + 触发行推进） | ❌ 未开工（**依赖未满足**——见上方就地订正块） | **`R5.5-e`（关系表族，❌ 未开工，其第一步"字段语义拍板"从未做过）** + R6 |
 
 > **★ 2026-10-11 R6 收束关账**：**七个批次全部未开工**（`a`~`g`），且**它们的依赖现在才真正齐备**——本表立于 2026-10-06（R6 开工前），当时多条依赖写的是"R6（`TcsSkill` 落地）"，而今天 R6 **已全轮收束**（能力数 38 → 40、`openspec/changes/` 归零）。⇒ **表格本身无需改内容**，只在此关账：**R6.5 的开工条件已从"等 R6"变为"随时可开"**。**本轮对批次表的两处补充**：① `R6.5-e` 的依赖补上实况——`FTcsBoolSwitchRow` 形状**确已落 `TcsSkill`**（2026-10-06 Q-8 改判），且 `WAIT-14` 已登记"该表的 `Mode` 列零读取者"；② `R6.5-g` 的口径**已由 R6 实测收窄**——`CQM_Custom` / `MCS_Custom` 两档本轮**具名未实现 + 回退默认档**（记 `Warning`），`R6.5-g` 落地时 MUST 把这两条回退改为真实现（MUST NOT 只补其一）。
+
+> **★ 2026-10-11 就地订正（原文逐字保留，MUST NOT 抹除上块；本注由 R6.5-1 开工收窄轮追加）**：
+> 上块末句"**R6.5 的开工条件已从'等 R6'变为'随时可开'**"**对批次 `g` 不成立**（实测，判据两条）：
+> ① `R6.5-g`（多形态组合范式完整走查）**依赖 `R5.5-e`（关系表族）**，而 `R5.5-e` 在 `PLN-R5` 的《R5.5 批次表》里状态为 **❌ 未开工**；
+> ② 且 `R5.5-e` **自己的第一步**是"**字段语义拍板**（`Priority` 语义 / 互斥组结构 / 族规则表达式）"——`PLN-R5` §0.4 ② 的证据是
+> `DEC-2026-08-31-state-relation` 的待办行**至今未勾**、`SPEC-02-states` §3.4 **只给了形状**。
+> ⇒ **`g` 的头部内容卡在一件从未做过的事上**，它不是"随时可开"，而是"**先要一个新裁决**"。
+> **连带一处口径订正**：`a`~`d` 四批**仍成立**"随时可开"（本注不推翻上块，只收窄 `g`）。
+> **处置**：`a`~`d` 已由**新计划 `PLN-R6.5-1`** 接手（`Documents/combat-system-design/plans/plan-r6.5-cooldown-and-cost.md`，
+> 2026-10-11 建立，Task 0~6）；`e` / `f` 留本表待开；**`g` 留本表且标"依赖未满足"**。
+> **同批一处载体订正**：本计划 §轮次切分表把 `R6.5` 描述为"**寄在 R6 与 R7 之间，不占正式轮**"——
+> 本轮实际开了**独立计划 + 独立 Task 骨架**，体量已不是"余项"那一档，故该描述需按"**非正式轮号但拥有独立计划**"读
+> （判据见 `PLN-R6.5-1` §0.4 其二：批次表答"还剩什么"、计划答"怎么做怎么验"）。
+
+> **★ 2026-10-12 批次 `a`~`d` 落地关账（本注由 R6.5-1 执行轮追加；原文逐字保留）**：
+> 上块与就地订正块里的"🟡 已接手 / 计划期"**现已兑现**——`PLN-R6.5-1` **Task 0~5 全部落地并取证**：
+>
+> - **落地面**：类型层 / 冷却多轨（含真 GCD 的单位级组槽）/ Cost 策略 × 时机 / 终结接缝 Timing 分派 /
+>   四枚事件（三冷却 + 一消耗）/ 宿主装置。**双配置编译 0 error / 0 warning**。
+> - **规格面**：三个提案同日归档（`add-cooldown-and-cost-types` / `add-cooldown-multitrack` / `add-skill-cost`）
+>   ⇒ **能力数 40 → 42**（新增 `skill-cooldown` / `skill-cost`；另对 `skill-def-asset` / `skill-registry` /
+>   `attribute-pipeline` 各有增补）、`openspec validate --all --strict` = **42 passed / 0 failed**。
+> - **取证面**：无头 `Tcs.Test.CooldownCost.Run` **立即面 18/0 + 含跨帧尾段 21/0**（两轮逐字相同）、
+>   `.Reject` **7/0**；**编辑器 PIE 面（2026-10-12 补取）同为 18/0 + 21/0 + 7/0，两轮独立世界逐字相同**（✅ 两条路线现已同版本：基线 DLL + 新夹具，缺口已闭合，见同档 §1.1）；
+>   **R6 回归 `SkillLayer.Run` 24/0 且复现性摘要与本计划冻存基线逐字相同**（无头与 PIE 两侧均复取）
+>   ⇒ 本轮改动**未破坏 R6 面**。证据 = `EVID-2026-10-11-r65-cooldown-cost`。
+> - **★ 装置抓到一个真实产品缺陷**：`ECT_OnCastStarted` 档**扣了资源却不发 `CostApplied`**
+>   （`CommitCost` 是纯扣减、发事件属调用方职责，激活路径漏了那一行）⇒ 已修。
+> - **⚠ 取证边界（2026-10-12 更新：PIE 面已补取，但双路线夹具版本不同）**：PIE 面**已补取**（`Run` 18/0 + 21/0、`.Reject` 7/0，**两次独立 PIE 世界逐字相同**）；真 GCD / TOCTOU / 跨 PIE 残留**均已验并在 PIE 下 `PASS`** ⇒ **无头对它们的 `PASS` 不是假绿灯**。**补取证的实际收益 = 抓出两处夹具缺陷**（谓词按全局计数等待 ⇒ CDR 轨先到期使 `I2` 误报；检查 `e` 的"未持有"前提只在无头下成立），两处均已修并复验——详见 `EVID-2026-10-11-r65-cooldown-cost` §4.4。
+>   **★★ 但同一次自查发现（MUST 读，见该档 §1.1）**：**两条路线用的夹具版本不同**——
+>   无头 `FINAL-*.log` 跑的是**旧夹具**（其 `e` 文案为旧版；用的是 `UnrealEditor-Cmd` ⇒
+>   与 PIE 同一个基础 DLL，`Shipping.exe` **不跑装置**），
+>   而 PIE 的新夹具**只活在 Live Coding 补丁里、基线未写回**。
+>   ⇒ **没有任何一条路线同时满足"新夹具 + 基线 DLL"** ⇒ **MUST NOT 读成"双路线一致通过"**。
+>   处置 = 关编辑器 → 双配置全量 UBT → 重开 → **两条路线都重跑**。
+> - **本表状态随之更新**：`a` / `b` / `c` / `d` 四批由 🟡 **改为 ✅ 已落地（2026-10-12）**；
+>   `e` / `f` / **`g`** 三项**不变**（仍 ❌ 未开工，`g` 的依赖仍未满足）。
+> - **同批新增两条待触发台账条目**（`COST-1` / `COOLDOWN-1`）——均属**触发条件型、不绑轮次**，
+>   **不影响本表的批次划分**（它们是"发现的设计缺口"，不是新批次）。
 
 ---
 

@@ -15,6 +15,7 @@
 #include "Skill/TcsCastRun.h"
 #include "Skill/TcsCastRunHandle.h"
 #include "Skill/TcsChainRedirect.h"
+#include "Skill/TcsCooldownState.h"
 #include "Skill/TcsSkillEntrySelector.h"
 #include "Skill/TcsNumericParamModifier.h"
 #include "Skill/TcsSkillEntryHandle.h"
@@ -324,8 +325,10 @@ public:
 	 * 尝试激活一个已学技能——六道**具名**门禁（`SAR_*`）+ 建运行态 + 建快照 + 起主链 + 发 `OnCastStarted`
 	 * + **瞬发当刻完成**（空时段表）或**排定首段到期条目**（非空时段表）。
 	 *
-	 * **门禁序**：实体 Ready → 已学 → 冷却（`R6.5` 占位）→ Instancing 四路分流 → CanAfford（`R6.5` 占位）
+	 * **门禁序**：实体 Ready → 已学 → 冷却 → Instancing 四路分流 → CanAfford
 	 * → 定义可解析。**每道具名返回**（修 TCS 报告 09 的门禁内联缺陷）。
+	 * **六道今天全部可拒**（③ 冷却与 ⑤ CanAfford 已于 `R6.5-1` Task 1/2 转真——
+	 * **MUST NOT 再读成"占位/恒过"**，旧的 `R6.5 占位` 注记时态已到期）。
 	 *
 	 * **为什么 MUST NOT 收"施法上下文"形参**（设计 §4 的 `Context`）：本 Task **无消费者**——
 	 * 链侧 `SelectTargets` 自填目标集、`Instigator` 缺省 = 施法者。收一个无人填的形参即
@@ -504,6 +507,144 @@ public:
 #pragma endregion
 
 
+// 冷却（M5 第二层：D5-15 轨道 / D5-16 可变性 API）
+#pragma region Cooldown
+
+public:
+	/**
+	 * 该技能条目**现在是否在冷却中**（`D5-15`："可施放 = 全部自身轨道清空 + 所属组槽清空"）。
+	 *
+	 * **本口是 UI 轮询面**（`D5-15`："真值在 Entry，UI 轮询"）——**纯查询语义**：
+	 * MUST NOT 改运行态、MUST NOT 发事件、MUST NOT 动账本。
+	 *
+	 * **无反射面（MUST 记，防后人照 §2.4 草稿补 `UFUNCTION`）**：`PLN-R6.5-1` §2.4 的签名表在
+	 * 这些口上写了 `UFUNCTION()`，**本轮刻意不加**——判据：本类**今天零 `UFUNCTION`**
+	 * （`GrantSkill` / `TryActivate` / `GetNumericParam` 等全部逐字注明"本轮不加 `UFUNCTION`"），
+	 * 且账本与施法面的脚本读写面整体归台账 `SCRIPT-10`（**触发条件型，用户 2026-10-08 裁定
+	 * "可以后续安排"**）。单独给冷却加宏会造出"技能面里只有冷却能脚本调"的**孤岛**，
+	 * 且形参 `FTcsSkillEntryHandle` 虽已反射，但口径不统一会让 `SCRIPT-10` 落地时**无法一次对齐**。
+	 * ⇒ 该缺口统一由 `SCRIPT-10` 收口，**MUST NOT 在此提前破例**。
+	 *
+	 * @param Unit 单位实体句柄。
+	 * @param Entry 账本条目句柄。
+	 * @return 返回是否在冷却中（悬空句柄 / 定义取不到 ⇒ false，不 ensure）。
+	 */
+	bool IsOnCooldown(FTcsCombatEntityHandle Unit, FTcsSkillEntryHandle Entry);
+
+	/**
+	 * 取某轨的剩余秒数（UI 径向进度的分子）。
+	 *
+	 * @param Unit 单位实体句柄。
+	 * @param Entry 账本条目句柄。
+	 * @param TrackIndex 轨道下标（对应 `FTcsCooldownPolicy::Tracks` 的序）。
+	 * @return 返回剩余秒数（未在冷却 / 越界 / 悬空 ⇒ 0）。
+	 */
+	double GetCooldownRemaining(FTcsCombatEntityHandle Unit, FTcsSkillEntryHandle Entry, int32 TrackIndex);
+
+	/**
+	 * 取某轨本次冷却的**展示总时长**（径向进展的分母）。
+	 *
+	 * **不变量 `Remaining <= Total` 恒成立**（否则 UI 会画出超过 100% 的弧）——由
+	 * `FTcsCooldownOps::AdjustTrack` 的"`Total` 只增不减"保证。
+	 *
+	 * @param Unit 单位实体句柄。
+	 * @param Entry 账本条目句柄。
+	 * @param TrackIndex 轨道下标。
+	 * @return 返回总时长（未在冷却 / 越界 / 悬空 ⇒ 0）。
+	 */
+	double GetCooldownTotal(FTcsCombatEntityHandle Unit, FTcsSkillEntryHandle Entry, int32 TrackIndex);
+
+	/**
+	 * 取该条目的轨道数（**读定义**，不是数"正在跑的轨道"——理由见 `FTcsCooldownOps::GetTrackCount`）。
+	 *
+	 * @param Unit 单位实体句柄。
+	 * @param Entry 账本条目句柄。
+	 * @return 返回轨道数（悬空 / 定义取不到 ⇒ 0）。
+	 */
+	int32 GetCooldownTrackCount(FTcsCombatEntityHandle Unit, FTcsSkillEntryHandle Entry);
+
+	/**
+	 * 调整某轨的剩余时长（`D5-16` 承诺的 `AdjustCooldown`）——`Delta > 0` 延长、`< 0` 缩短；
+	 * 缩短到不剩 = 清轨。
+	 *
+	 * **改完 MUST 重挂到期堆**（`CancelExpiry` 旧的 + `PushExpiry` 新的）——只改时刻不重挂会让
+	 * 堆里的旧时刻继续生效，症状是"改了却不生效"或"提前到期"。
+	 *
+	 * @param Unit 单位实体句柄。
+	 * @param Entry 账本条目句柄。
+	 * @param TrackIndex 轨道下标。
+	 * @param Delta 剩余时长的增量（秒）。
+	 */
+	void AdjustCooldown(FTcsCombatEntityHandle Unit, FTcsSkillEntryHandle Entry, int32 TrackIndex, double Delta);
+
+	/**
+	 * 清某轨（`D5-16` 承诺的 `ResetCooldown`）：撤到期条目 + 状态整体复位。
+	 *
+	 * @param Unit 单位实体句柄。
+	 * @param Entry 账本条目句柄。
+	 * @param TrackIndex 轨道下标。
+	 */
+	void ResetCooldown(FTcsCombatEntityHandle Unit, FTcsSkillEntryHandle Entry, int32 TrackIndex);
+
+	/**
+	 * **起该条目的全部自身轨 + 所属组轨**（`PLN-R6.5-1` §0.2 裁决 ⑤ 新增）。
+	 *
+	 * **为什么必须有它**（`D5-16` 只承诺了 `Adjust` / `Reset`）：那两枚是"**改**已有冷却"
+	 * （改时长 / 清掉），**都不是"开始冷却"**——而 `ECT_Manual` 档的定义恰恰是"框架不挑时机、
+	 * 由宿主在自己的逻辑处起冷"。没有本口，手动档**物理上无法兑现**。
+	 *
+	 * **它与自动档走完全同一条路径**（`FTcsCooldownOps::StartCooldownOnEntry`）——
+	 * 手动档的含义是"框架不挑时机"，**不是**"框架不干活"。
+	 *
+	 * @param Unit 单位实体句柄。
+	 * @param Entry 账本条目句柄。
+	 * @return 返回实际起的轨道条数（0 = 无轨道 / 悬空 / 定义取不到 / 时钟不可得）。
+	 */
+	int32 StartCooldown(FTcsCombatEntityHandle Unit, FTcsSkillEntryHandle Entry);
+
+#pragma endregion
+
+
+// 消耗（M5 第二层：D5-10 的 Policy × Timing）
+#pragma region Cost
+
+public:
+	/**
+	 * **按条目提交消耗**（`ECT_Manual` 档的专用入口 + 宿主主动重试口）。
+	 *
+	 * **为什么必须有它**（`D5-10` 的提交口不在任何既有清单里）：`ECT_Manual` 档的定义是
+	 * "框架不挑时机、由宿主在自己的确定逻辑处调"——没有本口，手动档**物理上无法兑现**。
+	 * 同族地，冷却侧的对应物是 `StartCooldown`（`PLN-R6.5-1` §0.2 裁决 ⑤）。
+	 *
+	 * **自动档 MUST NOT 走它**（`OnCastStarted` / `OnCastCompleted` / `OnEvent` 直调
+	 * `FTcsCostOps::CommitCost`）：自动档的提交点**已经知道**自己该不该提交，
+	 * 走本口会多一层"按 Timing 判断"的分支——那正是"同一件事两个入口"。
+	 *
+	 * **本口内部重查一次 `CanAffordCost`**（TOCTOU 防护：门禁⑤ 通过到此刻之间资源可能已被花掉）。
+	 *
+	 * **无反射面**：同冷却是族——脚本读写面整体归台账 `SCRIPT-10`（见 `IsOnCooldown` 的注释）。
+	 *
+	 * @param Unit 单位实体句柄。
+	 * @param Entry 账本条目句柄。
+	 * @return 返回是否提交成功（`ECP_None` 档恒 true；付不起 / 悬空 / 定义取不到 ⇒ false）。
+	 */
+	bool PayCost(FTcsCombatEntityHandle Unit, FTcsSkillEntryHandle Entry);
+
+	/**
+	 * 该条目**现在**付得起吗（纯查询语义：MUST NOT 扣任何资源、MUST NOT 改账本、MUST NOT 发事件）。
+	 *
+	 * **与门禁⑤ 同一判据**（同一实现 `FTcsCostOps::CanAffordCost`）——宿主据此可预先灰掉按钮，
+	 * 而**不应该**用它替代真正的激活（门禁⑤ 在 `TryActivate` 内仍会判一次）。
+	 *
+	 * @param Unit 单位实体句柄。
+	 * @param Entry 账本条目句柄。
+	 * @return 返回是否付得起（悬空 / 定义取不到 ⇒ false）。
+	 */
+	bool CanAfford(FTcsCombatEntityHandle Unit, FTcsSkillEntryHandle Entry);
+
+#pragma endregion
+
+
 // 门禁第一道：实体可操作
 #pragma region EntityReady
 
@@ -588,9 +729,30 @@ private:
 	friend class FTcsSkillOps;
 	friend class FTcsCastOps;
 	friend class FTcsParamChainOps;
+	friend class FTcsCooldownOps;
+	friend class FTcsCostOps;
 
 	// per-unit 已学技能注册表（桶 + 槽位代际）
 	FTcsSkillRegistry Registry;
+
+	/**
+	 * **单位级**共享组冷却槽（`D5-15` 的"公共冷却 = 共享组轨道"）。
+	 *
+	 * **为什么是"单位 → 组 → 槽"两层而不是一张平表**：公共冷却的作用域是**单位**
+	 * （"同一个单位不能连续放任意技能"），组标签只在**单位内**比较——两个单位各有自己的
+	 * GCD 线，互不影响。平表会让 A 单位的冷却拦住 B 单位的技能（跨单位串味），
+	 * 或逼出一个"复合键 = 单位+组"的手工拼装（那是在重造一层 TMap）。
+	 *
+	 * **键取 `FTcsCombatEntityHandle`**（已反射、有 `GetTypeHash`），不是 `int64`——
+	 * 与 `Registry` / `Stores` 的键控口径一致。
+	 *
+	 * **零 GC 负担**：槽只含两个 `double`、一个 tag、一个句柄，**无任何 `UObject` 引用**
+	 * ⇒ `AddReferencedObjects` MUST NOT 为它新增遍历。
+	 *
+	 * **清理归属**：条目级撤销**刻意不动它**（组槽会自行到期解除；替它解除会**替同组的其它技能**
+	 * 解除公共冷却）——完整清理由 `ReleaseUnitCooldowns`（注销单位）与门面 `Deinitialize` 承担。
+	 */
+	TMap<FTcsCombatEntityHandle, TMap<FGameplayTag, FTcsCooldownGroupState>> CooldownGroups;
 
 	/**
 	 * 施法运行态池（一次激活一个实例）。

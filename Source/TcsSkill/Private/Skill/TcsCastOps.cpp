@@ -8,6 +8,8 @@
 
 #include "Def/TcsSkillDefData.h"
 #include "Skill/TcsCastEvents.h"
+#include "Skill/TcsCooldownOps.h"
+#include "Skill/TcsCostOps.h"
 #include "Skill/TcsParamChain.h"
 #include "Skill/TcsSkillRegistry.h"
 #include "State/TcsStateParamTableReader.h"
@@ -160,8 +162,41 @@ ESkillActivateResult FTcsCastOps::Activate(
 		return ESkillActivateResult::SAR_DefInvalid;
 	}
 
-	// ── 门禁③ 冷却（**R6.5 占位**：本轮判据 = 空轨道恒可放） ──────────────
-	// **MUST NOT** 引用任何尚未定名的枚举值（R6.5 的定义尚在概念期）——按语义描述即可。
+	/**
+	 * **本条目句柄的稳定身份（跨广播安全）**——下面三处**新增的同步广播点**（成本提交的
+	 * `Attribute.ValueChanged` + `CostApplied`、起冷的 `CooldownStarted`）之后都要用它
+	 * **重新解析 `Entry` / `Def`**，因为订阅者可在回调里撤销条目（释放桶）、
+	 * `GrantSkill`（`Entries.Emplace()` 搬移）或注销定义（析构登记表项）。
+	 *
+	 * **为什么是"值"而不是指针**：句柄是 `{Index, Generation}` 两个整数 ⇒ 跨任何广播都安全；
+	 * 而 `Entry` / `Def` 都是**指向可能被释放/搬移的容器元素**的指针。
+	 * **一条纪律**：本函数内**凡经过可能广播的调用之后**，MUST 用本句柄重新解析，
+	 * MUST NOT 沿用之前的 `Entry` / `Def`（该纪律的原文见下方"起链前的读数先拷出来"那段）。
+	 */
+	const FTcsSkillEntryHandle EntryHandleForResolve = Entry->Handle;
+
+	// ── 门禁③ 冷却（`D5-15`："可施放 = 全部自身轨道清空 + 所属组槽清空"） ──────────────
+	//
+	// **判据的唯一实现在 `FTcsCooldownOps::IsEntryOnCooldown`**（MUST NOT 在此内联一份判断）：
+	// 同一个判据还有"到期 / 事件 / 手动"三个**提交点**要各查一次（TOCTOU 防护），
+	// 各写一份必然漂移——而漂移的后果是"门禁说能放、提交点说不能"这类自相矛盾。
+	//
+	// **为什么门禁恒在这里、不挪去提交点**：本道答的是"**现在**放不放得出来"，
+	// 而宿主从返回值里就能看出原因（R6 已为此落了具名枚举 `SAR_OnCooldown`）。
+	// 提交点那次重查是**补充**（门禁通过到提交点之间资源/冷却可能已变），不是替代。
+	//
+	// **空 `Tracks` ⇒ 恒可放**（`D5-15`："默认无冷却"）——判据落在被调方，本处不重复判。
+	{
+		FString HeldBy;
+		if (FTcsCooldownOps::IsEntryOnCooldown(Subsystem, *Entry, *Def, &HeldBy))
+		{
+			// 日志 MUST 含**滞留在哪一轨 / 哪个组**——那是宿主排查"为什么放不出来"最需要的读数，
+			// 只说"在冷却"等于没说。
+			UE_LOG(LogTcsSkill, Log, TEXT("技能激活被拒[冷却中]：单位=%lld 定义=%s 滞留=%s"),
+				Unit.Id, *DefTag.ToString(), *HeldBy);
+			return ESkillActivateResult::SAR_OnCooldown;
+		}
+	}
 
 	// ── 门禁④ Instancing 四路分流 ──────────────────────────────────────
 	const FTcsCastRunHandle ActiveRun = FindActiveRun(Subsystem, *Entry);
@@ -234,7 +269,88 @@ ESkillActivateResult FTcsCastOps::Activate(
 		}
 	}
 
-	// ── 门禁⑤ CanAfford（**R6.5 占位**：本轮判据 = 不消耗档恒可付） ────────
+	// ── 门禁⑤ CanAfford（`D5-10` 的 Cost 策略） ─────────────────────────
+	//
+	// **本道答"现在付得起吗"**，宿主从返回值即可看出为什么放不出来（具名 `SAR_CannotAfford`）。
+	// **判据的唯一实现在 `FTcsCostOps::CanAffordCost`**（MUST NOT 在此内联一份判断）——
+	// 同一个判据还有"到期 / 事件 / 手动"三个**提交点**要各重查一次（TOCTOU 防护），
+	// 各写一份必然漂移，而漂移的后果正是**本 Task 要防的那类 bug**：
+	// 门禁判的和真扣的数不一致。**注意这里判"基值"、绝不判"当前值"**
+	// （后者含修正器，拿它比较会在有修正器时与扣减量不一致——扣减走基值）。
+	{
+		FString Reason;
+		// **★ 传 `Entry`（2026-10-12 B 形状）**：`CostAmount` 键上的减免修正器住在条目上，
+		// 不传 ⇒ 门禁判的是**未减免**的基数，而提交点扣的是**已减免**的量
+		// ⇒ 两者不一致（"门禁说付不起、提交点却扣得成"或反之），正是本仓要防的自相矛盾。
+		if (!FTcsCostOps::CanAffordCost(Subsystem, Unit, Def->Cost, &Reason, Entry))
+		{
+			UE_LOG(LogTcsSkill, Log, TEXT("技能激活被拒[代价不足]：单位=%lld 定义=%s 原因=%s"),
+				Unit.Id, *DefTag.ToString(), *Reason);
+			return ESkillActivateResult::SAR_CannotAfford;
+		}
+	}
+
+	// ── `ECT_OnCastStarted` 档的成本提交：**门禁⑤ 之后、建 run 之前** ──────────
+	//
+	// **落点由用户 2026-10-11 确认**（`PLN-R6.5-1` Task 2 Step 4），判据三条：
+	// ① **语义**——`OnCastStarted` = "激活事务内提交"（`D5-10` 原文），而"激活成功"这件事的
+	//    分界线就是**建 run**：建了 run 才存在"在飞的施法"，也才会有终结路径去回收它；
+	// ② **失败面更干净**——若在建 run 之后提交且提交失败，就得**回滚一个刚建的 run**
+	//    （池槽位、账本 `RunHandles` 回填、事件广播都要撤），而建 run 前失败只需
+	//    **直接返回 `SAR_CannotAfford`**，零残留；
+	// ③ **顺序与判据一致**——门禁⑤ 刚判"付得起"，紧接提交是**同一事实的两次使用**（判据 + 动作），
+	//    中间隔得越远 TOCTOU 窗口越大。
+	//
+	// **★ MUST NOT 用属性侧的 `BeginBatch` / `Commit` 造一个"事务"把它包起来**：`D5-10` 的
+	// "激活事务"指的是**逻辑上的一次激活**，不是 M2 的属性事务批——包起来会让这次扣减与其它属性
+	// 改动**共享一个提交点**，而那个提交点今天**不存在**（`TryActivate` 无事务边界）。
+	// ⇒ 直调 `CommitCost`（其内部 `SetBaseValue` 是"未开批 = 隐式批，立即生效"）。
+	//
+	// **★ 提交失败 ⇒ 返回 `SAR_CannotAfford` 且 MUST NOT 建 run**（与"门禁没过"同一返回值——
+	// 对调用方而言两者是同件事："现在放不出来，因为付不起"）。日志区分二者：**门禁判不足是正常
+	// 业务**（上面那条 `Log`），**提交时失败是真实异常**（`CommitCost` 内部的 `Warning`）。
+	if (Def->Cost.Timing == ETcsCostTiming::ECT_OnCastStarted)
+	{
+		// **★ 传 `Entry`**（同门禁⑤：减免修正器住条目上，不传就会扣错数）
+		double AppliedAmount = 0.0;
+		if (!FTcsCostOps::CommitCost(Subsystem, Unit, Def->Cost, &AppliedAmount, Entry))
+		{
+			// 提交失败的**真实异常**已在 `CommitCost` 内留 Warning；此处补一条"因此不激活"的因果
+			UE_LOG(LogTcsSkill, Warning,
+				TEXT("技能激活中止：`OnCastStarted` 档成本提交失败（单位=%lld 定义=%s）——不建运行态"),
+				Unit.Id, *DefTag.ToString());
+			return ESkillActivateResult::SAR_CannotAfford;
+		}
+
+		// **★ `CostApplied` 必须在此补发（R6.5-1 Task 5 装置实测抓到的缺陷，MUST 保留本注）**：
+		// `CommitCost` 是**纯扣减**（它只拿得到 `(Unit, Config)`、拿不到条目身份，而载荷需要
+		// `EntryHandle` / `DefTag`）⇒ 发事件的职责在调用方（见 `TcsCostOps.h` 的职责切分说明）。
+		// **初版漏了这一行**，装置检查 F2 立刻以 `CostApplied 次数=0` 报 FAIL——
+		// 症状是"资源扣了、但没有任何事件通知订阅者"，那正是 `MEM-20260902-12`
+		// （"事件与可变性 API 成对"）点名的那类**静默不一致**：扣减是可观察的状态改变，
+		// 没有对应事件 ⇒ 订阅者的 UI 永远不刷新。
+		FTcsCostOps::BroadcastCostApplied(Subsystem, *Entry, Def->Cost, AppliedAmount);
+
+		// **★ 重新解析（MUST；fresh-context 复核抓到的 Critical 缺陷）**：上面两条路径都会**同步广播**
+		// （`CommitCost` → `SetBaseValue` → M2 管线重算 + `Attribute.ValueChanged`；
+		// `BroadcastCostApplied` → `CostApplied`）⇒ 订阅者可在其中撤销条目/注销单位/登记定义
+		// ⇒ `Entry` 与 `Def` 双双可能失效。
+		// **判据 = 本文件下方那段明文纪律**（"任何可能广播的调用之后，手里的指针都可能失效"）。
+		Bucket = Subsystem.Registry.FindBucket(Unit);
+		Entry = Bucket ? Bucket->Find(EntryHandleForResolve) : nullptr;
+		Def = Subsystem.GetRegisteredSkillDef(DefTag);
+
+		if (!Entry || !Def)
+		{
+			UE_LOG(LogTcsSkill, Warning,
+				TEXT("技能激活中止：成本提交广播期间条目或定义被撤销（单位=%lld 定义=%s）"),
+				Unit.Id, *DefTag.ToString());
+			return Entry ? ESkillActivateResult::SAR_DefInvalid : ESkillActivateResult::SAR_NotLearned;
+		}
+	}
+	// 其余三档（`OnCastCompleted` / `OnEvent` / `Manual`）**在此不做任何事**：
+	// 前两者由终结路径与事件订阅驱动（`R6.5-1` Task 3），`Manual` 由宿主自己调 `PayCost`。
+	// **MUST NOT 在此为它们补一个"默认提交"**——那会让三档的语义全部塌成 `OnCastStarted`。
 
 	// ── 门禁全过：建运行态 ──────────────────────────────────────────────
 	const TTcsInstanceHandle<FTcsCastRunTag> Inner = Subsystem.CastRuns.Allocate();
@@ -274,6 +390,41 @@ ESkillActivateResult FTcsCastOps::Activate(
 
 	// 来源锚点：每次运行一枚（`FTcsSourceHandleRegistry` 进程唯一、永不复用）
 	Run->RunSource = Subsystem.SourceRegistry.Allocate();
+
+	// ── ★ 冷却的 `ECT_OnCastStarted` 档：**激活成功后立即起** ──────────────
+	//
+	// **落点 = 建 run 之后、发 `OnCastStarted` 之前**：语义上"激活成功了"这件事以建 run 为界
+	// （run 在册 = 这次施法真的存在），而冷却正是"这次激活的后果"⇒ 建 run 之后起冷才对得上。
+	// **排在广播之前**：订阅者收到 `OnCastStarted` 时若去查 `IsOnCooldown`，
+	// 应当已经能读到"在冷却"——否则宿主会看到"事件说开始了、查询说没冷却"这个自相矛盾的瞬间。
+	//
+	// **`OnCastStarted` 是冷却的默认档**（`ETcsCooldownTiming` 的 0 值）：多数技能配的就是它。
+	// 其余三档在此**零动作**（`OnCastCompleted` / `OnCastInterrupted` 归终结路径的
+	// `DispatchCooldownTiming`；`Manual` 归宿主自己调 `StartCooldown`）。
+	if (Def->Cooldown.Timing == ETcsCooldownTiming::ECT_OnCastStarted)
+	{
+		FTcsCooldownOps::StartCooldownOnEntry(Subsystem, Unit, EntryHandleForResolve);
+
+		// **★ 重新解析（MUST；fresh-context 复核抓到的 Critical 缺陷）**：`StartCooldownOnEntry`
+		// 会**同步广播** `CooldownStarted` ⇒ 订阅者可在其中 `UnregisterUnit`
+		// （`RemoveBucket` 释放桶的 `TUniquePtr`）或 `GrantSkill`
+		// （`AllocateSlot` 的 `Entries.Emplace()` 会**搬移**）
+		// ⇒ 上面捕获的 `Entry` / `Def` **双双可能失效**。
+		// **判据 = 本文件既有的明文纪律**（见下方"起链前的读数先拷出来"那段）：
+		// "任何可能广播的调用之后，手里的指针都可能失效"——本处是该纪律在**新增触发点**上的落点。
+		Bucket = Subsystem.Registry.FindBucket(Unit);
+		Entry = Bucket ? Bucket->Find(EntryHandleForResolve) : nullptr;
+		Def = Subsystem.GetRegisteredSkillDef(DefTag);
+
+		if (!Entry || !Def)
+		{
+			// 条目/定义在起冷广播期间被撤销 ⇒ 与门禁②/⑥ 同语义（没条目就没法继续激活）
+			UE_LOG(LogTcsSkill, Warning,
+				TEXT("技能激活中止：起冷广播期间条目或定义被撤销（单位=%lld 定义=%s）"),
+				Unit.Id, *DefTag.ToString());
+			return Entry ? ESkillActivateResult::SAR_DefInvalid : ESkillActivateResult::SAR_NotLearned;
+		}
+	}
 
 	// **回填与摘除成对**：建 run 成功后回填账本条目；终结时（`TerminateRun`）摘除。
 	// 只写不摘 ⇒ 账本永久持有已归还的句柄（表现为"技能显示在飞但实际放完了"，静默错误）。
@@ -574,9 +725,60 @@ bool FTcsCastOps::FinishCastRun(
 	// 自持）⇒ 即使条目已撤销，回收也必须照做（否则"撤销技能"这条路径会静默泄漏属性条目）。
 	FSkillBucket* Bucket = Subsystem.Registry.FindBucket(Unit);
 	FTcsLearnedSkillEntry* Entry = Bucket ? Bucket->Find(EntryHandle) : nullptr;
+
+	// **定义在"回收之后"才重新解析**（MUST，理由见下方 ③′ 段的次序判据）：
+	// ②③ 两段回收会**广播属性变更事件** ⇒ 订阅者可在其中**注销技能定义**
+	// ⇒ 之前拿到的 `Def` 指针可能已悬空（登记表是 `TUniquePtr` 持有，注销即析构
+	// ——`FTcsCastRun` 顶替分支的既有注释已就"任何可能广播的调用之后，手里的指针都可能失效"
+	// 立过同款纪律）。本处按句柄重新解析一次，**MUST NOT 沿用更早的 `Def`**。
+	const FTcsSkillDefData* Def = Entry ? Subsystem.GetRegisteredSkillDef(Entry->DefTag) : nullptr;
+
 	if (Entry)
 	{
 		Entry->RunHandles.Remove(RunHandle);
+	}
+
+	// ── ★ ③′ 冷却 / Cost 的 **Timing 触发点**（`R6.5-1` Task 3 的唯一挂点） ──
+	//
+	// **为什么只挂在这里、MUST NOT 去四个调用点各挂一份**：四路终结（末段走完 / 瞬发当刻 /
+	// 打断 / 顶替）**全部汇聚到本函数**，而本函数的签名自带 `ECastFinishReason Reason`
+	// ⇒ 一处分派即可覆盖四路。去四个调用点各挂一份就是本仓反复拦的"同一件事两个入口"。
+	//
+	// **次序判据（MUST，与 ⓪ 段起链的理由相反、判据相同）**：
+	// - ⓪ 段（完成档起链）**必须排在回收之前**——否则新起的链挂的条目会**当场被自己的终结例程摘掉**
+	//   （同一个 `RunSource`），表现为"配了完成档的技能永远打不出效果"；
+	// - 本段（冷却 / Cost 触发）**必须排在回收之后**——因为回收会**广播属性变更事件**
+	//   （M2 批提交重算 + 广播），而 `OnEvent` 档的 Cost 提交可能被那些广播触发；
+	//   排在回收之前的话，回收尚未完成就可能提交消耗，且新起的链 / 条目会与回收动作交错。
+	// ⇒ **两处次序相反、判据相同：别让自己的动作被自己的清理吃掉。**
+	//
+	// **为什么本段在"归还槽位之前"**：广播纪律是"**先广播、后归还槽位**"
+	// （`FTcsCastEventPayload` 的类注释明文）⇒ 订阅者拿到的冷却事件里若含 run 句柄，
+	// 那一刻它 MUST 仍在册。
+	//
+	// **全部只读 `RunCopy` 的拷贝字段**（`EntryHandle` / `Unit`）：池可扩容搬移，
+	// `Run` 指针在本函数 ⓪ 段起链之后即不可信（既有纪律）。
+	if (Entry && Def)
+	{
+		DispatchCooldownTiming(Subsystem, *Entry, *Def, Reason);
+		DispatchCostTiming(Subsystem, *Entry, *Def, Reason);
+
+		// **★ 重新解析（MUST；fresh-context 复核抓到的 Critical 缺陷）**：上两行各自**同步广播**
+		// （`CooldownStarted` / `Attribute.ValueChanged` / `CostApplied`）⇒ 订阅者可在其中
+		// 撤销条目 / 注销单位 / 注销定义 ⇒ 紧接着的 ⑤ 段（`Broadcast(..., *Entry)` 装配载荷）
+		// 会用**已析构的桶**。**判据 = 本函数 ②③ 段之后已有的同款重新解析**
+		// （其注释原文即"任何可能广播的调用之后，手里的指针都可能失效"）
+		// ——本处是该纪律在新触发点上的落点，**MUST NOT 省略**。
+		Bucket = Subsystem.Registry.FindBucket(Unit);
+		Entry = Bucket ? Bucket->Find(EntryHandle) : nullptr;
+		Def = Entry ? Subsystem.GetRegisteredSkillDef(Entry->DefTag) : nullptr;
+	}
+	else if (Entry)
+	{
+		// 定义取不到（施法期间被注销）⇒ 冷却/Cost 配置无从读取 ⇒ 如实报出并跳过（不崩、不猜）
+		UE_LOG(LogTcsSkill, Log,
+			TEXT("施法终结：定义取不到 ⇒ 跳过冷却/Cost 的 Timing 触发（单位=%lld 原因=%d）"),
+			Unit.Id, static_cast<int32>(Reason));
 	}
 
 	// ── ⑤ 广播终止事件（**MUST 排在归还槽位之前**） ──
@@ -641,6 +843,78 @@ bool FTcsCastOps::TerminateRun(UTcsSkillSubsystem& Subsystem, FTcsCastRunHandle 
 	// **顶替档的便捷入口**（只转发一条、零逻辑——这正是"四路只在一个地方分岔"的形式）：
 	// 回收动作与事件选择全在 `FinishCastRun`，本函数 MUST NOT 再写一份清理。
 	return FinishCastRun(Subsystem, RunHandle, ECastFinishReason::ECFR_Replaced);
+}
+
+void FTcsCastOps::DispatchCooldownTiming(
+	UTcsSkillSubsystem& Subsystem,
+	const FTcsLearnedSkillEntry& Entry,
+	const FTcsSkillDefData& Def,
+	ECastFinishReason Reason)
+{
+	// **★ 分派表（`PLN-R6.5-1` Task 3 Step 3 的硬约束，MUST 守）**：
+	//
+	// `ECastFinishReason` 只有三档，且**瞬发没有自己的档**——瞬发走 `ECFR_Completed`
+	// （`TcsCastOps_Phase.cpp` 的瞬发路径直接以它调本终结例程）。故：
+	//
+	// | `Reason` | 是否算"被打断" | 起哪一档 |
+	// |---|---|---|
+	// | `ECFR_Interrupted` | **是**（真打断） | `ECT_OnCastInterrupted` |
+	// | `ECFR_Replaced` | **是**（`SPEC-04-skill` §11.5 裁决 1 明文"顶替 = 打断的一种终止形态"） | `ECT_OnCastInterrupted` |
+	// | `ECFR_Completed` | **否**（含瞬发） | `ECT_OnCastCompleted` |
+	//
+	// **⇒ 瞬发自动被覆盖**：瞬发以 `ECFR_Completed` 终结 ⇒ 只要本分派挂在 `FinishCastRun` 里，
+	// 它就被 `ECT_OnCastCompleted` 档覆盖，**不需要额外挂点**。
+	// **同族教训**：`SPEC-04-skill` §3.3 的实施注记已就"空 `Phases` 意味着没有任何时段到期
+	// ⇒ 原句'全时段走完'对瞬发永不成立"留过同款教训；本轮 MUST NOT 复犯。
+	const bool bInterruptedPath = (Reason != ECastFinishReason::ECFR_Completed);
+	const ETcsCooldownTiming WantedTiming = bInterruptedPath
+		? ETcsCooldownTiming::ECT_OnCastInterrupted
+		: ETcsCooldownTiming::ECT_OnCastCompleted;
+
+	// **`ECT_Manual` 档框架什么都不做**（含日志）——它的定义就是"宿主自己调 `StartCooldown`"，
+	// 框架做任何事都违背它。故本函数对 `ECT_Manual` **零动作**（下面的比较自然把它排除：
+	// `Manual` 既不等于 `WantedTiming`，也走不到 `OnCastStarted`）
+	if (Def.Cooldown.Timing != WantedTiming)
+	{
+		return;
+	}
+
+	// **`OnCastStarted` 档已在激活路径起过**（`TcsCastOps.cpp` 的门禁后、建 run 前）——
+	// 本终结路径 MUST NOT 为它再起一次（那会让"放一次技能起两次冷却"）。
+	// 上面的比较已天然排除它（`WantedTiming` 只可能是 Completed/Interrupted 两者），此处注释示意。
+	FTcsCooldownOps::StartCooldownOnEntry(Subsystem, Entry.Unit, Entry.Handle);
+}
+
+void FTcsCastOps::DispatchCostTiming(
+	UTcsSkillSubsystem& Subsystem,
+	const FTcsLearnedSkillEntry& Entry,
+	const FTcsSkillDefData& Def,
+	ECastFinishReason Reason)
+{
+	// **只有 `ECT_OnCastCompleted` 一档挂在这里**（其余两档各有归属，MUST NOT 在此代劳）：
+	// - `OnCastStarted`：激活路径的"门禁后、建 run 前"（`TcsCastOps.cpp`）；
+	// - `Manual`：宿主自己调 `PayCost`，**框架零动作**（"某个特定事件触发消耗"这类项目玩法
+	//   归这一档——2026-10-12 用户裁定删除 `ECT_OnEvent`，判据见 `TcsCostTypes.h`）。
+	//
+	// **为什么 `OnCastCompleted` 档只在"完成"路触发**：`ETcsCostTiming` **刻意没有**
+	// `OnCastInterrupted` 档（判据：`D5-4` 已砍返还，该档两种读法一为重复一为荒谬——
+	// 详见 `TcsCostTypes.h`）。⇒ 被打断 / 被顶替时**不提交**：这正是 `OnCastStarted` 档
+	// 存在的意义（"施法开始时扣"已经覆盖了"被打断也扣了"）。
+	if (Def.Cost.Timing != ETcsCostTiming::ECT_OnCastCompleted)
+	{
+		return;
+	}
+
+	if (Reason != ECastFinishReason::ECFR_Completed)
+	{
+		// 打断 / 顶替 ⇒ 不提交（该档无"打断时提交"语义——见上）
+		return;
+	}
+
+	// **提交点重查**已在 `PayCostForEntry` 内（TOCTOU 防护）——本处走它而不是直调 `CommitCost`，
+	// 正是为了那次重查（`OnEvent` 档同理）。**唯一例外**是激活路径的 `OnCastStarted` 档：
+	// 它紧接门禁⑤、窗口最小，直调 `CommitCost` 而不必再查一次。
+	FTcsCostOps::PayCostForEntry(Subsystem, Entry.Unit, Entry.Handle);
 }
 
 int32 FTcsCastOps::ResetAll(UTcsSkillSubsystem& Subsystem)

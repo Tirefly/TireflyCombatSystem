@@ -9,6 +9,8 @@
 #include "Trigger/TcsEffectTrigger.h"
 
 #include "Def/TcsBoolSwitchRow.h"
+#include "Def/TcsCooldownTypes.h"
+#include "Def/TcsCostTypes.h"
 #include "Def/TcsPhaseSpan.h"
 #include "Def/TcsSkillEnums.h"
 #include "Def/TcsStateDefBase.h"
@@ -21,7 +23,8 @@
 /**
  * 技能定义数据：继承状态族的身份词、等级、数值参数、描述与修正器引用行，只补施法语义。
  * 关系字段只落形状，检查器归 R5.5-e；内联触发行与查询片段的运行机制在后续任务接入。
- * 参数链行依赖 Task 4 的完整元素类型，故本批不声明；冷却与 Cost 配置归 R6.5。
+ * 参数链行依赖 Task 4 的完整元素类型，故本批不声明；冷却与 Cost 配置已由 R6.5-1 Task 0 落地
+ * （消费者 = `TcsCooldownOps` / `TcsCostOps`，同批到位）。
  *
  * **属性捕获声明列表已整体删除（2026-10-08，用户裁定；MUST NOT 补回）**：三条判据同时成立——
  * ① **零消费者**（技能侧 `CapturedAttrs` 全仓无任何类型读取）；② **机制重叠**——设计给捕获写的用途
@@ -215,6 +218,37 @@ public:
 	// 本技能的内联事件映射行；本批零内置运行期消费者。
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Skill Def|Triggers")
 	TArray<FTcsEffectTriggerDef> Triggers;
+
+#pragma endregion
+
+
+// 冷却与消耗
+#pragma region CooldownAndCost
+
+public:
+	/**
+	 * 冷却策略（`D5-15`）——**空 `Tracks` = 永远可放**。
+	 *
+	 * **本字段的落地时点**：R6 §11.2 曾把"冷却策略 / Cost 配置"记为**明确不落的字段**
+	 * （判据 = 零消费者不预建）；R6.5-1 的 `TcsCooldownOps` 正是它们的消费者到位之时 ⇒ 随之落地。
+	 * **MUST NOT** 读成"R6 漏写了"——那是同一条纪律的正确执行（当时落 = 有字段无机制）。
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Skill Def|Cooldown")
+	FTcsCooldownPolicy Cooldown;
+
+	/**
+	 * 消耗配置（`D5-10`）——**默认 `ECP_None` = 不消耗、恒可付**。
+	 *
+	 * 落地时点同上一字段。**`ECP_CustomFragment` 档本轮具名未实现**（记 `Warning` + 回退 `None`）：
+	 * **★ 阻塞已于 2026-10-12 改正（原记"属性写入面物理不可达 / `SCRIPT-9`"——该归因不成立）**：
+	 * 真阻塞 = **扩展点形状从未裁定**（`D5-10` 只给了 `ICostPolicy` 这个 `USTRUCT` 策略基类形状，
+	 * 而它对脚本侧物理不可达）⇒ 归台账 **`COST-3`**。原记之所以不成立有两个独立理由：
+	 * ① Cost 侧明文 **MUST NOT 用 `ApplyModifier`**、必须直写基值，而 `SetBaseValue` **有** `UFUNCTION`；
+	 * ② 宿主自定义消耗**根本不经过 TCS 属性写入面**（在宿主自己的背包系统里扣）。
+	 * 详见 `TcsCostOps.cpp` 的 `CanAffordCost` / `CommitCost` 同批注记。
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Skill Def|Cost")
+	FTcsCostConfig Cost;
 
 #pragma endregion
 };

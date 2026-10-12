@@ -183,6 +183,34 @@ public:
 		double& OutValue);
 
 	/**
+	 * 以**调用方给定的初值**折叠某键的修正器（**不回查 `Def->Params`**）。
+	 *
+	 * **为什么必须有它与 `EvaluateParamKey` 并存**（判据 = 初值的**归属**不同）：
+	 * - `EvaluateParamKey` 的初值取**该键的参数行**（`Def->Params` 里 `Key` 匹配那行）——
+	 *   适用于"这个键的数值由**参数表**声明"（如 `CooldownPct`、`Level`）；
+	 * - **本函数**的初值由**调用方**给出——适用于"基数住在**字段**里、修正挂在**键**上"
+	 *   的形态（如 `FTcsCostConfig::Amount`：基数是字段的 `FTcsParamValue` 求值结果，
+	 *   而减免是 `CostAmount` 键上的修正器）。
+	 * ⇒ 两者**不可互相替代**：用前者表达后者会要求作者把基数同时写在参数表里
+	 * （同一件事两个入口，且两处不一致时无人能说出哪个是对的）。
+	 *
+	 * **无修正器时的结果 = 初值本身**（`Fold` 对空集是恒等：`((B+0)×1×1)+0 = B`）
+	 * ⇒ 调用方**不需要**先探测"有没有修正器"。
+	 *
+	 * **纯函数**：只读 `Entry` 的账本槽位，不改任何状态、不广播、不需要子系统
+	 * （同 `FoldParamChainInstances` 的纯函数性——故**不设 `Subsystem` 形参**）。
+	 *
+	 * @param Entry 账本条目（修正器集来源）。
+	 * @param Key 参数键。
+	 * @param BaseValue 折叠初值（由调用方求值后给出）。
+	 * @return 返回折叠结果（未经任何值域收口——收口由调用方按自己的语义执行）。
+	 */
+	static double FoldParamKeyWithBase(
+		const FTcsLearnedSkillEntry& Entry,
+		FGameplayTag Key,
+		double BaseValue);
+
+	/**
 	 * 求该条目 `Level` 键上的修正合计（`EffectiveLevel` 用）。
 	 *
 	 * **`Level` 是可折叠的参数键之一**：它走**同一条**五带折叠（`Add +2` ⇒ +2；

@@ -8,6 +8,7 @@
 #include "Handle/TcsSourceHandle.h"
 
 #include "Skill/TcsCastRunHandle.h"
+#include "Skill/TcsCooldownState.h"
 #include "Skill/TcsNumericParamModifier.h"
 #include "Skill/TcsSkillEntryHandle.h"
 
@@ -23,12 +24,18 @@
  * 在飞 run"的真实消费者时再定形态）——**MUST NOT** 以"将来可能要"为由现在就反射化
  * （那会得到"有类型、无门面可调"的空承诺，且违反"零消费者不预建"纪律）。
  *
- * **字段边界（MUST 守死）**：本结构体**只**持"持久等级 + 学习来源 + 在飞施法句柄"三样——
- * - **MUST NOT** 声明冷却轨道状态字段（归 `R6.5-a`：其消费者是冷却轨道状态）；
- * - **MUST NOT** 声明参数修正链字段（归参数链轮：`FTcsNumericParamModifier` 在那里才存在）。
- * 判据是**声明点早于类型存在点**：两者的元素类型此刻全仓不存在，而 `TArray<T>` 成员要求 `T` 至少可见
- * ⇒ 写进来就是**未声明标识符**（硬编译错误）。参数读取面（`GetNumericParam` / `IsSwitchSet` / `GetLevel`）
- * 因此取"**带 `Level` 键的修正器列表输入**"（形参传入），**MUST NOT** 依赖本结构体持该字段。
+ * **字段边界（MUST 守死）**：本结构体**只**持"持久等级 + 学习来源 + 在飞施法句柄 + 冷却轨道状态 +
+ * 参数修正器条目"五样——判据恒为**声明点不早于类型存在点**：`TArray<T>` 成员要求 `T` 至少可见，
+ * 元素类型不存在时写进来就是**未声明标识符**（硬编译错误）。
+ *
+ * **两处字段的回补记录（MUST 保留，防后人误读为"当初写漏了"）**：
+ * - `NumericParamModInstances`——R6 Task 2 时 `FTcsNumericParamModifier` 尚未落地，故当轮刻意不声明；
+ *   参数链轮落地后回补。参数读取面（`GetNumericParam` / `IsSwitchSet` / `GetLevel`）取
+ *   "**带 `Level` 键的修正器列表输入**"（形参传入），**MUST NOT** 依赖本结构体持该字段。
+ * - `CooldownTracks`——R6 Task 2 **原文即写"MUST NOT 声明冷却轨道状态字段（归 `R6.5-a`）"**，
+ *   理由是"其元素类型此刻全仓不存在"。R6.5-1 Task 0 落地 `FTcsCooldownTrackState`、
+ *   Task 1 落地其消费者（`TcsCooldownOps`）⇒ **类型与消费者同时到位，回补成立**
+ *   （与上一条同款：不是"当初漏了"，是"当初不能写"）。
  */
 struct FTcsLearnedSkillEntry
 {
@@ -90,6 +97,30 @@ public:
 	 * 本字段此刻存在的理由是**数组元素类型必须完整**——它是 `FTcsCastRunHandle` 在本任务落地的唯一原因。
 	 */
 	TArray<FTcsCastRunHandle> RunHandles;
+
+#pragma endregion
+
+
+// 冷却轨道状态
+#pragma region CooldownTracks
+
+public:
+	/**
+	 * 该条目当前的冷却轨道状态（**与 Def 侧 `FTcsCooldownPolicy::Tracks` 一一对应、同序**）。
+	 *
+	 * **冷却的真值住这里**（`D5-15`："真值在 Entry，UI 轮询"）——不住 run 上。
+	 * 判据：冷却是**条目级**的持久状态（"这个技能还要等多久"跨施法存在），而 run 是**一次施法**的
+	 * 运行态、随终结归还池槽位 ⇒ 冷却若挂 run 上会随施法结束一起消失。
+	 *
+	 * **同序是硬契约**：`Tracks[i]` 的状态对应 `Policy.Tracks[i]` 的配置——查询口按**下标**寻址
+	 * （`GetCooldownRemaining(..., TrackIndex)`）就靠这条。**Def 改配置后旧状态的下标会错位**
+	 * （宿主热改技能定义），处置 = 按 `Policy.Tracks` 重新对齐（见 `TcsCooldownOps` 的起冷路径）。
+	 *
+	 * **空数组 = 该条目当前没有任何冷却在跑**；它与"该技能配了空 Tracks（永远可放）"是两件事
+	 * ——前者是**运行态此刻为空**，后者是**定义上不存在轨道**。**MUST NOT 用"数组是否为空"反推**
+	 * "这个技能有没有冷却"，那要读 Def。
+	 */
+	TArray<FTcsCooldownTrackState> CooldownTracks;
 
 #pragma endregion
 

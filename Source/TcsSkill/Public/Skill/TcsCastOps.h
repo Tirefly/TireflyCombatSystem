@@ -159,6 +159,61 @@ public:
 #pragma endregion
 
 
+// Timing 触发点（冷却 / Cost 的终结侧分派）
+#pragma region TimingDispatch
+
+public:
+	/**
+	 * **冷却的终结侧触发点**（唯一挂点——`FinishCastRun` 内按 `Reason` 分派）。
+	 *
+	 * **四路终结在此分派，MUST NOT 去四个调用点各挂一份**：末段走完 / 瞬发当刻 / 打断 / 顶替
+	 * 全部汇聚到 `FinishCastRun`，而它的签名自带 `ECastFinishReason Reason`。
+	 *
+	 * **分派表**：`ECFR_Interrupted` / `ECFR_Replaced` ⇒ 算"被打断"（起 `ECT_OnCastInterrupted`
+	 * 档——顶替是打断的一种终止形态，`SPEC-04-skill` §11.5 裁决 1）；`ECFR_Completed`
+	 * ⇒ `ECT_OnCastCompleted` 档（**含瞬发**：瞬发以 `ECFR_Completed` 终结，故天然被覆盖，
+	 * **不需要额外挂点**）。`ECT_Manual` / `ECT_OnCastStarted` 两档在此**零动作**
+	 * （前者"框架不挑时机"、后者已在激活路径起过）。
+	 *
+	 * @param Subsystem 技能门面。
+	 * @param Entry 账本条目（配置来源与起冷主体）。
+	 * @param Def 该条目的定义内容（冷却策略来源；调用方 MUST 用**回收之后重新解析**的那一份）。
+	 * @param Reason 终结原因（分派输入）。
+	 */
+	static void DispatchCooldownTiming(
+		UTcsSkillSubsystem& Subsystem,
+		const FTcsLearnedSkillEntry& Entry,
+		const FTcsSkillDefData& Def,
+		ECastFinishReason Reason);
+
+	/**
+	 * **Cost 的终结侧触发点**——只处理 `ECT_OnCastCompleted` 一档。
+	 *
+	 * **其余两档各有归属，MUST NOT 在此代劳**：`OnCastStarted` 在激活路径（门禁后、建 run 前）；
+	 * `Manual` 由宿主自己调 `PayCost`（框架零动作——"某个特定事件触发消耗"这类项目玩法归这一档，
+	 * 2026-10-12 用户裁定删除 `ECT_OnEvent`，判据见 `TcsCostTypes.h`）。
+	 *
+	 * **被打断 / 被顶替时 MUST NOT 提交**：`ETcsCostTiming` 刻意没有 `OnCastInterrupted` 档
+	 * （`D5-4` 已砍返还 ⇒ 该档两种读法一为重复一为荒谬）。"施法开始时扣"这一档已经覆盖了
+	 * "被打断也扣了"这个语义。
+	 *
+	 * **提交走 `PayCostForEntry`**（而不是直调 `CommitCost`）：前者**自带一次 `CanAffordCost` 重查**
+	 * ＝TOCTOU 防护（门禁⑤ 通过到此刻之间资源可能已被花掉）。
+	 *
+	 * @param Subsystem 技能门面。
+	 * @param Entry 账本条目。
+	 * @param Def 该条目的定义内容（Cost 配置来源；调用方 MUST 用**回收之后重新解析**的那一份）。
+	 * @param Reason 终结原因。
+	 */
+	static void DispatchCostTiming(
+		UTcsSkillSubsystem& Subsystem,
+		const FTcsLearnedSkillEntry& Entry,
+		const FTcsSkillDefData& Def,
+		ECastFinishReason Reason);
+
+#pragma endregion
+
+
 // 快照
 #pragma region Snapshot
 

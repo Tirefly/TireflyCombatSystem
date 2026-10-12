@@ -174,6 +174,18 @@ bool FTcsParamChainOps::EvaluateParamKey(
 	return true;
 }
 
+double FTcsParamChainOps::FoldParamKeyWithBase(
+	const FTcsLearnedSkillEntry& Entry,
+	FGameplayTag Key,
+	double BaseValue)
+{
+	// **本函数是"字段基数 + 键上修正"这一形态的唯一落点**（见头文件的归属判据）。
+	// 与 `EvaluateParamKey` 的差别只有一处：**不回查 `Def->Params`**——初值由调用方给。
+	// ⇒ 两者共用同一个折叠器（`FoldParamChainInstances`），**MUST NOT 各写一份折叠**
+	// （`STAT-1` 收束的纪律：`Source/TcsSkill/` 内 `FoldTcsAttributeBands` 调用仅一处）。
+	return FoldParamChainInstances(Entry.NumericParamModInstances, Key, BaseValue);
+}
+
 int32 FTcsParamChainOps::EvaluateEffectiveLevel(
 	UTcsSkillSubsystem& Subsystem,
 	const FTcsLearnedSkillEntry& Entry,

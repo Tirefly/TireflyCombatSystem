@@ -4,7 +4,7 @@
 - **类型**：SPEC / 模块规格
 - **状态**：ACTIVE（**R6 核心已落地，2026-10-11 收束**——Task 0~7 全部完成并取证、两个提案已归档；落地范围与切分见 §11，**本轮不落**的条款逐条带归属于 §11.2，"不落"不等于"未定"）
 - **权威范围**：TcsSkill（M5）账本/施法/冷却/Cost/参数链；理由住 LOG-03-skill 与 DEC-02-fold-display
-- **最后更新**：2026-10-11（R6 收束：新增 §11 实施范围与切分——落地面 / 不落面带归属 / 实现名对照 / 四条错前提更正回写 / 三条口径裁决 / 两处正文就地订正 / 边界；身份块状态 PENDING → ACTIVE）
+- **最后更新**：2026-10-12（**`SCRIPT-9` 误归因改正 + `COST-3` 入册回写**：§3.6 与 §11 的 `CustomFragment` 阻塞登记由 `SCRIPT-9` 改指 **`COST-3`**（真因 = 扩展点形状未裁，非属性反射面缺失），§11.2 补一行扩展点批次行。**前次（同日）**：**R6.5-1 落地回写**：§3.5 / §3.6 各加落地注记（含四处落地名订正与三处新增公开口）；§11.1 门禁可拒性时态到期；§11.2 前四行加"处置"列；§11.3 补冷却/Cost/事件三行实现名；§9 加 v3 修订行。**前次** 2026-10-11（R6 收束：新增 §11 实施范围与切分——落地面 / 不落面带归属 / 实现名对照 / 四条错前提更正回写 / 三条口径裁决 / 两处正文就地订正 / 边界；身份块状态 PENDING → ACTIVE））
 
 - 日期：2026-09-02
 - 状态：**v2 定稿**——全部增补（D5-9~12、D3-10/11 Skill 侧等）已折入正文；修订记录见文末
@@ -31,7 +31,50 @@ FStateDefBase（抽象，M3 定义：词表/FragmentSet/通用默认参数 Level
 - **描述文本绑定（D5-17 v3——视图策略化，2026-09-15）**：`SkillDef.Descriptions: TArray<FTcsDescriptionEntry{DescriptionId, TextKey, Views[]}>`（**取代单字段 DescriptionTextKey**——多描述入口：Tip 简述 / Codex 图鉴 / 升级预览各自独立，支撑"简单描述=当前档单值、复杂描述=全表+高亮"多对多）；**视图 = 结构化策略配置**：`Views: TArray<FTcsDescriptionViewSlot{SlotName, TInstancedStruct<FTcsParamView>}>`——内置 `Value`（单值）/`Series`（整表+当前档高亮）/`Range`（区间）/`Attribute`（属性现值），宿主 C++ 自定义视图一步接入（零公共代码）；**StringTable 原文只含槽名 `{Rate}`（零语法）**——机器语义全部进结构化配置，编辑器可校验（`IsCompatible` 探针 + 槽名交叉扫描，见 11/08）；组装器按 Entry 自身 Def 的账本**现值**取值（EffectiveDefId 已整体移除——D5-9/D5-14 重构 2026-09-11），RichTextBlock 渲染归宿主；技能面板索引口径 = 当前 `EffectiveLevel`（实例侧 = 快照 Level，见 03 §3.6）；
 - **施法时段表**（可选）：`TArray<FPhaseSpan{Duration(FTcsParamValue——原"字面量|Param"，PV 系列 2026-09-11 换型), bInterruptible, bCanMove, Tag}>`——任意段数；"前摇/后摇"= 项目命名惯例；瞬发 = 空表；
 - **冷却（D5-15 多轨道）**：`FCooldownPolicy{Tracks: TArray<FCooldownTrack{Duration(FTcsParamValue——同上换型), GroupTag?}>, CustomFragment}` × `FCooldownTiming{OnCastStarted(默认)/OnCastCompleted/OnCastInterrupted/Custom(ICooldownTimingFragment)}`——无 GroupTag=自身轨道，有=写单位级组槽；可施放=全部自身轨道+所属组槽清空；真 GCD=自身轨道+GCD 组轨道并存（纯数据）；
+
+> **★ 2026-10-12 R6.5-1 参数化批次落地注记（上段原文逐字保留，MUST NOT 抹除）**：
+> **两处数值字段换型落地**（台账 `COST-1` / `COOLDOWN-1` **同批闭合**，用户裁定）：
+> - **`FTcsCooldownTrack::Duration`** → `FTcsParamValue`（求值在**起冷那一刻、全场一次**；
+>   上下文 MUST 填 `EffectiveLevel` —— 这是"按时长等级表配冷却"能成立的唯一原因）；
+> - **`FTcsCostConfig::Amount`** → `FTcsParamValue` + **新契约键 `TcsStateParam.CostAmount`**
+>   （走**五带折叠**，初值 = `Amount` 求值结果）：`TAO_PercentAdd` = **百分比减免**、
+>   `TAO_FlatAdd` = **固定值减免**；唯一求值实现 = `FTcsCostOps::ResolveEffectiveCost`。
+>
+> **★ 一处必须如实记的"文档先行、代码滞后"**：上段 §3.5 的 `FTcsCooldownTrack{Duration(FTcsParamValue
+> ——同上换型)}` **在 2026-09-11 的 PV 系列换型时就已写成 `FTcsParamValue`**，
+> 而**代码停在 `double Duration = 0.0`**（`PLN-R6.5-1` 按"只落字面量"实施并如实登记为 `COOLDOWN-1`）。
+> ⇒ **本轮不是"给设计加能力"，而是"把代码补到设计早就写下的形态"**。
+> **这条同时也是"计数/形状声称 MUST 全库回改"纪律的一个变体**：类型形状的声称也会
+> **文档与代码分叉**，而 `validate` 不校验类型与文档是否一致 —— 只有**实现批次的逐处核对**能抓到。
+>
+> **与 Cost 侧的刻意不对称（MUST 记）**：CDR 是**纯系数**（`Duration × (1 − CDR)`、只钳 `[0,1]`、
+> 不做折叠）；`CostAmount` 走**带式折叠** —— 因为"减固定值"用纯系数表达不了。
+> **判据 = "减免能不能用一条系数说清"**。
+>
+> **实施期抓到一处真实设计缺陷**（装置拒绝面检查 `d` 当场 FAIL）：初版用"折叠后钳 `[0,+∞)`"作
+> **唯一**收口 ⇒ 把**负基数**（配置错误/漏洞形态）与**减免过度**（合法的"免费"）**压成同一个值**
+> ⇒ 前者被静默抹成 0、其守卫永不触发。**修法** = `ResolveEffectiveCost` 增"未钳基数"出参。
+> **该缺陷编译与代码阅读都过，只有行为级取证才抓得到。**
+>
+> **落地名**：`FTcsParamValue`（两字段）/ `Tag_TcsSkillParam_CostAmount` /
+> `FTcsCostOps::ResolveEffectiveCost` / `FTcsParamChainOps::FoldParamKeyWithBase`。
+> **规格面落点** = 提案 `parametrize-skill-numeric-fields`；**装置读数** = `J0`~`J5`；
+> **两路线读数** = 无头与 PIE 均 `Run 24/0 + 27/0`、`Reject 7/0`、R6 回归 24/0（摘要逐字同基线）。
 - **Cost（D5-10 v2）**：`FCostConfig{Policy: None(默认)/ResourceAttr(内建 M2 扣减)/CustomFragment(ICostPolicy), Timing{OnCastStarted(默认)/OnCastCompleted/OnEvent/OnCastInterrupted/Custom(ICostTimingFragment)}, ResourceAttr + CostParam}`——检查（CanAfford）与提交（Pay）成对走策略；**道具/弹药/意灵晶 = 宿主 CustomFragment（插件不提供实现）**；打断返还未设引擎字段（Timing 选择或 OnCastInterrupted 响应表达）；v1 单资源；
+
+> **★ 2026-10-12 R6.5-1 参数化批次落地注记（上段原文逐字保留；本段的 Cost 部分与 §3.5 的注记同批）**：
+> - **`FTcsCostConfig::Amount`** → `FTcsParamValue`（原为裸 `double`）；
+> - **新增契约键 `TcsStateParam.CostAmount`**（消耗修正键）：本键上的修正经**五带折叠**作用于
+>   `Amount` 的求值结果（**初值 = 字段求值，不是 0**）——**百分比减免**用 `TAO_PercentAdd`、
+>   **固定值减免**用 `TAO_FlatAdd`；
+> - **唯一求值实现** = `FTcsCostOps::ResolveEffectiveCost`（门禁⑤ 与每个提交点各调一次，
+>   **MUST NOT 各算一份**——"门禁判的数"与"真扣的数"一致正是 TOCTOU 防护的实质）；
+> - **`CostApplied` 载荷的 `Amount` = 实际扣减量**（求值 ⊕ 减免之后），**MUST NOT 是配置基数**；
+> - **负基数 vs 减免过度 MUST 分开**（实施期实测抓到的设计缺陷，详见 §3.5 注记）；
+> - **`ECP_CustomFragment` 维持"具名未实现 + 回退 `None`"**（**阻塞登记已于 2026-10-12 改正：原记 `SCRIPT-9` 不成立 ⇒ 真阻塞 = 扩展点形状未裁，已入册 `COST-3`；详见 §3.6 同批注记**）；
+> - **`v1 单资源` 维持**：多资源（DNF 式"蓝+血+道具"）**未做**，已入台账 **`COST-2`**
+>   （触发条件型；届时形状 = 成本组 `FTcsCostGroup{TArray<FTcsCostConfig>, ERequireMode}`，
+>   **且 MUST 一并重审**"成本提交的原子性"与 \(SPEC-04 明文的"MUST NOT 用 `BeginBatch` 造事务"\)）。
 - **关系字段**（同 BuffDef 形状）：语义映射 Block=禁止激活（沉默/缴械）、Require=激活前提、Priority=顶替优先级、Cancels=激活时取消指定运行/状态（姿态切换）；
 - **主链**：`CastChainId` + `MainChainStart{OnCastStarted(默认)|OnPhaseEnter(Tag)|OnCastCompleted|Custom}`（旋风斩类前摇技能配 OnCastCompleted）；
 - `bSingleInstance` → **`ECastInstancing{InstancePerExecution / InstancePerEntity}`** + **`bRetriggerOnActive`**（D5-11，GAS 对齐；Static 不做）。**语义（2026-10-07 R6 裁定，原语料只给枚举名未给语义，此处补齐）**：`InstancePerExecution` = **并存**（同一施法者连点两次可各自推时段，互不干涉）；`InstancePerEntity` = **单一实例复用**（在飞时按 `bRetriggerOnActive` 分流：**默认 `false` ⇒ 驳回**，返具名原因 `AlreadyActive`；`true` ⇒ **顶替**）。**顶替 = 打断的一种终止形态**：旧运行态发 `OnCastInterrupted`（**MUST NOT** 发 `OnCastCompleted`）、**不起其主链**；且**受 `IsInterruptibleNow()` 门禁**（当前时段不可打断 ⇒ 顶替被拒）。**与 GAS 的两处刻意分歧**（MUST NOT 照抄）：① GAS 顶替走 `EndAbility(bWasCancelled = false)`，在 TCS 会让配 `OnCastCompleted` 起链的旧技能**在被顶替瞬间真打出主链**；② GAS 顶替**绕过** `CanBeCanceled`，本仓明确不采用。**依据**：`GameplayAbilityTypes.h:52-54`（并存原文）、`AbilitySystemComponent_Abilities.cpp:1831-1852`（驳回路径与日志原文）、`:1915-1918`（每次新建、无在飞检查）、`GameplayAbility.cpp:741-743` vs `:802-849`（顶替不经 `CanBeCanceled`）；
@@ -147,8 +190,72 @@ FStateDefBase（抽象，M3 定义：词表/FragmentSet/通用默认参数 Level
 - **冷却事件词汇（D5-16）**：`OnCooldownStarted`（Timing 触发点）/ `OnCooldownUpdated`（运行中被 AdjustCooldown/ResetCooldown 改动）/ `OnCooldownEnded`（到期堆触发，权威侧）——总线 FStruct，payload `{EntryHandle, SkillId, Track, GroupTag?, Total, Remaining, EndTimeSeconds}`；UI 径向照旧轮询，事件供 AI/连招/音效触发式响应。
 - 引擎不内置职业自动归类等游戏专属概念；公共冷却 = 共享组轨道的数据表达（D5-15）。
 
+> **★ 2026-10-12 R6.5-1 落地注记（原文逐字保留，MUST NOT 抹除上三行；落地名与三处订正见下）**：
+> 上段已**全部落地**（`PLN-R6.5-1` Task 0~5，提案三份同日归档 ⇒ 能力数 40 → 42，新增
+> `skill-cooldown`）。**落地实现名**：`ETcsCooldownTiming`（四档）/ `FTcsCooldownTrack` /
+> `FTcsCooldownPolicy` / `FTcsCooldownTrackState` / `FTcsCooldownGroupState` / `FTcsCooldownOps` /
+> `FTcsCooldownEventPayload`。**三处与正文的订正**：
+> ① **落地事件名去掉 `On` 前缀**——`TcsEvent.Cast.CooldownStarted` / `.CooldownUpdated` /
+> `.CooldownEnded`（判据：`TcsEvent.Cast` 根下既有四枚 `Started`/`PhaseChanged`/`Completed`/
+> `Interrupted` **零 `On` 前缀**，按同族对称；**MUST NOT 照抄 `On*` 进 tag 名**）；
+> ② **payload 的 `SkillId` 用 `DefTag` 取代**——`D5-9` 修订后 `EffectiveDefId` 已整体移除，
+> "用哪份定义"的唯一答案就是 `DefTag`（**MUST NOT 为它发明一个类型**）；
+> ③ **`Custom(ITcsCooldownTimingFragment)` 第四档整体删除、MUST NOT 补回**——自定义时机 =
+> "不自动执行，让宿主在自己的确定逻辑处手动调用"，那正是 `ECT_Manual` 档，**不需要任何载体**
+> （判据见 `PLN-R6.5-1` §0.2 裁决 ①）。**另新增第三枚可变性口 `StartCooldown`**——
+> `D5-16` 只承诺了"改"（`AdjustCooldown`）与"清"（`ResetCooldown`），**都不是"开始冷却"**
+> ⇒ 无它则 `ECT_Manual` 档物理上无法兑现。
+> **事件与可变性成对**（`MEM-20260902-12`）：三枚事件分别对应起冷 / 改轨清轨 / 到期，
+> 且**不存在**"有事件无状态改变"或反过来的情形。**根数不增**（仍 12——落既有 `TcsEvent` 根）。
+
 ### 3.6 Cost（D5-10）
 - 策略×时机（见 §2）；门禁第 5 道 = CanAfford，提交按 Timing（激活事务内或事件点）；ResourceAttr 策略走 M2；v1 单资源；道具/弹药 = 宿主 Fragment；返还未设引擎字段；**OnCostApplied 事件（D5-16）**：ResourceAttr 策略 Pay 提交后发，payload `{EntryHandle, SkillId, ResourceAttr, Amount}`——CanAfford 失败不发（TryActivate 返回值覆盖），CustomFragment 成本自行决定是否发同词汇事件。
+
+> **★ 2026-10-12 R6.5-1 落地注记（原文逐字保留，MUST NOT 抹除上段；落地名与四处订正见下）**：
+> 上段已**全部落地**（`PLN-R6.5-1` Task 2~4）。**落地实现名**：`ETcsCostPolicy`（三档）/
+> `ETcsCostTiming`（**三档**，2026-10-12 修订前为四档——见上方裁定段）/ `FTcsCostConfig` / `FTcsCostOps` / `FTcsCostEventPayload`。
+> **四处与正文的订正**（③ 的后半**已被上方裁定段取代**，此处按原样保留以记现场）：
+> ① **落地事件名去掉 `On` 前缀** = `TcsEvent.Cast.CostApplied`（同 §3.5 的理由）；
+> ② **payload 的 `SkillId` 用 `DefTag` 取代**（同 §3.5）；
+> ③ **`ETcsCostTiming` 无 `OnCastInterrupted` 档**（`D5-4` 已砍返还 ⇒ 该档两种读法一为重复一为荒谬）；
+> ~~**`OnEvent` 档采纳**~~（~~`D5-10` 原本就有；"等哪个事件"是数据 `TriggerEventTag`、"到了做什么"是行为
+> 走 `UTcsCostEventHandler` 订阅 ⇒ 不需要策略片段载体~~）——**2026-10-12 裁定删除该档，本半句作废**；
+> ④ **扣减载体 = `SetBaseValue` 直写**（读基值 → 减 → 写回），**MUST NOT 用 `ApplyModifier` 挂修正器**
+> ——判据三条见 `add-skill-cost`（语义 / 来源锚点矛盾 / `CHAIN-8` 已立"修正器层效力不等同"）。
+> **判定一律 fail-closed**：无效 `ResourceAttr` / `Amount < 0` / 未持有属性 ⇒ **拦住 + `Warning`**；
+> `ECP_None` 与 `Amount == 0` ⇒ 恒可付、**零日志**（"正确声明不消耗"与"想配消耗但没配清"是两件事）。
+> **门禁⑤ 恒在 `TryActivate`，提交点各自重查一次**（TOCTOU 防护）。
+> **`CustomFragment` 档具名未实现 + 回退 `ECP_None`**。**★ 阻塞登记已于 2026-10-12 改正（原记"= `SCRIPT-9`：属性写入面的脚本可达性"——该归因不成立，MUST 读）**：该档**不依赖属性写入面的反射**，两个独立理由各自都足以推翻原记——① Cost 侧明文 **MUST NOT 用 `ApplyModifier`**、必须直写基值，而 `SetBaseValue` **有** `UFUNCTION` ⇒ 需要的那一半**早已可达**（`SCRIPT-9` 缺的是 `ApplyModifier` / `RemoveBySource`，**与本档无关**）；② **更根本：宿主自定义消耗根本不经过 TCS 属性写入面**（扣"无色小晶块"是在宿主自己的背包系统里减数量）。**真阻塞 = 扩展点形状从未裁定**：`D5-10` 只给了形状名 `ICostPolicy`（`USTRUCT` 策略基类 + C++ 虚分派），而该形状**对脚本侧物理不可达**（同 `FTcsParamValueSource` 的实测判据）⇒ 正确形态 = **宿主插槽家族**（`UINTERFACE` + `BlueprintNativeEvent` + 转发器），本模块已有同型先例 `UTcsCastStateQuery`（`CQM_Custom` 档）。**已入册 `COST-3`**（触发条件型）。**一处签名硬约束**：`FTcsLearnedSkillEntry` 非反射 ⇒ MUST 传已反射的 `FTcsSkillEntryHandle`。
+
+> **★ 2026-10-12 裁定修订（R6.5-1 同日，用户裁定；上两段的原文与落地注记**逐字保留**，
+> MUST NOT 抹除——本段是**对它们的修订**，不是覆盖）**：
+>
+> **`ETcsCostTiming` 由四档降为三档**：`OnCastStarted` / `OnCastCompleted` / `Manual`。
+> **`ECT_OnEvent` 档整体删除、MUST NOT 补回**（`D5-10` 原文确实列了它 ⇒ 这是**对设计决策的
+> 修订**，处置口径同 `D5-4` 砍返还 / `D5-15` 砍 `Custom` 档）。
+>
+> **判据**：框架只能认识"**施法这个事务自身的边界**"（开始 / 完成）——这两个时点在**每个项目里
+> 含义都相同**；而"**某个特定事件**"（挨打时付费 / 连击到第 3 段付费 / 血量低于 30% 付费……）
+> 是**项目词汇** ⇒ 框架内置它等于**让框架去猜项目的玩法**，且它给出的只是一个"等某个 tag"的
+> 空槽位（"这个 tag 是什么、什么时候发"全在宿主手里）⇒ **框架提供了一个自己解释不了、
+> 也无法校验的档位**。与主判据「**凡是需要宿主词汇的内置策略，框架一律不提供**」直接冲突。
+>
+> **宿主实现成本极低、零新框架面**：监听自己关心的事件 → 调 `PayCost`（公开口）。
+> 那正是 **`ECT_Manual` 档 + `PayCost`** 的既有组合。
+>
+> **同批删除的伴随面**（判据 = 「零消费者不预建」的**反向**使用：消费者归零 ⇒ MUST 删掉）：
+> `FTcsCostConfig::TriggerEventTag` / `UTcsCostEventRelay` 整个类 / 门面 `GetCostEventRelay()`
+> 与 `CostEventRelay` 成员 / 三处撤销路径的中继退订 / 装置的两个检查 `H1`·`H2` /
+> 两条检查用 tag（`SkillDef.Check.R65OnEvent`、`TcsEvent.Check.R65Trigger`）。
+>
+> **保留不动**：`CostApplied` 事件本身（与档位无关，任何提交路径都发它）、
+> `ECT_Manual` 档 + `PayCost`、`ECP_CustomFragment` 的具名降级。
+> **`ETcsCooldownTiming` 不受影响**——**冷却侧本来就没有 `OnEvent` 档**
+> （其四档是 Started / Completed / Interrupted / Manual）⇒ 用户"Cooldown/Cost 都删"的意图
+> 在冷却侧**已是现状**。
+>
+> **规格面落点** = 提案 `remove-cost-onevent-timing`（`skill-cost`：3 REMOVED + 3 ADDED）；
+> **影响面实测 = 0**（全仓 `.uasset` 扫 `ECT_OnEvent` / `TriggerEventTag` **零命中**）。
 
 ## 4. 入口服务
 
@@ -213,6 +320,7 @@ FStateDefBase（抽象，M3 定义：词表/FragmentSet/通用默认参数 Level
 - v2 增补 8（2026-09-14，参数折叠与展示轮）：折入 **D5-5 v3**（§3.4 参数链 = 带式聚合——五带同 M2、顺序无关、SortKey 退化为带权、折叠初值 = 参数行求值结果否则 0、Override 组取最大值、CompeteGroup 选优后按带折叠、折叠器单份住 TcsAttribute 三处共用）、**D5-18 v3**（链行 Operand 补约定列）、**D5-17 v2**（§2 描述绑定词法族 + 索引口径 + 绑定链）、命名批（`FTcsNumericParamModifier`/`FTcsNumericParamRow`）；§2 参数行源落点删去"TargetLevel"残留（PV-4 评判轮暂不提供）。
 - v2 增补 9（2026-09-15，D5-17 v3 描述视图策略化——用户重设计）：§2 描述绑定改**视图策略体系**——`Descriptions: TArray<FTcsDescriptionEntry>` 取代单字段 DescriptionTextKey；StringTable 只含槽名（零语法）；视图 = `FTcsParamView` 策略基类 + `TInstancedStruct` 持有（内置 Value/Series/Range/Attribute——v2 词法转世）；编辑器预警四层（探针拦截挂配置元素/槽名交叉扫描/运行期降级）；索引口径与展示政策归开发者原则不变。
 - v2 增补 10（2026-09-23，标识体系 tag 化改造回写）：§3.1 Entry 身份 `FName DefId` → **`FGameplayTag DefTag`**；§3.4/§4/§5 同步（ParamRef 解析锚点、`GrantSkill/RevokeSkill` 签名、起链解析生效 Def）。落点 = 提案 `switch-identifiers-to-gameplay-tags`（2026-09-22 归档）。§2 参数行 Key 与冷却 GroupTag 本就是 tag/词表口径，未动。
+- **v3（2026-10-12，R6.5-1 落地回写）**：§3.5 / §3.6 **各加一段落地注记**（原文逐字保留）——冷却与消耗**运行态已落地**（`PLN-R6.5-1` Task 0~5），含**四处落地名订正**（事件名去 `On` 前缀 / payload 的 `SkillId` 用 `DefTag` / `ITcsCooldownTimingFragment` 整体删除 / `ETcsCostTiming` 无 `OnCastInterrupted` 档 + 采纳 `OnEvent` 档）与**三处新增公开口**（`StartCooldown` / `PayCost` / `CanAfford`）；§11.1 的"门禁只 4 道可拒"**时态到期**（六道全可拒）；§11.2 前四行**已兑现**（加"处置"列，原文保留）；§11.3 补三行实现名对照（冷却族 / Cost 族 / 事件名与 `SkillId`）。**落点 = 三份提案同日归档**（`add-cooldown-and-cost-types` / `add-cooldown-multitrack` / `add-skill-cost`）⇒ 能力数 **40 → 42**（新增 `skill-cooldown` / `skill-cost`）、`validate --all --strict` = **42 passed / 0 failed**。**证据** = `EVID-2026-10-11-r65-cooldown-cost`（**无头与编辑器 PIE 双路线均已取证**：`Run` 立即面 **18/0** + 尾段 **21/0**、`.Reject` **7/0**，两轮独立 PIE 世界逐字相同（✅ 两条路线现已同版本：基线 DLL + 新夹具，缺口已闭合，见同档 §1.1）；补取 PIE 时**抓出两处夹具缺陷**并修复，见该档 §4.4）。
 
 ## 10. 验收钩子
 
@@ -239,21 +347,33 @@ M5 专项人工检查路径：门禁六态逐态触发；冷却策略/时机切�
 
 **门禁六道的可拒性实测**：**只 4 道可拒**（①②④⑥），③（冷却）与⑤（CanAfford）本轮落"**具名拒绝 + 空实现占位**"（空轨道恒可放 / 不消耗档恒可付）⇒ 序列结构完整可测，非默认分支归 `R6.5`。
 
+> **★ 2026-10-12 R6.5-1 落地注记（原文逐字保留）**：上句的**时态已到期**——`R6.5-1` Task 1/2 已把
+> **③（冷却）与⑤（CanAfford）两道转真**，门禁**六道全部可拒**（实测：门禁③ 起冷后返回
+> `SAR_OnCooldown`、门禁⑤ 付不起返回 `SAR_CannotAfford`）。上句保留作 R6 收束时的如实记录。
+
 ### 11.2 本轮**不落**（带归属，MUST NOT 读成"未定"）
 
-| 面 | 正文条款 | 归属 |
-|---|---|---|
-| **冷却多轨道 / 三事件 / `AdjustCooldown`·`ResetCooldown`** | §2「冷却（D5-15 多轨道）」、§3.5 | **`R6.5-a` / `R6.5-b`** |
-| **`FCooldownTiming` 四档** | §2 同上 | **`R6.5-c`** |
-| **Cost 策略 × 时机 + `CanAfford` 真实现 + Pay 提交 + `OnCostApplied`** | §2「Cost（D5-10 v2）」、§3.6 | **`R6.5-d`** |
-| **`FBoolSwitchModifier` + `GateCheck` 条件求值器** | §2 参数双表的 `BoolSwitches` 运行期通道 | **`R6.5-e`**（形状已落，消费者未落） |
-| **`UTcsSkillModDef` 技能侧参数行分派** | §2「修正器引用行（D5-19）」的技能行那半 | **`R6.5-f`**（`ParamChainRows` 本轮**只落内联形态**） |
-| **`CQM_Custom` 查询档 / `MCS_Custom` 起链档** | §3.3 三级实现的第三级 / §2 主链四档 | **`R6.5-g`**（本轮**具名未实现 + 回退默认档**，MUST 记 `Warning`） |
-| **关系字段检查器（`Blocks` / `Requires` / `Priority` / `Cancels`）** | §2「关系字段」的**语义**（形状已落） | **`R5.5-e`**（技能与状态共用同一检查器） |
-| **多形态组合范式的完整走查** | §2「多形态/多段技能 = 组合范式」 | **`R6.5-g`**（本轮只落可运行基座） |
-| **`FTcsParamView` 视图策略族 + 技能面板** | §2「描述文本绑定（D5-17 v3）」的视图那半 | **`R8`**（`state-def-asset` 已钉死"本轮 MUST NOT 建视图策略族"） |
-| **内联触发行的框架登记与生命周期** | §2「内联触发行」 | **字段已交付、本轮零框架登记**（与状态侧的差异见该条；消费者 = 后续强输入引导） |
-| **`AttributeScaled` 参数源** | §3.4 参数链的四源之一 | **全仓无实现者**（要求宿主提供 `ITcsAttributeProvider`，今天为零）⇒ 配了只落兜底值；归**触发条件** |
+> **★ 2026-10-12 R6.5-1 落地注记（原文逐行保留；下表四行已由 `R6.5-1` 兑现 ⇒ 见"处置"列）**：
+> `R6.5-a` / `b` / `c` / `d` **四批已落地并取证**（2026-10-12；提案三份同日归档）。
+> **下表前四行的归属列因此已兑现，不再是"不落"**——保留原行以维持"当时确实是这么切的"这一事实。
+
+| 面 | 正文条款 | 归属 | 2026-10-12 处置 |
+|---|---|---|---|
+| **冷却多轨道 / 三事件 / `AdjustCooldown`·`ResetCooldown`** | §2「冷却（D5-15 多轨道）」、§3.5 | **`R6.5-a` / `R6.5-b`** | ✅ **已落**（另+`StartCooldown`） |
+| **`FCooldownTiming` 四档** | §2 同上 | **`R6.5-c`** | ✅ **已落**（第四档 `Custom` 删除） |
+| **Cost 策略 × 时机 + `CanAfford` 真实现 + Pay 提交 + `OnCostApplied`** | §2「Cost（D5-10 v2）」、§3.6 | **`R6.5-d`** | ✅ **已落**（另+`CanAfford` 查询口） |
+| **`FBoolSwitchModifier` + `GateCheck` 条件求值器** | §2 参数双表的 `BoolSwitches` 运行期通道 | **`R6.5-e`**（形状已落，消费者未落） | ❌ 未落（不变） |
+| **`UTcsSkillModDef` 技能侧参数行分派** | §2「修正器引用行（D5-19）」的技能行那半 | **`R6.5-f`**（`ParamChainRows` 本轮**只落内联形态**） | ❌ 未落（不变） |
+| **`CQM_Custom` 查询档 / `MCS_Custom` 起链档** | §3.3 三级实现的第三级 / §2 主链四档 | **`R6.5-g`**（本轮**具名未实现 + 回退默认档**，MUST 记 `Warning`） | ❌ 未落（依赖 `R5.5-e` 仍未满足） |
+| **关系字段检查器（`Blocks` / `Requires` / `Priority` / `Cancels`）** | §2「关系字段」的**语义**（形状已落） | **`R5.5-e`**（技能与状态共用同一检查器） | ❌ 未落（不变） |
+| **多形态组合范式的完整走查** | §2「多形态/多段技能 = 组合范式」 | **`R6.5-g`**（本轮只落可运行基座） | ❌ 未落（不变） |
+| **`FTcsParamView` 视图策略族 + 技能面板** | §2「描述文本绑定（D5-17 v3）」的视图那半 | **`R8`**（`state-def-asset` 已钉死"本轮 MUST NOT 建视图策略族"） | ❌ 未落（不变） |
+| **内联触发行的框架登记与生命周期** | §2「内联触发行」 | **字段已交付、本轮零框架登记**（与状态侧的差异见该条；消费者 = 后续强输入引导） | ❌ 未落（不变） |
+| **`AttributeScaled` 参数源** | §3.4 参数链的四源之一 | **全仓无实现者**（要求宿主提供 `ITcsAttributeProvider`，今天为零）⇒ 配了只落兜底值；归**触发条件** | ❌ 未落（不变） |
+| **Cost 减免通道** | §3.6 的 `Amount` | **触发条件型**（台账 `COST-1`） | ✅ **已落（2026-10-12）**——但**形状与原记不同**：原记"加系数键 `CostPct`"，**用户改点 B 案 = `Amount` 换 `FTcsParamValue` + 契约键 `CostAmount` 走带式折叠**（判据：纯系数表达不了**固定值减免**）。见 `parametrize-skill-numeric-fields` |
+| **`FTcsCooldownTrack::Duration` 的 `Param` 形态** | §3.5 的 `Duration(字面量\|Param)` | **触发条件型**（台账 `COOLDOWN-1`） | ✅ **已落（2026-10-12）**——`FTcsParamValue`；**★ 注意：§3.5 正文早在 2026-09-11 就写着这个形态，代码滞后至此才补上**（见 §3.5 注记的"文档先行、代码滞后"） |
+| **多资源消耗（成本组）** | §3.6 的 `v1 单资源` | **触发条件型**（台账 `COST-2`，2026-10-12 新登记） | ❌ 未落——DNF 式"蓝+血+道具"；届时形状 = 成本组，且 MUST 一并重审原子性 |
+| **消耗的"检查 / 提交"扩展点（`ECP_CustomFragment` 真实现）** | §2「Cost（D5-10 v2）」的"检查（CanAfford）与提交（Pay）**成对走策略**"、§3.6 的 `ICostPolicy` | **触发条件型**（台账 `COST-3`，2026-10-12 新登记；**原把该档阻塞记为 `SCRIPT-9`，2026-10-12 改正**） | ❌ 未落——今天 `CanAffordCost` / `CommitCost` 写死在框架内；**正确形态 = 宿主插槽家族**（非 `D5-10` 原写的 `ICostPolicy` `USTRUCT` 基类——那条对脚本侧不可达）。**与 `COST-2` 的关系 = 可分离**：`COST-2` 的"道具"项依赖本条，本条不依赖 `COST-2` |
 
 ### 11.3 实现名对照（正文概念名 → 落地实现名，MUST 按右侧引用）
 
@@ -265,6 +385,11 @@ M5 专项人工检查路径：门禁六态逐态触发；冷却策略/时机切�
 | `ICastStateQuery` | **`ITcsCastStateQuery`**（契约）+ **`UTcsCastStateQuery`**（U 类） |
 | `FPhaseSpan` | **`FTcsPhaseSpan`** |
 | `NumericParameters` / `BoolSwitches` | **`Params`**（`FTcsNumericParamRow`）/ **`BoolSwitches`**（`FTcsBoolSwitchRow`） |
+| `FCooldownTrack` / `FCooldownPolicy` / `FCooldownTiming` | **`FTcsCooldownTrack`** / **`FTcsCooldownPolicy`** / **`ETcsCooldownTiming`**（2026-10-12 `R6.5-1` 落地；运行态 = `FTcsCooldownTrackState` / `FTcsCooldownGroupState` / `FTcsCooldownOps`） |
+| `ECostPolicy` / `FCostConfig` | **`ETcsCostPolicy`** / **`FTcsCostConfig`**；**`Timing` 的枚举名定为 `ETcsCostTiming`**（正文原本未定名）——**MUST NOT 再引用 `ECostPolicy` 那个旧写法**（2026-10-12 `R6.5-1` 落地；运行态 = `FTcsCostOps` / `UTcsCostEventRelay`） |
+| `ITcsCooldownTimingFragment` | ❌ **整体删除、MUST NOT 补回**（自定义时机 = `ECT_Manual` 档 + 宿主自调 `StartCooldown`，**不需要载体**；判据见 `PLN-R6.5-1` §0.2 裁决 ①） |
+| `OnCooldownStarted` / `OnCooldownUpdated` / `OnCooldownEnded` / `OnCostApplied`（事件名） | **`TcsEvent.Cast.CooldownStarted`** / **`.CooldownUpdated`** / **`.CooldownEnded`** / **`.CostApplied`**——**落地名去掉 `On` 前缀**（`TcsEvent.Cast` 根下既有四枚零 `On` 前缀，按同族对称；MUST NOT 照抄 `On*`） |
+| payload 的 `SkillId` 字段 | **`DefTag`**（`EffectiveDefId` 已整体移除，"用哪份定义"的唯一答案就是它；**MUST NOT 为 `SkillId` 发明类型**） |
 | `bSingleInstance` | **`ECastInstancing`** + **`bRetriggerOnActive`** |
 | `ParamSlots` / `ModifierSlots` | **`NumericParamModInstances`** / **`AttrModInstances`**（2026-10-09 改名：容器字段名 = 元素类型名复数；`Slot` 保留给"可寻址可复用带代际的空位"） |
 | `FSkillRedirect` / `EffectiveDefId` | **已整体移除**（D5-9 修订 2026-09-11；重定向走链级 `FTcsChainRedirect`） |
@@ -272,7 +397,7 @@ M5 专项人工检查路径：门禁六态逐态触发；冷却策略/时机切�
 | `FCastAttrCapture` / `ETcsCastAttrCaptureFrom` | **已整体删除**（2026-10-08；判据见正文该条，**MUST NOT 补回**） |
 | `FTcsCastAttrCapture` 等 | 同上 |
 | `MaterializeModifiers` | **`MaterializeParamChainRows`** |
-| `ECostPolicy` / `FCooldownTrack` / `ITcsCooldownTimingFragment` | **均未落地**（`R6.5` 批次；正文提及处只作形状意图） |
+| `ECostPolicy` / `FCooldownTrack` / `ITcsCooldownTimingFragment` | **前两者已落地**（2026-10-12 `R6.5-1`）⇒ 见上方新增的三行对照（**`ETcsCostPolicy` / `FTcsCooldownTrack`**）；**`ITcsCooldownTimingFragment` 整体删除、MUST NOT 补回**。原判"均未落地（`R6.5` 批次；正文提及处只作形状意图）"**已到期**，保留作 R6 收束时的如实记录 |
 
 ### 11.4 §0.4 四条错前提的更正回写（正文 §2 的对应处已就地注明）
 

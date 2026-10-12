@@ -231,6 +231,38 @@ public:
 	double PeekPending(FTcsCombatEntityHandle Unit, const FGameplayTag& Attribute);
 
 	/**
+	 * **非确保**读取属性**基值**（不受修正器影响），并**同时**回答"该单位是否持有此属性"。
+	 *
+	 * **为什么必须有这个口（`R6.5-1` Task 2 的唯一新增面，2026-10-11）**：技能侧 `Cost` 的
+	 * `ECP_ResourceAttr` 档要"**读基值 → 减 → 写回**"，而门面此前只有 `EvaluateCurrent`
+	 * （**折叠后**当前值）与 `PeekPending`（未提交候选值）——**两者都读不到基值**
+	 * （从当前值减会在有修正器时**多减**）。底层 `FTcsAttributeStore::GetBaseValue` 早已存在，
+	 * 缺的只是这个转发口。
+	 *
+	 * **为什么是 `TryGet` 形态而不是照草稿的 `double GetBaseValue(...)`（一处形状订正，见 ledger Ruling）**：
+	 * `FTcsAttributeStore::GetBaseValue` 对**未持有**返回 `0.0`，与"确实持有且基值为 0"
+	 * **不可区分**——而调用方恰恰**必须**区分这两件事（"属性没加/配错" 与 "付不起" 是两种完全不同的
+	 * 红字，`TcsEffectAttributeAccess.h:72` 是同一条判据的既有表述）。
+	 * 若按草稿只给一个 `double` 口，调用方就要**连调两次**（先问持有、再取值）才能答一个问题，
+	 * 而两次调用之间没有任何东西保证两个答案一致——那正是本 Task 要防的 TOCTOU 形态。
+	 * `TryGet` 形态一次给出两个答案、天然自洽，且是本仓既有命名惯例（`GetXByY` / `TryGetX`）。
+	 *
+	 * **`const`**：纯读，不改任何状态、不标脏、不广播。
+	 *
+	 * **无反射面**：形参含未反射化句柄与出参引用（脚本侧的属性读面归 `SCRIPT` 系列，
+	 * 与 `ResolveStore` 同款——本口是**框架内部消费面**，不是脚本面）。
+	 *
+	 * @param Unit 单位句柄。
+	 * @param Attribute 属性名。
+	 * @param OutBaseValue 输出基值（仅在返回 true 时有效）。
+	 * @return 返回该单位是否**持有**该属性（未注册 / 属性名为空 / 未持有 ⇒ false，**不 ensure**）。
+	 */
+	bool TryGetBaseValue(
+		FTcsCombatEntityHandle Unit,
+		const FGameplayTag& Attribute,
+		double& OutBaseValue) const;
+
+	/**
 	 * 挂修正器（标脏；未开批时立即重算 + 广播 = 隐式批）。
 	 * 单位未注册或目标属性无实例时忽略并留日志（返回 false，不 ensure——D2-14）。
 	 *

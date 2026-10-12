@@ -175,3 +175,50 @@
 - **`D5-7`（技能级重定向）的现状**：D5-9 修订（2026-09-11）已把**技能级**重定向整体移除；**链级**重定向（`FTcsChainRedirect`）本轮落地并通过验收（含优先级与后挂者胜）。**本文 §《附注：`D5-7` 链重定向的不可替代内核与它的坏招牌》仍然是那条待裁项的唯一载体**（用户裁定不登记台账、不改 D5-7 本身）——**R6 收束 MUST NOT 被读成"那条待裁项已裁"**。
 - **未落面改判 `R6.5`**（七个批次 `a`~`g` 全部未开工）：冷却多轨道与三事件 / `FCooldownTiming` 四档 / Cost 策略×时机 / `FBoolSwitchModifier` + `GateCheck` / `UTcsSkillModDef` 参数行分派 / 多形态组合范式完整走查。**《R6.5 批次表》的关账块**（`PLN-R6`）已补：依赖**从"等 R6"变为"随时可开"**，且 `CQM_Custom` / `MCS_Custom` 两档须**一起**补（本轮二者都是**具名未实现 + 回退默认档**）。
 - **一条可复用的收束纪律（本轮沉淀，已写进 `INDEX` §5）**：**"计数声称"MUST 全库同批回改**——同一个数常在 **3~5 处**重复，且**没有校验器报警**。R6 收束实测两例：`gameplay-tag-governance` 的 `11 个根` 在 `SkillDef` 落地后**漏改三处**（由来表 / 度量 / scenario）、且"两个 `Def` 根"实为**三个**；`GLOSSARY` 的四个编号族计数各差 2~33。
+
+---
+
+### 四、R6.5-1 落地结论（2026-10-12）
+
+> **本档 FROZEN，只追加**（`docs-convention` §7）。本节由 R6.5-1 执行轮追加。
+
+- **`PLN-R6.5-1` 的 Task 0~5 全部完成并取证**（类型层 / 冷却多轨 / Cost 策略×时机 / 终结接缝 /
+  四枚事件 / 宿主装置）；**Task 6 收束**进行中。
+- **三个提案同日归档**（`add-cooldown-and-cost-types` / `add-cooldown-multitrack` / `add-skill-cost`）
+  ⇒ 能力数 **40 → 42**（新增 `skill-cooldown` / `skill-cost`；另对 `skill-def-asset` / `skill-registry` /
+  `attribute-pipeline` 各有增补）、`openspec validate --all --strict` = **42 passed / 0 failed**、
+  `changes/` 归零。**归档时零 scenario 丢失**（两条 MODIFIED 需求各 +1 场景，其余原样）。
+- **双配置编译** 0 error / 0 warning。**取证（双路线）**：无头 `Tcs.Test.CooldownCost.Run` **立即面 18/0 +
+  含跨帧尾段 21/0**（两轮逐字相同）、`.Reject` **7/0**；**编辑器 PIE（2026-10-12 补取）同为 18/0 + 21/0 + 7/0，
+  两轮独立 PIE 世界逐字相同**（✅ **缺口已闭合**：同日全量重建写回基线后两路线重跑，现同为
+  "基线 DLL + 新夹具"，读数逐字一致，见 `EVID-2026-10-11-r65-cooldown-cost` §1.1）；**R6 回归 `SkillLayer.Run` 24/0 且复现性摘要
+  与冻存基线逐字相同**（无头与 PIE 两侧均复取）⇒ 本轮对门禁③/⑤、撤销路径、`Deinitialize` 的改动**未破坏 R6 面**。
+- **★ 装置抓到一个真实产品缺陷**：`ECT_OnCastStarted` 档**扣了资源却不发 `CostApplied`**
+  （`CommitCost` 是纯扣减、发事件属调用方职责，而激活路径漏了那一行）⇒ 症状 = "资源扣了、
+  订阅者收不到任何通知"，正是 `MEM-20260902-12`「事件与可变性 API 成对」点名的**静默不一致**。已修。
+- **四处落地名/形状订正**（正文原文逐字保留，各就地注明）：
+  ① 事件名**去掉 `On` 前缀**（`TcsEvent.Cast.CooldownStarted` 等——根下既有四枚零 `On` 前缀）；
+  ② payload 的 `SkillId` 用 **`DefTag`** 取代（`EffectiveDefId` 已整体移除）；
+  ③ **`ITcsCooldownTimingFragment` 整体删除、MUST NOT 补回**（自定义时机 = `ECT_Manual` + 宿主自调）；
+  ④ **`ETcsCostTiming` 无 `OnCastInterrupted` 档**、**采纳 `OnEvent` 档**。
+- **三处新增公开口**（`D5-16` 与 `D5-10` 的清单里都没有它们）：
+  `StartCooldown`（"改"与"清"都不是"开始冷却"⇒ 无它则 `ECT_Manual` 档物理上无法兑现）/
+  `PayCost`（手动提交口）/ `CanAfford`（纯查询，宿主可预灰按钮）。
+- **★ 取证边界（**2026-10-12 补取完成，本注撤销**）**：编辑器 PIE 面**已取证**——
+  `Run` 18/0 + 21/0、`.Reject` 7/0，**两次独立 PIE 世界逐字相同**；跨 PIE 残留检查通过；
+  真 GCD / TOCTOU 在 PIE 下**均 `PASS`** ⇒ ****该三条在 PIE 下亦 `PASS` ⇒ 无头对它们的 `PASS` 不是假绿灯**（⚠ **但两条路线用的夹具版本不同，见 `EVID-2026-10-11-r65-cooldown-cost` §1.1 ⇒ MUST NOT 读成"双路线一致通过"**）**。**★ 补取证抓出两处夹具缺陷**
+  （都不是插件缺陷，且**都在无头下拿到绿灯**）：① 跨帧谓词问的是**全局** `CooldownEndedCount`，
+  而 CDR 的 0.5s 轨比被测的 1.0s 轨**先到期** ⇒ 等待提前 0.5s 落定 ⇒ `I2` 误报 FAIL
+  （**`TcsDevCombatClockWait` 判据 2 第三次命中**：问对了"哪件事"却问错了"哪一条"）；
+  ② 检查 `e` 的"未持有"前提**只在无头下成立**（无头内容资产 0 条 ⇒ 属性表为空；
+  PIE 下 `ApplySliceAttributes` 会授予 `Attribute.Armor`）。两处均已修并复验，
+  详见 `EVID-2026-10-11-r65-cooldown-cost` §4.4。
+- **两条新台账条目**（均触发条件型、不绑轮次）：`COST-1`（Cost 侧缺折扣系数通道）、
+  `COOLDOWN-1`（`Duration` 的 `Param` 形态未落）——**与既有 `STAT-11` 同一技术根因**
+  （技能侧数值字段缺参数化载体），**MUST 同批裁**。
+- **一条可复用的执行教训（本轮沉淀）**：**跨帧判据的谓词 MUST 直接问"被测事件本身"，
+  MUST NOT 问时间派生量**。R6.5-1 的 `I3` 初版问 `GetTrackRemaining <= 0`（时间），而"到期事件已发"
+  是另一件事——两者是**同一个到期堆**的条目，按 `(DueTime, Sequence)` 升序回调，等待件（+0.05）
+  早于冷却件（+1.0）⇒ 无头首帧把时钟一次推到 2.79 使两者同帧到期，**谓词先真、事件后发**
+  ⇒ 恒定假失败。**这与 R6 的"坑一"同类（问了一个相邻但不同的量），同一坑第二次命中**
+  ⇒ `TcsDevCombatClockWait` 判据 2 的措辞需要更强的提醒（该头已写明，但仍被违反）。

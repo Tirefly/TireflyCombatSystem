@@ -48,6 +48,11 @@
 > **★ 一处"有拦截器的债"已入册（`TOOLS-9`）**：归档器对**新建能力**写的 `## Purpose` 是 `TBD` 占位、且它**只替换 Requirements 不碰 Purpose** ⇒ 本轮两个新能力**各中一次**（归档后 `--all` 实测 `38 passed, 2 failed`）⇒ 手工补写 Purpose 后恢复 **`40/0`**。**判据**：该债由 `validate` 自己拦截（漏了就红），故优先级低于无拦截器的那些；已登记为可预期步骤。
 >
 > **★ 一处既有 spec 自相矛盾已就地订正（`gameplay-tag-governance`）**：该 spec 的「根段注册表」称 **12 个根**，而「根名判据」的由来表与「词表深度上限」的度量/场景**三处仍写 `11 个根`**（`SkillDef` 根于 2026-10-06 R6 Task 1 落地时**只改了主表、漏改这三处**），且"两个 `Def` 根的并存论证"标题未含 `SkillDef`（实为**三个**）。⇒ 本轮四处同批订正为 12/三个。**判据**：**新增根时的计数 MUST 全库同批回改**——本仓 `gameplay-tag-governance` 有 **4 处**声明同一个数（主表 / 由来表 / 度量 / scenario），只改一处必留矛盾。
+>
+> **2026-10-12 R6.5-1 收束增量（冷却与消耗，批次 `a`~`d`）**：新增 **3 行**（`skill-cooldown`（**新能力**，形状 + 运行态 + 事件三需求）/ `skill-cost`（**新能力**，判定提交 + 事件中继两需求）/ `attribute-pipeline` 的属性基值非确保读口 1 需求）。**三个提案同日归档**：`add-cooldown-and-cost-types` / `add-cooldown-multitrack` / `add-skill-cost` ⇒ **`openspec/changes/` 归零**，**能力数 40 → 42**（`validate --all` = **`42 passed / 0 failed`**）。
+> **证据状态（如实，MUST NOT 外推）**：① **无头面已取证**——`Tcs.Test.CooldownCost.Run` 立即面 **18/0** + 含跨帧尾段 **21/0**（两轮逐字相同）、`.Reject` **7/0**；R6 回归 **24/0** 且摘要与冻存基线逐字相同；② **编辑器 PIE 面亦已补取（2026-10-12）**——同为 **18/0 + 21/0 + 7/0**，**两轮独立 PIE 世界逐字相同**、跨 PIE 残留检查通过（✅ 两条路线现已同版本：基线 DLL + 新夹具，缺口已闭合，见同档 §1.1） ⇒ **真 GCD / TOCTOU / 跨 PIE 残留均已验**（属"无头易给假绿灯"的那一类，R6 已两次实测"无头跑过 ≠ 验证过"），且 `D1`/`F1`/`B1` 在 PIE 下全 `PASS` ⇒ ****该三条在 PIE 下亦 `PASS` ⇒ 无头对它们的 `PASS` 不是假绿灯**（⚠ **但两条路线用的夹具版本不同，见 `EVID-2026-10-11-r65-cooldown-cost` §1.1 ⇒ MUST NOT 读成"双路线一致通过"**）**；③ **补取证抓出两处夹具缺陷**（跨帧谓词按全局计数等待 ⇒ CDR 轨先到期使 `I2` 误报；检查 `e` 的"未持有"前提只在无头下成立），两处均已修并复验。详见 `EVID-2026-10-11-r65-cooldown-cost` §1.1 / §4.4。
+> **★ `TOOLS-9` 本轮再中两次**（两个新能力的 `## Purpose` 均为 `TBD` 占位）——归档后实测 `40 passed, 2 failed` ⇒ 手写 Purpose 后恢复 `42/0`。**这是第 3~4 次命中**（前两次在 R6 收束），该债由 `validate` 自己拦截，已作为**可预期步骤**写进计划 Task 6 Step 1。
+> **★ 一处术语订正（跨文档，MUST 按右侧引用）**：落地事件名**去掉 `On` 前缀**（`TcsEvent.Cast.CooldownStarted` / `.CooldownUpdated` / `.CooldownEnded` / `.CostApplied`），payload 的 `SkillId` 用 **`DefTag`** 取代；`ITcsCooldownTimingFragment` **整体删除、MUST NOT 补回**。三处订正均已在 `SPEC-04-skill` §3.5/§3.6/§11.3 就地注明（原文逐字保留）。
 
 | OpenSpec requirement | 当前代码证据 | 设计文档 | 提案任务 | 证据状态 |
 |---|---|---|---|---|

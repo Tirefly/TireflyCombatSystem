@@ -222,6 +222,33 @@ double UTcsAttributeSubsystem::EvaluateCurrent(FTcsCombatEntityHandle Unit, cons
 	return Pipeline.IsValid() ? Pipeline->EvaluateCurrent(Unit, Attribute) : 0.0;
 }
 
+bool UTcsAttributeSubsystem::TryGetBaseValue(
+	FTcsCombatEntityHandle Unit,
+	const FGameplayTag& Attribute,
+	double& OutBaseValue) const
+{
+	// **非确保解析**（`ResolveStore` 而非 `GetStore`）：读取是正常查询路径，
+	// "单位未注册"在这里不是契约违规——调用方（技能侧 Cost 门禁）只要拿到 false 就能如实报出
+	// "该单位没有这个属性"，而**不该**为此留红字（那会把常态路径变成红字噪音，
+	// 同 `ResolveStore` 自述的"供管线与内部读取路径使用"口径）。
+	const FTcsAttributeStore* Store = ResolveStore(Unit);
+	if (!Store || !Attribute.IsValid())
+	{
+		return false;
+	}
+
+	// **持有性判据 = `FindInstance` 命中**，MUST NOT 依赖 `GetBaseValue` 的返回值来判
+	// ——它对未持有返回 0.0，与"确实持有且基值为 0"**不可区分**（本口存在的理由）。
+	const FTcsAttributeInstance* Instance = Store->FindInstance(Attribute);
+	if (!Instance)
+	{
+		return false;
+	}
+
+	OutBaseValue = Instance->BaseValue;
+	return true;
+}
+
 bool UTcsAttributeSubsystem::SetBaseValue(
 	FTcsCombatEntityHandle Unit,
 	const FGameplayTag& Attribute,

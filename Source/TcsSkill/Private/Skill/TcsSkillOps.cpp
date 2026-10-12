@@ -2,6 +2,8 @@
 
 #include "Skill/TcsSkillOps.h"
 
+#include "Skill/TcsCooldownOps.h"
+
 #include "TcsSkillLogChannel.h"
 #include "TcsSkillSubsystem.h"
 
@@ -134,12 +136,22 @@ bool FTcsSkillOps::Revoke(
 		return false;
 	}
 
-	const FTcsLearnedSkillEntry* Entry = Bucket->Find(Handle);
+	FTcsLearnedSkillEntry* Entry = Bucket->Find(Handle);
 	if (!Entry)
 	{
 		UE_LOG(LogTcsSkill, Warning, TEXT("技能撤销被拒：句柄悬空（%d/%d）"), Handle.Index, Handle.Generation);
 		return false;
 	}
+
+	// **★ 冷却的配对清理 MUST 排在释放槽位之前**（判据 = 冷却持有外部资源，是"成对性"纪律的落点）：
+	// `ReleaseSlot` 会把条目内容**整体重置**（`Entries[SlotIndex] = FTcsLearnedSkillEntry()`）
+	// ⇒ 那之后到期堆句柄就没了，该条目起过的冷却**失去唯一的取消锚点**，
+	// 只能等它自己到期再空跑一次回调（期间 `IsOnCooldown` 若被查询，还会按"时间判据"如实报冷却中
+	// ——而那条技能已经不在账本上了）。
+	//
+	// **组槽刻意不在此一并摘**：组槽是**单位级**的，它有自己的到期条目、会自行解除；
+	// 替它解除会**替同组的其它技能**解除公共冷却（症状：撤销 A 之后同组的 B 立刻能放）。
+	FTcsCooldownOps::ReleaseEntryCooldowns(Subsystem, Unit, *Entry);
 
 	Bucket->ReleaseSlot(static_cast<uint32>(Handle.Index));
 
@@ -176,8 +188,16 @@ int32 FTcsSkillOps::RevokeBySource(
 		return true;
 	});
 
+	// **两段式**：桶的 ForEach 期间 MUST NOT 增删（会改动槽位与空闲栈）⇒ 先收集命中句柄，再逐个撤销。
+	// **冷却的配对清理就在本循环里做**（`ReleaseEntryCooldowns` MUST 排在 `ReleaseSlot` 之前，
+	// 理由见 `Revoke`）；此处按句柄重新解析再传引用——遍历中不做增删，指针在本次迭代内有效。
 	for (const FTcsSkillEntryHandle& Handle : Matched)
 	{
+		if (FTcsLearnedSkillEntry* Entry = Bucket->Find(Handle))
+		{
+			FTcsCooldownOps::ReleaseEntryCooldowns(Subsystem, Unit, *Entry);
+		}
+
 		Bucket->ReleaseSlot(static_cast<uint32>(Handle.Index));
 	}
 
@@ -192,11 +212,27 @@ int32 FTcsSkillOps::RevokeBySource(
 
 int32 FTcsSkillOps::UnregisterUnit(UTcsSkillSubsystem& Subsystem, FTcsCombatEntityHandle Unit)
 {
-	const FSkillBucket* Bucket = Subsystem.Registry.FindBucket(Unit);
+	// **取可写桶**（不是 const）：下面要在槽位释放前**就地**清各条目的冷却状态
+	// ⇒ 需要 `ForEach` 的**可写重载**（const 桶只能给只读访问者，那会拿不到可改的条目引用）。
+	FSkillBucket* Bucket = Subsystem.Registry.FindBucket(Unit);
 	const int32 Count = Bucket ? Bucket->Num() : 0;
 
-	// 账本条目零外部资源（不挂修正器、不挂触发行、无时间条目）⇒ 无需逐条撤销流程，
-	// 直接删桶即可（**这正是"只持一个 LearnSource"的收益**：没有需要配对摘除的东西）。
+	// **★ 单位级组冷却槽的清理归这里**（条目级撤销**刻意不动它**——替它解除会替同组其它技能
+	// 解除公共冷却，见 `Revoke` 的注释）。单位都没了 ⇒ 没有"留给谁"的问题，整表撤锚点后删除。
+	// **MUST 排在 `RemoveBucket` 之前**：桶一删，条目里的自身轨锚点也就找不回来了。
+	FTcsCooldownOps::ReleaseUnitCooldowns(Subsystem, Unit);
+
+	if (Bucket)
+	{
+		// 逐条目的自身轨锚点也一并撤（`ReleaseUnitCooldowns` 只管单位级组槽）
+		Bucket->ForEach([&Subsystem, Unit](FTcsLearnedSkillEntry& Entry)
+		{
+			FTcsCooldownOps::ReleaseEntryCooldowns(Subsystem, Unit, Entry);
+			return true;
+		});
+	}
+
+	// 账本条目零外部资源（不挂修正器、不挂触发行）——**但冷却除外**（上面已配对清理）。
 	if (Subsystem.Registry.RemoveBucket(Unit) && Count > 0)
 	{
 		UE_LOG(LogTcsSkill, Log, TEXT("技能注销单位：单位=%lld 摘除 %d 条"), Unit.Id, Count);
