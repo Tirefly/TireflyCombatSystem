@@ -11,6 +11,7 @@
 #include "Def/TcsSkillDefData.h"
 #include "Param/TcsSkillParamKeys.h"
 #include "Skill/TcsCostEvents.h"
+#include "Skill/TcsCostPolicyHost.h"
 #include "Skill/TcsParamChain.h"
 #include "Skill/TcsSkillRegistry.h"
 #include "TcsAttributeSubsystem.h"
@@ -88,6 +89,90 @@ double FTcsSkillCostPolicy_ResourceAttr::ResolveEffectiveAmount(
 	}
 
 	return FMath::Max(0.0, Folded);
+}
+
+
+
+// ── 脚本面宿主转发器（Task 1：把宿主实现接进虚分派体系） ──────────────────────────
+//
+// **★ 翻译方向 = 富上下文 → 已反射句柄**（MUST 读，防写反）：
+// 框架侧拿到的是 `FTcsSkillCostContext`（含 `FTcsLearnedSkillEntry*`，非反射）；
+// 宿主签名只收两个**已反射句柄** ⇒ 本转发器负责"降级"。宿主若要读条目字段，
+// 经技能门面按句柄解析（`SCRIPT-8` 的"按句柄访问器"手法）。
+
+bool FTcsSkillCostPolicy_HostDelegate::CanAfford(
+	const FTcsSkillCostContext& Context,
+	FString* OutReason) const
+{
+	UObject* HostObject = Host.GetObject();
+	if (!HostObject)
+	{
+		// **空 Host ⇒ fail-closed**（判据见头文件：与"策略缺失"那条路对齐，
+		// 而不是像 `FTcsParamSource_HostDelegate` 那样返回中性值——那里是数值源，
+		// 返回 0 不会让"该扣的没扣"；这里放行就是**免费放技能**）。
+		if (OutReason)
+		{
+			*OutReason = TEXT("宿主策略对象为空（装了转发器但没接宿主实现）");
+		}
+
+		UE_LOG(LogTcsSkill, Warning,
+			TEXT("消耗判定失败：`FTcsSkillCostPolicy_HostDelegate` 的 Host 为空（单位=%lld）——fail-closed"),
+			Context.Unit.Id);
+		return false;
+	}
+
+	// **条目句柄从哪来**：条目的身份就住在条目自身的 `Handle` 字段上（账本一切操作的入参）。
+	// 上下文可空（装置验配置边界）⇒ 无条目时传无效句柄，由宿主自行判（它拿不到条目语义）。
+	const FTcsSkillEntryHandle EntryHandle = Context.Entry
+		? Context.Entry->Handle : FTcsSkillEntryHandle();
+
+	FString Reason;
+	// **MUST 用 `Execute_*`**：虚表直调会静默跳过脚本层实现（见头文件判据）
+	const bool bAfford = ITcsSkillCostPolicyHost::Execute_CanAfford(
+		HostObject, Context.Unit, EntryHandle, Reason);
+
+	if (!bAfford && OutReason)
+	{
+		*OutReason = Reason;
+	}
+
+	return bAfford;
+}
+
+
+
+bool FTcsSkillCostPolicy_HostDelegate::CommitCost(
+	const FTcsSkillCostContext& Context,
+	double* OutApplied) const
+{
+	if (OutApplied)
+	{
+		*OutApplied = 0.0;
+	}
+
+	UObject* HostObject = Host.GetObject();
+	if (!HostObject)
+	{
+		// 空 Host ⇒ 零提交（与 `CanAfford` 同判据：不假装成功）
+		UE_LOG(LogTcsSkill, Warning,
+			TEXT("消耗提交跳过：`FTcsSkillCostPolicy_HostDelegate` 的 Host 为空（单位=%lld）"),
+			Context.Unit.Id);
+		return false;
+	}
+
+	const FTcsSkillEntryHandle EntryHandle = Context.Entry
+		? Context.Entry->Handle : FTcsSkillEntryHandle();
+
+	double Applied = 0.0;
+	const bool bCommitted = ITcsSkillCostPolicyHost::Execute_CommitCost(
+		HostObject, Context.Unit, EntryHandle, Applied);
+
+	if (OutApplied)
+	{
+		*OutApplied = Applied;
+	}
+
+	return bCommitted;
 }
 
 
