@@ -15,8 +15,16 @@
 - `USTRUCT(BlueprintType) FTcsSkillCostConfig{ ETcsSkillCostTiming Timing; FInstancedStruct CostMode; }`；
 - `USTRUCT(meta = (Hidden)) FTcsSkillCostPolicy`（消耗策略**抽象基类**：`CanAfford` / `CommitCost`
   两个虚函数，**中性默认实现** + `meta = (Hidden)`，**虚析构**）；
-- `USTRUCT() FTcsSkillCostPolicy_ResourceAttr : public FTcsSkillCostPolicy`
+- `USTRUCT(BlueprintType) FTcsSkillCostPolicy_ResourceAttr : public FTcsSkillCostPolicy`
   （内建策略：`FGameplayTag ResourceAttr` + `FTcsParamValue Amount`）；
+  **`BlueprintType` 是必需项**（**2026-10-13 订正**：本行原写裸 `USTRUCT()`，与代码不符）——
+  判据 = `IsScriptExposedStruct`（`PyGenUtil.cpp:1560`）**沿父链**逐个查该元数据、
+  **任一环有才导出**，而基类只带 `meta = (Hidden)` ⇒ 裸 `USTRUCT()` 的派生类**不进脚本层**
+  ⇒ **内建策略脚本侧配不了**，与上述"内建也走同一套"及脚本面插槽目标直接冲突。
+  **两条并列要求（MUST NOT 互相顶替）**：**具体策略类带 `BlueprintType`**（决定"脚本能不能配"）；
+  **基类只带 `meta = (Hidden)`**（决定"picker 里能不能选到基类"——picker 的
+  `FInstancedStructFilter::IsStructAllowed` **不读** `BlueprintType`）；
+  故"编辑器里选得到"**推不出**"脚本里也配得了"。
 - `USTRUCT(BlueprintType) FTcsSkillCostPolicy_HostDelegate : public FTcsSkillCostPolicy`
   （脚本面转发器：`TScriptInterface<ITcsSkillCostPolicyHost> Host`）；
 - `UINTERFACE(MinimalAPI, Blueprintable) UTcsSkillCostPolicyHost` / `ITcsSkillCostPolicyHost`

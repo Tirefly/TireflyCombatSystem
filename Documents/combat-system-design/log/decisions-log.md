@@ -673,3 +673,81 @@
   ② 无头 `UnrealEditor-Cmd.exe` 在 `-game` 下**不自行退出** ⇒ 残留进程锁住 DLL ⇒
   下一次链接必 `LNK1104`（**不是代码问题**，取证完 MUST 显式 `Stop-Process`）。
 - **台账**：`COST-3` + `COST-2` **同批闭合**；**条目数不变（74）**（本册处置是"闭合留行记结论"）。
+
+
+
+### 第二十一轮：R6.5-CC 取证补齐——内容侧消费资产 + PIE 路线（2026-10-13）
+
+**来源 = 用户当日要求**："PIE 测试也应该执行的，且应该创建一个 Cost 直接消费属性
+（可以先用 Health 做判定，或者新建 Mana 和 MaxMana 的 TcsDevAttribute），然后统一执行测试"。
+
+**本轮的定位 = 补 `EVID-2026-10-12-cost-policy` §7 边界 3 的空档**，并顺带把"**消耗策略
+从未被内容侧 `Def` 资产驱动过**"这条更深的缺口一起补上（本档三处缺口见证据档 §1）。
+
+- **★ 落地内容**：用户裁定**新建专用资产**（不改进既有 4 份 E2E 资产 —— 那是技能层回归的
+  受测载体，改它会让 `[复现性摘要]` 与基线漂移）；新建 `DA_SkillDef_E2E_CostMana`
+  （`Cost` = `ECT_OnCastStarted` + 内建 `ResourceAttr` 策略扣 `Attribute.Mana` **25**）、
+  `DA_Mana`（基值 100、上界**动态取 `MaxMana`**）、`DA_MaxMana`；装置新增 **L 面**四条判据。
+- **★ 读数（两条路线）**：无头 `Run` **30/0 + 33/0**、`Reject` **7/0**、R6 回归 **24/0**；
+  **PIE** `Run` **33/0 + 36/0**（**连跑三轮逐字相同**）、`Reject` **7/0**、同会话回归 **24/0**、
+  **跨 PIE 重跑通过**；**全部日志 `FAIL=0` 且 `ensure=0`**；双配置 **0/0**；
+  回归 `[复现性摘要]` 与冻存基线**逐字相同**。
+  **PIE 比无头多 4 条**（`L1`~`L4`）**是正当差异**：无头下内容资产 0 条 ⇒ `L1~L3` 按设计跳过。
+- **★ 最值钱的判据 = `L2`**：内容侧资产的 Cost **真扣了 25**（`Mana 100→75`）。
+  **判据为什么能立住**：装置自持面写 **30**、宿主策略写 **7**、内容资产写 **25** ——
+  **三处两两不同** ⇒ 读到 `−25` **只可能**来自内容资产自己的配置。
+  配 `L3`（同形状摘掉策略 ⇒ fail-closed）证其**非旁路**；配 `L4`（同形合成孪生）保该能力
+  **跨路线可判**（否则无头下这条能力**没有任何判据**）。
+- **★ 三处缺陷（一处产品 + 两处夹具，逐条如实）**：
+  ① **产品：内建消耗策略脚本层不可达**——`FTcsSkillCostPolicy_ResourceAttr` 只有裸 `USTRUCT()`、
+     缺 `BlueprintType`；根因 = `IsScriptExposedStruct`（`PyGenUtil.cpp:1560-1581`）**沿父链**查
+     该元数据、任一环有才导出。**与 R4 裁定"内建也走同一套策略"及脚本面插槽目标直接冲突**。
+     **★ 潜伏至今的原因见证据档 §4**——"三条路里只有脚本那条断"（C++ 面与编辑器 picker
+     **都不读** `BlueprintType`，故只有"用脚本配它"这一条路会暴露，而此前从没跑过脚本侧）。
+  ② **夹具：无头下 `ApplySliceAttributes` 触发 `ensure` Error 红字**——装置只补登记了
+     `R65Mana` 一条，而该函数要四条切片属性 ⇒ **验收信号被夹具自己污染**
+     （违本命令族自己的"常规命令零非预期红字"纪律；与 `MEM-20261004-27` 同族）。
+     **为何此前未被发现**：`ensure` 每站点每进程只报**首次**（`bExecuted` 原子标志）。
+  ③ **夹具：动态边界引用方未挂实例 ⇒ `Mana` 被钳到 0**——`Mana` 的上界是
+     `ABM_Dynamic → MaxMana`（**刻意**与内容资产同规则），而单位不持有 `MaxMana` 实例
+     ⇒ 上界求值落 0 ⇒ **扣对了又被钳回 0**。症状极具误导性：日志里
+     `消耗已提交 …100→75（扣 25）` 与 `[属性变更] …100→0` **同时**出现，
+     判据读 0 而 FAIL，**看起来像"策略没生效"**。
+     **★ 补挂后 PIE 又暴露第三处**：`AddAttribute` 对**已持有**属性是 `ensureMsgf`
+     （`TcsAttributeSubsystem.cpp:125`），而"是否已持有"**随路线而变**（PIE 内容资产已装载）
+     ⇒ **无头绿、PIE 红**（**"无头给假绿灯"的又一实例**，本轮第 N 次）。
+     ⇒ 抽出 `R65AddAttributeIfAbsent`（**未持有才加**，以 `TryGetBaseValue` 作持有探测口），
+     **本装置一切 `AddAttribute` 调用 MUST 走它**。
+- **★ 两处方法论沉淀（本轮最有复用价值）**：
+  ① **"编辑器里能配"推不出"脚本里也能配"**：同一类型的三条消费路（C++ / picker / 脚本）
+     **元数据判据各不相同**（C++ 看类型系统；picker 看 `Hidden`/`AllowedClasses`，**不读**
+     `BlueprintType`；脚本看 `BlueprintType` 且**沿父链**）⇒ 加"宿主可配置"类型时 MUST
+     **逐条**核对每条路，**不能只看在编辑器里点得出来**。
+  ② **"定义在册 ≠ 实例在册"**：边界/引用是按**实例**求值的 ⇒ 凡定义带**动态引用**者，
+     装置 MUST 把被引用方的**实例**也备齐。
+- **★ 一处 API 变更（旧脚本已失效，MUST 知）**：**`unreal.GameplayTag.request_gameplay_tag`
+  在 UE 5.8 不存在**（引擎侧 `FGameplayTag::RequestGameplayTag` 是普通 static、**无 `UFUNCTION`**，
+  `GameplayTagContainer.h:57`）⇒ 本仓 `Saved/TcsAcceptance/Task7/author_assets.py` **已跑不动**。
+  替代 = 空 tag 上 `import_text("A.B.C")`（未注册时 `get_tag_name` 得 `None`、
+  `is_gameplay_tag_valid` 为 `False` ⇒ **可判**）。
+- **★ 四条工具链路线实测（省后人时间，MUST 留痕）**：
+  ① 编辑器 GUI 的 `py` 控制台（Slate 合成键盘）**不稳**——**自动补全弹窗会吞掉/改写逐字符
+     输入**（症状：日志出现 `Failed to resolve the Value for Make Instanced Struct`
+     而**不是**我们送的命令）；
+  ② `-run=pythonscript -script=`（commandlet）**脚本根本不执行**；
+  ③ `-game` + `-ExecCmds=py …` **能跑游戏逻辑但资产创建必崩**——
+     `UEditorAssetLibrary::DuplicateAsset` 取 `GEditor->GetEditorSubsystem<>()`，而 `-game` 下
+     **`GEditor` 为 null** ⇒ `EXCEPTION_ACCESS_VIOLATION`（`SubsystemCollection.cpp:83`）；
+  ④ **`-ExecutePythonScript=<py>` ✅ 正解**——**完整编辑器模式**（`GEditor` 在）且
+     **跑完自退**（`EditorPythonExecuter.cpp:125` 的 `QUIT_EDITOR`）。
+  **⇒ 判据：一切"资产创建/改名/保存"类 API MUST 在编辑器模式下调；`-game` 只适合"跑游戏逻辑的读数"。**
+  **另注**：`DataAssetFactory` 造资产也走不通（`data_asset_class` 运行期不可写、
+  `supported_class` 触发同一处崩溃）⇒ 用 `duplicate_asset(源, 目的)`（**注意参数顺序**）。
+- **一处 API 陷阱（静默失败，MUST 知）**：`FInstancedStruct` 的内层字段在 Python 侧
+  **写不进去**（`Failed to find property … on 'InstancedStruct'`；`assign`/`reset` 后同样不行），
+  只能走 `import_text`；而**两类载体的文本形态不同**——具体结构体写 `(Prop=Val,...)`，
+  **`FInstancedStruct` 必须带类型路径前缀**。**★ 缺类型路径时不报错、静默保留默认值 0**
+  ⇒ MUST 回读 `export_text()` 断言**同时**含资源键与数量（本档的 `[ASSET] cost_mode_has_*` 即该守卫）。
+- **证据**：`EVID-2026-10-13-cost-policy-pie`（含 §4 方法论、§5 API 变更、§6 边界 7 条）。
+- **台账**：**条目数不变（74）**——本轮是取证补齐 + 三处缺陷修复，**未新开台账条目**
+  （三处缺陷的判据已写进证据档与代码注释，属"就地改正并留痕"）。

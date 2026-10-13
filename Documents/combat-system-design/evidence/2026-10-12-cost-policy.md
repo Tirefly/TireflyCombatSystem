@@ -178,6 +178,11 @@ if (Store->BatchDepth == 0 && PushEvalStack(Attribute)) { Recalculate(...); }  /
    `BlueprintNativeEvent`），**"能导出 ≠ 能往返"**（同 `R-1` 的既有教训）。
 3. **未做 PIE 路线取证**：本轮读数全部来自无头。**两条路线的 DLL 同源**（见
    `EVID-2026-10-11-r65-cooldown-cost` §1.1 的教训），但**MUST NOT** 因此宣称"双路线一致通过"。
+   **★ 该缺口已于 2026-10-13 补上**（并牵出三处缺陷：**产品侧**内建策略缺 `BlueprintType`
+   ⇒ 脚本层不可达；**夹具侧**无头 ensure 红字 与 动态边界钳零）——
+   见 `EVID-2026-10-13-cost-policy-pie`。**该轮的读数（PIE `Run` 33/0+36/0 等）不改变本档的结论**，
+   但**改变了本档的适用边界**：本档 §2 的读数是**无头**读数；**内容侧资产驱动消耗**那条链路
+   **不在本档范围内**（本档三面用的全是装置手搓定义）。
 4. **`CostMode` 的 BaseStruct 收窄只保证 picker 过滤**：运行期取内层仍需 `GetPtr<T>()` 判空
    （裸 `FInstancedStruct` 的既有代价，见 `TcsCostTypes.h` 的注记）。
 5. **跨单位成本未做**：`BeginBatch`/`Commit` 形参是**逐单位**的 ⇒ 宿主策略若跨单位扣减，

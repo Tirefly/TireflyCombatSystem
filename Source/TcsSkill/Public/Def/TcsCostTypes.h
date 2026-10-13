@@ -219,8 +219,28 @@ public:
  *
  * **实现住 `Private/Skill/TcsCostOps.cpp`**（本文件只给形状；UHT 不解析 .cpp 的反射，
  * 故实现必须出线）。
+ *
+ * **★ `BlueprintType` 是必需项、不是装饰（2026-10-13 实测抓出的缺陷，MUST 读）**：
+ * 本类原先只有裸 `USTRUCT()`，结果**没有导出到脚本层**——Python 侧 `hasattr(unreal,
+ * "TcsSkillCostPolicy_ResourceAttr")` 为 **False**，而**姊妹类**
+ * `FTcsSkillCostPolicy_HostDelegate`（带 `BlueprintType`）**在**。
+ * **判据（引擎源码）**：`IsScriptExposedStruct`（`PythonScriptPlugin/…/PyGenUtil.cpp:1560-1581`）
+ * **沿父链**逐个查 `BlueprintType` 元数据，**任一环有才导出**；裸 `USTRUCT()` 三者皆无 ⇒ 不导出。
+ * 基类 `FTcsSkillCostPolicy` 带 `meta=(Hidden)` 却出现在脚本层，**正是"作为已导出子类的父类被顺带发出"**，
+ * 不是它自己够格。
+ * **同族先例（逐个核对过）**：`FTcsParamValueSource` / `FTcsParamEnumerableSource` 两个基类都是
+ * `USTRUCT(meta=(Hidden))`，而 `FTcsParamSource_Literal` / `_ParamRef` / `_HostDelegate` /
+ * `_AttributeScaled` / `_InstigatorLevelArray` 等**全部具体类都带 `BlueprintType`** ⇒ 全在脚本层。
+ * **⇒ 具体策略类 MUST 带 `BlueprintType`；基类 MUST 只带 `Hidden`**（前者决定"脚本能不能配"，
+ * 后者决定"picker 里能不能选到基类"——两件事，别互相顶替）。
+ * **本缺陷的实质影响**：内建消耗策略**脚本侧配不了**（Python / C# 都取不到该类型），
+ * 与"内建也走同一套策略方案"（`R4`）以及本轮的脚本面插槽目标**直接冲突**。
+ * **注意它不影响 C++ 面与编辑器 picker**：`FInstancedStructFilter::IsStructAllowed`
+ * 只看 `Hidden` / `AllowedClasses` 等元数据、**不读 `BlueprintType`**（见
+ * `unreal-development-workflow` 的"细节面板可编辑性"条）⇒ 策划在细节面板里一直选得到它
+ * ——**这正是它潜伏至今的原因**（三条路里只有脚本那条断）。
  */
-USTRUCT()
+USTRUCT(BlueprintType)
 struct TCSSKILL_API FTcsSkillCostPolicy_ResourceAttr : public FTcsSkillCostPolicy
 {
 	GENERATED_BODY()
