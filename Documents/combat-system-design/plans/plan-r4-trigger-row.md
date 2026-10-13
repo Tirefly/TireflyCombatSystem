@@ -2,9 +2,9 @@
 
 - **文档 ID**：`PLN-R4`
 - **类型**：PLN / 计划
-- **状态**：ACTIVE（**R4 全轮已完成 2026-10-04**；本文档继续承载《R4.5 批次表》——b/c 未开工，收口后转 `FROZEN`）
+- **状态**：FROZEN（**R4 全轮已完成 2026-10-04**；《R4.5 批次表》**已于 2026-10-13 收口**——a/b/c 三批全部落地，见该表）⇒ 本文档按立表时预定的条件转 `FROZEN`，此后**正文不再修改**，后续信息以带日期的实施注记追加
 - **权威范围**：R4 实施计划与《R4.5 批次表》（非正式轮号）。**《R5–R8 轮次路线图》已于 2026-10-04 移交 [`PLN-R5`](plan-r5-state-layer.md)**——本文档不再承载路线图，其同名节仅作 R4 期间的历史留痕
-- **最后更新**：2026-10-04
+- **最后更新**：2026-10-13（**R4.5 收口**：三批全部落地 ⇒ 状态 `ACTIVE` → `FROZEN`；批次表 b/c 补闭环链与证据；路线图行与《跨轮耦合》注记同期划改）
 
 > **换根注记（2026-10-01）**：本文 tag 名已随提案 `reroot-gameplay-tag-vocabulary` 换根——旧前缀 `Tcs.Event.*` / `Tcs.Flow.Key.*` / `Tcs.Flow.Template.*` / `Tcs.Attr.*` / `Tcs.Chain.*` 依次成为 `TcsEvent.*` / `DamageFlowKey.*` / `DamageFlowTemplate.*` / `Attribute.*` / `EffectChain.*`；本文正文一律用新名，旧名仅存于本注记与 `log/`、`ledger/`、`evidence/` 等历史文件。
 
@@ -61,7 +61,7 @@
 | 轮次 | 主题 | 主要交付 | 前置 | 台账消费 |
 |---|---|---|---|---|
 | **R4（本计划）** | **M4a 触发行 + 伤害修改器通道 + 原语补齐（一批）** | ①触发行定义/条件注册表（Task 1 已完成）；②登记表与求值器 + **载荷读取器注册表**（Task 2 **已完成**）；③**独立资产载体 `UTcsEffectTriggerDef` + DefLibrary 发现**（Task 2.5）；④`ModifyFlow` 链原语（Task 3）；⑤**追加 4 个原语**：`SetVar` / `Branch` / `RunSubChain` / `WaitEvent`（Task 3.5）；⑥端到端验收（Task 4）；⑦收束（Task 5） | R3 已收束 | **DAMAGE-3 部分**（ModifyFlow）；**DAMAGE-1 部分**（载荷装填）；**DAMAGE-2 部分**（4 个原语——2026-09-23 用户拍板提前） |
-| **R4.5**（**非正式轮号**） | **脚本通道收口**（寄在 R4 与 R5 之间，不占正式轮） | ①注册表跨世界寿命缺陷修复（**已闭环 2026-09-29**）；②R-1 参数源族宿主插槽（未开工）；③R-2 两张注册表宿主脚本插槽 + 载荷读取器登记（**半闭环**） | R4 Task 1/2 已落地 | 不消费台账条目；权威登记 = `LEDGER-reflection` 的 R-1 / R-2 |
+| **R4.5**（**非正式轮号**） | **脚本通道收口**（寄在 R4 与 R5 之间，不占正式轮） | ①注册表跨世界寿命缺陷修复（**已闭环 2026-09-29**）；②R-1 参数源族宿主插槽（~~未开工~~ → **✅ 已落地闭环 2026-10-05**）；③R-2 两张注册表宿主脚本插槽 + 载荷读取器登记（~~半闭环~~ → **✅ 已落地闭环 2026-10-06**） | R4 Task 1/2 已落地 | 不消费台账条目；权威登记 = `LEDGER-reflection` 的 R-1 / R-2 |
 | R5 | **M3 状态层（TcsState）** | `UTcsStateDef` 家族 / `FStateInstance` + 中央注册表 / 五轴堆叠 / 关系表 + 级联重评 / Duration-Period + 到期堆 / `ParamSnapshot` / **修正器物化（D3-19）** / **`ApplyState` 链原语（随 M3 同批——否则 Buff 有事件却施加不了状态）** / 生命周期事件全集 / **`Heal` 原语** / `ModifyAttribute`（属性访问注入位与 `ApplyState` 同批） | R4（行为面验收） | **STAT-2**、**DAMAGE-2**、**STAT-3**、**DAMAGE-2 余**（`Repeat`/`Parallel`/`OnError`）、**DAMAGE-3 余**（`Heal`） |
 | R6 | **M5 技能层（TcsSkill）** | `UTcsSkillDef` / 账本 `FLearnedSkillEntry` / 六道门禁 / **时段驱动 `FPhaseSpan` + 打断** / 冷却多轨道 + 三事件 / Cost 策略 / **参数链（带式聚合，折叠器复用）** / 链重定向栈 / `FEntrySelector` | R5（`FSkillDef` 继承 `FStateDefBase`） | **STAT-1**（参数链接入折叠器）、**CORE-1**（若全域订阅需求成立） |
 | R7 | **M6 集成层** | 两级单位（Mass 小兵 + 全功能军官）/ StateTree 决策接线 / **AttributeSet 全套** / `PrimaryAssetTypesToScan` + 发现机制切换 AssetManager + 加载层三策略 | R6 | **INTEG-1**、**INTEG-2**、**INTEG-3**、**WAIT-2**、**WAIT-5**、**WAIT-6**、**WAIT-8 余**（模板资产化） |
@@ -89,12 +89,12 @@
 | 批次 | 内容 | 状态 | 判据 / 证据 |
 |---|---|---|---|
 | **R4.5-a** | 注册表跨世界寿命缺陷修复：4 张注册表双轨登记值（对象/世界弱引用）+ 失效判据 + 拒绝门收窄为「同世界活对象重复」+ `Unregister` / `GetDynamicKeys` + 门面 `Deinitialize` 按世界撤销 | **✅ 已闭环（2026-09-29）** | 提案 `harden-registry-cross-world-lifetime`（已归档 `2026-09-29-…`）；证据 `EVID-2026-09-29-registry-lifetime`——同一 Editor 进程两连 PIE，5 个缺陷签名（`拒绝重复登记` / `已有执行器` / `保留首个` / `登记失败` / `Handled ensure`）**全 0**；Development + Shipping 双配置 0 error / 0 warning |
-| **R4.5-b** | **R-1 参数源族宿主插槽**（`ITcsParamSourceHost` + 转发器 struct；已调研并拍板 2026-09-24） | **并入 R5 Task 3**（2026-10-04 排定） | 判据：C# 侧能定义新数值源并跑通一条链。落点 = `PLN-R5` Task 3 Step 9（与四个等级源同族同验证面）；条目级真相 = `LEDGER-reflection` R-1 |
-| **R4.5-c** | **R-2 两张注册表的宿主脚本插槽**（`BlueprintType` 升格 + `Register(UScriptStruct*, UObject*)` 反射入口） | **⚠ 半闭环**（2026-10-04 复核：**只剩插槽这一半**） | 寿命语义那半随 R4.5-a 落地；**"载荷读取器登记"那半已消费**——本计划 Task 3 落了 `TcsDamageFlowCollectEvent.cpp` 的 `UE_DEFINE_TRIGGER_PAYLOAD_READER`，Task 4 实测 `Caster ← Attacker` 生效 ⇒ 本行原写"至今全库只有定义、零登记"**已过期**。**插槽那半排到 R6 开工前**（消费者 = 宿主专属条件 / SkillCost） |
+| **R4.5-b** | **R-1 参数源族宿主插槽**（`ITcsParamSourceHost` + 转发器 struct；已调研并拍板 2026-09-24） | ~~并入 R5 Task 3~~ → **✅ 已落地闭环（2026-10-04 排定并入 / 2026-10-05 收束标记）** | 判据（C# 侧能定义新数值源并跑通一条链）**已满足**：落点 = `PLN-R5` Task 3 Step 9，接口 + 转发器住 `TcsCore/Public/Parameter/TcsParamSourceHost.h`；**静态面 + 行为面双证**（C# 夹具 `UTcsDevGcParamSourceHost` 返回 13、探针五槽位、GC 后仍被抵达且 `incoming=13`）——见 `EVID-2026-10-04-state-param-snapshot-and-level-sources` §⑤⑦。条目级真相 = `LEDGER-reflection` R-1（已闭环） |
+| **R4.5-c** | **R-2 两张注册表的宿主脚本插槽**（`BlueprintType` 升格 + `Register(UScriptStruct*, UObject*)` 反射入口） | ~~⚠ 半闭环（2026-10-04 复核：只剩插槽这一半）~~ → **✅ 已落地闭环（2026-10-06）** | 寿命语义那半随 R4.5-a 落地；**"载荷读取器登记"那半已消费**（本计划 Task 3 落了 `TcsDamageFlowCollectEvent.cpp` 的 `UE_DEFINE_TRIGGER_PAYLOAD_READER`，Task 4 实测 `Caster ← Attacker` 生效）；**插槽那半已于 2026-10-06 落地**——提案 `add-trigger-host-slots`（已归档 `2026-10-06-add-trigger-host-slots`，即 `PLN-R6` Task 0）：两契约 `UTcsTriggerConditionEvaluator` / `UTcsTriggerPayloadReader`（`UINTERFACE(MinimalAPI, Blueprintable)`）+ 门面四口（含两个 `Unregister` 对）；**运行期往返取证已完成**（`Arm` 5/0 → `obj gc` → `Verify` 7/0 → `Reject` 3/0，两轮判定行 17/17 逐字相同）——见 `EVID-2026-10-06-trigger-host-slots`。**留白一条**：跨世界失效分支未实测，已入册 `WAIT-11` |
 
 > **边界（如实记）**：`EVID-2026-09-29-registry-lifetime` 明文**不覆盖**条件求值器 / 载荷读取器两张注册表的寿命语义行为验证（本次装置未登记它们的动态条目；逻辑同构，属静态实现）——恰是 R4.5-c 要动的那两张。
 
-> **★ 跨轮耦合（2026-09-30 登记；2026-10-04 重排）**：评分器那一处**已随本计划 Task 3.5 落地**（`ITcsTargetScorerHost` + `FTcsScorerHostDelegate`）⇒ 宿主插槽家族只剩 R4.5-b / R4.5-c 两处，原"三处未开工 ⇒ 装置会写三遍"的**并批前提已不成立**。**新排期（2026-10-04 用户裁定）**：b **并入 `PLN-R5` Task 3**（与四个等级源同族同验证面）、c **排到 R6 开工前**（消费者 = 宿主专属条件 / SkillCost）——按"离第一个真实消费者最近"排。两处各自复用 SCRIPT-8 的探针，**探针 MUST 复用、不得重写第三次**。**权威登记见 `LEDGER-reflection`《★ 宿主插槽家族的耦合关系》**——本表只留指针，不重复内容。
+> **★ 跨轮耦合（2026-09-30 登记；2026-10-04 重排；2026-10-13 结清）**：评分器那一处**已随本计划 Task 3.5 落地**（`ITcsTargetScorerHost` + `FTcsScorerHostDelegate`）⇒ 宿主插槽家族~~只剩 R4.5-b / R4.5-c 两处，原"三处未开工 ⇒ 装置会写三遍"的**并批前提已不成立**~~ → **两处均已落地**（b 2026-10-05 / c 2026-10-06）⇒ **家族四处全部结清，本注记关闭**。~~**新排期（2026-10-04 用户裁定）**：b **并入 `PLN-R5` Task 3**、c **排到 R6 开工前**——按"离第一个真实消费者最近"排~~（排期已执行完毕）。**"探针 MUST 复用、不得重写第三次"这条已兑现**——b/c 各自复用 SCRIPT-8 的既有探针（b 扩为五槽位、c 扩 `TcsDevGcProbe`），**未重写第三次**。**权威登记见 `LEDGER-reflection`《★ 宿主插槽家族的耦合关系》**——本表只留指针，不重复内容。
 
 ---
 
@@ -665,7 +665,7 @@ const FTcsEffectTriggerDef* ResolveTriggerDef(FGameplayTag TriggerTag) const;
 >
 > **额外交付（计划未列、但 `INDEX` §5 的更新纪律要求）**：**`SPEC-TRACE` 验证状态更新**——`INDEX` §5 明文"一轮收束 → 台账勾销 + 计划标完成 + **`SPEC-TRACE` 更新验证状态**"，本计划的 Task 5 三 Step 漏了这一步。本次：**新增 7 行**（`effect-trigger` × 3 / `effect-trigger-asset` × 1 / `effect-interpreter` × 2 / `targeting-strategy` × 1）+ **改判 2 行 + 补边界 1 行** + 一份 R4 增量注记（含全部证据边界）。另：`INDEX` §1 / §2 / §4 状态同步（R4 完成、台账 48 条、`SPEC-03-effects` / `SPEC-08-damage` / `PLN-R4` / R4 路线图行）。
 >
-> **计划状态**：R4 七个 Task 全部完成；**本文档保持 `ACTIVE`**——它继续承载《R4.5 批次表》（b/c 未开工），待那两批收口后转 `FROZEN`。
+> **计划状态**：R4 七个 Task 全部完成；**本文档已于 2026-10-13 转 `FROZEN`**——它承载的《R4.5 批次表》**三批（a/b/c）已全部收口**，转冻结的条件达成（见文首身份块与批次表）。此后本文正文不再修改，后续信息以带日期的实施注记追加；《R5–R8 轮次路线图》的真相源仍在 `PLN-R5`。
 
 ---
 
