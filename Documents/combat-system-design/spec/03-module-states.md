@@ -55,9 +55,24 @@ FStateDefBase（抽象，编辑器隐藏）          ← 本模块定义
 
 ### 3.4 关系表（裁决 1 + D3-3 + 形状扩展）
 - 字段形状（裁决 1 增补）：`{ Status, Blocks, Requires, Priority, Cancels }`——FBuffDef 字段（约束施加态共存）；**FSkillDef 同形状字段**（语义映射：Block=禁止激活、Require=激活前提、Priority=顶替优先级、Cancels=激活时取消指定运行/状态——姿态切换），共享通用关系检查器（主体类型化：状态实例/施法运行）。
+  > **★ 2026-10-13 语义裁决（`R5.5-e`，用户逐项拍板；原文逐字保留、本注就地取代其中两处归类）**：
+  > 载体 = [`DEC-2026-10-13-relation-semantics`](../decisions/dec-2026-10-13-relation-semantics.md) + [`PLN-R5.5`](../plans/plan-r5.5-relation-table.md)。
+  > ① **`Priority` 移出本字段族**——它归**槽位竞争表**（主体 = 施法运行/动作状态，即下行的"槽位竞争"那条）；本族 = **`Blocks` / `Requires` / `Cancels` 三字段**。
+  > 判据 = `DEC-2026-08-31-state-relation` §4 第 2 条原文写的是"**抢同一槽时**靠显式 `Priority`"（主语是槽，不是成对关系），且下行"两表并存"明写两者**主体不同**。
+  > **与 M2 `OverridePriority` / `OverrideTieBreak` 判为两个无关概念**（裁决键类型不同：M2 是"优先级 → 打平按策略**比数值**"三级阶梯，而本族候选**无数值可比**）⇒ **MUST NOT 复用 `ETcsAttrOverrideTieBreak`**；仅沿用全仓"谁更强 = 大者胜"的**方向约定**。
+  > `FTcsBuffDef::Priority` / `FTcsSkillDefData::Priority` **本轮不动代码**（零消费者），物理去留归 `PLN-R5.5` Task 4。
+  > ② **`Blocks` 与 `Cancels` 正交，不是互逆字段对**——`Blocks` = **退让声明**（"B 在时我放弃施加"，来源 = 自己，结果 **B 赢**，回执 `EAR_Rejected`）；`Cancels` = **强夺声明**（"我施加时把 B 去掉"，来源 = 自己，结果 **A 赢**，移除原因 **`ESRC_Cancelled`**）。**两个字段各自单向可用**（都不需要对方配合），故不冗余；同一有序对上两句同真 = 作者期 **Error**（自相矛盾），双向 `Cancels` = 无确定赢家 = **Error**。
+  >
+  > **★★ 2026-10-13 同日第二笔：上句的"配对"配错了对象，本注更正（原文逐字保留）**。**精确回读本仓 `FTcsBuffDef` 的字段注释**：`Blocks` = "这些状态**存在时本状态不可施加**"（**受动/前置**：我必须缺席）、`Requires` = "这些状态**必须已存在**"（**前置**：我必须已具备）、`Cancels` = "施加本状态时**取消**这些状态"（**施动/对外副作用**）⇒ **真正的同轴配对是 `Blocks` / `Requires`**（前置条件的"必须缺席"vs"必须存在"），**`Cancels` 与它们正交**。
+  > **连带撤销**：上句末的"同一有序对上两句同真 = 作者期 **Error**"——按修正后的语义，`A.Blocks ∋ B` 与 `A.Cancels ∋ B` 同真**不矛盾**，它表达的是**在位者赢**（B 在 ⇒ A 被拒 ⇒ 只能等 B 自然消失）；只填 `A.Cancels ∋ B` 则表达**后到者赢**。**⇒ "填哪几个字段"即抢占策略，不需要 `Priority` 数字**（这也进一步加强裁决①）。**保留的两条校验** = 双向 `Cancels`（无确定赢家）/ `ForbiddenTags` 自指（永不可满足）。
+  > **外部对照佐证**：Lyra 把这两个方向**明确分成两个字段**——`ActivationBlockedTags`（受动/前置）vs `AbilityTagsToBlock`（施动/对外）。**字段改名**（`Blocks` → **`ForbiddenTags`**、`Requires` → **`RequiredTags`**、`Cancels` → **`TagsToCancel`**）+ **新增 `TagsToBlock`（预防）** 详见 `DEC-2026-10-13-relation-row-shape` §4。**★ 陷阱**：`Blocks` 映射到 **`ForbiddenTags`**，**MUST NOT** 映射到 `TagsToBlock`（两格词形极近、语义方向相反 ⇒ 静默语义反转）。
+  > ③ **`Requires` 未满足的"排队"档本轮不落**（零消费者不预建）。
 - 执行时机：apply 时校验（Blocks 拒绝 / Requires 未满足拒绝或排队）；**任何状态移除后对依赖它的存活状态做事件驱动重评**（脏标记，批量移除合并一次）。
-- 槽位竞争（PriorityOnly 抢占 + PreemptionPolicy + 同优先级策略，TCS 报告 06（库外，已不在库内）已验证）并入 Priority 语义。
+- 槽位竞争（~~PriorityOnly 抢占 + PreemptionPolicy + 同优先级策略，TCS 报告 06（库外，已不在库内）已验证~~ → **2026-10-13：该句的"已验证"不成立——`TCS 报告 06` 库外不可复核（`GLOSSARY` §6 第 10 条），两词今天只有名字；语义须由 `PLN-R5.5` Task 4 **从判据重新推导**，`PreemptionPolicy` 不建字段（零消费者）。**原文保留记现场**）并入 Priority 语义。〔**连带**：本行"Priority 语义"现指**槽位竞争的** Priority，与下行关系表三字段无涉。〕
 - **组织与解析栈（D3-16）**：关系表/槽位竞争表**并存**（槽位=施法运行/动作状态，关系=Buff 施加态，互相影响）；统一 DataTable/DataAsset 行（行=单个或**一类** StateDef——StatusTag 匹配）；**解析栈**：全局默认表（插件）→ 游戏模式表 → 角色覆盖表（Boss）——让渡点模式应用；关系引用走 Tag（StateTag/SkillTag 子域）；**槽位竞争不用 StateTree**（数据行+引擎抢占规则）。
+  > **★ 2026-10-13 补（族规则载体的改判，`R5.5-e` 裁决③）**：**"类目降维"机制保留**（`DEC-2026-08-31` §4 第 1 条把 N×M 压成 K 条），但**载体改判**——原文举例的 `State.Control.*` 阻断 `Action.*` **依赖两个不存在的 tag 根**（全仓实测）⇒ 改用**宿主词汇的类目容器（`FTcsStateDefBase` 新增 `FGameplayTagContainer CategoryTags`）+ 一族规则行**（补的那一层 = `FGameplayTagQuery` 是**一元谓词**、族规则是**二元关系**）。**同族先例 = `DamageCategory` 根**（宿主 ini 声明词、插件零具体词）⇒ **本议题不开任何新根**。落地归 `PLN-R5.5` Task 2，与台账 **`STAT-10`**（类别标识容器 + `ByCategoryTags` 档）**同批裁**——二者是**同一套机制的两半**（声明面同一个字段、两个消费者）。
+  >
+  > **★★ 2026-10-13 同日第二笔（进一步取代上段的两处）**：载体 = [`DEC-2026-10-13-relation-row-shape`](../decisions/dec-2026-10-13-relation-row-shape.md)（吸收 Lyra 的 `ULyraAbilityTagRelationshipMapping`）。**① 行形态**改为**一行 = 一个主体词（单 `FGameplayTag`）+ 四个容器**（`AppliesToTag` / `RequiredTags` / `ForbiddenTags` / `TagsToBlock` / `TagsToCancel`），载体 = **中心 `UDataAsset`**——即**回到本行 `D3-16` 原本写的"统一 DataTable/DataAsset 行"**，与既有规格合流。**② 匹配机制**改为**容器 + `FGameplayTag::MatchesTag` 层级匹配**，**不再需要 `FGameplayTagQuery`**——理由 = Lyra 用同一个需求（域间阻断）证明**主体词填父词即覆盖一族**，查询表达式是多余的（且该引擎类型本机不可核实）。**③ 字段命名与语义方向**另见 §3.4 就地注记（`Blocks` = **受动/前置** ⇒ 改名 `ForbiddenTags`，**MUST NOT** 与新增的施动字段 `TagsToBlock` 混）。
 
 ### 3.5 Level（D3-11 终定）
 - StateDef 通用默认参数含 `LevelBase / MaxLevel`；`FStateInstance.Level`（实例携带）。
@@ -148,7 +163,7 @@ FStateDefBase（抽象，编辑器隐藏）          ← 本模块定义
 | **属性复原与"常驻"两面读数互证**（状态修正器按锚点摘净 / 链条目按设计常驻） | ✅ **已验** | S14 `Armor` 复原 `5.000`（+25 覆写到期摘净）；S15 `Attack` 停在 `25.000`（−5 链写入常驻）——两面读数同轮取得，证明"状态挂 `CascadeAnchor`、链挂 `RunSource`"的落点差异**可观测**；`CHAIN-7`（链挂条目无框架侧回收触发点）据此登记 |
 | **内联触发行按锚点退订** | ✅ **已验** | S13 效果门面触发行计数回到施加前读数；实现侧 = `UnregisterTriggerRowsBySource(CascadeAnchor)`（§12.10 第 7 条） |
 | **可复现性** | ✅ **已验（口径已订正）** | 两轮比对的判据 = **复现性摘要行逐字相同 + 各检查结论相同**，**MUST NOT** 落在区段字节上（进程内一次性惰性初始化日志只写一次；见 §12.11 第 1 条） |
-| **关系表级联重评** | ⛔ **未验** | 关系表检查器整体归 R5.5-e（字段语义未定稿，§12.2）；本轮只落字段形状、零消费者 |
+| **关系表级联重评** | ⛔ **未验** | 关系表检查器整体归 `R5.5-e`（**2026-10-13 起语义已定稿**，见 §3.4 就地注记与 `DEC-2026-10-13-relation-semantics`；批次已重切 `e1`~`e4`，见 `PLN-R5.5`）。**实测状态不变（仍未验）**——本轮交付的是裁决、不是实现；字段至今零消费者 |
 | **Custom 策略** | ✅ **已验（限堆叠决策一支）** | 宿主自定义决策 Fragment 被真实调用（样本恒不同组 ⇒ 每次新建）；Task 5 检查 22；**关系表/槽位竞争侧的 Custom 仍未落**（R5.5-e） |
 | **快照重建（refresh）** | ✅ **已验** | Task 4 检查 21e（重复施加 ⇒ `Refreshed`，同批内摘旧挂新、快照按新 payload 重建）；Task 5 检查 22 叠层刷新路径 |
 | **`PeriodRefresh` 三态** | 🟡 **部分** | 只验了 `Keep`（默认档）；`Reset` / `Immediate` 本轮无内容消费者（证据 §6 边界）；`ExtendDuration` 的**延长上限未定**（D3-15 原文未定，实现为不钳到总时长） |
@@ -188,8 +203,8 @@ FStateDefBase（抽象，编辑器隐藏）          ← 本模块定义
 
 | 条款 | 为何不落 | 归属 |
 |---|---|---|
-| §3.4 关系表**检查器** | **字段语义从未定稿**（`DEC-2026-08-31-state-relation` 的"Priority 语义 / 互斥组结构 / 族规则表达式"至今待在办行；本文 §3.4 只给了形状与执行时机）⇒ 不满足"设计已按实施视角收窄" | R5.5-e（**先拍板语义**）。本轮**只落字段形状**（`FBuffDef` 的 `Blocks` / `Requires` / `Priority` / `Cancels`），零消费者如实登记 |
-| §3.4 级联重评 / 槽位竞争 / 解析栈组织 | 依赖上面的语义拍板；槽位竞争主体（施法运行）属 R6 | R5.5-e |
+| §3.4 关系表**检查器** | **字段语义从未定稿**（`DEC-2026-08-31-state-relation` 的"Priority 语义 / 互斥组结构 / 族规则表达式"至今待在办行；本文 §3.4 只给了形状与执行时机）⇒ 不满足"设计已按实施视角收窄" | R5.5-e（**先拍板语义**）。本轮**只落字段形状**（`FBuffDef` 的 `Blocks` / `Requires` / `Priority` / `Cancels`），零消费者如实登记。〔**2026-10-13 追注**：本行是 **R5 收窄轮（2026-10-04）当时的实况**，故保留。**语义拍板已于 2026-10-13 完成**（`DEC-2026-10-13-relation-semantics`，五项裁定）⇒ 本行"未定稿"的理由**已消失**；检查器归 `PLN-R5.5` Task 1（`e1`）。**注意裁定①**：`Priority` 已移出本族 ⇒ 检查器的字段是**三**个，不是四个。〕 |
+| §3.4 级联重评 / 槽位竞争 / 解析栈组织 | 依赖上面的语义拍板；槽位竞争主体（施法运行）属 R6 | R5.5-e。〔**2026-10-13 追注**：语义拍板已完成 ⇒ **依赖已满足**；本行四项**已重切**（见 `PLN-R5.5`）：级联重评 = Task 3（`e3`，依赖 `e1`）/ 槽位竞争 = Task 4（`e4`，主体 R6 **已交付** ⇒ 与 `e1`~`e3` **正交**）/ 解析栈组织 = 仍留 `D3-16` 原判（零消费者）。〕 |
 | §3.7 就绪状态机（`Unloaded→Loading→Ready/Failed`） | 它是 **DefLibrary（M6/R7）**的性质，不是状态层的 | R7 `INTEG-3` |
 | §5 修正器物化的**技能参数行**分派 | `UTcsSkillModDef` 与 `TcsSkill` 今天都不存在 | R5.5-f / R6 |
 | §7 操作复制（`Apply{DefTag,Source,ParamSnapshot}` 等） | 网络姿态整体未开工 | R7（`WAIT-3`） |
@@ -205,7 +220,7 @@ FStateDefBase（抽象，编辑器隐藏）          ← 本模块定义
 - §2 的 `FStateDefBase` "**生命周期事件词汇**"字段：**零消费者**（行为 Fragment 的 `Interests` 已是声明面）⇒ 本轮不预建，等真实消费者。
 - §2 的 `Descriptions` 描述视图配置：本轮只落字段与作者侧校验，**渲染归 R8**（`SPEC-09-editor`）。
 - §3.3 正文里的 `Combat.State.Periodic` 是**换根前的旧 tag 名**——新名 `TcsEvent.State.Periodic` **已于 2026-10-04（Task 2）落地**、其**产生者（周期条目）于 Task 3 落地**（`TcsStateEvents.h` 的 `Tag_TcsEvent_State_Periodic`，原生声明 + 导出宏）；**该词本轮只有声明、零广播**（周期计时的产生者归 Task 3）。
-- §3.4 的"槽位竞争并入 Priority 语义"一节引用的 `TCS 报告 06`（库外，已不在库内）**不可复核**，语义拍板时 MUST 重新论证。
+- §3.4 的"槽位竞争并入 Priority 语义"一节引用的 `TCS 报告 06`（库外，已不在库内）**不可复核**，语义拍板时 MUST 重新论证。〔**2026-10-13 追注**：**该动作已完成**——`DEC-2026-10-13-relation-semantics` §4 错前提更正② 正面处置了这条（"已验证"三字不成立）；**重新论证本身归 `PLN-R5.5` Task 4**（`e4`），因为它要的是槽位竞争表的确定形状，而该形状只能从能力反推（仓内无可复核先例可依）。本行**保留**——它记的是 R5 收窄轮当时登记的那笔待办，其"MUST"至今仍是硬约束。〕
 
 ### 12.5 Task 1 落地口径（2026-10-04，R5）
 

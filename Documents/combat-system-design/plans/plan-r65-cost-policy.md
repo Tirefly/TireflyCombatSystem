@@ -319,7 +319,7 @@ USTRUCT(BlueprintType) struct FTcsSkillCostPolicy_HostDelegate : public FTcsSkil
 | **脚本策略的 `FTcsParamValue` 数值通道** | D3 已登记"另一层"，本轮不预建 |
 | **`ECT_OnEvent` 档** | 2026-10-12 已删除，**MUST NOT 补回** |
 | **"中性条件层"重构**（v1 D2 的遗留） | v1 的 `Conditional` 已作废 ⇒ 本轮**不需要**条件载体，该项**随之消失** |
-| **`R6.5-2` 批次 `e`/`f`/`g`** | 与本轮无关，MUST NOT 混编 |
+| **`R6.5-2` 批次 `e` / `g`**（**★ 2026-10-13：`f` 已删除**——与 `R5.5-f` 同一工作量，收敛为一个编号，见 `GLOSSARY` §2.1） | 与本轮无关，MUST NOT 混编 |
 | **冷却侧任何改动** | 已收束 |
 
 ---

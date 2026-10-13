@@ -168,5 +168,5 @@ ApplyModifier(Unit, Modifier):
 ## 6. 本轮不做（维持原判，不受镜像影响）
 
 - 冷却 / Cost（`R6.5`）；`FBoolSwitchModifier`（`R6.5-e`）；
-  `UTcsSkillModDef` 模板分派（`R6.5-f`，且**实测该类型全仓零命中**）；
+  `UTcsSkillModDef` 模板分派（`R5.5-f`，且**实测该类型全仓零命中**）；
   `FTcsEntrySelector` 的 `Custom` 档实现（`R6.5-g`）；描述视图（R8）。

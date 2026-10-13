@@ -36,6 +36,14 @@
 - **C 持续重评**：每帧/每变更全量检查。表达力最强但成本与语义噪音大，YAGNI。
 - 继承：槽位竞争（PriorityOnly 抢占 + PreemptionPolicy + 同优先级策略，TCS 06 已验证）并入裁决1 的 Priority 语义，不再独立造机制。
 
+> **实施注记（2026-10-13，按 `CONVENTION` §7「冻结」只追加、正文不改）**：上行的
+> "**TCS 06 已验证**"**不成立**——该报告系列库外、已不在库内（`GLOSSARY` §6 第 10 条），
+> 故这半句是**当时照抄旧库结论的现场**，MUST NOT 被读成"槽位竞争已有可核依据"。
+> **连带一处语义改判**：上行把槽位竞争"**并入裁决1 的 Priority 语义**"——2026-10-13 的裁决
+> **反过来**：`Priority` **移出关系表族、归槽位竞争表**（载体 = `DEC-2026-10-13-relation-semantics` 裁定①）。
+> ⇒ 今天读上行须注意：**"并入"的方向反了**，且 `PriorityOnly` / `PreemptionPolicy` 两词
+> **只有名字**，须由 `PLN-R5.5` Task 4（`e4`）从判据重新推导。
+
 ### D3-4 堆叠/刷新/共存的数据化
 - **A TCS 现状**：维度是 Def 数据字段（MaxStackCount、DurationPolicy、ExpirationPolicy，已验证好用）；共存/替换靠 Merger 策略类（4 个实现：NoMerge/UseNewest/UseOldest/StackByInstigator）；边界行为硬编码（叠数=0 移除等）。
 - **B 推荐：维度保持数据字段 + 共存策略数据化**——一个 `FStackCoexistPolicy` 数据行（规则枚举 + 分组键：按来源/按施加者/全局），枚举组合覆盖 TCS 四实现；边界行为留引擎代码。**删除 Merger 策略类**（四个都是单一行为枚举，正是"该数据化的不该做成类"的判据）；未来真出现表达不了的策略再加类型。

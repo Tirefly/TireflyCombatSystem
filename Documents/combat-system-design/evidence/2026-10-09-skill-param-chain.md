@@ -391,7 +391,7 @@ Tcs.Test.SkillParamChain.Reject   9 PASS / 0 FAIL   4 条预期 Warning（+1 = �
    `AttributeScaled` 半边，本轮只验了 `ParamRef` 半边**（`P16`）。归属 = 出现"技能读属性值"的真实
    消费者时（M6 集成侧），可参照 `FTcsStateEvaluateContext` 的既有派生机制补技能侧派生上下文。
 2. **`ESM_Custom` 档的片段契约**未实现（归 `R6.5-g`）——本轮只验"具名报出 + 零施加"。
-3. **`UTcsSkillModDef` 模板引用形态**未落（该类型全仓 `Source/` 零命中）——`ParamChainRows` 只落内联形态，归 `R6.5-f`。
+3. **`UTcsSkillModDef` 模板引用形态**未落（该类型全仓 `Source/` 零命中）——`ParamChainRows` 只落内联形态，归 `R5.5-f`。
 4. **技能账本无"冻结暂存区"** ⇒ `RemoveParamModifiersBySource` 只扫在册条目（M2 需额外扫 `FrozenAttributes`）。
    **若将来出现"技能条目冻结"，该扫描面 MUST 同批补上**——已写入 `TcsParamChain.h` 的边界登记。
 5. **`Level` 修正是单趟**：`Level` 键若配"按等级取档"的数值源，读到的是折叠**前**的等级

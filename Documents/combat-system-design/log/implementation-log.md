@@ -403,7 +403,7 @@
 
 **★ 缺陷 2 的教训（值得跨轮）**：**免归一的判据 MUST 是"该名实际住哪个 Task"，MUST NOT 是"名字像哪一批"**。我整批把"带 Cooldown/Cost/AttrCapture 字样的"都当 R6.5，于是漏掉了 AttrCapture 其实在 R6。**可执行核验**：对免归一清单里每个名，去**目标 Task 的正文** grep 一次——命中即证明它属该 Task、不属免归一。
 
-**③ 一处主动收紧而非抓错**：`UTcsSkillModDef` 的边界。Task 4 Step 4 说 `ParamChainRows`"可内联或引用 `UTcsSkillModDef` 模板"，而同级"非目标"说"不做 `UTcsSkillModDef` 的技能侧参数行分派（R6.5-f）"——**两句并存会被读成矛盾**。已写明：本轮 `UTcsSkillModDef` **只作引用目标**（引用其 `TemplateTag` 身份），**MUST NOT** 在 `TcsSkill` 内建模板解析/分派器。
+**③ 一处主动收紧而非抓错**：`UTcsSkillModDef` 的边界。Task 4 Step 4 说 `ParamChainRows`"可内联或引用 `UTcsSkillModDef` 模板"，而同级"非目标"说"不做 `UTcsSkillModDef` 的技能侧参数行分派（R5.5-f）"——**两句并存会被读成矛盾**。已写明：本轮 `UTcsSkillModDef` **只作引用目标**（引用其 `TemplateTag` 身份），**MUST NOT** 在 `TcsSkill` 内建模板解析/分派器。
 
 **④ MODIFIED delta 的完整性做了机械化验（不靠目测）**
 
@@ -616,3 +616,58 @@
 **⑥ 计数复核（§5 纪律）**：本轮**无任何计数变更** ⇒ 逐处复算确认——台账 **74 条**不变（R4.5 不消费台账条目）、反射册 **7 项**不变（`R-1` 是状态订正非增删）、能力数 **42** 不变、证据 **28 篇**不变、前缀分布不变。
 
 **⑦ 校验与编码**：`openspec validate --all --strict` = **42 passed / 0 failed**（仅文档改动，规格面未动）；9 个改动文件**逐一核过 LF + 无 BOM**。**零 git 提交**（等用户授权）。
+
+---
+
+## 第十三轮（续）：`R5.5-e` 关系表族语义拍板（设计裁决，2026-10-13）
+
+> **性质**：**设计裁决轮**（`R5.5-e` 的**开工收窄轮**），**零代码 / 零资产 / 零提案**。交付物 = **裁决载体 + 计划骨架**，按项目管理规则先走了 Superpowers `brainstorming`（形态题先定能力轴，再列候选）。逐条拍板流水见 `LOG-DECISIONS` 第二十三轮。
+
+**① 开工前置（两仓勘察，逐条判归属）**：LAC 仓 `master@3f6e90c` —— `git status --porcelain` 唯一未跟踪项 = 本次启动提示词自身（`docs/superpowers/plans/2026-10-13-r55-relation-table-semantics-prompt.md`）；TCS 仓 `remake@bbc3456` —— **clean**。**与提示词记录的基线逐字吻合**。**零提交**（未获授权）。
+
+**② 必读清单读全（9 项 + 5 项追加）**：提示词 §1.2 的 9 个文件全部读原文（含 `docs-convention` 与两份 Def 头）；**另追加 5 项**——`GLOSSARY.md`（编号族与根语义）、`openspec/specs/gameplay-tag-governance/spec.md`（**插件侧 12 根表** = 判"要不要开根"的唯一权威）、`TcsSkillEntrySelector.h`（`STAT-10` 的载体现场）、`TcsEffectTrigger.h`（`Priority` 的既有语义先例）、`TcsAttributeBandFold.h` + `TcsAttrModInstance.h`（M2 三级阶梯的判据锚点）。
+
+**③ 提示词 §1.3 事实表逐条复核（全部成立；另补正两处口径）**：关系字段形状已落 ✅ / 检查器零行 ✅ / `State.Control.*`·`Action.*` 两根不存在 ✅ / TCS 活跃提案 0 ✅ / `PLN-R5.5` 不存在 ✅ / `R6.5-g` 被阻塞 ✅ / `DEC-2026-08-31` `FROZEN` 且三框未勾 ✅。**两处精度补正**：ⓐ 提示词"全仓 117 条 tag、11 个根"是**宿主 ini** 口径，而插件规格登记的是**插件侧 12 个根**（含 `EffectChainRunVar` / `EffectTriggerGate` / `DamageFlowKey`）——两个计数各自正确、**不是同一份表**；ⓑ `R6.5-g` 的阻塞**不是全阻塞**（见 ⑤）。
+
+**④ 五项裁定 + 两条错前提更正**（完整判据与 20 条证据锚点住 `DEC-2026-10-13-relation-semantics` §3，此处不复制）：`Priority` 归槽位竞争表 / 互斥组两层 / `Blocks` 与 `Cancels` 正交 / 族规则 = 宿主词汇类目容器 + `FGameplayTagQuery` + 补一层族规则行 / 范围只含 §7 第 2 条。**两条错前提**：族规则举例依赖的两个根**不存在**；"槽位竞争已验证"依据的 `TCS 报告 06` **库外不可复核**。**★ 本轮最值钱的判据动作** = 三个形态题**每个都先写能力轴**（依 `MEM-20261006-10`，**禁用同族类比**）——裁定① 由此发现问的是 `Priority` 的**归属**而非"哪种优先级"；裁定④ 由此发现 `FGameplayTagQuery` 与族规则的**形状不匹配**（一元谓词 vs 二元关系）⇒ 得到"**复用 + 补一层**"这个第三态（既非"原样复用"也非"不复用"）。
+
+**⑤ 下游挂账的处置（含一处口径改判）**：`STAT-4` —— 关系表检查器**确认为 `StatusTag` 的第一个解析消费者** ⇒ **不开根的唯一理由将在检查器落地时消失**；**本轮仍不预开根**（消费者代码尚不存在），定根与检查器同批。`STAT-10` —— **改判为与关系表族同批裁**（原记"属独立变更"），判据 = **同一套机制的两半**（声明面同一个字段、两个消费者）。`ESRC_Cancelled` 的产生者已定（`Cancels` 胜出路径）。打断来源优先级归属已定（`e4`，**非**关系表）。**`R6.5-g` 的依赖部分解除**（`e1` 即可支撑"关系字段门禁"那一半；`CQM_Custom` / `MCS_Custom` 两档待 `e2`）——**提示词称其"被阻塞"，更准确的读法是"依赖不再单一"**。
+
+**⑥ 批次重切（本轮对排期的实质改动）**：《R5.5 批次表》`e` 行的"四步一格"**掩盖了依赖不对称** ⇒ 拆 `e1`（检查器·特例层）/ `e2`（类目降维层，含 `STAT-10`）/ `e3`（移除级联重评）/ `e4`（槽位竞争表）。依赖 = `e2`、`e3` 串行于 `e1`；**`e4` 与前三者正交**（主体 = 施法运行，R6 已交付）⇒ **可并行**。载体 = 新建 **`PLN-R5.5`**（`R5.5` 首个拥有 Task 骨架的文档，同 `PLN-R6.5-1` 先例；立表理由同 `R4.5`——"非正式轮号只住会话里会被上下文压缩整条丢掉"）。
+
+**⑦ 计数复核（三方向扫描的"计数"方向）**：本轮**无任何计数变更** ⇒ 逐处复算确认：台账 **74 条**、反射册 **7 项**、能力数 **42**、证据 **28 篇**、插件 tag 根 **12 个**、前缀分布**全部不变**。**唯一计数变动 = `plans/` 目录 9 → 10**（新增 `PLN-R5.5`），已同步 `INDEX` §2.1 目录树。**未触发**"台账计数三处对齐"（无条目增删）。
+
+**⑧ 三方向扫描（依 `MEM-20260930-05` / `MEM-20261004-16` / `MEM-20261013-03`）**：
+- **符号方向**：本轮**未改名、未删除任何符号**（`Priority` 字段的物理处置归 `e4`）⇒ 该方向无命中。
+- **计数方向**：见 ⑦（唯一变动已同步）。
+- **被取代的结论方向**（用否定式 grep：`未定稿` / `零消费者` / `未开工` / `已验证` / `不可复核`）：**这是本轮命中最多的方向** ⇒ 逐处按"产物时间戳"分诊（依 `MEM-20261006-09`）——**"当时为真"**（真历史，原文保留 + 日期追注）= `DEC-2026-08-31` §4 第 2 条与 §7 待办、`SPEC-02-states` §3.4 的 `TCS 报告 06` 句、`SPEC-04-skill` §2 关系字段行、`PLN-R5` 批次表 `e` 行、`PLN-R6` §L-1 与关账块、`gameplay-tag-governance` 的 `StatusTag` 不开根段；**"写下即为假"**（清单漏更新）= **无命中**（本轮触及的每处过期陈述都是"当时为真、后被取代"）。
+
+**⑨ 校验与编码**：本次改动文件**逐一核过 LF + 无 BOM**。**规格面未动**（`openspec/specs/` 只加了一段日期注记、**未增删任何需求与场景** ⇒ 能力数不变）；`openspec validate --all --strict` 面由后续实施轮把关。**零 git 提交**（等用户授权）。
+
+**⑩ 一处如实边界（MUST NOT 读成"`R5.5-e` 已可无阻开工"）**：**槽位竞争表（`e4`）的"槽"定义今天无仓内先例可依**——唯一依据库外不可复核（错前提更正②）⇒ 只能从能力反推；若推导不出确定形状，处置 = **如实登记为未落面并退回用户拍板**，MUST NOT 硬造。该风险已在 `PLN-R5.5` §风险与弹性**首行点名**。
+
+---
+
+## 第十四轮：吸收 Lyra 行形态（关系表形态取代，2026-10-13 同日第二笔）
+
+> **性质**：**设计裁决轮（第二笔）**，**零代码 / 零资产 / 零提案**。触发 = 用户提出 `ULyraAbilityTagRelationshipMapping` 先例（"可不可以搬过来"）。**交付物 = 取代裁决 + 本计划五处同步**。
+
+**① 取证（本轮的实际动作，MUST 如实记）**：Epic 官方仓**匿名不可达**（`github.com/EpicGames/UnrealEngine` 取回 **HTTP 404**，需授权），且 **web_search 工具当轮失效**（搜索端点 401，非本 agent 可修）⇒ 改用**公开镜像** [`BulkheadLtd/Lyra_5_4`](https://github.com/BulkheadLtd/Lyra_5_4)（UE 5.4 Lyra），经 GitHub API 取文件（base64 解码）**实际读了三个文件**：`LyraAbilityTagRelationshipMapping.h`（结构定义）/ 同 `.cpp`（三个求值函数）/ `LyraAbilitySystemComponent.cpp`（**消费点**：`ApplyAbilityBlockAndCancelTags` / `GetAdditionalActivationTagRequirements` / `ActivationGroup` 一族）。**未读** GAS 自身 `ApplyAbilityBlockAndCancelTags` 实现（本机无引擎源码树）⇒ 该处语义标【通识】。**镜像可信度未独立验证**（第三方 fork，非 Epic 组织）⇒ 形态级结论可信，逐字级引用以镜像为准、**MUST NOT 当作官方出处**。
+
+**② 机制对照（八行，同构/超越/缺失三分类——依 `MEM-20260902-08`）**：**同构四项**（`ActivationBlockedTags` = 现 `Blocks` / `ActivationRequiredTags` = 现 `Requires` / `AbilityTagsToCancel` = 现 `Cancels` / 中心 DataAsset 行 = `D3-16` **早已写明但从未落地**）；**缺失一项**（`AbilityTagsToBlock` —— **真新能力**，预防语义）；**超越候选一项**（**容器 + 层级匹配 vs 我们的 `FGameplayTagQuery`** ⇒ 采纳更简的）；**反向支持一项**（Lyra **亦无 `Priority`**，其顶替仲裁住 ASC 侧 `ActivationGroup`）。
+
+**③ 五项改判**（载体 = `DEC-2026-10-13-relation-row-shape`，**取代首轮裁决②③**）：**ⓐ 行形态** `{SubjectQuery, ObjectQuery, Action}` → **`{AppliesToTag, RequiredTags, ForbiddenTags, TagsToBlock, TagsToCancel}`**（一行一主体词 + 四容器；**兑现 `D3-16` 既有措辞**，不是新组织）；**ⓑ 匹配机制** → **去掉 `FGameplayTagQuery`**，改容器 + `FGameplayTag::MatchesTag` 层级匹配（**主体词填父词即覆盖一族**）；**ⓒ 字段改名**（`Blocks`→`ForbiddenTags` / `Requires`→`RequiredTags` / `Cancels`→`TagsToCancel`）；**ⓓ 撤销一条 Error 规则**；**ⓔ 新增 `TagsToBlock`（预防）**。
+
+**④ ★ 本轮自行抓出并更正的一处配对错误（最值钱的一条）**：首轮把 `Blocks` 与 `Cancels` 配成"退让 vs 强夺"一对。**回读 `TcsBuffDef.h` 的字段注释**后确认——`Blocks` = "这些状态**存在时本状态不可施加**"（**受动/前置**）、`Requires` = "必须已存在"（**前置**）、`Cancels` = "取消这些状态"（**施动/对外**）⇒ **真正的同轴配对是 `Blocks` / `Requires`**，`Cancels` 与它们**正交**。**根因** = 按**词形**（Block/Cancel 都是"拦"）而非**字段注释**配对。**外部对照佐证** = Lyra 把这两个方向**明确分成两个字段**（`ActivationBlockedTags` 受动 vs `AbilityTagsToBlock` 施动）。**连带撤销**首轮那条 `IsDataValid` 规则（`A.Blocks ∋ B` + `A.Cancels ∋ B` ⇒ Error）——按修正语义**两者同真合法**，且表达**在位者赢**（vs `Cancels` 单独 = **后到者赢**）⇒ **"填哪几个字段"即抢占策略，不需要 `Priority` 数字**。**教训沉淀**：`MEM-20261001-16`（命名争议 = 真实语义边界未知的信号）——**该回读字段注释、而不是按词形推理**。
+
+**⑤ 一处"本机不可核实的依赖"被去掉（附带的实质收益）**：首轮裁决③ 选的 `FGameplayTagQuery` **本机无法核实**（无引擎源码树，首轮已如实标注为【引证】）⇒ 本轮改为**容器 + 层级匹配**后，该未核实缺口**整体消失**（`MatchesTag` 本机有既有用法先例 `TcsParamChain.cpp`）。**留一条触发条件**：出现"一个主体词要同时命中两个不相邻父词"的真实需求时再评估引入查询（今天零消费者）。
+
+**⑥ 未被取代的部分（MUST NOT 读成全部推翻）**：**裁决①（`Priority` 移出关系字段族 → 槽位竞争表）继续有效、且被进一步加强**（Lyra 无 `Priority` + 其顶替仲裁在 ASC 侧，与"归槽位竞争表"同向 ⇒ **两份独立实现同向**）；裁决④⑤⑥ 不变；`STAT-10` 同批裁不变；`R6.5-g` 依赖分两半不变。
+
+**⑦ 计数复核（三方向扫描的"计数"方向）**：**台账仍 74 条**（`TagsToBlock` 是**新能力但有 Task 归属** ⇒ 按入册判据第 3 条**不入册**）；反射册 **7 项**不变；能力数 **42** 不变（**零 openspec 改动**——本轮只加规格注释、未增删需求与场景）；证据 **28 篇**不变；插件 tag 根 **12 个**不变。**唯一计数变动** = `decisions/` **11 → 12 篇**（新增 `DEC-2026-10-13-relation-row-shape`），已同步 `INDEX` §2.1 目录树。
+
+**⑧ 三方向扫描**：**符号方向** = 无改名落地（改名归 `R5.5-e1` 实施轮，本轮只写映射）；**计数方向** = 见 ⑦；**被取代的结论方向** = 命中 6 处（`DEC-2026-10-13-relation-semantics` 的裁决②③ 与那条 Error 规则、`PLN-R5.5` 的 Q-2/Q-3/A5/A6/A7/Task 2 形状、`SPEC-02-states` §3.4 两段、`SPEC-04-skill` §2 一段、台账 `STAT-10` 规则项、`PLN-R5` 批次表 `e` 行）——**全部属「当时为真、后被取代」**（同一天内两笔），故**一律"原文保留 + 日期追注"**，MUST NOT 改写；**"写下即为假"零命中**。
+
+**⑨ 校验与编码**：改动文件逐一核过 **LF + 无 BOM**；`openspec validate --all --strict` = **42 passed / 0 failed**（规格面只加注记、未动需求）。**零 git 提交**（等用户授权）。
+
+**⑩ 一处如实边界**：**Lyra 镜像的逐字可信度未独立验证**（见 ①）；本轮据以改判的是**形态级证据**（几个字段、什么名字、怎么匹配——三处文件互相自洽），**不是逐字引用**。若日后拿到官方仓，MUST 复核形态是否一致。

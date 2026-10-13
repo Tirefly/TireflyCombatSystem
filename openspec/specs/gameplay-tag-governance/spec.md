@@ -39,6 +39,8 @@ TCS 插件侧 GameplayTag 词表的**规范载体**：钉死插件那 **12 个�
 
 **状态词（`Def.StatusTag`）本轮 MUST NOT 为它开根**：它今天的**解析消费者为零**（关系表检查器与按它匹配的槽位竞争表整体归 R5.5-e，本轮只有发现期的有效性校验）⇒ 归属待那一轮拍板（零消费者不预建根）；本轮的验收资产里 `StatusTag` 复用同一个 `StateDef.*` 词，不因此构成对状态词根归属的裁定。**同款边界适用于技能侧**：`FTcsSkillDefData` 继承白拿的 `StatusTag` 同样**不为它开根**，理由与处置相同。
 
+> **★ 2026-10-13 更新（`R5.5-e` 语义拍板，不改变本规格当前状态）**：语义拍板已完成（载体 = `DEC-2026-10-13-relation-semantics`）⇒ **关系表检查器被确认为 `StatusTag` 的第一个解析消费者**（`Blocks` / `Requires` / `Cancels` 三字段全部按它判定）。因此上句"**解析消费者为零**"这一**不开根的唯一理由，将在检查器落地时消失** ⇒ 定根动作归 `PLN-R5.5` Task 1 Step 6（检查器同批），按「一角色一根」查表定名 + **同步本规格根表行数与 `## Purpose` 数字**（台账 `STAT-4` 就地闭合）。**本日不动根表**——拍板时消费者代码尚不存在，"零消费者不预建根"照旧适用；此处只登记"消费者已定位"这一事实，**MUST NOT** 读成本规格已经增根。**同批记一条匹配语义**：`StatusTag` 的判定走 `FGameplayTag::MatchesTag`（**层级匹配**，父 tag 命中全部子词；先例 `TcsParamChain.cpp` 的 `DefTag.MatchesTag(Filter)`）⇒ **不引入通配新语法**。
+
 **检查词的 `Check` 子段约定（2026-10-04 新增，把已在跑的实践补成规则）**：**仅供人工检查/验收使用**的内容词 MUST 落在其**功能根**下并加一个 `Check` 段（形如 `<功能根>.Check.<名>`，3 段）——MUST NOT 另立根（检查词的**消费路径与正式词完全相同**：链 id 仍须 `RegisterChain` 认、触发定义身份仍须定义库认，另立根会让消费路径读不到它），MUST NOT 把生命周期语义塞进路径中段之外的其它位置（生命周期维度只允许 `Check` 这一段的语义）。**该段是段位预算内的合法用法**：`Check` 词比同根正式词多 1 段，仍在 `词表深度上限` 的 4 段预算内留有余量。既有形态 = `EffectChain.Check.{SelfSub,Sort,SortMulti,WaitEvent,WaitEvent3}`（R4 人工检查链）。
 
 **2026-10-05 扩充（随 `AttrModDef` 根落地）**：`StateDef.Check.*`（Task 1 / Task 7）与 `AttrModDef.Check.*` 同属上述形态；`AttrModDef.Check.*` 是**新根下的第一个 `Check` 词**，证明该约定随新根一并适用（`Check` 段不是既有根的专属特权）。**反例同时被钉死**：把生命周期词放进路径中段的形态（`<功能根>.E2E.<名>` 一类）MUST NOT 出现——宿主契约 `host-gameplay-tag-registry` 已把同形路径（其原文举 `EffectChain.Probe.X`）**当反例点名**，本插件侧同受该判据约束。**2026-10-06 R6 Task 1 同批适用**：`SkillDef.Check.*` 是 `SkillDef` 新根下的第一个 `Check` 词（验收资产 `DA_SkillDef_E2E` 的身份词）。

@@ -103,6 +103,15 @@ FStateDefBase（抽象，M3 定义：词表/FragmentSet/通用默认参数 Level
 >   （"框架不提供 `All` / `Group`，宿主项目如果有需求自己去实现就好了，三消耗可以一起塞进一个策略中"）。
 >   台账 `COST-2` / `COST-3` **均已闭合**；证据 = `EVID-2026-10-12-cost-policy`。
 - **关系字段**（同 BuffDef 形状）：语义映射 Block=禁止激活（沉默/缴械）、Require=激活前提、Priority=顶替优先级、Cancels=激活时取消指定运行/状态（姿态切换）；
+  > **★ 2026-10-13 语义裁决（`R5.5-e`；原文逐字保留、本注就地取代其中两处归类）**：载体 = [`DEC-2026-10-13-relation-semantics`](../decisions/dec-2026-10-13-relation-semantics.md) + [`PLN-R5.5`](../plans/plan-r5.5-relation-table.md)。
+  > ① **`Priority` 移出关系字段族** ⇒ 上句"Priority=顶替优先级"的**归类作废**——顶替优先归**槽位竞争表**（主体 = 施法运行/动作状态）；本族 = **`Blocks` / `Requires` / `Cancels` 三字段**。
+  > 判据 = `DEC-2026-08-31-state-relation` §4 第 2 条原文写"**抢同一槽时**靠显式 `Priority`"；且 [`SPEC-02-states`](03-module-states.md) §3.4 明写两表**主体不同**。
+  > **与 M2 `OverridePriority` / `OverrideTieBreak` 判为两个无关概念**（裁决键类型不同：M2 是"优先级 → 打平按策略**比数值**"，本族候选**无数值可比**）⇒ **MUST NOT 复用 `ETcsAttrOverrideTieBreak`**。`FTcsSkillDefData::Priority` 本轮**不动代码**（零消费者），物理去留归 `PLN-R5.5` Task 4。
+  > ② **`Blocks` / `Cancels` 正交**——`Blocks` = **退让声明**（结果：对方赢，回执 `EAR_Rejected`）；`Cancels` = **强夺声明**（结果：我赢，移除原因 `ESRC_Cancelled`）。**技能侧特有读法**：`Cancels` 取消的是"指定运行/状态"（姿态切换），故它的客体**既可以是状态实例也可以是施法运行**（主体类型化的检查器两族共用）。
+  >
+  > **★★ 2026-10-13 同日第二笔：上句配对更正 + 形态改判**（载体 = `DEC-2026-10-13-relation-row-shape`）。**① 配对更正**：真正的同轴者是 **`Blocks` / `Requires`**（前置条件的"必须缺席"vs"必须存在"），`Cancels` 与它们**正交**（对外副作用）——原句把 `Blocks` 与 `Cancels` 配成一对，是按词形而非字段注释配对。**② 形态改判（吸收 Lyra）**：关系表改为**中心 `UDataAsset` + 一行一个主体词（单 tag）+ 四容器**，匹配走**容器 + `FGameplayTag::MatchesTag` 层级匹配**（**不用 `FGameplayTagQuery`**）；字段改名为 **`AppliesToTag` / `RequiredTags` / `ForbiddenTags` / `TagsToBlock` / `TagsToCancel`**。**技能侧连带**：新增的 `TagsToBlock`（预防）与 `TagsToCancel`（终止）的区分在技能侧尤其自然——"这个技能在跑时哪些技能**不能起**"vs"哪些**要被打断**"，正是"顶替/姿态切换"的两半。**★ 陷阱**：`Blocks` → **`ForbiddenTags`**，**MUST NOT** → `TagsToBlock`（方向相反）。
+  > ③ **`CQM_Custom` / `MCS_Custom` 两档的依赖由此部分解除**——`PLN-R5.5` Task 1（检查器·特例层）即可支撑"关系字段门禁"那一半；`PLN-R5.5` Task 2（类目降维层）落地后两档具备完整条件。
+  > ④ ~~**族规则载体改判**（`DEC-2026-08-31` §4 举例的 `State.Control.*`/`Action.*` 两根不存在）⇒ 宿主词汇类目容器 + `FGameplayTagQuery`~~ → **★ 2026-10-13 第二笔再订正**：两根确实不存在、**不开新根**这条不变，但**匹配机制**改为 **容器 + `FGameplayTag::MatchesTag` 层级匹配**（**不用 `FGameplayTagQuery`**，见同条①）；载体 = 中心 `UDataAsset` + Lyra 行形态。与台账 `STAT-10` 同批裁**不变**。
 - **主链**：`CastChainId` + `MainChainStart{OnCastStarted(默认)|OnPhaseEnter(Tag)|OnCastCompleted|Custom}`（旋风斩类前摇技能配 OnCastCompleted）；
 - `bSingleInstance` → **`ECastInstancing{InstancePerExecution / InstancePerEntity}`** + **`bRetriggerOnActive`**（D5-11，GAS 对齐；Static 不做）。**语义（2026-10-07 R6 裁定，原语料只给枚举名未给语义，此处补齐）**：`InstancePerExecution` = **并存**（同一施法者连点两次可各自推时段，互不干涉）；`InstancePerEntity` = **单一实例复用**（在飞时按 `bRetriggerOnActive` 分流：**默认 `false` ⇒ 驳回**，返具名原因 `AlreadyActive`；`true` ⇒ **顶替**）。**顶替 = 打断的一种终止形态**：旧运行态发 `OnCastInterrupted`（**MUST NOT** 发 `OnCastCompleted`）、**不起其主链**；且**受 `IsInterruptibleNow()` 门禁**（当前时段不可打断 ⇒ 顶替被拒）。**与 GAS 的两处刻意分歧**（MUST NOT 照抄）：① GAS 顶替走 `EndAbility(bWasCancelled = false)`，在 TCS 会让配 `OnCastCompleted` 起链的旧技能**在被顶替瞬间真打出主链**；② GAS 顶替**绕过** `CanBeCanceled`，本仓明确不采用。**依据**：`GameplayAbilityTypes.h:52-54`（并存原文）、`AbilitySystemComponent_Abilities.cpp:1831-1852`（驳回路径与日志原文）、`:1915-1918`（每次新建、无在飞检查）、`GameplayAbility.cpp:741-743` vs `:802-849`（顶替不经 `CanBeCanceled`）；
 - **内联触发行**（**2026-10-07 R6 补入——原字段表遗漏，而 §2 组合范式已在使用"触发行"**）：`Triggers: TArray<FTcsEffectTriggerDef>`——"事件 → 效果链"的映射行，与 `FTcsBuffDef::Triggers`（`TcsBuffDef.h:86`）**同形且为平行的兄弟声明**（基类 `FTcsStateDefBase` **无**此字段，故各派生类自决）。**与 GAS 的关系**：与 `AbilityTriggers`（`GameplayAbility.h:725-727`）**同族**，且本仓 `FTcsEffectTriggerDef` **字段更厚**（9 个 vs GAS 的 3 个，多出 `Conditions` / `GateTags` / `Priority` / `ExecutionGate` 等）——**MUST NOT 表述为"对齐 GAS 的输入引导"**（GAS 的三档 `GameplayEvent`/`OwnedTagAdded`/`OwnedTagPresent` 无输入档，其输入走 `AbilityLocalInputPressed` 独立路径）。**本轮形态 = 零框架登记**：字段进资产、宿主可遍历读取；框架侧**不建登记表、不建生命周期**——**与状态侧的关键差异**：状态侧有明确登记时点（施加时逐行登记、`Source` = 实例级联锚点、移除/到期级联退订），技能侧**无对应时点**（激活由宿主主动调用）⇒ 本轮只落字段。**保留判据**：后续动作游戏的强输入引导（输入事件 → 条件门禁 → 起链）可由本字段零新机制表达；
@@ -390,9 +399,9 @@ M5 专项人工检查路径：门禁六态逐态触发；冷却策略/时机切�
 | **`FCooldownTiming` 四档** | §2 同上 | **`R6.5-c`** | ✅ **已落**（第四档 `Custom` 删除） |
 | **Cost 策略 × 时机 + `CanAfford` 真实现 + Pay 提交 + `OnCostApplied`** | §2「Cost（D5-10 v2）」、§3.6 | **`R6.5-d`** | ✅ **已落**（另+`CanAfford` 查询口） |
 | **`FBoolSwitchModifier` + `GateCheck` 条件求值器** | §2 参数双表的 `BoolSwitches` 运行期通道 | **`R6.5-e`**（形状已落，消费者未落） | ❌ 未落（不变） |
-| **`UTcsSkillModDef` 技能侧参数行分派** | §2「修正器引用行（D5-19）」的技能行那半 | **`R6.5-f`**（`ParamChainRows` 本轮**只落内联形态**） | ❌ 未落（不变） |
+| **`UTcsSkillModDef` 技能侧参数行分派** | §2「修正器引用行（D5-19）」的技能行那半 | **`R5.5-f`**（`ParamChainRows` 本轮**只落内联形态**）。〔**2026-10-13 追注**：**原写 `R6.5-f`，该编号已删除**（与 `R5.5-f` 是同一件工作量的两个编号，用户裁定收敛为一个）⇒ 本行**已改指 `R5.5-f`**；消歧表见 `GLOSSARY` §2.1〕 | ❌ 未落（不变） |
 | **`CQM_Custom` 查询档 / `MCS_Custom` 起链档** | §3.3 三级实现的第三级 / §2 主链四档 | **`R6.5-g`**（本轮**具名未实现 + 回退默认档**，MUST 记 `Warning`） | ❌ 未落（依赖 `R5.5-e` 仍未满足） |
-| **关系字段检查器（`Blocks` / `Requires` / `Priority` / `Cancels`）** | §2「关系字段」的**语义**（形状已落） | **`R5.5-e`**（技能与状态共用同一检查器） | ❌ 未落（不变） |
+| **关系字段检查器（`Blocks` / `Requires` / `Priority` / `Cancels`）** | §2「关系字段」的**语义**（形状已落） | **`R5.5-e`**（技能与状态共用同一检查器） | ❌ 未落（不变）。**★ 2026-10-13 追注**：**语义拍板已完成**（`DEC-2026-10-13-relation-semantics`）⇒ 本行"的**语义**"那半已解决、只剩**实现**；且 **`Priority` 已移出本族**（裁定①）⇒ 检查器的字段是**三**个；实施归 `PLN-R5.5` Task 1（`e1`） |
 | **多形态组合范式的完整走查** | §2「多形态/多段技能 = 组合范式」 | **`R6.5-g`**（本轮只落可运行基座） | ❌ 未落（不变） |
 | **`FTcsParamView` 视图策略族 + 技能面板** | §2「描述文本绑定（D5-17 v3）」的视图那半 | **`R8`**（`state-def-asset` 已钉死"本轮 MUST NOT 建视图策略族"） | ❌ 未落（不变） |
 | **内联触发行的框架登记与生命周期** | §2「内联触发行」 | **字段已交付、本轮零框架登记**（与状态侧的差异见该条；消费者 = 后续强输入引导） | ❌ 未落（不变） |
@@ -451,7 +460,7 @@ M5 专项人工检查路径：门禁六态逐态触发；冷却策略/时机切�
 - **门禁只 4 道可拒**（③⑤ 为占位）；**`CQM_Custom` / `MCS_Custom` 具名未实现**；
 - **`AttributeScaled` 参数源全仓零实现者** ⇒ 配了只落兜底值（本轮实测可用的是**字面量 / 参数引用 / 等级表**三条）；
 - **`ResolveSkillDef` 的登记边界**：技能定义**只进缓存、不参与世界装配**（与状态/修正器模板同款）；
-- **关系字段只有形状、零检查器**（`R5.5-e`）；
+- **关系字段只有形状、零检查器**（`R5.5-e`）；〔**2026-10-13 追注**：语义已在同日拍板（`DEC-2026-10-13-relation-semantics`），**"只有形状、零检查器"这一实况不变**——本轮是裁决轮、零代码改动；实施归 `PLN-R5.5`。〕
 - **内联触发行零框架登记**（字段可读、无生命周期）；
 - **冷却与 Cost 的空实现是真占位**：`FCooldownTrack` 空 Tracks = 恒可放、`FCostConfig.Policy = None` = 恒可付；
 - **单机 / 单世界**：网络姿态只落"接口位不实现"（§6）；
