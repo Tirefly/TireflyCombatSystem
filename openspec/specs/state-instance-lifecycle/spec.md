@@ -10,19 +10,19 @@
 
 ### Requirement: 状态实例句柄
 
-TcsState MUST 提供 `FTcsStateHandle`（`USTRUCT(BlueprintType)`）：两字段 `int32 Index` 与 `int32 Generation`（**展平形态**，与 `FTcsChainRunHandle` / `FTcsEffectTriggerInstance` 同款——反射与宿主脚本往返需要可反射的标量字段，对象身份不外传）。
+`TcsBuff` MUST 提供 `FTcsBuffInstanceHandle`（`USTRUCT(BlueprintType)`）：两字段 `int32 Index` 与 `int32 Generation`（**展平形态**，与 `FTcsChainRunHandle` / `FTcsEffectTriggerInstance` 同款——反射与宿主脚本往返需要可反射的标量字段，对象身份不外传）。
 
-**★ 本类型 MUST 保持为独立类型**（MUST NOT 与 `FTcsCastRunHandle` / `FTcsSkillEntryHandle` 合并——合并会移除"跨桶误传编译期失败"这道现存护栏，判据见 `entity-runtime-mechanism` 能力的「统一运行态句柄判据与转换」需求）；但**判据 / 相等比较 / 哈希 / 池位模式转换的语义 MUST 收敛到一处公共件**，本类型委托它。
+**★ 本类型 MUST 保持为独立类型**（MUST NOT 与 `FTcsSkillInstanceHandle` / `FTcsSkillEntryHandle` 合并——合并会移除"跨桶误传编译期失败"这道现存护栏，判据见 `entity-runtime-mechanism` 能力的「统一运行态句柄判据与转换」需求）；但**判据 / 相等比较 / 哈希 / 池位模式转换的语义 MUST 收敛到一处公共件**，本类型委托它。
 
 - `IsValid()`：`Index >= 0` 且 `Generation > 0`（0 恒为“从未分配”）；
 - 相等比较按 `(Index, Generation)` 全等；MUST 提供 `GetTypeHash`（供 `TMap` / `TSet` 键控）；
-- `Index` MUST 是实体桶内槽位下标；**分配代际 MUST 由 TcsState 模块出线的进程级发号器统一发放不复用的正奇数号**，世界拆解 MUST NOT 复位发号器；不同桶、被删除后重建的桶、不同世界即使使用同一下标，也 MUST NOT 发放相同实例身份；
+- `Index` MUST 是实体桶内槽位下标；**分配代际 MUST 由共享层出线的进程级发号器（`FTcsStateGenerationIssuer`，住 `TcsState`）统一发放不复用的正奇数号**，世界拆解 MUST NOT 复位发号器；不同桶、被删除后重建的桶、不同世界即使使用同一下标，也 MUST NOT 发放相同实例身份；
 - 释放 MUST 将该槽代际置为偶数；再次分配 MUST 取新的进程级奇数号，MUST NOT 仅将桶内旧代际 +1 当作分配身份；
 - 句柄仍相对其世界门面有义，MUST NOT 将旧句柄跨世界重用；旧身份在新世界 MUST 无法命中。反射 `int32` 的正值代际空间耗尽时 MUST 明确失败，MUST NOT 回绕复用。
 
 #### Scenario: 未分配句柄无效
 
-- **WHEN** 取一个默认构造的 `FTcsStateHandle` 并调 `IsValid`
+- **WHEN** 取一个默认构造的 `FTcsBuffInstanceHandle` 并调 `IsValid`
 - **THEN** 返回 false（`Index` 为负或 `Generation` 为 0）
 
 #### Scenario: 分配出的句柄可直接判有效
@@ -47,11 +47,21 @@ TcsState MUST 提供 `FTcsStateHandle`（`USTRUCT(BlueprintType)`）：两字段
 
 ### Requirement: 池化状态实例记录
 
-TcsState MUST 提供 `FTcsStateInstance`——**纯数据**记录，字段分三组：
+`TcsBuff` MUST 提供 `FTcsBuffInstance`——**纯数据**记录；它自 `PLN-REFACTOR-1` Task 2 起是**基底 `FTcsStateInstance` 的派生结构**（`struct FTcsBuffInstance : public FTcsStateInstance`），字段分**基底 6 + 域内 4 + 专属 4**：
+
+- **基底 `FTcsStateInstance`（住 `TcsState` 共享层，6 字段）**：`DefTag` / `Entity` / `CascadeAnchor` / `ParamSnapshot` / `Level` / `ExpiryEntry`。**两域公共字段 MUST 住基底、MUST NOT 在派生结构重复声明**；
+- **Buff 域内（4 字段）**：`Handle`（`FTcsBuffInstanceHandle`）/ `Source`（`FTcsSourceHandle`——**施加方来源句柄**，见下）/ `Instigator`（`FTcsCombatEntityHandle`）/ `Phase`（`EBuffPhase`）；
+- **Buff 专属（4 字段）**：`Stacks`（`int32`，从 1 起）/ `DurationRemaining` / `PeriodRemaining`（`double`）/ `PeriodEntry`（周期到期条目锚点）。
+
+**★ 桶载荷 MUST 绑派生结构 `FTcsBuffInstance`、MUST NOT 绑基底**——池按值存 `TArray<TPayload>`，绑基底会把层数 / 时值 / 周期**静默截断**（值截断，多数读数仍会过）。
+
+**★ 本节原文字段表（改名前的形态，MUST 留痕）**：
 
 - **身份与归属**：`DefTag`（`FGameplayTag`）/ `Handle` / `Source`（`FTcsSourceHandle`——**施加方来源句柄**，见下）/ `CascadeAnchor`（`FTcsSourceHandle`——**级联撤销锚点**，见下）/ `Instigator`（`FTcsCombatEntityHandle`）/ `Entity`（宿主实体——句柄里没有实体段，自持后 `GetState` 才是 O(1) 定位）；
-- **数值与阶段**：`Stacks`（`int32`，从 1 起）/ `Level`（`int32`）/ `Phase`（`EStatePhase`）/ `ParamSnapshot`（`FTcsParamSnapshot`——施加瞬间冻结的生效数值，形状与构建规则见 `state-param-snapshot` 能力）；
-- **时间**：`DurationRemaining` / `PeriodRemaining`（`double`）/ `ExpiryEntry`（时值到期条目锚点）/ `PeriodEntry`（周期到期条目锚点）。
+> - **数值与阶段**：`Stacks`（`int32`，从 1 起）/ `Level`（`int32`）/ `Phase`（`EBuffPhase`）/ `ParamSnapshot`（`FTcsParamSnapshot`——施加瞬间冻结的生效数值，形状与构建规则见 `state-param-snapshot` 能力）；
+> - **时间**：`DurationRemaining` / `PeriodRemaining`（`double`）/ `ExpiryEntry`（时值到期条目锚点）/ `PeriodEntry`（周期到期条目锚点）。
+>
+> **该表是 Task 2 之前的形态**（全部 14 字段平铺在一个类型里）；Task 2/3 之后 **6 个上提基底、8 个留 `TcsBuff`**（其中 `Handle`/`Source`/`Instigator`/`Phase` 归 Buff 域内、`Stacks`/`DurationRemaining`/`PeriodRemaining`/`PeriodEntry` 归 Buff 专属）。
 
 **两个句柄的分工 MUST 守死（2026-10-05 解耦，判据见下）**：
 
@@ -91,7 +101,7 @@ TcsState MUST 提供 `FTcsStateInstance`——**纯数据**记录，字段分三
 
 ### Requirement: per-entity 桶注册表与代际校验
 
-TcsState MUST 提供 `FTcsEntityRuntimeRegistry<FTcsStateInstance>`：**per-entity 桶**——`TMap<FTcsCombatEntityHandle, TUniquePtr<Bucket>>`（`TUniquePtr` 间接层，`TMap` 扩容**不搬移桶地址**）。**该注册表是共享层的统一模板实例**（详见 `entity-runtime-mechanism` 能力的「统一 per-entity 桶与注册表」需求）——它**取代**了此前状态层专属的 `FTcsStateRegistry` / `FStateBucket`，且其桶**载体改为 `TTcsInstancePool`**（不再手写槽位 + 代际 + 空闲栈）。
+`TcsBuff` MUST 提供 `FTcsBuffRegistry`（= `FTcsEntityRuntimeRegistry<FTcsBuffInstance, FTcsBuffInstanceHandle>` 的域侧别名）：**per-entity 桶**——`TMap<FTcsCombatEntityHandle, TUniquePtr<Bucket>>`（`TUniquePtr` 间接层，`TMap` 扩容**不搬移桶地址**）。**该注册表是共享层的统一模板实例**（详见 `entity-runtime-mechanism` 能力的「统一 per-entity 桶与注册表」需求）——它**取代**了此前状态层专属的手写桶（`FStateBucket`；其注册表在 `PLN-REFACTOR-1` Task 4 之前名为 `FTcsStateRegistry`），且其桶**载体改为 `TTcsInstancePool`**（不再手写槽位 + 代际 + 空闲栈）。
 
 桶 = 槽位数组 + 每槽代际数组 + 空闲槽栈（**由 `TTcsInstancePool` 提供**）。分配 MUST 优先复用空闲槽；每次分配的身份 MUST 遵守「状态实例句柄」需求的进程级唯一代际规则；释放将代际 +1 置为偶数，使旧句柄失效。MUST NOT 令各桶各自从代际 1 重新发放相同实例身份。
 
@@ -121,7 +131,9 @@ TcsState MUST 提供 `FTcsEntityRuntimeRegistry<FTcsStateInstance>`：**per-enti
 
 ### Requirement: 状态门面（施加、查询、移除与生命周期操作）
 
-TcsState MUST 提供 `UTcsStateSubsystem : UWorldSubsystem`，**仅在 Game / PIE / GamePreview 世界实例化**（同族先例）；`Deinitialize` MUST 全量清理（登记表复位 + 全部桶清空 + 待撤销的到期条目撤销）——MUST NOT 留跨世界残影。
+`TcsBuff` MUST 提供 `UTcsBuffSubsystem : UWorldSubsystem`，**仅在 Game / PIE / GamePreview 世界实例化**（同族先例）；`Deinitialize` MUST 全量清理（登记表复位 + 全部桶清空 + 待撤销的到期条目撤销）——MUST NOT 留跨世界残影。
+
+**★ 门面拆分（PLN-REFACTOR-1 Task 4，MUST 读）**：施加 / 查询 / 移除 / 等级读口 / 事件与时钟读口**全部住 `TcsBuff`**；而 `TcsState` **另有一个极薄的共享门面** `UTcsStateSubsystem`，它**只持快照参数表反射壳**（`GetParamTableReader()`，两域代码级唯一共用设施）——技能侧求值引用类时长与参数链行时从它取壳。**MUST NOT 把两份门面读成读口重复**：拆分判据 = **该设施是否被两个域在代码级使用**。
 
 操作面：
 
@@ -184,7 +196,7 @@ TcsState MUST 提供 `UTcsStateSubsystem : UWorldSubsystem`，**仅在 Game / PI
 
 `UTcsStateSubsystem` MUST 提供**定义登记口**：`RegisterStateDef(FGameplayTag DefTag, const FTcsBuffDef& Def)` / `UnregisterStateDef(FGameplayTag)` / `GetRegisteredStateDef(FGameplayTag) -> const FTcsBuffDef*`。
 
-**为什么是登记口而不是反向依赖**：定义库（`UTcsDefinitionSubsystem`）住 `TcsIntegration`，而 `TcsIntegration` **依赖** `TcsState`——若状态门面去 include `TcsIntegration` 反查定义库即成环。故依赖方向 MUST 保持单向：**定义库把定义写进门的登记口**（同款先例 = 定义库把触发行写进 `UTcsEffectSubsystem::RegisterTriggerRow`）。
+**为什么是登记口而不是反向依赖**：定义库（`UTcsDefinitionSubsystem`）住 `TcsIntegration`，而 `TcsIntegration` **依赖** `TcsBuff`——若状态门面去 include `TcsIntegration` 反查定义库即成环。故依赖方向 MUST 保持单向：**定义库把定义写进门的登记口**（同款先例 = 定义库把触发行写进 `UTcsEffectSubsystem::RegisterTriggerRow`）。
 
 **为什么身份是形参**：身份归**资产**声明（`UTcsStateDef::DefTag`——资产身份、`GetPrimaryAssetId()` 的取值来源、作者期校验对象），`FTcsBuffDef` 是**定义内容**；若为"从内容里读身份"再往数据 struct 加一份 `DefTag`，策划就得在同一个资产里把同一个 tag 手填两遍 = **双真相**。故运行期的身份由登记口一次对齐（调用方 = 定义库，其缓存键本就是 `DefTag`）。
 
@@ -207,7 +219,7 @@ TcsState MUST 提供 `UTcsStateSubsystem : UWorldSubsystem`，**仅在 Game / PI
 
 ### Requirement: 状态生命周期事件
 
-TcsState MUST 原生声明六枚框架事件 tag（`UE_DECLARE_GAMEPLAY_TAG_EXTERN` + `UE_DEFINE_GAMEPLAY_TAG_COMMENT`，常量带模块导出宏——裸 `extern` 会 `LNK2001`），词落在既有 `TcsEvent` 根下（**不新增根**）：
+`TcsBuff` MUST 原生声明六枚框架事件 tag（`UE_DECLARE_GAMEPLAY_TAG_EXTERN` + `UE_DEFINE_GAMEPLAY_TAG_COMMENT`，常量带模块导出宏——裸 `extern` 会 `LNK2001`），词落在既有 `TcsEvent` 根下（**不新增根**）：
 
 | 常量 | 词 | 广播时机 |
 |---|---|---|
@@ -218,9 +230,9 @@ TcsState MUST 原生声明六枚框架事件 tag（`UE_DECLARE_GAMEPLAY_TAG_EXTE
 | `Tag_TcsEvent_State_Removed` | `TcsEvent.State.Removed` | 显式移除 / 取消 / 实体注销 |
 | `Tag_TcsEvent_State_Periodic` | `TcsEvent.State.Periodic` | 周期到点（需周期计时，归 Task 3） |
 
-载荷 MUST 为 `FTcsStateEventPayload{ Handle, Entity, DefTag, Source, Instigator, Stacks, Level, Cause }`：`Entity` 为实例的被施加方，广播装配 MUST 从 `Instance.Entity` 填入；`Handle` / `Entity` / `DefTag` / `Source` / `Stacks` / `Level` 恒有效；`Cause`（`EStateRemoveCause`）**仅 `Expired` / `Removed` 有意义**，其余事件里无意义。`Source` 保留既有非反射运行态字段纪律，其余身份与标量为反射字段。
+载荷 MUST 为 `FTcsBuffEventPayload{ Handle, Entity, DefTag, Source, Instigator, Stacks, Level, Cause }`：`Entity` 为实例的被施加方，广播装配 MUST 从 `Instance.Entity` 填入；`Handle` / `Entity` / `DefTag` / `Source` / `Stacks` / `Level` 恒有效；`Cause`（`EBuffRemoveCause`）**仅 `Expired` / `Removed` 有意义**，其余事件里无意义。`Source` 保留既有非反射运行态字段纪律，其余身份与标量为反射字段。
 
-`TcsState` MUST 为该载荷登记触发读取器：`Caster` 取有效 `Instigator`，无效时取 `Entity`；主体身份取反射的 `FTcsStateHandle`。读取器与触发行的主体过滤契约归 `effect-trigger` 能力。
+`TcsBuff` MUST 为该载荷登记触发读取器：`Caster` 取有效 `Instigator`，无效时取 `Entity`；主体身份取反射的 `FTcsBuffInstanceHandle`。读取器与触发行的主体过滤契约归 `effect-trigger` 能力。
 
 广播 MUST 走总线**立即通道**（`PublishImmediate`）——同一提交内到达，装置可在同一帧断言。
 
@@ -232,12 +244,12 @@ TcsState MUST 原生声明六枚框架事件 tag（`UE_DECLARE_GAMEPLAY_TAG_EXTE
 #### Scenario: 载荷可经总线传递且字段可读
 
 - **WHEN** 订阅者收到任一事件
-- **THEN** 载荷为 `FTcsStateEventPayload`，可读到 `Handle` / `Entity` / `DefTag` / `Source` / `Stacks` / `Level`（`Cause` 只在 `Expired` / `Removed` 上有意义）
+- **THEN** 载荷为 `FTcsBuffEventPayload`，可读到 `Handle` / `Entity` / `DefTag` / `Source` / `Stacks` / `Level`（`Cause` 只在 `Expired` / `Removed` 上有意义）
 
 #### Scenario: 状态事件提供发起者与实例身份
 
 - **WHEN** 读取状态生命周期载荷，发起者有效或无效
-- **THEN** `Caster` 分别取发起者或被施加方 `Entity`，主体身份保持载荷中的实例 Handle；TcsEffect MUST NOT 依赖 TcsState 的类型
+- **THEN** `Caster` 分别取发起者或被施加方 `Entity`，主体身份保持载荷中的实例 Handle；`TcsEffect` MUST NOT 依赖 `TcsBuff` 的类型
 
 ### Requirement: 广播点与阶段迁移
 
@@ -245,7 +257,7 @@ TcsState MUST 原生声明六枚框架事件 tag（`UE_DECLARE_GAMEPLAY_TAG_EXTE
 
 **"同组"判据归 `state-stacking-policies` 能力**（组键 = `实体 + DefTag` + 轴附加项）——本能力只保证**共存结果与广播的对应关系**：新建 ⇒ `Applied`；同来源刷新 ⇒ `Refreshed`；异来源叠层 ⇒ `StackChanged` + `Refreshed`（前者先到）；替换 ⇒ `Removed`（旧）+ `Applied`（新）；满仓拒绝 ⇒ 无广播。事件面 MUST NOT 因策略不同而增减（除上述对应关系外）。
 
-**阶段机**：`EStatePhase{ Inactive / Active / Expiring }`，合法迁移 `Inactive → Active`（施加成功）、`Active → Expiring`（进入移除流程）、`Expiring → Inactive`（槽位释放）、`Expiring → Active`（仍在册实例的刷新过渡态归位）；**非法迁移 = `ensure`**（配置错误语义，与脏句柄的竞态口径分开）。
+**阶段机**：`EBuffPhase{ Inactive / Active / Expiring }`，合法迁移 `Inactive → Active`（施加成功）、`Active → Expiring`（进入移除流程）、`Expiring → Inactive`（槽位释放）、`Expiring → Active`（仍在册实例的刷新过渡态归位）；**非法迁移 = `ensure`**（配置错误语义，与脏句柄的竞态口径分开）。
 
 **撤销顺序**：MUST 先广播后释放槽位——订阅者在回调里仍能 `GetState` 读到该实例（否则"收到移除事件却查不到实例"）。**该顺序的前置两步**（2026-10-05 由"一步"扩为"两步"）：进入撤销流程时 MUST 先（①）按实例的级联锚点摘除属性修正器**并退订该实例的施加期登记物**（内联触发行；行为 Fragment 的订阅退订与①同处，见 `state-behavior-fragments` 的「行为订阅的生命周期接线」），再（②）撤销该实例的到期与周期条目。①排在广播之前的意义 = **该实例自己的触发行 MUST NOT 看见自己的 `Removed` / `Expired`**（"状态在，行为就在"的对偶：状态走了，行为先走）；②的意义 = 条目持句柄，槽位复用后回调仍会到达——先撤条目才不产生无谓回调。
 

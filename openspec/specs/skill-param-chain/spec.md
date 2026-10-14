@@ -21,7 +21,7 @@
 `TcsSkill` MUST 提供**技能参数修正器**，且 MUST 照 M2 属性侧的**双形状**（设计裁定 D2-13「Operand 双形状，B 方案」）分成两套类型——**MUST NOT 用单一形状同时充当定义侧行与账本侧条目**：
 
 - **定义侧** MUST 为 `USTRUCT(BlueprintType) FTcsNumericParamModifier`，字段 = `{FGameplayTag ParamKey, ETcsAttributeOp Op, FTcsParamValue Operand, int32 SortKey, int32 OverridePriority, FGameplayTag CompeteGroup, ETcsValueConventionFlag ValueConvention}`——`Operand` 是可配参数源的多态载体（`Literal` / `ParamRef` / `AttributeScaled` 等），故它**可以**持有对象引用；
-- **定义侧 MUST NOT 携带 `Source`**（2026-10-09 用户质疑后订正，**MUST NOT 加回**）：**来源因实例而异**——同一个 `ParamChainRows[0]`，甲玩家靠装备给、乙玩家靠天赋给 ⇒ 它属**实例**而非 Def。**三条判据**：① `FTcsSourceHandle` 是**非反射纯 C++ struct**（无 `USTRUCT`）⇒ **不能作 `UPROPERTY`** ⇒ 一个 Def 类型上的 `Source` **既进不了细节面板、也不会被资产序列化**（UHT 产物可证：本类型反射属性恰为上述七项）；② 定义侧物化路径**根本不读它**（盖的是 `FTcsCastRun.RunSource`）；③ M2 的既有形状即此——`FTcsAttrModDefTableRow`（定义侧行）**没有 `Source` 字段**，它是 `MakeFromDef(Row, Operand, InSource)` 的**形参**。⇒ **`Source` 只住账本侧**，由**施加方**给出；
+- **定义侧 MUST NOT 携带 `Source`**（2026-10-09 用户质疑后订正，**MUST NOT 加回**）：**来源因实例而异**——同一个 `ParamChainRows[0]`，甲玩家靠装备给、乙玩家靠天赋给 ⇒ 它属**实例**而非 Def。**三条判据**：① `FTcsSourceHandle` 是**非反射纯 C++ struct**（无 `USTRUCT`）⇒ **不能作 `UPROPERTY`** ⇒ 一个 Def 类型上的 `Source` **既进不了细节面板、也不会被资产序列化**（UHT 产物可证：本类型反射属性恰为上述七项）；② 定义侧物化路径**根本不读它**（盖的是 `FTcsSkillInstance.RunSource`）；③ M2 的既有形状即此——`FTcsAttrModDefTableRow`（定义侧行）**没有 `Source` 字段**，它是 `MakeFromDef(Row, Operand, InSource)` 的**形参**。⇒ **`Source` 只住账本侧**，由**施加方**给出；
 - **账本侧** MUST 为**纯 C++ struct `FTcsNumericParamModInstance`（无 `USTRUCT`）**，字段 = `{FGameplayTag ParamKey, ETcsAttributeOp Op, double ResolvedValue, FTcsSourceHandle Source, int32 SortKey, int32 OverridePriority, FGameplayTag CompeteGroup}`——`ResolvedValue` 是**物化边界求值并转规范值后的结果**，故账本条目**不含任何对象引用**；
 - **为什么必须双形状（判据，不是偏好）**：`FTcsLearnedSkillEntry` 住 `TArray`（非 `UPROPERTY` 容器、元素为非反射 struct）⇒ GC 看不见它。若账本侧持 `FTcsParamValue`（可持 `TScriptInterface`），那些对象会被**静默回收**（症状 = 参数链里的源变成空引用，**不崩溃**）。M2 的账本侧注释即此义：「账本只为聚合热路径服务，不进反射面」「Literal 恒为已解析规范值（物化器单点转换保证，账本不做二次猜测——零膨胀）」。
 - `Op` MUST 复用 M2 的 `ETcsAttributeOp`（五带 `TAO_Add/Override/PercentAdd/Mul/FlatAdd`），**MUST NOT 另立同义枚举**——M2 属性聚合、TcsDamage 流程属性与 M5 参数链**三处共用同一套带序**；
@@ -71,7 +71,7 @@
 #### Scenario: 定义侧行不含 Source，来源只由施加方给出
 
 - **WHEN** 检查 `FTcsNumericParamModifier` 的字段表与它的反射属性清单，并检查两个施加路径各自盖的来源
-- **THEN** 该类型**没有** `Source` 字段（反射属性不含它）；定义侧物化的条目标来源 = 本次 `FTcsCastRun.RunSource`，外部施加的条目标来源 = `ApplyParamModifiers` 的 `Source` 形参——**两条路径的来源都不来自定义侧行**
+- **THEN** 该类型**没有** `Source` 字段（反射属性不含它）；定义侧物化的条目标来源 = 本次 `FTcsSkillInstance.RunSource`，外部施加的条目标来源 = `ApplyParamModifiers` 的 `Source` 形参——**两条路径的来源都不来自定义侧行**
 
 #### Scenario: Source 无效时拒绝施加且零写入
 
@@ -140,7 +140,7 @@
 
 `FTcsSkillDefData` MUST 提供 `TArray<FTcsNumericParamModifier> ParamChainRows`，并在**激活时**物化进该条目的 `NumericParamModInstances`：
 
-- 物化时 `Source` MUST = **本施法运行态来源句柄**（`FTcsCastRun.RunSource`）⇒ 随施法终结**级联摘除**，生命周期语义与基类 `ModifierRows` 同款；
+- 物化时 `Source` MUST = **本施法运行态来源句柄**（`FTcsSkillInstance.RunSource`）⇒ 随施法终结**级联摘除**，生命周期语义与基类 `ModifierRows` 同款；
 - **施法终结 MUST 真的执行该摘除**（判据 = 同一 Entry 反复施法后槽位**不累积**）：物化是"每次激活都追加"，而终结例程 MUST 按 `RunSource` 摘掉本次那一批——漏掉它会让槽位逐次累积，表现为"放两次技能、参数翻倍"（静默错误且远离根因）。**边界（MUST 分清，防张冠李戴）**：本条摘的是**技能自己定义侧物化的行**（落 M5 技能账本）；台账 `CHAIN-7` 的"链挂条目回收"（链步骤经 `Context.RunSource` 挂到 **M2 属性账本**的修正器）归 `PLN-R6` Task 5 Step 3 的三路统一回收例程——两者来源句柄同源但**账本不同**，互不代劳；
 - **声明作用域恒为本条目自身**，**MUST NOT** 接受 `FTcsSkillEntrySelector`（该选择器保持专属"外部施加"场景——同一件事不许两个入口）；
 - **只落内联形态**：**MUST NOT** 引用 `UTcsSkillModDef`（实测该类型在全仓 `Source/` **零命中**）——模板引用形态整体归 `R5.5-f`。
@@ -196,7 +196,7 @@
 
 `FTcsNumericParamModifier::ParamKey` 取**特殊键 `Level`** 时，其语义 MUST 是**修正生效等级**而非普通参数：
 
-- **该键的词 MUST 由插件模块原生声明，且声明方 = 拥有等级语义的 `TcsState`**（2026-10-09 用户提出后核实订正）：`Level` 是**框架自己解释的契约词**（`clamp(0, LevelBase + Σ)` 这条公式由等级域求值），而非宿主内容词 ⇒ 按 `gameplay-tag-governance`「框架契约词 MUST 由插件模块原生声明」落为原生 tag `TcsStateParam.Level`（`TcsState/Public/Param/TcsStateParamKeys.h`，带模块导出宏——`UE_DECLARE_GAMEPLAY_TAG_EXTERN` 是裸 `extern` ⇒ 否则跨模块引用会 `LNK2001`）。**声明方 MUST 是 `TcsState` 而不是 `TcsSkill`，判据三条**：① **语义归属**——`LevelBase` / `MaxLevel` 声明在 `FTcsStateDefBase`（技能 Def **继承**它），D3-11「Level 终定」的家是状态侧规格；② **依赖方向（决定性）**——`TcsSkill` 已依赖 `TcsState` ⇒ 声明在上游时两侧消费都零成本、不成环；若声明在 `TcsSkill`，则状态侧将来消费（状态等级修正）就要**反向依赖 TcsSkill = 成环**；③ 同一个词被多域消费是常规情形（M2/M5/状态三域共用同一套五带即先例）。**判据**：宿主漏配会让 `Level` 修正**静默失效**（数值照进账本、等级永不动、零报错）——那正是"契约词不可下放"要防的静默破坏。`TcsStateParam` 根的**一般键**（具体参数键）仍归宿主 ini；同一根下"契约词 + 内容词"并存是既有约定（拆的只是**声明方**）；
+- **该键的词 MUST 由插件模块原生声明，且声明方 = 拥有等级语义的 `TcsState`（共享层）**（2026-10-09 用户提出后核实订正）：`Level` 是**框架自己解释的契约词**（`clamp(0, LevelBase + Σ)` 这条公式由等级域求值），而非宿主内容词 ⇒ 按 `gameplay-tag-governance`「框架契约词 MUST 由插件模块原生声明」落为原生 tag `TcsStateParam.Level`（`TcsState/Public/Param/TcsStateParamKeys.h`，带模块导出宏——`UE_DECLARE_GAMEPLAY_TAG_EXTERN` 是裸 `extern` ⇒ 否则跨模块引用会 `LNK2001`）。**声明方 MUST 是 `TcsState` 而不是 `TcsSkill`，判据三条**：① **语义归属**——`LevelBase` / `MaxLevel` 声明在 `FTcsStateDefBase`（技能 Def **继承**它），D3-11「Level 终定」的家是状态侧规格；② **依赖方向（决定性）**——`TcsSkill` 已依赖 `TcsState` ⇒ 声明在上游时两侧消费都零成本、不成环；若声明在 `TcsSkill`，则状态侧将来消费（状态等级修正）就要**反向依赖 TcsSkill = 成环**；③ 同一个词被多域消费是常规情形（M2/M5/状态三域共用同一套五带即先例）。**判据**：宿主漏配会让 `Level` 修正**静默失效**（数值照进账本、等级永不动、零报错）——那正是"契约词不可下放"要防的静默破坏。`TcsStateParam` 根的**一般键**（具体参数键）仍归宿主 ini；同一根下"契约词 + 内容词"并存是既有约定（拆的只是**声明方**）；
 - 它 MUST 接入账本的生效等级求值（`EffectiveLevel = clamp(0, LevelBase + Σ参数账本 Level 键修正)`），且 MUST **经同一条五带折叠**（初值 = `LevelBase`）——**MUST NOT** 为它另立一套算术（那会造出第二份折叠语义，正是 `STAT-1` 要防的）；
 - **`EffectiveLevel` 的快照时点 = 激活时**（运行中升级不追溯）；
 - **该键 MUST NOT 出现在普通参数的折叠结果里**：等级不进参数表、参数表不动等级（`GetNumericParam(Level)` 是另一条独立路径，两边各自按同键槽位折叠、互不写回）；
@@ -210,7 +210,7 @@
 #### Scenario: Level 键由插件原生声明且住拥有语义的模块
 
 - **WHEN** 检查 `TcsStateParam.Level` 的声明方与宿主 ini
-- **THEN** 它由**插件模块**原生声明（带模块导出宏），**不需要**宿主 `Config/DefaultGameplayTags.ini` 配置即生效；且声明处住 **`TcsState`**（拥有等级语义、且是 `TcsSkill` 的依赖上游）——**MUST NOT** 声明在 `TcsSkill`（那会让状态侧消费时反向依赖、成环）；`TcsStateParam` 根下的普通参数键仍由宿主声明
+- **THEN** 它由**插件模块**原生声明（带模块导出宏），**不需要**宿主 `Config/DefaultGameplayTags.ini` 配置即生效；且声明处住 **`TcsState`**（`Param/TcsStateParamKeys.h` 的 `Tag_TcsStateParam_Level`；声明在上游 ⇒ 两侧消费都零成本、不成环）——**MUST NOT** 声明在 `TcsSkill`（那会让状态侧消费时反向依赖、成环）；`TcsStateParam` 根下的普通参数键仍由宿主声明
 
 #### Scenario: 激活后升级不追溯
 

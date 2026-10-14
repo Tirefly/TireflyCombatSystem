@@ -7,7 +7,7 @@
 
 ### Requirement: 状态 Def 数据形状
 
-`TcsState` MUST 提供状态定义的**数据形状**（`USTRUCT`，纯反射数据、可作 DataTable 行；字段集只声明一次，资产与表行各自组合持有）：
+`TcsBuff` MUST 提供状态定义的**数据形状**（`USTRUCT`，纯反射数据、可作 DataTable 行；字段集只声明一次，资产与表行各自组合持有）：
 
 - `ETcsParamMode{ EPM_Snapshot = 0, EPM_Live = 1 }`——`0` 即默认值；`Snapshot` 在施加时求值一次冻结，`Live` 供技能侧使用；
 - `FTcsNumericParamRow{ FGameplayTag Key, FTcsParamValue Base, ETcsParamMode Mode = EPM_Snapshot, ETcsValueConventionFlag ValueConvention = VCF_None }`——
@@ -15,7 +15,7 @@
 - `FTcsStateDefBase`（抽象：**中性默认实现 + `meta = (Hidden)`**，MUST NOT 用 `=0` 或 `PURE_VIRTUAL`）：
   `FGameplayTag StatusTag` / `int32 LevelBase = 1` / `int32 MaxLevel = 0` / `TArray<FTcsNumericParamRow> Params` / `TArray<FTcsDescriptionEntry> Descriptions`（载体见「描述配置载体」需求）/ `TArray<TSoftObjectPtr<UTcsAttrModDef>> ModifierRows`；
 - `FTcsBuffDef : FTcsStateDefBase`：时值 `EDurationPolicy DurationPolicy = EDP_Finite` / `FTcsParamValue DurationTime` / `double Period = 0.0` / `ETcsPeriodRefresh PeriodRefresh = EPR_Keep`；
-  堆叠 `FStateStackPolicy StackPolicy`；行为 `TArray<FTcsEffectTriggerDef> Triggers`（内联触发行位）+ `TArray<FInstancedStruct> Fragments`（行为 Fragment 载荷，选择器经手写 `meta = (BaseStruct = "/Script/TcsState.TcsStateBehaviorFragment")` 收窄——形状与语义见 `state-behavior-fragments` 能力）；
+  堆叠 `FTcsBuffStackPolicy StackPolicy`；行为 `TArray<FTcsEffectTriggerDef> Triggers`（内联触发行位）+ `TArray<FInstancedStruct> Fragments`（行为 Fragment 载荷，选择器经手写 `meta = (BaseStruct = "/Script/TcsState.TcsStateBehaviorFragment")` 收窄——形状与语义见 `state-behavior-fragments` 能力）；
   关系 `TArray<FGameplayTag> Blocks` / `TArray<FGameplayTag> Requires` / `int32 Priority = 0` / `TArray<FGameplayTag> Cancels`。
 
 **字段划分 MUST 守死"无时值 / 无堆叠 = 基类、有时值 / 有堆叠 = 派生"**——R6 的 `FSkillDef` 要按继承白拿参数行与描述，而它无时值、无堆叠。
@@ -44,7 +44,7 @@
 
 ### Requirement: 描述配置载体（本轮最小集）
 
-`TcsState` MUST 提供描述配置的两个**纯数据**载体（**住 TcsState**：`DEC-02-fold-display` 的 v3 命名批表明写"描述视图槽位 / 配置条目 → TcsState（Def 形状所在）"；
+`TcsBuff` MUST 提供描述配置的两个**纯数据**载体（**住 `TcsBuff`**：`DEC-02-fold-display` 的 v3 命名批表明写"描述视图槽位 / 配置条目 → TcsState（Def 形状所在）"——该句是**当时**的模块名，自 Task 4 起 Def 形状住 `TcsBuff`；
 TcsNotation 只拥有**词汇约定**与视图机制——"描述配置空间（字段归各 Def；词汇约定归本模块）"）：
 
 - `FTcsDescriptionEntry{ FName DescriptionId, FName TextKey, TArray<FTcsDescriptionViewSlot> Views }`——`DescriptionId` = 多描述入口的展示侧命名标签（`"Tip"` / `"Codex"` / `"LevelUpPreview"`…）；
@@ -73,9 +73,9 @@ TcsNotation 只拥有**词汇约定**与视图机制——"描述配置空间（
 
 ### Requirement: 状态 Def 资产身份
 
-`TcsState` MUST 提供状态 Def 资产族，基类统一 `UPrimaryDataAsset`（Def 资产族的统一约定）：
+`TcsBuff` MUST 提供 Buff Def 资产族，基类统一 `UPrimaryDataAsset`（Def 资产族的统一约定）：
 
-- `UTcsStateDef : UPrimaryDataAsset`——族基类，持内容身份 `DefTag: FGameplayTag`，并承载 `IsDataValid` 校验挂点；MUST 显式声明 `static const FPrimaryAssetType PrimaryAssetType`
+- `UTcsStateDef : UPrimaryDataAsset`——族基类（**留 `TcsState` 共享层**，`UTcsSkillDef` 也继承它），持内容身份 `DefTag: FGameplayTag`，并承载 `IsDataValid` 校验挂点；MUST 显式声明 `static const FPrimaryAssetType PrimaryAssetType`
   （取值 = 类名，不依赖引擎的类名回退），并覆写 `GetPrimaryAssetId()` 返回 `[PrimaryAssetType, DefTag.GetTagName()]`；
 - `UTcsBuffDefAsset : UTcsStateDef`——持 `BuffDef: FTcsBuffDef` 与自身的主资产类型（取值 `"TcsBuffDefAsset"`）。
 
@@ -96,7 +96,7 @@ TcsNotation 只拥有**词汇约定**与视图机制——"描述配置空间（
 
 ### Requirement: 状态 Def 表行（编辑期载体）
 
-`TcsState` MUST 提供 `FTcsBuffDefTableRow : FTableRowBase`（`DefTag: FGameplayTag` + `BuffDef: FTcsBuffDef`），与资产构成**双轨制**：**表 = 编辑期载体、资产 = 运行期载体**——
+`TcsBuff` MUST 提供 `FTcsBuffDefTableRow : FTableRowBase`（`DefTag: FGameplayTag` + `BuffDef: FTcsBuffDef`），与资产构成**双轨制**：**表 = 编辑期载体、资产 = 运行期载体**——
 运行期 MUST 零 DataTable 加载路径，一律按 `DefTag` 走定义库解析资产。
 
 行身份 = `RowName`（引擎硬约束的 `FName`）是**编辑期定位**，行内 `DefTag` 是**内容身份**：二者是分工而非双真相，MUST NOT 被要求同名。

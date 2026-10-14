@@ -1,13 +1,13 @@
 # state-step-library Specification
 
 ## Purpose
-定义 `TcsState` 领域**链步骤**的最小能力面（D4-14 注册制分派下"领域模块自持步骤与执行器"的落点）：状态层在效果链里的**施加入口**——取值来源（黑板 `RunSource` / `Instigator`）、目标缺省（黑板目标集首个）、失败两档（软失败不断链）与四档回执的日志口径。它让"链能施加状态"成为可配置的事实，并划清一条边界：**链侧的参数表载体不存在**（引用类参数源落兜底），步骤只负责"何时施加"，施加语义全归 `state-instance-lifecycle` 与 `state-stacking-policies`。
+定义 **Buff 领域**（`TcsBuff`）**链步骤**的最小能力面（D4-14 注册制分派下"领域模块自持步骤与执行器"的落点）：状态层在效果链里的**施加入口**——取值来源（黑板 `RunSource` / `Instigator`）、目标缺省（黑板目标集首个）、失败两档（软失败不断链）与四档回执的日志口径。它让"链能施加状态"成为可配置的事实，并划清一条边界：**链侧的参数表载体不存在**（引用类参数源落兜底），步骤只负责"何时施加"，施加语义全归 `state-instance-lifecycle` 与 `state-stacking-policies`。
 
 ## Requirements
 
 ### Requirement: 状态施加步骤（ApplyState）
 
-`TcsState` MUST 提供 `FTcsStepApplyState`（D4-16 十五原语之一，属本模块——`04 §2.1`"ApplyState 住 TcsState"）：
+`TcsBuff` MUST 提供 `FTcsStepApplyState`（D4-16 十五原语之一，属本模块——`04 §2.1` 的"ApplyState 住状态侧"自 Task 4 起落点为 `TcsBuff`）：
 
 - 字段：`Target: FTcsCombatEntityHandle`（无效则取黑板 `Targets[0]`，仍无效 ⇒ 软失败）/ `DefTag: FGameplayTag` / `Overrides: TMap<FGameplayTag, double>`（施加方参数覆盖，参与快照构建）；
 - 执行体 MUST 经黑板 `Owner`（链运行态门面弱引用）取世界 → 状态门面 → `ApplyState(...)`：`Source` MUST = 黑板 `RunSource`（链运行态来源锚点）、`Instigator` MUST = 黑板 `Instigator`（无效时由门面退化为目标）、参数表 = **空**（链侧参数表载体不存在 ⇒ 引用类参数源落兜底；如实边界）；

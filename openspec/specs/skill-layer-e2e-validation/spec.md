@@ -33,7 +33,7 @@ MUST NOT 以运行期手搓定义充当唯一路径；装置 MUST 为每个环�
 
 - **WHEN** 装置以真内容资产的身份词调用 `GrantSkill` 后调用 `TryActivate`
 - **THEN** 账本条目数由 0 增至 1、激活返回成功、`TcsEvent.Cast.Started` 恰一次，
-  且该次激活的 `FTcsCastRun.RunSource` 有效
+  且该次激活的 `FTcsSkillInstance.RunSource` 有效
 
 #### Scenario: 参数链折叠的结果真的进了本次施法的快照
 
@@ -72,7 +72,7 @@ MUST NOT 把 `Log` 级留痕当作 `Warning` 级断言，MUST NOT 以"计数器�
 
 #### Scenario: 悬空运行句柄的查询与终结静默返回
 
-- **WHEN** 对一个已终结并归还池槽位的 `FTcsCastRunHandle` 调查询口与终结口
+- **WHEN** 对一个已终结并归还池槽位的 `FTcsSkillInstanceHandle` 调查询口与终结口
 - **THEN** 查询口返回保守值、终结口返回 `false`，均不触发 `ensure`，且不重复广播、不重复归还槽位
 
 #### Scenario: 不可打断段上的打断与顶替各自被拒

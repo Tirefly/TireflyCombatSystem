@@ -68,7 +68,7 @@ TcsCore MUST 提供抽象基类 `FTcsParamValueSource`（USTRUCT，`Evaluate(con
 #### Scenario: 参数表键的根
 
 - **WHEN** 检查宿主写在 `Config/DefaultGameplayTags.ini` 里的参数表键形态
-- **THEN** 形如 `TcsStateParam.<键>`（2 段）；技能激活运行态与状态实例读的是**同一个键空间**（"State" 取广义——不是 `TcsState` 模块专属），故两者同根
+- **THEN** 形如 `TcsStateParam.<键>`（2 段）；技能激活运行态与 Buff 运行态读的是**同一个键空间**（"State" 取广义——不是任何单个模块专属），故三者同根
 
 #### Scenario: 运行期不校验、作者期校验
 

@@ -54,7 +54,7 @@ TireflyCombatSystem（TCS）是一个面向 Unreal Engine 的通用、综合战�
 ## 领域上下文
 - **唯一事实来源**：`Documents/combat-system-design/` —— 从 `INDEX.md`（文档索引 + 当前进度）和 `decisions/dec-00-constitution.md` §9（模块实体化）入手。冲突解决顺序：用户实时决策 > 设计文档 > plan 文档 > 会话启动提示词。
 - R3 计划：`2026-09-02-r3-plan1-core-attributes.md`（TcsCore + TcsNotation 外壳 + TcsAttribute）与 `2026-09-02-r3-plan2-damage-chain.md`（TcsEffect + TcsTargeting + TcsDamage + TcsIntegration）。M3 states / M5 skill / M7 cue / M8 编辑器工具已设计但不在 R3 切片内。
-- 核心域概念（各自都有正式模块文档 01–11）：属性聚合管道（band、事务、read-registers-dependency、SCC 环检测）、带五轴 `FStateStackPolicy` 的状态中心注册表、效果链（15 个原语、触发器行求值器、异步四唤醒源）、伤害流模板（解释器 + 标准 step 库 + 官方默认模板）、带多轨冷却的技能施放账本、targeting selector/filter 策略（默认 Self / EventTarget），以及 TcsNotation 层（ValueConvention + 通过 `FText::Format` 占位符绑定描述文本）。
+- 核心域概念（各自都有正式模块文档 01–11）：属性聚合管道（band、事务、read-registers-dependency、SCC 环检测）、带五轴 `FTcsBuffStackPolicy` 的 Buff 中心注册表、效果链（15 个原语、触发器行求值器、异步四唤醒源）、伤害流模板（解释器 + 标准 step 库 + 官方默认模板）、带多轨冷却的技能施放账本、targeting selector/filter 策略（默认 Self / EventTarget），以及 TcsNotation 层（ValueConvention + 通过 `FText::Format` 占位符绑定描述文本）。
 - 宿主集成契约：双层引导（GameInstance DefLibrary + World driver），`CombatEntity` 组件作为三职责适配器。
 
 ## 重要约束

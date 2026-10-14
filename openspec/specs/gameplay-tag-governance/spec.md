@@ -166,7 +166,7 @@ TCS 插件侧 GameplayTag 词表的**规范载体**：钉死插件那 **12 个�
 | 根 | 唯一化限定 | 角色名 |
 |---|---|---|
 | `TcsEvent` | `Tcs`（事件按系统分根，故加系统限定） | `Event` |
-| `TcsStateParam` | `TcsState`（"State" 取广义，见「`TcsStateParam` 的语义边界」） | `Param` |
+| `TcsStateParam` | `TcsState` / `TcsBuff` / `TcsSkill` 三域（"State" 取广义，见「`TcsStateParam` 的语义边界」） | `Param` |
 | `EffectChainRunVar` | `EffectChain` | `RunVar` |
 | `DamageFlowKey` | `DamageFlow` | `Key` |
 | `DamageFlowTemplate` | `DamageFlow` | `Template` |
@@ -228,16 +228,16 @@ tag 路径深度 MUST ≤ 4 段。第 4 段是**留给未来变化的余量，MU
 
 ### Requirement: `TcsStateParam` 的语义边界
 
-`TcsStateParam` 的 "State" 取**广义**——包含**技能激活运行态**；它**不是** `TcsState` 模块，MUST NOT 被读作"只有状态模块的参数才住这里"。**技能运行态归状态。**
+`TcsStateParam` 的 "State" 取**广义**——包含**技能激活运行态**与 **Buff 运行态**；它**不是**任何单个模块的专属，MUST NOT 被读作"只有状态模块的参数才住这里"。**参数表这一消费角色横跨两域运行态。**
 
-**依据**：`TcsState` 是本插件的既有模块名（状态实例句柄 `FStateInstance`），技能却住 `TcsSkill`（施法运行句柄 `FCastRun`）——代码把两者当作**两个运行身份**处理；但两者产出的参数行**同属"参数表读取"这一个消费角色**，因而同住 `TcsStateParam` 根。根段注册表的判据是**消费角色**，不是"哪个模块产出它"。
+**依据（★ 已按 `PLN-REFACTOR-1` 的模块新形状改述，MUST 读）**：本仓的运行态自 Task 2/3 起是**共享基底 + 两个派生**——`FTcsStateInstance`（基底，6 公共字段）+ `FTcsBuffInstance`（Buff 派生）+ `FTcsSkillInstance`（技能派生）。模块层面 Buff 已拆入 `TcsBuff`、技能住 `TcsSkill`，**但两者产出的参数行同属"参数表读取"这一个消费角色**，因而同住 `TcsStateParam` 根。**根名的判据自始至今都是消费角色，不是"哪个模块产出"**——原论证里的"两个运行身份"表述建立在**当时**的模块形状上（Buff 尚未拆出），该句的事实基础已随重构改变，**但结论未变**（见本需求末的 Scenario）。它"。
 
 #### Scenario: 技能运行态的参数键住 `TcsStateParam`
 
 - **WHEN** 一个技能激活运行态需要按参数表读一个键
-- **THEN** 该键 MUST 落在 `TcsStateParam` 根下，MUST NOT 因"技能不住 `TcsState` 模块"而另立根
+- **THEN** 该键 MUST 落在 `TcsStateParam` 根下，MUST NOT 因"技能不住 `TcsState` 模块"或"Buff 已拆入 `TcsBuff`"而另立根
 
 #### Scenario: 不得读成模块名
 
 - **WHEN** 审查 `TcsStateParam` 根下的词
-- **THEN** 判据是该词的消费角色（参数表读取），不是"它是否来自 `TcsState` 模块"——两种运行身份的词可以同根共存
+- **THEN** 判据是该词的消费角色（参数表读取），不是"它是否来自某个模块"——跨模块的运行态词汇可以同根共存（**基底化的三个类型同根**即本判据的现况）

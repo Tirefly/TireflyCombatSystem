@@ -98,7 +98,7 @@
 
 1. **语义归属**：CDR 的公式（"作用于各轨 `Duration`"）写在 `D5-15`、由**技能冷却域**解释；
    状态侧**无此概念**——状态实例没有"冷却"，它的时长语义是"持续多久"（另一种东西）；
-2. **依赖方向（决定性，与 `Level` 恰好相反）**：`TcsSkill` 的 `Build.cs` 含 `TcsState`（**已依赖**），
+2. **依赖方向（决定性，与 `Level` 恰好相反）**：`TcsSkill` 的 `Build.cs` 含 `TcsState`（共享层，**已依赖**），
    而 `TcsState` **不依赖** `TcsSkill` ⇒ 声明在 `TcsSkill` **零成环风险**。`Level` 反过来
    （M5 没有自己的等级定义层，只是复用状态侧定的等级语义）故住 `TcsState`。
    **同一个词被多域消费是常规情形**（M2/M5/状态三域共用同一套五带即先例），
@@ -117,7 +117,7 @@
 #### Scenario: 契约键由插件原生声明且不需宿主配置
 
 - **WHEN** 检查 `TcsStateParam.CooldownPct` 的声明方与宿主 `Config/DefaultGameplayTags.ini`
-- **THEN** 它由**插件模块**原生声明（`TCSSKILL_API` 导出宏）、**不需要**宿主 ini 配置即生效；声明处住 `TcsSkill`（拥有冷却语义，且 `TcsState` 不依赖它 ⇒ 零成环）
+- **THEN** 它由**插件模块**原生声明（`TCSSKILL_API` 导出宏）、**不需要**宿主 ini 配置即生效；声明处住 `TcsSkill`（拥有冷却语义，且 `TcsState`/`TcsBuff` 均不依赖它 ⇒ 零成环）
 
 #### Scenario: 契约键不进普通参数折叠
 
@@ -169,7 +169,7 @@
     ① **防 `ensure` 红字**：`CancelExpiry` 对**悬空**句柄是 `ensureMsgf`，而"到期回调正在跑"那一刻
     它自己的条目**仍然有效**（`FireDueItem` 在回调**返回之后**才释放）⇒ 回调内若再撤本句柄就是
     "取消一个正在跑的条目"；复位后 `IsValid()` 为假，后续清理路径天然跳过
-    （**同款先例** = `FTcsCastRun::PhaseExpiryEntry` 的既有注释、`FTcsCastOps::AdvancePhase` 的首条语句）；
+    （**同款先例** = `FTcsSkillInstance::PhaseExpiryEntry` 的既有注释、`FTcsCastOps::AdvancePhase` 的首条语句）；
     ② **池槽复用纪律**："整体重置而非逐字段赋值"——将来给该结构加字段时自动是干净的；
   - 组轨到期 = **整槽移除**（不需要逐条目遍历——这正是"组槽住实体"的收益）；
   - **无需额外的"允许再次激活"状态**：门禁③ 每次现算，不存在缓存态要清。

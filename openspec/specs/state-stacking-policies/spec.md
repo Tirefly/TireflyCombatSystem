@@ -2,17 +2,17 @@
 
 ## Purpose
 
-定义 M3 状态层的**重复施加语义**：同一 buff 再次施加时会发生什么——按什么分组、层数上限多少、满仓怎么处置、数值随不随层数走、刷新对剩余时长做什么。承载三个形状：`FStateStackPolicy`（五轴策略，`FTcsBuffDef` 的字段）、组键解析与共存决策树（`EAR_Applied / Refreshed / Stacked / Rejected` 四档回执全可达）、以及 `FTcsStateStackDecisionFragment`（宿主自定义分组/决策的逃逸位）。
+定义 **Buff 域**的**重复施加语义**：同一 buff 再次施加时会发生什么——按什么分组、层数上限多少、满仓怎么处置、数值随不随层数走、刷新对剩余时长做什么。承载三个形状：`FTcsBuffStackPolicy`（五轴策略，`FTcsBuffDef` 的字段）、组键解析与共存决策树（`EBAR_Applied / Refreshed / Stacked / Rejected` 四档回执全可达）、以及 `FTcsBuffStackDecisionFragment`（宿主自定义分组/决策的逃逸位）。**本能力自 `PLN-REFACTOR-1` Task 4 起整域住 `TcsBuff` 模块**。
 
 **边界**：本能力只覆盖"重复施加之下的确定性决策与更新流水"。实例在册与生命周期广播（`state-instance-lifecycle`）、参数快照（`state-param-snapshot`）、修正器物化与级联摘除（`state-modifier-materialization`）各自另有能力——本能力只负责**决定**该新建/刷新/叠层/替换/拒绝，并把结果交给那些既有流水；它不新增事件词（`StackChanged` 是既有声明，本能力让它**首次有产生者**）。
 
-**层模型（本能力的核心口径）**：**层数记在一条实例内**（`FTcsStateInstance.Stacks`），组内至多一条实例；"续杯 / 叠层"的判据 = **施加方换没换**（同来源 ⇒ 刷新、异来源 ⇒ 叠一层，未声明来源按同来源处理）。三条如实边界：legacy `NoMerge`（"每次施加独立成实例"）只能**近似**或改用 Custom 决策 Fragment 表达；"按分组词分组"档因基座含 `DefTag` 而不可表达（已裁撤）；"跨定义共享层数"与"逐层来源归属"登记台账。
+**层模型（本能力的核心口径）**：**层数记在一条实例内**（`FTcsBuffInstance.Stacks`——该字段住 Buff 派生的专属组，**基底不含层数**），组内至多一条实例；"续杯 / 叠层"的判据 = **施加方换没换**（同来源 ⇒ 刷新、异来源 ⇒ 叠一层，未声明来源按同来源处理）。三条如实边界：legacy `NoMerge`（"每次施加独立成实例"）只能**近似**或改用 Custom 决策 Fragment 表达；"按分组词分组"档因基座含 `DefTag` 而不可表达（已裁撤）；"跨定义共享层数"与"逐层来源归属"登记台账。
 
 ## Requirements
 
 ### Requirement: 五轴堆叠政策的形状与默认
 
-TcsState MUST 提供 `FStateStackPolicy`（`USTRUCT(BlueprintType)`）——五轴 + 一个附带字段：
+`TcsBuff` MUST 提供 `FTcsBuffStackPolicy`（`USTRUCT(BlueprintType)`）——五轴 + 一个附带字段：
 
 - `EGroupByPolicy GroupBy`：`EGB_None = 0`（默认；同实体 + 同 `DefTag` 共处一组）/ `EGB_PerSource = 1`（组键附来源句柄）/ `EGB_PerInstigator = 2`（附发起者实体）/ `EGB_Custom = 1 << 4`（逃逸位：分组判定交给决策 Fragment）。**Custom MUST 走高位置位**，MUST NOT 占用低位的可枚举取值；**值 3 曾预留给"按分组词"档，已裁撤**（理由见「组键解析」需求末段）；
 - `int32 MaxStacks`：组内最大层数，**`<= 0` = 无限**（默认 `0`）；
@@ -27,7 +27,7 @@ TcsState MUST 提供 `FStateStackPolicy`（`USTRUCT(BlueprintType)`）——五�
 
 #### Scenario: 全默认策略的语义可枚举
 
-- **WHEN** 检查默认构造的 `FStateStackPolicy`
+- **WHEN** 检查默认构造的 `FTcsBuffStackPolicy`
 - **THEN** `GroupBy == None` / `MaxStacks == 0`（无限）/ `Overflow == RejectNew` / `ValueStack == KeepMax` / `StackDurationPolicy == None`，且 `CustomDecision` 为空
 
 #### Scenario: Custom 位不占用低位
@@ -70,7 +70,7 @@ TcsState MUST 提供 `FStateStackPolicy`（`USTRUCT(BlueprintType)`）——五�
 
 #### Scenario: 按分组词档已裁撤
 
-- **WHEN** 检查 `EGroupByPolicy` 与 `FStateStackPolicy`
+- **WHEN** 检查 `EGroupByPolicy` 与 `FTcsBuffStackPolicy`
 - **THEN** 既无"按分组词"档、也无分组词字段（该档与 `None` 同义；其唯一有意义的读法需"组内多条实例"，已登记台账）
 
 ### Requirement: 共存决策与四档回执
@@ -151,17 +151,17 @@ TcsState MUST 提供 `FStateStackPolicy`（`USTRUCT(BlueprintType)`）——五�
 
 ### Requirement: Custom 决策 Fragment
 
-`EGB_Custom` 的分组与决策 MUST 由 `FTcsStateStackDecisionFragment` 接管：`USTRUCT(meta = (Hidden))`，三个决策方法**全部中性默认实现**（MUST NOT `= 0`、MUST NOT `PURE_VIRTUAL`——同一份代码在 Development 与 Shipping 下行为不同）：
+`EGB_Custom` 的分组与决策 MUST 由 `FTcsBuffStackDecisionFragment` 接管：`USTRUCT(meta = (Hidden))`，三个决策方法**全部中性默认实现**（MUST NOT `= 0`、MUST NOT `PURE_VIRTUAL`——同一份代码在 Development 与 Shipping 下行为不同）：
 
-**★ 自 2026-10-14 起本类型是共享层统一决策接口的「状态侧薄型」（本节为接口化后的改述，MUST 读）**：三个决策方法的**契约与中性默认实现上提到 `FTcsEntityAdmission`**（`USTRUCT(meta = (Hidden))` + `virtual ~() = default`），`FTcsStateStackDecisionFragment` **继承它**并**不再自行声明这三个方法**。理由 = 该决策空间与技能侧的"每实体/每次执行"实例化分流**同型**，两处各写一份即漂移源（详见 `entity-runtime-mechanism` 能力的「统一重申请决策接口」需求）。
+**★ 自 2026-10-14 起本类型是共享层统一决策接口的「状态侧薄型」（本节为接口化后的改述，MUST 读）**：三个决策方法的**契约与中性默认实现上提到 `FTcsEntityAdmission`**（`USTRUCT(meta = (Hidden))` + `virtual ~() = default`），`FTcsBuffStackDecisionFragment` **继承它**并**不再自行声明这三个方法**。理由 = 该决策空间与技能侧的"每实体/每次执行"实例化分流**同型**，两处各写一份即漂移源（详见 `entity-runtime-mechanism` 能力的「统一重申请决策接口」需求）。
 
 - `virtual bool IsSameGroup(...) const`：默认 = 内置 `None` 语义（同实体 + 同 `DefTag`）；
 - `virtual bool ShouldAccept(...) const`：默认 = 接受；
 - `virtual int32 ResolveStacks(...) const`：默认 = 沿用内置规则（同来源不变 / 异来源 +1）；
-- **形参类型（接口化后）**：三方法收 `FTcsEntityAdmissionRequest` 与 `FTcsEntityAdmissionExisting`（**通用视图**），取代原先的 `FTcsStateStackRequest` / `FTcsStateInstance`——因为共享层 MUST NOT 认识域记录类型。域侧由**适配层**逐字段直取填充（**MUST NOT 掺入语义**；判据全在策略里）。**视图的字段取舍判据 = "两域共有且语义相同"**：`DefTag` / `Entity` / `Source` / `Instigator` / `Stacks`。**注意 `Stacks` 对技能侧恒 1**（它无层数语义）——该字段只为状态侧的分组与层数决策而存在；
+- **形参类型（接口化后）**：三方法收 `FTcsEntityAdmissionRequest` 与 `FTcsEntityAdmissionExisting`（**通用视图**）——因为共享层 MUST NOT 认识域记录类型（**取代了接口化之前直接收域记录的做法**；那个域记录类型在当时叫 `FTcsStateStackRequest`，`PLN-REFACTOR-1` Task 4 改名后为 `FTcsBuffStackRequest`）。域侧由**适配层**逐字段直取填充（**MUST NOT 掺入语义**；判据全在策略里）。**视图的字段取舍判据 = "两域共有且语义相同"**：`DefTag` / `Entity` / `Source` / `Instigator` / `Stacks`。**注意 `Stacks` 对技能侧恒 1**（它无层数语义）——该字段只为状态侧的分组与层数决策而存在；
 - **`IsSameGroup` 的默认实现 MUST 仍等于"同实体 + 同 `DefTag`"**（与接口化前**逐字相同**，行为中性可核）。
 
-策略实例归 **Def 资产**持有（`CustomDecision` 字段）；`FTcsStateInstance` MUST NOT 持有任何策略载体（值语义记录是池化与操作复制的地基）。
+策略实例归 **Def 资产**持有（`CustomDecision` 字段）；`FTcsBuffInstance` MUST NOT 持有任何策略载体（值语义记录是池化与操作复制的地基）。
 
 `GroupBy = EGB_Custom` 而载荷缺失或类型不符 MUST 退化为内置 `None` 语义并留 `Warning`（**配置错误**语义——与满仓拒绝的 `Log` 分开，后者是业务结果）。
 
@@ -179,12 +179,12 @@ TcsState MUST 提供 `FStateStackPolicy`（`USTRUCT(BlueprintType)`）——五�
 
 #### Scenario: 实例不持有策略
 
-- **WHEN** 检查 `FTcsStateInstance` 的字段集合
+- **WHEN** 检查 `FTcsBuffInstance` 的字段集合
 - **THEN** 无策略载体（策略住 Def 资产，实例只留数据）
 
 #### Scenario: 决策契约只有一份（接口化后的新增判据）
 
-- **WHEN** 检查 `FTcsStateStackDecisionFragment` 与技能侧默认策略类的决策方法声明
+- **WHEN** 检查 `FTcsBuffStackDecisionFragment` 与技能侧默认策略类的决策方法声明
 - **THEN** 两者**均继承自 `FTcsEntityAdmission`**、**MUST NOT 各自声明一份**三方法契约（编译期可核：子类型里不存在 `IsSameGroup` / `ShouldAccept` / `ResolveStacks` 的 `virtual … override` 声明，除非它确实要覆盖）；且**状态侧与技能侧的同一档语义（如同实体不共组）由同一处默认实现给出**
 
 #### Scenario: 接口化不改状态侧默认行为（行为中性对照）

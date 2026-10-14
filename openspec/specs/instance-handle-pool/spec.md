@@ -29,7 +29,7 @@ TcsCore MUST 提供 `FTcsSourceHandle`（uint64 Id，0 = 无效）与 `FTcsSourc
 
 **★ 第三模板参 = 代际发号策略（2026-10-14 新增，MUST 读）**：池 MUST 接受 `TGenerationIssuer` 作为**代际发号策略**，其静态接口为 `uint32 IssueAllocation(uint32 PriorGeneration)`（`PriorGeneration` = 该槽当前代际，**全新槽传 0**），返回值 MUST 为**正奇数**（奇偶簿记依赖它）。**默认档 `FTcsPoolLocalGenerationIssuer` = 池内自增（`PriorGeneration + 1`）= 本参引入前的行为逐字不变** ⇒ 既有四个使用者（到期堆 / 事件总线 / 链运行态 / 施法运行态）MUST NOT 因此产生任何行为差异。
 
-- **为什么需要可注入**：**per-entity 桶**场景下，桶按实体各持一个池；若各池各从代际 1 起发，则两个实体各自的首实例会得到**相同的 `(Index, Generation)`**，而句柄**不带实体段** ⇒ "跨桶扫描式解析"（`FTcsStateOps::Find` 即此类）会**命中错实体**（本仓 2026-10-05 实测过的缺陷）。⇒ 该场景 MUST 注入**进程级**发号器（见 `entity-runtime-mechanism` 能力的「统一 per-entity 桶与注册表」需求）；
+- **为什么需要可注入**：**per-entity 桶**场景下，桶按实体各持一个池；若各池各从代际 1 起发，则两个实体各自的首实例会得到**相同的 `(Index, Generation)`**，而句柄**不带实体段** ⇒ "跨桶扫描式解析"（`FTcsBuffOps::Find` 即此类）会**命中错实体**（本仓 2026-10-05 实测过的缺陷）。⇒ 该场景 MUST 注入**进程级**发号器（见 `entity-runtime-mechanism` 能力的「统一 per-entity 桶与注册表」需求）；
 - **发号策略 MUST 无状态**：进程级计数器 MUST **出线**到模块 `.cpp`（匿名 namespace 变量），**MUST NOT** 用头内联 `static` / inline 变量——模块化构建下每个引用它的 DLL 各留一份，于是各模块各自从 1 起发号（症状随构建配置漂移）；
 - **分配身份只在 `Allocate` 产生**（经发号策略）；`Free` 的 `+1` **只承担"置偶数"**（旧句柄凭"非奇数"与"数值失配"双重失效），MUST NOT 被当作分配身份。
 

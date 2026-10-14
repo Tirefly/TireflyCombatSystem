@@ -14,9 +14,9 @@ M5 技能层的**施法时段面**：让"施法是一个有过程的事件"成�
 
 `TcsSkill` MUST 按定义的 `FTcsSkillDefData.Phases` 推进施法过程，且**推进 MUST 经到期堆驱动、MUST NOT 自建定时机制**：
 
-- 时段时长的求值 MUST 取**本次施法运行态的激活期参数快照**：进入时段时求值该段 `Duration`（`FTcsParamValue`），求值上下文的 `ParamTable` MUST 绑定本 run 的 `FTcsCastRun.ParamSnapshot`（经 `UTcsStateParamTableReader` + `FTcsStateSnapshotScope`，与 `ParamChainRows` 物化**同一套绑定手法**）。⇒ 引用类时长（`Param()`）取的是**激活时刻冻结的值** ⇒ "被修正器改变时段时长 ⇒ 下一次激活生效"**语义天然成立**；
+- 时段时长的求值 MUST 取**本次施法运行态的激活期参数快照**：进入时段时求值该段 `Duration`（`FTcsParamValue`），求值上下文的 `ParamTable` MUST 绑定本 run 的 `FTcsSkillInstance.ParamSnapshot`（经 `UTcsStateParamTableReader` + `FTcsStateSnapshotScope`，与 `ParamChainRows` 物化**同一套绑定手法**）。⇒ 引用类时长（`Param()`）取的是**激活时刻冻结的值** ⇒ "被修正器改变时段时长 ⇒ 下一次激活生效"**语义天然成立**；
 - 入堆 MUST 经 `UTcsClockSubsystem::PushExpiry(DueTime, OwnerId, OnDue)`，到期时刻 = `Clock->GetClock().Elapsed + Duration`（**Elapsed 时轴上的绝对时刻**）。**`FTcsExpiryHeap` 是泵私有，MUST NOT 直接触达**（`AdvanceTo` 保持泵私有——时间推进唯一驱动）；
-- 到期条目句柄 MUST 存入 `FTcsCastRun::PhaseExpiryEntry`**作为取消锚点**——施法终结（四路任一）MUST 经 `UTcsClockSubsystem::CancelExpiry` 取消它，**MUST NOT** 让作废的到期回调在池槽位复用后命中下一个 run（句柄代际校验是第二道防线，取消是第一道）；
+- 到期条目句柄 MUST 存入 `FTcsSkillInstance::PhaseExpiryEntry`**作为取消锚点**——施法终结（四路任一）MUST 经 `UTcsClockSubsystem::CancelExpiry` 取消它，**MUST NOT** 让作废的到期回调在池槽位复用后命中下一个 run（句柄代际校验是第二道防线，取消是第一道）；
 - 到期推进 MUST 依次：`++PhaseIndex` → 发 `TcsEvent.Cast.PhaseChanged` → 若仍有待推进时段则注册下一段，否则走**完成终结**（终结例程与四路汇聚语义住 `skill-cast-runtime` 能力的「施法运行态与实例池」需求——**本能力只定义"何时该完成"，不重复定义"完成后做什么"**）；
 - **"还有没有待推进时段"的判据 MUST 取 `PhaseIndex < Phases.Num()`**，**MUST NOT** 写成 `Phases.IsEmpty()` 这类空表判定——那会让"配了时段但已走到末尾"与"空时段表"走两条不同的路（同一件事两个入口）。**瞬发（空时段表）因此不需要分支**：它天然产生"零个待推进时段"这一状态；
 - **瞬发（空 `Phases`）= 激活当刻完成**：激活流程末尾直接走完成终结，**MUST NOT** 留下一个永不终结的在册运行态（那会让唯一的关闭口是打断 ⇒ 一次成功施法被报成"被打断"，且池槽位与账本 `RunHandles` 永久占用）；
@@ -46,7 +46,7 @@ M5 技能层的**施法时段面**：让"施法是一个有过程的事件"成�
 
 `TcsSkill` MUST 提供 `IsInterruptibleNow()` / `CanMoveNow()` 两个查询，且它们是**打断结算与宿主移动系统询问"这个施法现在能不能打断 / 能不能移动"的唯一合法入口**——宿主 MUST NOT 自行读 `FTcsSkillDefData` 的开关字段来代判（那会在三档之间制造第二真相）：
 
-- **接口形态** MUST 为 `UINTERFACE(MinimalAPI, Blueprintable)` + `UFUNCTION(BlueprintNativeEvent)`（照 `TcsEntityLevelProvider.h:17-34` 的既有体例），形参 MUST 为**已反射的句柄** `FTcsCastRunHandle`（`FTcsCastRun` 自身**非反射**，MUST NOT 作 `BlueprintNativeEvent` 形参——那是 UHT 硬错误）；接口住 `Public/Skill/TcsCastStateQuery.h`，类名 `UTcsCastStateQuery` / `ITcsCastStateQuery`；
+- **接口形态** MUST 为 `UINTERFACE(MinimalAPI, Blueprintable)` + `UFUNCTION(BlueprintNativeEvent)`（照 `TcsEntityLevelProvider.h:17-34` 的既有体例），形参 MUST 为**已反射的句柄** `FTcsSkillInstanceHandle`（`FTcsSkillInstance` 自身**非反射**，MUST NOT 作 `BlueprintNativeEvent` 形参——那是 UHT 硬错误）；接口住 `Public/Skill/TcsCastStateQuery.h`，类名 `UTcsCastStateQuery` / `ITcsCastStateQuery`；
 - **宿主可达性**（为什么必须是 `UINTERFACE` 而非 USTRUCT 策略基类）：宿主**既有类**可直接挂接口（一个类可挂多个插槽），不必为每个插槽专造对象；且反射分发使蓝图 / C# / Lua / TS 任一语言都可实现；
 - **三档 MUST 各有字段载体、MUST 按 `ECastQueryMode` 分派**（Task 1 已交付三档字段，本需求是它的**运行期消费者**）：
   - `CQM_DefSwitches`（**默认档**）⇒ 读 `bInterruptibleDefault` / `bCanMoveDefault`；
@@ -74,7 +74,7 @@ M5 技能层的**施法时段面**：让"施法是一个有过程的事件"成�
 
 ### Requirement: 打断
 
-`TcsSkill` MUST 提供打断入口 `CancelCast(FTcsCastRunHandle Run, <打断原因>)`，其结算 MUST 先过查询契约、MUST NOT 无条件打断：
+`TcsSkill` MUST 提供打断入口 `CancelCast(FTcsSkillInstanceHandle Run, <打断原因>)`，其结算 MUST 先过查询契约、MUST NOT 无条件打断：
 
 - 结算序：① 经 `IsInterruptibleNow()` 判可打断性 → ② 不可打断 ⇒ **拒绝**（返回 false + 具名 `Log`，**运行态原样继续**、MUST NOT 发任何事件、MUST NOT 动账本）→ ③ 可打断 ⇒ 走**四路共用的终结例程**并记原因为"打断"（终结例程与回收面住 `skill-cast-runtime` 能力的「施法运行态与实例池」需求——**本能力只定义"什么时候允许打断 + 记什么原因"，不重复定义"终结时摘什么"**）；
 - 打断 MUST 发 `TcsEvent.Cast.Interrupted`、**MUST NOT** 发 `TcsEvent.Cast.Completed`——"被打断"与"跑完了"是两件事，**MUST NOT** 用完成事件冒充打断（那会让配了 `OnCastCompleted` 起链的技能在被打断时真的打出主链）；

@@ -120,8 +120,8 @@
 
 - `FTcsEffectTriggerInstance`（USTRUCT）字段：`Def: FTcsEffectTriggerDef`（定义）+ `Source: FTcsSourceHandle`（级联退订锚点）+ `Self: FTcsEffectTriggerHandle`（自身句柄）+ `Subject: FInstancedStruct`（运行期实例主体绑定，`UPROPERTY`，默认空）；`Subject` MUST NOT 加进定义侧配置（它与 `Source` 一样是运行期身份，不进内容资产）；
 - `FTcsEffectTriggerHandle`（USTRUCT）以 `TTcsInstanceHandle<FTcsEffectTriggerTag>` 作下标句柄（类型区分标签防与链运行态句柄互换）；
-- **`Source` 的语义取决于"行怎么被登记"**：定义加载期登记（全局常驻规则）→ `Source` = 系统/DefLibrary 来源句柄；**施加状态时登记（Buff 行为）→ `Source` = 该状态实例的级联锚点 `FTcsStateInstance::CascadeAnchor`**（每实例恒发新号、刷新不换）。MUST NOT 用施加方来源 `FTcsStateInstance::Source` 作该行的撤销锚点——同一施加方可施加多个不同定义，按它撤销会互相误摘。该语义是 `09 §2.3`"订阅随 Source 生命周期自动退订——'状态在，修改器就在'天然成立"的机制落点；
-- **`Subject` 与 `Source` 分工不同**：`Source` 负责级联退订，`Subject` 只负责实例局部事件的路由。状态内联行 MUST 在登记时以 `FInstancedStruct::Make<FTcsStateHandle>(Instance.Handle)` 绑定主体；状态句柄的 `Index + Generation` 是完整实例身份（代际发号全局唯一，跨实体同槽位不撞身份），MUST NOT 另加实体字段构造第二套匹配键；
+- **`Source` 的语义取决于"行怎么被登记"**：定义加载期登记（全局常驻规则）→ `Source` = 系统/DefLibrary 来源句柄；**施加状态时登记（Buff 行为）→ `Source` = 该状态实例的级联锚点（基底的 `CascadeAnchor`）**（每实例恒发新号、刷新不换）。MUST NOT 用施加方来源 `FTcsBuffInstance::Source` 作该行的撤销锚点——同一施加方可施加多个不同定义，按它撤销会互相误摘。该语义是 `09 §2.3`"订阅随 Source 生命周期自动退订——'状态在，修改器就在'天然成立"的机制落点；
+- **`Subject` 与 `Source` 分工不同**：`Source` 负责级联退订，`Subject` 只负责实例局部事件的路由。状态内联行 MUST 在登记时以 `FInstancedStruct::Make<FTcsBuffInstanceHandle>(Instance.Handle)` 绑定主体；Buff 实例句柄的 `Index + Generation` 是完整实例身份（代际发号全局唯一，跨实体同槽位不撞身份），MUST NOT 另加实体字段构造第二套匹配键；
 - **主体匹配的适用边界**：仅当行与载荷读取结果都提供有效 `Subject` 时筛选。主体 MUST 有完全相同的 `UScriptStruct` 类型，且 `UScriptStruct::CompareScriptStruct(A, B, 0)` 比较值相等，才允许投递；类型不同或值不同 MUST 静默跳过。未绑定全局行（空 `Subject`）仍接收该 Tag 下全部事件；载荷未提供 `Subject` 的非实例外部事件（Damage、没有读取器的自定义事件等）仍按原 Tag 语义投递给绑定行。此匹配 MUST NOT 被解读为 `EventPayloadFilter` 的实现——该内容预筛字段仍留位；
 - 级联退订：按 `Source` 一次性摘除该来源登记的全部行（与 M2 `RemoveBySource` 同款语义）；主体绑定 MUST NOT 改变该 API 的配对语义；
 - **持有形态**：登记表以 `TArray<FTcsEffectTriggerInstance>`（值语义）持有——触发行无高频增删、无挂起语义，**MUST NOT** 引入实例池类型（`TTcsInstancePool` 的挂起锚/占用统计在此是零收益的复杂度）。**代价**：`TArray` 扩容会搬移元素地址，故**MUST NOT 跨帧持有实例指针**——求值器每次从登记表按下标重解析（与链解释器"每步入器前重解析"同款纪律）。
@@ -248,7 +248,7 @@
 #### Scenario: 状态实例局部事件不会引爆其它实例绑定的行
 
 - **WHEN** 两个不同状态实例各自登记同 Tag 内联行，发布其中一个实例的生命周期事件
-- **THEN** 只命中 `Subject` 为该 `FTcsStateHandle` 的绑定行，其它实例的行在路由阶段静默跳过；同实体与跨实体均按完整句柄身份区分
+- **THEN** 只命中 `Subject` 为该 `FTcsBuffInstanceHandle` 的绑定行，其它实例的行在路由阶段静默跳过；同实体与跨实体均按完整句柄身份区分
 
 #### Scenario: 主体比较必须同时满足精确类型和值相同
 
@@ -292,8 +292,8 @@
   - **宿主实现载体 = `UINTERFACE`**（同条件求值器插槽的四条理由：宿主既有类可挂、本注册值无策略基类可继承故转发器无对象可接、自造策略基类 = 改注册值类型 = SCRIPT-2 路线、语言可达性由宿主面是否为 `UObject` 反射类型决定）；
   - **GC 与寿命（两半都要）**：同条件求值器插槽——门面 `UPROPERTY` 强持有 + 对象/世界弱引用交注册表；`TScriptInterface` 本身不构成 GC 强引用；
   - **"每事件一次"语义 MUST 保住**：`ReadPayloadInfo` 已在求值器里优化为**各行共用、只读一次载荷**；本插槽转发**只替换"读取器"这一层**，MUST NOT 把读取点挪进每行循环；
-- 自注册宏对 `UE_DECLARE/DEFINE_TRIGGER_PAYLOAD_READER`——**由载荷类型的属主模块登记**（已有的 TcsDamage 收集事件读取器住 TcsDamage，本轮新增的状态生命周期读取器住 TcsState；MUST NOT 宣称本轮是首个全局读取器）；
-- **状态生命周期读取器**：TcsState MUST 为 `FTcsStateEventPayload` 静态自登记读取器（`Private/State/TcsStateEvents.cpp`，首个 include 为 `State/TcsStateEvents.h`，只依赖触发读取器注册表、不取效果门面）；`Caster` MUST 取有效 `Payload.Instigator`，否则取 `Payload.Entity`；`Subject` MUST 为 `FInstancedStruct::Make<FTcsStateHandle>(Payload.Handle)`。为满足无发起者时的实体回退，状态载荷 MUST 增加 `Entity: FTcsCombatEntityHandle`（`UPROPERTY(BlueprintReadOnly)`），广播构造点 MUST 从 `Instance.Entity` 复制；读取器直接读载荷快照，MUST NOT 回查正在移除或已被复用的状态实例。分类标签集仍为空（本轮不引入状态分类词）；
+- 自注册宏对 `UE_DECLARE/DEFINE_TRIGGER_PAYLOAD_READER`——**由载荷类型的属主模块登记**（已有的 TcsDamage 收集事件读取器住 TcsDamage，状态生命周期读取器住 `TcsBuff`；MUST NOT 宣称本轮是首个全局读取器）；
+- **状态生命周期读取器**：`TcsBuff` MUST 为 `FTcsBuffEventPayload` 静态自登记读取器（`Source/TcsBuff/Private/State/TcsBuffEvents.cpp`，首个 include 为 `State/TcsBuffEvents.h`，只依赖触发读取器注册表、不取效果门面）；`Caster` MUST 取有效 `Payload.Instigator`，否则取 `Payload.Entity`；`Subject` MUST 为 `FInstancedStruct::Make<FTcsBuffInstanceHandle>(Payload.Handle)`。为满足无发起者时的实体回退，状态载荷 MUST 增加 `Entity: FTcsCombatEntityHandle`（`UPROPERTY(BlueprintReadOnly)`），广播构造点 MUST 从 `Instance.Entity` 复制；读取器直接读载荷快照，MUST NOT 回查正在移除或已被复用的状态实例。分类标签集仍为空（本轮不引入状态分类词）；
 - **未注册载荷类型**：默认构造 `FTcsTriggerPayloadInfo`（空 Caster / 空标签集 / 空 Subject）+ **Verbose** 日志——**MUST NOT ensure**（"载荷类型未知"不是契约违规：手动发布一条自定义事件是合法用法）；
 - **`ClassificationTags` 无来源时为空集**：这是**显式交付的语义**，不是遗漏——空集上匹配非空 Tag 数组的 `HasAllTags` 恒不过（条件的既有语义），故内容侧若要用该条件，MUST 有读取器提供标签集；既有 TcsDamage 读取器未提供 `Subject` 时仍保持其分类与 Caster 的现有语义。
 
@@ -320,7 +320,7 @@
 #### Scenario: 状态载荷读取有效发起者与实例主体
 
 - **WHEN** 状态载荷的 `Instigator` 有效，并携带 `Entity` 与 `Handle`
-- **THEN** 读取结果的 `Caster` 等于 `Instigator`，`Subject` 内层类型为 `FTcsStateHandle`、值等于载荷的 `Handle`，无需 TcsEffect 依赖 TcsState
+- **THEN** 读取结果的 `Caster` 等于 `Instigator`，`Subject` 内层类型为 `FTcsBuffInstanceHandle`、值等于载荷的 `Handle`，无需 `TcsEffect` 依赖 `TcsBuff`
 
 #### Scenario: 无发起者的状态载荷回退到所属实体
 

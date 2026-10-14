@@ -2,7 +2,7 @@
 
 ## Purpose
 
-R5 状态层（`TcsState`）的**端到端竖切验收面**：把六个已各自取证的能力（`state-def-asset` / `state-instance-lifecycle` / `state-param-snapshot` / `state-modifier-materialization` / `state-stacking-policies` / `state-behavior-fragments`）在**同一个状态实例**上串成一条可复跑的通路，并规定这条通路的**取证纪律**——拒绝面独立成命令、读数两面（正路 / 拒绝面）各自成证、边界必须如实登记而非省略。
+R5 状态层（重构后的 `TcsBuff`，与共享层 `TcsState`）的**端到端竖切验收面**：把六个已各自取证的能力（`state-def-asset` / `state-instance-lifecycle` / `state-param-snapshot` / `state-modifier-materialization` / `state-stacking-policies` / `state-behavior-fragments`）在**同一个状态实例**上串成一条可复跑的通路，并规定这条通路的**取证纪律**——拒绝面独立成命令、读数两面（正路 / 拒绝面）各自成证、边界必须如实登记而非省略。
 
 **为什么需要它**：六个能力各有独立证据，却**没有任何一条证据证明它们能在同一实例上串起来跑**——耦合点（`CascadeAnchor` 锚定 / 快照绑定作用域 / 内联触发行登记与撤销配对 / 计时条目取消 / 到期回收后属性是否复原）此前只在各自单元里分别验过，**从未被同一次运行穿过**。本能力把"穿过一次"及其**未覆盖边界**同时变成契约：它既要求可复跑的竖切，也要求**如实标注没验到什么**（`实测与未覆盖清单`）——**MUST NOT 用"未观察到失败"代替"已验覆盖"**。
 

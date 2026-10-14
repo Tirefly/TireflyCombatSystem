@@ -7,7 +7,7 @@
 
 ### Requirement: 修正器物化入口与逐条流水
 
-TcsState MUST 提供修正器物化入口 `FTcsStateModifierMaterializer::Materialize(UTcsStateSubsystem& Subsystem, const FTcsBuffDef& Def, const FTcsStateInstance& Instance, TArray<FTcsAttrModInstance>& Out)`，把 `Def.ModifierRows` 逐条物化为属性账本条目（D3-19：模板 + 引用行 + 覆写走参数传值）。
+`TcsBuff` MUST 提供修正器物化入口 `FTcsBuffModifierMaterializer::Materialize(UTcsBuffSubsystem& Subsystem, const FTcsBuffDef& Def, const FTcsBuffInstance& Instance, TArray<FTcsAttrModInstance>& Out)`，把 `Def.ModifierRows` 逐条物化为属性账本条目（D3-19：模板 + 引用行 + 覆写走参数传值）。
 
 输入取**实例**而不是散字段：`Entity` / `Instigator` / `Level` / `Source` / `ParamSnapshot` 全是实例已有的信息（实例自持 `Entity` 正是为了让物化不必遍历桶找实体）——多传几个形参只会让"某处少填一个"成为可能，而少填在源侧表现为**静默落兜底**而不是报错。
 
@@ -93,11 +93,11 @@ MUST NOT 为同一次求值再开一条并行的数值表通道（同一个问�
 #### Scenario: 刷新不更换来源句柄
 
 - **WHEN** 对比刷新前后账本条目与实例的来源句柄
-- **THEN** 两者相等（级联撤销仍能一次摘净），且 `FTcsStateInstance::Source` 未变
+- **THEN** 两者相等（级联撤销仍能一次摘净），且 `FTcsBuffInstance::Source` 未变
 
 ### Requirement: 移除与到期时按来源级联摘除
 
-`RemoveState` / 到期路径 MUST 在进入 `Expiring` 迁移**之前**按该实例的**级联锚点**（`FTcsStateInstance::CascadeAnchor`——撤销语境下的"来源"自 2026-10-05 起特指该锚点，口径见 `state-instance-lifecycle` 的「池化状态实例记录」）做级联摘除（`RemoveBySource`），并 MUST 在同一个属性变更批内提交——`TcsEvent.State.Expired` / `TcsEvent.State.Removed` 的订阅者在回调里读该属性能读到**已归位**的数值。`UnregisterEntity` MUST 复用同一条移除链。
+`RemoveState` / 到期路径 MUST 在进入 `Expiring` 迁移**之前**按该实例的**级联锚点**（基底的 `CascadeAnchor`——撤销语境下的"来源"自 2026-10-05 起特指该锚点，口径见 `state-instance-lifecycle` 的「池化状态实例记录」）做级联摘除（`RemoveBySource`），并 MUST 在同一个属性变更批内提交——`TcsEvent.State.Expired` / `TcsEvent.State.Removed` 的订阅者在回调里读该属性能读到**已归位**的数值。`UnregisterEntity` MUST 复用同一条移除链。
 
 撤销顺序 MUST 为：**按锚点摘除修正器（批内提交）→ 退订该实例的内联触发行 → 撤时间条目 → `Expiring` → 广播 → 归还槽位**。
 
@@ -122,7 +122,7 @@ MUST NOT 为同一次求值再开一条并行的数值表通道（同一个问�
 
 ### Requirement: 属性访问解析点
 
-TcsState MUST 只经**单一解析点** `FTcsStateAttributeAccess::Resolve(const UWorld*)` 取属性门面（住 `Private/State/`）。该解析点的头文件名 MUST NOT 与将来 TcsEffect 侧的同类解析点重名（UHT 要求全项目头文件名唯一）。
+`TcsBuff` MUST 只经**单一解析点** `FTcsBuffAttributeAccess::Resolve(const UWorld*)` 取属性门面（住 `Private/State/`）。该解析点的头文件名 MUST NOT 与将来 TcsEffect 侧的同类解析点重名（UHT 要求全项目头文件名唯一）。
 
 本轮允许触碰的属性 API **上限**为：语义面三个（`UTcsAttributeSubsystem::ApplyModifier` / `RemoveBySource` / `EvaluateCurrent`）+ **事务对**（`BeginBatch` / `Commit`）+ **一个存在性判据**（`ResolveStore`，只作"账本认不认识这个实体"，MUST NOT 用于取值）。上限之外 MUST NOT 暴露任何属性 API；解析点 MUST 以注释写明"将来补属性访问注入契约时**只换这一处**"。
 
@@ -131,11 +131,11 @@ TcsState MUST 只经**单一解析点** `FTcsStateAttributeAccess::Resolve(const
 - **事务对为什么在允许面内**：逐条挂载若不开批，N 条修正器 = N 次重算 + N 次广播（重入窗口放大 N 倍），且"摘旧与挂新在同一批内"是"中间态不被订阅者看到"的前提；
 - **存在性判据为什么必要**：状态与属性是**两套登记**——状态可以施加到没有属性账本的实体上（合法），而 `BeginBatch` 对未注册实体会 `ensure`。挂点须先问一句，把"没有可改的属性"当配置状态静默处理（`Log` 级、不留红字）。
 
-MUST NOT 在 TcsState 内另建第二处属性门面解析或第二套属性读写路径。
+MUST NOT 在 `TcsBuff` 内另建第二处属性门面解析或第二套属性读写路径。
 
 #### Scenario: 解析点为唯一入口
 
-- **WHEN** 检视 TcsState 内对属性门面的取用
+- **WHEN** 检视 `TcsBuff` 内对属性门面的取用
 - **THEN** 只有该解析点取门面（物化挂载与级联摘除都经它），且暴露的转发面只有上述三个方法
 
 #### Scenario: 解析失败不 ensure
@@ -145,9 +145,9 @@ MUST NOT 在 TcsState 内另建第二处属性门面解析或第二套属性读�
 
 ### Requirement: 修正器来源句柄的身份一致性
 
-物化的每一条账本条目 MUST 以该状态**实例的级联锚点**（`FTcsStateInstance::CascadeAnchor`）作为 `FTcsAttrModInstance::Source`；刷新 MUST NOT 更换它。由此 MUST 成立：**同一个状态实例 = 同一个锚点** ⇒ 一次按锚点摘除清掉该实例的全部修正器条目（内联触发行退订复用同一锚点，一次摘净两族条目）。
+物化的每一条账本条目 MUST 以该状态**实例的级联锚点**（基底的 `CascadeAnchor`）作为 `FTcsAttrModInstance::Source`；刷新 MUST NOT 更换它。由此 MUST 成立：**同一个状态实例 = 同一个锚点** ⇒ 一次按锚点摘除清掉该实例的全部修正器条目（内联触发行退订复用同一锚点，一次摘净两族条目）。
 
-**MUST NOT 用"施加方来源句柄"（`FTcsStateInstance::Source`）作物化锚点**：同一来源可施加多个不同定义，按它摘除会误摘别的实例的条目。
+**MUST NOT 用"施加方来源句柄"（`FTcsBuffInstance::Source`）作物化锚点**：同一来源可施加多个不同定义，按它摘除会误摘别的实例的条目。
 
 #### Scenario: 同实例多条修正器共用来源
 

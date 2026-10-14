@@ -114,16 +114,16 @@
 
 ### Requirement: 布尔开关行的归属
 
-`FTcsBoolSwitchRow` MUST 定义在 **`TcsSkill`**（`Source/TcsSkill/Public/Def/TcsBoolSwitchRow.h`），MUST NOT 定义在 `TcsState`。形状 = `USTRUCT(BlueprintType) FTcsBoolSwitchRow{FGameplayTag Key, bool Base, ETcsParamMode Mode}`，其中 `ETcsParamMode` **从 `TcsState` 复用**（`EPM_Snapshot` 默认 / `EPM_Live`），本模块 MUST NOT 另立同义枚举。
+`FTcsBoolSwitchRow` MUST 定义在 **`TcsSkill`**（`Source/TcsSkill/Public/Def/TcsBoolSwitchRow.h`），MUST NOT 定义在 `TcsState`（该模块现为共享层）或 `TcsBuff`。形状 = `USTRUCT(BlueprintType) FTcsBoolSwitchRow{FGameplayTag Key, bool Base, ETcsParamMode Mode}`，其中 `ETcsParamMode` **从 `TcsState` 复用**（`EPM_Snapshot` 默认 / `EPM_Live`），本模块 MUST NOT 另立同义枚举。
 
 **归属判据（2026-10-06 用户裁定 Q-8，MUST 记录以免后人"补回"基类）**：判据是基类自己的**"无时值 / 无堆叠 = 基类；有时值 / 有堆叠 = 派生"**——基类的数值参数表（`Params: TArray<FTcsNumericParamRow>`）被状态与技能两层共用故留基类；布尔开关的消费者**只有技能侧**故落派生类。**实测依据**：设计语料中 `BoolSwitches` 的消费者只有技能侧四处，且 `SPEC-02-states` 全文**零 `BoolSwitch` 命中**。
 
-**反向风险登记**：若将来状态 / buff 也要布尔开关，把该纯数据类型**下移**到 `TcsState` 是机械改动（无行为、无反射契约）——现在为它预建在基类才是违反"零消费者不预建"。
+**反向风险登记**：若将来状态 / buff 也要布尔开关，把该纯数据类型**下移**到 `TcsState`（共享层）是机械改动（无行为、无反射契约）——现在为它预建在基类才是违反"零消费者不预建"。
 
 #### Scenario: 布尔开关行住技能模块
 
 - **WHEN** 检查 `FTcsBoolSwitchRow` 的声明位置
-- **THEN** 它在 `TcsSkill` 模块内（`Source/TcsSkill/Public/Def/TcsBoolSwitchRow.h`），`TcsState` 中不存在该类型的声明；`TcsSkill` 不因此新增编译依赖（`ETcsParamMode` 复用 `TcsState` 的既有类型）
+- **THEN** 它在 `TcsSkill` 模块内（`Source/TcsSkill/Public/Def/TcsBoolSwitchRow.h`），`TcsState` / `TcsBuff` 中不存在该类型的声明；`TcsSkill` 不因此新增编译依赖（`ETcsParamMode` 复用 `TcsState` 的既有类型）
 
 #### Scenario: 布尔开关本轮零内置消费者
 

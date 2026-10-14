@@ -343,7 +343,7 @@
 #### Scenario: 因果边不参与撤销
 
 - **WHEN** 检查链运行态与状态撤销路径的依赖关系
-- **THEN** 撤销只按状态实例的级联锚点（`FTcsStateInstance::CascadeAnchor`）与触发行的 `Source` 值执行，无任何按 `CausedBy` 级联的路径
+- **THEN** 撤销只按状态实例的级联锚点（基底的 `CascadeAnchor`）与触发行的 `Source` 值执行，无任何按 `CausedBy` 级联的路径
 
 ### Requirement: 属性修改步骤（ModifyAttribute）
 
@@ -351,7 +351,7 @@
 
 - 字段：`Target: FTcsCombatEntityHandle`（无效则取黑板 `Targets[0]`，仍无效 ⇒ 软失败）/ `Attribute: FGameplayTag` / `Op: ETcsAttributeOp`（**复用 M2 运算带枚举，不新造词表**）/ `Operand: FTcsParamValue`（复用统一数值载体）；
 - 执行体 MUST 构造一条一次性 `FTcsAttrModInstance` 并经**属性访问解析点**写入账本（解析点口径见 `attribute-pipeline` 的「属性门面的解析点」）；条目的 `Source` MUST = 黑板 `RunSource`（⇒ 同一次运行挂上的条目可按该锚点回收）；
-- **依赖边界（本步骤是首次真实使用）**：`TcsEffect` 允许依赖**下层**领域模块 `TcsAttribute`，**MUST NOT** 依赖上层领域模块（`TcsDamage` / `TcsTargeting` / `TcsState` / `TcsSkill`）——头注释 MUST 写明该边界；
+- **依赖边界（本步骤是首次真实使用）**：`TcsEffect` 允许依赖**下层**领域模块 `TcsAttribute`，**MUST NOT** 依赖上层领域模块（`TcsDamage` / `TcsTargeting` / `TcsBuff` / `TcsSkill`）——头注释 MUST 写明该边界；
 - 步骤为**即时步骤**：恒 `TSR_Completed`；失败面（目标无效 / 实体无属性账本 / 属性键无效）MUST 记 `Warning` 后按完成处理，**MUST NOT 断链**（`ETcsStepResult` 无中断档，软失败接管归 `OnError`）；
 - 自注册 MUST 走 `effect-step-dispatch` 的静态自注册宏（键 = 步骤 struct 的 `const UScriptStruct*`）。
 

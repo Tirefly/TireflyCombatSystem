@@ -7,9 +7,9 @@
 
 ### Requirement: 参数快照与其构建规则
 
-TcsState MUST 提供参数快照类型：`FTcsParamSnapshotEntry{ FGameplayTag Key; double Value; FInstancedStruct SourceRef; }` 与 `FTcsParamSnapshot{ TArray<FTcsParamSnapshotEntry> Entries; }`，并 MUST 提供只读查询 `TryGetNumericParam(FGameplayTag Key, double& OutValue) const`（miss 返回 false 且 `OutValue` 内容未定义）。
+`TcsState`（共享层）MUST 提供参数快照类型（**两域共用**——Buff 实例快照与技能 run 快照同型）：`FTcsParamSnapshotEntry{ FGameplayTag Key; double Value; FInstancedStruct SourceRef; }` 与 `FTcsParamSnapshot{ TArray<FTcsParamSnapshotEntry> Entries; }`，并 MUST 提供只读查询 `TryGetNumericParam(FGameplayTag Key, double& OutValue) const`（miss 返回 false 且 `OutValue` 内容未定义）。
 
-`FTcsStateInstance` MUST 持一份快照（Task 2 的注释留白在此落地）。施加时 MUST 对 `Def.Params` 逐行求值并冻结：
+`FTcsBuffInstance`（经基底 `FTcsStateInstance`）MUST 持一份快照。施加时 MUST 对 `Def.Params` 逐行求值并冻结：
 
 - **覆盖优先**：`ApplyState` 的 `Overrides` 命中该行 `Key` ⇒ 取覆盖值；否则取 `Def.Base.Evaluate(Ctx)`；
 - **求值上下文**：`ParamTable` = 施加方参数表（未提供 = 空）、`Subject` = 被施加方实体、`Instigator` = 发起者实体（无效时取被施加方）、`EffectiveLevel` = `Def.LevelBase`、`LevelProvider` = 门面登记的宿主等级读口（后两个字段见「等级来源与实体等级读口」需求）；
@@ -39,13 +39,13 @@ TcsState MUST 提供参数快照类型：`FTcsParamSnapshotEntry{ FGameplayTag K
 
 ### Requirement: 参数快照的参数表读取适配器
 
-TcsState MUST 提供 `FTcsStateParamTableReader`——把 `FTcsParamSnapshot` 当参数表暴露的读取适配器（把键查询转发到快照查询）。
+`TcsState`（共享层）MUST 提供 `FTcsStateParamTableReader`——把 `FTcsParamSnapshot` 当参数表暴露的读取适配器（把键查询转发到快照查询）。**它住共享层的判据 = 被两个域在代码级使用**（Buff 侧物化修正器、技能侧求值引用类时长与参数链行）。
 
 它是**修正器物化与 `ParamRef` 源从快照取值的唯一入口**（R5 Task 4 的输入口）——消费方 MUST NOT 自行遍历快照条目去拼一套平行的键查找。
 
 **实现形态 = 纯 C++ 类（持快照只读指针），本体 MUST NOT 派生 `UObject`、也 MUST NOT 去实现 `ITcsParamTableReader`**：唯一的直接消费方（物化器）是 C++ 直调，而 `ITcsParamTableReader` **不是 `Blueprintable`**（宿主脚本无法实现它）⇒ 为它造壳属"零消费者预建"，且会把快照指针的寿命绑到 GC 上。
 
-**反射壳（2026-10-04，原定触发时机落地）**：为了让快照能作为"本次求值的参数表"装进反射上下文（`FTcsParamEvaluateContext::ParamTable`——物化求值的参数表就是该实例快照），TcsState MUST 另提供一层**薄壳** `UTcsStateParamTableReader : UObject, ITcsParamTableReader`：
+**反射壳（2026-10-04，原定触发时机落地）**：为了让快照能作为"本次求值的参数表"装进反射上下文（`FTcsParamEvaluateContext::ParamTable`——物化求值的参数表就是该实例快照），`TcsState` MUST 另提供一层**薄壳** `UTcsStateParamTableReader : UObject, ITcsParamTableReader`：
 
 - 壳 MUST 只做**委托**——把键查询原样转发给纯类本体，查找语义 MUST 仍只有一份实现（壳 MUST NOT 复制快照遍历逻辑，也 MUST NOT 引入第二处键查找）；
 - 状态门面 MUST 以 `UPROPERTY` 持有壳的**单例**（零 per-apply 分配；宿主脚本因此可在求值上下文中读取该快照）；
@@ -73,7 +73,7 @@ TcsState MUST 提供 `FTcsStateParamTableReader`——把 `FTcsParamSnapshot` �
 
 ### Requirement: 等级来源与实体等级读口
 
-TcsState MUST 提供宿主等级读口 `ITcsEntityLevelProvider`（`UINTERFACE(MinimalAPI, Blueprintable)` + `UFUNCTION(BlueprintNativeEvent) int32 GetEntityLevel(FTcsCombatEntityHandle Entity)`），并 MUST 提供四个等级类参数源（均 MUST 继承 `FTcsParamEnumerableSource` 并覆写 `GetIndexForLevel`，使"等级 → 档位下标"的唯一真相留在源内）：
+`TcsBuff` MUST 提供宿主等级读口 `ITcsEntityLevelProvider`（`UINTERFACE(MinimalAPI, Blueprintable)` + `UFUNCTION(BlueprintNativeEvent) int32 GetEntityLevel(FTcsCombatEntityHandle Entity)`），并 MUST 提供四个等级类参数源（均 MUST 继承 `FTcsParamEnumerableSource` 并覆写 `GetIndexForLevel`，使"等级 → 档位下标"的唯一真相留在源内）：
 
 | 源 | 等级来源 | 取值 |
 |---|---|---|
@@ -82,9 +82,9 @@ TcsState MUST 提供宿主等级读口 `ITcsEntityLevelProvider`（`UINTERFACE(M
 | `FTcsParamSource_InstigatorLevelArray{ TArray<double> Values }` | `Context.Instigator` → 门面登记的 `ITcsEntityLevelProvider` → level | 同数组源规则 |
 | `FTcsParamSource_InstigatorLevelMap{ TMap<int32, double> Values }` | 同上 | 同映射源规则 |
 
-`UTcsStateSubsystem` MUST 提供 `SetEntityLevelProvider(TScriptInterface<ITcsEntityLevelProvider>)` / `GetEntityLevelProvider()`，并以 `UPROPERTY` 持有注入的读口（GC 纪律）。**未注入 = `nullptr` 是配置状态、不是错误**——等级类源 MUST 落兜底路径（不崩溃、不 ensure、不向别的子系统反查）。
+`UTcsBuffSubsystem` MUST 提供 `SetEntityLevelProvider(TScriptInterface<ITcsEntityLevelProvider>)` / `GetEntityLevelProvider()`，并以 `UPROPERTY` 持有注入的读口（GC 纪律）。**未注入 = `nullptr` 是配置状态、不是错误**——等级类源 MUST 落兜底路径（不崩溃、不 ensure、不向别的子系统反查）。
 
-**读口不进 Core 上下文，走派生上下文**：等级读口的唯一消费者是本模块的四个等级源，而 `FTcsParamEvaluateContext` 住 `TcsCore`——把域读口塞进 Core 会让 Core 持有只有上层使用的类型（且日后每个域都想往那里塞自己的读口）。故 TcsState MUST 提供派生上下文 `FTcsStateEvaluateContext : FTcsParamEvaluateContext`，**唯一新增字段** `TScriptInterface<ITcsEntityLevelProvider> LevelProvider`，并按 PV-1 既有机制覆写类型标识；等级类源 MUST 以 `GetScriptStruct()->IsChildOf(FTcsStateEvaluateContext::StaticStruct())` 判定后取值，判定失败（收到基础上下文或他域上下文）落兜底。**先例 = 同族的 `FTcsAttributeEvaluateContext` 持 `ITcsAttributeProvider`**（PV-1 明文支持多层派生）。
+**读口不进 Core 上下文，走派生上下文**：等级读口的唯一消费者是本模块的四个等级源，而 `FTcsParamEvaluateContext` 住 `TcsCore`——把域读口塞进 Core 会让 Core 持有只有上层使用的类型（且日后每个域都想往那里塞自己的读口）。故 `TcsBuff` MUST 提供派生上下文 `FTcsStateEvaluateContext : FTcsParamEvaluateContext`，**唯一新增字段** `TScriptInterface<ITcsEntityLevelProvider> LevelProvider`，并按 PV-1 既有机制覆写类型标识；等级类源 MUST 以 `GetScriptStruct()->IsChildOf(FTcsStateEvaluateContext::StaticStruct())` 判定后取值，判定失败（收到基础上下文或他域上下文）落兜底。**先例 = 同族的 `FTcsAttributeEvaluateContext` 持 `ITcsAttributeProvider`**（PV-1 明文支持多层派生）。
 
 **分界判据**（哪些字段进基础上下文、哪些进派生）：**跨域通用的主体身份**（`Subject` / `Instigator` / `EffectiveLevel`）进基础；**某域的读口**（属性读口、等级读口）进该域派生上下文。故 `Instigator` 由 `param-value` 能力补进基础上下文（它答"谁施加的"，任何域都会问），而 `LevelProvider` 住本派生上下文。
 
@@ -152,7 +152,7 @@ TcsState MUST 提供宿主等级读口 `ITcsEntityLevelProvider`（`UINTERFACE(M
 
 ### Requirement: 时长操作的到期堆同步
 
-`UTcsStateSubsystem::ExtendDuration(Handle, Delta)` / `SetRemaining(Handle, Seconds)` MUST 在更新剩余时长的同时**撤销旧条目并按新余量重新入堆**（句柄配对清理）。
+`UTcsBuffSubsystem::ExtendDuration(Handle, Delta)` / `SetRemaining(Handle, Seconds)` MUST 在更新剩余时长的同时**撤销旧条目并按新余量重新入堆**（句柄配对清理）。
 
 - `EDP_Infinite` 上调二者 MUST 留 `Warning` 并**无操作**（无到期条目可调，属配置状态不是错误）；定义未登记时同样 `Warning` + 无操作（不猜策略）。
 - 剩余时长被置为 0 或负值时 MUST 按 0 处理，并使其在下一个泵点到期。
@@ -182,7 +182,7 @@ TcsState MUST 提供宿主等级读口 `ITcsEntityLevelProvider`（`UINTERFACE(M
 
 - `RemoveState` / `ExpireState` MUST 在进入撤销流程时**先撤销该实例的到期与周期条目**，再走既有的 `Expiring → 广播 → 归还槽位` 顺序——条目持句柄，槽位复用后回调仍会到达，先撤条目才不产生无谓回调。
 - `UnregisterEntity` MUST 同样逐条撤销条目（它复用同一条移除链）。
-- `UTcsStateSubsystem::Deinitialize` MUST 在清空桶之前撤销全部待撤销条目——MUST NOT 留跨世界残影。
+- `UTcsBuffSubsystem::Deinitialize` MUST 在清空桶之前撤销全部待撤销条目——MUST NOT 留跨世界残影。
 - 到期回调 MUST 经 `UWorld` 弱引用与句柄代际校验：世界已拆解或句柄悬空时 MUST 静默丢弃（时序竞态语义，不留红字、不 ensure）。
 
 #### Scenario: 世界反初始化撤销条目

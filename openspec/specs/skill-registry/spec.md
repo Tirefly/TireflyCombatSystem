@@ -11,9 +11,9 @@
 
 - 账本 MUST 以 `UTcsSkillSubsystem`（`UWorldSubsystem`）为门面，持 **per-entity 桶**（一个实体一个句柄空间）；桶 MUST 经**共享层的统一桶模板**（`TTcsEntityRuntimeBucket`，见 `entity-runtime-mechanism` 能力）承载——其内部载体 = `TTcsInstancePool`，**且 MUST 注入进程级代际发号器**（`FTcsStateGenerationIssuer`：每实体一个句柄空间、槽位索引在实体内定位，而代际由**进程内**发号器分配不复用的奇数，释放 +1 置偶数）。**★ 本句订正于 2026-10-14**：原文写"MUST NOT 复用 `TTcsInstancePool`（该池是『一池 = 一个句柄空间』，与 per-entity 桶的形状不符）"——该禁令**依据不足**：池是**每实体各持一个实例**（不是全局一池），形状本就符合；真约束是"代际 MUST 进程唯一"，故已改为"用池 + 注入进程级发号器"（判据见 `instance-handle-pool` 能力的「实例池的分配释放与解析」需求）；
 - 条目句柄类型 MUST 为 `FTcsSkillEntryHandle{int32 Index, int32 Generation}` 并 **MUST 反射**（`USTRUCT(BlueprintType)`）——展平两字段（**不内嵌模板句柄**：模板类型无法作 `UPROPERTY`，脚本层往返会得到空壳 ⇒ 读不到值、传回全零 ⇒ 代际失配），`Index` 取 `int32`（UHT 不支持 `uint32` 作属性类型；`-1` 与池的 `0xFFFFFFFF` 位模式相同）；**有效性判据 = `Generation` 非 0**，MUST NOT 判"下标非 0"（首个槽位的 `Index` 就是 0）；
-- 条目记录类型 MUST 为 `FTcsLearnedSkillEntry`，字段**恰好**为八项 `{FGameplayTag DefTag, FTcsSkillEntryHandle Handle, FTcsCombatEntityHandle Entity, FTcsSourceHandle LearnSource, int32 Level, TArray<FTcsCastRunHandle> RunHandles, TArray<FTcsNumericParamModInstance> NumericParamModInstances, TArray<FTcsCooldownTrackState> CooldownTracks}`：
-  - **非反射结构体**（无 `USTRUCT`）——它是桶内池化纯数据、本轮零过网与零脚本消费面（同 `FTcsStateInstance` 的处置与理由）；脚本/蓝图侧的读写面另属 `SCRIPT-10`（触发条件型），**MUST NOT** 在本轮为此反射化；
-  - `DefTag` = **权威内容身份**（`EffectiveDefId` 概念已整体移除——D5-9）；`Handle` = **桶内句柄**（条目自身身份；`Index` / `Generation` 的语义由所属桶定义）；`Entity` = **条目所属实体**（门面按句柄取条目时句柄里没有实体段 ⇒ 自持后是 O(1) 定位，否则只能遍历所有桶找句柄；且"这个技能在谁身上"本就是条目身份的一部分，非重复真相——同 `FTcsStateInstance::Entity` 的理由）；`LearnSource` = 学习来源（级联撤销锚点）；`Level` = **持久等级**（运行中升级不追溯，快照时点在激活期）；`RunHandles` = 在飞施法运行句柄集（**激活期回填、run 终结时摘除**——回填与摘除 MUST 成对，否则账本会永久持有已归还的句柄，表现为"技能显示在飞但实际放完了"；写入者 = 施法运行态能力）；
+- 条目记录类型 MUST 为 `FTcsLearnedSkillEntry`，字段**恰好**为八项 `{FGameplayTag DefTag, FTcsSkillEntryHandle Handle, FTcsCombatEntityHandle Entity, FTcsSourceHandle LearnSource, int32 Level, TArray<FTcsSkillInstanceHandle> RunHandles, TArray<FTcsNumericParamModInstance> NumericParamModInstances, TArray<FTcsCooldownTrackState> CooldownTracks}`：
+  - **非反射结构体**（无 `USTRUCT`）——它是桶内池化纯数据、本轮零过网与零脚本消费面（同基底 `FTcsStateInstance` 与 Buff 派生 `FTcsBuffInstance` 的处置与理由）；脚本/蓝图侧的读写面另属 `SCRIPT-10`（触发条件型），**MUST NOT** 在本轮为此反射化；
+  - `DefTag` = **权威内容身份**（`EffectiveDefId` 概念已整体移除——D5-9）；`Handle` = **桶内句柄**（条目自身身份；`Index` / `Generation` 的语义由所属桶定义）；`Entity` = **条目所属实体**（门面按句柄取条目时句柄里没有实体段 ⇒ 自持后是 O(1) 定位，否则只能遍历所有桶找句柄；且"这个技能在谁身上"本就是条目身份的一部分，非重复真相——同基底 `Entity` 字段的理由）；`LearnSource` = 学习来源（级联撤销锚点）；`Level` = **持久等级**（运行中升级不追溯，快照时点在激活期）；`RunHandles` = 在飞施法运行句柄集（**激活期回填、run 终结时摘除**——回填与摘除 MUST 成对，否则账本会永久持有已归还的句柄，表现为"技能显示在飞但实际放完了"；写入者 = 施法运行态能力）；
   - **`Entity` 缺失时的后果（MUST 记录，防后人误删）**：施法终结路径（打断 / 顶替）只拿得到**运行句柄**，需经 `Entity` 才能定位条目并摘除 `RunHandles`、按来源回收；缺它会让终结路径要么无法定位，要么退化为全桶扫描；
   - **`NumericParamModInstances` 字段已回补（2026-10-09，Task 4 按上条裁定自己的约定回补）**：本字段原被裁定"归参数链轮"而**从条目中移除**（元素类型 `FTcsNumericParamModifier` / `FTcsNumericParamModInstance` 当时不存在 ⇒ 写进来即**未声明标识符**）。Task 4 交付后，字段随之下落为**第七条** `TArray<FTcsNumericParamModInstance> NumericParamModInstances`——它是参数账本的**槽位容器**（形如 M2 `FTcsAttributeInstance::AttrModInstances`），也是"激活期物化 + 外部施加 + 按来源级联摘除"三者的共同落点（缺它则三者**无字段可写**）；
     - **元素类型是账本侧的纯 C++ `FTcsNumericParamModInstance`（无 `USTRUCT`、无对象引用）** ⇒ 本条**依然**满足下方 GC 纪律（"账本条目 MUST NOT 持任何 `UObject` 引用"），门面 `AddReferencedObjects` **MUST NOT** 为此新增遍历。**判据**：若有人把这里换成定义侧的 `FTcsNumericParamModifier`（含 `FTcsParamValue` ⇒ 可持 `TScriptInterface`），则账本容器（`TArray`、非 `UPROPERTY`、元素非反射）会 **GC 不可见** ⇒ 那些对象被静默回收（症状 = 参数链里的源变空引用，不崩溃）；
@@ -64,7 +64,7 @@
 
 - MUST 提供 `GetLevel(FTcsSkillEntryHandle) -> int32`：返回**生效等级** `EffectiveLevel`，语义为 `clamp(0, LevelBase + Σ参数账本 Level 键修正)`（`LevelBase` 取自该条目 `DefTag` 对应的定义内容；`Σ` 为 `Level` 键上的修正器折叠结果）；
 - MUST 提供 `GetNumericParam(FTcsSkillEntryHandle, FGameplayTag Key, double& OutValue) -> bool` 与 `IsSwitchSet(FTcsSkillEntryHandle, FGameplayTag Key, bool& OutValue) -> bool`：分别读数值参数表与布尔开关表，**未命中 MUST 落 miss**（返回 false，MUST NOT 静默返回 0 或 `false` 当命中）；
-- **参数键的归属**：MUST 落 `TcsStateParam` 根（该根的 `State` 取**广义**——含技能激活运行态；`gameplay-tag-governance` 明文"技能运行态归状态"）⇒ **MUST NOT 因"技能不住 `TcsState` 模块"另立根**；
+- **参数键的归属**：MUST 落 `TcsStateParam` 根（该根的 `State` 取**广义**——含技能激活运行态；`gameplay-tag-governance` 明文参数表角色横跨两域运行态）⇒ **MUST NOT 因"技能不住 `TcsState` 模块"另立根**；
 - **本轮的分工边界**：`Level` 修正键的**写入面**由参数链轮提供 ⇒ 本能力先落**求值函数**（形参接收"带 `Level` 键的修正器列表"），接入点在参数链轮；**MUST NOT** 依赖条目记录自持修正链字段（该字段在本能力落地时尚不存在，见上一条需求）；
 - 数值读取 MUST 走**规范值**（账本内永远规范值，值约定转换发生在写入点）。
 
@@ -90,7 +90,7 @@
 - MUST 提供 `RegisterSkillDef(FGameplayTag DefTag, const FTcsSkillDefData& Def) -> bool`：**身份由调用方显式传入**（身份归资产、内容归数据 struct——从内容里读身份会迫使策划在同一个资产里把同一个 tag 手填两遍，即双真相）；登记表 MUST **自持副本**（`TUniquePtr` 持有使解析返回的指针地址稳定）；
 - 拒绝面 = `DefTag` 无效 / 同 id 重复登记（**不静默覆写**——口径同链与触发行定义登记）；失败 MUST 记 **Error** 并返回 false（调用方是定义库，失败在上游已被拦）；
 - MUST 提供 `UnregisterSkillDef` / `GetRegisteredSkillDef(FGameplayTag) -> const FTcsSkillDefData*` / `GetRegisteredSkillDefCount()`；未登记返回 `nullptr`（**正常查询路径，不 ensure**）；解析返回**裸 struct 指针**（UHT 不支持 struct 指针作反射返回——同 `GetRegisteredStateDef` 的取舍）；
-- **依赖方向 MUST 单向**：定义库（`TcsIntegration`）写进门面，门面 **MUST NOT 反查**定义库（同 `UTcsStateSubsystem` 的登记口纪律）；**MUST NOT** 为此给 `TcsSkill` 增加对 `TcsIntegration` 的依赖。
+- **依赖方向 MUST 单向**：定义库（`TcsIntegration`）写进门面，门面 **MUST NOT 反查**定义库（同 `UTcsBuffSubsystem` 的登记口纪律）；**MUST NOT** 为此给 `TcsSkill` 增加对 `TcsIntegration` 的依赖。
 
 #### Scenario: 登记后可按 tag 解析
 
