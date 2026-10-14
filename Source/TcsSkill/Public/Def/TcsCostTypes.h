@@ -358,7 +358,7 @@ public:
  * **"想配消耗但没配清"（`Timing != None` 而策略为空，拦住 + `Warning`）**是两件事；
  * 混成一类会让后者**表现成一切正常**（本仓反复在拦的那类 bug）。
  *
- * **策略实例归 Def 资产持有**（同 `FTcsStateStackPolicy::CustomDecision` 的既有口径：
+ * **策略实例归 Def 资产持有**（同 `FStateStackPolicy::CustomDecision` 的既有口径：
  * 单字段暴露 ⇒ 类/载荷配对 bug 类消失）。**⇒ 运行期不可换策略**，这是**刻意的**
  * （配置即成员）；若宿主需"运行期换策略"，那是另一项需求。
  *

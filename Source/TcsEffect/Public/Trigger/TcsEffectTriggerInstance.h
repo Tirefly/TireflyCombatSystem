@@ -128,7 +128,7 @@ public:
 	FTcsSourceHandle Source;
 
 	/**
-	 * 本行绑定的实例主体（运行期反射值；状态内联行装 `FTcsStateHandle`）。
+	 * 本行绑定的实例主体（运行期反射值；状态内联行装 `FTcsBuffInstanceHandle`）。
 	 *
 	 * 空值 = 未绑定的全局规则。带主体的局部事件只投递给主体类型和值均相同的绑定行；
 	 * 非实例事件（载荷读取器未给 Subject）仍按既有 Tag 语义投递给绑定行。

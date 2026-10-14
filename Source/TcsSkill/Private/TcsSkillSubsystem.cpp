@@ -49,7 +49,7 @@ void UTcsSkillSubsystem::Deinitialize()
 	// 本类的 `Deinitialize` 与时钟子系统的拆解顺序**不保证**（两者都是世界子系统）。
 	// `FTcsExpiryHeap::Reset()` 清条目与回调、但**不失效代际** ⇒ 时钟已拆完时再 `CancelExpiry`
 	// 会**二次递减** `Tcs.Core.ExpiryHeapDepth` 并释放一个陈旧槽位（症状 = 拆解期堆深度计数变负）。
-	// **判据 = 本仓既有先例**：`FTcsStateBehaviorRegistry::Reset` 对总线用的正是
+	// **判据 = 本仓既有先例**：`FTcsBuffBehaviorRegistry::Reset` 对总线用的正是
 	// `if (Bus && Bus->IsInitialized())`——`IsInitialized()` 的语义是"**Initialize 已调用、
 	// Deinitialize 尚未调用**"（`WorldSubsystem.h:102`），正好回答"这个时钟现在还能撤锚点吗"。
 	int32 GroupSlotsBefore = 0;

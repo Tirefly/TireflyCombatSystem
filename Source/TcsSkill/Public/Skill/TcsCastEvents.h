@@ -43,7 +43,7 @@ extern TCSSKILL_API FNativeGameplayTag Tag_TcsEvent_Cast_Interrupted;
  *
  * **为什么四枚共用一个形状**：订阅者拿到的永远是"哪个技能的哪一次施法动作"——运行身份、所属实体、
  * 定义身份、条目身份与等级在四枚上口径一致；各写一个 struct 会让订阅侧复制四份解析代码。
- * 先例 = 状态侧六枚生命周期事件共用 `FTcsStateEventPayload`。
+ * 先例 = 状态侧六枚生命周期事件共用 `FTcsBuffEventPayload`。
  *
  * **`Run` 是句柄不是指针**：订阅者若要读运行态细节，在回调内用句柄复核——
  * **"先广播后归还槽位"的纪律**保证那一刻 run 仍在册（同状态侧"先广播后释放槽位"）。

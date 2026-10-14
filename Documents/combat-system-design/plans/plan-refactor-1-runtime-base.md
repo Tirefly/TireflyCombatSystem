@@ -2,9 +2,9 @@
 
 - **文档 ID**：`PLN-REFACTOR-1`
 - **类型**：PLN / 计划
-- **状态**：ACTIVE（2026-10-13 建立；**实施进行中**——Task 1 / Task 2 / Task 3 已交付，**下一开工点 = Task 4**。本计划是 `DEC-2026-10-13-state-module-positioning` **与** `DEC-2026-10-13-asset-butler` 两份裁决的**合并执行形状**）
+- **状态**：ACTIVE（2026-10-13 建立；**实施进行中**——Task 1 / Task 2 / Task 3 / **Task 4** 已交付，**下一开工点 = Task 8**（按方案 A 的 `1 → 2 → 3 → 4 → 8 → 5 → 6 → 7`）。本计划是 `DEC-2026-10-13-state-module-positioning` **与** `DEC-2026-10-13-asset-butler` 两份裁决的**合并执行形状**）
 - **权威范围**：**两条线合成一份执行形状**（★ 2026-10-13 合并，理由见 §0.5）——(A) 运行态**基底抽形**与**共享机制合并**、两个 payload 的拆分、**`TcsBuff` 新模块的拆出**；(B) **`TcsAssetButler` 新模块落地**、四处类型搬迁、定义库瘦身。附规格面回写与证据重取。**不在本文**——裁定本身（住两份 `DEC-*`）、关系表族语义（住 `DEC-2026-10-13-relation-*`）、`e1`/`e4` 的重写明细（各归 `PLN-R5.5` 改述后）
-- **最后更新**：2026-10-14（**★ 同日第八笔 = Task 3 落地**：七个 Step 全部完成（Step 3 由 Task 1 交付、本 Task 只订正状态）+ 双配置 **0/0** + 无头装置 **11 条行为信号逐字相同**。**★ 两处形状由用户开工时改定**（取代计划原文）：① **不单开 payload 类型**（与 Task 2 同一条判据）；② **彻底一词一义**——记录 `FTcsCastRun` → **`FTcsSkillInstance`**、句柄 → **`FTcsSkillInstanceHandle`**、**方法/成员名一并改**（12 个标识符）。**11 字段去向 = 5 上提基底 + 6 留本域**（`RunSource`→`CascadeAnchor`、`PhaseExpiryEntry`→`ExpiryEntry`）。**两处用户裁定**：① 基底 `DefTag` 在技能侧**填上 + 8 处改读自己**，**但保留"条目撤销 ⇒ 不发终止事件"那处守卫**（去掉即行为变更）；② 句柄与方法名一并改。**一处过期描述订正**：计划原文把「门禁④ 改走共享决策」列为 Task 3 的 Step 并称"本重构的实质收益点"——**该收益点已在 Task 1 落地**（`git log -S` 唯一命中 `0ac43b6`），本 Task **零改动**。**一处判据的归属订正**：原验收信号"`TcsCastOps.cpp` 内零内联 Instancing 分流"已在 Task 1 满足（今日仍成立，但**不是**本 Task 的成绩）。**★ 一处真实的过程缺陷如实登记**：机械改名中途**出过一次文件损坏**（PowerShell 辅助函数参数被拍平、退化成逐字符替换 ⇒ 三个文件共 **1430 个字符**被换掉），**按 `HEAD` 逐字节还原**后改用**脚本文件 + 命中护栏 + 字符不变量核对**重做 ⇒ 立纪律「**批量替换 MUST 走脚本文件、MUST NOT 走 shell 内联；每次替换后 MUST 核对成对字符守恒**」。**一处基线选型陷阱**：Task 2 的 `03-SkillCast.Phase.log` 是**截断版**（P9 命中 0），基线 MUST 取 `03b` —— **同一坑的第二次**。**★ 一处由用户提问暴露的流程缺口**：Task 2 / Task 3 **都未开提案**（属**静默跳步**），根因 = Global Constraints 的「每个 Task 以提案开道」与 Task 5 的**批处理设计自相矛盾** ⇒ 已订正为**两条合法路径 + 选路判据**，并补记未偿欠账（主规格 **14 能力 / 52 处**引用旧类型名，归 Task 5）。**两仓零提交**。**前一笔（同日）＝第七笔 = Task 2 落地**：六个 Step 全部完成 + 双配置 **0/0** + 无头装置 **11 条读数逐字相同**。**★ 两处形状由用户开工时改定**（取代计划原文）：① **不单开 payload 类型**、字段直接平铺进派生结构；② 命名按 **Def 层同构** = 基底 `FTcsStateInstance`（**保留原名**）+ 派生 **`FTcsBuffInstance`**（**MUST NOT 含 `Entity`**——它在本仓专指"战斗实体"）。**同批记录我自己的错名**（初稿 `FTcsEntityRuntime`/`FTcsBuffRuntime` 撞上 `Entity` 专指）。**一处判据作废**：原验收信号"`FTcsStateInstance` 已不存在于代码"因基底保留原名而**不再成立**，已按实况改写。**一处未闭合**：状态侧实例 ARO 分支无头不可达（三次阴性对照空转，已如实记边界）。**两仓零提交**。**前一笔（同日）＝第六笔 = 三个待裁点裁定 + 动作 D**：① 基底只放**撤销锚点**、不放**施加方来源**（两者**角色相反**；Task 1 的表 `Source` 行写错 + `CascadeAnchor` 行漏写）；② **`Phase` 留状态侧**；③ **新立 §0.5.2 动作 D「代码文件超限走三段式」**——用户原话「**先执行重构，然后留档，在测试没问题后再拆分**」。**同批落纸《14 字段最终归属表》**（基底 6 / 状态侧独有 4 / Buff payload 4 = 14 ✓）。**前一笔（同日）＝第五笔 = Task 2 开工前置**：动作 A 过完在册 **75 条**（结论 = 本 Task **不消费任何条目**）、动作 B 现场日 **2026-10-14**（与轮次日一致、无错位）、动作 C 出**逐字段护栏表**；抓到两处缺口（基底表只表态 11 个实测 14 个 / §0.5.2 体例债表漏登记 3 个文件，其中两个正面波及 Task 2）⇒ Task 2 的 `Files` 段**原缺宿主装置侧**，实测波及约 **80 处调用点**，已补入。**前一笔（同日）＝第四笔 = Task 1 落地**：九个 Step 全部完成 + 双配置 0/0 + 无头装置 10 条读数逐字不变 + ARO 阴性对照复现（见 Task 1 末尾《实施记录》）。**两仓零提交**。**前一笔：开工门禁与日期留痕**——新增 **§0.5.2**「每个 Task 开工前 MUST 执行的固定动作」（**动作 A** 逐条对已登记债的触发条件，`MEM-20261010-08`；**动作 B** 日期取现场值，`MEM-20261004-05`；**动作 C** 合并前先出护栏表，`MEM-20261014-01`；**动作 D** 超限三段式，2026-10-14 补立）；**动作 A 首稿曾误判**（把"include 了要动的头"当成"会被改动影响"）⇒ 已在 §0.5.2 内**就地订正并留痕**，并补立「**体例债表 MUST 按 Task 重新枚举、MUST NOT 沿用上一轮**」的使用纪律。**★ 日期留痕**：本计划与两份 `DEC-2026-10-13-*`、Task 1 提案**实际创建于 2026-10-14 凌晨**，文档 ID / 文件名 / 正文日期**一律沿用轮次日 2026-10-13**（跨零点收尾，改名牵动 ID/文件名/映射表/计数 ⇒ 收益零、漂移正）⇒ **留痕不改名**（先例 `MEM-20261004-12`）。**前两笔（2026-10-13）**：**第二笔：并入资产加载层线**——`DEC-2026-10-13-asset-butler` 裁定新建 `TcsAssetButler` + 四处搬迁 + 定义库瘦身；**两条线会改同一批文件**（`TcsEffect` / `TcsIntegration` / `.uplugin` / 模块计数）⇒ 合并为本计划，顺序见 §0.5。**第一笔**：**同日修正**：初稿按裁决⑦ 把 Task 4 写成"`TcsState` → `TcsBuff` **改名**"⇒ 用户评审时提问驱动实测，**该前提被推翻**（`TcsState` 是三层：共用 Def 族 + 通用运行时机制 + Buff 专属），现行 = **拆出新模块**、基底与机制**留 `TcsState`**。详见 §0.3.0 与该裁决 §6）
+- **最后更新**：2026-10-14（**★ 同日第十笔 = Task 4 落地**：十三个 Step 全部完成（原 9 个 + 实测新增 `2a`/`2b`/`2c`/`4b`）+ 双配置 **0/0**（Dev Editor + Game Shipping，0 error / 0 warning / 0 LNK）+ 无头装置 **11 条读数：10 条逐字相同、1 条仅时序拍数抖动**。**★ 交付形状**：新建 `TcsBuff` 模块（**47 文件 / 5,375 行**，41 个 `git mv`），`TcsState` 由 63 文件 / 7,390 行瘦身为 **19 文件 / 2,015 行**的共享层。**★ 用户三处裁定**：① **方案 A 拆两个门面**（`UTcsStateSubsystem` 瘦身为共享门面、**只留参数表读口 `GetParamTableReader()` + 生命期**；新建 `UTcsBuffSubsystem` 收下等级读口 / 事件与时钟读口 / 全部成员容器——★ **本笔初稿曾把"三组读口"都写成共享层，该判据已被"代码级 vs 注释级"实测推翻**，见《开工前置》的《一处判据自我纠正》）；② **Buff 专属类型全部改 `TcsBuff*` / `EBuff*`**（彻底一词一义，**1,017 处 / 388 文件**）；③ **双日志通道并存**（`LogTcsBuff` 新建、共享层保留 `LogTcsState`）。**★ 依赖图实测达标**：`TcsState` **去掉 `Effect`**（裁定⑫ 兑现）、`TcsBuff` 与 `TcsSkill` **平级**、**`TcsSkill` 对 `TcsBuff` 零依赖**（冲突 ① 的判据，双向核过）。**★ 实施期抓到并修掉三处真实缺陷（都属"静默失败"，MUST 读）**：① **CoreRedirects 的 section 名写错**（写在 `[/Script/Engine.Engine]`，引擎从专用段 **`[CoreRedirects]`** 读——`CoreRedirects.cpp:2739`）⇒ 症状 = 资产里该步骤类型 `GetScriptStruct()==nullptr`、装置"检查 3"由 `28/28 PASS` 退为 `27/28 FAIL`；② **字段名用了废弃形式**（`OldStructName`/`NewStructName`；UE 4.10 起统一为 **`OldName`/`NewName`**）⇒ 同一症状；③ **`ITcsEntityLevelProvider` 缺跨模块导出宏** ⇒ `LNK2019`（**台账 `WAIT-9` 的又一实例**）。**★ 三处共同点 = "拆分让原本同模块内的东西变成跨模块"**（导出宏 / `generated.h` 名 / 资产重定向），**三者都是"不报错就静默失效"的类别** ⇒ 立判据：**拆模块时 MUST 逐项核这三样**。**★ 两处纪律的正面验证**：基线纪律（`MEM-20261014-14`）事前拦住截断基线坑；批量替换纪律（`MEM-20261014-13`）全程走 11 个脚本文件、逐条命中护栏 + 成对字符守恒（1,017 处改名零字符损失）。**★ 一处新的漏改仍发生并被编译拦住**：改名脚本**漏扫 LAC `Source/`**（只扫插件）⇒ 71 处要补一轮 ⇒ **判据：改名脚本的作用域 MUST 显式列出全部消费者仓**。**★ 规格面**：走**路径 B**（不开提案），并按用户裁定**就地改三处计数**（`plugin-descriptor` 9→10 / `project.md` / `DEC-00` §9 表 11→12）；`validate --all --strict` **43/0**。**两仓零提交**。**前一笔（同日）＝第九笔 = Task 4 开工前「计划就地订正」**（用户裁定"**先订正计划再开工**"）：跑 §0.5.2 四个固定动作时，**动作 A 的产出不是"不触发任何债"，而是计划 Task 4 正文的五处前提与实测冲突** ⇒ 已就地订正 Files / Step 1 / 新增 Step 2b / Step 4 / 新增 Step 4b / Step 5 / Step 6 / Step 9 / 验收信号，并新增《Task 4 开工前置》块逐条留痕。**五条冲突**：**① 门面不是纯 Buff 门面**——`TcsSkill` 真实依赖 `UTcsStateSubsystem::GetParamTableReader()`（`TcsCastOps.cpp:518-522` / `TcsCastOps_Phase.cpp:44-48`），整类搬走会**逼技能侧依赖 `TcsBuff`**（违反依赖铁律）；**同处第二错**：计划称 `RegisterStateDef` "收两域共用 Def 基类"，实测签名收的是 **`const FTcsBuffDef&`（域类型）** ⇒ **用户裁定"方案 A：拆两个门面"**（`UTcsStateSubsystem` 瘦身为共享门面、保原名与 `TCSSTATE_API`，只留**参数表 / 等级 / 事件与时钟**三组跨域读口；新建 `UTcsBuffSubsystem`）⇒ **收益 = 零新依赖边**。**② 两处归属判反**——`TcsStateRegistry.h`（载荷已绑 `FTcsBuffInstance`）与 `TcsStateHandle.h`（8 个 include 方全在 Buff 域）**搬 `TcsBuff`**，`TcsSkill` 对二者零 include。**③ 计划零处置者**——`FTcsEntityAdmission` 族：本体留共享层，但 `AlwaysNew` / `PerEntityReject` / `PerEntityReplace` 三个**「技能侧默认策略」搬 `TcsSkill`**。**④ 重定向面漏算**——实测 **3 处资产 / 4 个类型**（计划只算 2 处；漏 `TcsStepApplyState` 与 `TcsParamSource_StateLevelArray`）⇒ 新增 Step 2b（`CoreRedirects` 落 LAC `DefaultEngine.ini`）。**⑤ `ApplyState` 约束只覆盖一半**——资产按 **`ScriptStruct` 路径**引用，故**类型名本身**也不能改，不只注册名。**★ 一处方法论自我登记**：冲突 ④ 的**第一版扫描我自己也漏了同一处**——只 grep 连写形态 `/Script/TcsState.<类型>`，而 **uasset 把包名与对象名分开存储** ⇒ 判据订正为「扫资产类型引用 MUST 分别扫包路径与对象名」。**★ 一处口径订正（判反三处的根因）**：裁决 §6.1 的「引用方」栏是**词形命中**的产物（把注释里提到类型名也算成消费方），而归属需要的是 **include 级引用** ⇒ 订正为"搬动前 MUST 逐文件做双向 include 核对"。**动作 A 的体例债重枚举**：超 800 行**插件 3 个 + 宿主 6 个 = 9 个**，且**LAC 侧 6 个本轮全部成为主角**（Task 2 只波及 2 个、Task 3 波及 3 个）⇒ **本 Task 改动面首次以宿主装置为主**。**两仓零提交**。**前一笔（同日）＝第八笔 = Task 3 落地**：七个 Step 全部完成（Step 3 由 Task 1 交付、本 Task 只订正状态）+ 双配置 **0/0** + 无头装置 **11 条行为信号逐字相同**。**★ 两处形状由用户开工时改定**（取代计划原文）：① **不单开 payload 类型**（与 Task 2 同一条判据）；② **彻底一词一义**——记录 `FTcsCastRun` → **`FTcsSkillInstance`**、句柄 → **`FTcsSkillInstanceHandle`**、**方法/成员名一并改**（12 个标识符）。**11 字段去向 = 5 上提基底 + 6 留本域**（`RunSource`→`CascadeAnchor`、`PhaseExpiryEntry`→`ExpiryEntry`）。**两处用户裁定**：① 基底 `DefTag` 在技能侧**填上 + 8 处改读自己**，**但保留"条目撤销 ⇒ 不发终止事件"那处守卫**（去掉即行为变更）；② 句柄与方法名一并改。**一处过期描述订正**：计划原文把「门禁④ 改走共享决策」列为 Task 3 的 Step 并称"本重构的实质收益点"——**该收益点已在 Task 1 落地**（`git log -S` 唯一命中 `0ac43b6`），本 Task **零改动**。**一处判据的归属订正**：原验收信号"`TcsCastOps.cpp` 内零内联 Instancing 分流"已在 Task 1 满足（今日仍成立，但**不是**本 Task 的成绩）。**★ 一处真实的过程缺陷如实登记**：机械改名中途**出过一次文件损坏**（PowerShell 辅助函数参数被拍平、退化成逐字符替换 ⇒ 三个文件共 **1430 个字符**被换掉），**按 `HEAD` 逐字节还原**后改用**脚本文件 + 命中护栏 + 字符不变量核对**重做 ⇒ 立纪律「**批量替换 MUST 走脚本文件、MUST NOT 走 shell 内联；每次替换后 MUST 核对成对字符守恒**」。**一处基线选型陷阱**：Task 2 的 `03-SkillCast.Phase.log` 是**截断版**（P9 命中 0），基线 MUST 取 `03b` —— **同一坑的第二次**。**★ 一处由用户提问暴露的流程缺口**：Task 2 / Task 3 **都未开提案**（属**静默跳步**），根因 = Global Constraints 的「每个 Task 以提案开道」与 Task 5 的**批处理设计自相矛盾** ⇒ 已订正为**两条合法路径 + 选路判据**，并补记未偿欠账（主规格 **14 能力 / 52 处**引用旧类型名，归 Task 5）。**两仓零提交**。**前一笔（同日）＝第七笔 = Task 2 落地**：六个 Step 全部完成 + 双配置 **0/0** + 无头装置 **11 条读数逐字相同**。**★ 两处形状由用户开工时改定**（取代计划原文）：① **不单开 payload 类型**、字段直接平铺进派生结构；② 命名按 **Def 层同构** = 基底 `FTcsStateInstance`（**保留原名**）+ 派生 **`FTcsBuffInstance`**（**MUST NOT 含 `Entity`**——它在本仓专指"战斗实体"）。**同批记录我自己的错名**（初稿 `FTcsEntityRuntime`/`FTcsBuffRuntime` 撞上 `Entity` 专指）。**一处判据作废**：原验收信号"`FTcsStateInstance` 已不存在于代码"因基底保留原名而**不再成立**，已按实况改写。**一处未闭合**：状态侧实例 ARO 分支无头不可达（三次阴性对照空转，已如实记边界）。**两仓零提交**。**前一笔（同日）＝第六笔 = 三个待裁点裁定 + 动作 D**：① 基底只放**撤销锚点**、不放**施加方来源**（两者**角色相反**；Task 1 的表 `Source` 行写错 + `CascadeAnchor` 行漏写）；② **`Phase` 留状态侧**；③ **新立 §0.5.2 动作 D「代码文件超限走三段式」**——用户原话「**先执行重构，然后留档，在测试没问题后再拆分**」。**同批落纸《14 字段最终归属表》**（基底 6 / 状态侧独有 4 / Buff payload 4 = 14 ✓）。**前一笔（同日）＝第五笔 = Task 2 开工前置**：动作 A 过完在册 **75 条**（结论 = 本 Task **不消费任何条目**）、动作 B 现场日 **2026-10-14**（与轮次日一致、无错位）、动作 C 出**逐字段护栏表**；抓到两处缺口（基底表只表态 11 个实测 14 个 / §0.5.2 体例债表漏登记 3 个文件，其中两个正面波及 Task 2）⇒ Task 2 的 `Files` 段**原缺宿主装置侧**，实测波及约 **80 处调用点**，已补入。**前一笔（同日）＝第四笔 = Task 1 落地**：九个 Step 全部完成 + 双配置 0/0 + 无头装置 10 条读数逐字不变 + ARO 阴性对照复现（见 Task 1 末尾《实施记录》）。**两仓零提交**。**前一笔：开工门禁与日期留痕**——新增 **§0.5.2**「每个 Task 开工前 MUST 执行的固定动作」（**动作 A** 逐条对已登记债的触发条件，`MEM-20261010-08`；**动作 B** 日期取现场值，`MEM-20261004-05`；**动作 C** 合并前先出护栏表，`MEM-20261014-01`；**动作 D** 超限三段式，2026-10-14 补立）；**动作 A 首稿曾误判**（把"include 了要动的头"当成"会被改动影响"）⇒ 已在 §0.5.2 内**就地订正并留痕**，并补立「**体例债表 MUST 按 Task 重新枚举、MUST NOT 沿用上一轮**」的使用纪律。**★ 日期留痕**：本计划与两份 `DEC-2026-10-13-*`、Task 1 提案**实际创建于 2026-10-14 凌晨**，文档 ID / 文件名 / 正文日期**一律沿用轮次日 2026-10-13**（跨零点收尾，改名牵动 ID/文件名/映射表/计数 ⇒ 收益零、漂移正）⇒ **留痕不改名**（先例 `MEM-20261004-12`）。**前两笔（2026-10-13）**：**第二笔：并入资产加载层线**——`DEC-2026-10-13-asset-butler` 裁定新建 `TcsAssetButler` + 四处搬迁 + 定义库瘦身；**两条线会改同一批文件**（`TcsEffect` / `TcsIntegration` / `.uplugin` / 模块计数）⇒ 合并为本计划，顺序见 §0.5。**第一笔**：**同日修正**：初稿按裁决⑦ 把 Task 4 写成"`TcsState` → `TcsBuff` **改名**"⇒ 用户评审时提问驱动实测，**该前提被推翻**（`TcsState` 是三层：共用 Def 族 + 通用运行时机制 + Buff 专属），现行 = **拆出新模块**、基底与机制**留 `TcsState`**。详见 §0.3.0 与该裁决 §6）
 
 **Goal:** 一次交付三件事——① 让 `TcsState` 与 `TcsSkill` 的**运行态共享同一基底与同一套机制**（消除 8 条机制轴中重复的 7 条）；② 把 Buff 专属语义与机制**拆出为独立新模块 `TcsBuff`**；③ 为 Def 类资产建立**独立低层加载模块 `TcsAssetButler`**（类型注册表 / 加载三策略 / 异步默认 + 同步逃生口 / 加载防重 / 编辑器期规则），并把四样走错模块的类型**搬回各自的家**。**§0.2 给出工作量预期**（★ 按 2026-10-13 用户口径：**工作量不进决策判据**，只用于排期）。
 
@@ -945,7 +945,7 @@ virtual int32 ResolveStacks(Request, Existing) const;// 默认：同来源不变
 | 3 | `ParamSnapshot` | **基底** | 无（GC 地雷在基底统一由 ARO 覆盖，**优于**两域各写一遍） |
 | 4 | `RunSource` | **基底 `CascadeAnchor`** | 无——它的三个消费点全是"按它一次摘净"（链挂属性条目 / 本域物化参数链条目 / 传给链的锚点）⇒ **与 Buff 侧同角色**。**MUST NOT 与状态侧 `Source` 混同**（后者是"谁施加的"、明文 MUST NOT 当撤销锚点） |
 | 5 | `PhaseExpiryEntry` | **基底 `ExpiryEntry`** | 无——与 Buff 侧时值到期同角色（当前计时项的取消锚）。**MUST NOT 与 `PhaseIndex` 混同**（同词根不同义：一个是下标、一个是取消锚） |
-| 6 | `EntryHandle` | **本域** | **类型不同**（`FTcsSkillEntryHandle`）⇒ 基底是**一个** struct、只能有一个句柄类型；**且技能侧记录**不持自己的句柄**（扁平池，无"按自己句柄找自己"的需求） |
+| 6 | `EntryHandle` | **本域** | **类型不同**（`FTcsSkillEntryHandle`）⇒ 基底是**一个** struct、只能有一个句柄类型；**且技能侧记录不持自己的句柄**（扁平池，无"按自己句柄找自己"的需求） |
 | 7 | `PhaseIndex` | **本域** | 与基底 `ExpiryEntry` **同词根不同义** ⇒ 上提即制造二义性 |
 | 8 | `ChainRunHandle` | **本域** | 技能域专有（链运行态句柄） |
 | 9 | `ActiveChainId` | **本域** | 技能域专有（"**实际**起的是哪条链"——链运行态反查不到） |
@@ -1092,33 +1092,379 @@ FTcsStateInstance（基底，TcsState，Task 2 已建）
 
 ---
 
-## Task 4 — 拆出 `TcsBuff` 新模块（★ **不是改名**，见 §0.3.0）
+## Task 4 — 拆出 `TcsBuff` 新模块（★ **不是改名**，见 §0.3.0；**★ 2026-10-14 开工前实测订正，MUST 读**）
+
+> **★ 本段的 Files / Step 1 / Step 2b / Step 4 / Step 6 / 验收信号已被 2026-10-14 开工前的实测订正**
+> （依据见下方《Task 4 开工前置》的**五条冲突**）。**订正的是"归属判据与重定向面"，不是"要不要拆模块"**
+> ——`TcsBuff` 仍新建、`TcsState` 仍留共享层、`TcsStateParam` 根仍不改名。
 
 **Files:**
-- Create: `Source/TcsBuff/**`（模块壳 + 从 `TcsState` 搬入的 Buff 专属全体）
-- Modify: `Source/TcsState/**`（只留共享层：Def 族 + 通用运行时机制）
+- Create: `Source/TcsBuff/**`（模块壳 + 从 `TcsState` 搬入的 Buff 专属全体；**门面为新建的 `UTcsBuffSubsystem`，MUST NOT 把 `UTcsStateSubsystem` 整类搬走**——见冲突 ①）
+- Modify: `Source/TcsState/**`（只留共享层：Def 族 + 通用运行时机制 + **共享门面瘦身后仅存的参数表读口**）
 - Modify: `Source/TcsState/TcsState.Build.cs`（**去掉 `TcsEffect`**）
+- Modify: `Source/TcsSkill/**`（**冲突 ③ 的处置**：`FTcsEntityAdmissionAlwaysNew` / `PerEntityReject` / `PerEntityReplace` 三个**技能域策略**自 `TcsState` 搬回本模块，**只搬位置、不改名字**）
+- Modify: `Source/TcsIntegration/**`（`TcsDefinitionSubsystem` 改调 `UTcsBuffSubsystem::RegisterStateDef`；`TcsIntegration.Build.cs` 补 `TcsBuff`）
+- Modify: **LAC** `Source/TcsDev/TcsDev.Build.cs`（补 `TcsBuff`）+ 装置 include 路径改指
+- Create: **LAC** `Config/DefaultEngine.ini` 的 `CoreRedirects`（**实测 3 处资产 / 4 个类型**，清单见 Step 2b）
 - Modify: `TireflyCombatSystem.uplugin`（模块条目 **9 → 10**）
 - Modify: `openspec/specs/plugin-descriptor/spec.md` + `openspec/project.md`（**模块清单 9 → 10**）
 - Modify: `Documents/combat-system-design/decisions/dec-00-constitution.md`（§9 模块表）
 - Modify: `Documents/combat-system-design/spec/03-module-states.md`
-- Modify: 宿主装置 `Source/TcsDev/**`（include 路径改指）
 
 **Interfaces:**
-- Consumes: Task 2 的 payload 化结果；共享层（`TcsState`）的基底与机制
+- Consumes: Task 2 的 payload 化结果；共享层（`TcsState`）的基底、机制与**共享门面的参数表读口**
 - Produces: 新模块 `TcsBuff`（`TCSBUFF_API` / `LogTcsBuff` / `UTcsBuffSubsystem` / `FTcsBuffOps`）；共享层 `TcsState` 保留原名与 `TCSSTATE_API`
 
-- [ ] **Step 1：定拆分清单并机械核对（MUST 先做）**——按裁决 §6.1 的三层表逐文件分类：**留 `TcsState`** = 共用 Def 族 473 行（`TcsStateDefBase` / `TcsStateDef` / `TcsParamRow` / `TcsDescriptionEntry` / `TcsStateParamKeys`）+ 通用运行时机制 956 行（`TcsStateSnapshot` / `TcsStateParamTableReader` / 新基底与注册表）；**搬 `TcsBuff`** = BuffDef 三件 / 堆叠三件 / 时值周期 / 行为 Fragment 五件 / 修正器物化 / `TcsStepApplyState` / 等级源两件 / 等级读口 / 六枚事件 / `TcsStateSubsystem*` / `TcsStateOps_*`。**判据 = 该文件是否被 `TcsSkill` 引用**（实测引用面见裁决 §6.1）。
-- [ ] **Step 2：模块壳 + 依赖声明**——`TcsBuff.Build.cs` 依赖 = `TcsCore` / `TcsNotation` / `TcsAttribute` / **`TcsEffect`** / `TcsState`。**UHT 两条硬门槛**：① 新模块的头文件名 MUST 全项目唯一；② 反射类型去前缀后 MUST NOT 与既有同名 ⇒ **搬入的文件若沿用原名会与 `TcsState` 遗留者撞名**，故 `TcsStateSubsystem`→`TcsBuffSubsystem`、`TcsStateOps`→`TcsBuffOps`、`TcsStateInstance`→（已被基底+payload 取代）。
-- [ ] **Step 3：★ `TcsStateParam` tag 根 MUST NOT 改名（Review Focus ⑤）**——它是**宿主词表根名**，与模块名无关；改名会让**已落内容资产全部找不到键**。**同批复核**：`gameplay-tag-governance` 根表行数与 `## Purpose` 数字**不变**（本轮不开根、不删根）。
-- [ ] **Step 4：共享层与 Buff 层的登记口边界**——`RegisterStateDef` / `GetRegisteredStateDef` 收**两域共用**的 Def 基类 ⇒ **留共享层**；`TcsBuffSubsystem` 只补 Buff 专属面（施加 / 移除 / 堆叠 / 时值）。**判据 = 是否被 `TcsSkill` 用到**（`UTcsStateDef` 1 处、`FTcsStateDefBase` 3 处 ⇒ 二者留共享层）。
-- [ ] **Step 5：类型前缀的取舍**——`FTcsStateDefBase` / `UTcsStateDef` **保持原名**（判据：它们是**两域共用的定义基类**，名字里的 "State" 在此读作"**状态定义**"，不是模块名；改名会传导到 `TcsSkill` 全部 Def 文件而收益仅为字面）。**MUST 写明本结论 + 理由**。
-- [ ] **Step 6：`ApplyState` 步骤名评估**——它是**链步骤注册名**，随 Buff 专属层搬到 `TcsBuff`，**注册名本身 MUST NOT 改**（已落内容资产引用它）。**MUST 写明结论**。
-- [ ] **Step 7：`TcsState.Build.cs` 去掉 `TcsEffect`**（裁定⑫）——**这是本轮实质架构收益之一**。复核：`TcsState` 侧 grep `TcsEffect` / `Chain/` / `Trigger/` **零命中**。
-- [ ] **Step 8：`DEC-00` 模块表 + `SPEC-02-states` 三层改述**（**`DEC-00` §9 表 11 → 12**，`TcsState` 职责改述为"共享层"；★ 该序列的起点是 **11**（含未建的 `TcsCue` / `TcsEditor`），**方案 A 下 Task 4 先行** ⇒ 本 Step 是 **11 → 12**，随后 Task 8 再推 **12 → 13**。**MUST NOT 与 `.uplugin` 的 9 → 10 混算**）。
-- [ ] **Step 9：双配置编译 + 装置回归**——宿主装置 include 路径改指；**判据 = 读数逐字不变**。
+- [x] **Step 1：定拆分清单并机械核对（MUST 先做）**——按裁决 §6.1 的三层表逐文件分类，**但三层表的判据 MUST 用「精确 include 级消费者实测」取代「词形命中计数」**（★ 2026-10-14 实测订正：§6.1 的「引用方」栏是**词形命中**的产物，把"注释里提到某类型名"也算成了消费方 ⇒ **三处归属判反**，见《开工前置》冲突 ②）。**判据 = 该文件是否被 `TcsSkill` 在 include 级引用**（同 `MEM-20260902-13` 的"逐职责问具名了对方哪个类型"）。**★ 完整拆分清单见《开工前置》的《实测分类底稿》（19 文件留 / 44 文件搬，逐文件带行数）——该表是权威，且 MUST 用双向 include 核对过。** ★ **四处与 §6.1 相反、MUST 按该表执行**：① `TcsStateRegistry.h`（载荷已绑 `FTcsBuffInstance`）搬；② `TcsStateHandle.h`（8 个 include 方全在 Buff 域）搬；③ **`FTcsEntityLevelProvider.h`（含 `ITcsEntityLevelProvider` + `FTcsStateEvaluateContext`）搬 `TcsBuff`**——★ **本行初稿曾把它判为"留共享层"，该判据已被实测推翻**（见《开工前置》§「一处判据自我纠正」：其**代码级**消费者全在 Buff 域，`TcsEffect` / `TcsSkill` 的引用**全是注释**）；④ `FTcsParamSource_*Level*` 四源**搬 `TcsBuff`**（域源依赖同域等级契约）。
+- [x] **Step 2：模块壳 + 依赖声明**——`TcsBuff.Build.cs` 依赖 = `TcsCore` / `TcsNotation` / `TcsAttribute` / **`TcsEffect`**（链步骤）/ `TcsState`（共享层）。**UHT 两条硬门槛**：① 新模块的头文件名 MUST 全项目唯一；② 反射类型去前缀后 MUST NOT 与既有同名。**★ 改名范围由用户 2026-10-14 裁定 = 「彻底一词一义」（方案 A）**：搬入 `TcsBuff` 的 **Buff 专属类型一并从 `TcsState*` / `EState*` 改为 `TcsBuff*` / `EBuff*`**，**MUST NOT 只改计划原文授权的 2 个**（`Subsystem` / `Ops`）——判据 = 文件名已是 `TcsBuffXxx.h` 而里面装着 `FTcsStateXxx`，即为**新的名实不符**，与本重构的立项理由同型。**完整改名映射表见《开工前置》的《类型改名映射表》（权威）**。★ **三条 MUST NOT 改名**：① **被内容资产按 `ScriptStruct` / `Class` 路径引用的 4 个类型**（`UTcsBuffDefAsset` / `FTcsBuffDef` / `FTcsStepApplyState` / `FTcsParamSource_StateLevelArray`——改名须配重定向，见 Step 2b）；② **共享层类型**（`FTcsStateInstance` / `FTcsStateDefBase` / `FTcsStateParamTableReader` / `FTcsStateSnapshot` / `FTcsEntityRuntime*` / `FTcsEntityAdmission*`——它们的 "State" 读作"**两域共用的状态定义与运行机制**"，不是 Buff 模块名）；③ **`FStateStackPolicy` 与四个堆叠枚举**（`EGroupByPolicy` / `EOverflowPolicy` / `EValueStackPolicy` / `EStackDurationPolicy`）——名字里**没有** `Tcs` 前缀，是**设计语料的既有词汇**（`SPEC-02-states` 逐字用它们），改名即与规格脱节。★ **一处随冲突 ③ 纠正而变**：`ITcsEntityLevelProvider` / `FTcsStateEvaluateContext` **随文件搬 `TcsBuff`，但类型名不改**（它们表达"等级读口契约"，不是 Buff 域语义；且 `TcsEffect` / `TcsSkill` 的注释以它们为**跨域先例**引用）。
+- [x] **Step 2a：★ 类型改名映射表（用户裁定后定的权威表，见《开工前置》）**——改名 **MUST 走脚本文件 + 逐条命中数护栏 + 成对字符守恒核对**（`MEM-20261014-13`）。**MUST NOT** 用 shell 内联替换（Task 3 那次 1430 字符损坏的机制）。**两处易错点**：① **`FStateStackPolicy` 是 `FTcsStateStackPolicy` 的子串**——替换顺序 MUST 长者优先，否则会造出 `FTcsBuffStackPolicy` 残片；② **`FTcsStateInstance` 是 `FTcsBuffInstance` 的同族名**，`FTcsStateInstance` 相关的替换 MUST NOT 命中 `FTcsBuffInstance`（两者不同名、无子串关系，但仍须逐条核对命中数）。
+- [x] **Step 2b：★ 资产重定向面（2026-10-14 实测补入，计划原缺此步）**——搬走或会改名的类型，凡被**已落内容资产**引用者 MUST 配 `CoreRedirects`；配置落 **LAC `Config/DefaultEngine.ini`**（实测该文件今天**无任何 `CoreRedirects` 段**，属新增）。**实测清单 = 3 处资产 / 4 个类型**（★ 计划原文"少 2 处"系**漏算**，见《开工前置》冲突 ④）：`/Script/TcsState.TcsBuffDefAsset`（2 资产：`DA_Check_BuffDef` / `DA_State_E2E`）/ `TcsState.TcsBuffDef`（同 2）/ `TcsState.TcsStepApplyState`（1：`DA_Chain_E2E_Apply`）/ `TcsState.TcsParamSource_StateLevelArray`（1：`DA_State_E2E`）。**配法**：资产类 → `ClassRedirects`，其余 → `StructRedirects`；**MUST 逐条列出，MUST NOT 只配基类**（引擎重定向不做继承推导）。**可核项** = 资产打开零 `Unknown class/struct` 红字 + `DA_State_E2E` 的等级源仍可解析 + `DA_Chain_E2E_Apply` 的 `ApplyState` 步骤仍可执行。★ **一处附加硬约束（由本步实测导出）**：这 4 个类型名 MUST NOT 借本 Task 改名——"改注册名"的收益仅是字面，而代价是多一处重定向 + 一处 `ScriptStruct` 路径失配。**判据 = 判据不许用"顺眼"；能一次改对的才改**。
+- [x] **Step 2c：★★ CoreRedirects 的两条「静默失效」口径（2026-10-14 实测补入，两处都真踩过）**——本步的配置**写错了不会报错、只会静默不生效**，症状是资产里那个步骤类型 `GetScriptStruct() == nullptr`、装置"检查 3：链步骤类型全可解析"当场 FAIL（本次实测即 `EffectChain.Check.ApplyState` 少 1 步）。两条 MUST：
+  - **① section 名 = `[CoreRedirects]`，MUST NOT 写进 `[/Script/Engine.Engine]`**。判据 = 引擎源码 `CoreRedirects.cpp:2739` 的 `const TCHAR* RedirectSectionName = TEXT("CoreRedirects")`，且该函数读完即 `GConfig->RemoveSectionFromBranch(RedirectSectionName, *IniName)` ⇒ 它是**专用段**，与 `ActiveGameNameRedirects` 所在的 `[/Script/Engine.Engine]` **不是同一段**（后者是 `UEngine` 的 UPROPERTY 数组，走常规 Config 机制）。**两处都写在同一段 = 静默不生效**。
+  - **② 字段名 = `OldName` / `NewName`，MUST NOT 用旧式的 `OldStructName` / `NewStructName` / `OldClassName` / `NewClassName`**。判据 = `Engine/Config/BaseEngine.ini` 的权威注释段明写「This redirect format replaces the old ActiveClassRedirects/K2FieldRedirects format, and the syntax is the same for every type」，示例为 `+ClassRedirects=(OldName="OldClass", NewName="/Script/Module.NewClass")`。
+  - **③ 诊断手法（可复用）**：加 `-DebugCoreRedirects` 启动 → `LogCoreRedirects` 会逐文件打印 `ReadRedirectsFromIni(<ini>) adding N redirects`。**本次即靠它一眼看出"项目 `Config/DefaultEngine.ini` 根本没出现在读取列表里"**（列出的全是 `Saved/Config/WindowsEditor/*.ini`）⇒ 定位到 section 名错。
+  - **★ 与冲突 ⑤ 的同一根因**：本条与"被 `ScriptStruct` 路径引用的类型名不能改"是**同一件事的两面**——资产按名引用类型，故改名/搬模块都必须让**旧名可解析**；缺任一条，失败形态都是**静默**的（引用变空，不崩溃）。
+- [x] **Step 3：★ `TcsStateParam` tag 根 MUST NOT 改名（Review Focus ⑤）**——它是**宿主词表根名**，与模块名无关；改名会让**已落内容资产全部找不到键**。**同批复核**：`gameplay-tag-governance` 根表行数与 `## Purpose` 数字**不变**（本轮不开根、不删根；实测今为 **12 根**）。**同批一并守住 `TcsEvent.State.*` 根**（六枚状态生命周期事件随 Buff 层搬家，但**事件 tag 是外部契约**，改名即破坏订阅方）。
+- [x] **Step 4：共享层与 Buff 层的门面边界（★ 2026-10-14 用户裁定 = 方案 A「拆两个门面」，取代计划原文）**——**`UTcsStateSubsystem` 瘦身为共享门面**（保留原名 + `TCSSTATE_API`），**只留一口 + 生命期**：① **参数表读口** `GetParamTableReader()`（★ **`TcsSkill` 的唯一代码级依赖**，实测 `TcsCastOps.cpp:518-522` / `TcsCastOps_Phase.cpp:44-48`——这是计划原文**漏掉的一口**，见冲突 ①）；② `Initialize` / `Deinitialize` / `DoesSupportWorldType`（世界类型过滤仍是共享语义）。**`UTcsBuffSubsystem` 新建**，收下其余全体（**定义登记 / 施加 / 移除 / 查询 / 时值 / 堆叠 / 行为订阅 / 守卫 / ARO / 全部成员容器 / 等级读口 / 事件与时钟读口**）。★ **计划原文 Step 4 的理由写错了、MUST 按本行执行**：原文称 `RegisterStateDef` "收两域共用的 Def 基类 ⇒ 留共享层"，**实测签名为 `RegisterStateDef(FGameplayTag, const FTcsBuffDef&)`——收的是 Buff 域类型，不是基类** ⇒ 该口**必须随 `TcsBuff` 搬走**。**边界判据（不变）= 该口是否被 `TcsSkill` 在 **代码级**用到**。★ **本形态的收益 = 零新依赖边**：`TcsSkill` 只取共享门面的参数表读口 ⇒ **MUST NOT** 依赖 `TcsBuff`（依赖铁律：技能侧不含领域模块）。★ **一处纠正如实登记**：本 Step 初稿曾写成"留**三组**跨域读口（参数表 / 等级 / 事件与时钟）"——**该判据已被实测推翻**，等级读口与两个子系统读口的**代码级**消费者全在 Buff 域（详见《开工前置》§《一处判据自我纠正》）。
+- [x] **Step 4b：★ `FTcsEntityAdmission` 族的归属（2026-10-14 实测补入，计划原缺）**——接口本体与 `Request` / `Existing` / `Decision` / `Kind` **留共享层**（两域共用：Buff 侧 `FTcsStateStackDecisionFragment` 继承它、技能侧挂三个策略）；**`FTcsEntityAdmissionAlwaysNew` / `PerEntityReject` / `PerEntityReplace` 三个「技能侧默认策略」搬 `TcsSkill`**（其名字自述归属、唯一消费者是 `TcsCastOps.cpp:219-221`；与"Def 基类留共享层、域 Def 住域模块"同构）。**只搬位置、不改名字**。
+- [x] **Step 5：类型前缀的取舍**——`FTcsStateDefBase` / `UTcsStateDef` **保持原名**（判据：它们是**两域共用的定义基类**，名字里的 "State" 在此读作"**状态定义**"，不是模块名；改名会传导到 `TcsSkill` 全部 Def 文件而收益仅为字面）。**MUST 写明本结论 + 理由**。★ **同批从实测补一条更强的判据**：**凡被内容资产按 `ScriptStruct` / `Class` 路径引用的类型名，改名的代价含"多一处重定向 + 一处失配风险"** ⇒ 对这类类型，"顺眼"不构成改名理由。
+- [x] **Step 6：`ApplyState` 步骤名评估**——它是**链步骤注册名**，随 Buff 专属层搬到 `TcsBuff`，**注册名本身 MUST NOT 改**（已落内容资产引用它）。★ **2026-10-14 实测加强**：`DA_Chain_E2E_Apply.uasset` 引用的是 **`/Script/TcsState.TcsStepApplyState`（`ScriptStruct` 路径）** ⇒ **不只是注册名，`FTcsStepApplyState` 这个类型名也 MUST NOT 改**（改名须配 `StructRedirect`，见 Step 2b）。**MUST 写明结论**。
+- [x] **Step 7：`TcsState.Build.cs` 去掉 `TcsEffect`**（裁定⑫）——**这是本轮实质架构收益之一**。复核：`TcsState` 侧 grep `TcsEffect` / `Chain/` / `Trigger/` **零命中**（实测今日 `TcsState` 侧对 `TcsEffect` 的使用 100% 在 Buff 专属层：`TcsStepApplyState` / `TcsBuffDef::Triggers` / `TcsBuffDefAsset.cpp` / `TcsStateOps_Events.cpp` / `TcsStateOps_Trigger.cpp`）。
+- [x] **Step 8：`DEC-00` 模块表 + `SPEC-02-states` 三层改述**（**`DEC-00` §9 表 11 → 12**，`TcsState` 职责改述为"共享层"；★ 该序列的起点是 **11**（含未建的 `TcsCue` / `TcsEditor`），**方案 A 下 Task 4 先行** ⇒ 本 Step 是 **11 → 12**，随后 Task 8 再推 **12 → 13**。**MUST NOT 与 `.uplugin` 的 9 → 10 混算**）。
+- [x] **Step 9：双配置编译 + 装置回归**——宿主装置 include 路径改指（**LAC `TcsDev.Build.cs` 补 `TcsBuff`**）；**判据 = 读数逐字不变**。★ **一处预期变化的如实声明**：Buff 域日志通道由 `LogTcsState` 改 `LogTcsBuff`（共享层自留 `LogTcsState`——`TcsEntityRuntimeGenerationIssuer.cpp` 的 `Fatal` 在用）⇒ **"零非预期红字"的通道名会变**；实测装置读数**不按日志通道过滤**（`TcsDev` 对 `LogTcsState`/`LogTcsBuff` **零命中**，读数来自 `LogTcsDev` 的检查汇总行）⇒ **读数判据不受影响**，但验收记录 MUST 说明这一点。
 
-**验收信号**：`Source/TcsBuff/` 存在且编译通过；`TcsState` 侧 grep `TcsEffect` **零命中**（依赖边已去掉）；`TcsStateParam` tag 根**未改**且根表计数不变；模块清单计数 **9 → 10** 三处（`uplugin` / `plugin-descriptor` / `project.md`）一致；`DEC-00` §9 表 **11 → 12**；双配置 0/0；装置读数不变。
+**验收信号**：`Source/TcsBuff/` 存在且编译通过；**`TcsSkill` 对 `TcsBuff` 零依赖边**（`Build.cs` 与 include 双向核，冲突 ① 的判据）；`TcsState` 侧 grep `TcsEffect` **零命中**（依赖边已去掉）；`TcsStateParam` 与 `TcsEvent.State` 两个 tag 根**未改**且根表计数不变（**12 根**）；**ContentRedirects 4 个类型配齐且资产打开零红字**（Step 2b）；模块清单计数 **9 → 10** 三处（`uplugin` / `plugin-descriptor` / `project.md`）一致；`DEC-00` §9 表 **11 → 12**；双配置 0/0；装置读数不变（**11 条行为信号逐字相同**）。
+
+### Task 4 实施记录（2026-10-14）
+
+**状态 = 十三个 Step 全部落地**（原 9 个 + 实测新增 `2a` / `2b` / `2c` / `4b`），
+双配置编译 `Result: Succeeded`（Dev Editor + Game Shipping，**0 error / 0 warning / 0 LNK**），
+无头装置回归 **11 条读数：10 条逐字相同 + 1 条仅时序拍数抖动**。
+
+**★ 落地形状（可复算）**
+
+```
+共享层 TcsState（19 文件 / 2,015 行，保留原名 + TCSSTATE_API）
+│  Def 族 5 件 · 基底 FTcsStateInstance · 快照 · 参数表壳 · 桶/注册表/发号器/守卫
+│  · FTcsEntityAdmission 族（统一重申请决策接口）
+│  └ 共享门面 UTcsStateSubsystem：只留 GetParamTableReader() + 生命期（≈90 行，原 431 行）
+│     依赖 = Core / Notation / Attribute（★ 已去掉 Effect）
+
+TcsBuff（新建 · 47 文件 / 5,375 行 · TCSBUFF_API · LogTcsBuff）
+│  BuffDef 三件 · FTcsBuffInstance · 五轴堆叠 · 时值周期 · 行为 Fragment 五件
+│  · 修正器物化 · FTcsStepApplyState · ITcsEntityLevelProvider + 四个等级源
+│  · 六枚状态生命周期事件 · FTcsBuffInstanceHandle / FTcsBuffRegistry / FTcsBuffOps
+│  └ UTcsBuffSubsystem：定义登记 / 施加 / 移除 / 查询 / 时值 / 堆叠 / 行为 / 等级读口 / ARO
+│     依赖 = Core / Notation / Attribute / Effect / State
+
+TcsSkill ── 三个技能域策略（原住共享层的 FTcsEntityAdmissionAlwaysNew 等）搬回本模块
+     依赖 = Core / Notation / Attribute / Effect / State（★ 不含 TcsBuff）
+```
+
+**★ 实测计数（可复算）**
+
+| 项 | 值 |
+|---|---|
+| `TcsState` 拆分前 → 后 | 63 文件 / 7,390 行 → **19 文件 / 2,015 行** |
+| `TcsBuff` 新建 | **47 文件 / 5,375 行**（41 个 `git mv` + 模块壳 4 + 门面 2） |
+| 类型改名总量 | **1,017 处 / 388 文件**（含 LAC 装置）；成对字符**全部守恒** |
+| 注册口改名 | 插件 22 处 + LAC 71 处 = **93 处** |
+| 导出宏改名 | `TCSSTATE_API` → `TCSBUFF_API` **23 处 / 14 文件**（★ 漏改即 `C4273 inconsistent dll linkage`） |
+| `generated.h` 名修正 | **7 处**（★ 文件改名后 MUST 同步，UHT 硬要求） |
+| 日志通道 | Buff 域 `LogTcsState → LogTcsBuff` **47 处 / 14 文件**；共享层保留 `LogTcsState` **3 处** |
+| 模块清单 | `.uplugin` **9 → 10**；`DEC-00` §9 表 **11 → 12** |
+| `openspec validate --all --strict` | **43 passed / 0 failed** |
+
+**★ 依赖图实测（拆分成败的硬判据）**
+
+| 模块 | Tcs 依赖 |
+|---|---|
+| `TcsState` | Core, Notation, Attribute（**不含 Effect** ✅ = 裁定⑫ 兑现） |
+| `TcsBuff` | Core, Notation, Attribute, **Effect**, **State** |
+| `TcsSkill` | Core, Notation, Attribute, Effect, State（**不含 Buff** ✅ = 冲突 ① 的判据） |
+| `TcsIntegration` | 上述全部 + Buff（接线层，方向正确） |
+
+**★ 装置读数（Step 9）**
+
+| 读数 | 基线行 | 本轮行 | 结论 |
+|---|---|---|---|
+| `SkillCast.Run` / `.Reject` / `.Phase` | 36 / 18 / 51 | 同 | ✅ 逐字相同 |
+| `SkillParamChain.Run` / `.Reject` | 41 / 14 | 同 | ✅ 逐字相同 |
+| `SkillLayer.Run` / `.Reject` | 30 / 17 | 同 | ✅ 仅 1 行差异：**轮询拍数 36 → 37**（时钟等待时序抖动，`Passed=24 Failed=0` 未变） |
+| `CooldownCost.Run` / `.Reject` | 36 / 10 | 同 | ✅ 逐字相同 |
+| `State.Reject` / `Slice.Run` | 9 / 7 | 同 | ✅ 逐字相同 |
+
+**★ 实施期抓到并修掉的三处真实缺陷（都属"静默失败"，如实登记）**
+
+| # | 缺陷 | 症状 | 根因 | 修法 |
+|---|---|---|---|---|
+| ① | **CoreRedirects 的 section 名写错** | `Slice.Run` 检查 3 由 `28/28 PASS` 退为 `27/28 FAIL`——`EffectChain.Check.ApplyState` 的步骤类型失联（`GetScriptStruct()==nullptr`）；**不崩溃、不报错** | 写在 `[/Script/Engine.Engine]`，而引擎从专用段 **`[CoreRedirects]`** 读（`CoreRedirects.cpp:2739`） | 移入 `[CoreRedirects]` 段；`-DebugCoreRedirects` 一眼看出项目 ini 不在读取列表里 |
+| ② | **CoreRedirects 的字段名用了废弃形式** | 同上（第一个修法仍不生效） | 用了旧式 `OldStructName` / `NewStructName`；UE 4.10 起统一为 **`OldName` / `NewName`** | 改为新式；依据 = `Engine/Config/BaseEngine.ini` 权威注释段 |
+| ③ | **`ITcsEntityLevelProvider` 缺跨模块导出宏** | `LNK2019 unresolved external`（`Execute_GetEntityLevel`） | 该接口拆分前与全部消费者同在 `TcsState`（同模块无需导出），搬出后 `TcsSkill` / LAC 以 `Execute_` 形式调用 | 补 `TCSBUFF_API`；**★ 这是台账 `WAIT-9` 的又一实例**（跨模块消费面的导出宏审计） |
+
+> **★ 三处共同点 = "拆分让原本同模块内的东西变成跨模块"**：导出宏、`generated.h` 名、资产重定向
+> ——**三者都是"不报错就静默失效"的类别**（①②的失败形态是静默丢失引用，③是链接期才暴露）。
+> **判据（本轮新立）**：拆模块时 MUST 逐项核这三样——**跨模块符号的导出宏 / 头文件的 `generated.h` 名 /
+> 资产按 `ScriptStruct` 路径引用的类型重定向**。
+
+**★ 动作 D 第②段留档（超限文件实测值，回填《开工前置》的预估表）**
+
+**无新增超限文件**（`TcsBuff` 侧最大者 `TcsBuffOps.h` 512 行、`TcsBuffSubsystem.h` 431 行，均远低于 800）。
+**9 个正面波及的超限文件全部零增长**（等长替换）：
+
+| 文件 | 行数（前 → 后） | 增长 |
+|---|---|---|
+| `TcsDevSliceRig.cpp` | 3552 → **3552** | 0 |
+| `TcsDevSliceRig_CooldownCost.cpp` | 1671 → **1671** | 0 |
+| `TcsDevSliceRig_Skill.cpp` | 1129 → **1129** | 0 |
+| `TcsCooldownOps.cpp` | 1021 → **1021** | 0 |
+| `TcsCastOps.cpp` | 998 → **998** | 0 |
+| `TcsDevSkillParamChainProbe.cpp` | 938 → **938** | 0 |
+| `TcsDevSkillCastProbe_Phase.cpp` | 856 → **856** | 0 |
+| `TcsSkillSubsystem.h` | 812 → **812** | 0 |
+| `TcsDevSliceRig_State.cpp` | 803 → **803** | 0 |
+
+**拆分时机 = 本 Task 验收之后**（动作 D 第③段）；**MUST NOT** 插在重构与验收之间。
+
+**★ 规格面处置：本 Task 走路径 B（不开提案），并按用户裁定**就地改三处计数****
+
+- **选路判据**：本 Task 的实质是**模块搬迁 + 类型改名**（既有能力内部换实现形状）⇒ 按 Global Constraints
+  第 41 行属**路径 B**。**同批一处经用户 2026-10-14 裁定的例外**：`plugin-descriptor` / `project.md` /
+  `DEC-00` §9 的**模块计数**属**计数型事实**（"有九个已物化模块"在 `TcsBuff` 入册后即为假），
+  与行为型需求不同 ⇒ **按 Step 8 就地改**（三处已改，`validate` 43/0）。
+- **待回写能力清单（归 Task 5，实测处数）**：本 Task **新增了一批改名/搬迁引用**，与 Task 2/3 的欠账
+  **合并计**——主规格中引用旧类型名的 **14 个能力、52 处**（Task 3 已测）**+ 本轮新增**：
+  引用 `FTcsStateHandle` / `UTcsStateSubsystem` / `FTcsStateOps` / `EApplyResult` 一类旧名的能力
+  （按符号分布最重者仍是 `state-instance-lifecycle` 与 `skill-cast-runtime`）。
+  **★ 本 Task 的实测口径**：改名只动了 `Source/**`（插件 + LAC），**`openspec/specs/` 与
+  `Documents/` 一字未动** ⇒ Task 5 起草时 MUST **同时**处理"Task 2/3 的类型名欠账"与
+  "本轮的模块归属欠账（`TcsState`→共享层 / `TcsBuff` 新建）"**两批**。
+
+**★ 一处过程纪律的正面验证（MUST 读）**
+
+- **基线纪律**（`MEM-20261014-14`）**事前拦住了一次**：本 Task 开工前逐条核了 Task 3 的
+  `03-SkillCast.Phase.log` **是完整版**（`P9` 命中 6、`PhaseDeferred` 命中 3，非 Task 2 那种截断版）
+  ⇒ **未重犯**前两轮的截断基线坑。
+- **批量替换纪律**（`MEM-20261014-13`）**全程走脚本文件**（`Saved/TcsAcceptance/REFACTOR1-Task4/scripts/`
+  共 11 个脚本），逐条打印命中数、每轮核对成对字符守恒（**1,017 处改名、零字符损失**）
+  ⇒ **未重犯** Task 3 那次 1430 字符损坏。
+- **一处新的漏改仍发生了、并被编译拦住**：初始化脚本**漏扫 LAC 的 `Source/`**（只扫了插件）
+  ⇒ 71 处注册口改名要补一轮。**判据**：改名脚本的作用域 MUST 显式列出**全部消费者仓**，
+  MUST NOT 只写"插件 Source"。
+
+
+### Task 4 开工前置（§0.5.2 四个固定动作 + **五条冲突的实测订正**，2026-10-14 现场执行）
+
+> **★ 本节按 §0.5.2 的使用纪律"每个 Task 按自己的改动面重新枚举"执行**
+> （**MUST NOT** 沿用 Task 1 / 2 / 3 的表——那是它们各自改动面的产物）。
+> **★ 本节的性质比前三个 Task 的《开工前置》重一档**：前三个是"动作跑完、结论=不触发"，
+> 本轮动作 A 跑出的是**计划 Task 4 正文的五处前提与实测冲突** ⇒ 已在开工前把 Task 4 的
+> Files / Step 1 / 2b / 4 / 4b / 5 / 6 / 9 / 验收信号**就地订正**（用户 2026-10-14 裁定：
+> **先订正计划再开工**），订正留痕即本节。
+
+**动作 A：逐条对已登记债的触发条件**（依 `MEM-20261010-08`）
+
+在册 **74 条**（`deferred-inputs-ledger.md` 幂等 id 行实测）**逐条过完**，结论 = **本 Task 不消费、不触发任何条目**。
+**三条擦边者逐条判定**：
+
+| 条目 | 擦边原因 | 判定 |
+|---|---|---|
+| `MECH-1` | 槽位+代际+空闲栈的**第四份实现**（扁平 `FTcsTriggerRegistry`） | **不触发**——判据是"再出现一处扁平池 / 需要 GC 口 / 奇偶校验 / 可注入发号"；本 Task **只搬动域侧绑定**（`TcsStateRegistry.h` 这个别名文件随 Buff 层搬），**MUST NOT** 借机把它的 `FStateBucket` 别名改为共用第四份实现 |
+| `WAIT-9` | 跨模块消费面的**导出宏存量审计** | **不触发**（但**本 Task 是其高发面**）——搬模块会让 `TCSSTATE_API` 一类导出宏全部要改为 `TCSBUFF_API`；这是**既有纪律的应用**、不是新触发条件。**可核项** = 搬入文件的导出宏逐个改到位且编译通过（漏一个即 `LNK2019`，与 `WAIT-9` 的机制同源） |
+| `STAT-5` | 状态移除广播窗口内的**重入守卫**（`InRemovalBroadcastHandles`） | **不触发**——守卫本体住 `TTcsEntityBroadcastGuard`（**共享层，不搬**）；本 Task 只改持有者名（`UTcsStateSubsystem::RemovalBroadcastGuard` → `UTcsBuffSubsystem::…`），**行为逐字不变** |
+
+**★ 动作 A 的真实命中：五条计划与实测的冲突**（这才是本轮动作 A 的产出）
+
+> **判别方法（本轮新立、可复用）**：§6.1 的「引用方」栏是**按词形命中**填的
+> （"这个类型名在哪些文件出现过"），而归属判据需要的是 **include 级引用**
+> （"哪个模块的代码真的具名了它"）。两者在**注释里提到类型名**的地方分叉。
+> **判据 = 搬动前 MUST 对每个待搬文件做双向 include 核对**（谁 include 它 / 它 include 谁），
+> **MUST NOT** 采信"某类型名出现在哪些文件里"这一计数——该口径本轮一次性判反三处。
+
+| # | 冲突 | 计划原文 | **实测** | 处置（已就地订正） |
+|---|---|---|---|---|
+| **①** | `UTcsStateSubsystem` **不是纯 Buff 门面** | Step 2/4：整类搬 `TcsBuff` + 改名 `TcsBuffSubsystem` | `TcsSkill` **真实依赖 `GetParamTableReader()`**（`TcsCastOps.cpp:518-522`、`TcsCastOps_Phase.cpp:44-48` 取 `UTcsStateSubsystem` 并调该口）⇒ 整搬即**逼 `TcsSkill` 依赖 `TcsBuff`**，违反依赖铁律。**同处第二错**：Step 4 称 `RegisterStateDef`"收两域共用 Def 基类"，实测签名收的是 **`const FTcsBuffDef&`（Buff 域类型）** | **用户裁定 = 方案 A 拆两个门面**：`UTcsStateSubsystem` 瘦身为共享门面（**保留原名 + `TCSSTATE_API`**），只留三组跨域读口（参数表 / 等级 / 事件与时钟）；新建 `UTcsBuffSubsystem` 收 Buff 专属全体。**收益 = 零新依赖边** |
+| **②** | `TcsStateRegistry.h` / `TcsStateHandle.h` **归属判反** | 留共享层（"通用运行时机制"） | `TcsStateRegistry.h` 载荷**已绑 `FTcsBuffInstance`**（Task 2 改的）；`TcsStateHandle.h` 的 **8 个 include 方全在 Buff 域**；二者被 `TcsSkill` **零 include**（技能侧用自己的 `TcsSkillRegistry.h` / `FTcsSkillEntryHandle`） | 按 **include 级**判据**搬 `TcsBuff`**（Step 1 已写明与 §6.1 相反） |
+| **③** | `FTcsEntityAdmission` 族**计划零处置** | Files 段未提 | 接口本体**两域共用**（Buff 的 `FTcsStateStackDecisionFragment` 继承它 + 技能侧挂三策略）；但 `AlwaysNew` / `PerEntityReject` / `PerEntityReplace` 是**技能域词汇**且唯一消费者是 `TcsCastOps.cpp:219-221` | **接口本体留共享层**（含 `Request`/`Existing`/`Decision`/`Kind`）；**三个技能策略搬 `TcsSkill`**（只搬位置、不改名）⇒ 新增 **Step 4b** |
+| **④** | 资产重定向面**漏算** | "少 2 处重定向（`DA_Check_BuffDef` / `DA_State_E2E`）" | **3 处资产 / 4 个类型**：`TcsStepApplyState`（`DA_Chain_E2E_Apply`）与 `TcsParamSource_StateLevelArray`（`DA_State_E2E`）**计划未计** | 新增 **Step 2b**（`CoreRedirects` 落 LAC `DefaultEngine.ini`，实测该文件今天无此段） |
+| **⑤** | `ApplyState` 的约束**只覆盖一半** | Step 6 只说"**注册名** MUST NOT 改" | 资产引用的是 **`/Script/TcsState.TcsStepApplyState`（`ScriptStruct` 路径）** ⇒ **类型名本身**也不能改 | Step 6 加强为"注册名 + 类型名均 MUST NOT 改"；Step 5 同批补"被资产引用的类型名，改名代价含重定向"这条判据 |
+
+> **★ 一处方法论自我登记（本轮我自己的错，MUST 读）**：冲突 ④ 的**第一版扫描我做错了**——
+> 只 grep 连写形态 `/Script/TcsState.<类型>`，而 **uasset 把包名与对象名分开存储**
+> （ASCII 可见 `/Script/TcsState.` 与 `TcsStepApplyState` 是两段），故第一版**漏掉了
+> `TcsStepApplyState` 与 `TcsParamSource_StateLevelArray`**，与计划原文**漏在同一处**。
+> 是"改查裸类型名 + 限定含 `/Script/TcsState` 包的资产"这一步才照出来。
+> **判据 = 扫二进制资产里的类型引用时，MUST 分别扫「包路径」与「对象名」，MUST NOT 只扫连写形态**
+> （连写形态只在 import 表的某些排布下出现）。
+
+**★ 动作 A 的第二命中：体例债表按 Task 4 改动面重枚举**（三级结论）
+
+`Source/TcsDev/**` 超 800 行实测 **6 个**（与 Task 3 同数，但**波及面完全不同**——这正是"按 Task 重枚举"要拦的）：
+
+| 文件 | 行数 | 对 Task 4 改动面的引用（实测） | 处置 |
+|---|---|---|---|
+| `TcsDevSliceRig.cpp` | **3552** | `FTcsBuffInstance` 48 + `UTcsStateSubsystem` 30 + `FTcsStateHandle` 19 + `FTcsStateOps` 3 + `FTcsStepApplyState` 2 + …（**298 处，本 Task 主战场**） | ✅ **就地改 include + 类型名**，**MUST NOT** 拆分 |
+| `TcsDevSliceRig_CooldownCost.cpp` | **1671** | **16 处** | ✅ 就地改 |
+| `TcsDevSliceRig_Skill.cpp` | **1129** | **17 处** | ✅ 就地改 |
+| `TcsDevSkillParamChainProbe.cpp` | **938** | **13 处** | ✅ 就地改 |
+| `TcsDevSkillCastProbe_Phase.cpp` | **856** | **2 处** | ✅ 就地改 |
+| `TcsDevSliceRig_State.cpp` | **803** | **43 处** | ✅ 就地改 |
+
+**插件侧超 800 行且正面波及的 3 个**：`TcsCastOps.cpp`（998 / 4 处）、`TcsCooldownOps.cpp`（1021 / 2 处）、`TcsSkillSubsystem.h`（812 / 7 处）。
+
+> **★ 与 Task 2 / Task 3 的关键差别（MUST 读）**：Task 2 那次是**漏登记**（正面波及者未列入），
+> Task 3 那次是**新纪律第一次拦住**。**本轮 9 个超限文件全部检出**，且**LAC 侧 6 个是本轮首次成为主角**
+> ——Task 2 只波及 LAC 2 个、Task 3 波及 3 个，本轮**波及全部 6 个**。
+> **⇒ 这是本 Task 与前三轮的最大工程差别：改动面首次以宿主装置为主**（装置是 `FTcsBuffInstance` /
+> `UTcsStateSubsystem` 的最大消费者）。
+
+**动作 B：日期取现场值**（依 `MEM-20261004-05`）
+
+现场执行 `Get-Date -Format 'yyyy-MM-dd HH:mm:ss K'` = **2026-10-14 19:04:46 +08:00**，
+与轮次日 **2026-10-14** 一致 ⇒ **无跨零点错位、无需留痕**。
+
+**动作 C：「护栏表」**（依 `MEM-20261014-01`）
+
+本 Task 的实质 = "**一个模块里的三层拆出一个新模块**"，且含两处"**N 个同形物**"：
+① 一个门面类**拆成两个**（冲突 ① 的形态）；② `FTcsEntityAdmission` 族**按域分置**（冲突 ③）。
+逐物出表（一行为一物，列该物**独有**的拦截）：
+
+| # | 物 | 去向 | 该物**独有**的拦截（拆分后是否失效） |
+|---|---|---|---|
+| 1 | `GetParamTableReader()` | **共享层** | **跨域读口**——`TcsSkill` 靠它把本 run 的快照装进求值上下文。**拆分的唯一硬约束**：该口 MUST 留共享层，否则 `TcsSkill` 被迫依赖 `TcsBuff` |
+| 2 | `Set/GetEntityLevelProvider` | **共享层** | 等级读口由**宿主**注入（`UPROPERTY` + `TScriptInterface` 的 GC 纪律）；跨域（技能侧冷却/消耗的等级源经共享基类上下文读 `EffectiveLevel`） |
+| 3 | `GetEventBus` / `GetClockSubsystem` | **共享层** | 两个子系统指针的取用口，两域都要（技能侧激活与时段到期同样经时钟） |
+| 4 | `LogTcsState` 通道 | **共享层** | **共享层仍有写出点**——`TcsEntityRuntimeGenerationIssuer.cpp:23` 的 `Fatal`（代际耗尽）。⇒ 通道 MUST 留共享层，**MUST NOT** 连同 Buff 层一起改名为 `LogTcsBuff` |
+| 5 | `RegisteredDefs` + `RegisterStateDef` 族 | **TcsBuff** | ★ **计划原文判据写错**——签名收 `const FTcsBuffDef&`（域类型）⇒ 无"两域共用"可言。拦截 = 重复登记不静默覆写 |
+| 6 | `Registry` / `SourceRegistry` / `BehaviorRegistry` / `RemovalBroadcastGuard` / ARO | **TcsBuff** | 全部只服务 Buff 域；ARO 补的是 `RegisteredDefs` 里 `FInstancedStruct` 的内层引用（GC 地雷） |
+| 7 | `FTcsEntityAdmission` 本体 + `Request`/`Existing`/`Decision`/`Kind` | **共享层** | **两域共用的决策空间**（`MEM-20261014-01` 的用例本身）——合并的是**逻辑**；三个 `virtual` 方法按域改写结果 |
+| 8 | `FTcsEntityAdmissionAlwaysNew` / `PerEntityReject` / `PerEntityReplace` | **TcsSkill** | **技能域词汇**（名字自述"技能侧默认策略"）；**留在共享层 = 共享层持有技能域概念**，与"Def 基类留共享层、域 Def 住域模块"判据同构 |
+| 9 | `FTcsStateStackDecisionFragment` | **TcsBuff** | 状态侧策略（继承共享接口） |
+| 10 | `FTcsStateHandle` / `TcsStateRegistry.h` | **TcsBuff** | ★ **计划原文判反**——载荷绑 `FTcsBuffInstance`、8 个 include 方全在 Buff 域。**但"三个句柄 MUST 保持独立类型"这条护栏照旧成立**（裁决 §8）：拆模块**MUST NOT** 借机合并句柄 |
+
+**⇒ 动作 C 的结论**：本 Task **拆的是"声明与文件的物理位置"，不拆任何行为**——
+第 7 项是"合并逻辑、分置声明"（`FTcsEntityAdmission` 的判据本来就在一处置中）；
+第 10 项受裁决 §8 的**编译期护栏**约束，**MUST NOT 合并**。
+
+**动作 D：超限文件与增长量留档**（★ 用户 2026-10-14 立，跨任务通用）
+
+**本 Task 无新增超限文件**（新模块 `TcsBuff` 的文件为**搬迁**，不构成新增；`TcsBuffSubsystem.h` 预计远低于 800）。
+正面波及的 **9 个超限文件**（**逐文件如实登记增长量，MUST NOT 写"零增长"**）：
+
+| 文件 | 行数（前） | 预估变化 | 判据 |
+|---|---|---|---|
+| `TcsDevSliceRig.cpp` | 3552 | **等长或微增** | include 路径等长替换（`TcsStateSubsystem.h` 若同长则 0） |
+| `TcsDevSliceRig_CooldownCost.cpp` | 1671 | 0 | 等长替换 |
+| `TcsDevSliceRig_Skill.cpp` | 1129 | 0 | 等长替换 |
+| `TcsDevSkillParamChainProbe.cpp` | 938 | 0 | 等长替换 |
+| `TcsDevSkillCastProbe_Phase.cpp` | 856 | 0 | 等长替换 |
+| `TcsDevSliceRig_State.cpp` | 803 | 0 | 等长替换 |
+| `TcsCooldownOps.cpp` | 1021 | 0 | 等长替换 |
+| `TcsSkillSubsystem.h` | 812 | 0 | 等长替换 |
+| `TcsCastOps.cpp` | 998 | **+N** | 若 `UTcsStateSubsystem`→共享门面名不变则 0；若门面改名则逐处 +δ |
+
+> **★ 本表的用法（MUST 读）**：上列是**开工前预估**，**实施记录 MUST 用实测值回填**
+> （动作 D 第②段要的是可核项 = 真实增长量）。**拆分时机 = 本 Task 验收之后**（第③段）；
+> **MUST NOT** 插在重构与验收之间。
+
+**★★ 实测分类底稿（权威 · 逐文件 · 双向 include 核对过 · 2026-10-14）**
+
+> **本块取代裁决 §6.1 的三层表作为本 Task 的执行判据**。§6.1 的「引用方」栏是**词形命中**的产物，
+> 与本表按 **include 级**判定的结果**分叉四处**（冲突 ②与 ③，以及本块新发现的 `FTcsEntityLevelProvider.h`）。
+
+**留 `TcsState`（共享层）/ 19 文件 / 2,015 行**：
+
+| 组 | 文件 |
+|---|---|
+| 共用 Def 族（5） | `Public/Def/TcsStateDefBase.h` · `Public/Def/TcsStateDef.h` + `Private/Def/TcsStateDef.cpp` · `Public/Def/TcsParamRow.h` · `Public/Def/TcsDescriptionEntry.h` · `Public/Param/TcsStateParamKeys.h` + `Private/Param/TcsStateParamKeys.cpp` |
+| 基底与快照机制（3） | `Public/State/TcsStateInstance.h` · `Public/State/TcsStateSnapshot.h` · `Public/State/TcsStateParamTableReader.h` |
+| 通用运行时机制（5） | `Public/Runtime/TcsInstanceHandleOps.h` · `Public/Runtime/TcsEntityRuntimeBucket.h` · `Public/Runtime/TcsEntityRuntimeGenerationIssuer.h` + `Private/Runtime/TcsEntityRuntimeGenerationIssuer.cpp` · `Public/Runtime/TcsEntityBroadcastGuard.h` |
+| 统一重申请决策（2） | `Public/Runtime/TcsEntityAdmission.h` + `Private/Runtime/TcsEntityAdmission.cpp`（**接口本体留共享层**；三个技能域策略搬 `TcsSkill`，见 Step 4b） |
+| 模块壳（1 组） | `TcsStateModule.h` + `.cpp` · `TcsState.Build.cs` · `Public/TcsStateLogChannel.h` + `Private/TcsStateLogChannel.cpp`（**`LogTcsState` 留共享层**——`TcsEntityRuntimeGenerationIssuer.cpp` 的 `Fatal` 在用） |
+| 共享门面（**待瘦身**） | `Public/TcsStateSubsystem.h` + `Private/TcsStateSubsystem.cpp`（**保留原名与 `TCSSTATE_API`**，只留**参数表读口** `GetParamTableReader()` + 生命期 + `DoesSupportWorldType`；**其余全体搬 `UTcsBuffSubsystem`**） |
+
+> **★ 共享门面的真实公共面 = 只有一口（实测）**：`TcsSkill` 对 `UTcsStateSubsystem` 的**代码级**依赖
+> **仅 `GetParamTableReader()`**（`TcsCastOps.cpp:518-522` / `TcsCastOps_Phase.cpp:44-48`，两处同一形态）。
+> **等级读口 / 事件与时钟读口 / ARO / 注册表 / 成员容器全部归 `UTcsBuffSubsystem`**。
+> ★ **本行初稿曾把"三组读口"都判为共享层，该判据已被实测推翻**——见本块末的《一处判据自我纠正》。
+
+**搬 `TcsBuff` / 44 文件 / 5,375 行**（按域分组，逐文件行数见实施记录）：
+
+| 组 | 文件 |
+|---|---|
+| BuffDef 三件（3） | `Public/Def/TcsBuffDef.h` · `TcsBuffDefAsset.h` + `Private/Def/TcsBuffDefAsset.cpp` · `TcsBuffDefTableRow.h` |
+| **等级契约与源（4）** | **`Public/Host/TcsEntityLevelProvider.h`**（含 `ITcsEntityLevelProvider` + `FTcsStateEvaluateContext`，**类型名不改**）· `Public/Param/TcsParamSource_StateLevel.h` · `TcsParamSource_InstigatorLevel.h` |
+| 运行态记录（1） | `Public/State/TcsBuffInstance.h` |
+| 堆叠（3） | `Public/State/TcsStateStackPolicy.h`（**文件名改 `TcsBuffStackPolicy.h`，类型名不改**） · `Public/State/TcsStateStackFragment.h` + `Private/State/TcsStateStackFragment.cpp` · `Private/State/TcsStateOps_Stack.cpp` |
+| 时值周期（1） | `Public/State/TcsStateEnums.h`（→ `TcsBuffEnums.h`） |
+| 行为 Fragment 五件（6） | `Public/State/TcsStateBehaviorFragment.h` + `Private/State/TcsStateBehaviorFragment.cpp` · `TcsStateBehaviorHandler.h` + `.cpp` · `TcsStateBehaviorRegistry.h` + `.cpp` |
+| 修正器物化（3） | `Public/State/TcsStateModifierMaterializer.h` + `Private/State/TcsStateModifierMaterializer.cpp` · `Private/State/TcsStateAttributeAccess.h` |
+| 链步骤（2） | `Public/Chain/TcsStepApplyState.h` + `Private/Chain/TcsStepApplyState.cpp` |
+| 六枚事件（2） | `Public/State/TcsStateEvents.h` + `Private/State/TcsStateEvents.cpp` |
+| 句柄与注册表（4） | `Public/State/TcsStateHandle.h` · `TcsStateRegistry.h` + `Private/State/TcsStateRegistry.cpp` · **`FTcsStateHandle` 搬**（技能侧用自己的句柄，零 include） |
+| 引擎函数（11） | `Public/State/TcsStateOps.h` + `Private/State/TcsStateOps.cpp` + `_Behavior` / `_Events` / `_Lifetime` / `_Modifier` / `_Query` / `_Snapshot` / `_Stack` / `_Trigger` |
+| 门面（2） | `Private/TcsStateSubsystem_Definition.cpp` · `Private/TcsStateSubsystem_Behavior.cpp`（**改挂 `UTcsBuffSubsystem`**） |
+
+**★★ 类型改名映射表（权威 · 用户 2026-10-14 裁定「彻底一词一义」）**
+
+> **判据**：搬入 `TcsBuff` 的**域专属**类型改名；**共享层类型**与**设计语料既有词汇**不改。
+> **执行纪律**：走**脚本文件 + 逐条命中数护栏 + 成对字符守恒核对**（`MEM-20261014-13`）。
+
+| # | 旧名 | 新名 | 处数（源码/文档） | 依据 |
+|---|---|---|---|---|
+| 1 | `UTcsStateSubsystem` | `UTcsBuffSubsystem` | 155 / 87 | Buff 门面（计划原文已授权） |
+| 2 | `FTcsStateOps` | `FTcsBuffOps` | 66 / 32 | Buff 引擎函数（计划原文已授权） |
+| 3 | `LogTcsState` | **不改** | 50 / 0 | **共享层仍在用**（发号器 `Fatal`）⇒ **但 Buff 门面改用新通道 `LogTcsBuff`**（新建），两通道并存 |
+| 4 | `EApplyResult` | `EBuffApplyResult` | 162 / 32 | Buff 施加回执（四档：Applied/Refreshed/Stacked/Rejected） |
+| 5 | `EStatePhase` | `EBuffPhase` | 25 / 28 | Buff 实例阶段（Inactive/Active/Expiring） |
+| 6 | `EStateRemoveCause` | `EBuffRemoveCause` | 37 / 19 | Buff 移除原因 |
+| 7 | `EDurationPolicy` | `EBuffDurationPolicy` | 30 / 23 | Buff 时值策略 |
+| 8 | `ETcsPeriodRefresh` | `ETcsBuffPeriodRefresh` | 7 / 13 | Buff 周期刷新档 |
+| 9 | `FTcsStateHandle` | `FTcsBuffInstanceHandle` | 108 / 61 | Buff 实例句柄（★ **MUST NOT 与 `FTcsSkillInstanceHandle` 合并**——裁决 §8 编译期护栏） |
+| 10 | `FTcsStateTag` | `FTcsBuffInstanceTag` | 5 / 3 | 上面的幻影标签 |
+| 11 | `FTcsStateBucket` / `FStateBucket` | `FTcsBuffBucket` / `FBuffBucket` | 2+21 / 24 | 桶别名（共享模板的实例化） |
+| 12 | `FTcsStateRegistry` | `FTcsBuffRegistry` | 3 / 30 | 注册表别名 |
+| 13 | `FTcsStateEventPayload` | `FTcsBuffEventPayload` | 26 / 44 | 六枚生命周期事件的载荷 |
+| 14 | `FTcsStateBehaviorFragment` | `FTcsBuffBehaviorFragment` | 11 / 20 | Buff 行为片段 |
+| 15 | `FTcsStateBehaviorContext` | `FTcsBuffBehaviorContext` | 6 / 14 | 同上 |
+| 16 | `UTcsStateBehaviorHandler` | `UTcsBuffBehaviorHandler` | 12 / 6 | 行为总线 Handler |
+| 17 | `FTcsStateBehaviorRegistry` | `FTcsBuffBehaviorRegistry` | 11 / 4 | 行为兴趣旁表 |
+| 18 | `FTcsStateModifierMaterializer` | `FTcsBuffModifierMaterializer` | 6 / 11 | 修正器物化器 |
+| 19 | `FTcsStateAttributeAccess` / `TcsStateAttributeAccess` | `FTcsBuffAttributeAccess` / `TcsBuffAttributeAccess` | 14+15 / 17+28 | 属性访问私有头（**随文件搬**） |
+| 20 | `FTcsStateStackRequest` / `Decision` / `DecisionFragment` / `ETcsStateStackDecisionKind` | `FTcsBuffStack*` / `ETcsBuffStackDecisionKind` | 11+13+5+20 / 7+37+32+4 | 堆叠决策（**状态侧**薄型） |
+| 21 | `FTcsStateEvaluateContext` | **不改** | 20 / 19 | **共享层**（等级契约；命名读作"状态域求值上下文"= 等级源所属域） |
+| 22 | `ITcsEntityLevelProvider` | **不改** | 17 / 55 | **共享层**宿主契约——★ 它同时被 `TcsEffect` 的两处注释引用，**跨域** |
+| 23 | `FStateStackPolicy` + 4 枚举 | **不改** | 17 / 32 | **设计语料既有词汇**（`SPEC-02-states` 逐字用）——"State" 在此读作"状态层"，且**名字无 `Tcs` 前缀、本就不表达模块归属** |
+| 24 | `FTcsStateInstance` | **不改** | 21 / 135 | **共享基底**（Step 5） |
+| 25 | 资产引用的 4 型 | **不改** | — | `UTcsBuffDefAsset` / `FTcsBuffDef` / `FTcsStepApplyState` / `FTcsParamSource_StateLevelArray`（改名须配重定向） |
+
+> **★ 两条 MUST（替换顺序陷阱）**：① **`FStateStackPolicy` 是 `FTcsStateStackPolicy` 的子串** ⇒ 替换 MUST **长者优先**；
+> ② `FTcsStateInstance` 与 `FTcsBuffInstance` **互不为子串**，但仍 MUST 逐条核对命中数（防"以为改了其实没改"）。
+> **★ 一处遗留如实登记**：第 3 项的**双日志通道并存**是有意的——共享层与 Buff 层的写出点分属两个模块，
+> 合并通道会让"哪个模块说的话"在日志里不可分（D0-6 v2 的独立通道纪律）。
+
+**★★ 一处判据自我纠正（我自己的错，MUST 读 · 2026-10-14）**
+
+> **纠的是什么**：本 Task 的**第一版订正**里，我把 `FTcsEntityLevelProvider.h`（含 `ITcsEntityLevelProvider`
+> 与 `FTcsStateEvaluateContext`）判为「**留共享层**」，理由写的是"它是共享门面 `Set/GetEntityLevelProvider`
+> 的形参契约，搬走即让共享门面反向依赖 `TcsBuff`"；并据此把共享门面的公共面写成**三组读口**。
+>
+> **实测推翻（代码级 vs 注释级逐条核对）**：`ITcsEntityLevelProvider` 的**代码级**消费者**全在 Buff 域**——
+> `TcsBuffOps_Snapshot.cpp`（`OutContext.LevelProvider = Subsystem.GetEntityLevelProvider()`）、
+> `TcsBuffOps_Stack.cpp`、`TcsBuffModifierMaterializer.cpp`、`TcsParamSource_{State,Instigator}Level.h`
+> （四个源继承 `FTcsStateEvaluateContext` 读 `LevelProvider`）、`TcsBuffSubsystem` 自身的注入口、
+> 以及 LAC 装置（实现 + 注入）。而 `TcsEffect`（2 处）与 `TcsSkill`（3 处）的引用**全部是注释**
+> （拿它当"宿主插槽契约"的**先例**引用），**零代码引用**。
+> ⇒ **`TcsEntityLevelProvider.h` 搬 `TcsBuff`**；**共享门面的公共面只有一口 = `GetParamTableReader()`**
+> （`TcsSkill` 的两处代码级依赖，实测 `TcsCastOps.cpp:518-522` / `TcsCastOps_Phase.cpp:44-48`）。
+>
+> **根因（与本轮立的判据同源、却由我自己复犯一次）**：我这次是**按名字相邻推断归属**——
+> "它叫 `ITcsEntityLevelProvider`，而 `LevelProvider` 出现在共享门面上，那它就该留共享层"，
+> 而**没有逐处核对引用是代码还是注释**。这正是本 Task 冲突 ② 的根因（§6.1 用词形命中代替 include 级引用）
+> **在我自己手上的同型复现**。
+> **判据加强**：归属判定 MUST 分三档核——**代码级引用 / 注释级引用 / 零引用**；
+> **只有代码级引用才产生依赖边**，注释里的提及**不构成归属依据**。
+> **依据**：`MEM-20260902-13`（逐职责问具名了对方哪个类型）+ `MEM-20261013-09`（按词形/表面相邻配对）。
 
 ---
 
@@ -1384,5 +1730,29 @@ Task 0（两份裁决，✅ 已完成：state-module-positioning + asset-butler�
 **★ 其中最重的一处（Task 5 起草时 MUST 优先处理）**：`skill-cast-runtime` **逐条写死了**
 `FTcsCastRun` 非反射 + 必须经 `TTcsInstancePool` + **"MUST NOT 新建池实现"** + **8 个必具字段**
 ——四句全部需要改述（新形状 = 基底 + 派生，池经 Core 的统一桶）。该能力的清单**计划 Task 5 Step 1 已预列**。
+
+- 2026-10-14 **Task 4 开工前置：计划就地订正（★ 五条冲突，用户裁定"先订正计划再开工"）**：跑 §0.5.2 四个固定动作时，**动作 A 的产出不是"不触发任何债"，而是计划 Task 4 正文的五处前提与实测冲突**。订正范围 = Task 4 的 Files 段 + Step 1 / 新增 Step 2b / Step 4 / 新增 Step 4b / Step 5 / Step 6 / Step 9 / 验收信号，并新增《Task 4 开工前置》块。**五条冲突逐条**：
+  - **① 门面不是纯 Buff 门面（最硬）**：计划 Step 2/4 要求 `UTcsStateSubsystem` **整类**搬 `TcsBuff` 并改名——实测 **`TcsSkill` 真实依赖它**（`TcsCastOps.cpp:518-522` 与 `TcsCastOps_Phase.cpp:44-48` 取 `GetSubsystem<UTcsStateSubsystem>()` 后调 `GetParamTableReader()` 把本 run 的 `ParamSnapshot` 装进求值上下文）⇒ 整搬即**逼技能侧依赖 `TcsBuff`**，与"技能侧不含领域模块"的依赖铁律冲突。**同处第二错**：Step 4 称 `RegisterStateDef` "收两域共用的 Def 基类 ⇒ 留共享层"，**实测签名为 `RegisterStateDef(FGameplayTag, const FTcsBuffDef&)`——收的是 Buff 域类型**，根本不成立。**处置 = 用户裁定「方案 A：拆两个门面」**：`UTcsStateSubsystem` 瘦身为共享门面（**保留原名 + `TCSSTATE_API`**，只留**参数表 / 等级 / 事件与时钟**三组跨域读口），新建 `UTcsBuffSubsystem` 收 Buff 专属全体。**收益 = 零新依赖边**。
+  - **② 两处归属判反**：`TcsStateRegistry.h`（Task 2 后**载荷已绑 `FTcsBuffInstance`**）与 `TcsStateHandle.h`（**8 个 include 方全在 Buff 域**）计划判"留共享层"，实测二者被 `TcsSkill` **零 include**（技能侧用自己的 `TcsSkillRegistry.h` / `FTcsSkillEntryHandle`）⇒ **搬 `TcsBuff`**。留共享层会让共享层反向依赖 Buff 类型。
+  - **③ 计划零处置者**：`FTcsEntityAdmission` 族的**唯一消费者是 `TcsSkill`**（`TcsCastOps.cpp:219-228`），且它自带三个名字就写着"**技能侧默认策略**"的派生类 ⇒ **技能域词汇住在共享层**，而 Task 4 的 Files 段对此零处置。**处置**：接口本体（含 `Request` / `Existing` / `Decision` / `Kind`）**留共享层**（两域共用），三个技能策略**搬 `TcsSkill`**（只搬位置、不改名）。
+  - **④ 资产重定向面漏算**：计划称"少 2 处重定向（`DA_Check_BuffDef` / `DA_State_E2E`）"，实测 **3 处资产 / 4 个类型**——漏计 `TcsStepApplyState`（`DA_Chain_E2E_Apply`）与 `TcsParamSource_StateLevelArray`（`DA_State_E2E`）。**新增 Step 2b**（`CoreRedirects` 落 LAC `Config/DefaultEngine.ini`，实测该文件今天无此段）。
+  - **⑤ `ApplyState` 约束只覆盖一半**：Step 6 只说"**注册名** MUST NOT 改"，而实测 `DA_Chain_E2E_Apply.uasset` 引用的是 **`/Script/TcsState.TcsStepApplyState`（`ScriptStruct` 路径）** ⇒ **类型名本身**也不能改。**同批从实测补一条更强判据**（写进 Step 5）：**凡被内容资产按 `ScriptStruct` / `Class` 路径引用的类型名，改名的代价含"多一处重定向 + 一处失配风险"** ⇒ 对这类类型，"顺眼"不构成改名理由。
+  - **★ 一处口径订正（判反三处的根因，MUST 读）**：裁决 §6.1 的「引用方」栏是**按词形命中**填的（"这个类型名在哪些文件出现过"），而归属判据需要的是 **include 级引用**（"哪个模块的代码真的具名了它"）——两者在**注释里提到类型名**的地方分叉，且本仓注释极密 ⇒ **一次性判反三处**。**判据 = 搬动前 MUST 对每个待搬文件做双向 include 核对**（谁 include 它 / 它 include 谁），**MUST NOT** 采信"某类型名出现在哪些文件里"这一计数。
+  - **★ 一处方法论自我登记（我自己的错，MUST 读）**：冲突 ④ 的**第一版扫描我也漏了同一处**——只 grep 连写形态 `/Script/TcsState.<类型>`，而 **uasset 把包名与对象名分开存储**（`/Script/TcsState.` 与 `TcsStepApplyState` 是两段），故第一版与计划原文**漏在同一处**；改查裸类型名并限定"含 `/Script/TcsState` 包的资产"才照出来。**判据 = 扫二进制资产里的类型引用 MUST 分别扫「包路径」与「对象名」，MUST NOT 只扫连写形态**。
+  - **动作 A 的第二命中 = 体例债按本 Task 重枚举**：超 800 行 **插件 3 个 + 宿主 6 个 = 9 个**，且**LAC 侧 6 个本轮全部成为主角**（Task 2 只波及 2 个、Task 3 波及 3 个；其中 `TcsDevSliceRig.cpp` 3552 行含 **298 处**）⇒ **本 Task 的改动面首次以宿主装置为主**，这是与前三轮最大的工程差别。
+  - **动作 B**：现场日 = **2026-10-14**，与轮次日一致、无跨零点错位。**动作 C**：出护栏表（10 行，含"门面拆分"与"`FTcsEntityAdmission` 按域分置"两组），结论 = **本 Task 拆的是"声明与文件的物理位置"，不拆任何行为**；且 `FTcsStateHandle` 受裁决 §8 的**编译期护栏**约束，**MUST NOT** 借拆模块合并句柄。**动作 D**：**无新增超限文件**，9 个正面波及者逐文件留档（苗头如实登记，实测值由《实施记录》回填）。
+  - **★ 实测到的现状与文档漂移（一并留痕）**：`TcsState` 今日 = **63 文件 / 7,390 行**（裁决 §6.1 记的 55 / 6,663 已过时，因 Task 1 新增 6 件运行时机制）⇒ 共享层 **2,153 行** / Buff 层 **5,237 行**。
+  - **两仓零提交**（提交须用户显式授权）。**下一步 = Task 4 实施（模块壳 → 搬文件 → 门面拆分 → 重定向 → 双配置 + 装置回归）**。
+
+- 2026-10-14 **Task 4 落地（拆出 `TcsBuff` 新模块）**：十三个 Step 全部完成 + 双配置 **0/0** + 无头装置 **11 条读数：10 条逐字相同、1 条仅时序拍数抖动**。**★ 交付形状**：新建 `TcsBuff`（**47 文件 / 5,375 行**，41 个 `git mv` + 模块壳 4 + 门面 2）；`TcsState` 由 63 文件 / 7,390 行瘦身为 **19 文件 / 2,015 行**的共享层。
+  - **用户三处裁定**：① **方案 A 拆两个门面**——`UTcsStateSubsystem` 保留原名与 `TCSSTATE_API`、**只留 `GetParamTableReader()` + 生命期**（≈90 行，原 431 行），新建 `UTcsBuffSubsystem` 收下其余全体；② **彻底一词一义**——Buff 专属类型一并从 `TcsState*` / `EState*` 改为 `TcsBuff*` / `EBuff*`（**1,017 处 / 388 文件**，含 LAC）；③ **双日志通道并存**（`LogTcsBuff` 新建 47 处、共享层保留 `LogTcsState` 3 处）。
+  - **依赖图实测达标（拆分成败的硬判据）**：`TcsState` = Core/Notation/Attribute（**去掉 `Effect`** = 裁定⑫ 兑现）；`TcsBuff` = 上述 + `Effect` + `State`；`TcsSkill` = 同上但**不含 `TcsBuff`**（双向核过：`Build.cs` 零命中、include 零命中、代码级引用零处，20 处全是注释）。
+  - **★ 实施期抓到并修掉三处真实缺陷（都属「静默失败」）**：① **CoreRedirects 的 section 名写错**——写在 `[/Script/Engine.Engine]`，而引擎从**专用段** `[CoreRedirects]` 读（依据 `CoreRedirects.cpp:2739`，且该函数读完即 `RemoveSectionFromBranch`）⇒ 症状 = `EffectChain.Check.ApplyState` 的步骤类型 `GetScriptStruct()==nullptr`、`Slice.Run` 检查 3 由 `28/28 PASS` 退为 `27/28 FAIL`；② **字段名用了废弃形式**（`OldStructName`/`NewStructName`；UE 4.10 起统一为 **`OldName`/`NewName`**，依据 `BaseEngine.ini` 权威注释段）⇒ 同一症状；③ **`ITcsEntityLevelProvider` 缺跨模块导出宏** ⇒ `LNK2019`（**台账 `WAIT-9` 的又一实例**）。**同批还修了 7 处 `generated.h` 名未随文件改名**（UHT 硬要求）与 **23 处 `TCSSTATE_API` → `TCSBUFF_API`**（漏改即 `C4273 inconsistent dll linkage`）。
+  - **★ 三处共同点 = 「拆分让原本同模块内的东西变成跨模块」**（导出宏 / `generated.h` 名 / 资产重定向），**三者都是「不报错就静默失效」的类别** ⇒ **立判据：拆模块时必须逐项核这三样**。**诊断手法（可复用）**：`-DebugCoreRedirects` 会逐文件打印 `ReadRedirectsFromIni(<ini>) adding N redirects`——本次靠它一眼看出「项目 `Config/DefaultEngine.ini` 根本没进读取列表」。
+  - **一处漏改如实登记**：改名脚本**只扫了插件 `Source/`、漏了 LAC `Source/`** ⇒ 71 处注册口改名要补一轮（被编译拦住）。**判据：改名脚本的作用域 MUST 显式列出全部消费者仓，MUST NOT 只写「插件 Source」**。
+  - **动作 D 第②段留档**：**无新增超限文件**；**9 个正面波及的超限文件全部零增长**（等长替换）：`TcsDevSliceRig.cpp` 3552 · `TcsDevSliceRig_CooldownCost.cpp` 1671 · `TcsDevSliceRig_Skill.cpp` 1129 · `TcsCooldownOps.cpp` 1021 · `TcsCastOps.cpp` 998 · `TcsDevSkillParamChainProbe.cpp` 938 · `TcsDevSkillCastProbe_Phase.cpp` 856 · `TcsSkillSubsystem.h` 812 · `TcsDevSliceRig_State.cpp` 803。
+  - **规格面**：走**路径 B**（不开提案，判据 = 模块搬迁 + 类型改名属「既有能力内换实现形状」）；**按用户裁定就地改三处计数**（`plugin-descriptor` 9→10 含 `## Purpose` 与两个 Scenario、`project.md`、`DEC-00` §9 表 11→12 并去掉 `TcsState → TcsEffect` 边）；`validate --all --strict` **43 passed / 0 failed**。**待回写能力清单归 Task 5**，且 MUST **同时**处理「Task 2/3 的类型名欠账（14 能力 / 52 处）」与「本轮的模块归属欠账（`TcsState`→共享层 / `TcsBuff` 新建）」两批。
+  - **一处过程纠正（我自己的错，MUST 读）**：开工前的第一版订正里，我把 `FTcsEntityLevelProvider.h`（含 `ITcsEntityLevelProvider` + `FTcsStateEvaluateContext`）判为「留共享层」、共享门面留「三组读口」。**逐处核对「代码级 vs 注释级」后推翻**：该接口的**代码级**消费者全在 Buff 域（修正器物化 + 四个等级源 + 门面注入口 + LAC 装置），`TcsEffect`/`TcsSkill` 的引用**全是注释** ⇒ 它搬 `TcsBuff`（类型名不改）、共享门面**只留一口**。**根因 = 按名字相邻推断归属**（与冲突 ② 同型，由我自己复犯一次）⇒ **判据加强：归属判定 MUST 分三档核（代码级 / 注释级 / 零引用），只有代码级引用才产生依赖边**。
+  - **两仓零提交**（提交须用户显式授权）。**下一步 = Task 8**（按方案 A 的 `1 → 2 → 3 → 4 → 8 → 5 → 6 → 7`）。
 
 - 2026-10-14 **规格面处置条款订正（★ 用户提问驱动的缺口暴露，MUST 读）**：用户问「**Task 3 的执行没有创建提案吗**」——实测 **Task 2 与 Task 3 都没开提案**（`openspec/changes/` 零活动提案；而 **Task 1 那次是真开了的**：`merge-entity-runtime-mechanisms`，含新建能力 `entity-runtime-mechanism` + 归档）。**根因 = 计划自相矛盾**：Global Constraints 原文写「**每个 Task** 的实施以 OpenSpec 提案开道」，而 **Task 5（规格与能力面回写）** 的设计是**批处理**——两者不可能同时成立。**后果 = 静默跳步**：Task 2 / Task 3 两轮既没开提案、也没记录这个决定（**没有任何检查会因它失败**）。**订正** = 把该条改为**两条合法路径 + 选路判据**（新建能力或改对外语义 ⇒ A；既有能力内换实现形状 ⇒ B），并给路径 B 加硬要求（《实施记录》MUST 写明选了 B 及判据 + **待回写能力清单与处数**）。**依据** = 两条路径**在本计划内本来就都存在**（Task 1 走 A、Task 5 走 B），缺的只是把它们命名出来并给判据。**★ 同批补记未偿欠账（实测，MUST NOT 只写"规格待同步"）**：主规格中引用旧类型名的 **14 个能力、52 处** —— `FTcsCastRun` **31 处**（**该类型已从代码中消失**）+ `FTcsStateInstance` **21 处**（类型仍在、**语义已变**：从"装 14 字段"变为"基底 6 字段"）；按能力分布最重者 = `skill-cast-runtime` **13**（它逐条写死了 `FTcsCastRun` 非反射 + 必须经 `TTcsInstancePool` + "MUST NOT 新建池实现" + 8 个必具字段 —— **四句全部要改述**）。该清单已同时写进 **Task 2 / Task 3 的《实施记录》**，归 **Task 5** 消费。**两仓零提交**（提交须用户显式授权）。**下一步 = Task 4（拆出 `TcsBuff` 新模块）**；⚠️ **Task 3 遗留一处未闭合**：`PLN-R5.5` 的 `e1`/`e4` 改述（Step 7 只改述状态、正文未动）。

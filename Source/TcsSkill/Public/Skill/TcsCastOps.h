@@ -33,14 +33,14 @@ struct FTcsParamEvaluateContext;
 /**
  * 施法运行态引擎函数（设计文档 §3.1 的既定分工）：**桶只存数据与索引，操作全在这里**。
  *
- * **为什么必须存在本类**（同 `FTcsSkillOps` / `FTcsStateOps` 的判据）：门面的职责是
+ * **为什么必须存在本类**（同 `FTcsSkillOps` / `FTcsBuffOps` 的判据）：门面的职责是
  * **世界过滤 + 定义登记 + 注入面**；六道门禁的裁决流程、运行态的建/终结、快照构建、起链与广播
  * 按操作种类集中在本类，这样 `UTcsSkillSubsystem.cpp` 保持薄壳，而流程改动不与 UE 生命周期样板混在一起。
  *
- * **它不是"零消费者预建"**：本类的消费者**就是**门面的激活口（同族先例 = `FTcsStateOps` 的 `Apply`）。
+ * **它不是"零消费者预建"**：本类的消费者**就是**门面的激活口（同族先例 = `FTcsBuffOps` 的 `Apply`）。
  * **访问私有区是它的存在理由之一**——`Registry` / `SkillInstances` / `RegisteredDefs` 是门面的私有成员，
  * 裁决逻辑落在门面类里会让"谁有权改运行态"与"谁是门面"混作一团
- * （状态侧同款：`FTcsStateOps` 是 `UTcsStateSubsystem` 的 friend）。
+ * （状态侧同款：`FTcsBuffOps` 是 `UTcsBuffSubsystem` 的 friend）。
  *
  * **全部成员为静态函数**：本类**无实例**（不持状态）——状态一律经 `Subsystem` 参数传入。
  *
@@ -221,7 +221,7 @@ public:
 	/**
 	 * 构建技能参数快照——**写入点**，`ValueConvention` 的规范转换在此发生一次。
 	 *
-	 * **为什么技能侧要自己一份**（不是"建第二套快照"）：状态侧的 `FTcsStateOps::BuildSnapshot`
+	 * **为什么技能侧要自己一份**（不是"建第二套快照"）：状态侧的 `FTcsBuffOps::BuildSnapshot`
 	 * 形参**硬编码 `const FTcsBuffDef&`** ⇒ 技能侧**物理上无法复用**。**复用面 = 快照类型
 	 * `FTcsParamSnapshot` + 读取壳 `UTcsStateParamTableReader` + 绑定作用域
 	 * `FTcsStateSnapshotScope`**（MUST NOT 建第二套快照类型、MUST NOT 出现第二处键查找语义）；

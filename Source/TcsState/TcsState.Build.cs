@@ -8,10 +8,12 @@ public class TcsState : ModuleRules
 	{
 		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 
-		// 最小编译集（R0 §9 / PLN-R5 Task 1）：M3 状态层（Def 形状与资产、per-unit 状态桶、生命周期事件）
-		// ——依赖链第四层，与 TcsDamage / TcsTargeting 平级：
-		// TcsCore（句柄/池/总线/时钟/来源）、TcsNotation（参数行值约定列）、TcsAttribute（修正器模板引用）、
-		// TcsEffect（内联触发行类型 FTcsEffectTriggerDef）
+		// 最小编译集（PLN-REFACTOR-1 Task 4 后）：**共享层**——两域共用的 Def 族
+		// （`FTcsStateDefBase` / `UTcsStateDef` / `FTcsNumericParamRow` / `FTcsDescriptionEntry` /
+		// `TcsStateParamKeys`）+ 通用运行时机制（基底 `FTcsStateInstance` / 快照 / 桶 / 注册表 /
+		// 代际发号 / 广播守卫 / 重申请决策接口）+ 共享门面（参数表读口）。
+		// **★ 依赖已去掉 `TcsEffect`**（裁定⑫：Buff 专属层连同内联触发行与链步骤已整体搬 `TcsBuff`）
+		// ⇒ 共享层对 `TcsEffect` 的 include 为零（可 grep 复核）。
 		PublicDependencyModuleNames.AddRange(new string[]
 		{
 			"Core",
@@ -20,8 +22,7 @@ public class TcsState : ModuleRules
 			"GameplayTags",
 			"TcsCore",
 			"TcsNotation",
-			"TcsAttribute",
-			"TcsEffect"
+			"TcsAttribute"
 		});
 	}
 }

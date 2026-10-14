@@ -14,7 +14,7 @@
  * 从池句柄反推它的**幻影标签**（`TTcsInstanceHandle<TTag>` → `TTag`）。
  *
  * **为什么需要它**：共享桶必须能命名 `TTcsInstancePool<TPayload, TTag, Issuer>`，
- * 而 `TTag` 住各域的**句柄类型**里（`FTcsStateHandle::GetInner()` 的返回类型）。
+ * 而 `TTag` 住各域的**句柄类型**里（`FTcsBuffInstanceHandle::GetInner()` 的返回类型）。
  * 共享层 MUST NOT include 三个域句柄头（那会把共享层绑到具体域，且三个头分属两模块）
  * ⇒ 由本 trait 从**调用方给的句柄类型**里把标签解出来。
  */
@@ -41,7 +41,7 @@ struct TTcsEntityRuntimeHandleTag<TTcsInstanceHandle<TTagType>>
  *
  * **★ 为什么必须注入进程级发号器（`FTcsStateGenerationIssuer`）——MUST NOT 改回池内自增**：
  * 桶是 **per-entity** 的，而句柄**不带实体段**；若各桶各从代际 1 起发，两个实体各自的首实例会得到
- * **相同的 `(Index, Generation)`** ⇒ "跨桶扫描式解析"（`FTcsStateOps::Find` 即此类）**命中错实体**。
+ * **相同的 `(Index, Generation)`** ⇒ "跨桶扫描式解析"（`FTcsBuffOps::Find` 即此类）**命中错实体**。
  * 这是本仓 **2026-10-05 实测过的缺陷**（`decisions-log.md:257` / `implementation-log.md:281`）。
  * 池的第三模板参正是为它开的口，且默认档保持池内自增 ⇒ 其余四个池使用者零行为差异。
  *

@@ -125,7 +125,7 @@ public:
 	 * ⇒ 随施法终结**级联摘除**，生命周期语义与基类 `ModifierRows` 同款。
 	 *
 	 * **为什么在这里做（而不是照搬状态侧的独立物化器类）**：状态侧的
-	 * `FTcsStateModifierMaterializer::Materialize` 之所以独立，是因为它的模板行要**解析资产引用**
+	 * `FTcsBuffModifierMaterializer::Materialize` 之所以独立，是因为它的模板行要**解析资产引用**
 	 * （`TSoftObjectPtr<UTcsAttrModDef>`）。技能侧本轮**只落内联形态**
 	 * （`UTcsSkillModDef` 全仓 `Source/` 零命中 ⇒ 无引用目标，模板引用路径整体归 `R6.5-f`）
 	 * ⇒ 没有可解析的外部引用，独立一层只会得到"零逻辑的转发壳"。

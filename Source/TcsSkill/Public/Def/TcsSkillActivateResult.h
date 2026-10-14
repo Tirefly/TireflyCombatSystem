@@ -15,8 +15,8 @@
  * 门禁的"具名"就只对 C++ 内部有意义，等于没修那个缺陷。
  *
  * **值名 MUST 带 `SAR_` 前缀**（全仓 `UENUM(BlueprintType)` 的枚举值无一例外带 2–4 字母前缀：
- * `EAR_` / `ESRC_` / `TAO_` / `EDP_` / `CI_` / `MCS_` / `CQM_`；唯一的裸名族
- * `ETcsStateStackDecisionKind` **不是 UENUM** ⇒ 不能照抄它的字面）。
+ * `EBAR_` / `EBRC_` / `TAO_` / `EBDP_` / `CI_` / `MCS_` / `CQM_`；唯一的裸名族
+ * `ETcsBuffStackDecisionKind` **不是 UENUM** ⇒ 不能照抄它的字面）。
  *
  * **两道占位档的现状（`R6.5-1` 起逐道转真）**：
  * - `SAR_OnCooldown`：**已转真**（`R6.5-1` Task 1——冷却多轨道落地，判据 = 全部自身轨清空 +

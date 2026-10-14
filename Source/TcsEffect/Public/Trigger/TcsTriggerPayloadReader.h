@@ -44,7 +44,7 @@ public:
 	FTcsCombatEntityHandle Caster;
 
 	/**
-	 * 事件所属的实例主体（运行期反射值；状态事件装 `FTcsStateHandle`）。
+	 * 事件所属的实例主体（运行期反射值；状态事件装 `FTcsBuffInstanceHandle`）。
 	 *
 	 * TcsEffect 不认识内层的领域类型：路由先要求主体类型完全相同，再用反射结构比较值。
 	 * 空主体表示非实例局部事件（Damage / 未登记读取器的自定义载荷等），维持既有 Tag 路由；

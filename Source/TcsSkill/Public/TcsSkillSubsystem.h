@@ -36,7 +36,7 @@ class UTcsClockSubsystem;
  * `FTcsSkillRegistry` = 账本登记表（per-entity 桶 + 槽位代际）；`TTcsInstancePool` = 施法运行态池；
  * **`FTcsSkillOps` = 账本引擎函数**（授予 / 撤销 / 按来源级联 / 解析 / 读取的流程逻辑）、
  * **`FTcsCastOps` = 施法引擎函数**（六道门禁裁决 / 运行态建与终结 / 快照构建 / 起链 / 广播）——
- * **桶只存数据与索引，操作全在引擎函数**，这是设计文档 §3.1 的既定分工，同 `UTcsStateSubsystem` 的处置。
+ * **桶只存数据与索引，操作全在引擎函数**，这是设计文档 §3.1 的既定分工，同 `UTcsBuffSubsystem` 的处置。
  * 本类的同名方法因此都是**薄壳**（一行转发），保证门面签名稳定而流程改动不碰 UE 生命周期样板。
  *
  * 非 Tickable：账本无时间语义（冷却归 `R6.5`）。
@@ -44,7 +44,7 @@ class UTcsClockSubsystem;
  * **定义怎么进来（单向，与状态门面同款）**：定义库 `UTcsDefinitionSubsystem` 住 `TcsIntegration`，
  * 而 `TcsIntegration` **依赖** `TcsSkill`——本类 MUST NOT 反向 include 它（成环）。故定义经
  * **登记口**（`RegisterSkillDef`）写入；依赖方向单向：定义库写进门，门不反查定义库
- * （同款先例 = `UTcsStateSubsystem::RegisterStateDef`）。
+ * （同款先例 = `UTcsBuffSubsystem::RegisterBuffDef`）。
  *
  * **文件落点**：门面头与日志通道住 `Public/` 根（`cpp-module-structure` 规格），
  * 领域代码住 `Public/Skill/` 与 `Private/Skill/`。
@@ -86,7 +86,7 @@ public:
 	 * `SourceRef`），其**内层内存可以放宿主自定义 struct 的 `UPROPERTY` 对象引用** ⇒ 不补引用即
 	 * **静默回收**（表现为"参数行/查询片段/快照来源里那个对象变成空引用"，不是崩溃）。
 	 *
-	 * **判据是"容器是否 GC 可见"，与"值语义还是指针语义"无关**——与 `UTcsStateSubsystem` 同款。
+	 * **判据是"容器是否 GC 可见"，与"值语义还是指针语义"无关**——与 `UTcsBuffSubsystem` 同款。
 	 * **手法差异（MUST 守）**：定义侧走 `AddPropertyReferencesWithStructARO`（`FTcsSkillDefData`
 	 * **是**反射结构体，有 `StaticStruct()`）；快照侧 MUST 逐条走
 	 * `FInstancedStruct::AddStructReferencedObjects`（`FTcsParamSnapshotEntry` **不是**反射结构体，
@@ -142,7 +142,7 @@ public:
 	 * 按身份解析本世界已登记的技能定义（未登记返回 nullptr——正常查询路径，不 ensure）。
 	 *
 	 * **无反射面**：返回**裸 struct 指针** `const FTcsSkillDefData*`——UHT 不支持 struct 指针作反射返回
-	 * （同 `GetRegisteredStateDef` 的取舍）。
+	 * （同 `GetRegisteredBuffDef` 的取舍）。
 	 *
 	 * @param DefTag 定义身份。
 	 * @return 返回定义；未登记返回 nullptr。
@@ -676,7 +676,7 @@ public:
 	/**
 	 * 取事件总线（施法事件广播用；世界拆解期返回 `nullptr`——**非确保**，调用方按丢弃处理）。
 	 *
-	 * 同款先例 = `UTcsStateSubsystem::GetEventBus`（状态门面为广播状态事件而持的同一读口）。
+	 * 同款先例 = `UTcsBuffSubsystem::GetEventBus`（状态门面为广播状态事件而持的同一读口）。
 	 *
 	 * @return 返回总线；世界无该子系统时返回 nullptr。
 	 */
@@ -687,7 +687,7 @@ public:
 	 *
 	 * **为什么是公开口**：时段入堆/撤堆发生在引擎函数（`FTcsCastOps`）里，它本来就够得着门面私有区；
 	 * 但"取另一个子系统的指针"是任何调用方都要做的事，藏起来只会让下一处再往 friend 名单加一个名字。
-	 * 返回裸指针即"可能为空"的显式声明。同款先例 = `UTcsStateSubsystem::GetClockSubsystem`。
+	 * 返回裸指针即"可能为空"的显式声明。同款先例 = `UTcsBuffSubsystem::GetClockSubsystem`。
 	 *
 	 * **门面只转交读口，MUST NOT 持有到期堆**：`FTcsExpiryHeap` 是泵私有，消费者一律经本口拿到的
 	 * `UTcsClockSubsystem` 调 `PushExpiry` / `CancelExpiry`（`AdvanceTo` 保持泵私有）。
@@ -725,7 +725,7 @@ private:
 	 * 引擎函数（`FTcsSkillOps` / `FTcsCastOps`）需要读写下面的成员——故开放**最小集**（friend 类不给
 	 * 访问域继承：引擎函数访问这些成员靠的是 friend 声明，而非把它们放到 public）。门面只做世界过滤、
 	 * 定义登记与注入面，账本与施法的流程逻辑全在引擎函数里（设计文档 §3.1 的既定分工，同
-	 * `UTcsStateSubsystem` 对 `FTcsStateOps` 的处置）。
+	 * `UTcsBuffSubsystem` 对 `FTcsBuffOps` 的处置）。
 	 */
 	friend class FTcsSkillOps;
 	friend class FTcsCastOps;

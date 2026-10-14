@@ -12,7 +12,7 @@
  *
  * **为什么必须"进程级"而不是"每桶各自 +1"**：桶是 **per-entity** 的，而句柄**不带实体段**；
  * 若各桶各从代际 1 起发，则两个实体各自的首实例会得到**相同的 `(Index, Generation)`**，
- * 于是"跨桶扫描式解析"（`FTcsStateOps::Find` 就是这种——`GetState(Handle)` 无实体入参）
+ * 于是"跨桶扫描式解析"（`FTcsBuffOps::Find` 就是这种——`GetState(Handle)` 无实体入参）
  * 会**命中错实体**。这是本仓 **2026-10-05 实测过**的缺陷（`decisions-log.md:257` /
  * `implementation-log.md:281`：修法即"出线进程唯一发号器"）。
  *

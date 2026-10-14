@@ -60,6 +60,11 @@
 			"Name": "TcsSkill",
 			"Type": "Runtime",
 			"LoadingPhase": "Default"
+		},
+		{
+			"Name": "TcsBuff",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
 		}
 	]
 }

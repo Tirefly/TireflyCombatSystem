@@ -20,7 +20,11 @@ public class TcsIntegration : ModuleRules
 			"TcsEffect",
 			"TcsTargeting",
 			"TcsDamage",
-			// 状态定义发现（UTcsDefinitionSubsystem 按类扫描 UTcsBuffDefAsset，2026-10-04 R5 Task 1）
+			// 状态定义发现（UTcsDefinitionSubsystem 按类扫描 UTcsBuffDefAsset）——
+			// **★ 2026-10-14 Task 4 改指 `TcsBuff`**：该资产类已自 `TcsState` 搬入 `TcsBuff`，
+			// 且登记口（`RegisterBuffDef`）也随域走；定义库是接线层，依赖方向单向（Integration → Buff）
+			"TcsBuff",
+			// 共享层（两域共用的 Def 族与运行机制；`~ TcsBuff` / `TcsSkill` 均依赖它）
 			"TcsState",
 			// 技能定义发现（UTcsDefinitionSubsystem 按类扫描 UTcsSkillDef，2026-10-06 R6 Task 1）
 			"TcsSkill",

@@ -19,10 +19,10 @@ struct FTcsSkillEntryTag
 
 
 /**
- * 技能账本条目句柄（`FTcsStateHandle` 同族）：在**某个实体的技能桶**内定位一条已学技能条目，
+ * 技能账本条目句柄（`FTcsBuffInstanceHandle` 同族）：在**某个实体的技能桶**内定位一条已学技能条目，
  * 是账本一切操作的入参。
  *
- * **为什么展平两字段而不内嵌模板句柄**（与 `FTcsStateHandle` / `FTcsChainRunHandle` 同款）：
+ * **为什么展平两字段而不内嵌模板句柄**（与 `FTcsBuffInstanceHandle` / `FTcsChainRunHandle` 同款）：
  * 模板类型**无法作 `UPROPERTY`**，脚本层往返会得到空壳 ⇒ 读不到值 / 传回全零 ⇒ 代际失配。
  * 展平为可反射标量后往返成立（`Index` 用 `int32` 而非 `uint32`：UHT 不支持 `uint32` 作属性类型，
  * 且 `-1` 与 `TTcsInstanceHandle::InvalidIndex(0xFFFFFFFF)` 位模式相同，转换无损）。

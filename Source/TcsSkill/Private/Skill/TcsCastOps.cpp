@@ -488,7 +488,7 @@ ESkillActivateResult FTcsCastOps::Activate(
 	//
 	// **快照的用途（2026-10-09 用户裁定 A′，本注是防误读的唯一说明）**：它是**求值期的参数表载体**
 	// ——物化 `ParamChainRows` 时，引用类操作数（`ParamRef`）即从它取键值（先例 = 状态侧的
-	// `FTcsStateModifierMaterializer` 把 `Instance.ParamSnapshot` 经 `FTcsStateSnapshotScope`
+	// `FTcsBuffModifierMaterializer` 把 `Instance.ParamSnapshot` 经 `FTcsStateSnapshotScope`
 	// 装进 `Ctx.ParamTable`）。**它不是"公共读口的冻结来源"**：`GetNumericParam` 走实时通道
 	// （参数行初值 + 账本槽位折叠），MUST NOT 被读成"读它拿冻结值"。
 	{

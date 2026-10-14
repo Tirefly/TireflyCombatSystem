@@ -15,10 +15,10 @@
 #include "Trigger/TcsEffectTriggerDefAsset.h"
 #include "Trigger/TcsEffectTriggerInstance.h"
 
+#include "TcsBuffSubsystem.h"
 #include "TcsEffectSubsystem.h"
 #include "TcsIntegrationLogChannel.h"
 #include "TcsSkillSubsystem.h"
-#include "TcsStateSubsystem.h"
 
 
 
@@ -173,7 +173,7 @@ void UTcsDefinitionSubsystem::SeedWorld(UWorld* World)
 
 	// 状态门面（R5 Task 2）：状态定义逐世界登记进它。存在性由世界子系统机制保证
 	// （与 EffectSubsystem 同批实例化），故此处不做门禁——但取不到就静默跳过该批（非游戏世界）
-	UTcsStateSubsystem* StateSubsystem = World->GetSubsystem<UTcsStateSubsystem>();
+	UTcsBuffSubsystem* StateSubsystem = World->GetSubsystem<UTcsBuffSubsystem>();
 
 	// 技能门面（R6 Task 2）：技能定义逐世界登记进它（**改判**——Task 1 时"只进缓存"的前提是
 	// 运行期消费者为零，而账本正是那个消费者：它的读取面全都要定义内容，且 TcsSkill 不能反向
@@ -229,7 +229,7 @@ void UTcsDefinitionSubsystem::SeedWorld(UWorld* World)
 	{
 		for (const TPair<FGameplayTag, TUniquePtr<FTcsBuffDef>>& Pair : StateDefs)
 		{
-			if (Pair.Value.IsValid() && StateSubsystem->RegisterStateDef(Pair.Key, *Pair.Value))
+			if (Pair.Value.IsValid() && StateSubsystem->RegisterBuffDef(Pair.Key, *Pair.Value))
 			{
 				++RegisteredStateDefs;
 			}

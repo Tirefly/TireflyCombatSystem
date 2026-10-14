@@ -1,0 +1,137 @@
+// Copyright Tirefly. All Rights Reserved.
+
+#include "State/TcsBuffOps.h"
+
+#include "Attribute/TcsAttrModInstance.h"
+#include "Def/TcsBuffDef.h"
+#include "Engine/World.h"
+#include "State/TcsBuffAttributeAccess.h"
+#include "State/TcsBuffInstance.h"
+#include "State/TcsBuffModifierMaterializer.h"
+#include "TcsAttributeSubsystem.h"
+#include "TcsBuffLogChannel.h"
+#include "TcsBuffSubsystem.h"
+
+
+
+// 属性访问解析点
+FTcsBuffAttributeAccess FTcsBuffAttributeAccess::Resolve(const UWorld* World)
+{
+	FTcsBuffAttributeAccess Access;
+
+	// "怎么找到门面"归 TcsAttribute 的单一查找点（2026-10-05：将来补注入契约只换那一处）
+	Access.AttributeSubsystem = UTcsAttributeSubsystem::Resolve(World);
+
+	return Access;
+}
+
+bool FTcsBuffAttributeAccess::IsLedgerReady(FTcsCombatEntityHandle Entity) const
+{
+	// `ResolveStore` 是**非确保**查询口（账本侧的读取路径用它）——未注册返回 nullptr，正是本判据要的
+	return AttributeSubsystem && AttributeSubsystem->ResolveStore(Entity) != nullptr;
+}
+
+bool FTcsBuffAttributeAccess::ApplyModifier(FTcsCombatEntityHandle Entity, const FTcsAttrModInstance& Modifier) const
+{
+	return AttributeSubsystem ? AttributeSubsystem->ApplyModifier(Entity, Modifier) : false;
+}
+
+int32 FTcsBuffAttributeAccess::RemoveBySource(FTcsCombatEntityHandle Entity, const FTcsSourceHandle& Source) const
+{
+	return AttributeSubsystem ? AttributeSubsystem->RemoveBySource(Entity, Source) : 0;
+}
+
+void FTcsBuffAttributeAccess::BeginBatch(FTcsCombatEntityHandle Entity) const
+{
+	if (AttributeSubsystem)
+	{
+		AttributeSubsystem->BeginBatch(Entity);
+	}
+}
+
+void FTcsBuffAttributeAccess::Commit(FTcsCombatEntityHandle Entity) const
+{
+	if (AttributeSubsystem)
+	{
+		AttributeSubsystem->Commit(Entity);
+	}
+}
+
+
+
+// 修正器挂点
+void FTcsBuffOps::MountModifiers(
+	UTcsBuffSubsystem& Subsystem,
+	const FTcsBuffDef& Def,
+	const FTcsBuffInstance& Instance,
+	bool bStripFirst)
+{
+	const bool bHasTemplates = Def.ModifierRows.Num() > 0;
+
+	// 零模板且非刷新：连批都不开——零条既不是错误，也不该在属性账本上留下任何痕迹
+	if (!bHasTemplates && !bStripFirst)
+	{
+		return;
+	}
+
+	const FTcsBuffAttributeAccess Access = FTcsBuffAttributeAccess::Resolve(Subsystem.GetWorld());
+	if (!Access.IsValid() || !Access.IsLedgerReady(Instance.Entity))
+	{
+		// 该实体没有属性账本 ⇒ 修正器无处可挂。状态本身照常生效（状态与属性是两套登记），
+		// 故这是**配置状态**不是错误：Log 级、不 ensure、不留 Warning。
+		UE_LOG(LogTcsBuff, Log, TEXT("状态修正器未挂载：实体无属性账本（实体=%lld 定义=%s）"),
+			Instance.Entity.Id, *Instance.DefTag.ToString());
+		return;
+	}
+
+	// 物化（只读；快照经反射壳作为"本次求值的参数表"装进上下文）
+	TArray<FTcsAttrModInstance> Modifiers;
+	if (bHasTemplates)
+	{
+		FTcsBuffModifierMaterializer::Materialize(Subsystem, Def, Instance, Modifiers);
+	}
+
+	// 摘旧与挂新 MUST 在同一批内（批内只标脏、最外层提交才重算 + 广播）：
+	// 多个修正器只触发一次重算与一次广播，且"摘了一半"的中间态不会被任何订阅者看到。
+	Access.BeginBatch(Instance.Entity);
+
+	if (bStripFirst)
+	{
+		// 刷新路径：按**级联锚点**摘除旧条目——同一锚点，摘掉的正是本实例上次挂的那些
+		Access.RemoveBySource(Instance.Entity, Instance.CascadeAnchor);
+	}
+
+	for (const FTcsAttrModInstance& Modifier : Modifiers)
+	{
+		Access.ApplyModifier(Instance.Entity, Modifier);
+	}
+
+	Access.Commit(Instance.Entity);
+
+	UE_LOG(LogTcsBuff, Log, TEXT("状态修正器挂载：实体=%lld 定义=%s 来源=%llu 条目=%d 摘旧=%s"),
+		Instance.Entity.Id, *Instance.DefTag.ToString(), Instance.Source.Id, Modifiers.Num(),
+		bStripFirst ? TEXT("是") : TEXT("否"));
+}
+
+void FTcsBuffOps::StripModifiers(
+	UTcsBuffSubsystem& Subsystem,
+	FTcsCombatEntityHandle Entity,
+	FTcsSourceHandle Source)
+{
+	const FTcsBuffAttributeAccess Access = FTcsBuffAttributeAccess::Resolve(Subsystem.GetWorld());
+	if (!Access.IsValid() || !Access.IsLedgerReady(Entity))
+	{
+		// 无属性账本 ⇒ 本来就没挂过（移除路径上的正常分支，静默返回）
+		return;
+	}
+
+	Access.BeginBatch(Entity);
+	const int32 RemovedCount = Access.RemoveBySource(Entity, Source);
+	Access.Commit(Entity);
+
+	if (RemovedCount > 0)
+	{
+		UE_LOG(LogTcsBuff, Log, TEXT("状态修正器摘除：实体=%lld 来源=%llu 条数=%d"),
+			Entity.Id, Source.Id, RemovedCount);
+	}
+}

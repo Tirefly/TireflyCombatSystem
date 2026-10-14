@@ -130,13 +130,15 @@
 | TcsEffect | M4 触发行/链/解释器——**纯机制层（D4-14 注册制分派）**：只住控制流 6 + ModifyAttribute/SetVar/OnError 步骤、执行器注册表 + 自注册宏；领域步骤归领域模块 | Core, Attribute |
 | TcsDamage | 瞬时流程骨架（伤害/治疗）：阶段化事件实时收集修改器、流程属性（M2 语义复用）、临时修正器（流程 Source）、消耗型修正器、FDamageRecord 回放/统计流；**公式=项目 delegate，插件零公式**；**Damage/Heal/ModifyFlow 步骤+执行器住本模块** | Core, Attribute, Effect |
 | TcsTargeting | M4c 目标选择（D4-15；**v2 策略化**；**载体 D3-7 v3**——FTcsTargetSelectorStrategy/FTcsTargetFilterStrategy USTRUCT 纯虚基类+`TInstancedStruct` 持有，默认 Self/EventTarget；战斗步骤不内嵌 selector 读 Context.Targets；RadiusArea/FTargetingShape 后置）；实体查询注入（ICombatEntityQuery，定义在 TcsEffect）；指示器渲染归宿主/LAC | Core, Effect |
-| TcsState | M3 状态（**Buff 子域，不独立**——TCS 双账本发散教训）；**ApplyState 步骤+执行器住本模块**；BuffDef 参数行 ValueConvention/描述绑定（D5-18 v2）；**`ITcsEntityLevelProvider`（GetEntityLevel 实体等级契约，宿主实现）+ StateLevel/InstigatorLevel × Array/Map 等级表源（PV-4，2026-09-11；TargetLevel 系暂不提供）** | **Core**, **Notation**（D5-18 v2）, Attribute, Effect |
-| TcsSkill | M5 账本/施法/冷却/参数账本/重定向；参数行 ValueConvention（记法层） | Core, Notation, Attribute, State, Effect（**不含 Damage/Targeting**——链步骤是 FInstancedStruct 数据经注册表分派，编排层不具名领域步骤类型） |
+| TcsState | **★ 2026-10-14 改述为共享层**（`PLN-REFACTOR-1` Task 4 拆出 `TcsBuff` 后）：**两域共用的定义层与运行机制**——共用 Def 族（`FTcsStateDefBase` / `UTcsStateDef` / `FTcsNumericParamRow` / `FTcsDescriptionEntry` / `TcsStateParamKeys`）+ 通用运行时机制（基底 `FTcsStateInstance` / 参数快照 / per-entity 桶与注册表 / 代际发号 / 广播守卫 / 重申请决策接口 `FTcsEntityAdmission`）+ 共享门面 `UTcsStateSubsystem`（**参数表读口** `GetParamTableReader()`，两域共用一份壳）。**原先内容（Buff 子域、BuffDef、`ITcsEntityLevelProvider` 与等级源、`ApplyState` 步骤与执行器）已整体搬入 `TcsBuff`** | **Core**, **Notation**（D5-18 v2）, Attribute（**★ 去掉 `Effect`**——内联触发行与链步骤随 Buff 层搬走） |
+| **TcsBuff** | **★ 2026-10-14 新增**（自 `TcsState` 拆出，**不是新能力、不改对外语义**）：Buff 专属域——BuffDef 三件 + 五轴堆叠（`FStateStackPolicy` 与四个枚举）/ 时值周期 / 行为 Fragment 五件 / 修正器物化 / **`ApplyState` 步骤+执行器** / **`ITcsEntityLevelProvider`（GetEntityLevel 实体等级契约，宿主实现）+ StateLevel/InstigatorLevel × Array/Map 等级表源**（PV-4，2026-09-11；TargetLevel 系暂不提供）/ 六枚状态生命周期事件 / `UTcsBuffSubsystem` + `FTcsBuffOps`。与 `TcsSkill` **平级**（都依赖 `TcsState` 共享层） | Core, Notation, Attribute, **Effect**（链步骤）, **State**（共享层） |
+| TcsSkill | M5 账本/施法/冷却/参数账本/重定向；参数行 ValueConvention（记法层）。**★ 2026-10-14**：对状态侧的唯一**代码级**依赖 = 共享层的参数表读口 ⇒ **MUST NOT 依赖 `TcsBuff`** | Core, Notation, Attribute, State, Effect（**不含 Damage/Targeting/Buff**——链步骤是 FInstancedStruct 数据经注册表分派，编排层不具名领域步骤类型） |
 | TcsCue | M7 插件默认表现适配：ICuePresenter 默认实现 + Cue 定义资产 + 可复用 VFX/SFX 经验封装；宿主可整表替换；**PlayCue 步骤+执行器住本模块** | Effect, 引擎表现模块 |
 | TcsIntegration | M6 集成（**全插件唯一依赖 GameplayStateTree 的模块**） | Skill, Cue |
 | TcsEditor | M8 工具，editor-only | 全部 |
 
-- **表列依赖 = 该模块代码实际 include 的最小编译集**；上文依赖链 `Core←Attribute←Effect←{Damage,Targeting,State}←Skill`（D4-14）是**方向许可**（层级序：谁在谁之上、允许依赖谁），不是强制边清单——跨模块组合（技能×伤害×目标选择）发生在 TcsIntegration/宿主。
+- **表列依赖 = 该模块代码实际 include 的最小编译集**；上文依赖链 `Core←Attribute←Effect←{Damage,Targeting}←State←{Buff,Skill}`（D4-14 + 2026-10-14 Task 4 拆分）是**方向许可**（层级序：谁在谁之上、允许依赖谁），不是强制边清单——跨模块组合（技能×伤害×目标选择）发生在 TcsIntegration/宿主。
+  - **★ 2026-10-14 拆分后的两处订正（MUST 读）**：① **`TcsState` 不再依赖 `TcsEffect`**——那条边**全部**由 Buff 专属层产生（内联触发行 / `ApplyState` 链步骤），随 Task 4 搬走即消失；② **`TcsSkill` 与 `TcsBuff` 平级、互不依赖**——技能侧对状态侧的代码级依赖只剩共享层的参数表读口（`GetParamTableReader()`），该口留在 `TcsState` 正是为了保住这条护栏。**模块总数 11 → 12**（R0 §9 的表行；`.uplugin` 的**已物化**计数走 9 → 10，**两组数字各自独立递增，MUST NOT 混算**）。
 
 - **语言无关规定（2026-09-02 增补；2026-09-24 补落地形态）**：插件不内嵌任何脚本引擎（AS/C#/TS 是宿主选择）；执行器注册双入口（C++ 静态宏 + 反射动态委托）保证任何语言/项目可用战斗系统；蓝图理论可行不承诺。
   - **落地形态（2026-09-24，台账 SCRIPT-8）**：**宿主脚本插槽 = UObject 接口 + `UFUNCTION(BlueprintNativeEvent)`**——这是 **UE 原生反射分发**（`UFunction::Invoke`），**不是 C# 专属**：AngelScript / Luau / Puerts(TS) / 蓝图**全部支持**，故它才是"语言无关"的真实底座（"反射动态委托"原表述过于笼统，落到具体机制即此）。
@@ -144,6 +146,6 @@
   - **三类插槽**（选择器/过滤器宿主委托、步骤执行器 UObject 基类、伤害流程 delegate 反射化）与判据详见 04 §5b 与台账 SCRIPT-8。
 - **基础设施内置规定（2026-09-02 增补）**：事件总线与对象池内置 TcsCore，不自立插件、不依赖/不替换 Lyra GameplayMessageRouter（Handler 模型/双通道/稳定序三不匹配；宿主出站桥自建）；提炼时机 = rule of two（第二个消费者出现再议 TcsFoundation）。
 - **模块设置约定（2026-09-10 增补）**：DevSettings 按需生长——模块出现首个真实配置需求才建 `UTcs<模块名>Settings : UDeveloperSettings`（`GetCategoryName` 返回 `"Tcs"` 归拢同分类、SectionName 区分模块），不预建空壳；TcsCore 的 `UTcsDeveloperSettings` 为 "Tcs" 分类锚点保留；**红线：Settings 值不得影响模拟语义**——模拟可调量走 Def 或代码常量，观测走 CVar/日志分类（D0-6）。
-- **死规定**：域依赖只允许沿层级向下（2026-09-02 增补：十一模块——TcsDamage 瞬时流程骨架+记录流、TcsTargeting 目标选择、TcsNotation 策划记法层，公式归项目；**D4-14 依赖翻转：TcsEffect 纯机制层只依赖 Core/Attribute，领域步骤类型+执行器归领域模块并自注册**）（UBT 强制）；禁止反向 include与跨层旁路；新增横切能力要么下沉 Core、要么立新模块，不许在既有模块间开侧门；新代码归属判定 = 看它依赖谁、被谁依赖。
+- **死规定**：域依赖只允许沿层级向下（2026-09-02 增补：十一模块——TcsDamage 瞬时流程骨架+记录流、TcsTargeting 目标选择、TcsNotation 策划记法层，公式归项目；**D4-14 依赖翻转：TcsEffect 纯机制层只依赖 Core/Attribute，领域步骤类型+执行器归领域模块并自注册**；**2026-10-14 拆分 `TcsBuff` ⇒ 十二模块**）（UBT 强制）；禁止反向 include与跨层旁路；新增横切能力要么下沉 Core、要么立新模块，不许在既有模块间开侧门；新代码归属判定 = 看它依赖谁、被谁依赖。
 - **命名**：模块前缀 Tcs（用户拍板；插件显示名仍开放，遗留拍板项 #3 收窄为仅显示名）；单复数随域名单数（TcsAttribute/TcsState/TcsEffect/TcsSkill）。
 - **未来扩展**：TcsMass（Mass 适配，核心零改动前提已由 D3-1 保证）；宿主侧表现替换层。

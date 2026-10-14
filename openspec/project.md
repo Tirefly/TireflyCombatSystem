@@ -1,11 +1,11 @@
 # 项目上下文
 
 ## 用途
-TireflyCombatSystem（TCS）是一个面向 Unreal Engine 的通用、综合战斗系统框架插件，构建在数据-行为分离（Data-Behavior Separation，定义资产 / 池化实例 / 集中执行）理念之上。旧的 TCS 仓库已冻结（MD-3），本仓库是从零重建（`remake` 分支），当前处于 **R6 实施阶段**（M5 技能层）：自 R3 的纵向切片起逐轮加厚，现物化九个编译模块。插件必须服务多个宿主项目——今天的 LegendAutoChess，以及将来某个第三人称 ARPG——并且必须保持可扩展到服务器权威网络。
+TireflyCombatSystem（TCS）是一个面向 Unreal Engine 的通用、综合战斗系统框架插件，构建在数据-行为分离（Data-Behavior Separation，定义资产 / 池化实例 / 集中执行）理念之上。旧的 TCS 仓库已冻结（MD-3），本仓库是从零重建（`remake` 分支），当前处于 **R6 实施阶段**（M5 技能层）：自 R3 的纵向切片起逐轮加厚，现物化十个编译模块。插件必须服务多个宿主项目——今天的 LegendAutoChess，以及将来某个第三人称 ARPG——并且必须保持可扩展到服务器权威网络。
 
 ## 技术栈
 - Unreal Engine 5.8，C++ 插件（`.uplugin` 将在 R3 plan1 Task 0 中重写）。
-- 当前已实体化的模块（**R6 起九个**）：`TcsCore`、`TcsNotation`、`TcsAttribute`、`TcsEffect`、`TcsState`、`TcsTargeting`、`TcsDamage`、`TcsIntegration`、`TcsSkill`。目标实体化仍为十一个编译模块（R0 §9）：当前九个加上 `TcsCue` 和 `TcsEditor`。
+- 当前已实体化的模块（**2026-10-14 起十个**）：`TcsCore`、`TcsNotation`、`TcsAttribute`、`TcsEffect`、`TcsState`、`TcsTargeting`、`TcsDamage`、`TcsIntegration`、`TcsSkill`、`TcsBuff`。目标实体化仍为十二个编译模块（R0 §9）：当前十个加上 `TcsCue` 和 `TcsEditor`。（**沿革**：R6 起九个 → 2026-10-14 `PLN-REFACTOR-1` Task 4 自 `TcsState` 拆出 `TcsBuff` ⇒ 十个。该拆分**不改任何对外语义**：`TcsState` 保留原名并改述为**共享层**（两域共用的 Def 族 + 通用运行时机制 + 参数表读口），Buff 专属语义与机制整体搬入 `TcsBuff`。）
 - 插件级依赖目前在 `.uplugin` 中不存在；模块级依赖由各自的 `Build.cs` 声明。StateTree、GameplayStateTree、GameplayMessageRouter 和 TireflyObjectPool 是历史/目标语境的参照，不是当前插件描述符的依赖。
 - 通过 OpenSpec 进行规格驱动开发（2026-09-10 初始化，openspec CLI ≥ 0.23）。
 

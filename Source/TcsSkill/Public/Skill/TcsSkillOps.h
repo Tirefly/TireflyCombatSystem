@@ -20,14 +20,14 @@ struct FTcsSkillDefData;
 /**
  * 技能账本引擎函数（设计文档 §3.1 的既定分工）：**桶只存数据与索引，操作全在这里**。
  *
- * **为什么必须存在本类**（同 `FTcsStateOps` 的判据）：门面的职责是**世界过滤 + 定义登记 +
+ * **为什么必须存在本类**（同 `FTcsBuffOps` 的判据）：门面的职责是**世界过滤 + 定义登记 +
  * 门面签名**；授予 / 撤销 / 按来源级联 / 解析 / 读取的流程逻辑按操作种类集中在本类，这样
  * `UTcsSkillSubsystem.cpp` 保持薄壳，而流程改动不与 UE 生命周期样板混在一起。
  *
  * **它不是"零消费者预建"**：本类的消费者**就是**门面的那些操作（状态侧的
  * `FStateOp` / `ECastOp` 等同族）。**访问私有区是它的存在理由之一**——
  * `Registry` / `SourceRegistry` 是门面的私有成员，操作逻辑落在门面类里会让"谁有权改登记表"
- * 与"谁是门面"这两件事混作一团（状态侧同款：`FTcsStateOps` 是 `UTcsStateSubsystem` 的 friend）。
+ * 与"谁是门面"这两件事混作一团（状态侧同款：`FTcsBuffOps` 是 `UTcsBuffSubsystem` 的 friend）。
  *
  * **全部成员为静态函数**：本类**无实例**（不持状态）——状态一律经 `Subsystem` 参数传入。
  * 用 `class` 而非 namespace 是为了对齐设计文档的 `FSkillOps` 命名，并让"这些函数是一族"在
@@ -127,7 +127,7 @@ public:
 	/**
 	 * 按句柄取条目（脏句柄 / 实体未注册返回 nullptr——**正常查询路径，不 ensure**）。
 	 *
-	 * 门面按句柄取条目时句柄里没有实体段，故 MUST 由调用方给出实体（同 `FTcsStateOps::Find`
+	 * 门面按句柄取条目时句柄里没有实体段，故 MUST 由调用方给出实体（同 `FTcsBuffOps::Find`
 	 * 的处境；本模块的桶按实体定位，不做跨桶扫描——句柄的 `Index` 只在实体内有意）。
 	 *
 	 * @param Subsystem 技能门面。

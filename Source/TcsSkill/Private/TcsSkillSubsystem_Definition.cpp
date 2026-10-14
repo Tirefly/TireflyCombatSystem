@@ -44,7 +44,7 @@ bool UTcsSkillSubsystem::UnregisterSkillDef(FGameplayTag DefTag)
 
 const FTcsSkillDefData* UTcsSkillSubsystem::GetRegisteredSkillDef(FGameplayTag DefTag) const
 {
-	// 未登记返回 nullptr——正常查询路径，不 ensure（同族的 ResolveSkillDef / GetRegisteredStateDef 同款）
+	// 未登记返回 nullptr——正常查询路径，不 ensure（同族的 ResolveSkillDef / GetRegisteredBuffDef 同款）
 	const TUniquePtr<FTcsSkillDefData>* Found = RegisteredDefs.Find(DefTag);
 	return Found ? Found->Get() : nullptr;
 }

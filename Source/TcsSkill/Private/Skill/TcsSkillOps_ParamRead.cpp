@@ -95,7 +95,7 @@ bool FTcsSkillOps::GetNumericParam(
 	// "读哪一次施法的冻结值"**无唯一答案**。
 	//
 	// 快照的真实消费面 = **求值期的参数表载体**（物化 `ParamChainRows` 时，`ParamRef` 从它取值；
-	// 先例 = 状态侧 `FTcsStateModifierMaterializer` 经 `FTcsStateSnapshotScope` 装 `Ctx.ParamTable`）
+	// 先例 = 状态侧 `FTcsBuffModifierMaterializer` 经 `FTcsStateSnapshotScope` 装 `Ctx.ParamTable`）
 	// ——`FTcsCastOps::Activate` 里就这么接的。MUST NOT 为一个没有唯一答案的读数而给本函数加 run 形参
 	// （今天无消费者；施法期要"某次 run 的冻结读数"时按台账另议读口）。
 	//

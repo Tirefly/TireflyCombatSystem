@@ -102,7 +102,7 @@ struct FTcsEntityAdmissionDecision
  * **统一重申请决策接口**（2026-10-14 立）：表达"同组则刷新 / 叠层，异组则新建 / 拒绝 / 替换"
  * 这一**决策空间**，供两域各挂自己的默认策略。
  *
- * **它取代了两份同型实现**：状态侧的五轴堆叠决策树（`FTcsStateStackDecisionFragment`）
+ * **它取代了两份同型实现**：状态侧的五轴堆叠决策树（`FTcsBuffStackDecisionFragment`）
  * 与技能侧**内联在激活算子里**的 `ECastInstancing` 四路分流（`TcsCastOps.cpp`）。
  * 两者是**同型**的决策空间——各写一份即漂移源。
  *
