@@ -79,8 +79,14 @@
 
 ## 4. 归档
 
-- [ ] 4.1 `openspec archive merge-entity-runtime-mechanisms --yes`
-- [ ] 4.2 **★ 本条的判据已订正（2026-10-14 实施后）**：初稿写"复核 `openspec/specs/` 内
+- [x] 4.1 `openspec archive merge-entity-runtime-mechanisms --yes`
+      —— **已执行（2026-10-14）**：归档为 `changes/archive/**2026-10-14**-merge-entity-runtime-mechanisms`。
+      归档器应用 `+ 5 added / ~ 6 modified / - 0 / → 0`，与提案逐条吻合；
+      活跃提案 **1 → 0**；能力数 **42 → 43**（新增 `entity-runtime-mechanism`）。
+      **★ 一处手工补正（归档器的已知语义边界：只替换「需求」、不碰 `## Purpose`）**：
+      新能力的 `## Purpose` 原为占位 `TBD - created by archiving …`（`MEM-20261002-01` 记录的形态，
+      **不补则 `validate` 永久红**）⇒ 已手写正式 Purpose（含四条边界说明）。
+- [x] 4.2 **★ 本条的判据已订正（2026-10-14 实施后）**：初稿写"复核 `openspec/specs/` 内
       **旧类型名零命中**"——**该判据不成立**，因为实施时**刻意保留了这些名字**：
       `FStateBucket` / `FSkillBucket` 改为共享模板的**别名**（域侧大量调用点无需改动），
       `FTcsStateStackDecisionFragment` **保留为统一接口的状态侧薄型**（它是 Def 资产作者面类型）。
@@ -91,7 +97,18 @@
       （判据 = `SlotGenerations` / `FreeSlots` 只在共享层模板里出现）。
       ——**MUST NOT** 按"名字零命中"去删这些别名（那会平白改动域侧全部调用点）。
       **注意**：`changes/archive/` 内的历史提案 **MUST NOT** 改写（现场记录）
-- [ ] 4.3 **能力数回写**（新增 `entity-runtime-mechanism` ⇒ `INDEX` §3 与 `openspec/project.md` 的计数同批改）
+      —— **复核结果（2026-10-14）**：`specs/` 内**精确词边界**扫描，`FSkillBucket` / `FTcsSkillRegistry`
+      = **0**；`FStateBucket` / `FTcsStateRegistry` 各 **1**，**均在"它取代了此前…"的历史对照句里**
+      （**合法**，不是陈旧引用）；`FTcsStateStackDecisionFragment` 4 处**均属刻意保留**
+      （接口化后它是状态侧薄型）。`Unit` / `单位` 在 `specs/` 内**零残留**。
+      **★ 同批抓到并订正一处规格过期（真实的实质错误）**：`skill-registry` 的账本需求原写
+      「**MUST NOT 复用 `TTcsInstancePool`**（该池是『一池 = 一个句柄空间』，与 per-entity 桶的形状不符）」——
+      该禁令**依据不足**（池是**每实体各持一个实例**，不是全局一池）；真约束是"代际 MUST 进程唯一"
+      ⇒ 已改述为"用池 + MUST 注入进程级发号器"。
+- [x] 4.3 **能力数回写**：`INDEX` §3 的「**42 条能力规格**」→ **43**（实测 `openspec/specs` 目录数 = 43）。
+      **`openspec/project.md` 无需改**（该文件不声称能力数，实测其"能力"字样均指 tag 规则迁出，
+      与计数无关）。**权威口径**：`validate --all` 条目数 **43** = 能力 **43** + 活跃提案 **0**
+      （**MUST NOT 用 `--all` 条目数当能力数**——口径见 `MEM-20261010-07`）。
 
 > **★ 该缺口已于 2026-10-14 闭合（MUST 读，本节保留以便追溯）**：`state-stacking-policies`
 > 的「Custom 决策 Fragment」需求**明文定义了** `FTcsStateStackDecisionFragment` 的形状

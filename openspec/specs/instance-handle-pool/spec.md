@@ -25,7 +25,20 @@ TcsCore MUST 提供 `FTcsSourceHandle`（uint64 Id，0 = 无效）与 `FTcsSourc
 
 ### Requirement: 实例池的分配释放与解析
 
-`TTcsInstancePool<TInstanceType, TTagType>` MUST 以稠密数组 + FreeList 复用 + 代际数组实现 `Allocate/Free/Resolve/IsValid/ForEach/Reset`：Free 使该槽代际 +1（旧句柄凭代际失配判悬空）；`Resolve` 对悬空/无效句柄 ensure（Development 编译期剔除后 Shipping 返回 nullptr）；`ForEach` 按槽位 Index 升序稳定遍历且跳过空闲槽（代际奇偶簿记：奇 = 已分配、偶 = 空闲）；Allocate/Free/Resolve/ForEach/**Reset** 进入点 MUST 断言游戏线程（D0-4，ensure(IsInGameThread())）；Free 不清零槽位内容——持有外部资源的实例由调用方在 Free 前自行清理。
+`TTcsInstancePool<TInstanceType, TTagType, TGenerationIssuer = FTcsPoolLocalGenerationIssuer>` MUST 以稠密数组 + FreeList 复用 + 代际数组实现 `Allocate/Free/Resolve/IsValid/ForEach/Reset`：Free 使该槽代际 +1（旧句柄凭代际失配判悬空）；`Resolve` 对悬空/无效句柄 ensure（Development 编译期剔除后 Shipping 返回 nullptr）；`ForEach` 按槽位 Index 升序稳定遍历且跳过空闲槽（代际奇偶簿记：奇 = 已分配、偶 = 空闲）；Allocate/Free/Resolve/ForEach/**Reset** 进入点 MUST 断言游戏线程（D0-4，ensure(IsInGameThread())）；Free 不清零槽位内容——持有外部资源的实例由调用方在 Free 前自行清理。
+
+**★ 第三模板参 = 代际发号策略（2026-10-14 新增，MUST 读）**：池 MUST 接受 `TGenerationIssuer` 作为**代际发号策略**，其静态接口为 `uint32 IssueAllocation(uint32 PriorGeneration)`（`PriorGeneration` = 该槽当前代际，**全新槽传 0**），返回值 MUST 为**正奇数**（奇偶簿记依赖它）。**默认档 `FTcsPoolLocalGenerationIssuer` = 池内自增（`PriorGeneration + 1`）= 本参引入前的行为逐字不变** ⇒ 既有四个使用者（到期堆 / 事件总线 / 链运行态 / 施法运行态）MUST NOT 因此产生任何行为差异。
+
+- **为什么需要可注入**：**per-entity 桶**场景下，桶按实体各持一个池；若各池各从代际 1 起发，则两个实体各自的首实例会得到**相同的 `(Index, Generation)`**，而句柄**不带实体段** ⇒ "跨桶扫描式解析"（`FTcsStateOps::Find` 即此类）会**命中错实体**（本仓 2026-10-05 实测过的缺陷）。⇒ 该场景 MUST 注入**进程级**发号器（见 `entity-runtime-mechanism` 能力的「统一 per-entity 桶与注册表」需求）；
+- **发号策略 MUST 无状态**：进程级计数器 MUST **出线**到模块 `.cpp`（匿名 namespace 变量），**MUST NOT** 用头内联 `static` / inline 变量——模块化构建下每个引用它的 DLL 各留一份，于是各模块各自从 1 起发号（症状随构建配置漂移）；
+- **分配身份只在 `Allocate` 产生**（经发号策略）；`Free` 的 `+1` **只承担"置偶数"**（旧句柄凭"非奇数"与"数值失配"双重失效），MUST NOT 被当作分配身份。
+
+**`IsValid` 判据 MUST 含奇偶校验（2026-10-14 补）**：`IsValid(Handle)` = `Handle.IsValid()` **且** `Index` 未越界 **且** 代际数值相等 **且** **该槽代际为奇数**。前三项**不足以**证明槽位在册——释放把代际 +1 置偶，而一个**手工拼装**的偶代际句柄（如 `{0, 2}`）会与空闲槽"恰好相等" ⇒ 缺奇偶校验会把空闲槽判成在册、并返回一个已释放（未清零）的实例。对良构句柄（分配产物恒为奇）**行为中性**。
+
+**其余公开口（2026-10-14 补，供 per-entity 桶复用而无需自写槽位逻辑）**：
+- `Resolve(Handle) const`——**只读且不 ensure** 的重载（查询面"时序竞态 ⇒ 静默 nullptr"语义需要它；`const` 门面上无法调非常量重载，缺它就只能 `const_cast` 或自行重实现代际判定）；
+- `ForEach(Fn) const`——**只读但断言游戏线程**的重载（常规业务遍历用；**MUST NOT** 用 `ForEachForGC` 代替它做业务遍历）；
+- `IsSlotAllocated(uint32) const` / `MakeHandleForSlot(uint32) const` / `NumAllocated() const` / `ReleaseSlotByIndex(uint32)` / `ResetSlotContent(uint32)`——按**槽位下标**驱动的口。`ReleaseSlotByIndex` 对已空闲 / 越界下标 MUST **静默返回 false**（重复释放属正常竞态收尾），与 `Free` 对**句柄**口径的 `ensure` 拦截刻意分开；`ResetSlotContent` 只重置内容、不改代际不动 FreeList。
 
 `Reset`（宿主子系统 `Deinitialize` 的确定性清空口，与 `FTcsExpiryHeap::Reset` 同款纪律，2026-09-18 补）：按"当前已分配槽位数"**一次性回落池占用统计**（不逐槽 Free）后清空三数组——全部既有句柄凭代际失配失效；与 Free 同款零策略：**持有外部资源的实例由调用方在 Reset 前自行清理**（池不代为释放）。
 
@@ -60,6 +73,21 @@ TcsCore MUST 提供 `FTcsSourceHandle`（uint64 Id，0 = 无效）与 `FTcsSourc
 
 - **WHEN** 在**非游戏线程**上下文（GC 引用收集）对池调用 `ForEachForGC`，池内既有在册槽也有空闲槽
 - **THEN** **不产生任何 ensure**，且回调恰好收到全部在册槽各一次（与 `ForEach` 的可见集逐项一致）；作为对照，同上下文调用 `ForEach` **MUST** 触发 `ensure(IsInGameThread())`——两条读数共同证明"专用口"确有必要且判据一致
+
+#### Scenario: 注入进程级发号器后跨桶身份不撞
+
+- **WHEN** 两个 per-entity 桶各自注入**同一个进程级**发号器，并各自分配桶内第 0 个槽位
+- **THEN** 两个句柄的 `Index` **可以相同**，而 `Generation` **MUST 互异**（⇒ "跨桶扫描式解析"不会把 A 实体的句柄命中到 B 实体）；**作为对照**，同一场景改用**默认档**（池内自增）时两者的 `(Index, Generation)` **会相同**——这正是必须注入的原因
+
+#### Scenario: 默认档不改变既有池行为
+
+- **WHEN** 不指定第三模板参（即用默认 `FTcsPoolLocalGenerationIssuer`）做 Allocate → Free → 再 Allocate
+- **THEN** 代际读数与本参引入前**逐字相同**（新槽从 1 起、复用 +1）⇒ 既有四个池使用者零行为差异
+
+#### Scenario: 手工拼装的偶代际句柄被判无效
+
+- **WHEN** 对一个**空闲**槽构造一个 `Generation` 等于该槽当前（偶）值的句柄，并调 `IsValid`
+- **THEN** 返回 false（奇偶校验拦住它）——**缺该判据时会误判为在册并返回已释放的实例**；而任一 `Allocate` 产物（恒为奇）仍返回 true
 
 ### Requirement: 池占用统计
 

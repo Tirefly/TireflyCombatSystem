@@ -9,7 +9,7 @@
 
 `TcsSkill` MUST 提供**已学技能账本**——把"某个实体会哪些技能"变成**可查询、可增删**的 per-entity 登记表，且它是技能层唯一的"学习事实"来源（`SPEC-04-skill` §3.1 的 `FLearnedSkillEntry`）：
 
-- 账本 MUST 以 `UTcsSkillSubsystem`（`UWorldSubsystem`）为门面，持 **per-entity 桶**（一个实体一个句柄空间）；桶的存储与全局身份分工 MUST 照 `TcsState` 的既有体例（`FTcsStateRegistry` / `FStateBucket`：**每实体一个句柄空间**，槽位索引在实体内定位、代际由本模块统一的进程内发号器分配**不复用的奇数**，释放 +1 置偶数），**MUST NOT 复用** `TTcsInstancePool`（该池是"一池 = 一个句柄空间"，与 per-entity 桶的形状不符）；
+- 账本 MUST 以 `UTcsSkillSubsystem`（`UWorldSubsystem`）为门面，持 **per-entity 桶**（一个实体一个句柄空间）；桶 MUST 经**共享层的统一桶模板**（`TTcsEntityRuntimeBucket`，见 `entity-runtime-mechanism` 能力）承载——其内部载体 = `TTcsInstancePool`，**且 MUST 注入进程级代际发号器**（`FTcsStateGenerationIssuer`：每实体一个句柄空间、槽位索引在实体内定位，而代际由**进程内**发号器分配不复用的奇数，释放 +1 置偶数）。**★ 本句订正于 2026-10-14**：原文写"MUST NOT 复用 `TTcsInstancePool`（该池是『一池 = 一个句柄空间』，与 per-entity 桶的形状不符）"——该禁令**依据不足**：池是**每实体各持一个实例**（不是全局一池），形状本就符合；真约束是"代际 MUST 进程唯一"，故已改为"用池 + 注入进程级发号器"（判据见 `instance-handle-pool` 能力的「实例池的分配释放与解析」需求）；
 - 条目句柄类型 MUST 为 `FTcsSkillEntryHandle{int32 Index, int32 Generation}` 并 **MUST 反射**（`USTRUCT(BlueprintType)`）——展平两字段（**不内嵌模板句柄**：模板类型无法作 `UPROPERTY`，脚本层往返会得到空壳 ⇒ 读不到值、传回全零 ⇒ 代际失配），`Index` 取 `int32`（UHT 不支持 `uint32` 作属性类型；`-1` 与池的 `0xFFFFFFFF` 位模式相同）；**有效性判据 = `Generation` 非 0**，MUST NOT 判"下标非 0"（首个槽位的 `Index` 就是 0）；
 - 条目记录类型 MUST 为 `FTcsLearnedSkillEntry`，字段**恰好**为八项 `{FGameplayTag DefTag, FTcsSkillEntryHandle Handle, FTcsCombatEntityHandle Entity, FTcsSourceHandle LearnSource, int32 Level, TArray<FTcsCastRunHandle> RunHandles, TArray<FTcsNumericParamModInstance> NumericParamModInstances, TArray<FTcsCooldownTrackState> CooldownTracks}`：
   - **非反射结构体**（无 `USTRUCT`）——它是桶内池化纯数据、本轮零过网与零脚本消费面（同 `FTcsStateInstance` 的处置与理由）；脚本/蓝图侧的读写面另属 `SCRIPT-10`（触发条件型），**MUST NOT** 在本轮为此反射化；

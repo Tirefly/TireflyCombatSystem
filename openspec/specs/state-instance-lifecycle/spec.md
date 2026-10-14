@@ -12,6 +12,8 @@
 
 TcsState MUST 提供 `FTcsStateHandle`（`USTRUCT(BlueprintType)`）：两字段 `int32 Index` 与 `int32 Generation`（**展平形态**，与 `FTcsChainRunHandle` / `FTcsEffectTriggerInstance` 同款——反射与宿主脚本往返需要可反射的标量字段，对象身份不外传）。
 
+**★ 本类型 MUST 保持为独立类型**（MUST NOT 与 `FTcsCastRunHandle` / `FTcsSkillEntryHandle` 合并——合并会移除"跨桶误传编译期失败"这道现存护栏，判据见 `entity-runtime-mechanism` 能力的「统一运行态句柄判据与转换」需求）；但**判据 / 相等比较 / 哈希 / 池位模式转换的语义 MUST 收敛到一处公共件**，本类型委托它。
+
 - `IsValid()`：`Index >= 0` 且 `Generation > 0`（0 恒为“从未分配”）；
 - 相等比较按 `(Index, Generation)` 全等；MUST 提供 `GetTypeHash`（供 `TMap` / `TSet` 键控）；
 - `Index` MUST 是实体桶内槽位下标；**分配代际 MUST 由 TcsState 模块出线的进程级发号器统一发放不复用的正奇数号**，世界拆解 MUST NOT 复位发号器；不同桶、被删除后重建的桶、不同世界即使使用同一下标，也 MUST NOT 发放相同实例身份；
@@ -89,9 +91,9 @@ TcsState MUST 提供 `FTcsStateInstance`——**纯数据**记录，字段分三
 
 ### Requirement: per-entity 桶注册表与代际校验
 
-TcsState MUST 提供 `FTcsStateRegistry`：**per-entity 桶**——`TMap<FTcsCombatEntityHandle, TUniquePtr<FStateBucket>>`（`TUniquePtr` 间接层，`TMap` 扩容**不搬移桶地址**）。
+TcsState MUST 提供 `FTcsEntityRuntimeRegistry<FTcsStateInstance>`：**per-entity 桶**——`TMap<FTcsCombatEntityHandle, TUniquePtr<Bucket>>`（`TUniquePtr` 间接层，`TMap` 扩容**不搬移桶地址**）。**该注册表是共享层的统一模板实例**（详见 `entity-runtime-mechanism` 能力的「统一 per-entity 桶与注册表」需求）——它**取代**了此前状态层专属的 `FTcsStateRegistry` / `FStateBucket`，且其桶**载体改为 `TTcsInstancePool`**（不再手写槽位 + 代际 + 空闲栈）。
 
-桶 = 槽位数组（`TArray<FTcsStateInstance>`）+ 每槽代际数组 + 空闲槽栈。分配 MUST 优先复用空闲槽；每次分配的身份 MUST 遵守「状态实例句柄」需求的进程级唯一代际规则；释放将代际 +1 置为偶数，使旧句柄失效。MUST NOT 令各桶各自从代际 1 重新发放相同实例身份。
+桶 = 槽位数组 + 每槽代际数组 + 空闲槽栈（**由 `TTcsInstancePool` 提供**）。分配 MUST 优先复用空闲槽；每次分配的身份 MUST 遵守「状态实例句柄」需求的进程级唯一代际规则；释放将代际 +1 置为偶数，使旧句柄失效。MUST NOT 令各桶各自从代际 1 重新发放相同实例身份。
 
 **脏句柄一律拒绝 + `Warning`**（不 `ensure`——这是**时序竞态**语义，与“配置错误”分开）：代际失配 / 下标越界 / 实体未注册。拒绝 MUST NOT 影响同桶其它实例。
 
@@ -111,6 +113,11 @@ TcsState MUST 提供 `FTcsStateRegistry`：**per-entity 桶**——`TMap<FTcsCom
 
 - **WHEN** 对某实体建若干实例后调 `UnregisterEntity`
 - **THEN** 该实体全部实例被移除、桶被删除，且用其旧句柄查询一律被拒绝
+
+#### Scenario: 与技能侧共用同一桶实现
+
+- **WHEN** 检查状态侧与技能侧的桶类型
+- **THEN** 两者是**同一模板的不同实例化**（`TPayload` 分别为 `FTcsStateInstance` 与施法运行态），MUST NOT 存在第二份手写的槽位 / 代际 / 空闲栈逻辑
 
 ### Requirement: 状态门面（施加、查询、移除与生命周期操作）
 

@@ -80,7 +80,7 @@ combat-system-design/
 
 | 层 | 载体 | 管什么 | 冲突时 |
 |---|---|---|---|
-| **可执行需求** | `openspec/specs/<能力>/spec.md`（**42 条能力规格**） | MUST / Scenario——代码必须满足的行为 | **规格优先**（它进 `openspec validate --strict`） |
+| **可执行需求** | `openspec/specs/<能力>/spec.md`（**43 条能力规格**） | MUST / Scenario——代码必须满足的行为 | **规格优先**（它进 `openspec validate --strict`） |
 | **设计意图** | 本工作区 `SPEC-*` / `DEC-*` / `LOG-*` | 为什么这么设计、边界在哪、否决了什么 | 规格未覆盖处以此为准 |
 | **项目约定** | `openspec/project.md` | 命名标准、依赖铁律、测试策略、过网结构纪律 | 全局约定优先 |
 
