@@ -53,7 +53,7 @@ EApplyResult FTcsStateOps::Apply(
 	// 满仓拒绝 / 自定义不接受：**业务结果不是错误**（`Log` 而非 `Warning`；实例不动、无任何广播）
 	if (Decision.Kind == ETcsStateStackDecisionKind::Reject)
 	{
-		const FTcsStateInstance* Member = Bucket->Find(MemberHandle);
+		const FTcsBuffInstance* Member = Bucket->Find(MemberHandle);
 		UE_LOG(LogTcsState, Log, TEXT("状态施加被共存策略拒绝：实体=%lld 定义=%s 组内层数=%d 层数上限=%d 溢出政策=%d"),
 			Target.Id, *DefTag.ToString(), Member ? Member->Stacks : 0,
 			Def->StackPolicy.MaxStacks, static_cast<int32>(Def->StackPolicy.Overflow));
@@ -81,7 +81,7 @@ EApplyResult FTcsStateOps::Apply(
 	// 回执按层数有无变化分档（`Refreshed` = 续杯 / `Stacked` = 叠了一层）。
 	if (Decision.Kind == ETcsStateStackDecisionKind::Refresh || Decision.Kind == ETcsStateStackDecisionKind::Stack)
 	{
-		FTcsStateInstance* Existing = Bucket->Find(Decision.ExistingHandle);
+		FTcsBuffInstance* Existing = Bucket->Find(Decision.ExistingHandle);
 		if (!Existing)
 		{
 			UE_LOG(LogTcsState, Warning, TEXT("状态共存决策后实例已不在册：实体=%lld 定义=%s 句柄=%d/%d"),
@@ -95,7 +95,7 @@ EApplyResult FTcsStateOps::Apply(
 	// 新施加：分配槽位 → 填实例 → 快照 → 时间条目 → 广播。句柄在 `AllocateSlot` 后取得，
 	// 其 `Index` 只在本函数内按值随句柄流转——`TArray` 扩容不使**值**失效（这是"传句柄不传指针"的纪律）。
 	const FTcsStateHandle NewHandle = Bucket->AllocateSlot();
-	FTcsStateInstance* NewInstance = Bucket->Find(NewHandle);
+	FTcsBuffInstance* NewInstance = Bucket->Find(NewHandle);
 	check(NewInstance != nullptr);
 
 	NewInstance->DefTag = DefTag;
@@ -124,7 +124,7 @@ EApplyResult FTcsStateOps::Apply(
 
 	// 挂载提交会重算 + 广播 ⇒ 订阅者可重入状态操作 ⇒ MUST 重新定位实例与桶（理由同刷新路径）
 	FStateBucket* LiveBucket = Subsystem.Registry.FindBucket(Target);
-	FTcsStateInstance* LiveInstance = LiveBucket ? LiveBucket->Find(NewHandle) : nullptr;
+	FTcsBuffInstance* LiveInstance = LiveBucket ? LiveBucket->Find(NewHandle) : nullptr;
 	if (!LiveInstance)
 	{
 		UE_LOG(LogTcsState, Log,
@@ -151,7 +151,7 @@ EApplyResult FTcsStateOps::Apply(
 	WireBehaviors(Subsystem, *LiveInstance, *LiveDef);
 
 	// 行为回调可移除自己或注销实体；广播后不使用原实例指针，日志也只读这一份值快照。
-	const FTcsStateInstance AppliedSnapshot = *LiveInstance;
+	const FTcsBuffInstance AppliedSnapshot = *LiveInstance;
 	Broadcast(Subsystem, Tag_TcsEvent_State_Applied, AppliedSnapshot, EStateRemoveCause::ESRC_Removed);
 
 	UE_LOG(LogTcsState, Log, TEXT("状态施加：实体=%lld 定义=%s 句柄=%d/%d 来源=%llu 等级=%d 快照=%d 条 剩余=%.3f 周期=%.3f"),
@@ -176,7 +176,7 @@ bool FTcsStateOps::Remove(
 		return false;
 	}
 
-	const FTcsStateInstance* Found = Find(Subsystem, Handle);
+	const FTcsBuffInstance* Found = Find(Subsystem, Handle);
 	if (!Found)
 	{
 		// 代际失配 / 实体已注销 = 时序竞态，不是契约违规（不 ensure）
@@ -219,7 +219,7 @@ bool FTcsStateOps::Remove(
 	// 先广播后释放，订阅者才能在回调里用载荷句柄读到实例（否则"收到移除事件却查不到实例"）；
 	// 撤条目排在最前，是因为条目持句柄——槽位复用后回调仍会到达，靠代际校验兜底是"能成立"，
 	// 但先撤条目才是"不产生无谓回调"。
-	FTcsStateInstance* Instance = Bucket->Find(Handle);
+	FTcsBuffInstance* Instance = Bucket->Find(Handle);
 	if (!Instance)
 	{
 		// 摘除提交期间被重入者移除（或实体已注销）——按已移除处理，不重复归还槽位
@@ -240,7 +240,7 @@ bool FTcsStateOps::Remove(
 
 	// 广播前把实例复制一份：广播会让订阅者改桶（槽位可能被复用），故不用引用跨过广播。
 	// **复制的是广播当时的快照**（阶段 = `Expiring`，正是"移除中"的语义）。
-	const FTcsStateInstance Snapshot = *Instance;
+	const FTcsBuffInstance Snapshot = *Instance;
 	Subsystem.RemovalBroadcastGuard.Enter(Handle);
 	Broadcast(Subsystem, Cause == EStateRemoveCause::ESRC_Expired ? Tag_TcsEvent_State_Expired : Tag_TcsEvent_State_Removed,
 		Snapshot, Cause);
@@ -270,7 +270,7 @@ int32 FTcsStateOps::UnregisterEntity(UTcsStateSubsystem& Subsystem, FTcsCombatEn
 	// 两段式：先收集句柄（`ForEach` 期间不得增删实例），再逐个走同一条移除链。
 	// MUST NOT 先删桶再广播——那时订阅者已经查不到实例。
 	TArray<FTcsStateHandle> Targets;
-	Bucket->ForEach([&Targets](const FTcsStateInstance& Instance)
+	Bucket->ForEach([&Targets](const FTcsBuffInstance& Instance)
 	{
 		Targets.Add(Instance.Handle);
 		return true;

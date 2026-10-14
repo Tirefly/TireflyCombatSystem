@@ -6,7 +6,7 @@
 #include "Def/TcsBuffDef.h"
 #include "Host/TcsEntityLevelProvider.h"
 #include "Parameter/TcsParamValue.h"
-#include "State/TcsStateInstance.h"
+#include "State/TcsBuffInstance.h"
 #include "State/TcsStateOps.h"
 #include "State/TcsStateParamTableReader.h"
 #include "State/TcsStateStackPolicy.h"
@@ -19,7 +19,7 @@
 void FTcsStateModifierMaterializer::Materialize(
 	UTcsStateSubsystem& Subsystem,
 	const FTcsBuffDef& Def,
-	const FTcsStateInstance& Instance,
+	const FTcsBuffInstance& Instance,
 	TArray<FTcsAttrModInstance>& Out)
 {
 	// 重建语义：先清空（刷新路径与首挂共用本函数——"条数与数值恒与最近一次快照一致"靠这一句成立）

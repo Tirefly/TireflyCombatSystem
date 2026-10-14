@@ -9,7 +9,7 @@
 
 
 // 查询
-const FTcsStateInstance* FTcsStateOps::Find(UTcsStateSubsystem& Subsystem, FTcsStateHandle Handle)
+const FTcsBuffInstance* FTcsStateOps::Find(UTcsStateSubsystem& Subsystem, FTcsStateHandle Handle)
 {
 	if (!Handle.IsValid())
 	{
@@ -18,10 +18,10 @@ const FTcsStateInstance* FTcsStateOps::Find(UTcsStateSubsystem& Subsystem, FTcsS
 
 	// 句柄不带实体段 ⇒ 先在全部桶里做一次代际校验式定位（脏句柄上 `Instance.Entity` 是陈旧值、
 	// 定位必然失败）；桶数量级 = 在场实体数，且本函数不在热路径上。
-	const FTcsStateInstance* Found = nullptr;
+	const FTcsBuffInstance* Found = nullptr;
 	Subsystem.Registry.ForEachBucket([&Handle, &Found](FTcsCombatEntityHandle Entity, const FStateBucket& Bucket)
 	{
-		const FTcsStateInstance* Instance = Bucket.Find(Handle);
+		const FTcsBuffInstance* Instance = Bucket.Find(Handle);
 		if (Instance && Instance->Entity == Entity)
 		{
 			Found = Instance;
@@ -42,13 +42,13 @@ const FTcsBuffDef* FTcsStateOps::GetDef(UTcsStateSubsystem& Subsystem, FGameplay
 void FTcsStateOps::Broadcast(
 	UTcsStateSubsystem& Subsystem,
 	FGameplayTag EventTag,
-	const FTcsStateInstance& Instance,
+	const FTcsBuffInstance& Instance,
 	EStateRemoveCause Cause)
 {
 	Subsystem.BroadcastStateEvent(EventTag, Instance, Cause);
 }
 
-void FTcsStateOps::Transit(UTcsStateSubsystem& Subsystem, FTcsStateInstance* Instance, EStatePhase NewPhase)
+void FTcsStateOps::Transit(UTcsStateSubsystem& Subsystem, FTcsBuffInstance* Instance, EStatePhase NewPhase)
 {
 	Subsystem.TransitionPhase(Instance, NewPhase);
 }
@@ -65,7 +65,7 @@ int32 FTcsStateOps::CountStates(UTcsStateSubsystem& Subsystem, FTcsCombatEntityH
 bool FTcsStateOps::PrepareDurationOp(
 	UTcsStateSubsystem& Subsystem,
 	FTcsStateHandle Handle,
-	FTcsStateInstance*& OutInstance)
+	FTcsBuffInstance*& OutInstance)
 {
 	OutInstance = nullptr;
 
@@ -75,7 +75,7 @@ bool FTcsStateOps::PrepareDurationOp(
 		return false;
 	}
 
-	const FTcsStateInstance* Found = Find(Subsystem, Handle);
+	const FTcsBuffInstance* Found = Find(Subsystem, Handle);
 	if (!Found)
 	{
 		UE_LOG(LogTcsState, Warning, TEXT("时长操作被拒：句柄悬空（%d/%d）"), Handle.Index, Handle.Generation);

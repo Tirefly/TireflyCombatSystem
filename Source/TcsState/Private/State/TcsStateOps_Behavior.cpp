@@ -10,7 +10,7 @@
 
 void FTcsStateOps::WireBehaviors(
 	UTcsStateSubsystem& Subsystem,
-	const FTcsStateInstance& Instance,
+	const FTcsBuffInstance& Instance,
 	const FTcsBuffDef& Def)
 {
 	if (Def.Fragments.IsEmpty())
@@ -31,7 +31,7 @@ void FTcsStateOps::WireBehaviors(
 
 void FTcsStateOps::UnwireBehaviors(
 	UTcsStateSubsystem& Subsystem,
-	const FTcsStateInstance& Instance)
+	const FTcsBuffInstance& Instance)
 {
 	Subsystem.BehaviorRegistry.RemoveInstance(Instance.Handle, Subsystem.GetEventBus());
 }

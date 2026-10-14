@@ -4,7 +4,7 @@
 
 #include "Def/TcsBuffDef.h"
 #include "Engine/World.h"
-#include "State/TcsStateInstance.h"
+#include "State/TcsBuffInstance.h"
 #include "TcsEffectSubsystem.h"
 #include "TcsStateLogChannel.h"
 #include "TcsStateSubsystem.h"
@@ -22,7 +22,7 @@
 
 void FTcsStateOps::WireTriggerRows(
 	UTcsStateSubsystem& Subsystem,
-	const FTcsStateInstance& Instance,
+	const FTcsBuffInstance& Instance,
 	const FTcsBuffDef& Def)
 {
 	if (Def.Triggers.Num() == 0)
@@ -59,7 +59,7 @@ void FTcsStateOps::WireTriggerRows(
 
 void FTcsStateOps::UnwireTriggerRows(
 	UTcsStateSubsystem& Subsystem,
-	const FTcsStateInstance& Instance)
+	const FTcsBuffInstance& Instance)
 {
 	UTcsEffectSubsystem* EffectSubsystem = Subsystem.GetWorld()
 		? Subsystem.GetWorld()->GetSubsystem<UTcsEffectSubsystem>()

@@ -68,7 +68,7 @@ enum class EStackDurationPolicy : uint8
  * 堆叠与刷新策略（D3-4 / D3-17 五轴，`FTcsBuffDef` 字段）：
  * 同一 buff 的重复施加行为由五轴确定性决定——分组、层数上限、溢出处置、数值叠加、时长刷新。
  *
- * **模型口径（2026-10-05 R5 Task 5 定）**：**层数记在一条实例内**（`FTcsStateInstance.Stacks`），
+ * **模型口径（2026-10-05 R5 Task 5 定）**：**层数记在一条实例内**（`FTcsBuffInstance.Stacks`），
  * 组内至多一条实例；"续杯 / 叠层"的判据是**施加方换没换**（同来源 ⇒ 刷新、异来源 ⇒ 叠一层，
  * 未声明来源按同来源处理）。完整决策树与事件面见 `state-stacking-policies` 能力。
  *

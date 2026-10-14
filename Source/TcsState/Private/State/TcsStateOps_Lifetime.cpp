@@ -32,7 +32,7 @@ namespace
 
 
 // 时间条目
-void FTcsStateOps::PushExpiry(UTcsStateSubsystem& Subsystem, FTcsStateInstance& Instance)
+void FTcsStateOps::PushExpiry(UTcsStateSubsystem& Subsystem, FTcsBuffInstance& Instance)
 {
 	UTcsClockSubsystem* Clock = Subsystem.GetClockSubsystem();
 	if (!Clock)
@@ -58,7 +58,7 @@ void FTcsStateOps::PushExpiry(UTcsStateSubsystem& Subsystem, FTcsStateInstance& 
 		});
 }
 
-void FTcsStateOps::PushPeriod(UTcsStateSubsystem& Subsystem, FTcsStateInstance& Instance)
+void FTcsStateOps::PushPeriod(UTcsStateSubsystem& Subsystem, FTcsBuffInstance& Instance)
 {
 	UTcsClockSubsystem* Clock = Subsystem.GetClockSubsystem();
 	if (!Clock)
@@ -82,7 +82,7 @@ void FTcsStateOps::PushPeriod(UTcsStateSubsystem& Subsystem, FTcsStateInstance& 
 			}
 
 			// 先复位锚点：条目已一次性失效，若下面中途 return 也不留悬空句柄
-			FTcsStateInstance* Instance = const_cast<FTcsStateInstance*>(FTcsStateOps::Find(*Subsystem, Handle));
+			FTcsBuffInstance* Instance = const_cast<FTcsBuffInstance*>(FTcsStateOps::Find(*Subsystem, Handle));
 			if (!Instance)
 			{
 				// 代际失配 / 实例已移除 = 时序竞态：静默丢弃（条目本该已被移除路径撤销）
@@ -92,11 +92,11 @@ void FTcsStateOps::PushPeriod(UTcsStateSubsystem& Subsystem, FTcsStateInstance& 
 			Instance->PeriodEntry = FTcsTimeEntryHandle();
 			Instance->PeriodRemaining = 0.0;
 
-			const FTcsStateInstance PeriodSnapshot = *Instance;
+			const FTcsBuffInstance PeriodSnapshot = *Instance;
 			FTcsStateOps::Broadcast(*Subsystem, Tag_TcsEvent_State_Periodic, PeriodSnapshot, EStateRemoveCause::ESRC_Removed);
 
 			// 广播会让订阅者增删状态 ⇒ 实例指针不可跨广播使用，重新取一次
-			FTcsStateInstance* AfterBroadcast = const_cast<FTcsStateInstance*>(FTcsStateOps::Find(*Subsystem, Handle));
+			FTcsBuffInstance* AfterBroadcast = const_cast<FTcsBuffInstance*>(FTcsStateOps::Find(*Subsystem, Handle));
 			if (!AfterBroadcast || AfterBroadcast->PeriodEntry.IsValid())
 			{
 				// 自移除时不重挂；回调已刷新重挂时不重复挂第二枚条目。
@@ -118,7 +118,7 @@ void FTcsStateOps::PushPeriod(UTcsStateSubsystem& Subsystem, FTcsStateInstance& 
 		});
 }
 
-void FTcsStateOps::CancelTimeEntries(UTcsStateSubsystem& Subsystem, FTcsStateInstance& Instance)
+void FTcsStateOps::CancelTimeEntries(UTcsStateSubsystem& Subsystem, FTcsBuffInstance& Instance)
 {
 	CancelEntry(Subsystem, Instance.ExpiryEntry);
 	CancelEntry(Subsystem, Instance.PeriodEntry);
@@ -130,7 +130,7 @@ void FTcsStateOps::CancelTimeEntries(UTcsStateSubsystem& Subsystem, FTcsStateIns
 // 时间调度
 void FTcsStateOps::ScheduleTime(
 	UTcsStateSubsystem& Subsystem,
-	FTcsStateInstance& Instance,
+	FTcsBuffInstance& Instance,
 	const FTcsBuffDef& Def,
 	const FTcsParamSnapshot& Snapshot,
 	const TScriptInterface<ITcsParamTableReader>& ParamTable,
@@ -184,11 +184,11 @@ void FTcsStateOps::ScheduleTime(
 	if (bImmediate)
 	{
 		const FTcsStateHandle Handle = Instance.Handle;
-		const FTcsStateInstance PeriodSnapshot = Instance;
+		const FTcsBuffInstance PeriodSnapshot = Instance;
 		Broadcast(Subsystem, Tag_TcsEvent_State_Periodic, PeriodSnapshot, EStateRemoveCause::ESRC_Removed);
 
 		// 回调可自移除、注销实体或嵌套刷新；不可继续使用原 Instance 引用。
-		FTcsStateInstance* AfterBroadcast = const_cast<FTcsStateInstance*>(Find(Subsystem, Handle));
+		FTcsBuffInstance* AfterBroadcast = const_cast<FTcsBuffInstance*>(Find(Subsystem, Handle));
 		if (AfterBroadcast && !AfterBroadcast->PeriodEntry.IsValid())
 		{
 			PushPeriod(Subsystem, *AfterBroadcast);
@@ -202,7 +202,7 @@ void FTcsStateOps::ScheduleTime(
 
 
 // 生命周期操作
-void FTcsStateOps::RescheduleExpiry(UTcsStateSubsystem& Subsystem, FTcsStateInstance& Instance)
+void FTcsStateOps::RescheduleExpiry(UTcsStateSubsystem& Subsystem, FTcsBuffInstance& Instance)
 {
 	// 句柄配对清理：旧条目先撤，再按新余量重入堆（"延长 / 缩短"都走这一条）
 	CancelEntry(Subsystem, Instance.ExpiryEntry);

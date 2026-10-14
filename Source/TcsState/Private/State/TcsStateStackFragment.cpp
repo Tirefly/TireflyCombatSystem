@@ -14,4 +14,8 @@
 // `IsSameGroup` = 同实体 + 同 `DefTag`；`ShouldAccept` = 恒 true；
 // `ResolveStacks` = 未声明来源按同来源、同来源不变、异来源 +1。
 // 差异只有一处且是**修 bug 性质**：原先比较的是 `FTcsStateStackRequest` / `FTcsStateInstance`
-// 两个域类型，现经适配层转成通用视图（字段直取、零加工）⇒ 同输入同结论。
+// 两个域类型（后者当时装全部 14 字段），现经适配层转成通用视图（字段直取、零加工）⇒ 同输入同结论。
+// **★ 2026-10-14 拆解后（`PLN-REFACTOR-1` Task 2）**：当时的 `FTcsStateInstance` 已拆为
+// 基底 `FTcsStateInstance`（公共 6 字段）+ `FTcsBuffInstance`（Buff 专属 8 字段）；
+// 本句涉及的 `DefTag` / `Entity` / `Source` **三个字段跨拆解位置不变**（前两个在基底、`Source` 在派生）
+// ⇒ **上述"同输入同结论"的结论不受拆解影响**。

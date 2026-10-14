@@ -9,7 +9,7 @@
 
 #include "State/TcsStateEnums.h"
 #include "State/TcsStateHandle.h"
-#include "State/TcsStateInstance.h"
+#include "State/TcsBuffInstance.h"
 #include "State/TcsStateSnapshot.h"
 
 class UTcsStateSubsystem;
@@ -137,7 +137,7 @@ public:
 	static EApplyResult RefreshStacked(
 		UTcsStateSubsystem& Subsystem,
 		const FTcsBuffDef& Def,
-		FTcsStateInstance& Instance,
+		FTcsBuffInstance& Instance,
 		const FTcsStateStackRequest& Request,
 		const FTcsStateStackDecision& Decision,
 		const TScriptInterface<ITcsParamTableReader>& ParamTable,
@@ -206,7 +206,7 @@ public:
 	 * @param Subsystem 状态门面。
 	 * @param Instance 目标实例（须已在册）。
 	 */
-	static void PushExpiry(UTcsStateSubsystem& Subsystem, FTcsStateInstance& Instance);
+	static void PushExpiry(UTcsStateSubsystem& Subsystem, FTcsBuffInstance& Instance);
 
 	/**
 	 * 挂周期条目（`Period > 0` 路径）：每次回调广播 `TcsEvent.State.Periodic` 后**重新入堆**。
@@ -214,7 +214,7 @@ public:
 	 * @param Subsystem 状态门面。
 	 * @param Instance 目标实例（须已在册）。
 	 */
-	static void PushPeriod(UTcsStateSubsystem& Subsystem, FTcsStateInstance& Instance);
+	static void PushPeriod(UTcsStateSubsystem& Subsystem, FTcsBuffInstance& Instance);
 
 	/**
 	 * 撤销某实例的全部时间条目（时值 + 周期）。
@@ -225,7 +225,7 @@ public:
 	 * @param Subsystem 状态门面。
 	 * @param Instance 目标实例（字段被就地清空，可重复调用）。
 	 */
-	static void CancelTimeEntries(UTcsStateSubsystem& Subsystem, FTcsStateInstance& Instance);
+	static void CancelTimeEntries(UTcsStateSubsystem& Subsystem, FTcsBuffInstance& Instance);
 
 #pragma endregion
 
@@ -257,7 +257,7 @@ public:
 	static void MountModifiers(
 		UTcsStateSubsystem& Subsystem,
 		const FTcsBuffDef& Def,
-		const FTcsStateInstance& Instance,
+		const FTcsBuffInstance& Instance,
 		bool bStripFirst);
 
 	/**
@@ -271,7 +271,7 @@ public:
 	 *
 	 * @param Subsystem 状态门面。
 	 * @param Entity 实体实体句柄。
-	 * @param Source 级联锚点（= `FTcsStateInstance::CascadeAnchor`；**不是**"施加方来源句柄"）。
+	 * @param Source 级联锚点（= `FTcsBuffInstance::CascadeAnchor`；**不是**"施加方来源句柄"）。
 	 */
 	static void StripModifiers(
 		UTcsStateSubsystem& Subsystem,
@@ -302,7 +302,7 @@ public:
 	 */
 	static void WireTriggerRows(
 		UTcsStateSubsystem& Subsystem,
-		const FTcsStateInstance& Instance,
+		const FTcsBuffInstance& Instance,
 		const FTcsBuffDef& Def);
 
 	/**
@@ -316,7 +316,7 @@ public:
 	 */
 	static void UnwireTriggerRows(
 		UTcsStateSubsystem& Subsystem,
-		const FTcsStateInstance& Instance);
+		const FTcsBuffInstance& Instance);
 
 #pragma endregion
 
@@ -334,7 +334,7 @@ public:
 	 */
 	static void WireBehaviors(
 		UTcsStateSubsystem& Subsystem,
-		const FTcsStateInstance& Instance,
+		const FTcsBuffInstance& Instance,
 		const FTcsBuffDef& Def);
 
 	/**
@@ -345,7 +345,7 @@ public:
 	 */
 	static void UnwireBehaviors(
 		UTcsStateSubsystem& Subsystem,
-		const FTcsStateInstance& Instance);
+		const FTcsBuffInstance& Instance);
 
 #pragma endregion
 
@@ -367,7 +367,7 @@ public:
 	 * @param Handle 实例句柄。
 	 * @return 返回实例指针；脏句柄返回 nullptr。
 	 */
-	static const FTcsStateInstance* Find(UTcsStateSubsystem& Subsystem, FTcsStateHandle Handle);
+	static const FTcsBuffInstance* Find(UTcsStateSubsystem& Subsystem, FTcsStateHandle Handle);
 
 	/**
 	 * 取本世界已登记的状态定义（转发 `UTcsStateSubsystem::GetRegisteredStateDef`——
@@ -390,7 +390,7 @@ public:
 	static void Broadcast(
 		UTcsStateSubsystem& Subsystem,
 		FGameplayTag EventTag,
-		const FTcsStateInstance& Instance,
+		const FTcsBuffInstance& Instance,
 		EStateRemoveCause Cause);
 
 	/**
@@ -400,7 +400,7 @@ public:
 	 * @param Instance 目标实例；nullptr = 无操作（调用方已确认存在，此处只做防御）。
 	 * @param NewPhase 目标阶段。
 	 */
-	static void Transit(UTcsStateSubsystem& Subsystem, FTcsStateInstance* Instance, EStatePhase NewPhase);
+	static void Transit(UTcsStateSubsystem& Subsystem, FTcsBuffInstance* Instance, EStatePhase NewPhase);
 
 	/**
 	 * 取某实体桶内在册实例数。
@@ -474,7 +474,7 @@ public:
 	 */
 	static void ScheduleTime(
 		UTcsStateSubsystem& Subsystem,
-		FTcsStateInstance& Instance,
+		FTcsBuffInstance& Instance,
 		const FTcsBuffDef& Def,
 		const FTcsParamSnapshot& Snapshot,
 		const TScriptInterface<ITcsParamTableReader>& ParamTable,
@@ -498,7 +498,7 @@ public:
 	static bool PrepareDurationOp(
 		UTcsStateSubsystem& Subsystem,
 		FTcsStateHandle Handle,
-		FTcsStateInstance*& OutInstance);
+		FTcsBuffInstance*& OutInstance);
 
 	/**
 	 * 时长操作的后置（撤销旧条目 + 按新余量重入堆）——`ExtendDuration` / `SetRemaining` 共用。
@@ -506,7 +506,7 @@ public:
 	 * @param Subsystem 状态门面。
 	 * @param Instance 目标实例（其 `DurationRemaining` 已被调用方改成新值）。
 	 */
-	static void RescheduleExpiry(UTcsStateSubsystem& Subsystem, FTcsStateInstance& Instance);
+	static void RescheduleExpiry(UTcsStateSubsystem& Subsystem, FTcsBuffInstance& Instance);
 
 #pragma endregion
 };

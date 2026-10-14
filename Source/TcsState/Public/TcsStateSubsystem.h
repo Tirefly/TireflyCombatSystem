@@ -15,7 +15,7 @@
 #include "State/TcsStateBehaviorRegistry.h"
 #include "State/TcsStateEnums.h"
 #include "State/TcsStateHandle.h"
-#include "State/TcsStateInstance.h"
+#include "State/TcsBuffInstance.h"
 #include "State/TcsStateParamTableReader.h"
 #include "State/TcsStateRegistry.h"
 #include "Runtime/TcsEntityBroadcastGuard.h"
@@ -93,7 +93,7 @@ public:
 	 * 仍然补上：登记表是"将来会装东西"的容器，缺一段 ARO 是**静默失败**类缺陷（不是崩溃），
 	 * 而修复成本是零（GC 期一次遍历），不值得赌"以后没人往里放对象引用"。
 	 *
-	 * **实例记录（`FTcsStateInstance`）不在本函数范围内**：它按纪律 MUST NOT 持任何
+	 * **实例记录（`FTcsBuffInstance`）不在本函数范围内**：它按纪律 MUST NOT 持任何
 	 * `UObject` 引用（见 `TcsStateInstance.h` 的说明），故无需补引用——这正是那条纪律的收益之一。
 	 *
 	 * @param InThis 本对象（引擎静态 ARO 签名约定，须自行 Cast）。
@@ -207,7 +207,7 @@ public:
 	 * @param Handle 状态实例句柄。
 	 * @return 返回实例；脏句柄返回 nullptr。
 	 */
-	const FTcsStateInstance* GetState(FTcsStateHandle Handle) const;
+	const FTcsBuffInstance* GetState(FTcsStateHandle Handle) const;
 
 	/**
 	 * 句柄是否指向在册实例（代际校验；脏句柄返回 false，不 ensure）。
@@ -229,7 +229,7 @@ public:
 	 * @param Entity 实体实体句柄。
 	 * @param Visitor 访问者（返回是否继续）。
 	 */
-	void ForEachState(FTcsCombatEntityHandle Entity, TFunctionRef<bool(const FTcsStateInstance&)> Visitor) const;
+	void ForEachState(FTcsCombatEntityHandle Entity, TFunctionRef<bool(const FTcsBuffInstance&)> Visitor) const;
 
 	// 某实体在册实例数（观测与装置断言用）
 	int32 GetStateCount(FTcsCombatEntityHandle Entity) const;
@@ -387,10 +387,10 @@ private:
 	friend class UTcsStateBehaviorHandler;
 
 	// 广播一次状态事件（载荷由实例快照 + 原因拼装；总线不可得时 Warning 并丢弃——不 ensure）
-	void BroadcastStateEvent(FGameplayTag EventTag, const FTcsStateInstance& Instance, EStateRemoveCause Cause);
+	void BroadcastStateEvent(FGameplayTag EventTag, const FTcsBuffInstance& Instance, EStateRemoveCause Cause);
 
 	// 阶段迁移（非法迁移 = ensure——**配置错误**语义，与脏句柄的竞态口径分开）
-	void TransitionPhase(FTcsStateInstance* Instance, EStatePhase NewPhase);
+	void TransitionPhase(FTcsBuffInstance* Instance, EStatePhase NewPhase);
 
 	/**
 	 * 施加 / 移除 / 查询流程（`FTcsStateOps`）需要读写下面四个成员——

@@ -4,7 +4,7 @@
 
 #include "Def/TcsBuffDef.h"
 #include "State/TcsStateEvents.h"
-#include "State/TcsStateInstance.h"
+#include "State/TcsBuffInstance.h"
 #include "State/TcsStateRegistry.h"
 #include "State/TcsStateStackFragment.h"
 #include "State/TcsStateStackPolicy.h"
@@ -44,13 +44,13 @@ namespace
 	/**
 	 * 把状态侧的决策输入 / 既有实例**适配**成共享层的通用视图。
 	 *
-	 * **为什么需要适配层**：共享层 MUST NOT 认识 `FTcsStateInstance`（域语义）⇒ 统一决策接口收的是
+	 * **为什么需要适配层**：共享层 MUST NOT 认识 `FTcsBuffInstance`（域语义）⇒ 统一决策接口收的是
 	 * 它自己的 `FTcsEntityAdmissionRequest` / `...Existing`。两个 `From*` 函数就是那层适配，
 	 * 且**逐字段直取、不做任何加工**（判据全在策略里，适配层不得掺入语义）。
 	 */
 	void TcsStackOps_ToAdmission(
 		const FTcsStateStackRequest& Request,
-		const FTcsStateInstance& Existing,
+		const FTcsBuffInstance& Existing,
 		FTcsEntityAdmissionRequest& OutRequest,
 		FTcsEntityAdmissionExisting& OutExisting)
 	{
@@ -100,7 +100,7 @@ namespace
 	 * 若"未声明"被判成"换了施加方"，则任何不关心来源的调用方在默认策略（层数无限）下
 	 * **每次施加都叠一层**——一个只在长跑里才显形的错误。
 	 */
-	bool TcsStackOps_IsSameOrigin(const FTcsStateStackRequest& Request, const FTcsStateInstance& Existing)
+	bool TcsStackOps_IsSameOrigin(const FTcsStateStackRequest& Request, const FTcsBuffInstance& Existing)
 	{
 		return !Request.Source.IsValid() || Request.Source == Existing.Source;
 	}
@@ -112,7 +112,7 @@ namespace
 	 */
 	bool TcsStackOps_IsSameGroup(
 		const FTcsStateStackRequest& Request,
-		const FTcsStateInstance& Existing,
+		const FTcsBuffInstance& Existing,
 		const FStateStackPolicy& Policy,
 		const FTcsEntityAdmission* Fragment)
 	{
@@ -165,7 +165,7 @@ FTcsStateStackDecision FTcsStateOps::ResolveStackDecision(
 	// 在桶内找同组成员（**至多命中一条**——本模型下组内至多一条实例）。
 	// 两段式读：`ForEach` 期间不得增删实例（本处只读，命中即提前终止）。
 	FTcsStateHandle MemberHandle;
-	Bucket.ForEach([&Request, &Policy, Fragment, &MemberHandle](const FTcsStateInstance& Instance)
+	Bucket.ForEach([&Request, &Policy, Fragment, &MemberHandle](const FTcsBuffInstance& Instance)
 	{
 		if (TcsStackOps_IsSameGroup(Request, Instance, Policy, Fragment))
 		{
@@ -176,7 +176,7 @@ FTcsStateStackDecision FTcsStateOps::ResolveStackDecision(
 		return true;
 	});
 
-	const FTcsStateInstance* Existing = Bucket.Find(MemberHandle);
+	const FTcsBuffInstance* Existing = Bucket.Find(MemberHandle);
 
 	// ① 组内无实例 ⇒ 建新条（唯一不读策略的档）
 	if (!Existing)
@@ -240,7 +240,7 @@ FTcsStateStackDecision FTcsStateOps::ResolveStackDecision(
 EApplyResult FTcsStateOps::RefreshStacked(
 	UTcsStateSubsystem& Subsystem,
 	const FTcsBuffDef& Def,
-	FTcsStateInstance& Instance,
+	FTcsBuffInstance& Instance,
 	const FTcsStateStackRequest& Request,
 	const FTcsStateStackDecision& Decision,
 	const TScriptInterface<ITcsParamTableReader>& ParamTable,
@@ -269,7 +269,7 @@ EApplyResult FTcsStateOps::RefreshStacked(
 
 	// 挂载提交会重算 + 广播 ⇒ 订阅者可重入状态操作（移除本实例 / 注销实体）⇒ MUST 重新定位
 	FStateBucket* LiveBucket = Subsystem.Registry.FindBucket(Request.Entity);
-	FTcsStateInstance* Live = LiveBucket ? LiveBucket->Find(Handle) : nullptr;
+	FTcsBuffInstance* Live = LiveBucket ? LiveBucket->Find(Handle) : nullptr;
 	if (!Live)
 	{
 		// 更新已完成，回调合法移除实例时不再补播事件，回执仍按决策档给。
@@ -301,7 +301,7 @@ EApplyResult FTcsStateOps::RefreshStacked(
 	}
 
 	// 层数变化先播、刷新后播；每一笔都是值快照，不跨广播持实例或桶指针。
-	const FTcsStateInstance EventSnapshot = *Live;
+	const FTcsBuffInstance EventSnapshot = *Live;
 	if (bStackChanged)
 	{
 		Broadcast(Subsystem, Tag_TcsEvent_State_StackChanged, EventSnapshot, EStateRemoveCause::ESRC_Removed);

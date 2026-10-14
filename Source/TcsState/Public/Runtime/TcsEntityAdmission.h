@@ -38,14 +38,15 @@ struct FTcsEntityAdmissionRequest
 /**
  * 既有实例的**通用视图**（由调用方从自己域的运行态记录填充）。
  *
- * **为什么不直接传域记录（如 `const FTcsStateInstance&`）**：共享层 MUST NOT 认识两域的运行态
+ * **为什么不直接传域记录（如 `const FTcsBuffInstance&`）**：共享层 MUST NOT 认识两域的运行态
  * 类型（那是域语义，且两类型分属不同模块）。若用 `const void*` 传，则**默认实现无法成立**
  * ——本接口的默认 `IsSameGroup` 语义是"同实体 + 同 `DefTag`"，它必须**读得到**这两个字段。
  * ⇒ 取"通用视图"：共享层定义它认得的**最小公共字段集**，域侧负责填。
  *
  * **字段取舍判据 = "该字段是否两域共有且语义相同"**（MUST 逐条有据，MUST NOT 图省事多塞）：
  * 两域的运行态记录都持 `DefTag` 身份 / `Entity` 归属 / `Source` 来源（本仓实测：状态
- * `FTcsStateInstance` 三样俱全；技能 `FTcsCastRun` 有 `Entity` / `RunSource`，
+ * `FTcsBuffInstance` 三样俱全——`DefTag` / `Entity` 继承自基底、`Source` 自持；
+ * 技能 `FTcsCastRun` 有 `Entity` / `RunSource`，
  * 其 `DefTag` 由调用方从所属账本条目取——**不是新造信息，是调用方手上已有的**）。
  */
 struct FTcsEntityAdmissionExisting

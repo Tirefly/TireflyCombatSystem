@@ -8,7 +8,7 @@
 
 class UTcsStateSubsystem;
 struct FTcsBuffDef;
-struct FTcsStateInstance;
+struct FTcsBuffInstance;
 
 
 
@@ -55,7 +55,7 @@ public:
 	static void Materialize(
 		UTcsStateSubsystem& Subsystem,
 		const FTcsBuffDef& Def,
-		const FTcsStateInstance& Instance,
+		const FTcsBuffInstance& Instance,
 		TArray<FTcsAttrModInstance>& Out);
 
 #pragma endregion

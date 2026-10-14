@@ -80,7 +80,7 @@ void UTcsStateSubsystem::DispatchBehaviorEvent(
 		// 固定本次遍历的上限，回调中新添加的片段不加入当前事件；实际内容每次重新解析。
 		int32 FragmentCount = 0;
 		{
-			const FTcsStateInstance* Instance = GetState(Handle);
+			const FTcsBuffInstance* Instance = GetState(Handle);
 			const FTcsBuffDef* Def = Instance ? GetRegisteredStateDef(Instance->DefTag) : nullptr;
 			FragmentCount = Def ? Def->Fragments.Num() : 0;
 		}
@@ -96,7 +96,7 @@ void UTcsStateSubsystem::DispatchBehaviorEvent(
 			FTcsStateBehaviorContext Ctx;
 			FInstancedStruct CallbackFragment;
 			{
-				const FTcsStateInstance* Instance = GetState(Handle);
+				const FTcsBuffInstance* Instance = GetState(Handle);
 				const FTcsBuffDef* Def = Instance ? GetRegisteredStateDef(Instance->DefTag) : nullptr;
 				if (!Instance || !Def || !Def->Fragments.IsValidIndex(FragmentIndex))
 				{

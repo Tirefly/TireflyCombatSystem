@@ -13,7 +13,7 @@
 
 #include "TcsStateStackFragment.generated.h"
 
-struct FTcsStateInstance;
+struct FTcsBuffInstance;
 
 
 
@@ -79,7 +79,7 @@ struct FTcsStateStackDecision
  * 故继承默认实现即可保持行为不变。
  *
  * **载体纪律**：策略实例归 **Def 资产**持有（`FStateStackPolicy::CustomDecision`），
- * `FTcsStateInstance` MUST NOT 持有任何策略载体（值语义记录是池化与操作复制的地基）。
+ * `FTcsBuffInstance` MUST NOT 持有任何策略载体（值语义记录是池化与操作复制的地基）。
  *
  * **抽象手法**（全仓统一，2026-09-16 实证）：USTRUCT 反射基类 + **中性默认实现** + `meta = (Hidden)`——
  * MUST NOT 用 `= 0`（UHT 为每个 USTRUCT 生成 `TCppStructOps<T>`，构造路径需要可默认构造）与

@@ -6,7 +6,7 @@
 #include "Def/TcsBuffDef.h"
 #include "Engine/World.h"
 #include "State/TcsStateAttributeAccess.h"
-#include "State/TcsStateInstance.h"
+#include "State/TcsBuffInstance.h"
 #include "State/TcsStateModifierMaterializer.h"
 #include "TcsAttributeSubsystem.h"
 #include "TcsStateLogChannel.h"
@@ -63,7 +63,7 @@ void FTcsStateAttributeAccess::Commit(FTcsCombatEntityHandle Entity) const
 void FTcsStateOps::MountModifiers(
 	UTcsStateSubsystem& Subsystem,
 	const FTcsBuffDef& Def,
-	const FTcsStateInstance& Instance,
+	const FTcsBuffInstance& Instance,
 	bool bStripFirst)
 {
 	const bool bHasTemplates = Def.ModifierRows.Num() > 0;

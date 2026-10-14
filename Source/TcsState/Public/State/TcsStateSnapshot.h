@@ -52,7 +52,8 @@ public:
  *    高亮也取快照的 `Level`，而非查询时实体等级）；
  * ③ **修改 = 重新施加**（快照重建，新 payload 覆盖旧的）。
  *
- * **非反射结构体**（无 `USTRUCT` 宏）：它只随 `FTcsStateInstance` 在 C++ 侧流转——反射化的时机
+ * **非反射结构体**（无 `USTRUCT` 宏）：它只随运行态记录（基底的 `FTcsStateInstance` 及其派生
+ * `FTcsBuffInstance` / `FTcsSkillInstance`）在 C++ 侧流转——反射化的时机
  * 是"快照要整体过网"的操作复制轮（`WAIT-3` / R7），不是现在。故它也**不能**作 `UPROPERTY`，
  * 其内层的对象引用由门面的 `AddReferencedObjects` 手动补（GC 纪律）。
  *

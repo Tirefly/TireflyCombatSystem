@@ -46,7 +46,7 @@ void UTcsStateSubsystem::Deinitialize()
 	// 复位会让新世界的来源号与上一世界撞车——那正是级联摘除会误伤别人的缺陷形态（`WAIT-6`）。
 	Registry.ForEachBucket([this](FTcsCombatEntityHandle Entity, FStateBucket& Bucket)
 	{
-		Bucket.ForEach([this](FTcsStateInstance& Instance)
+		Bucket.ForEach([this](FTcsBuffInstance& Instance)
 		{
 			FTcsStateOps::CancelTimeEntries(*this, Instance);
 			return true;
@@ -95,7 +95,7 @@ void UTcsStateSubsystem::AddReferencedObjects(UObject* InThis, FReferenceCollect
 	// 状态侧原为手写桶、没有这条断言，故**本变更把它引入**——必须同批接上 GC 口。）
 	This->Registry.ForEachBucket([&Collector](FTcsCombatEntityHandle Entity, const FStateBucket& Bucket)
 	{
-		Bucket.ForEachForGC([&Collector](const FTcsStateInstance& Instance)
+		Bucket.ForEachForGC([&Collector](const FTcsBuffInstance& Instance)
 		{
 			for (const FTcsParamSnapshotEntry& Entry : Instance.ParamSnapshot.Entries)
 			{
@@ -127,7 +127,7 @@ EApplyResult UTcsStateSubsystem::ApplyState(
 	return FTcsStateOps::Apply(*this, Target, DefTag, Source, Instigator, ParamTable, Overrides);
 }
 
-const FTcsStateInstance* UTcsStateSubsystem::GetState(FTcsStateHandle Handle) const
+const FTcsBuffInstance* UTcsStateSubsystem::GetState(FTcsStateHandle Handle) const
 {
 	// 逻辑在引擎函数里（它按句柄做代际校验式定位）——门面保持薄壳
 	return FTcsStateOps::Find(*const_cast<UTcsStateSubsystem*>(this), Handle);
@@ -140,7 +140,7 @@ bool UTcsStateSubsystem::IsStateActive(FTcsStateHandle Handle) const
 
 void UTcsStateSubsystem::ForEachState(
 	FTcsCombatEntityHandle Entity,
-	TFunctionRef<bool(const FTcsStateInstance&)> Visitor) const
+	TFunctionRef<bool(const FTcsBuffInstance&)> Visitor) const
 {
 	if (const FStateBucket* Bucket = Registry.FindBucket(Entity))
 	{
@@ -181,7 +181,7 @@ int32 UTcsStateSubsystem::UnregisterEntity(FTcsCombatEntityHandle Entity)
 
 bool UTcsStateSubsystem::ExtendDuration(FTcsStateHandle Handle, double Delta)
 {
-	FTcsStateInstance* Instance = nullptr;
+	FTcsBuffInstance* Instance = nullptr;
 	if (!FTcsStateOps::PrepareDurationOp(*this, Handle, Instance))
 	{
 		return false;
@@ -200,7 +200,7 @@ bool UTcsStateSubsystem::ExtendDuration(FTcsStateHandle Handle, double Delta)
 
 bool UTcsStateSubsystem::SetRemaining(FTcsStateHandle Handle, double Seconds)
 {
-	FTcsStateInstance* Instance = nullptr;
+	FTcsBuffInstance* Instance = nullptr;
 	if (!FTcsStateOps::PrepareDurationOp(*this, Handle, Instance))
 	{
 		return false;
@@ -248,7 +248,7 @@ UTcsStateParamTableReader* UTcsStateSubsystem::GetParamTableReader()
 	return ParamTableReader;
 }
 
-void UTcsStateSubsystem::TransitionPhase(FTcsStateInstance* Instance, EStatePhase NewPhase)
+void UTcsStateSubsystem::TransitionPhase(FTcsBuffInstance* Instance, EStatePhase NewPhase)
 {
 	if (!Instance)
 	{

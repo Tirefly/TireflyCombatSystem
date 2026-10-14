@@ -34,7 +34,7 @@ UE_DEFINE_GAMEPLAY_TAG_COMMENT(Tag_TcsEvent_State_Periodic, "TcsEvent.State.Peri
 // 广播
 void UTcsStateSubsystem::BroadcastStateEvent(
 	FGameplayTag EventTag,
-	const FTcsStateInstance& Instance,
+	const FTcsBuffInstance& Instance,
 	EStateRemoveCause Cause)
 {
 	UTcsEventBusSubsystem* Bus = GetEventBus();
