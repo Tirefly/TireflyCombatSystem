@@ -1,5 +1,7 @@
 ## ADDED Requirements
 
+> **术语订正（2026-10-14）**：本文原用「单位 / `Unit`」，该词已退役，现统一为「**实体 / `Entity`**」（见 `DEC-2026-10-14-entity-vocabulary`）。**正文为当时原话，保留不改。**
+
 ### Requirement: 技能层端到端竖切矩阵
 
 项目 MUST 提供一条可在 PIE 中运行的宿主验收装置命令 `Tcs.Test.SkillLayer.Run`，让**一条真内容技能资产**

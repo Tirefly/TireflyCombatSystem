@@ -1,5 +1,7 @@
 # Change: 技能参数账本（双形状修正器 + 参数账本 + 带式折叠收束）
 
+> **术语订正（2026-10-14）**：本文原用「单位 / `Unit`」，该词已退役，现统一为「**实体 / `Entity`**」（见 `DEC-2026-10-14-entity-vocabulary`）。**正文为当时原话，保留不改。**
+
 > 对应计划 `PLN-R6` Task 4（`Documents/combat-system-design/plans/plan-r6-skill-layer.md`，Step 1~8）。
 > 依赖：Task 2（账本）/ Task 3（快照 / 施法运行态）——两者均已归档。
 >

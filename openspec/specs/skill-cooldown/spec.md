@@ -1,7 +1,7 @@
 # skill-cooldown Specification
 
 ## Purpose
-定义技能冷却的**数据形状与运行态**：策略族 `ETcsSkillCooldownTiming` / `FTcsCooldownTrack` / `FTcsCooldownPolicy`（形状），`FTcsCooldownOps` 的多轨计时线（自身轨 + **单位级共享组轨 = 真公共冷却**）、CDR 契约键与起冷时刻快照、到期驱动与改轨/清轨、门禁③「冷却中」的**唯一判据实现**，以及终结路径上的时机分派与三枚事件——让「技能放不出来」的第二层理由（冷却）成为**可表达、可查询、可驱动**的运行事实，而不是一个恒过的占位分支。
+定义技能冷却的**数据形状与运行态**：策略族 `ETcsSkillCooldownTiming` / `FTcsCooldownTrack` / `FTcsCooldownPolicy`（形状），`FTcsCooldownOps` 的多轨计时线（自身轨 + **实体级共享组轨 = 真公共冷却**）、CDR 契约键与起冷时刻快照、到期驱动与改轨/清轨、门禁③「冷却中」的**唯一判据实现**，以及终结路径上的时机分派与三枚事件——让「技能放不出来」的第二层理由（冷却）成为**可表达、可查询、可驱动**的运行事实，而不是一个恒过的占位分支。
 
 ## Requirements
 
@@ -23,7 +23,7 @@
 
 **各字段的语义与判据（MUST 守死）**：
 
-- **`GroupTag` 无效 = 自身轨、有效 = 单位级组槽**：这就是**真公共冷却（GCD）的纯数据表达**——
+- **`GroupTag` 无效 = 自身轨、有效 = 实体级组槽**：这就是**真公共冷却（GCD）的纯数据表达**——
   "自己 8 秒不能再放"与"所有技能共享 1 秒公共冷却"形状完全相同，区别只在 `GroupTag`。
   ⇒ 不需要为两者各立一套类型（`D5-15`："Strategy 三档**溶解进轨道**"）。批次表 `:198` 的
   `GroupTag?` 问号**就此关闭**：字段**恒存在**，**MUST NOT** 另加一个"有没有组"的开关
@@ -83,7 +83,7 @@
 #### Scenario: 时长可按时长等级表取值
 
 - **WHEN** 把 `Duration` 的源设为 `FTcsParamSource_StateLevelArray`（`Values = {8, 6}`）、
-  并让该单位以等级 2 施放
+  并让该实体以等级 2 施放
 - **THEN** 该轨生效时长基于 `6`（**求值上下文 MUST 已填 `EffectiveLevel = 2`**）；
   若实现未填该字段，等级表源会落各自 `Fallback` 而不是报错——**本 scenario 即钉住那个静默形态**
 
@@ -130,15 +130,15 @@
 数组成为真的计时线。**判据的唯一实现住本族函数**：门禁③（激活序列）与三个提交点共用同一份，
 **MUST NOT 各写一份**。
 
-- **起轨** `StartCooldownOnEntry(Subsystem, Unit, EntryHandle)`：
+- **起轨** `StartCooldownOnEntry(Subsystem, Entity, EntryHandle)`：
   - 逐轨取 `Duration` → 乘 CDR → 算 `EndTimeSeconds = Clock.GetClock().Elapsed + EffectiveDuration`
     → `PushExpiry`；返回**实际起的轨道条数**；
   - **CDR 快照于此刻**（`D5-15`："快照于冷却触发时刻，中途变化不追溯"）——
     开头取**一次**并作用于**全部**轨道（取多次会让同一批轨道拿到不同系数）；
-  - **定位 MUST 靠 lambda 捕获**（`[WeakSubsystem, Unit, EntryHandle, TrackIndex]`），
+  - **定位 MUST 靠 lambda 捕获**（`[WeakSubsystem, Entity, EntryHandle, TrackIndex]`），
     `OwnerId` **只作回调归属读数**——**MUST NOT** 把定位职责压给 `OwnerId`
     （那会与既有堆使用约定造出第二真相：同一个堆、两种回调约定）；
-  - **组轨写单位级共享槽**（`GroupTag` 有效时）；**同组已有活槽 ⇒ 复用、不重起、不叠加**
+  - **组轨写实体级共享槽**（`GroupTag` 有效时）；**同组已有活槽 ⇒ 复用、不重起、不叠加**
     （重起会让"放完 A 立刻放 B"把 GCD 刷满，而 GCD 的意义恰恰是不许这样做）；
   - **零时长轨道视为"不起"**（不入一个立刻到期的条目——它只会在下一帧空跑一次）；
   - 条目悬空 / 定义取不到 / 时钟不可得 ⇒ 返回 0 并如实报出（**不 ensure**——时序或设施缺席）。
@@ -171,16 +171,16 @@
     "取消一个正在跑的条目"；复位后 `IsValid()` 为假，后续清理路径天然跳过
     （**同款先例** = `FTcsCastRun::PhaseExpiryEntry` 的既有注释、`FTcsCastOps::AdvancePhase` 的首条语句）；
     ② **池槽复用纪律**："整体重置而非逐字段赋值"——将来给该结构加字段时自动是干净的；
-  - 组轨到期 = **整槽移除**（不需要逐条目遍历——这正是"组槽住单位"的收益）；
+  - 组轨到期 = **整槽移除**（不需要逐条目遍历——这正是"组槽住实体"的收益）；
   - **无需额外的"允许再次激活"状态**：门禁③ 每次现算，不存在缓存态要清。
 - **生命周期配对**（本仓"外部资源成对"纪律的落点）：
-  - `ReleaseEntryCooldowns(...)` / `ReleaseUnitCooldowns(...)` MUST 存在——
-    冷却是本仓**第一个在账本条目上挂外部资源**的机制（到期堆条目 + 单位级组槽），
+  - `ReleaseEntryCooldowns(...)` / `ReleaseEntityCooldowns(...)` MUST 存在——
+    冷却是本仓**第一个在账本条目上挂外部资源**的机制（到期堆条目 + 实体级组槽），
     而账本条目此前的契约是"零外部资源 ⇒ 直接删桶即可"；该前提**已失效**；
   - 撤销路径 MUST 在**释放槽位之前**调用配对清理（槽位一放，条目内容整体重置 ⇒ 锚点找不回来）；
-  - **组槽刻意不随条目撤销而摘**：组槽是**单位级**的、有自己的到期条目，会自行解除；
+  - **组槽刻意不随条目撤销而摘**：组槽是**实体级**的、有自己的到期条目，会自行解除；
     替它解除会**替同组的其它技能**解除公共冷却（症状 = 撤销 A 之后同组的 B 立刻能放，而 GCD 本该还在）。
-    ⇒ 组槽的生命周期归 `ExpireGroup` 与 `ReleaseUnitCooldowns`，**MUST NOT 在条目级越界清理**。
+    ⇒ 组槽的生命周期归 `ExpireGroup` 与 `ReleaseEntityCooldowns`，**MUST NOT 在条目级越界清理**。
 
 #### Scenario: 空 Tracks 恒可放（阴性对照）
 
@@ -273,8 +273,8 @@
 | `TcsEvent.Cast.CooldownEnded` | 到期堆回调（**权威侧**——到期是时轴上的事实，不是"某个调用者说结束了"） |
 
 - 三枚 MUST **共用一种载荷形状** `FTcsCooldownEventPayload`
-  （`{EntryHandle, Unit, DefTag, TrackIndex, GroupTag, Total, Remaining, EndTimeSeconds}`）——
-  订阅者拿到的永远是"哪个单位的哪条技能的哪条轨道"，各写一个 struct 会让订阅侧复制三份解析代码
+  （`{EntryHandle, Entity, DefTag, TrackIndex, GroupTag, Total, Remaining, EndTimeSeconds}`）——
+  订阅者拿到的永远是"哪个实体的哪条技能的哪条轨道"，各写一个 struct 会让订阅侧复制三份解析代码
   （先例 = `FTcsCastEventPayload` 的四枚共用）；
 - **`D5-16` 的 `SkillId` 字段 MUST 用 `DefTag` 取代**（**MUST NOT 为它发明一个类型**）：
   `D5-9` 修订后 `EffectiveDefId` 已整体移除，"这个条目用哪份定义"的唯一答案就是 `DefTag`；
@@ -290,9 +290,9 @@
   而信息量完全相同。载荷的轨道读数取**第一条实际起的轨**，逐轨读数经查询口按 `TrackIndex` 取；
 - **起冷事件 MUST 排在全部轨道写完槽之后**：订阅者在回调里查 `IsOnCooldown` 时应当能看到
   **完整**的冷却状态，而不是"第一条轨已起、后两条还没起"的中间态；
-- **组轨到期事件 MUST 按"配了本组轨道的每个条目"各发一枚**：组槽是**单位级**的、
+- **组轨到期事件 MUST 按"配了本组轨道的每个条目"各发一枚**：组槽是**实体级**的、
   **不记"谁起的它"**，而订阅者需要**自己的条目身份**才能刷新对应 UI 行
-  （只发一枚无身份的组事件会让订阅者无从知道该更新哪一行）——这是"组槽住单位"的已知代价；
+  （只发一枚无身份的组事件会让订阅者无从知道该更新哪一行）——这是"组槽住实体"的已知代价；
 - **广播走立即通道**：冷却状态是"查询面可验证的事实"，发事件若走帧末，
   订阅者会在"事件还没到、但查询已经说在冷却"的窗口里看到不自洽的读数；
 - **时钟不可得 / 世界无总线 ⇒ 静默跳过**（不 ensure、不红字——时序或设施缺席，非契约违规）。
@@ -300,7 +300,7 @@
 #### Scenario: 一次起冷恰发一枚 `CooldownStarted` 且载荷身份吻合
 
 - **WHEN** 一个配了**多条**轨道的技能起冷，订阅者计数
-- **THEN** `CooldownStarted` 恰 **1** 次；载荷的 `EntryHandle` 与 `Unit` 与该条目一致
+- **THEN** `CooldownStarted` 恰 **1** 次；载荷的 `EntryHandle` 与 `Entity` 与该条目一致
 
 #### Scenario: 调轨与清轨各发 `CooldownUpdated`
 

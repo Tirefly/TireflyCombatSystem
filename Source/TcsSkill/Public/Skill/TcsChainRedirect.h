@@ -14,7 +14,7 @@
 
 
 /**
- * 链重定向行（**定义侧，纯反射数据**）——"单位 U 上的链 A 改走链 B"。
+ * 链重定向行（**定义侧，纯反射数据**）——"实体 U 上的链 A 改走链 B"。
  *
  * **它在做什么（D5-7 的链级让渡点）**：技能自己声明的 `CastChainId` 是**全局定义**（默认档）；
  * 而"某个装备 / 某个天赋在的时候，这个技能该走另一条链"这件事由本结构表达。
@@ -46,9 +46,9 @@ struct TCSSKILL_API FTcsChainRedirectEntry
 #pragma region Match
 
 public:
-	// 归属单位（解析命中的第一段键；"在谁身上让渡"）
+	// 归属实体（解析命中的第一段键；"在谁身上让渡"）
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Chain Redirect")
-	FTcsCombatEntityHandle Unit;
+	FTcsCombatEntityHandle Entity;
 
 	// 被替换的链身份（技能自己声明的 `CastChainId`，或上一级让渡的结果）
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Chain Redirect")
@@ -66,7 +66,7 @@ public:
 	FGameplayTag ReplacementChainId;
 
 	/**
-	 * 优先级：同 `(单位, 目标链)` 上多条命中时**取本值大者**，打平取**后挂者**（设计原词"后挂/高优先"）。
+	 * 优先级：同 `(实体, 目标链)` 上多条命中时**取本值大者**，打平取**后挂者**（设计原词"后挂/高优先"）。
 	 *
 	 * **默认 `0` 是判据不是偏好**：与 M2/M5 的 `OverridePriority` 同款——默认档取"不改变相对次序"的
 	 * 中性值，于是"只挂一条"与"挂多条但都不填优先级"两种情形都退化为**后挂者胜**这一条可预测规则。
@@ -129,7 +129,7 @@ public:
 
 
 /**
- * 链重定向栈（**账本侧**）：挂载记录集 + 按 `(单位, 目标链)` 的解析。
+ * 链重定向栈（**账本侧**）：挂载记录集 + 按 `(实体, 目标链)` 的解析。
  *
  * **为什么存"记录"而不是直接用 `FTcsChainRedirectEntry`**：定义侧行**没有** `Source`
  * （见该结构体的裁定），而摘除 MUST 按来源成对（"不存在摘不掉的条目"）；后挂裁决还需要一个
@@ -137,7 +137,7 @@ public:
  *
  * **顺序 = 数组序**（不是哈希序）：`Resolve` 的"打平取后挂者"要求**稳定的挂载序**，
  * 而 `TMap` / `TSet` 迭代序不承诺稳定 ⇒ 用 `TArray` 线性扫描。
- * 条目数是**每单位每链**量级（内容侧几条到几十条），不是热路径规模。
+ * 条目数是**每实体每链**量级（内容侧几条到几十条），不是热路径规模。
  *
  * **无导出宏（判据同 `FSkillBucket`）**：本类由门面按值持有、消费者不直接触达它
  * ⇒ 跨模块可达性由门面（`UTcsSkillSubsystem`，带 `TCSSKILL_API`）承担。
@@ -182,18 +182,18 @@ public:
 
 public:
 	/**
-	 * 解析某单位上某条链的最终身份。
+	 * 解析某实体上某条链的最终身份。
 	 *
 	 * **未命中任何记录 ⇒ 原样返回 `GlobalChainId`**（**正常路径**：既不是错误，也 MUST NOT 报"未实现"。
 	 * 测试判据即"未命中时解析结果 = 技能自己声明的链"）。
 	 *
 	 * **多条命中 ⇒ `Priority` 大者胜、打平取后挂者**（设计原词"后挂/高优先"）。
 	 *
-	 * @param Unit 归属单位。
+	 * @param Entity 归属实体。
 	 * @param GlobalChainId 全局定义给出的链身份（默认档）。
 	 * @return 返回解析后的链身份。
 	 */
-	FGameplayTag Resolve(FTcsCombatEntityHandle Unit, FGameplayTag GlobalChainId) const;
+	FGameplayTag Resolve(FTcsCombatEntityHandle Entity, FGameplayTag GlobalChainId) const;
 
 #pragma endregion
 

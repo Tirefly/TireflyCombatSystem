@@ -36,7 +36,7 @@ enum class ESkillActivateResult : uint8
 {
 	SAR_EntityNotReady = 0		UMETA(DisplayName = "实体不可操作", ToolTip = "门禁①：实体尚未就绪（IsEntityReady 为假；未注入实现时本道降级放行）"),
 
-	SAR_NotLearned = 1			UMETA(DisplayName = "未学该技能", ToolTip = "门禁②：该单位的账本里没有这条已学记录"),
+	SAR_NotLearned = 1			UMETA(DisplayName = "未学该技能", ToolTip = "门禁②：该实体的账本里没有这条已学记录"),
 
 	SAR_OnCooldown = 2			UMETA(DisplayName = "冷却中", ToolTip = "门禁③：技能仍在冷却（全部自身轨道 + 所属组槽均需清空；空 Tracks = 永远可放）"),
 

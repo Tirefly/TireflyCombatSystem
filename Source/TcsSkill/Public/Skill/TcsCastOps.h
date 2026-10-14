@@ -70,14 +70,14 @@ public:
 	 * **拒绝无副作用（MUST）**：任一道拒绝 ⇒ 不建 run、不改账本、不起链、不发事件。
 	 *
 	 * @param Subsystem 技能门面（提供账本、登记表、运行态池与注入面）。
-	 * @param Unit 施法单位。
+	 * @param Entity 施法实体。
 	 * @param DefTag 技能定义身份。
 	 * @param OutRun 输出运行态句柄（可选；失败时不写）。
 	 * @return 返回激活结果（具名）。
 	 */
 	static ESkillActivateResult Activate(
 		UTcsSkillSubsystem& Subsystem,
-		FTcsCombatEntityHandle Unit,
+		FTcsCombatEntityHandle Entity,
 		FGameplayTag DefTag,
 		FTcsCastRunHandle* OutRun);
 
@@ -361,12 +361,12 @@ private:
 	 * Task 5 若要接等级源，在此加形参即可（调用点只有一处）。
 	 *
 	 * @param OutContext 输出上下文。
-	 * @param Unit 施法单位。
+	 * @param Entity 施法实体。
 	 * @param Level 本次的生效等级。
 	 */
 	static void MakeContext(
 		FTcsParamEvaluateContext& OutContext,
-		FTcsCombatEntityHandle Unit,
+		FTcsCombatEntityHandle Entity,
 		int32 Level);
 
 	/**
@@ -491,13 +491,13 @@ private:
 	 * 具名 `Warning` 报"未实现"并跳过；**未注入**时不报（没有东西被拒绝求值）。
 	 *
 	 * @param Subsystem 技能门面。
-	 * @param Unit 归属单位（数据栈按 `(单位, 目标链)` 命中）。
+	 * @param Entity 归属实体（数据栈按 `(实体, 目标链)` 命中）。
 	 * @param GlobalChainId 全局定义给出的链身份（默认档）。
 	 * @return 返回解析后的链身份（未命中任何让渡 ⇒ 与入参相同）。
 	 */
 	static FGameplayTag ResolveCastChainId(
 		UTcsSkillSubsystem& Subsystem,
-		FTcsCombatEntityHandle Unit,
+		FTcsCombatEntityHandle Entity,
 		FGameplayTag GlobalChainId);
 
 	/**
@@ -513,14 +513,14 @@ private:
 	 *
 	 * @param Subsystem 技能门面。
 	 * @param RunHandle 运行态句柄（**回写靠它**）。
-	 * @param Unit 单位（条目定位用）。
+	 * @param Entity 实体（条目定位用）。
 	 * @param EntryHandle 条目句柄（条目定位用）。
 	 * @param Trigger 当前触发点。
 	 */
 	static void TryStartMainChainAt(
 		UTcsSkillSubsystem& Subsystem,
 		FTcsCastRunHandle RunHandle,
-		FTcsCombatEntityHandle Unit,
+		FTcsCombatEntityHandle Entity,
 		FTcsSkillEntryHandle EntryHandle,
 		ECastChainTrigger Trigger);
 

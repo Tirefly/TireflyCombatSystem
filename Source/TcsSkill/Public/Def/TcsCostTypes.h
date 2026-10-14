@@ -108,8 +108,8 @@ struct FTcsSkillCostContext
 	// 技能门面（策略解析属性子系统等一切世界级服务都从这里走）
 	UTcsSkillSubsystem* Subsystem = nullptr;
 
-	// 被扣资源的单位
-	FTcsCombatEntityHandle Unit;
+	// 被扣资源的实体
+	FTcsCombatEntityHandle Entity;
 
 	// 账本条目（**减免修正器与等级都从这里取**；可为空 = 无条目场景，见 `FTcsCostOps`）
 	const FTcsLearnedSkillEntry* Entry = nullptr;
@@ -162,7 +162,7 @@ struct TCSSKILL_API FTcsSkillCostPolicy
 
 public:
 	/**
-	 * 该单位**现在**付得起吗（门禁⑤ 的判据）。
+	 * 该实体**现在**付得起吗（门禁⑤ 的判据）。
 	 *
 	 * **纯查询语义（MUST）**：MUST NOT 扣任何资源、MUST NOT 改账本、MUST NOT 发事件。
 	 *
@@ -190,7 +190,7 @@ public:
 	 * 提交消耗（**本策略自己的扣减实现**）。
 	 *
 	 * **调用方已保证 `CanAfford` 通过**（门禁⑤ 与每个提交点各自判一次）——但实现方
-	 * **MUST NOT 依赖"提交一定成功"**：底层写口（如 `SetBaseValue`）对"单位未注册 / 属性未持有"
+	 * **MUST NOT 依赖"提交一定成功"**：底层写口（如 `SetBaseValue`）对"实体未注册 / 属性未持有"
 	 * 会失败 ⇒ 本函数 MUST 检查并向上报失败（否则 `PayCost` 会报成功而资源没扣）。
 	 *
 	 * @param Context 求值上下文（只读）。
@@ -285,7 +285,7 @@ public:
 	 * - `0` = 正确声明"消耗 0 点" ⇒ 恒可付、**零日志**（不是错误）；
 	 * - `< 0` = **恒不可付 + `Warning`**。判据：扣减式是 `Base - Amount`，负值会让技能
 	 *   **倒给**资源（`Base - (-50)` = `Base + 50`）——这是**可被当作漏洞利用**的形态；
-	 * - `> 0` = 正常判定 `基值 >= Amount`，**且**该单位 MUST 持有该属性。
+	 * - `> 0` = 正常判定 `基值 >= Amount`，**且**该实体 MUST 持有该属性。
 	 *
 	 * **命名（为何带 `Amount` 而非就叫 `Value`）**：同族参数源字段一律以**它语义上的角色**命名
 	 * （`FTcsPhaseSpan::Duration` / `FTcsCooldownTrack::Duration`），保留 `Amount` 让

@@ -53,18 +53,18 @@ bool FTcsParamChainOps::MatchesSelector(const FTcsSkillEntrySelector& Selector, 
 // 施加
 bool FTcsParamChainOps::ApplyParamModifiers(
 	UTcsSkillSubsystem& Subsystem,
-	FTcsCombatEntityHandle Unit,
+	FTcsCombatEntityHandle Entity,
 	const FTcsSkillEntrySelector& Selector,
 	TConstArrayView<FTcsNumericParamModifier> Modifiers,
 	FTcsSourceHandle Source)
 {
-	// 单位未注册：忽略 + 日志，返回 false（**不 ensure**——同 M2 `ApplyModifier` 的 D2-14 口径：
+	// 实体未注册：忽略 + 日志，返回 false（**不 ensure**——同 M2 `ApplyModifier` 的 D2-14 口径：
 	// 框架允许宿主动态增删，且不做来源追溯）
-	FSkillBucket* Bucket = Subsystem.Registry.FindBucket(Unit);
+	FSkillBucket* Bucket = Subsystem.Registry.FindBucket(Entity);
 	if (!Bucket)
 	{
 		UE_LOG(LogTcsSkill, Warning,
-			TEXT("参数修正器施加被拒：单位 %lld 未注册（账本无桶）——忽略"), Unit.Id);
+			TEXT("参数修正器施加被拒：实体 %lld 未注册（账本无桶）——忽略"), Entity.Id);
 		return false;
 	}
 
@@ -80,8 +80,8 @@ bool FTcsParamChainOps::ApplyParamModifiers(
 	if (!Source.IsValid())
 	{
 		UE_LOG(LogTcsSkill, Warning,
-			TEXT("参数修正器施加被拒：来源句柄无效（单位 %lld）——无来源锚点则条目摘不掉，本次零修正被施加"),
-			Unit.Id);
+			TEXT("参数修正器施加被拒：来源句柄无效（实体 %lld）——无来源锚点则条目摘不掉，本次零修正被施加"),
+			Entity.Id);
 		return false;
 	}
 
@@ -94,13 +94,13 @@ bool FTcsParamChainOps::ApplyParamModifiers(
 		|| Selector.Mode == ETcsSkillEntrySelectorMode::ESS_Custom)
 	{
 		UE_LOG(LogTcsSkill, Warning,
-			TEXT("参数修正器施加未实现：选择器档 `%s` 的契约未落地（见台账 STAT-10 / R6.5-g）——本次零修正被施加（单位 %lld）"),
+			TEXT("参数修正器施加未实现：选择器档 `%s` 的契约未落地（见台账 STAT-10 / R6.5-g）——本次零修正被施加（实体 %lld）"),
 			Selector.Mode == ETcsSkillEntrySelectorMode::ESS_ByCategoryTags ? TEXT("ByCategoryTags") : TEXT("Custom"),
-			Unit.Id);
+			Entity.Id);
 		return false;
 	}
 
-	// 物化求值上下文：主体 = 该单位（外部施加入口不收施法上下文，与 `TryActivate` 同款边界）；
+	// 物化求值上下文：主体 = 该实体（外部施加入口不收施法上下文，与 `TryActivate` 同款边界）；
 	// `EffectiveLevel` 逐条目取该条目自身等级（等级类数值源按各自条目定档）。
 	// **`ParamTable` 恒空**：外部施加是"账本外的一次写入"，没有"本次求值的参数表"可言
 	// （技能侧唯一的参数表载体是施法运行态的快照，那是激活期物化专用的）。
@@ -118,11 +118,11 @@ bool FTcsParamChainOps::ApplyParamModifiers(
 
 		++AppliedEntryCount;
 
-		// 求值上下文：主体与发起者同为该单位（外部施加入口不收施法上下文——同 `TryActivate`
+		// 求值上下文：主体与发起者同为该实体（外部施加入口不收施法上下文——同 `TryActivate`
 		// 的"零消费者不预建"边界）；`EffectiveLevel` 取**该条目自身等级**（等级类数值源按各自条目定档）。
 		FTcsParamEvaluateContext Ctx;
-		Ctx.Subject = Unit;
-		Ctx.Instigator = Unit;
+		Ctx.Subject = Entity;
+		Ctx.Instigator = Entity;
 		Ctx.EffectiveLevel = Entry.Level;
 		Ctx.ParamTable = TScriptInterface<ITcsParamTableReader>();
 
@@ -142,10 +142,10 @@ bool FTcsParamChainOps::ApplyParamModifiers(
 	});
 
 	UE_LOG(LogTcsSkill, Log,
-		TEXT("参数修正器施加：单位=%lld 档=%d 命中条目=%d 写入条目=%d"),
-		Unit.Id, static_cast<int32>(Selector.Mode), AppliedEntryCount, AppliedSlotCount);
+		TEXT("参数修正器施加：实体=%lld 档=%d 命中条目=%d 写入条目=%d"),
+		Entity.Id, static_cast<int32>(Selector.Mode), AppliedEntryCount, AppliedSlotCount);
 
-	// 无匹配条目 = 正常路径（该单位没有符合选择器的在册条目），返回 false 且不 ensure
+	// 无匹配条目 = 正常路径（该实体没有符合选择器的在册条目），返回 false 且不 ensure
 	return AppliedEntryCount > 0;
 }
 
@@ -154,7 +154,7 @@ bool FTcsParamChainOps::ApplyParamModifiers(
 // 级联摘除
 int32 FTcsParamChainOps::RemoveParamModifiersBySource(
 	UTcsSkillSubsystem& Subsystem,
-	FTcsCombatEntityHandle Unit,
+	FTcsCombatEntityHandle Entity,
 	FTcsSourceHandle Source)
 {
 	if (!Source.IsValid())
@@ -163,10 +163,10 @@ int32 FTcsParamChainOps::RemoveParamModifiersBySource(
 		return 0;
 	}
 
-	FSkillBucket* Bucket = Subsystem.Registry.FindBucket(Unit);
+	FSkillBucket* Bucket = Subsystem.Registry.FindBucket(Entity);
 	if (!Bucket)
 	{
-		// 单位未注册：0 命中是正常路径（来源可能只挂过已撤销的修正器）
+		// 实体未注册：0 命中是正常路径（来源可能只挂过已撤销的修正器）
 		return 0;
 	}
 
@@ -184,8 +184,8 @@ int32 FTcsParamChainOps::RemoveParamModifiersBySource(
 	// 0 条命中 = 正常路径，MUST NOT ensure
 	if (RemovedCount > 0)
 	{
-		UE_LOG(LogTcsSkill, Log, TEXT("参数修正器按来源摘除：单位=%lld 来源=%llu 摘除 %d 条"),
-			Unit.Id, Source.Id, RemovedCount);
+		UE_LOG(LogTcsSkill, Log, TEXT("参数修正器按来源摘除：实体=%lld 来源=%llu 摘除 %d 条"),
+			Entity.Id, Source.Id, RemovedCount);
 	}
 
 	return RemovedCount;

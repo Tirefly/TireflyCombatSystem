@@ -23,21 +23,21 @@
 namespace
 {
 	/**
-	 * 取该单位的组槽表（**不代做任何清理**——纯查表）。
+	 * 取该实体的组槽表（**不代做任何清理**——纯查表）。
 	 *
 	 * **⚠ 一处注释订正（fresh-context 复核抓到的 Minor）**：本函数初版的注释写着它
 	 * "顺手清掉已过期或簿记悬空的槽"，**而它一行清理都不做**（就是 `TMap::Find` 的转发）
 	 * ——注释告诉下一个读者的是**反话**。已删。
 	 * **陈旧槽的实际处置点**有三处，各司其职：① `StartCooldownOnEntry` 的组轨分支
 	 * （复用前判活、不活的**原地重建**）；② `ExpireGroup`（到期即**复位 + 移除**，
-	 * 并在内层表空时**连外层键一起删**）；③ `ReleaseUnitCooldowns`（单位级整体清）。
+	 * 并在内层表空时**连外层键一起删**）；③ `ReleaseEntityCooldowns`（实体级整体清）。
 	 * **判据**：过期判定需要时钟读数，而"查表"不该悄悄做副作用——把它留给真正需要判活的那几处。
 	 */
 	TMap<FGameplayTag, FTcsCooldownGroupState>* FindLiveGroupSlots(
 		UTcsSkillSubsystem& Subsystem,
-		FTcsCombatEntityHandle Unit)
+		FTcsCombatEntityHandle Entity)
 	{
-		return FTcsCooldownOps::FindGroupSlots(Subsystem, Unit);
+		return FTcsCooldownOps::FindGroupSlots(Subsystem, Entity);
 	}
 
 	/**
@@ -69,7 +69,7 @@ namespace
 
 		FTcsCooldownEventPayload Payload;
 		Payload.EntryHandle = Entry.Handle;
-		Payload.Unit = Entry.Unit;
+		Payload.Entity = Entry.Entity;
 		Payload.DefTag = Entry.DefTag;
 		Payload.TrackIndex = TrackIndex;
 		Payload.GroupTag = GroupTag;
@@ -88,16 +88,16 @@ namespace
 // 起轨
 int32 FTcsCooldownOps::StartCooldownOnEntry(
 	UTcsSkillSubsystem& Subsystem,
-	FTcsCombatEntityHandle Unit,
+	FTcsCombatEntityHandle Entity,
 	FTcsSkillEntryHandle EntryHandle)
 {
-	FSkillBucket* Bucket = Subsystem.Registry.FindBucket(Unit);
+	FSkillBucket* Bucket = Subsystem.Registry.FindBucket(Entity);
 	FTcsLearnedSkillEntry* Entry = Bucket ? Bucket->Find(EntryHandle) : nullptr;
 	if (!Entry)
 	{
 		// 悬空句柄 = 时序竞态（调用方手上的句柄过期），不是契约错误 ⇒ Log 级，不 ensure
-		UE_LOG(LogTcsSkill, Log, TEXT("起冷却跳过：账本条目悬空（单位=%lld 条目=%d/%d）"),
-			Unit.Id, EntryHandle.Index, EntryHandle.Generation);
+		UE_LOG(LogTcsSkill, Log, TEXT("起冷却跳过：账本条目悬空（实体=%lld 条目=%d/%d）"),
+			Entity.Id, EntryHandle.Index, EntryHandle.Generation);
 		return 0;
 	}
 
@@ -105,8 +105,8 @@ int32 FTcsCooldownOps::StartCooldownOnEntry(
 	if (!Def)
 	{
 		// 定义在施法期间被注销 ⇒ 说不出"要起几条轨" ⇒ 如实报出并零动作
-		UE_LOG(LogTcsSkill, Warning, TEXT("起冷却中止：定义取不到（单位=%lld 定义=%s）"),
-			Unit.Id, *Entry->DefTag.ToString());
+		UE_LOG(LogTcsSkill, Warning, TEXT("起冷却中止：定义取不到（实体=%lld 定义=%s）"),
+			Entity.Id, *Entry->DefTag.ToString());
 		return 0;
 	}
 
@@ -122,7 +122,7 @@ int32 FTcsCooldownOps::StartCooldownOnEntry(
 	{
 		// 时钟不可得（世界拆解 / 单测无时钟）⇒ Log 级、零红字、**不 ensure**（时序而非配置错误）。
 		// **不留"待起"状态**：冷却是纯时轴设施，没有时钟就没有"剩余多久"这回事 ⇒ 零动作退化为无冷却。
-		UE_LOG(LogTcsSkill, Log, TEXT("起冷却跳过：时钟子系统不可得（单位=%lld）——退化为无冷却"), Unit.Id);
+		UE_LOG(LogTcsSkill, Log, TEXT("起冷却跳过：时钟子系统不可得（实体=%lld）——退化为无冷却"), Entity.Id);
 		return 0;
 	}
 
@@ -133,10 +133,10 @@ int32 FTcsCooldownOps::StartCooldownOnEntry(
 
 	// **★ 时长载体的求值上下文（2026-10-12：`Track.Duration` 换型为 `FTcsParamValue`）** ──
 	//
-	// **为什么在循环外装配一次**：全部轨道共用同一份上下文（等级、单位、参数表），
+	// **为什么在循环外装配一次**：全部轨道共用同一份上下文（等级、实体、参数表），
 	// 逐轨各配一次是白做，且会让"同一次冷却是几档"这件事出现多个装配点（同 `MakeContext` 的理由）。
 	//
-	// **求值上下文与参数链其余各点逐字同款**：`Subject`/`Instigator` = 单位、
+	// **求值上下文与参数链其余各点逐字同款**：`Subject`/`Instigator` = 实体、
 	// `EffectiveLevel` = **条目等级**——**这是"按时长等级表配冷却"能成立的唯一原因**
 	// （`FTcsParamSource_StateLevelArray` 读基类的 `Context.EffectiveLevel`，
 	// 见 `TcsParamSource_StateLevel.h:70`）。
@@ -144,8 +144,8 @@ int32 FTcsCooldownOps::StartCooldownOnEntry(
 	// **参数表恒空**（同 `FTcsCastOps::MakeContext` 的既有边界）：引用类源（`ParamRef`）
 	// 在这个时点没有更外层参数表可查 ⇒ 落各自兜底（不报错、不崩溃）。
 	FTcsParamEvaluateContext DurationCtx;
-	DurationCtx.Subject = Unit;
-	DurationCtx.Instigator = Unit;
+	DurationCtx.Subject = Entity;
+	DurationCtx.Instigator = Entity;
 	DurationCtx.EffectiveLevel = Entry->Level;
 	DurationCtx.ParamTable = TScriptInterface<ITcsParamTableReader>();
 
@@ -195,9 +195,9 @@ int32 FTcsCooldownOps::StartCooldownOnEntry(
 
 		if (Track.GroupTag.IsValid())
 		{
-			// ── 组轨：**单位级共享槽** ──
+			// ── 组轨：**实体级共享槽** ──
 			TMap<FGameplayTag, FTcsCooldownGroupState>& Slots =
-				Subsystem.CooldownGroups.FindOrAdd(Unit);
+				Subsystem.CooldownGroups.FindOrAdd(Entity);
 
 			if (FTcsCooldownGroupState* Existing = Slots.Find(Track.GroupTag))
 			{
@@ -222,18 +222,18 @@ int32 FTcsCooldownOps::StartCooldownOnEntry(
 						const double Remaining = Existing->EndTimeSeconds - Now;
 						const FGameplayTag RepairGroupTag = Existing->GroupTag;
 						TWeakObjectPtr<UTcsSkillSubsystem> WeakForRepair(&Subsystem);
-						Existing->ExpiryEntry = Clock->PushExpiry(Existing->EndTimeSeconds, Unit.Id,
-							[WeakForRepair, Unit, RepairGroupTag](uint64 /*OwnerId*/)
+						Existing->ExpiryEntry = Clock->PushExpiry(Existing->EndTimeSeconds, Entity.Id,
+							[WeakForRepair, Entity, RepairGroupTag](uint64 /*OwnerId*/)
 							{
 								if (UTcsSkillSubsystem* Live = WeakForRepair.Get())
 								{
-									FTcsCooldownOps::ExpireGroup(*Live, Unit, RepairGroupTag);
+									FTcsCooldownOps::ExpireGroup(*Live, Entity, RepairGroupTag);
 								}
 							});
 
 						UE_LOG(LogTcsSkill, Warning,
-							TEXT("组冷却槽补挂到期条目：单位=%lld 组=%s（时间仍活但句柄丢失，剩余=%.3f）"),
-							Unit.Id, *Track.GroupTag.ToString(), Remaining);
+							TEXT("组冷却槽补挂到期条目：实体=%lld 组=%s（时间仍活但句柄丢失，剩余=%.3f）"),
+							Entity.Id, *Track.GroupTag.ToString(), Remaining);
 					}
 
 					++StartedCount;
@@ -248,8 +248,8 @@ int32 FTcsCooldownOps::StartCooldownOnEntry(
 				}
 
 				UE_LOG(LogTcsSkill, Log,
-					TEXT("组冷却槽重建：单位=%lld 组=%s（旧槽已过期）"),
-					Unit.Id, *Track.GroupTag.ToString());
+					TEXT("组冷却槽重建：实体=%lld 组=%s（旧槽已过期）"),
+					Entity.Id, *Track.GroupTag.ToString());
 			}
 
 			FTcsCooldownGroupState& Slot = Slots.FindOrAdd(Track.GroupTag);
@@ -260,12 +260,12 @@ int32 FTcsCooldownOps::StartCooldownOnEntry(
 			// **`OwnerId` 只填归属读数**（堆零领域词汇）；**定位靠 lambda 捕获**——
 			// MUST NOT 把定位职责压给 `OwnerId`（那会与 R6 已确立的堆使用约定造出第二真相：
 			// 同一个堆、两种回调约定）。先例原文 = `TcsCastOps_Phase.cpp:198-206`。
-			Slot.ExpiryEntry = Clock->PushExpiry(EndTimeSeconds, Unit.Id,
-				[WeakSubsystem, Unit, GroupTag = Track.GroupTag](uint64 /*OwnerId*/)
+			Slot.ExpiryEntry = Clock->PushExpiry(EndTimeSeconds, Entity.Id,
+				[WeakSubsystem, Entity, GroupTag = Track.GroupTag](uint64 /*OwnerId*/)
 				{
 					if (UTcsSkillSubsystem* Live = WeakSubsystem.Get())
 					{
-						FTcsCooldownOps::ExpireGroup(*Live, Unit, GroupTag);
+						FTcsCooldownOps::ExpireGroup(*Live, Entity, GroupTag);
 					}
 				});
 
@@ -284,7 +284,7 @@ int32 FTcsCooldownOps::StartCooldownOnEntry(
 		FTcsCooldownTrackState& State = Entry->CooldownTracks[TrackIndex];
 
 		// 重复起冷 = **重启**：先撤旧锚点，避免旧条目到期后误清新冷
-		// （旧回调用的是同一 `(Unit, EntryHandle, TrackIndex)` ⇒ 它认不出自己已过期）
+		// （旧回调用的是同一 `(Entity, EntryHandle, TrackIndex)` ⇒ 它认不出自己已过期）
 		if (State.ExpiryEntry.IsValid())
 		{
 			Clock->CancelExpiry(State.ExpiryEntry);
@@ -292,12 +292,12 @@ int32 FTcsCooldownOps::StartCooldownOnEntry(
 
 		State.Total = EffectiveDuration;
 		State.EndTimeSeconds = EndTimeSeconds;
-		State.ExpiryEntry = Clock->PushExpiry(EndTimeSeconds, Unit.Id,
-			[WeakSubsystem, Unit, EntryHandle, TrackIndex](uint64 /*OwnerId*/)
+		State.ExpiryEntry = Clock->PushExpiry(EndTimeSeconds, Entity.Id,
+			[WeakSubsystem, Entity, EntryHandle, TrackIndex](uint64 /*OwnerId*/)
 			{
 				if (UTcsSkillSubsystem* Live = WeakSubsystem.Get())
 				{
-					FTcsCooldownOps::ExpireTrack(*Live, Unit, EntryHandle, TrackIndex);
+					FTcsCooldownOps::ExpireTrack(*Live, Entity, EntryHandle, TrackIndex);
 				}
 			});
 
@@ -305,8 +305,8 @@ int32 FTcsCooldownOps::StartCooldownOnEntry(
 	}
 
 	UE_LOG(LogTcsSkill, Log,
-		TEXT("冷却已起：单位=%lld 定义=%s 轨道 %d/%d 起冷 CDR=%.3f 时刻=%.3f"),
-		Unit.Id, *Entry->DefTag.ToString(), StartedCount, TrackCount, CooldownPct, Now);
+		TEXT("冷却已起：实体=%lld 定义=%s 轨道 %d/%d 起冷 CDR=%.3f 时刻=%.3f"),
+		Entity.Id, *Entry->DefTag.ToString(), StartedCount, TrackCount, CooldownPct, Now);
 
 	// **事件排在全部轨道写完槽之后**（`Task 4 Step 4`）：订阅者在回调里查 `IsOnCooldown`
 	// 时应当能看到**完整**的冷却状态，而不是"第一条轨已起、后两条还没起"的中间态。
@@ -325,7 +325,7 @@ int32 FTcsCooldownOps::StartCooldownOnEntry(
 				if (T.GroupTag.IsValid())
 				{
 					if (const TMap<FGameplayTag, FTcsCooldownGroupState>* Slots =
-						FindLiveGroupSlots(Subsystem, Unit))
+						FindLiveGroupSlots(Subsystem, Entity))
 					{
 						if (const FTcsCooldownGroupState* S = Slots->Find(T.GroupTag))
 						{
@@ -350,7 +350,7 @@ int32 FTcsCooldownOps::StartCooldownOnEntry(
 			double End = 0.0;
 			if (Track.GroupTag.IsValid())
 			{
-				if (const TMap<FGameplayTag, FTcsCooldownGroupState>* Slots = FindLiveGroupSlots(Subsystem, Unit))
+				if (const TMap<FGameplayTag, FTcsCooldownGroupState>* Slots = FindLiveGroupSlots(Subsystem, Entity))
 				{
 					if (const FTcsCooldownGroupState* S = Slots->Find(Track.GroupTag))
 					{
@@ -399,8 +399,8 @@ bool FTcsCooldownOps::IsEntryOnCooldown(
 
 	const double Now = Clock->GetClock().Elapsed;
 
-	// 单位级组槽（可能为 nullptr = 该单位没有活组槽）
-	const TMap<FGameplayTag, FTcsCooldownGroupState>* Slots = FindLiveGroupSlots(Subsystem, Entry.Unit);
+	// 实体级组槽（可能为 nullptr = 该实体没有活组槽）
+	const TMap<FGameplayTag, FTcsCooldownGroupState>* Slots = FindLiveGroupSlots(Subsystem, Entry.Entity);
 
 	for (int32 TrackIndex = 0; TrackIndex < TrackCount; ++TrackIndex)
 	{
@@ -408,7 +408,7 @@ bool FTcsCooldownOps::IsEntryOnCooldown(
 
 		if (Track.GroupTag.IsValid())
 		{
-			// ── 组轨：查单位级共享槽（**这就是真 GCD 的判据落点**） ──
+			// ── 组轨：查实体级共享槽（**这就是真 GCD 的判据落点**） ──
 			if (Slots)
 			{
 				if (const FTcsCooldownGroupState* Slot = Slots->Find(Track.GroupTag))
@@ -454,11 +454,11 @@ bool FTcsCooldownOps::IsEntryOnCooldown(
 
 bool FTcsCooldownOps::IsEntryOnCooldownByHandle(
 	UTcsSkillSubsystem& Subsystem,
-	FTcsCombatEntityHandle Unit,
+	FTcsCombatEntityHandle Entity,
 	FTcsSkillEntryHandle EntryHandle,
 	FString* OutHeldBy)
 {
-	const FSkillBucket* Bucket = Subsystem.Registry.FindBucket(Unit);
+	const FSkillBucket* Bucket = Subsystem.Registry.FindBucket(Entity);
 	const FTcsLearnedSkillEntry* Entry = Bucket ? Bucket->Find(EntryHandle) : nullptr;
 	if (!Entry)
 	{
@@ -478,11 +478,11 @@ bool FTcsCooldownOps::IsEntryOnCooldownByHandle(
 
 double FTcsCooldownOps::GetTrackRemaining(
 	UTcsSkillSubsystem& Subsystem,
-	FTcsCombatEntityHandle Unit,
+	FTcsCombatEntityHandle Entity,
 	FTcsSkillEntryHandle EntryHandle,
 	int32 TrackIndex)
 {
-	const FSkillBucket* Bucket = Subsystem.Registry.FindBucket(Unit);
+	const FSkillBucket* Bucket = Subsystem.Registry.FindBucket(Entity);
 	const FTcsLearnedSkillEntry* Entry = Bucket ? Bucket->Find(EntryHandle) : nullptr;
 	if (!Entry)
 	{
@@ -508,7 +508,7 @@ double FTcsCooldownOps::GetTrackRemaining(
 	{
 		// **组轨的读数 MUST 取自共享槽**——按条目里那份（本来就不写的）状态读会恒得 0，
 		// 表现为"UI 显示没冷却、但技能放不出来"。
-		const TMap<FGameplayTag, FTcsCooldownGroupState>* Slots = FindLiveGroupSlots(Subsystem, Unit);
+		const TMap<FGameplayTag, FTcsCooldownGroupState>* Slots = FindLiveGroupSlots(Subsystem, Entity);
 		const FTcsCooldownGroupState* Slot = Slots ? Slots->Find(Track.GroupTag) : nullptr;
 		return (Slot && Slot->EndTimeSeconds > Now) ? (Slot->EndTimeSeconds - Now) : 0.0;
 	}
@@ -524,11 +524,11 @@ double FTcsCooldownOps::GetTrackRemaining(
 
 double FTcsCooldownOps::GetTrackTotal(
 	UTcsSkillSubsystem& Subsystem,
-	FTcsCombatEntityHandle Unit,
+	FTcsCombatEntityHandle Entity,
 	FTcsSkillEntryHandle EntryHandle,
 	int32 TrackIndex)
 {
-	const FSkillBucket* Bucket = Subsystem.Registry.FindBucket(Unit);
+	const FSkillBucket* Bucket = Subsystem.Registry.FindBucket(Entity);
 	const FTcsLearnedSkillEntry* Entry = Bucket ? Bucket->Find(EntryHandle) : nullptr;
 	if (!Entry)
 	{
@@ -545,7 +545,7 @@ double FTcsCooldownOps::GetTrackTotal(
 
 	if (Track.GroupTag.IsValid())
 	{
-		const TMap<FGameplayTag, FTcsCooldownGroupState>* Slots = FindLiveGroupSlots(Subsystem, Unit);
+		const TMap<FGameplayTag, FTcsCooldownGroupState>* Slots = FindLiveGroupSlots(Subsystem, Entity);
 		const FTcsCooldownGroupState* Slot = Slots ? Slots->Find(Track.GroupTag) : nullptr;
 		return Slot ? Slot->Total : 0.0;
 	}
@@ -556,10 +556,10 @@ double FTcsCooldownOps::GetTrackTotal(
 
 int32 FTcsCooldownOps::GetTrackCount(
 	UTcsSkillSubsystem& Subsystem,
-	FTcsCombatEntityHandle Unit,
+	FTcsCombatEntityHandle Entity,
 	FTcsSkillEntryHandle EntryHandle)
 {
-	const FSkillBucket* Bucket = Subsystem.Registry.FindBucket(Unit);
+	const FSkillBucket* Bucket = Subsystem.Registry.FindBucket(Entity);
 	const FTcsLearnedSkillEntry* Entry = Bucket ? Bucket->Find(EntryHandle) : nullptr;
 	if (!Entry)
 	{
@@ -577,25 +577,25 @@ int32 FTcsCooldownOps::GetTrackCount(
 // 改轨与清轨
 bool FTcsCooldownOps::AdjustTrack(
 	UTcsSkillSubsystem& Subsystem,
-	FTcsCombatEntityHandle Unit,
+	FTcsCombatEntityHandle Entity,
 	FTcsSkillEntryHandle EntryHandle,
 	int32 TrackIndex,
 	double Delta)
 {
-	FSkillBucket* Bucket = Subsystem.Registry.FindBucket(Unit);
+	FSkillBucket* Bucket = Subsystem.Registry.FindBucket(Entity);
 	FTcsLearnedSkillEntry* Entry = Bucket ? Bucket->Find(EntryHandle) : nullptr;
 	if (!Entry)
 	{
-		UE_LOG(LogTcsSkill, Warning, TEXT("调整冷却被拒：账本条目悬空（单位=%lld 条目=%d/%d）"),
-			Unit.Id, EntryHandle.Index, EntryHandle.Generation);
+		UE_LOG(LogTcsSkill, Warning, TEXT("调整冷却被拒：账本条目悬空（实体=%lld 条目=%d/%d）"),
+			Entity.Id, EntryHandle.Index, EntryHandle.Generation);
 		return false;
 	}
 
 	const FTcsSkillDefData* Def = Subsystem.GetRegisteredSkillDef(Entry->DefTag);
 	if (!Def || !Def->Cooldown.Tracks.IsValidIndex(TrackIndex))
 	{
-		UE_LOG(LogTcsSkill, Warning, TEXT("调整冷却被拒：轨道下标越界（单位=%lld 下标=%d 轨道数=%d）"),
-			Unit.Id, TrackIndex, Def ? Def->Cooldown.Tracks.Num() : 0);
+		UE_LOG(LogTcsSkill, Warning, TEXT("调整冷却被拒：轨道下标越界（实体=%lld 下标=%d 轨道数=%d）"),
+			Entity.Id, TrackIndex, Def ? Def->Cooldown.Tracks.Num() : 0);
 		return false;
 	}
 
@@ -614,7 +614,7 @@ bool FTcsCooldownOps::AdjustTrack(
 
 	if (Track.GroupTag.IsValid())
 	{
-		TMap<FGameplayTag, FTcsCooldownGroupState>* Slots = FindLiveGroupSlots(Subsystem, Unit);
+		TMap<FGameplayTag, FTcsCooldownGroupState>* Slots = FindLiveGroupSlots(Subsystem, Entity);
 		GroupState = Slots ? Slots->Find(Track.GroupTag) : nullptr;
 	}
 	else if (Entry->CooldownTracks.IsValidIndex(TrackIndex))
@@ -630,14 +630,14 @@ bool FTcsCooldownOps::AdjustTrack(
 
 	if (!ExpiryEntry || !StateTotal || !StateEnd)
 	{
-		UE_LOG(LogTcsSkill, Log, TEXT("调整冷却跳过：该轨当前未在跑（单位=%lld 下标=%d）"), Unit.Id, TrackIndex);
+		UE_LOG(LogTcsSkill, Log, TEXT("调整冷却跳过：该轨当前未在跑（实体=%lld 下标=%d）"), Entity.Id, TrackIndex);
 		return false;
 	}
 
 	// 时间判据才是权威（同 `IsEntryOnCooldown`）：已过期的轨不构成"在跑"
 	if (*StateEnd <= Now)
 	{
-		UE_LOG(LogTcsSkill, Log, TEXT("调整冷却跳过：该轨已到期（单位=%lld 下标=%d）"), Unit.Id, TrackIndex);
+		UE_LOG(LogTcsSkill, Log, TEXT("调整冷却跳过：该轨已到期（实体=%lld 下标=%d）"), Entity.Id, TrackIndex);
 		return false;
 	}
 
@@ -647,7 +647,7 @@ bool FTcsCooldownOps::AdjustTrack(
 	{
 		// 缩短到不剩 ⇒ **等于清轨**（提前结束）。复用清轨路径而不是"入一个立刻到期的条目"：
 		// 后者会在下一帧泵点空跑一次，且期间 `IsEntryOnCooldown` 的读数依赖"时间判据"才正确。
-		return ClearTrack(Subsystem, Unit, EntryHandle, TrackIndex);
+		return ClearTrack(Subsystem, Entity, EntryHandle, TrackIndex);
 	}
 
 	// **`Total` 只增不减**（维持 `Remaining <= Total` 的不变量——否则 UI 径向会画出超过 100% 的弧）。
@@ -666,30 +666,30 @@ bool FTcsCooldownOps::AdjustTrack(
 	{
 		const FGameplayTag GroupTag = GroupState->GroupTag;
 		TWeakObjectPtr<UTcsSkillSubsystem> WeakSubsystem(&Subsystem);
-		*ExpiryEntry = Clock->PushExpiry(NewEnd, Unit.Id,
-			[WeakSubsystem, Unit, GroupTag](uint64 /*OwnerId*/)
+		*ExpiryEntry = Clock->PushExpiry(NewEnd, Entity.Id,
+			[WeakSubsystem, Entity, GroupTag](uint64 /*OwnerId*/)
 			{
 				if (UTcsSkillSubsystem* Live = WeakSubsystem.Get())
 				{
-					FTcsCooldownOps::ExpireGroup(*Live, Unit, GroupTag);
+					FTcsCooldownOps::ExpireGroup(*Live, Entity, GroupTag);
 				}
 			});
 	}
 	else
 	{
 		TWeakObjectPtr<UTcsSkillSubsystem> WeakSubsystem(&Subsystem);
-		*ExpiryEntry = Clock->PushExpiry(NewEnd, Unit.Id,
-			[WeakSubsystem, Unit, EntryHandle, TrackIndex](uint64 /*OwnerId*/)
+		*ExpiryEntry = Clock->PushExpiry(NewEnd, Entity.Id,
+			[WeakSubsystem, Entity, EntryHandle, TrackIndex](uint64 /*OwnerId*/)
 			{
 				if (UTcsSkillSubsystem* Live = WeakSubsystem.Get())
 				{
-					FTcsCooldownOps::ExpireTrack(*Live, Unit, EntryHandle, TrackIndex);
+					FTcsCooldownOps::ExpireTrack(*Live, Entity, EntryHandle, TrackIndex);
 				}
 			});
 	}
 
-	UE_LOG(LogTcsSkill, Log, TEXT("冷却已调整：单位=%lld 下标=%d 增量=%.3f 新到期=%.3f"),
-		Unit.Id, TrackIndex, Delta, NewEnd);
+	UE_LOG(LogTcsSkill, Log, TEXT("冷却已调整：实体=%lld 下标=%d 增量=%.3f 新到期=%.3f"),
+		Entity.Id, TrackIndex, Delta, NewEnd);
 
 	// **调轨事件**（`AdjustCooldown` 已承诺发它——`D5-16`）：载荷的 `Remaining` 是**新值**
 	// （订阅者据此刷新 UI 径向；`Total` 可能因"只增不减"而大于原值，那是刻意的）。
@@ -701,23 +701,23 @@ bool FTcsCooldownOps::AdjustTrack(
 
 bool FTcsCooldownOps::ClearTrack(
 	UTcsSkillSubsystem& Subsystem,
-	FTcsCombatEntityHandle Unit,
+	FTcsCombatEntityHandle Entity,
 	FTcsSkillEntryHandle EntryHandle,
 	int32 TrackIndex)
 {
-	FSkillBucket* Bucket = Subsystem.Registry.FindBucket(Unit);
+	FSkillBucket* Bucket = Subsystem.Registry.FindBucket(Entity);
 	FTcsLearnedSkillEntry* Entry = Bucket ? Bucket->Find(EntryHandle) : nullptr;
 	if (!Entry)
 	{
-		UE_LOG(LogTcsSkill, Warning, TEXT("清冷却被拒：账本条目悬空（单位=%lld 条目=%d/%d）"),
-			Unit.Id, EntryHandle.Index, EntryHandle.Generation);
+		UE_LOG(LogTcsSkill, Warning, TEXT("清冷却被拒：账本条目悬空（实体=%lld 条目=%d/%d）"),
+			Entity.Id, EntryHandle.Index, EntryHandle.Generation);
 		return false;
 	}
 
 	const FTcsSkillDefData* Def = Subsystem.GetRegisteredSkillDef(Entry->DefTag);
 	if (!Def || !Def->Cooldown.Tracks.IsValidIndex(TrackIndex))
 	{
-		UE_LOG(LogTcsSkill, Warning, TEXT("清冷却被拒：轨道下标越界（单位=%lld 下标=%d）"), Unit.Id, TrackIndex);
+		UE_LOG(LogTcsSkill, Warning, TEXT("清冷却被拒：轨道下标越界（实体=%lld 下标=%d）"), Entity.Id, TrackIndex);
 		return false;
 	}
 
@@ -732,7 +732,7 @@ bool FTcsCooldownOps::ClearTrack(
 
 	if (Track.GroupTag.IsValid())
 	{
-		TMap<FGameplayTag, FTcsCooldownGroupState>* Slots = FindLiveGroupSlots(Subsystem, Unit);
+		TMap<FGameplayTag, FTcsCooldownGroupState>* Slots = FindLiveGroupSlots(Subsystem, Entity);
 		FTcsCooldownGroupState* Slot = Slots ? Slots->Find(Track.GroupTag) : nullptr;
 		if (!Slot || Slot->EndTimeSeconds <= Now)
 		{
@@ -752,19 +752,19 @@ bool FTcsCooldownOps::ClearTrack(
 
 		*Slot = FTcsCooldownGroupState();
 
-		// 组槽解除 = 该组整条线消失 ⇒ 直接移除（不需要逐条目遍历——这正是"组槽住单位"的收益）
+		// 组槽解除 = 该组整条线消失 ⇒ 直接移除（不需要逐条目遍历——这正是"组槽住实体"的收益）
 		Slots->Remove(Track.GroupTag);
 
 		// **★ 内层表空了 MUST 连外层键一起删（fresh-context 复核抓到的 Minor 泄漏）**：
-		// 只摘内层条目会让 `CooldownGroups` 里留下**永不使用的空键**，随"清过组的单位数"线性增长
+		// 只摘内层条目会让 `CooldownGroups` 里留下**永不使用的空键**，随"清过组的实体数"线性增长
 		// （`ExpireGroup` 早已这么做——本处是同一纪律的第二处落点，初版漏了）。
 		if (Slots->Num() == 0)
 		{
-			Subsystem.CooldownGroups.Remove(Unit);
+			Subsystem.CooldownGroups.Remove(Entity);
 		}
 
-		UE_LOG(LogTcsSkill, Log, TEXT("冷却已清：单位=%lld 下标=%d 组=%s"),
-			Unit.Id, TrackIndex, *Track.GroupTag.ToString());
+		UE_LOG(LogTcsSkill, Log, TEXT("冷却已清：实体=%lld 下标=%d 组=%s"),
+			Entity.Id, TrackIndex, *Track.GroupTag.ToString());
 
 		BroadcastCooldownEvent(Subsystem, Tag_TcsEvent_Cast_CooldownUpdated, *Entry,
 			TrackIndex, Track.GroupTag, ClearedTotal, 0.0, ClearedEnd);
@@ -792,8 +792,8 @@ bool FTcsCooldownOps::ClearTrack(
 
 		State = FTcsCooldownTrackState();
 
-		UE_LOG(LogTcsSkill, Log, TEXT("冷却已清：单位=%lld 下标=%d 组=%s"),
-			Unit.Id, TrackIndex, *Track.GroupTag.ToString());
+		UE_LOG(LogTcsSkill, Log, TEXT("冷却已清：实体=%lld 下标=%d 组=%s"),
+			Entity.Id, TrackIndex, *Track.GroupTag.ToString());
 
 		BroadcastCooldownEvent(Subsystem, Tag_TcsEvent_Cast_CooldownUpdated, *Entry,
 			TrackIndex, Track.GroupTag, ClearedTotal, 0.0, ClearedEnd);
@@ -807,7 +807,7 @@ bool FTcsCooldownOps::ClearTrack(
 // 生命周期配对
 void FTcsCooldownOps::ReleaseEntryCooldowns(
 	UTcsSkillSubsystem& Subsystem,
-	FTcsCombatEntityHandle Unit,
+	FTcsCombatEntityHandle Entity,
 	FTcsLearnedSkillEntry& Entry)
 {
 	UTcsClockSubsystem* Clock = Subsystem.GetClockSubsystem();
@@ -823,18 +823,18 @@ void FTcsCooldownOps::ReleaseEntryCooldowns(
 
 	Entry.CooldownTracks.Reset();
 
-	// **组槽刻意不动**（本函数只清"属于这个条目"的东西）：组槽是**单位级**的，它有自己的到期条目，
+	// **组槽刻意不动**（本函数只清"属于这个条目"的东西）：组槽是**实体级**的，它有自己的到期条目，
 	// 会自行到期解除。此处若把它一并移除，会**替同组的其它技能解除公共冷却**
 	// （症状：撤销 A 之后，同组的 B 立刻能放——而 GCD 本该还在）。
-	// ⇒ 组槽的生命周期归 `ExpireGroup` 与 `ReleaseUnitCooldowns`，**MUST NOT 在此越界清理**。
-	UE_LOG(LogTcsSkill, Log, TEXT("条目冷却已摘：单位=%lld 条目=%d/%d（组槽留待自行到期）"),
-		Unit.Id, Entry.Handle.Index, Entry.Handle.Generation);
+	// ⇒ 组槽的生命周期归 `ExpireGroup` 与 `ReleaseEntityCooldowns`，**MUST NOT 在此越界清理**。
+	UE_LOG(LogTcsSkill, Log, TEXT("条目冷却已摘：实体=%lld 条目=%d/%d（组槽留待自行到期）"),
+		Entity.Id, Entry.Handle.Index, Entry.Handle.Generation);
 }
 
-void FTcsCooldownOps::ReleaseUnitCooldowns(UTcsSkillSubsystem& Subsystem, FTcsCombatEntityHandle Unit)
+void FTcsCooldownOps::ReleaseEntityCooldowns(UTcsSkillSubsystem& Subsystem, FTcsCombatEntityHandle Entity)
 {
-	// 组槽全部撤锚点后整表删除（单位都没了，没有"留给谁"的问题）
-	if (TMap<FGameplayTag, FTcsCooldownGroupState>* Slots = FindLiveGroupSlots(Subsystem, Unit))
+	// 组槽全部撤锚点后整表删除（实体都没了，没有"留给谁"的问题）
+	if (TMap<FGameplayTag, FTcsCooldownGroupState>* Slots = FindLiveGroupSlots(Subsystem, Entity))
 	{
 		if (UTcsClockSubsystem* Clock = Subsystem.GetClockSubsystem())
 		{
@@ -847,7 +847,7 @@ void FTcsCooldownOps::ReleaseUnitCooldowns(UTcsSkillSubsystem& Subsystem, FTcsCo
 			}
 		}
 
-		Subsystem.CooldownGroups.Remove(Unit);
+		Subsystem.CooldownGroups.Remove(Entity);
 	}
 }
 
@@ -867,7 +867,7 @@ double FTcsCooldownOps::EvaluateCooldownPct(
 	{
 		// 非有限值 = 配置/求值出了真问题（NaN / Inf）⇒ **报出来**（MUST NOT 静默按 0 比较）
 		UE_LOG(LogTcsSkill, Warning,
-			TEXT("冷却缩减取值非有限（单位=%lld 值=%f）——按无缩减处理"), Entry.Unit.Id, Value);
+			TEXT("冷却缩减取值非有限（实体=%lld 值=%f）——按无缩减处理"), Entry.Entity.Id, Value);
 		return 0.0;
 	}
 
@@ -882,11 +882,11 @@ double FTcsCooldownOps::EvaluateCooldownPct(
 // 到期回调
 void FTcsCooldownOps::ExpireTrack(
 	UTcsSkillSubsystem& Subsystem,
-	FTcsCombatEntityHandle Unit,
+	FTcsCombatEntityHandle Entity,
 	FTcsSkillEntryHandle EntryHandle,
 	int32 TrackIndex)
 {
-	FSkillBucket* Bucket = Subsystem.Registry.FindBucket(Unit);
+	FSkillBucket* Bucket = Subsystem.Registry.FindBucket(Entity);
 	FTcsLearnedSkillEntry* Entry = Bucket ? Bucket->Find(EntryHandle) : nullptr;
 	if (!Entry || !Entry->CooldownTracks.IsValidIndex(TrackIndex))
 	{
@@ -905,8 +905,8 @@ void FTcsCooldownOps::ExpireTrack(
 
 	Entry->CooldownTracks[TrackIndex] = FTcsCooldownTrackState();
 
-	UE_LOG(LogTcsSkill, Log, TEXT("冷却到期：单位=%lld 条目=%d/%d 轨道=%d"),
-		Unit.Id, EntryHandle.Index, EntryHandle.Generation, TrackIndex);
+	UE_LOG(LogTcsSkill, Log, TEXT("冷却到期：实体=%lld 条目=%d/%d 轨道=%d"),
+		Entity.Id, EntryHandle.Index, EntryHandle.Generation, TrackIndex);
 
 	// **到期事件是权威侧**：`Remaining` 恒 0（"剩余时间到点了"就是它的定义）。
 	BroadcastCooldownEvent(Subsystem, Tag_TcsEvent_Cast_CooldownEnded, *Entry,
@@ -918,13 +918,13 @@ void FTcsCooldownOps::ExpireTrack(
 
 void FTcsCooldownOps::ExpireGroup(
 	UTcsSkillSubsystem& Subsystem,
-	FTcsCombatEntityHandle Unit,
+	FTcsCombatEntityHandle Entity,
 	FGameplayTag GroupTag)
 {
-	TMap<FGameplayTag, FTcsCooldownGroupState>* Slots = FindLiveGroupSlots(Subsystem, Unit);
+	TMap<FGameplayTag, FTcsCooldownGroupState>* Slots = FindLiveGroupSlots(Subsystem, Entity);
 	if (!Slots)
 	{
-		// 单位已注销 / 该组已被清 ⇒ 时序竞态，静默丢弃
+		// 实体已注销 / 该组已被清 ⇒ 时序竞态，静默丢弃
 		return;
 	}
 
@@ -943,21 +943,21 @@ void FTcsCooldownOps::ExpireGroup(
 	*Slot = FTcsCooldownGroupState();
 	Slots->Remove(GroupTag);
 
-	// 空表顺手删掉，免得单位级表里留下永不使用的空键
+	// 空表顺手删掉，免得实体级表里留下永不使用的空键
 	if (Slots->Num() == 0)
 	{
-		Subsystem.CooldownGroups.Remove(Unit);
+		Subsystem.CooldownGroups.Remove(Entity);
 	}
 
-	UE_LOG(LogTcsSkill, Log, TEXT("组冷却到期：单位=%lld 组=%s"), Unit.Id, *GroupTag.ToString());
+	UE_LOG(LogTcsSkill, Log, TEXT("组冷却到期：实体=%lld 组=%s"), Entity.Id, *GroupTag.ToString());
 
-	// **组轨到期事件的载荷要能定位到"哪个条目"**：而组槽是**单位级**的、不记"谁起的它"
-	// ⇒ 广播时遍历该单位全部条目，找**配了本组轨道**的那些，各发一枚
+	// **组轨到期事件的载荷要能定位到"哪个条目"**：而组槽是**实体级**的、不记"谁起的它"
+	// ⇒ 广播时遍历该实体全部条目，找**配了本组轨道**的那些，各发一枚
 	// （判据：订阅者的语义是"我这条技能的公共冷却结束了"——它需要自己的条目身份才能刷新 UI；
 	// 只发一枚无身份的组事件会让订阅者无从知道该更新哪一行）。
 	//
 	// **★ 两段式遍历（MUST；fresh-context 复核抓到的 Important 缺陷）**：`BroadcastCooldownEvent`
-	// 走**同步派发** ⇒ 订阅者可在回调里 `UnregisterUnit`（`RemoveBucket` 释放桶）或
+	// 走**同步派发** ⇒ 订阅者可在回调里 `UnregisterEntity`（`RemoveBucket` 释放桶）或
 	// `GrantSkill`（`AllocateSlot` 的 `Entries.Emplace()` **搬移**）
 	// ⇒ **在 `ForEach` 里广播 = 一边遍历一边被拆掉遍历对象**（heap-use-after-free）。
 	// **判据 = 本文件与全仓既有纪律**："遍历期间 MUST NOT 增删条目"（`FSkillBucket::ForEach` 的注释原文）、
@@ -970,7 +970,7 @@ void FTcsCooldownOps::ExpireGroup(
 	};
 
 	TArray<FR65GroupEndedTarget> Targets;
-	if (const FSkillBucket* Bucket = Subsystem.Registry.FindBucket(Unit))
+	if (const FSkillBucket* Bucket = Subsystem.Registry.FindBucket(Entity))
 	{
 		Bucket->ForEach([&Subsystem, &GroupTag, &Targets](const FTcsLearnedSkillEntry& Candidate)
 		{
@@ -997,7 +997,7 @@ void FTcsCooldownOps::ExpireGroup(
 	// **第二段：逐个广播**（每次广播前**重新解析条目**——前一次的广播可能已把它撤销）
 	for (const FR65GroupEndedTarget& Target : Targets)
 	{
-		FSkillBucket* LiveBucket = Subsystem.Registry.FindBucket(Unit);
+		FSkillBucket* LiveBucket = Subsystem.Registry.FindBucket(Entity);
 		FTcsLearnedSkillEntry* LiveEntry = LiveBucket ? LiveBucket->Find(Target.EntryHandle) : nullptr;
 		if (!LiveEntry)
 		{
@@ -1015,7 +1015,7 @@ void FTcsCooldownOps::ExpireGroup(
 // 内核
 TMap<FGameplayTag, FTcsCooldownGroupState>* FTcsCooldownOps::FindGroupSlots(
 	UTcsSkillSubsystem& Subsystem,
-	FTcsCombatEntityHandle Unit)
+	FTcsCombatEntityHandle Entity)
 {
-	return Subsystem.CooldownGroups.Find(Unit);
+	return Subsystem.CooldownGroups.Find(Entity);
 }

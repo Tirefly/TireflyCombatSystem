@@ -1,5 +1,7 @@
 # Change: 状态行为 Fragment（订阅挂接与来源级联退订）
 
+> **术语订正（2026-10-14）**：本文原用「单位 / `Unit`」，该词已退役，现统一为「**实体 / `Entity`**」（见 `DEC-2026-10-14-entity-vocabulary`）。**正文为当时原话，保留不改。**
+
 ## Why
 
 `D3-7 v2` 把状态的可扩展面切成两种 Fragment：**决策 Fragment**（Task 5 已落：五轴共存决策）与**行为 Fragment**（本轮落）。行为 Fragment 是"状态想对世界里发生的事做点什么"的作者面——兴趣 Tag 列表 + 一个泛化回调，作者零订阅管理代码。今天它**完全不存在**（全仓 `FTcsStateBehaviorFragment` / `OnStateEvent` / `Fragments` 零命中），Def 侧也没有载体字段（Task 1 明文"本轮 MUST NOT 预建：行为 Fragment 的兴趣 Tag 已是声明面…等真实消费者"——**本轮就是那个消费者**）。

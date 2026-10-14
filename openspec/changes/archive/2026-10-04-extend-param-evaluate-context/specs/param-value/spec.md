@@ -1,5 +1,7 @@
 ## MODIFIED Requirements
 
+> **术语订正（2026-10-14）**：本文原用「单位 / `Unit`」，该词已退役，现统一为「**实体 / `Entity`**」（见 `DEC-2026-10-14-entity-vocabulary`）。**正文为当时原话，保留不改。**
+
 ### Requirement: 反射可见求值上下文
 
 `FTcsParamEvaluateContext` MUST 是 `USTRUCT(BlueprintType)`（**类型反射可见 + 蓝图可配置**）——**禁止 `TFunction`/`std::function` 等无 `USTRUCT` 宏的成员**（宿主脚本扩展通道，PV-1；含这类成员会让宿主类型无法加 `USTRUCT()`——UHT 报错）；当前持三个字段：参数表只读访问 `TScriptInterface<ITcsParamTableReader> ParamTable`（可空——空时 `ParamRef` 源落 `Fallback`）、被施加方实体 `FTcsCombatEntityHandle Subject`（**2026-10-04 补齐**：状态/技能实例所依附的单位；0 = 无效）、生效等级 `int32 EffectiveLevel`（**2026-10-04 补齐**：0 = 无等级语义）；领域扩展 = 结构体继承 + 源内 checked cast（PV-1，cast 失败面由 M8 校验覆盖）。**取值归属**：`Subject` 与 `EffectiveLevel` 由**装配上下文的调用方**填写（谁起链/谁施加状态谁负责），值来源（策略）MUST NOT 自行反查实例或全局表——源只读上下文。措辞口径见 `Documents/combat-system-design/ledger/reflection-terminology.md`。

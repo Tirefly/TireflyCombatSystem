@@ -1,5 +1,7 @@
 ## ADDED Requirements
 
+> **术语订正（2026-10-14）**：本文原用「单位 / `Unit`」，该词已退役，现统一为「**实体 / `Entity`**」（见 `DEC-2026-10-14-entity-vocabulary`）。**正文为当时原话，保留不改。**
+
 ### Requirement: 冷却多轨运行态（起冷 / 判可放 / 改轨 / 到期驱动）
 
 `TcsSkill` MUST 提供冷却的**运行态**（`FTcsCooldownOps`），使 `FTcsCooldownPolicy` 的 `Tracks`

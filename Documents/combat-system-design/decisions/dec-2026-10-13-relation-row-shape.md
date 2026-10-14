@@ -10,7 +10,14 @@
 >
 > **为什么另立载体而不是改原文**：该文状态为 `FROZEN`，按 `CONVENTION` §7 正文不再修改，后续信息以带日期的实施注记追加。**本文是"新证据到达"型取代**（不是"字面与判据冲突"型）——取代理由是**外部实现证据**（Lyra），已在原文追加指向本文的注记。
 >
-> **证据标注**：【源码取证】= 本机全仓实测；【引证】= 仓内既有文本转述（未经本机独立复核）；**【外部源码】= 公开镜像读到的 Lyra 源码（本机无官方仓；见 §1 取证边界）**；【通识】= UE/GAS 公开已知做法（**本机无引擎源码树，未复核**）；【设计判断】；【用户拍板】。
+> **证据标注**：【源码取证】= 本机全仓实测；【引证】= 仓内既有文本转述（未经本机独立复核）；**【外部源码】= 公开镜像读到的 Lyra 源码（本机无官方仓；见 §1 取证边界）**；【通识】= UE/GAS 公开已知做法（~~**本机无引擎源码树，未复核**~~ —— **★ 同日订正：该前提为假，见下方订正块**）；【设计判断】；【用户拍板】。
+>
+> **★★ 2026-10-13 同日订正（"本机无引擎源码树"为假，MUST 读）**：引擎源码**在本机** —— `E:\UnrealEngine\UE_5.8`（`Build.version` 实测 5.8.3 / CL **58210709** / `++UE5+Release-5.8`），**且 GAS 插件源码亦在**（`Engine/Plugins/Runtime/GameplayAbilities/Source/`）。早期探查找错了位置（只查 `C:\Program Files\Epic Games` 与注册表）。⇒ 本文原标【通识】的两处**已逐条读源复核**：
+>
+> - **`UAbilitySystemComponent::ApplyAbilityBlockAndCancelTags` 的实现**（`AbilitySystemComponent_Abilities.cpp`，本机可读）—— 实测其实现极简：`bEnableBlockTags` ⇒ `BlockAbilitiesWithTags` / `UnBlockAbilitiesWithTags`（**按 tag 计数增减 `BlockedAbilityTags`**）；`bExecuteCancelTags` ⇒ `CancelAbilities(&CancelTags, nullptr, RequestingAbility)`。**关键复核点**：**block 与 cancel 是两条独立分支、由两个独立 bool 控制**，⇒ 与本文 §3.2「Lyra 把两个方向明确分成两个字段」的读法**一致**；且 `AreAbilityTagsBlocked` 的实现是 `Tags.HasAny(BlockedAbilityTags.GetExplicitGameplayTags())` 并带注释「Expand the passed in tags to get **parents**, not the blocked tags」——**同样是容器 + 层级匹配**，与本文采用的口径同源。
+> - 「`ActivationBlockedTags` 的『必须缺席』语义」—— 上条实现**支持**该读法（blocked 集合独立于 ability 自身 tags）。
+>
+> **本节按 `CONVENTION` §7 追加；正文其余部分一字未改。**
 
 ---
 
@@ -42,7 +49,7 @@
 | **Epic 官方仓** | **不可达**——`github.com/EpicGames/UnrealEngine` 需授权，匿名取回 **HTTP 404**（本轮实测） |
 | **本轮实际来源** | **公开镜像** [`BulkheadLtd/Lyra_5_4`](https://github.com/BulkheadLtd/Lyra_5_4)（UE 5.4 Lyra），经 GitHub API 取文件内容（base64 解码） |
 | **本轮实际读过** | ① `LyraAbilityTagRelationshipMapping.h`（结构定义，sha `73d4ae17…`）；② 同 `.cpp`（三个求值函数）；③ `LyraAbilitySystemComponent.cpp` 的**消费点**（`ApplyAbilityBlockAndCancelTags` / `GetAdditionalActivationTagRequirements` / `SetTagRelationshipMapping` / `ActivationGroup` 一族） |
-| **本轮未读** | GAS 自身 `UAbilitySystemComponent::ApplyAbilityBlockAndCancelTags` 的**实现**（`ActivationBlockedTags` 的"必须缺席"语义属【通识】）——**本机无 UE 引擎源码树**（与 `DEC-…-relation-semantics` §3.4 E11 同一约束） |
+| **本轮未读** | ~~GAS 自身 `UAbilitySystemComponent::ApplyAbilityBlockAndCancelTags` 的**实现**（`ActivationBlockedTags` 的"必须缺席"语义属【通识】）——**本机无 UE 引擎源码树**~~ → **★ 同日已读（该"未读"与"无源码树"两个前提均为假）**：实现在 `Engine/Plugins/Runtime/GameplayAbilities/Source/GameplayAbilities/Private/AbilitySystemComponent_Abilities.cpp:UAbilitySystemComponent::ApplyAbilityBlockAndCancelTags`，**本机可读**。复核结论 = **block / cancel 是两条独立分支、由 `bEnableBlockTags` 与 `bExecuteCancelTags` 两个独立 bool 控制**（block ⇒ `BlockAbilitiesWithTags` / `UnBlockAbilitiesWithTags` 对 `BlockedAbilityTags` 计数增减；cancel ⇒ `CancelAbilities(&CancelTags, nullptr, RequestingAbility)`）。⇒ **§3.2「两个方向分成两个字段」的读法获 GAS 侧佐证**；（`ActivationBlockedTags` 的"必须缺席"语义）**由【通识】升为【引擎源码】**。另：`AreAbilityTagsBlocked` 用 `Tags.HasAny(BlockedAbilityTags.GetExplicitGameplayTags())` + 注释「Expand the passed in tags to get parents」，**同为容器 + 层级匹配** |
 | **镜像可信度** | **未独立验证**该镜像与官方 Lyra 逐字一致（镜像为第三方 fork，非 Epic 组织）。⇒ 本文的**形态级结论**（几个字段、什么名字、怎么匹配）可信度高（三处文件互相自洽）；**逐字级引用**（注释原文、sha）以该镜像为准，**MUST NOT 当作官方出处引用** |
 
 ### 1.3 实测到的 Lyra 形状（【外部源码】）

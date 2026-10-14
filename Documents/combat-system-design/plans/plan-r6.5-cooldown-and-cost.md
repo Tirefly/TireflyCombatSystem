@@ -81,8 +81,8 @@
 
 `D5-16` 只承诺了 `AdjustCooldown` / `ResetCooldown`——**这两个是"改"已有冷却（`Delta` / `Clear`），都不是"开始冷却"**。同族地，Cost 的提交口也不在任何清单里。⇒ 本轮新增：
 
-- `StartCooldown(Unit, EntryHandle)`——起该条目的**全部自身轨 + 所属组轨**，走与自动档**完全同一条路径**（MUST NOT 另写一份）；
-- `PayCost(Unit, EntryHandle)`——按 `ECostPolicy` 提交 + 发 `OnCostApplied`，同样复用自动档路径。
+- `StartCooldown(Entity, EntryHandle)`——起该条目的**全部自身轨 + 所属组轨**，走与自动档**完全同一条路径**（MUST NOT 另写一份）；
+- `PayCost(Entity, EntryHandle)`——按 `ECostPolicy` 提交 + 发 `OnCostApplied`，同样复用自动档路径。
 
 ### 0.3 现状证据表（逐条实测，非推断）
 
@@ -101,7 +101,7 @@
 | 全仓无任何 `enum class *Timing` | 0 命中 ⇒ 两个新枚举名无占用 | `enumerate` grep |
 | `TcsStateParam` 根下"契约词原生声明"先例 | `Tag_TcsStateParam_Level`（三条判据注释齐备） | `TcsStateParamKeys.h` |
 | 参数字典字段 | `FTcsStateDefBase::Params`（`TArray<FTcsNumericParamRow>`），技能 Def 继承它 | `TcsStateDefBase.h:70` |
-| 属性读写口 | `EvaluateCurrent(Unit, Attribute) -> double`（读）/ `ApplyModifier(Unit, const FTcsAttrModInstance&)`（写） | `TcsAttributeSubsystem.h:219/241` |
+| 属性读写口 | `EvaluateCurrent(Entity, Attribute) -> double`（读）/ `ApplyModifier(Entity, const FTcsAttrModInstance&)`（写） | `TcsAttributeSubsystem.h:219/241` |
 | 属性面反射状态 | 两者皆 `UFUNCTION()` **无 specifier** ⇒ 脚本不可达；`FTcsAttrModInstance` 非反射 | `SCRIPT-9` 在册。**★ 2026-10-12 改正**：本行**与本轮的 `ECP_CustomFragment` 档无关**——本档不走 `ApplyModifier`（裁决：MUST NOT 用它，必须直写基值，而 `SetBaseValue` **有** `UFUNCTION`）；本档阻塞 = `COST-3` |
 
 ### 0.4 对本计划外两处文档的订正（MUST 同批回改）
@@ -192,8 +192,8 @@
 | `Source/TcsSkill/Public/Def/TcsSkillEnums.h` | **不改**（两个 Timing 枚举各有独立语义，各住自己的类型头；MUST NOT 挤进本文件造成"一个文件两套枚举"的误读） |
 | `Source/TcsSkill/Private/Skill/TcsCastOps.cpp` | 门禁③（`:163`）与门禁⑤（`:237`）两处占位 → 真实现（调 `TcsCooldownOps` / `TcsCostOps`） |
 | `Source/TcsSkill/Private/Skill/TcsCastOps_Phase.cpp` | 四路终结里挂冷却/Cost 的 Timing 触发点（`OnCastCompleted` / `OnCastInterrupted` 档） |
-| `Source/TcsSkill/Public/TcsSkillSubsystem.h` | 新增公开口：`AdjustCooldown` / `ResetCooldown` / `StartCooldown` / `PayCost` / 三个查询口 + 单位级组槽（`TMap<FGameplayTag, FTcsCooldownGroupState>`） |
-| **`Source/TcsAttribute/Public/TcsAttributeSubsystem.h`** + **`Private/TcsAttributeSubsystem.cpp`** | **本轮对 `TcsAttribute` 的唯一改动**：+1 个门面转发口 `GetBaseValue(Unit, Attribute)`——转发现有 `FTcsAttributeStore::GetBaseValue`（`TcsAttributeStore.h:61`），零新逻辑。**理由**：Cost 的 `ECP_ResourceAttr` 档必须"读基值 → 减 → 写回"，而门面今天只有 `EvaluateCurrent`（**折叠后**当前值）与 `PeekPending`，**都读不到基值**；从 `TcsSkill` 直伸 `ResolveStore` 会击穿 M2 门面 |
+| `Source/TcsSkill/Public/TcsSkillSubsystem.h` | 新增公开口：`AdjustCooldown` / `ResetCooldown` / `StartCooldown` / `PayCost` / 三个查询口 + 实体级组槽（`TMap<FGameplayTag, FTcsCooldownGroupState>`） |
+| **`Source/TcsAttribute/Public/TcsAttributeSubsystem.h`** + **`Private/TcsAttributeSubsystem.cpp`** | **本轮对 `TcsAttribute` 的唯一改动**：+1 个门面转发口 `GetBaseValue(Entity, Attribute)`——转发现有 `FTcsAttributeStore::GetBaseValue`（`TcsAttributeStore.h:61`），零新逻辑。**理由**：Cost 的 `ECP_ResourceAttr` 档必须"读基值 → 减 → 写回"，而门面今天只有 `EvaluateCurrent`（**折叠后**当前值）与 `PeekPending`，**都读不到基值**；从 `TcsSkill` 直伸 `ResolveStore` 会击穿 M2 门面 |
 | `Source/TcsSkill/TcsSkill.Build.cs` | **不改**（零新依赖边——已含 `TcsCore` / `TcsAttribute` / `TcsEffect`） |
 
 **宿主装置（LAC 仓 `Source/TcsDev/`）**：
@@ -254,7 +254,7 @@ struct TCSSKILL_API FTcsCooldownTrack
     GENERATED_BODY()
     // 本轨时长（秒）。本轮只落字面量；`Duration` 用参数链取值的形态归后续轮（见 Task 1 Step 4 的边界）
     UPROPERTY(EditAnywhere, BlueprintReadOnly) double Duration = 0.0;
-    // 组轨身份：无效 = 自身轨；有效 = 写单位级组槽（同组所有条目共用一个槽）
+    // 组轨身份：无效 = 自身轨；有效 = 写实体级组槽（同组所有条目共用一个槽）
     UPROPERTY(EditAnywhere, BlueprintReadOnly) FGameplayTag GroupTag;
 };   // ★ GroupTag 的问号（批次表 `:198`）已关闭：字段恒存在，无效 tag = 自身轨
 
@@ -295,7 +295,7 @@ struct FTcsCooldownTrackState
     FTcsTimeEntryHandle ExpiryEntry;     // 到期条目（改轨/清轨 MUST 先 CancelExpiry 再重挂）
 };
 
-// 单位级组槽（住 UTcsSkillSubsystem）：同组所有条目共用
+// 实体级组槽（住 UTcsSkillSubsystem）：同组所有条目共用
 struct FTcsCooldownGroupState
 {
     double Total = 0.0;
@@ -309,21 +309,21 @@ struct FTcsCooldownGroupState
 
 ```cpp
 // —— 查询（UI 轮询面；`D5-15`"真值在 Entry，UI 轮询"）
-UFUNCTION() bool  IsOnCooldown(FTcsCombatEntityHandle Unit, FTcsSkillEntryHandle Entry);
-UFUNCTION() double GetCooldownRemaining(FTcsCombatEntityHandle Unit, FTcsSkillEntryHandle Entry, int32 TrackIndex);
-UFUNCTION() double GetCooldownTotal(FTcsCombatEntityHandle Unit, FTcsSkillEntryHandle Entry, int32 TrackIndex);
-UFUNCTION() int32 GetCooldownTrackCount(FTcsCombatEntityHandle Unit, FTcsSkillEntryHandle Entry);
+UFUNCTION() bool  IsOnCooldown(FTcsCombatEntityHandle Entity, FTcsSkillEntryHandle Entry);
+UFUNCTION() double GetCooldownRemaining(FTcsCombatEntityHandle Entity, FTcsSkillEntryHandle Entry, int32 TrackIndex);
+UFUNCTION() double GetCooldownTotal(FTcsCombatEntityHandle Entity, FTcsSkillEntryHandle Entry, int32 TrackIndex);
+UFUNCTION() int32 GetCooldownTrackCount(FTcsCombatEntityHandle Entity, FTcsSkillEntryHandle Entry);
 
 // —— 可变性（`D5-16` 承诺的两个 + 本轮新增两个）
-UFUNCTION() void AdjustCooldown(FTcsCombatEntityHandle Unit, FTcsSkillEntryHandle Entry, int32 TrackIndex, double Delta);  // 发 OnCooldownUpdated
-UFUNCTION() void ResetCooldown(FTcsCombatEntityHandle Unit, FTcsSkillEntryHandle Entry, int32 TrackIndex);                // 清该轨（发 OnCooldownUpdated）
-UFUNCTION() void StartCooldown(FTcsCombatEntityHandle Unit, FTcsSkillEntryHandle Entry);                                   // ★ 新增：起全部自身轨 + 组轨
-UFUNCTION() bool PayCost(FTcsCombatEntityHandle Unit, FTcsSkillEntryHandle Entry);                                         // ★ 新增：按 Policy 提交 + 发 OnCostApplied
+UFUNCTION() void AdjustCooldown(FTcsCombatEntityHandle Entity, FTcsSkillEntryHandle Entry, int32 TrackIndex, double Delta);  // 发 OnCooldownUpdated
+UFUNCTION() void ResetCooldown(FTcsCombatEntityHandle Entity, FTcsSkillEntryHandle Entry, int32 TrackIndex);                // 清该轨（发 OnCooldownUpdated）
+UFUNCTION() void StartCooldown(FTcsCombatEntityHandle Entity, FTcsSkillEntryHandle Entry);                                   // ★ 新增：起全部自身轨 + 组轨
+UFUNCTION() bool PayCost(FTcsCombatEntityHandle Entity, FTcsSkillEntryHandle Entry);                                         // ★ 新增：按 Policy 提交 + 发 OnCostApplied
 
 // —— 门禁/提交共用（**唯一实现**，MUST NOT 各写一份）
 // 住 TcsCostOps.h（模块内部头，不进 UFUNCTION 面）
-bool CanAffordCost(UTcsSkillSubsystem& Subsystem, const FTcsCombatEntityHandle& Unit, const FTcsCostConfig& Config);
-void CommitCost(UTcsSkillSubsystem& Subsystem, const FTcsCombatEntityHandle& Unit, FTcsSkillEntryHandle Entry, const FTcsCostConfig& Config);
+bool CanAffordCost(UTcsSkillSubsystem& Subsystem, const FTcsCombatEntityHandle& Entity, const FTcsCostConfig& Config);
+void CommitCost(UTcsSkillSubsystem& Subsystem, const FTcsCombatEntityHandle& Entity, FTcsSkillEntryHandle Entry, const FTcsCostConfig& Config);
 ```
 
 ### 2.5 事件（四枚，全部落既有 `TcsEvent.Cast` 根——MUST NOT 新增根）
@@ -385,20 +385,20 @@ void CommitCost(UTcsSkillSubsystem& Subsystem, const FTcsCombatEntityHandle& Uni
 - Create: `Source/TcsSkill/Public/Skill/TcsCooldownOps.h` + `Private/Skill/TcsCooldownOps.cpp`
 - Create: `Source/TcsSkill/Private/Skill/TcsCooldownSubsystem_Tick.cpp`
 - Create: `Source/TcsSkill/Public/Skill/TcsCooldownQuery.h`（查询面声明）
-- Modify: `Source/TcsSkill/Public/TcsSkillSubsystem.h`（单位级组槽 + 四个公开口）
+- Modify: `Source/TcsSkill/Public/TcsSkillSubsystem.h`（实体级组槽 + 四个公开口）
 - Modify: `Source/TcsSkill/Private/Skill/TcsCastOps.cpp:163`（门禁③真实现）
 - Modify: `Source/TcsSkill/Public/Def/TcsSkillActivateResult.h`（`SAR_OnCooldown` 的注释去掉"R6.5 占位"）
 
 **Interfaces:**
 - Consumes: Task 0 的全部类型；`UTcsClockSubsystem::PushExpiry` / `CancelExpiry`；`FTcsLearnedSkillEntry::CooldownTracks`；`Run->PhaseIndex`（终结路径用）
-- Produces: `StartCooldown(Unit, Entry)`（公开口，Task 3 的 Manual 触发点调它）、`IsOnCooldown` / `GetCooldownRemaining` / `GetCooldownTotal` / `GetCooldownTrackCount`（Task 4 装置读数面）、`AdjustCooldown` / `ResetCooldown`（Task 5 的事件源）
+- Produces: `StartCooldown(Entity, Entry)`（公开口，Task 3 的 Manual 触发点调它）、`IsOnCooldown` / `GetCooldownRemaining` / `GetCooldownTotal` / `GetCooldownTrackCount`（Task 4 装置读数面）、`AdjustCooldown` / `ResetCooldown`（Task 5 的事件源）
 
 - [x] **Step 1：落 `TcsCooldownOps` 的四个纯函数**——`StartCooldownOnEntry` / `IsEntryOnCooldown` / `AdjustTrack` / `ClearTrack`。签名住 `TcsCooldownOps.h`，**全部收 `UTcsSkillSubsystem&` 显式形参**（MUST NOT 用单例取子系统——既有算子的统一处置）。
 - [x] **Step 2：起轨的核心算法**——对每条 `Track`：① 取 `Duration`；② 乘 CDR；③ 算 `EndTimeSeconds = Clock.GetClock().Elapsed + EffectiveDuration`；④ `PushExpiry(EndTimeSeconds, OwnerId, OnDue)`。
   - **★ 定位方式 MUST 照抄 R6 的既有先例，MUST NOT 发明"可逆编码"**（本计划自审抓到的一处初稿错误）。**先例原文**（`TcsCastOps_Phase.cpp:198-206`）：`OwnerId` 传**来源 Id、只作回调归属读数**（注释原文"堆零领域词汇，只作回调归属读数"），**真正的定位靠 lambda 捕获句柄**——`[WeakSubsystem, PhaseRunHandle](uint64 /*OwnerId*/){ ... }`。
-    ⇒ 本 Task **同款**：捕获 `[WeakSubsystem, Unit, EntryHandle, TrackIndex]`，`OwnerId` 只填归属读数。**为什么冷却要多捕获 `Unit`**：冷却的真值住在**账本条目**上（不在 run 上），而 `FTcsSkillEntryHandle::Index` **只在单位桶内有意义**（`TcsSkillRegistry.h:53` 明文）⇒ 必须连同 `Unit` 一起捕获。**这正是 `FTcsCastRun::Unit` 存在的同一条理由**（`TcsCastRun.h:56-63`）。
+    ⇒ 本 Task **同款**：捕获 `[WeakSubsystem, Entity, EntryHandle, TrackIndex]`，`OwnerId` 只填归属读数。**为什么冷却要多捕获 `Entity`**：冷却的真值住在**账本条目**上（不在 run 上），而 `FTcsSkillEntryHandle::Index` **只在实体桶内有意义**（`TcsSkillRegistry.h:53` 明文）⇒ 必须连同 `Entity` 一起捕获。**这正是 `FTcsCastRun::Entity` 存在的同一条理由**（`TcsCastRun.h:56-63`）。
     **MUST NOT 把定位职责压给 `OwnerId`**——那会与 R6 已确立的堆使用约定造出**第二真相**（同一个堆、两种回调约定）。
-  - **组轨的处置**：`GroupTag` 有效时写**单位级组槽**（`TMap<FGameplayTag, FTcsCooldownGroupState>`），MUST NOT 重复写进每条目的轨道状态。**同组已有活槽时**：按 `D5-15`"公共冷却 = 共享组轨道"语义，**MUST 复用该槽**（不重起、不叠加）——判据见 Step 3。
+  - **组轨的处置**：`GroupTag` 有效时写**实体级组槽**（`TMap<FGameplayTag, FTcsCooldownGroupState>`），MUST NOT 重复写进每条目的轨道状态。**同组已有活槽时**：按 `D5-15`"公共冷却 = 共享组轨道"语义，**MUST 复用该槽**（不重起、不叠加）——判据见 Step 3。
 - [x] **Step 3：`IsEntryOnCooldown` 的判据（`D5-15` 原文）**——"**可施放 = 全部自身轨道清空 + 所属组槽清空**"。MUST 写成一条短路遍历：任一自身轨未清 **或** 任一所属组槽未清 ⇒ `true`。
   - **边界（MUST 处理，不得崩）**：`Tracks` 为空 ⇒ **恒可放**（`D5-15`："默认无冷却（空 Tracks）"）；`GroupTag` 无效 ⇒ 该轨只在自己条目上算；组槽存在但**该组无任何条目登记**（陈旧槽）⇒ 视为已清并记 `Log`（MUST NOT 静默保留永久堵死）。
 - [x] **Step 4：CDR 快照于触发时刻**——`CooldownPct` 从该条目的参数链取值，**在起冷那一刻取一次**并作用于各轨 `Duration`（`D5-15` 明文"快照于冷却触发时刻，中途变化不追溯"）。
@@ -429,7 +429,7 @@ void CommitCost(UTcsSkillSubsystem& Subsystem, const FTcsCombatEntityHandle& Uni
 
 **Interfaces:**
 - Consumes: Task 0 的 `FTcsCostConfig` / `ETcsCostPolicy` / `ETcsCostTiming`；`UTcsAttributeSubsystem::EvaluateCurrent`（读当前值，`:219`）、`SetBaseValue`（写基值，`:181`）
-- Produces: `CanAffordCost(...)` / `CommitCost(...)`（**唯一实现**，Task 3 的终结触发点与 Manual 入口都调它）、`PayCost(Unit, Entry)` 公开口、**`UTcsAttributeSubsystem::GetBaseValue(Unit, Attribute)`**（新门面口）
+- Produces: `CanAffordCost(...)` / `CommitCost(...)`（**唯一实现**，Task 3 的终结触发点与 Manual 入口都调它）、`PayCost(Entity, Entry)` 公开口、**`UTcsAttributeSubsystem::GetBaseValue(Entity, Attribute)`**（新门面口）
 
 - [x] **Step 1：`CanAffordCost`**——**★ 四类分开处置（MUST NOT 二选一，判据见下）**：
 
@@ -440,15 +440,15 @@ void CommitCost(UTcsSkillSubsystem& Subsystem, const FTcsCombatEntityHandle& Uni
   | `ECP_ResourceAttr` | **无效** | 任意 | **恒 `false`** | **`Warning`** |
   | `ECP_ResourceAttr` | 有效 | **`< 0`** | **恒 `false`** | **`Warning`** |
   | `ECP_ResourceAttr` | 有效 | `== 0` | **恒 `true`** | 无（"消耗 0 点"就是不消耗，非错误） |
-  | `ECP_ResourceAttr` | 有效 | `> 0` | `GetBaseValue(Unit, ResourceAttr) >= Amount`，**且单位持有该属性** | 未持有时 `Warning` |
+  | `ECP_ResourceAttr` | 有效 | `> 0` | `GetBaseValue(Entity, ResourceAttr) >= Amount`，**且实体持有该属性** | 未持有时 `Warning` |
 
   - **★ 判据 = 本仓既有惯例，一律 fail-closed（MUST 读，我初稿在这里取反了）**：初稿写"配错 ⇒ 恒可付 + Warning"，理由是"不阻塞宿主"——**该理由是错的**，实测本仓对"配置写错"的处置**全部反着来**，措辞几乎逐字相同：
     - `TcsFlowStepConditions.h:56`——"**未知条件类型 → 视为不过 + Warning 日志**（**不静默通过**：静默会让'条件写错'表现成'步骤照跑'）"；
     - `TcsStepModifyFlow.cpp:36`——"载荷缺失或类型不符：不崩溃、**不静默通过**、不产生半笔提交"；
     - `TcsEffectAttributeAccess.h:72`——"条件求值要区分二者才能把'**键写错**'报出来（**MUST NOT 静默按 0.0 比较**）"。
     ⇒ 取"恒可付"**恰好制造本仓反复在拦的那类 bug**：技能明明配错，却照常放出来、**日志还清白**——"配置写错"表现成"一切正常"。**区分点 = "正确声明不消耗"（`ECP_None` / `Amount==0`，零日志）与"想配消耗但没配清"（无效 tag / 负值，拦住 + Warning）是两件事**，混成一类就会把后者伪装成前者。
-  - **★ `Amount < 0` 为什么必须拦**：负的 `Amount` 经 `SetBaseValue(Unit, Attr, Base - Amount)` 会让技能**倒给**资源（`Base - (-50)` = `Base + 50`）——这是**可被当作漏洞利用**的形态，不是"配置不生效"。
-  - **★ 单位未持有该属性 MUST 与"基值为 0"区分报**：`FTcsAttributeStore::GetBaseValue` 对未持有返回 `0.0`（`TcsAttributeStore.h:61`），与"确实持有且基值为 0"**不可区分** ⇒ `CanAffordCost` MUST 先经门面确认**持有**（`AddAttribute` 的既有语义面），否则"属性配错/没加"会表现成"付不起"——两种红字含义完全不同（`TcsEffectAttributeAccess.h:72` 是同一条判据的既有表述）。
+  - **★ `Amount < 0` 为什么必须拦**：负的 `Amount` 经 `SetBaseValue(Entity, Attr, Base - Amount)` 会让技能**倒给**资源（`Base - (-50)` = `Base + 50`）——这是**可被当作漏洞利用**的形态，不是"配置不生效"。
+  - **★ 实体未持有该属性 MUST 与"基值为 0"区分报**：`FTcsAttributeStore::GetBaseValue` 对未持有返回 `0.0`（`TcsAttributeStore.h:61`），与"确实持有且基值为 0"**不可区分** ⇒ `CanAffordCost` MUST 先经门面确认**持有**（`AddAttribute` 的既有语义面），否则"属性配错/没加"会表现成"付不起"——两种红字含义完全不同（`TcsEffectAttributeAccess.h:72` 是同一条判据的既有表述）。
   - **拒绝面形态**：本函数返回 `bool`，**MUST NOT ensure**（"付不起"是正常业务路径，不是契约违规）——与 `AttributeCompare` 条件的处置同款（"不通过 + 一条 Warning"）。
 - [x] **Step 2：`CommitCost`**——按 Policy 提交：`ECP_ResourceAttr` ⇒ 走属性写侧扣减；`ECP_None` ⇒ 什么也不做；`ECP_CustomFragment` ⇒ 具名 `Warning` + 零提交。
   - **★ 写侧入口的判据（MUST 在此写清，MUST NOT 留到实施期）**：`ApplyModifier` 的形参 `FTcsAttrModInstance` 是**纯 C++ struct、非反射**（`SCRIPT-9` 在册）。本轮**插件内 C++ 调用完全可行**（`TcsSkill` 已依赖 `TcsAttribute`）⇒ `ECP_ResourceAttr` 档**今天就能真做**。~~受阻的只是**宿主脚本侧的 `CustomFragment` 档**（裁决 ④已推后）~~ —— **★ 2026-10-12 改正**：`CustomFragment` 档**并不受阻于这条**（它不走 `ApplyModifier`，且宿主自定义消耗根本不经过 TCS 属性写入面）⇒ 该档阻塞 = `COST-3`（扩展点形状未裁）。
@@ -457,12 +457,12 @@ void CommitCost(UTcsSkillSubsystem& Subsystem, const FTcsCombatEntityHandle& Uni
     2. **来源锚点的矛盾**：`ApplyModifier` 路径**必须**给 `Source`（`FTcsSourceHandle`），而资源扣减**不可**挂 `RunSource`（施法一终结 ⇒ 级联摘除 ⇒ 扣掉的血回来了）；挂"长寿命来源"则要**发明一个新发号器**，而该来源今天**零撤销消费者**（消耗本就不可撤销）⇒ 正是"零消费者不预建"；
     3. **`CHAIN-8` 已就同一问题给过判据**（台账原文）：修正器层**效力不等同**于直写基值——① 会被任一 `TAO_Override` **整体抹掉**（`TcsAttributeBandFold.h:161-164`）；② 参与 `PercentAdd` / `Mul` **复利**；③ 可按来源摘除。**"花掉 50 点蓝"若被一个 Override 抹掉就是荒谬的** ⇒ 必须直写基值。
   - **★ 一处实测事实（本计划自审抓到，MUST 记）**：`FTcsAttributeStore::GetBaseValue(const FGameplayTag&) const` **已经存在**（`TcsAttributeStore.h:61`，`FindInstance` 取 `BaseValue`、未持有返回 `0.0`），但**门面 `UTcsAttributeSubsystem` 没有转发它的公开口**（实测公开读口只有 `EvaluateCurrent`（折叠后当前值）与 `PeekPending`，**均读不到基值**）。
-    ⇒ **本 Step MUST 先在 `TcsAttribute` 补一个门面转发口**（形如 `UFUNCTION() double GetBaseValue(FTcsCombatEntityHandle Unit, const FGameplayTag& Attribute)`），**转发现有实现、零新逻辑**。**这是本计划对 `TcsAttribute` 的唯一改动**，属"补一个已有能力的公开面"而非新机制。
+    ⇒ **本 Step MUST 先在 `TcsAttribute` 补一个门面转发口**（形如 `UFUNCTION() double GetBaseValue(FTcsCombatEntityHandle Entity, const FGameplayTag& Attribute)`），**转发现有实现、零新逻辑**。**这是本计划对 `TcsAttribute` 的唯一改动**，属"补一个已有能力的公开面"而非新机制。
     **为什么必须走门面、MUST NOT 从 `TcsSkill` 直接伸手 `ResolveStore` + `FindInstance`**：`ResolveStore` 虽在公开头，但其注释自述是"**门面与管线共用**的内部查询"（`:306-321`）；跨模块直读会**击穿 M2 门面**（属性存储的形状从此成为跨模块契约，M2 想改 `BaseValue` 的载体就得改两个模块）。**判据 = 门面是模块的对外唯一入口**（与 `TcsSkill` 自己的算子一律收 `UTcsSkillSubsystem&` 形参同一条纪律）。
-  - **⇒ `CommitCost` 的 `ECP_ResourceAttr` 档调 `SetBaseValue(Unit, ResourceAttr, GetBaseValue(Unit, ResourceAttr) - Amount)`。**
-  - **拒绝面**：`SetBaseValue` 自身对"单位未注册 / 属性名为空 / 该单位未持有此属性"返回 `false`（含 `ensureMsgf` 红字）⇒ `CommitCost` MUST 检查返回值并**向上报"提交失败"**，MUST NOT 假设它一定成功（否则 `PayCost` 会报成功而资源没扣）。
-  - **另一处边界**：`GetBaseValue` 对**未持有该属性**返回 `0.0`（与"基值为 0"不可区分）⇒ `CanAffordCost`（Step 1）MUST 先确认该单位**持有**该属性，否则 `0 >= Amount` 的判定会把"属性不存在"表现成"付不起"（对于一个配错属性的技能，这两种红字含义完全不同）。
-- [x] **Step 3：`PayCost(Unit, Entry)` 公开口**——解析条目 → 取其 Def 的 `Cost` → **重查一次 `CanAffordCost`**（裁决 ④的 TOCTOU 防护）→ 通过则 `CommitCost` + 发 `OnCostApplied`（Task 5）→ 返回是否成功。
+  - **⇒ `CommitCost` 的 `ECP_ResourceAttr` 档调 `SetBaseValue(Entity, ResourceAttr, GetBaseValue(Entity, ResourceAttr) - Amount)`。**
+  - **拒绝面**：`SetBaseValue` 自身对"实体未注册 / 属性名为空 / 该实体未持有此属性"返回 `false`（含 `ensureMsgf` 红字）⇒ `CommitCost` MUST 检查返回值并**向上报"提交失败"**，MUST NOT 假设它一定成功（否则 `PayCost` 会报成功而资源没扣）。
+  - **另一处边界**：`GetBaseValue` 对**未持有该属性**返回 `0.0`（与"基值为 0"不可区分）⇒ `CanAffordCost`（Step 1）MUST 先确认该实体**持有**该属性，否则 `0 >= Amount` 的判定会把"属性不存在"表现成"付不起"（对于一个配错属性的技能，这两种红字含义完全不同）。
+- [x] **Step 3：`PayCost(Entity, Entry)` 公开口**——解析条目 → 取其 Def 的 `Cost` → **重查一次 `CanAffordCost`**（裁决 ④的 TOCTOU 防护）→ 通过则 `CommitCost` + 发 `OnCostApplied`（Task 5）→ 返回是否成功。
   - **`PayCost` 的定位 MUST 写清**：它是 **`ECT_Manual` 档的专用提交入口**（并作宿主主动重试口）。**自动档（`OnCastStarted` / `OnCastCompleted` / `OnEvent`）MUST NOT 走它**——自动档直调 `CommitCost`，否则会多一层"按 Timing 判断要不要提交"的分支，而提交点应当**已经知道**自己该不该提交。
 - [x] **Step 4：★ `ECT_OnCastStarted` 档的提交落点（2026-10-11 用户确认，MUST 按此实现）**——**门禁⑤（`CanAffordCost`）通过之后、建 run 之前**，调 `CommitCost`。
   - **落点精确位置**：`TcsCastOps.cpp` 的门禁⑤ 段（`:237`）**与**建运行态段（`:239` 起的 `CastRuns.Allocate()`）**之间**。
@@ -497,7 +497,7 @@ void CommitCost(UTcsSkillSubsystem& Subsystem, const FTcsCombatEntityHandle& Uni
 
 - [x] **Step 1：读全 `FinishCastRun` 的现状**（`TcsCastOps.cpp:444-670`，**MUST 逐段读完再动手**）——它的既有次序是：**⓪ 完成档起主链 → ① 取消时段到期锚点 → ② 按 `RunSource` 回收属性账本条目 → …**。本 Task 的触发点 MUST **插在正确的位置**（判定见 Step 2）。
   - **MUST NOT 凭 `SPEC-04-skill` 的描述推断形状**（那是语义面；形状以代码为准，`MEM-20261009-01`）。
-  - **★ 一处必须继承的既有约束**：该例程有**重入窗口守卫**（`InFinishBroadcastHandles`，`:471-477`）与**"先按值拷出 `RunCopy` 再动池"**的纪律（`:479-485`）⇒ 本 Task 的全部新代码 **MUST 用 `RunCopy` 的拷贝字段**（`EntryHandle` / `Unit` / `RunSource`），**MUST NOT 再用 `Run` 指针**（池可扩容搬移）。
+  - **★ 一处必须继承的既有约束**：该例程有**重入窗口守卫**（`InFinishBroadcastHandles`，`:471-477`）与**"先按值拷出 `RunCopy` 再动池"**的纪律（`:479-485`）⇒ 本 Task 的全部新代码 **MUST 用 `RunCopy` 的拷贝字段**（`EntryHandle` / `Entity` / `RunSource`），**MUST NOT 再用 `Run` 指针**（池可扩容搬移）。
 - [x] **Step 2：★ 触发点次序的裁定（本 Task 的核心判据，MUST 写清）**——冷却/Cost 的触发**MUST 排在"按 `RunSource` 回收"之后**。**判据**：回收会**广播属性变更事件**（`:464` 明文），而 `OnEvent` 档的 Cost 提交可能被那些广播触发；排在回收之前的话，回收尚未完成就可能提交消耗，且**新起的链/条目会与回收动作交错**。**同族先例** = ⓪ 段起链**必须**排在回收**之前**（`:489-492` 的反面理由：完成档起链排在回收后会"当场被自己的终结例程摘掉"）。⇒ **两处的次序理由相反、判据相同（"别让自己的动作被自己的清理吃掉"）**，MUST 在注释里把这个对照写出来。
   - **落地形状**：在 ② 段（回收）**之后**、且**在归还池槽位之前**插入 ③ 段。
   - **为什么必须在"归还槽位之前"**：广播纪律是"**先广播、后归还槽位**"（`FTcsCastEventPayload` 的类注释明文，`TcsCastEvents.h:49`）⇒ 订阅者拿到的冷却事件里若含 run 句柄，那一刻它 MUST 仍在册。
@@ -536,9 +536,9 @@ void CommitCost(UTcsSkillSubsystem& Subsystem, const FTcsCombatEntityHandle& Uni
 - Consumes: `TcsEventBusSubsystem::PublishImmediate`（`:105`）、`FTcsCastEventPayload` 的形状先例
 - Produces: 四枚 `extern TCSSKILL_API FNativeGameplayTag` + `FTcsCooldownEventPayload` / `FTcsCostEventPayload`
 
-- [x] **Step 1：落 `FTcsCooldownEventPayload`**——`{EntryHandle, Unit, DefTag, TrackIndex, GroupTag, Total, Remaining, EndTimeSeconds}`（`D5-16` 的 payload 清单 + R6 `FTcsCastEventPayload` 的身份四件套）。
+- [x] **Step 1：落 `FTcsCooldownEventPayload`**——`{EntryHandle, Entity, DefTag, TrackIndex, GroupTag, Total, Remaining, EndTimeSeconds}`（`D5-16` 的 payload 清单 + R6 `FTcsCastEventPayload` 的身份四件套）。
   - **`SkillId` 字段的处置（`D5-16` 原文有它，今天没有这个类型）**——MUST 用 `DefTag`（内容身份）取代，**MUST NOT 为它发明一个类型**。理由：`D5-9` 修订后 `EffectiveDefId` 已整体移除、"这个条目用哪份定义"的唯一答案就是 `DefTag`（`TcsSkillRegistry.h:42` 明文）。**这是 `MEM-20261006-16`「名字三类核实」的第三类（拟定未建）的正确处置 = 用现有的正确载体替代，不是补造。**
-- [x] **Step 2：落 `FTcsCostEventPayload`**——`{EntryHandle, Unit, DefTag, ResourceAttr, Amount}`（`D5-16` 原文清单 + 身份三件套）。
+- [x] **Step 2：落 `FTcsCostEventPayload`**——`{EntryHandle, Entity, DefTag, ResourceAttr, Amount}`（`D5-16` 原文清单 + 身份三件套）。
 - [x] **Step 3：落四枚 tag**——`TcsEvent.Cast.CooldownStarted` / `.CooldownUpdated` / `.CooldownEnded` / `.CostApplied`。全部 `extern TCSSKILL_API FNativeGameplayTag`（导出宏判据见 `TcsCastEvents.h:28`）。
 - [x] **Step 4：接上四个调用点**——`StartCooldown` → `CooldownStarted`；`AdjustCooldown`/`ResetCooldown` → `CooldownUpdated`；到期回调 → `CooldownEnded`；`CommitCost` 成功后 → `CostApplied`。
   - **`CanAfford` 失败 MUST NOT 发 `CostApplied`**（`D5-16` 明文："CanAfford 失败不发——TryActivate 返回值覆盖"）。
@@ -577,7 +577,7 @@ void CommitCost(UTcsSkillSubsystem& Subsystem, const FTcsCombatEntityHandle& Uni
       修法 = 谓词按**条目身份**筛。**复验硬证据**：`I1` 的 `ElapsedSeconds` **0.550s → 1.333s**（两轮）。
     - `P2`（**前提级**）检查 `e` 拿 `Attribute.Armor` 当"未持有"，而 `ApplySliceAttributes`
       **会授予 Armor** ⇒ "未持有"这个前提**只在无头下成立**（无头内容资产 0 条 ⇒ 属性表为空）。
-      修法 = 另造**不装配**的裸单位取得真正的未持有态，并把该口改为**两向都验**。
+      修法 = 另造**不装配**的裸实体取得真正的未持有态，并把该口改为**两向都验**。
   - **两处都是夹具缺陷，插件侧门禁/提交逻辑在两处都表现正确。**
   - 读数：`Run` 立即面 **18/0** + 尾段 **21/0**、`Reject` **7/0**，**两次独立 PIE 世界逐字相同**；
     跨 PIE 残留检查通过；`D1`/`F1`/`B1` 在 PIE 下全 `PASS` ⇒ ****该三条在 PIE 下亦 `PASS` ⇒ 无头对它们的 `PASS` 不是假绿灯**（⚠ **但两条路线用的夹具版本不同，见 `EVID-2026-10-11-r65-cooldown-cost` §1.1 ⇒ MUST NOT 读成"双路线一致通过"**）**。

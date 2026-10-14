@@ -1,41 +1,41 @@
 # skill-registry Specification
 
 ## Purpose
-定义 M5 技能层的**已学技能账本**：per-unit 条目记录与代际句柄、授予 / 撤销 / 按来源级联、账本层参数读取面（生效等级与参数双表）、技能定义的**逐世界登记口**，以及门禁第一道「实体可操作」的判据来源与降级语义——让"某个单位会哪些技能"成为可查询、可增删、可判定能否施放的运行事实，而不是只有一份资产形状。
+定义 M5 技能层的**已学技能账本**：per-entity 条目记录与代际句柄、授予 / 撤销 / 按来源级联、账本层参数读取面（生效等级与参数双表）、技能定义的**逐世界登记口**，以及门禁第一道「实体可操作」的判据来源与降级语义——让"某个实体会哪些技能"成为可查询、可增删、可判定能否施放的运行事实，而不是只有一份资产形状。
 
 ## Requirements
 
-### Requirement: 已学技能账本（per-unit 条目与代际句柄）
+### Requirement: 已学技能账本（per-entity 条目与代际句柄）
 
-`TcsSkill` MUST 提供**已学技能账本**——把"某个单位会哪些技能"变成**可查询、可增删**的 per-unit 登记表，且它是技能层唯一的"学习事实"来源（`SPEC-04-skill` §3.1 的 `FLearnedSkillEntry`）：
+`TcsSkill` MUST 提供**已学技能账本**——把"某个实体会哪些技能"变成**可查询、可增删**的 per-entity 登记表，且它是技能层唯一的"学习事实"来源（`SPEC-04-skill` §3.1 的 `FLearnedSkillEntry`）：
 
-- 账本 MUST 以 `UTcsSkillSubsystem`（`UWorldSubsystem`）为门面，持 **per-unit 桶**（一个单位一个句柄空间）；桶的存储与全局身份分工 MUST 照 `TcsState` 的既有体例（`FTcsStateRegistry` / `FStateBucket`：**每单位一个句柄空间**，槽位索引在单位内定位、代际由本模块统一的进程内发号器分配**不复用的奇数**，释放 +1 置偶数），**MUST NOT 复用** `TTcsInstancePool`（该池是"一池 = 一个句柄空间"，与 per-unit 桶的形状不符）；
+- 账本 MUST 以 `UTcsSkillSubsystem`（`UWorldSubsystem`）为门面，持 **per-entity 桶**（一个实体一个句柄空间）；桶的存储与全局身份分工 MUST 照 `TcsState` 的既有体例（`FTcsStateRegistry` / `FStateBucket`：**每实体一个句柄空间**，槽位索引在实体内定位、代际由本模块统一的进程内发号器分配**不复用的奇数**，释放 +1 置偶数），**MUST NOT 复用** `TTcsInstancePool`（该池是"一池 = 一个句柄空间"，与 per-entity 桶的形状不符）；
 - 条目句柄类型 MUST 为 `FTcsSkillEntryHandle{int32 Index, int32 Generation}` 并 **MUST 反射**（`USTRUCT(BlueprintType)`）——展平两字段（**不内嵌模板句柄**：模板类型无法作 `UPROPERTY`，脚本层往返会得到空壳 ⇒ 读不到值、传回全零 ⇒ 代际失配），`Index` 取 `int32`（UHT 不支持 `uint32` 作属性类型；`-1` 与池的 `0xFFFFFFFF` 位模式相同）；**有效性判据 = `Generation` 非 0**，MUST NOT 判"下标非 0"（首个槽位的 `Index` 就是 0）；
-- 条目记录类型 MUST 为 `FTcsLearnedSkillEntry`，字段**恰好**为八项 `{FGameplayTag DefTag, FTcsSkillEntryHandle Handle, FTcsCombatEntityHandle Unit, FTcsSourceHandle LearnSource, int32 Level, TArray<FTcsCastRunHandle> RunHandles, TArray<FTcsNumericParamModInstance> NumericParamModInstances, TArray<FTcsCooldownTrackState> CooldownTracks}`：
+- 条目记录类型 MUST 为 `FTcsLearnedSkillEntry`，字段**恰好**为八项 `{FGameplayTag DefTag, FTcsSkillEntryHandle Handle, FTcsCombatEntityHandle Entity, FTcsSourceHandle LearnSource, int32 Level, TArray<FTcsCastRunHandle> RunHandles, TArray<FTcsNumericParamModInstance> NumericParamModInstances, TArray<FTcsCooldownTrackState> CooldownTracks}`：
   - **非反射结构体**（无 `USTRUCT`）——它是桶内池化纯数据、本轮零过网与零脚本消费面（同 `FTcsStateInstance` 的处置与理由）；脚本/蓝图侧的读写面另属 `SCRIPT-10`（触发条件型），**MUST NOT** 在本轮为此反射化；
-  - `DefTag` = **权威内容身份**（`EffectiveDefId` 概念已整体移除——D5-9）；`Handle` = **桶内句柄**（条目自身身份；`Index` / `Generation` 的语义由所属桶定义）；`Unit` = **条目所属单位**（门面按句柄取条目时句柄里没有单位段 ⇒ 自持后是 O(1) 定位，否则只能遍历所有桶找句柄；且"这个技能在谁身上"本就是条目身份的一部分，非重复真相——同 `FTcsStateInstance::Unit` 的理由）；`LearnSource` = 学习来源（级联撤销锚点）；`Level` = **持久等级**（运行中升级不追溯，快照时点在激活期）；`RunHandles` = 在飞施法运行句柄集（**激活期回填、run 终结时摘除**——回填与摘除 MUST 成对，否则账本会永久持有已归还的句柄，表现为"技能显示在飞但实际放完了"；写入者 = 施法运行态能力）；
-  - **`Unit` 缺失时的后果（MUST 记录，防后人误删）**：施法终结路径（打断 / 顶替）只拿得到**运行句柄**，需经 `Unit` 才能定位条目并摘除 `RunHandles`、按来源回收；缺它会让终结路径要么无法定位，要么退化为全桶扫描；
+  - `DefTag` = **权威内容身份**（`EffectiveDefId` 概念已整体移除——D5-9）；`Handle` = **桶内句柄**（条目自身身份；`Index` / `Generation` 的语义由所属桶定义）；`Entity` = **条目所属实体**（门面按句柄取条目时句柄里没有实体段 ⇒ 自持后是 O(1) 定位，否则只能遍历所有桶找句柄；且"这个技能在谁身上"本就是条目身份的一部分，非重复真相——同 `FTcsStateInstance::Entity` 的理由）；`LearnSource` = 学习来源（级联撤销锚点）；`Level` = **持久等级**（运行中升级不追溯，快照时点在激活期）；`RunHandles` = 在飞施法运行句柄集（**激活期回填、run 终结时摘除**——回填与摘除 MUST 成对，否则账本会永久持有已归还的句柄，表现为"技能显示在飞但实际放完了"；写入者 = 施法运行态能力）；
+  - **`Entity` 缺失时的后果（MUST 记录，防后人误删）**：施法终结路径（打断 / 顶替）只拿得到**运行句柄**，需经 `Entity` 才能定位条目并摘除 `RunHandles`、按来源回收；缺它会让终结路径要么无法定位，要么退化为全桶扫描；
   - **`NumericParamModInstances` 字段已回补（2026-10-09，Task 4 按上条裁定自己的约定回补）**：本字段原被裁定"归参数链轮"而**从条目中移除**（元素类型 `FTcsNumericParamModifier` / `FTcsNumericParamModInstance` 当时不存在 ⇒ 写进来即**未声明标识符**）。Task 4 交付后，字段随之下落为**第七条** `TArray<FTcsNumericParamModInstance> NumericParamModInstances`——它是参数账本的**槽位容器**（形如 M2 `FTcsAttributeInstance::AttrModInstances`），也是"激活期物化 + 外部施加 + 按来源级联摘除"三者的共同落点（缺它则三者**无字段可写**）；
     - **元素类型是账本侧的纯 C++ `FTcsNumericParamModInstance`（无 `USTRUCT`、无对象引用）** ⇒ 本条**依然**满足下方 GC 纪律（"账本条目 MUST NOT 持任何 `UObject` 引用"），门面 `AddReferencedObjects` **MUST NOT** 为此新增遍历。**判据**：若有人把这里换成定义侧的 `FTcsNumericParamModifier`（含 `FTcsParamValue` ⇒ 可持 `TScriptInterface`），则账本容器（`TArray`、非 `UPROPERTY`、元素非反射）会 **GC 不可见** ⇒ 那些对象被静默回收（症状 = 参数链里的源变空引用，不崩溃）；
   - **`CooldownTracks` 字段已回补（2026-10-11，`R6.5-1` Task 0；MUST 记录理由以免后人误读为"当初漏写"）**：本字段原被明确裁定"归 `R6.5-a`"，**本条当时的原文即"MUST NOT 声明任何冷却轨道状态字段"**，理由是"其元素类型仍不存在，而 `TArray<T>` 成员要求 `T` 可见 ⇒ 提前声明即**未声明标识符**（硬编译错误）"。`R6.5-1` Task 0 交付 `FTcsCooldownTrackState`（`Skill/TcsCooldownState.h`）、Task 1 交付其消费者（`TcsCooldownOps`）⇒ **类型与消费者同时到位**，字段随之下落为**第八条** `TArray<FTcsCooldownTrackState> CooldownTracks`。**⇒ 与上一条同款：不是"当初漏了"，是"当初不能写"。**
     - **冷却的真值住本字段**（`D5-15` 明文："**真值在 Entry，UI 轮询**"）——**不住施法运行态**。判据：冷却是**条目级**的持久状态（"这个技能还要等多久"跨施法存在），而 run 是**一次施法**的运行态、随终结归还池槽位 ⇒ 冷却若挂 run 上会随施法结束一起消失；
-    - **与 Def 侧 `FTcsCooldownPolicy::Tracks` 一一对应、同序**（同序是硬契约：查询口按**下标**寻址 —— `GetCooldownRemaining(Unit, Entry, TrackIndex)`）；
+    - **与 Def 侧 `FTcsCooldownPolicy::Tracks` 一一对应、同序**（同序是硬契约：查询口按**下标**寻址 —— `GetCooldownRemaining(Entity, Entry, TrackIndex)`）；
     - **空数组 = 该条目此刻没有任何冷却在跑**，与"该技能配了空 `Tracks`（永远可放）"是**两件事**（前者是运行态此刻为空、后者是定义上不存在轨道）⇒ **MUST NOT** 用"本数组是否为空"反推"这个技能有没有冷却"，那要读 Def；
     - **元素类型 `FTcsCooldownTrackState` 是纯 C++ 值类型（无 `USTRUCT`、无对象引用）** ⇒ 本条**依然**满足下方 GC 纪律，门面 `AddReferencedObjects` **MUST NOT** 为此新增遍历（同 `NumericParamModInstances` 的判据）；
-    - **单位级组槽不住本字段**：`GroupTag` 有效的轨道（公共冷却）共用一个**单位级**槽（住门面），因为公共冷却的作用域是**单位**而非条目 —— 若按条目各存一份，同组两个条目会各起各的线，那就**不是 GCD 了**（症状：放完 A 之后 B 立刻能放）；
-- 门面 MUST 提供 `GrantSkill(FTcsCombatEntityHandle Unit, FGameplayTag DefTag, FTcsSourceHandle Source)` / `RevokeSkill(...)`，并 MUST 支持**按来源级联撤销**（摘该来源在该单位的全部条目）；`LearnSource` 语义同状态侧的施加方来源句柄（**不是**状态侧的 `CascadeAnchor`——账本条目不挂修正器与触发行，无独立级联锚点需求，MUST NOT 照抄状态侧的两个句柄）；
+    - **实体级组槽不住本字段**：`GroupTag` 有效的轨道（公共冷却）共用一个**实体级**槽（住门面），因为公共冷却的作用域是**实体**而非条目 —— 若按条目各存一份，同组两个条目会各起各的线，那就**不是 GCD 了**（症状：放完 A 之后 B 立刻能放）；
+- 门面 MUST 提供 `GrantSkill(FTcsCombatEntityHandle Entity, FGameplayTag DefTag, FTcsSourceHandle Source)` / `RevokeSkill(...)`，并 MUST 支持**按来源级联撤销**（摘该来源在该实体的全部条目）；`LearnSource` 语义同状态侧的施加方来源句柄（**不是**状态侧的 `CascadeAnchor`——账本条目不挂修正器与触发行，无独立级联锚点需求，MUST NOT 照抄状态侧的两个句柄）；
 - **授予前置门禁**：`DefTag` 在本世界**未登记**时 MUST **拒绝授予**并为 `Warning`（**不 ensure**——内容缺口不是契约违规）；MUST NOT 建出一个取不到定义内容的条目（那会让参数读取面全部落空，而失败面表现为"读数为 0"而非"没学到"，属静默错误）；
 - 门面 MUST 提供 `DoesSupportWorldType`（仅游戏世界实例化）、`Initialize` / `Deinitialize`，且在 `Deinitialize` MUST 清空**登记表 / 账本注册表 / 注入的接口**三者（跨世界确定性清理——旧句柄一律凭代际失配失效，同状态门面的清理口径）；
 - **GC 纪律**：本类持**非 `UPROPERTY` 容器**且元素含对象引用时 MUST 覆写 `AddReferencedObjects` 补引用；注入的 `TScriptInterface` MUST 以 `UPROPERTY` 持有；判据是"**容器是否 GC 可见**"，与值语义/指针语义无关。
 
 #### Scenario: 授予后可查询、撤销后归零
 
-- **WHEN** 对某单位 `GrantSkill` 一个已登记定义的技能，随后 `RevokeSkill` 该条目
-- **THEN** 授予后该单位的账本条目数为 1、按句柄可解析到条目（`DefTag` / `Level` / `LearnSource` 与授予时一致）；撤销后条目数为 0，且该句柄凭代际失配被拒绝（不 ensure）
+- **WHEN** 对某实体 `GrantSkill` 一个已登记定义的技能，随后 `RevokeSkill` 该条目
+- **THEN** 授予后该实体的账本条目数为 1、按句柄可解析到条目（`DefTag` / `Level` / `LearnSource` 与授予时一致）；撤销后条目数为 0，且该句柄凭代际失配被拒绝（不 ensure）
 
 #### Scenario: 按来源级联恰摘该来源的条目
 
-- **WHEN** 同一单位先后以**两个不同** `Source` 授予两个技能，再按其中一个来源级联撤销
+- **WHEN** 同一实体先后以**两个不同** `Source` 授予两个技能，再按其中一个来源级联撤销
 - **THEN** 恰摘掉该来源的那 1 条，另一来源的条目**原样保留**（读数 = 条目数 2 → 1，且剩余条目的 `DefTag` = 另一个）
 
 #### Scenario: 未登记定义即拒绝授予

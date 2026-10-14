@@ -397,7 +397,7 @@ struct TCSEFFECT_API FTcsTriggerCondition_Chance
  * 本结构只是"条件数据"的载体（与 `HasAllTags` / `Chance` 同款：纯数据、零虚函数）。
  *
  * **失败面分两档（都不 ensure）**：
- * - `Attribute` 无效 / `Caster` 无效 / 上下文无 `World` / 该单位无属性账本 ⇒ **不通过、零红字**；
+ * - `Attribute` 无效 / `Caster` 无效 / 上下文无 `World` / 该实体无属性账本 ⇒ **不通过、零红字**；
  * - `Attribute` 有效但**账本上没有这个键** ⇒ **不通过 + 一条 Warning**：`EvaluateCurrent` 对
  *   "键不存在"与"值恰为 0"给同一个读数（0.0），不区分就会让"键写错"表现成"按 0 参与比较"
  *   （可能与阈值比较后**静默通过**）。该红字属**拒绝面**。

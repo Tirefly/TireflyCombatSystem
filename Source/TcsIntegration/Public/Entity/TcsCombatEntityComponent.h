@@ -21,8 +21,8 @@ class UTcsPieEntityQuery;
 /**
  * 战斗实体组件（D6-1/D6-2 终定）——**恰好三职责**，适配器零逻辑（06 §5）：
  *
- * 1. **身份锚**：`BeginPlay` 把所属 Actor 注册为战斗实体（`UTcsAttributeSubsystem::RegisterUnit`
- *    发放句柄）并记录自己的句柄；`EndPlay` 反向注销。挂组件 = 策划声明"本 Actor 是战斗单位"。
+ * 1. **身份锚**：`BeginPlay` 把所属 Actor 注册为战斗实体（`UTcsAttributeSubsystem::RegisterEntity`
+ *    发放句柄）并记录自己的句柄；`EndPlay` 反向注销。挂组件 = 策划声明"本 Actor 是战斗实体"。
  *    **门禁**：注册前检查定义就绪（`UTcsDefinitionSubsystem::IsRuntimeReady`）——未就绪留 Warning
  *    并跳过（时序是宿主责任，不 ensure 刷屏；06 §4"就绪门禁 = IsRuntimeReady 全量判定"）。
  * 2. **查询门面**：`GetCurrent` 转发属性门面求值；`ApplyModifier` / `RemoveBySource` 供宿主与
@@ -47,10 +47,10 @@ class TCSINTEGRATION_API UTcsCombatEntityComponent : public UActorComponent
 #pragma region Lifetime
 
 public:
-	// 注册：门禁检查 → RegisterUnit 发放句柄 → 登记进实体查询映射（未就绪则 Warning + 跳过）
+	// 注册：门禁检查 → RegisterEntity 发放句柄 → 登记进实体查询映射（未就绪则 Warning + 跳过）
 	virtual void BeginPlay() override;
 
-	// 注销：从实体查询映射移除 → 反向注销单位（句柄随之失效）
+	// 注销：从实体查询映射移除 → 反向注销实体（句柄随之失效）
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 #pragma endregion

@@ -46,9 +46,9 @@ struct TCSATTRIBUTE_API FTcsAttributeChangedEvent
 #pragma region Payload
 
 public:
-	// 变更所属单位
+	// 变更所属实体
 	UPROPERTY(BlueprintReadOnly, Category = "Attribute Event")
-	FTcsCombatEntityHandle Unit;
+	FTcsCombatEntityHandle Entity;
 
 	// 发生变更的属性名
 	UPROPERTY(BlueprintReadOnly, Category = "Attribute Event")

@@ -35,7 +35,7 @@
   资产文件改名/挪目录不影响解析（身份 = `[PrimaryAssetType, DefId]`）。
 - `Def.Bounds.Min.Mode` 选 `静态`（ABM_Static）后才会出现 `StaticValue` 字段（EditCondition）。
 - `Health` 想用动态上限（HP ≤ MaxHealth）就把 `Def.Bounds.Max.Mode` 设为 `动态`、
-  `DynamicAttribute` 填 `MaxHealth`（**要求同一单位持有 MaxHealth**，否则值被静默钳到 0——已知行为）。
+  `DynamicAttribute` 填 `MaxHealth`（**要求同一实体持有 MaxHealth**，否则值被静默钳到 0——已知行为）。
 - 4 条建完后：**选中全部 → 右键 → Validate Assets**（应零 Invalid）。
 
 ---
@@ -84,7 +84,7 @@
 
 ---
 
-## 3. 测试地图 + 2 个单位
+## 3. 测试地图 + 2 个实体
 
 1. **新建地图**：`File → New Level → Basic`，存为 `Content/TcsDev/L_TcsDev_Slice.umap`。
 2. **建 2 个 Actor**：
@@ -92,8 +92,8 @@
    - 各自 **Add Component → Tcs Combat Entity Component**（`UTcsCombatEntityComponent`）。
 3. **保存地图**。
 
-> 单位**不需要**预先配属性——`Tcs.Test.Slice.Run` 命令会自己生成两个测试单位并装配属性
-> （地图里的单位仅供你手动点选观察，验收以命令为准）。
+> 实体**不需要**预先配属性——`Tcs.Test.Slice.Run` 命令会自己生成两个测试实体并装配属性
+> （地图里的实体仅供你手动点选观察，验收以命令为准）。
 
 **可选**：把地图设为 PIE 默认地图（`Project Settings → Maps & Modes`），或直接
 `Open Level` 后点 Play。
@@ -115,7 +115,7 @@
 检查 2：链已装配进本世界 1/1（EffectSubsystem::FindChain 可查）
 检查 3：链步骤类型全可解析（3/3 步；不可解析 0）
 检查 4：属性定义已装载 4/4
-检查 5：单位属性装配（施法者 4 条 / 目标 4 条；Attack=30.0 / Armor=5.0 / Health=100.0）
+检查 5：实体属性装配（施法者 4 条 / 目标 4 条；Attack=30.0 / Armor=5.0 / Health=100.0）
 检查 6：宿主自研流程扣血（Health 100.0 → 75.0；模板 Slice_Flow = 2 个宿主自研步骤）
 检查 7a：内容链起链成功
 —— 检查 7b（+2.0s 战斗时间后的延迟判定）——
@@ -167,7 +167,7 @@ PIE 运行中切关卡：控制台 `open L_TcsDev_Slice`（或换到别的图再
 > | 4.4 改数值前后对照 | **25.0 → 45.0**（`DamageBase` 30→45 且模板改指无公式的 `Default`）；带公式的 `Default_Slice` 下改 `DamageBase` 确实不影响扣血（§4.4 预告的坑实测复现） |
 > | 非预期 FAIL / 日志 | **无** |
 >
-> **额外获得（本轮意外收益）**：地图里摆的 2 个单位实测走通**关卡加载期注册**路径（`StaticMeshActor_1/2` 句柄 1/2），这是装置"运行时 spawn"永远覆盖不到的一条路。
+> **额外获得（本轮意外收益）**：地图里摆的 2 个实体实测走通**关卡加载期注册**路径（`StaticMeshActor_1/2` 句柄 1/2），这是装置"运行时 spawn"永远覆盖不到的一条路。
 >
 > **修复记录**：本轮照出一处装置缺陷——检查 7b 初稿读**目标**的 Health，但链上 `SelectTargets(Self)` 会把目标集替换为**施法者**（`TcsStepSelectTargets.cpp` 是"清空后写回"），故 7b 会恒 FAIL。已修（改读施法者）并实证。详见 plan2 Task 6 注记⑨-A。
 

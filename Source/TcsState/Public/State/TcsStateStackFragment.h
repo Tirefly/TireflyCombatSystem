@@ -9,6 +9,7 @@
 #include "Handle/TcsSourceHandle.h"
 
 #include "State/TcsStateHandle.h"
+#include "Runtime/TcsEntityAdmission.h"
 
 #include "TcsStateStackFragment.generated.h"
 
@@ -18,7 +19,7 @@ struct FTcsStateInstance;
 
 /**
  * 本次施加的决策输入（**纯 C++ 视图，不做 USTRUCT**）：共存决策只需要"新来的这一次是谁、从哪来"，
- * 既有实例的一切（定义 / 单位 / 来源 / 层数 / 等级）从 `Existing` 读。
+ * 既有实例的一切（定义 / 实体 / 来源 / 层数 / 等级）从 `Existing` 读。
  *
  * 为什么不做反射：策略方法的形参不参与资产序列化，也不是脚本层要构造的东西——决策输入永远由
  * 引擎流程装配（同款取舍先例 = 物化上下文）。
@@ -29,7 +30,7 @@ struct FTcsStateStackRequest
 	FGameplayTag DefTag;
 
 	// 被施加方实体（组键基座的另一半）
-	FTcsCombatEntityHandle Unit;
+	FTcsCombatEntityHandle Entity;
 
 	// 本次施加的来源句柄（**无效 = 调用方未声明来源**，共存决策按"同来源"处理——见下方决策种类）
 	FTcsSourceHandle Source;
@@ -70,6 +71,13 @@ struct FTcsStateStackDecision
 /**
  * 堆叠共存决策 Fragment（D3-7 v3 的"决策 Fragment"深度）：**只在本策略选中 `EGB_Custom` 时参与**。
  *
+ * **★ 自 2026-10-14 起它是共享层统一决策接口的「状态侧薄型」**：`FTcsEntityAdmission`
+ * 提供三方法（`IsSameGroup` / `ShouldAccept` / `ResolveStacks`）与中性默认实现，本类型
+ * **继承它、不再自行声明那三个方法**（⇒ 决策空间的契约只有一份；技能侧同款由另一组薄型承载）。
+ * **保留本类型名的理由**：① 它是 Def 资产 `CustomDecision` 的**作者面**类型（宿主子类化它）；
+ * ② 状态域的默认语义与共享层默认**逐字相同**（同实体 + 同 `DefTag`；恒接受；同来源不变、异来源 +1），
+ * 故继承默认实现即可保持行为不变。
+ *
  * **载体纪律**：策略实例归 **Def 资产**持有（`FStateStackPolicy::CustomDecision`），
  * `FTcsStateInstance` MUST NOT 持有任何策略载体（值语义记录是池化与操作复制的地基）。
  *
@@ -81,44 +89,10 @@ struct FTcsStateStackDecision
  * 具体策略（如"按元素分组""按技能族共享层数"）由宿主实现并挂进 Def 资产。
  */
 USTRUCT(meta = (Hidden))
-struct TCSSTATE_API FTcsStateStackDecisionFragment
+struct TCSSTATE_API FTcsStateStackDecisionFragment : public FTcsEntityAdmission
 {
 	GENERATED_BODY()
 
-// 决策
-#pragma region Decision
-
-public:
-	/**
-	 * 是否与既有实例同组（`GroupBy == EGB_Custom` 时接管分组判定）。
-	 *
-	 * 默认实现 = 内置"不分组"语义（同单位 + 同 `DefTag`）。
-	 *
-	 * @param Request 本次施加的决策输入。
-	 * @param Existing 桶内既有实例（同定义、同单位的候选）。
-	 * @return 返回是否同组。
-	 */
-	virtual bool IsSameGroup(const FTcsStateStackRequest& Request, const FTcsStateInstance& Existing) const;
-
-	/**
-	 * 是否接受这次施加（拒绝 ⇒ 回执 `EAR_Rejected`、**任何事件都不广播**、实例不动）。
-	 *
-	 * 默认实现 = 恒接受（容量与溢出政策仍在引擎侧照常生效——策略只表达它真正在乎的那一档判断）。
-	 *
-	 * @param Request 本次施加的决策输入。
-	 * @param Existing 桶内既有实例。
-	 * @return 返回是否接受。
-	 */
-	virtual bool ShouldAccept(const FTcsStateStackRequest& Request, const FTcsStateInstance& Existing) const;
-
-	/**
-	 * 层数决策（默认 = 内置规则：同来源不变、异来源 +1；未声明来源按同来源处理）。
-	 *
-	 * @param Request 本次施加的决策输入。
-	 * @param Existing 桶内既有实例。
-	 * @return 返回本次施加之后的目标层数。
-	 */
-	virtual int32 ResolveStacks(const FTcsStateStackRequest& Request, const FTcsStateInstance& Existing) const;
-
-#pragma endregion
+	// 三个决策方法**继承自 `FTcsEntityAdmission`**（中性默认：同实体 + 同 `DefTag` / 恒接受 /
+	// 同来源不变·异来源 +1）。宿主子类化本类型即可覆盖它们——**MUST NOT** 在本类型里再声明一份。
 };

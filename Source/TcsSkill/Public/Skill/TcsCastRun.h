@@ -27,7 +27,7 @@
  * "可能触发池扩容的调用"缓存本结构指针（同 `FTcsChainRun` 的持有纪律）。
  *
  * **字段边界（MUST 守死）**：
- * - `Unit` **必须自持**（见其成员注释）——它不是冗余，缺它会让施法终结路径无法定位条目；
+ * - `Entity` **必须自持**（见其成员注释）——它不是冗余，缺它会让施法终结路径无法定位条目；
  * - `PhaseExpiryEntry` **自 Task 5 起有写入者**（时段推进落地）：它是**当前时段的取消锚点**，
  *   四路终结任一 MUST 经 `UTcsClockSubsystem::CancelExpiry` 取消它
  *   （`skill-cast-runtime` 能力的「施法运行态与实例池」需求明文）。
@@ -49,19 +49,19 @@ struct FTcsCastRun
 #pragma region Identity
 
 public:
-	// 本条 run 所属的账本条目（`Index` 只在单位桶内有意义 ⇒ 定位须配下面的 `Unit`）
+	// 本条 run 所属的账本条目（`Index` 只在实体桶内有意义 ⇒ 定位须配下面的 `Entity`）
 	FTcsSkillEntryHandle EntryHandle;
 
 	/**
-	 * 条目所属单位（**必须自持，不是冗余**）。
+	 * 条目所属实体（**必须自持，不是冗余**）。
 	 *
-	 * **为什么不能靠 `EntryHandle` 反查**：账本条目句柄的 `Index` **只在单位桶内定位**
-	 * （`TcsSkillRegistry.h` 明文），句柄里**没有单位段** ⇒ 仅凭它无法跨单位找到条目。
-	 * 而施法终结路径（打断 / 顶替）手上**只有运行句柄**（拿不到授予时的单位参数），
+	 * **为什么不能靠 `EntryHandle` 反查**：账本条目句柄的 `Index` **只在实体桶内定位**
+	 * （`TcsSkillRegistry.h` 明文），句柄里**没有实体段** ⇒ 仅凭它无法跨实体找到条目。
+	 * 而施法终结路径（打断 / 顶替）手上**只有运行句柄**（拿不到授予时的实体参数），
 	 * 却必须做两件事：摘账本该条目的 `RunHandles`、按 `RunSource` 回收链挂条目。
 	 * 缺本字段，这两件事要么做不到、要么退化成"遍历所有桶找这个句柄"（O(桶数) 的错误形态）。
 	 */
-	FTcsCombatEntityHandle Unit;
+	FTcsCombatEntityHandle Entity;
 
 #pragma endregion
 

@@ -5,6 +5,8 @@
 #include "CoreMinimal.h"
 #include "Templates/TypeHash.h"
 
+#include "Runtime/TcsInstanceHandleOps.h"
+
 #include "TcsStateHandle.generated.h"
 
 
@@ -17,7 +19,7 @@ struct FTcsStateTag
 
 
 /**
- * 状态实例句柄（D3-1）：在**某个单位的状态桶**内定位一个状态实例，是所有状态操作的入参。
+ * 状态实例句柄（D3-1）：在**某个实体的状态桶**内定位一个状态实例，是所有状态操作的入参。
  *
  * **为什么展平两字段而不内嵌 `TTcsInstanceHandle`**（与 `FTcsChainRunHandle` / `FTcsEffectTriggerInstance` 同款）：
  * 模板类型**无法作 `UPROPERTY`**，脚本层往返会得到空壳 ⇒ 读不到值 / 传回全零 ⇒ 代际失配。
@@ -44,21 +46,33 @@ struct TCSSTATE_API FTcsStateHandle
 	UPROPERTY(BlueprintReadOnly, Category = "Tcs|State")
 	int32 Generation = 0;
 
-	// 句柄有效性（代际校验由注册表在解析/释放时执行——本函数只判"是否曾被赋值"）
+	// 句柄有效性（**判据委托 `FTcsInstanceHandleOps`**——三句柄语义单点，本型不自行实现）
 	bool IsValid() const
 	{
-		return Index >= 0 && Generation > 0;
+		return FTcsInstanceHandleOps::IsValid(Index, Generation);
 	}
 
-	// 相等比较（**身份 = Index + Generation**——配对清理与容器键控用）
+	// 转为池句柄（**唯一转换点**的委托口——语义在 `FTcsInstanceHandleOps::ToInner`）
+	TTcsInstanceHandle<FTcsStateTag> GetInner() const
+	{
+		return FTcsInstanceHandleOps::ToInner<FTcsStateTag>(Index, Generation);
+	}
+
+	// 从池句柄赋值（**唯一转换点**的委托口，与 `GetInner` 对称）
+	void SetInner(const TTcsInstanceHandle<FTcsStateTag>& Inner)
+	{
+		FTcsInstanceHandleOps::FromInner(Inner, Index, Generation);
+	}
+
+	// 相等比较（**身份 = Index + Generation**——配对清理与容器键控用；语义同单点）
 	friend bool operator==(const FTcsStateHandle& A, const FTcsStateHandle& B)
 	{
-		return A.Index == B.Index && A.Generation == B.Generation;
+		return FTcsInstanceHandleOps::IsSameIdentity(A.Index, A.Generation, B.Index, B.Generation);
 	}
 
-	// 哈希（TMap / TSet 键控用）
+	// 哈希（TMap / TSet 键控用；语义同单点）
 	friend uint32 GetTypeHash(const FTcsStateHandle& Handle)
 	{
-		return HashCombine(GetTypeHash(Handle.Index), GetTypeHash(Handle.Generation));
+		return FTcsInstanceHandleOps::Hash(Handle.Index, Handle.Generation);
 	}
 };

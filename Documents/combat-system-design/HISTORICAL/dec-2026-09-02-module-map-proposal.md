@@ -34,11 +34,11 @@ TCS 上还挂着两个**待审批** OpenSpec 提案：`add-state-fragment-mechan
 
 | 已定结论 | 来源 | 处置 |
 |---|---|---|
-| 约束 → Tag 关系表 `FUnitStatusRule{Status,Blocks,Requires,Priority}` | 裁决1 | 直接继承 |
+| 约束 → Tag 关系表 `FEntityStatusRule{Status,Blocks,Requires,Priority}` | 裁决1 | 直接继承 |
 | 事件 = 总线 + 订阅表 + 共享 Handler UClass，struct 上不自绑 delegate | 裁决2a | 直接继承 |
 | tick = TickableWorldSubsystem 泵 ScaledDt 到 ITicker | 裁决2b | 直接继承 |
 | 三层分拆：定义=UObject DefAsset / 实例=USTRUCT+句柄+池 / 执行=集中式 tick | 裁决（载体讨论） | 直接继承 |
-| 两级单位：Mass 小兵 + 全功能军官 | 载体讨论 | 直接继承 |
+| 两级实体：Mass 小兵 + 全功能军官 | 载体讨论 | 直接继承 |
 | 修饰符聚合 recalc 式：Override(0)>Add(10)>PercentAdd(15)>Mul(20)，脏标记惰性重算，1e-5 阈值 | 对照提案 | 直接继承 |
 | FEffectStep 17+3 原语集、触发行 12 字段 | 提案 v1 | **待拍板后**继承 |
 | StateTree 只做决策/编排，不做 buff/skill 执行 | unreal-state-tree 调研 | 直接继承 |
@@ -51,7 +51,7 @@ TCS 上还挂着两个**待审批** OpenSpec 提案：`add-state-fragment-mechan
 1. **策略类爆炸**：~40 个策略类（TSubclassOf×17 / FInstancedStruct×6），大量分支只有单一实现 → 应由数据驱动规则替代的，不该做成类。
 2. **无中心事件总线**：组件间靠直接调用/组件查找，隐性耦合 → 裁决2a 已给解法。
 3. **无 ScaledDt**：计时语义悬空（既无 TimerManager 也无缩放处理）→ 裁决2b 已给解法。
-4. **组件中心 vs 千人战场**：UTcsStateComponent 挂 Actor 的模型与 Mass 小兵层冲突 → 两级单位架构已定，但新系统核心必须"可脱离 Actor 运行"。
+4. **组件中心 vs 千人战场**：UTcsStateComponent 挂 Actor 的模型与 Mass 小兵层冲突 → 两级实体架构已定，但新系统核心必须"可脱离 Actor 运行"。
 5. **高风险三连**：orphan-scan 子目录误删、ReadyNow 分支跳过 OnReady、ready 不等 DefAsset 预加载 → 新系统引导时序重做。
 6. **Fragment 机制悬空**：state-fragment 提案未落地，生命周期扩展点缺失 → §0.1 处置。
 7. **幽灵依赖与死代码**：GameplayMessageRouter 幽灵依赖等 → 重建起点干净，无此问题。
@@ -122,7 +122,7 @@ TCS 上还挂着两个**待审批** OpenSpec 提案：`add-state-fragment-mechan
 - **依据**：TCS 09 报告；AbilityKit Ability 聚合运行时。
 
 ### M6 集成（Integration，横切）
-- **职责**：两级单位适配——军官=全功能组件、小兵=Mass fragment+processor（核心逻辑须可脱离 Actor 调用）；StateTree 决策集成（只做决策/编排；修 `FStateTreeExternalDataDesc::ID` 裸读的 WITH_EDITORONLY_DATA 坑）；bootstrap/预加载时序（修高风险三连）；M0 tick 泵接线。
+- **职责**：两级实体适配——军官=全功能组件、小兵=Mass fragment+processor（核心逻辑须可脱离 Actor 调用）；StateTree 决策集成（只做决策/编排；修 `FStateTreeExternalDataDesc::ID` 裸读的 WITH_EDITORONLY_DATA 坑）；bootstrap/预加载时序（修高风险三连）；M0 tick 泵接线。
 - **依据**：TCS 06/10/11 报告；unreal-state-tree 技能；裁决2b。
 
 ### M7 表现（Presentation）
@@ -152,7 +152,7 @@ TCS 上还挂着两个**待审批** OpenSpec 提案：`add-state-fragment-mechan
 - **R1 M0-min**：只做第一竖切需要的最小内核：句柄+注册表/池、事件总线、时钟泵。**明确不做**诊断面板等。
 - **R2 M2 属性层完整**：第一个正式模块。
 - **R3 竖切**：M4b 单原语 Damage 跑通 定义→属性→效果→Cue（M1 属性切片、M7 stub 一并就位）。
-- R4 M3 状态 → R5 M4a+M4c → R6 M5 → R7 M6（两级单位+StateTree）→ R8 M7/M8 补全。
+- R4 M3 状态 → R5 M4a+M4c → R6 M5 → R7 M6（两级实体+StateTree）→ R8 M7/M8 补全。
 - 推荐理由：
   1. M2 是全图**依赖叶**，下面只有 M0-min，无先决悬案；
   2. 其设计决策已成熟（recalc 聚合已定裁决），且 TCS 已证明该管线可行——是唯一可直接继承的高置信结论，先重建它能立刻建立信心锚点；

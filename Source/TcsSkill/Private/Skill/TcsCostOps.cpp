@@ -28,7 +28,7 @@ double FTcsSkillCostPolicy_ResourceAttr::ResolveEffectiveAmount(
 {
 	// **① 基数 = `Amount` 自身的求值**（2026-10-12 换型为 `FTcsParamValue`）。
 	//
-	// 求值上下文**与参数链其余各点逐字同款**（`Subject`/`Instigator` = 单位、
+	// 求值上下文**与参数链其余各点逐字同款**（`Subject`/`Instigator` = 实体、
 	// `EffectiveLevel` = 本次生效等级）——**这是"按等级配消耗"能成立的唯一原因**：
 	// 等级表参数源（`StateLevelArray` / `StateLevelMap`）读的正是**基类**的
 	// `Context.EffectiveLevel`（`TcsParamSource_StateLevel.h:70`），而不是状态域派生字段。
@@ -36,8 +36,8 @@ double FTcsSkillCostPolicy_ResourceAttr::ResolveEffectiveAmount(
 	// **参数表恒空**（同 `MakeContext` 的既有边界）：技能侧引用类源（`ParamRef`）在
 	// 这个时点没有"更外层参数表"可查 ⇒ 落各自兜底（不报错、不崩溃）。
 	FTcsParamEvaluateContext Ctx;
-	Ctx.Subject = Context.Unit;
-	Ctx.Instigator = Context.Unit;
+	Ctx.Subject = Context.Entity;
+	Ctx.Instigator = Context.Entity;
 	Ctx.EffectiveLevel = Context.Level;
 	Ctx.ParamTable = TScriptInterface<ITcsParamTableReader>();
 
@@ -116,8 +116,8 @@ bool FTcsSkillCostPolicy_HostDelegate::CanAfford(
 		}
 
 		UE_LOG(LogTcsSkill, Warning,
-			TEXT("消耗判定失败：`FTcsSkillCostPolicy_HostDelegate` 的 Host 为空（单位=%lld）——fail-closed"),
-			Context.Unit.Id);
+			TEXT("消耗判定失败：`FTcsSkillCostPolicy_HostDelegate` 的 Host 为空（实体=%lld）——fail-closed"),
+			Context.Entity.Id);
 		return false;
 	}
 
@@ -129,7 +129,7 @@ bool FTcsSkillCostPolicy_HostDelegate::CanAfford(
 	FString Reason;
 	// **MUST 用 `Execute_*`**：虚表直调会静默跳过脚本层实现（见头文件判据）
 	const bool bAfford = ITcsSkillCostPolicyHost::Execute_CanAfford(
-		HostObject, Context.Unit, EntryHandle, Reason);
+		HostObject, Context.Entity, EntryHandle, Reason);
 
 	if (!bAfford && OutReason)
 	{
@@ -155,8 +155,8 @@ bool FTcsSkillCostPolicy_HostDelegate::CommitCost(
 	{
 		// 空 Host ⇒ 零提交（与 `CanAfford` 同判据：不假装成功）
 		UE_LOG(LogTcsSkill, Warning,
-			TEXT("消耗提交跳过：`FTcsSkillCostPolicy_HostDelegate` 的 Host 为空（单位=%lld）"),
-			Context.Unit.Id);
+			TEXT("消耗提交跳过：`FTcsSkillCostPolicy_HostDelegate` 的 Host 为空（实体=%lld）"),
+			Context.Entity.Id);
 		return false;
 	}
 
@@ -165,7 +165,7 @@ bool FTcsSkillCostPolicy_HostDelegate::CommitCost(
 
 	double Applied = 0.0;
 	const bool bCommitted = ITcsSkillCostPolicyHost::Execute_CommitCost(
-		HostObject, Context.Unit, EntryHandle, Applied);
+		HostObject, Context.Entity, EntryHandle, Applied);
 
 	if (OutApplied)
 	{
@@ -198,8 +198,8 @@ bool FTcsSkillCostPolicy_ResourceAttr::CanAfford(
 		}
 
 		UE_LOG(LogTcsSkill, Warning,
-			TEXT("消耗配置错误：属性资源策略的 ResourceAttr 无效（单位=%lld）——判定为不可付"),
-			Context.Unit.Id);
+			TEXT("消耗配置错误：属性资源策略的 ResourceAttr 无效（实体=%lld）——判定为不可付"),
+			Context.Entity.Id);
 		return false;
 	}
 
@@ -230,8 +230,8 @@ bool FTcsSkillCostPolicy_ResourceAttr::CanAfford(
 		}
 
 		UE_LOG(LogTcsSkill, Warning,
-			TEXT("消耗配置错误：Amount = %.3f < 0（单位=%lld 属性=%s）——判定为不可付"),
-			BaseAmount, Context.Unit.Id, *ResourceAttr.ToString());
+			TEXT("消耗配置错误：Amount = %.3f < 0（实体=%lld 属性=%s）——判定为不可付"),
+			BaseAmount, Context.Entity.Id, *ResourceAttr.ToString());
 		return false;
 	}
 
@@ -265,26 +265,26 @@ bool FTcsSkillCostPolicy_ResourceAttr::CanAfford(
 		}
 
 		UE_LOG(LogTcsSkill, Warning,
-			TEXT("消耗判定失败：属性门面不可得（单位=%lld 属性=%s）——判定为不可付"),
-			Context.Unit.Id, *ResourceAttr.ToString());
+			TEXT("消耗判定失败：属性门面不可得（实体=%lld 属性=%s）——判定为不可付"),
+			Context.Entity.Id, *ResourceAttr.ToString());
 		return false;
 	}
 
 	double BaseValue = 0.0;
-	if (!Attribute->TryGetBaseValue(Context.Unit, ResourceAttr, BaseValue))
+	if (!Attribute->TryGetBaseValue(Context.Entity, ResourceAttr, BaseValue))
 	{
-		// **未持有 ≠ 基值为 0**：如实报出"该单位没有这个属性"（最常见的原因是宿主忘了
+		// **未持有 ≠ 基值为 0**：如实报出"该实体没有这个属性"（最常见的原因是宿主忘了
 		// `AddAttribute`，或属性 tag 写错）——这与"资源不足"是两种不同的红字。
 		if (OutReason)
 		{
-			*OutReason = FString::Printf(TEXT("该单位未持有属性 %s"),
+			*OutReason = FString::Printf(TEXT("该实体未持有属性 %s"),
 				*ResourceAttr.ToString());
 		}
 
 		UE_LOG(LogTcsSkill, Warning,
-			TEXT("消耗判定失败：单位未持有该属性（单位=%lld 属性=%s 需要 %.3f）"
+			TEXT("消耗判定失败：实体未持有该属性（实体=%lld 属性=%s 需要 %.3f）"
 				"——若这是意料之外，检查宿主是否 AddAttribute 了该属性"),
-			Context.Unit.Id, *ResourceAttr.ToString(), EffectiveAmount);
+			Context.Entity.Id, *ResourceAttr.ToString(), EffectiveAmount);
 		return false;
 	}
 
@@ -299,8 +299,8 @@ bool FTcsSkillCostPolicy_ResourceAttr::CanAfford(
 		}
 
 		UE_LOG(LogTcsSkill, Log,
-			TEXT("消耗判定：资源不足（单位=%lld 属性=%s 基值=%.3f 需要=%.3f）"),
-			Context.Unit.Id, *ResourceAttr.ToString(), BaseValue, EffectiveAmount);
+			TEXT("消耗判定：资源不足（实体=%lld 属性=%s 基值=%.3f 需要=%.3f）"),
+			Context.Entity.Id, *ResourceAttr.ToString(), BaseValue, EffectiveAmount);
 		return false;
 	}
 
@@ -326,7 +326,7 @@ bool FTcsSkillCostPolicy_ResourceAttr::CommitCost(
 	{
 		// "想配消耗但没填消耗什么" ⇒ 零提交 + `Warning`（与 `CanAfford` 同判据）
 		UE_LOG(LogTcsSkill, Warning,
-			TEXT("消耗提交跳过：属性资源策略的 ResourceAttr 无效（单位=%lld）"), Context.Unit.Id);
+			TEXT("消耗提交跳过：属性资源策略的 ResourceAttr 无效（实体=%lld）"), Context.Entity.Id);
 		return false;
 	}
 
@@ -345,8 +345,8 @@ bool FTcsSkillCostPolicy_ResourceAttr::CommitCost(
 	if (CommitBaseAmount < 0.0)
 	{
 		UE_LOG(LogTcsSkill, Warning,
-			TEXT("消耗提交被拒：Amount 为负（%.3f）——会让技能倒给资源（单位=%lld 属性=%s）"),
-			CommitBaseAmount, Context.Unit.Id, *ResourceAttr.ToString());
+			TEXT("消耗提交被拒：Amount 为负（%.3f）——会让技能倒给资源（实体=%lld 属性=%s）"),
+			CommitBaseAmount, Context.Entity.Id, *ResourceAttr.ToString());
 		return false;
 	}
 
@@ -362,8 +362,8 @@ bool FTcsSkillCostPolicy_ResourceAttr::CommitCost(
 	if (!Attribute)
 	{
 		UE_LOG(LogTcsSkill, Warning,
-			TEXT("消耗提交失败：属性门面不可得（单位=%lld 属性=%s）"),
-			Context.Unit.Id, *ResourceAttr.ToString());
+			TEXT("消耗提交失败：属性门面不可得（实体=%lld 属性=%s）"),
+			Context.Entity.Id, *ResourceAttr.ToString());
 		return false;
 	}
 
@@ -373,25 +373,25 @@ bool FTcsSkillCostPolicy_ResourceAttr::CommitCost(
 	// （基值 + 全部修正器）。拿它减会在有修正器时**多减**（扣掉的是"当前值 − Amount"，
 	// 写回的却是基值 ⇒ 修正器那部分的量被一起扣掉了）。判据 = 写入点与读取点 MUST 是同一层。
 	double BaseValue = 0.0;
-	if (!Attribute->TryGetBaseValue(Context.Unit, ResourceAttr, BaseValue))
+	if (!Attribute->TryGetBaseValue(Context.Entity, ResourceAttr, BaseValue))
 	{
 		// 门禁那一侧已按"未持有 ⇒ 不可付"拦住；走到这里说明**门禁之后属性被移除了**
 		// （TOCTOU 的真实形态）⇒ 如实报出并拒绝提交。
 		UE_LOG(LogTcsSkill, Warning,
-			TEXT("消耗提交失败：单位已不持有该属性（单位=%lld 属性=%s）——门禁后属性被移除"),
-			Context.Unit.Id, *ResourceAttr.ToString());
+			TEXT("消耗提交失败：实体已不持有该属性（实体=%lld 属性=%s）——门禁后属性被移除"),
+			Context.Entity.Id, *ResourceAttr.ToString());
 		return false;
 	}
 
 	const double NewBaseValue = BaseValue - EffectiveAmount;
 
-	// **提交失败 MUST 被报出**：`SetBaseValue` 自身对"单位未注册 / 属性名为空 / 未持有"返回 false
+	// **提交失败 MUST 被报出**：`SetBaseValue` 自身对"实体未注册 / 属性名为空 / 未持有"返回 false
 	// （含 `ensureMsgf` 红字）⇒ MUST NOT 假设它一定成功，否则 `PayCost` 会报成功而资源没扣。
-	if (!Attribute->SetBaseValue(Context.Unit, ResourceAttr, NewBaseValue))
+	if (!Attribute->SetBaseValue(Context.Entity, ResourceAttr, NewBaseValue))
 	{
 		UE_LOG(LogTcsSkill, Warning,
-			TEXT("消耗提交失败：属性写回被拒（单位=%lld 属性=%s 目标基值=%.3f）"),
-			Context.Unit.Id, *ResourceAttr.ToString(), NewBaseValue);
+			TEXT("消耗提交失败：属性写回被拒（实体=%lld 属性=%s 目标基值=%.3f）"),
+			Context.Entity.Id, *ResourceAttr.ToString(), NewBaseValue);
 		return false;
 	}
 
@@ -401,15 +401,15 @@ bool FTcsSkillCostPolicy_ResourceAttr::CommitCost(
 	}
 
 	UE_LOG(LogTcsSkill, Log,
-		TEXT("消耗已提交：单位=%lld 属性=%s %.3f → %.3f（扣 %.3f）"),
-		Context.Unit.Id, *ResourceAttr.ToString(), BaseValue, NewBaseValue, EffectiveAmount);
+		TEXT("消耗已提交：实体=%lld 属性=%s %.3f → %.3f（扣 %.3f）"),
+		Context.Entity.Id, *ResourceAttr.ToString(), BaseValue, NewBaseValue, EffectiveAmount);
 
 	// **消耗事件不在此发**——`CanAfford` 失败**不发**（`D5-16` 明文："CanAfford 失败不发
 	// ——`TryActivate` 返回值覆盖"）：门禁拒绝面已有 `SAR_CannotAfford` 这个具名读数，
 	// 再发一枚"没扣成"的事件纯属噪音（订阅者还得自己判"这枚事件是真的扣了还是没扣"）。
 	//
-	// **本函数只拿得到 `Unit` 与 `Context`，拿不到条目身份** ⇒ 载荷的 `EntryHandle` / `DefTag`
-	// 由调用方补发；此处先发一枚"单位级"的部分载荷会造出两种载荷形状
+	// **本函数只拿得到 `Entity` 与 `Context`，拿不到条目身份** ⇒ 载荷的 `EntryHandle` / `DefTag`
+	// 由调用方补发；此处先发一枚"实体级"的部分载荷会造出两种载荷形状
 	// ⇒ 由拿到条目的调用方统一发（见 `PayCostForEntry` / `TcsCastOps`），本函数**只负责扣减**。
 	// **这是一处刻意的职责切分**：策略的 `CommitCost` 是"纯扣减"（它连技能都不需要知道——
 	// 激活路径的 `OnCastStarted` 档就是直调它），发事件需要条目身份，属调用方的事。
@@ -429,12 +429,12 @@ const FTcsSkillCostPolicy* FTcsCostOps::ResolvePolicy(const FTcsSkillCostConfig&
 
 FTcsSkillCostContext FTcsCostOps::MakeContext(
 	UTcsSkillSubsystem& Subsystem,
-	FTcsCombatEntityHandle Unit,
+	FTcsCombatEntityHandle Entity,
 	const FTcsLearnedSkillEntry* Entry)
 {
 	FTcsSkillCostContext Context;
 	Context.Subsystem = &Subsystem;
-	Context.Unit = Unit;
+	Context.Entity = Entity;
 	Context.Entry = Entry;
 	// **等级从条目取**（等级表参数源读的就是它）；无条目 = 装置验配置边界场景，取 0。
 	Context.Level = Entry ? Entry->Level : 0;
@@ -445,7 +445,7 @@ FTcsSkillCostContext FTcsCostOps::MakeContext(
 
 bool FTcsCostOps::CanAffordCost(
 	UTcsSkillSubsystem& Subsystem,
-	FTcsCombatEntityHandle Unit,
+	FTcsCombatEntityHandle Entity,
 	const FTcsSkillCostConfig& Config,
 	FString* OutReason,
 	const FTcsLearnedSkillEntry* Entry)
@@ -473,13 +473,13 @@ bool FTcsCostOps::CanAffordCost(
 		}
 
 		UE_LOG(LogTcsSkill, Warning,
-			TEXT("消耗配置错误：Timing 非 None 但 CostMode 为空/类型不符（单位=%lld）——判定为不可付"),
-			Unit.Id);
+			TEXT("消耗配置错误：Timing 非 None 但 CostMode 为空/类型不符（实体=%lld）——判定为不可付"),
+			Entity.Id);
 		return false;
 	}
 
 	// ── 分派给策略（**门禁与提交点在这里走同一个权威**） ──
-	const FTcsSkillCostContext Context = MakeContext(Subsystem, Unit, Entry);
+	const FTcsSkillCostContext Context = MakeContext(Subsystem, Entity, Entry);
 	return Policy->CanAfford(Context, OutReason);
 }
 
@@ -487,7 +487,7 @@ bool FTcsCostOps::CanAffordCost(
 
 bool FTcsCostOps::CommitCost(
 	UTcsSkillSubsystem& Subsystem,
-	FTcsCombatEntityHandle Unit,
+	FTcsCombatEntityHandle Entity,
 	const FTcsSkillCostConfig& Config,
 	double* OutApplied,
 	const FTcsLearnedSkillEntry* Entry)
@@ -508,12 +508,12 @@ bool FTcsCostOps::CommitCost(
 	if (!Policy)
 	{
 		UE_LOG(LogTcsSkill, Warning,
-			TEXT("消耗提交跳过：Timing 非 None 但 CostMode 为空/类型不符（单位=%lld）"),
-			Unit.Id);
+			TEXT("消耗提交跳过：Timing 非 None 但 CostMode 为空/类型不符（实体=%lld）"),
+			Entity.Id);
 		return false;
 	}
 
-	const FTcsSkillCostContext Context = MakeContext(Subsystem, Unit, Entry);
+	const FTcsSkillCostContext Context = MakeContext(Subsystem, Entity, Entry);
 
 	// **★ 原子性：框架把策略的整个提交包进属性批（2026-10-12 用户裁定）**。
 	//
@@ -525,22 +525,22 @@ bool FTcsCostOps::CommitCost(
 	// - ⇒ **"全有全无"的实际保障 = 先判后扣**（调用方 MUST 先过 `CanAffordCost`），
 	//   **MUST NOT** 把批当作事务/回滚来依赖。
 	//
-	// **★ 一处必须的守卫（本框架包批引入的新问题）**：`BeginBatch` / `Commit` 对**未注册单位**
+	// **★ 一处必须的守卫（本框架包批引入的新问题）**：`BeginBatch` / `Commit` 对**未注册实体**
 	// 会触发 `ensureMsgf`（红字）。内建属性策略不可能走到那里（它先要 `TryGetBaseValue` 成功
-	// ⇒ 单位必然已注册），但**宿主自定义策略**可能"没注册单位也判可付" ⇒ 框架包批会**替宿主
+	// ⇒ 实体必然已注册），但**宿主自定义策略**可能"没注册实体也判可付" ⇒ 框架包批会**替宿主
 	// 多报一条 ensure**。故包批前用**不 ensure** 的 `ResolveStore` 探测；未注册时**不包批**
 	// （策略照常提交，其自身失败面自行上报）。
 	UTcsAttributeSubsystem* Attribute = Subsystem.GetWorld()
 		? Subsystem.GetWorld()->GetSubsystem<UTcsAttributeSubsystem>() : nullptr;
 
 	const bool bCanWrapInBatch = (Attribute != nullptr)
-		&& (Attribute->ResolveStore(Unit) != nullptr);
+		&& (Attribute->ResolveStore(Entity) != nullptr);
 
 	if (bCanWrapInBatch)
 	{
 		// **批的边界 = 紧邻本策略的提交**，MUST NOT 圈进施法激活的其它属性改动
 		// （如 `MaterializeParamChainRows`）——圈的边界就是"这一次消耗"。
-		Attribute->BeginBatch(Unit);
+		Attribute->BeginBatch(Entity);
 	}
 
 	double Applied = 0.0;
@@ -549,7 +549,7 @@ bool FTcsCostOps::CommitCost(
 	if (bCanWrapInBatch)
 	{
 		// **提交点唯一**：批内多次变更只重算一次、每属性最多广播一次（`TcsAttributeSubsystem.h:287`）。
-		Attribute->Commit(Unit);
+		Attribute->Commit(Entity);
 	}
 
 	if (OutApplied)
@@ -564,23 +564,23 @@ bool FTcsCostOps::CommitCost(
 
 bool FTcsCostOps::PayCostForEntry(
 	UTcsSkillSubsystem& Subsystem,
-	FTcsCombatEntityHandle Unit,
+	FTcsCombatEntityHandle Entity,
 	FTcsSkillEntryHandle EntryHandle)
 {
-	FSkillBucket* Bucket = Subsystem.Registry.FindBucket(Unit);
+	FSkillBucket* Bucket = Subsystem.Registry.FindBucket(Entity);
 	FTcsLearnedSkillEntry* Entry = Bucket ? Bucket->Find(EntryHandle) : nullptr;
 	if (!Entry)
 	{
-		UE_LOG(LogTcsSkill, Warning, TEXT("提交消耗被拒：账本条目悬空（单位=%lld 条目=%d/%d）"),
-			Unit.Id, EntryHandle.Index, EntryHandle.Generation);
+		UE_LOG(LogTcsSkill, Warning, TEXT("提交消耗被拒：账本条目悬空（实体=%lld 条目=%d/%d）"),
+			Entity.Id, EntryHandle.Index, EntryHandle.Generation);
 		return false;
 	}
 
 	const FTcsSkillDefData* Def = Subsystem.GetRegisteredSkillDef(Entry->DefTag);
 	if (!Def)
 	{
-		UE_LOG(LogTcsSkill, Warning, TEXT("提交消耗被拒：定义取不到（单位=%lld 定义=%s）"),
-			Unit.Id, *Entry->DefTag.ToString());
+		UE_LOG(LogTcsSkill, Warning, TEXT("提交消耗被拒：定义取不到（实体=%lld 定义=%s）"),
+			Entity.Id, *Entry->DefTag.ToString());
 		return false;
 	}
 
@@ -590,16 +590,16 @@ bool FTcsCostOps::PayCostForEntry(
 	// **★ 传 `Entry`（2026-10-12 B 形状）**：不传 ⇒ `CostAmount` 上的减免不生效，
 	// 于是"门禁算的数"与"提交扣的数"不一致——正是本仓 TOCTOU 防护要防的那类自相矛盾。
 	FString Reason;
-	if (!CanAffordCost(Subsystem, Unit, Def->Cost, &Reason, Entry))
+	if (!CanAffordCost(Subsystem, Entity, Def->Cost, &Reason, Entry))
 	{
 		UE_LOG(LogTcsSkill, Log,
-			TEXT("提交消耗被拒[重查未过]：单位=%lld 定义=%s 原因=%s"),
-			Unit.Id, *Entry->DefTag.ToString(), *Reason);
+			TEXT("提交消耗被拒[重查未过]：实体=%lld 定义=%s 原因=%s"),
+			Entity.Id, *Entry->DefTag.ToString(), *Reason);
 		return false;
 	}
 
 	double Applied = 0.0;
-	if (!CommitCost(Subsystem, Unit, Def->Cost, &Applied, Entry))
+	if (!CommitCost(Subsystem, Entity, Def->Cost, &Applied, Entry))
 	{
 		return false;
 	}
@@ -636,7 +636,7 @@ void FTcsCostOps::BroadcastCostApplied(
 
 	FTcsCostEventPayload Payload;
 	Payload.EntryHandle = Entry.Handle;
-	Payload.Unit = Entry.Unit;
+	Payload.Entity = Entry.Entity;
 	Payload.DefTag = Entry.DefTag;
 
 	// **★ 载荷的 `ResourceAttr` 是内建策略专属字段（如实登记）**：只有内建属性资源策略

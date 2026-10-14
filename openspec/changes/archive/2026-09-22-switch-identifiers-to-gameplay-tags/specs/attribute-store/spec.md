@@ -1,5 +1,7 @@
 ## MODIFIED Requirements
 
+> **术语订正（2026-10-14）**：本文原用「单位 / `Unit`」，该词已退役，现统一为「**实体 / `Entity`**」（见 `DEC-2026-10-14-entity-vocabulary`）。**正文为当时原话，保留不改。**
+
 ### Requirement: 属性数据宿主与单位注册
 
 `TcsAttribute` MUST 提供 `UTcsAttributeSubsystem : UWorldSubsystem`（**非 Tickable**——M2 不认识时间，D2-8；零自 tick 依赖）作为 M2 数据宿主的唯一门面，MUST 仅在 Game / PIE / GamePreview 世界实例化（无跨 World 静态状态，PIE 安全），`Deinitialize` MUST 确定性清空全部单位与 Store。

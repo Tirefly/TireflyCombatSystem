@@ -1,5 +1,7 @@
 ## MODIFIED Requirements
 
+> **术语订正（2026-10-14）**：本文原用「单位 / `Unit`」，该词已退役，现统一为「**实体 / `Entity`**」（见 `DEC-2026-10-14-entity-vocabulary`）。**正文为当时原话，保留不改。**
+
 ### Requirement: 移除与到期时按来源级联摘除
 
 `RemoveState` / 到期路径 MUST 在进入 `Expiring` 迁移**之前**按该实例的**级联锚点**（`FTcsStateInstance::CascadeAnchor`——撤销语境下的"来源"自 2026-10-05 起特指该锚点，口径见 `state-instance-lifecycle` 的「池化状态实例记录」）做级联摘除（`RemoveBySource`），并 MUST 在同一个属性变更批内提交——`TcsEvent.State.Expired` / `TcsEvent.State.Removed` 的订阅者在回调里读该属性能读到**已归位**的数值。`UnregisterUnit` MUST 复用同一条移除链。

@@ -13,7 +13,7 @@
 
 
 /**
- * 载荷主体信息（触发求值期从事件载荷读出的单位、实例主体与分类内容）。
+ * 载荷主体信息（触发求值期从事件载荷读出的实体、实例主体与分类内容）。
  *
  * **为什么需要它（本类型的立项理由）**：`FTcsTriggerContext` 需要 `Caster` 与 `ClassificationTags`，
  * 但 `TcsEffect` **MUST NOT 认识任何领域载荷类型**（依赖铁律 `Core←Attribute←Effect←{Damage,…}`，

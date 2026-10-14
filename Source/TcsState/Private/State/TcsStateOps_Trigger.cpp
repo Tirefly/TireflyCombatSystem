@@ -37,8 +37,8 @@ void FTcsStateOps::WireTriggerRows(
 	if (!EffectSubsystem)
 	{
 		// 世界拆解期（或该世界无效果门面）——时序/配置状态，不是契约违规：状态本身照常生效
-		UE_LOG(LogTcsState, Warning, TEXT("状态内联触发行未登记：效果门面不可得（单位=%lld 定义=%s 行数=%d）"),
-			Instance.Unit.Id, *Instance.DefTag.ToString(), Def.Triggers.Num());
+		UE_LOG(LogTcsState, Warning, TEXT("状态内联触发行未登记：效果门面不可得（实体=%lld 定义=%s 行数=%d）"),
+			Instance.Entity.Id, *Instance.DefTag.ToString(), Def.Triggers.Num());
 		return;
 	}
 
@@ -52,8 +52,8 @@ void FTcsStateOps::WireTriggerRows(
 		EffectSubsystem->RegisterTriggerRow(RowInstance);
 	}
 
-	UE_LOG(LogTcsState, Log, TEXT("状态内联触发行登记：单位=%lld 定义=%s 句柄=%d/%d 锚点=%llu 行数=%d 登记表总数=%d"),
-		Instance.Unit.Id, *Instance.DefTag.ToString(), Instance.Handle.Index, Instance.Handle.Generation,
+	UE_LOG(LogTcsState, Log, TEXT("状态内联触发行登记：实体=%lld 定义=%s 句柄=%d/%d 锚点=%llu 行数=%d 登记表总数=%d"),
+		Instance.Entity.Id, *Instance.DefTag.ToString(), Instance.Handle.Index, Instance.Handle.Generation,
 		Instance.CascadeAnchor.Id, Def.Triggers.Num(), EffectSubsystem->GetTriggerRowCount());
 }
 
@@ -72,8 +72,8 @@ void FTcsStateOps::UnwireTriggerRows(
 	const int32 RemovedCount = EffectSubsystem->UnregisterTriggerRowsBySource(Instance.CascadeAnchor);
 	if (RemovedCount > 0)
 	{
-		UE_LOG(LogTcsState, Log, TEXT("状态内联触发行退订：单位=%lld 定义=%s 锚点=%llu 条数=%d 登记表总数=%d"),
-			Instance.Unit.Id, *Instance.DefTag.ToString(), Instance.CascadeAnchor.Id,
+		UE_LOG(LogTcsState, Log, TEXT("状态内联触发行退订：实体=%lld 定义=%s 锚点=%llu 条数=%d 登记表总数=%d"),
+			Instance.Entity.Id, *Instance.DefTag.ToString(), Instance.CascadeAnchor.Id,
 			RemovedCount, EffectSubsystem->GetTriggerRowCount());
 	}
 }

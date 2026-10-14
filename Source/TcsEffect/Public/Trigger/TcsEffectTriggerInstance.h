@@ -84,7 +84,7 @@ struct TCSEFFECT_API FTcsEffectTriggerHandle
  * **`Source` 的语义（它取决于行"怎么被登记"）**：
  * | 登记时机 | `Source` = | 典型场景 |
  * |---|---|---|
- * | 定义加载期（全局常驻） | 系统/DefLibrary 来源句柄 | 系统级规则（"任何单位死亡时…"） |
+ * | 定义加载期（全局常驻） | 系统/DefLibrary 来源句柄 | 系统级规则（"任何实体死亡时…"） |
  * | **施加状态时**（per-instance） | **该状态实例的 `CascadeAnchor`** | **Buff 行为**——"状态在，行为就在" |
  *
  * 第二行是 `09 §2.3` 原文"订阅随 Source 生命周期自动退订——'状态在，修改器就在'天然成立"

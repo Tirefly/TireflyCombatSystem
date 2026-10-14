@@ -43,7 +43,7 @@ extern TCSSKILL_API FNativeGameplayTag Tag_TcsEvent_Cast_CooldownEnded;
 /**
  * 冷却事件载荷（**三枚共用一种形状**，沿 `FTcsCastEventPayload` 的先例）。
  *
- * **为什么三枚共用一个形状**：订阅者拿到的永远是"哪个单位的哪条技能的哪条轨道"——
+ * **为什么三枚共用一个形状**：订阅者拿到的永远是"哪个实体的哪条技能的哪条轨道"——
  * 身份与读数在三枚上口径一致；各写一个 struct 会让订阅侧复制三份解析代码。
  *
  * **`D5-16` 的 `SkillId` 字段用 `DefTag` 取代（MUST 记录）**：`D5-16` 原文的 payload 清单里有
@@ -60,13 +60,13 @@ struct TCSSKILL_API FTcsCooldownEventPayload
 #pragma region Identity
 
 public:
-	// 账本条目身份（该单位"会这个技能"的那条记录）
+	// 账本条目身份（该实体"会这个技能"的那条记录）
 	UPROPERTY(BlueprintReadOnly, Category = "Tcs|Skill|Cooldown Event")
 	FTcsSkillEntryHandle EntryHandle;
 
-	// 所属单位（冷却的作用域——**组轨的共享槽住单位级**，故它是身份的一部分）
+	// 所属实体（冷却的作用域——**组轨的共享槽住实体级**，故它是身份的一部分）
 	UPROPERTY(BlueprintReadOnly, Category = "Tcs|Skill|Cooldown Event")
-	FTcsCombatEntityHandle Unit;
+	FTcsCombatEntityHandle Entity;
 
 	// 技能定义身份（`FTcsSkillDefData` 的内容身份；取代 `D5-16` 里那个不存在的 `SkillId`）
 	UPROPERTY(BlueprintReadOnly, Category = "Tcs|Skill|Cooldown Event")

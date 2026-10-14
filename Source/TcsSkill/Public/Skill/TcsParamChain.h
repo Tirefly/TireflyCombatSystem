@@ -44,7 +44,7 @@ public:
 	/**
 	 * 外部施加：把一批参数修正器物化后追加进**选择器命中的**每个条目的 `NumericParamModInstances`。
 	 *
-	 * **单位未注册 / 无匹配条目 ⇒ 忽略 + 日志 + 返回 false，MUST NOT ensure**
+	 * **实体未注册 / 无匹配条目 ⇒ 忽略 + 日志 + 返回 false，MUST NOT ensure**
 	 * （同 M2 `ApplyModifier` 的 D2-14 口径：框架允许宿主动态增删，且不做来源追溯）。
 	 *
 	 * **`Source` 形参 = 本次施加的来源锚点**（2026-10-09 用户质疑后订正：原稿只在定义侧行上找它）。
@@ -60,21 +60,21 @@ public:
 	 * 写进账本侧 `ResolvedValue`；账本**不二次转换**（同 M2 物化器的职责划分）。
 	 *
 	 * @param Subsystem 技能门面。
-	 * @param Unit 单位实体句柄。
+	 * @param Entity 实体实体句柄。
 	 * @param Selector 条目选择器（决定作用到哪些在册条目）。
 	 * @param Modifiers 定义侧修正器行（元素类型与 `ParamChainRows` 相同）。
 	 * @param Source 本次施加的来源锚点（级联摘除用，由调用方声明"这次是谁给的"）。
-	 * @return 返回是否至少命中一个条目并施加（无命中 / 未实现档 / 单位未注册均为 false）。
+	 * @return 返回是否至少命中一个条目并施加（无命中 / 未实现档 / 实体未注册均为 false）。
 	 */
 	static bool ApplyParamModifiers(
 		UTcsSkillSubsystem& Subsystem,
-		FTcsCombatEntityHandle Unit,
+		FTcsCombatEntityHandle Entity,
 		const FTcsSkillEntrySelector& Selector,
 		TConstArrayView<FTcsNumericParamModifier> Modifiers,
 		FTcsSourceHandle Source);
 
 	/**
-	 * 级联摘除：扫该单位**全部条目的 `NumericParamModInstances`**、摘掉 `Source` 匹配者，返回摘除条数。
+	 * 级联摘除：扫该实体**全部条目的 `NumericParamModInstances`**、摘掉 `Source` 匹配者，返回摘除条数。
 	 *
 	 * **`0` 条命中 = 正常路径，MUST NOT ensure**（来源可能只挂过已撤销的修正器；
 	 * 同 M2 `RemoveBySource` 的措辞与口径）。
@@ -85,13 +85,13 @@ public:
 	 * **若将来出现"技能条目冻结"，该扫描面 MUST 同批补上**。
 	 *
 	 * @param Subsystem 技能门面。
-	 * @param Unit 单位实体句柄。
+	 * @param Entity 实体实体句柄。
 	 * @param Source 归属来源句柄（无效 = 0 命中，返回 0）。
 	 * @return 返回摘除的修正器条数（跨全部条目合计）。
 	 */
 	static int32 RemoveParamModifiersBySource(
 		UTcsSkillSubsystem& Subsystem,
-		FTcsCombatEntityHandle Unit,
+		FTcsCombatEntityHandle Entity,
 		FTcsSourceHandle Source);
 
 #pragma endregion

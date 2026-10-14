@@ -5,12 +5,21 @@
 #include "CoreMinimal.h"
 #include "Templates/TypeHash.h"
 
+#include "Runtime/TcsInstanceHandleOps.h"
+
 #include "TcsSkillEntryHandle.generated.h"
 
 
 
+// 账本条目句柄标签（仅供句柄模板做类型区分——与其他池句柄编译期防互串）
+struct FTcsSkillEntryTag
+{
+};
+
+
+
 /**
- * 技能账本条目句柄（`FTcsStateHandle` 同族）：在**某个单位的技能桶**内定位一条已学技能条目，
+ * 技能账本条目句柄（`FTcsStateHandle` 同族）：在**某个实体的技能桶**内定位一条已学技能条目，
  * 是账本一切操作的入参。
  *
  * **为什么展平两字段而不内嵌模板句柄**（与 `FTcsStateHandle` / `FTcsChainRunHandle` 同款）：
@@ -38,21 +47,33 @@ struct TCSSKILL_API FTcsSkillEntryHandle
 	UPROPERTY(BlueprintReadOnly, Category = "Tcs|Skill")
 	int32 Generation = 0;
 
-	// 句柄有效性（代际校验由注册表在解析/释放时执行——本函数只判"是否曾被赋值"）
+	// 句柄有效性（**判据委托 `FTcsInstanceHandleOps`**——三句柄语义单点，本型不自行实现）
 	bool IsValid() const
 	{
-		return Index >= 0 && Generation > 0;
+		return FTcsInstanceHandleOps::IsValid(Index, Generation);
 	}
 
-	// 相等比较（**身份 = Index + Generation**——级联收集与容器键控用）
+	// 转为池句柄（**唯一转换点**的委托口——语义在 `FTcsInstanceHandleOps::ToInner`）
+	TTcsInstanceHandle<FTcsSkillEntryTag> GetInner() const
+	{
+		return FTcsInstanceHandleOps::ToInner<FTcsSkillEntryTag>(Index, Generation);
+	}
+
+	// 从池句柄赋值（**唯一转换点**的委托口，与 `GetInner` 对称）
+	void SetInner(const TTcsInstanceHandle<FTcsSkillEntryTag>& Inner)
+	{
+		FTcsInstanceHandleOps::FromInner(Inner, Index, Generation);
+	}
+
+	// 相等比较（**身份 = Index + Generation**——级联收集与容器键控用；语义同单点）
 	friend bool operator==(const FTcsSkillEntryHandle& A, const FTcsSkillEntryHandle& B)
 	{
-		return A.Index == B.Index && A.Generation == B.Generation;
+		return FTcsInstanceHandleOps::IsSameIdentity(A.Index, A.Generation, B.Index, B.Generation);
 	}
 
-	// 哈希（TMap / TSet 键控用）
+	// 哈希（TMap / TSet 键控用；语义同单点）
 	friend uint32 GetTypeHash(const FTcsSkillEntryHandle& Handle)
 	{
-		return HashCombine(GetTypeHash(Handle.Index), GetTypeHash(Handle.Generation));
+		return FTcsInstanceHandleOps::Hash(Handle.Index, Handle.Generation);
 	}
 };

@@ -1,5 +1,7 @@
 # skill-cast-phases Specification（delta）
 
+> **术语订正（2026-10-14）**：本文原用「单位 / `Unit`」，该词已退役，现统一为「**实体 / `Entity`**」（见 `DEC-2026-10-14-entity-vocabulary`）。**正文为当时原话，保留不改。**
+
 > **本能力为 ADDED**（新能力）。新增能力的 `## Purpose` 由归档器在归档时写入主规格，
 > 届时 MUST 手工改写占位文本（本仓先例：`add-skill-param-chain` 归档后其 `## Purpose`
 > 被写成 `TBD - created by archiving change ...`，随后手工补写 ⇒ 先例已入档为**归档后必做项**）。

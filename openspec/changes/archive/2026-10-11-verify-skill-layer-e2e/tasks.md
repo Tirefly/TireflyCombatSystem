@@ -1,5 +1,7 @@
 ## 1. 取证准备（无插件代码改动）
 
+> **术语订正（2026-10-14）**：本文原用「单位 / `Unit`」，该词已退役，现统一为「**实体 / `Entity`**」（见 `DEC-2026-10-14-entity-vocabulary`）。**正文为当时原话，保留不改。**
+
 - [x] 1.1 冻结基线：记录 TCS / LAC 两仓的 `git rev-parse HEAD`，并按 `git status --porcelain` 记录工作区状态（**只记指针，不逐条抄文件与条数**——该字段寿命极短，本仓四次实证过期）
 - [x] 1.2 记录改动前三命令读数基线：`Tcs.Test.SkillCast.Run` 26/0、`.Reject` 16/0、`Tcs.Test.SkillCast.Phase` 29/0 + 延时段 6 项 + 进入段 5 项；`Tcs.Test.SkillParamChain.Run` 26/0 / `.Reject` 9/0
 - [x] 1.3 记录既有 **22 份 `.uasset` + 1 份 `.umap`** 的大小 / mtime 清单（`Content/TcsDev/` 递归：根 7 + `Checks/` 10 + `E2E/` 6 = 22 份 `.uasset`），作为"未误改既有资产"的对照

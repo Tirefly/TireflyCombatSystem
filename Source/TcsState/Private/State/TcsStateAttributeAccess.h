@@ -25,7 +25,7 @@ class UTcsAttributeSubsystem;
  *
  * **暴露面同样是纪律**（本类的形状即约束）：本轮允许触碰的属性 API **上限**是
  * `ApplyModifier` / `RemoveBySource` 两个语义面 + 事务对（`BeginBatch` / `Commit`）
- * + 一个存在性判据（`IsLedgerReady`，它只是"账本认不认识这个单位"，MUST NOT 用于取值）。
+ * + 一个存在性判据（`IsLedgerReady`，它只是"账本认不认识这个实体"，MUST NOT 用于取值）。
  * 除这些之外 MUST NOT 暴露任何属性 API——需要新能力时先改本类（让改动可审计）。
  *
  * **2026-10-05 订正（R5 Task 6）**：本注释原先声称允许面含 `EvaluateCurrent`，但本类**从未暴露**它、
@@ -58,17 +58,17 @@ public:
 	}
 
 	/**
-	 * 属性账本是否认识这个单位（有属性容器）。
+	 * 属性账本是否认识这个实体（有属性容器）。
 	 *
-	 * **为什么需要它**：状态与属性是**两套登记**——状态可以施加到没有属性账本的单位上（合法），
-	 * 此时修正器"无处可挂"；而账本侧的 `BeginBatch` 对这种单位会 **ensure**（它把"未注册单位"
+	 * **为什么需要它**：状态与属性是**两套登记**——状态可以施加到没有属性账本的实体上（合法），
+	 * 此时修正器"无处可挂"；而账本侧的 `BeginBatch` 对这种实体会 **ensure**（它把"未注册实体"
 	 * 当契约违规）。故挂点先问一句，把"没有可改的属性"当**配置状态**处理（静默无操作），
 	 * 而不是让它变成一条红字。
 	 *
-	 * @param Unit 单位实体句柄。
-	 * @return 返回账本是否持有该单位的属性容器。
+	 * @param Entity 实体实体句柄。
+	 * @return 返回账本是否持有该实体的属性容器。
 	 */
-	bool IsLedgerReady(FTcsCombatEntityHandle Unit) const;
+	bool IsLedgerReady(FTcsCombatEntityHandle Entity) const;
 
 #pragma endregion
 
@@ -80,26 +80,26 @@ public:
 	/**
 	 * 挂一条修正器（标脏；批内不重算）。
 	 *
-	 * @param Unit 单位实体句柄。
+	 * @param Entity 实体实体句柄。
 	 * @param Modifier 修正器（`Target` 指向目标属性）。
 	 * @return 返回是否挂载成功（目标属性无实例 ⇒ false + 账本侧日志，不 ensure）。
 	 */
-	bool ApplyModifier(FTcsCombatEntityHandle Unit, const FTcsAttrModInstance& Modifier) const;
+	bool ApplyModifier(FTcsCombatEntityHandle Entity, const FTcsAttrModInstance& Modifier) const;
 
 	/**
 	 * 按来源级联摘除（扫描面含实例槽位与冻结暂存区）。
 	 *
-	 * @param Unit 单位实体句柄。
+	 * @param Entity 实体实体句柄。
 	 * @param Source 来源句柄。
 	 * @return 返回摘除条数（0 = 无匹配，正常路径）。
 	 */
-	int32 RemoveBySource(FTcsCombatEntityHandle Unit, const FTcsSourceHandle& Source) const;
+	int32 RemoveBySource(FTcsCombatEntityHandle Entity, const FTcsSourceHandle& Source) const;
 
 	// 开始变更批（嵌套计数；最外层提交才统一重算 + 广播）
-	void BeginBatch(FTcsCombatEntityHandle Unit) const;
+	void BeginBatch(FTcsCombatEntityHandle Entity) const;
 
 	// 提交变更批
-	void Commit(FTcsCombatEntityHandle Unit) const;
+	void Commit(FTcsCombatEntityHandle Entity) const;
 
 #pragma endregion
 

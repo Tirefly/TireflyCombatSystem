@@ -24,7 +24,7 @@ UE_DEFINE_GAMEPLAY_TAG_COMMENT(Tag_TcsEvent_State_Expired, "TcsEvent.State.Expir
 	"状态到期（自然结束）：载荷 FTcsStateEventPayload，Cause = Expired");
 
 UE_DEFINE_GAMEPLAY_TAG_COMMENT(Tag_TcsEvent_State_Removed, "TcsEvent.State.Removed",
-	"状态被移除 / 取消 / 单位注销：载荷 FTcsStateEventPayload，Cause 由调用方给定");
+	"状态被移除 / 取消 / 实体注销：载荷 FTcsStateEventPayload，Cause 由调用方给定");
 
 UE_DEFINE_GAMEPLAY_TAG_COMMENT(Tag_TcsEvent_State_Periodic, "TcsEvent.State.Periodic",
 	"状态周期到点：载荷 FTcsStateEventPayload（产生者归 R5 Task 3）");
@@ -48,7 +48,7 @@ void UTcsStateSubsystem::BroadcastStateEvent(
 
 	FTcsStateEventPayload Payload;
 	Payload.Handle = Instance.Handle;
-	Payload.Unit = Instance.Unit;
+	Payload.Entity = Instance.Entity;
 	Payload.DefTag = Instance.DefTag;
 	Payload.Source = Instance.Source;
 	Payload.Instigator = Instance.Instigator;
@@ -63,7 +63,7 @@ void UTcsStateSubsystem::BroadcastStateEvent(
 	// 装置也能在同一帧断言（帧末通道会让断言晚一拍）
 	Bus->PublishImmediate(EventTag, PayloadStruct);
 
-	UE_LOG(LogTcsState, Verbose, TEXT("状态事件派发：Tag=%s 句柄=%d/%d 单位=%lld 层数=%d 等级=%d"),
+	UE_LOG(LogTcsState, Verbose, TEXT("状态事件派发：Tag=%s 句柄=%d/%d 实体=%lld 层数=%d 等级=%d"),
 		*EventTag.ToString(), Instance.Handle.Index, Instance.Handle.Generation,
-		Instance.Unit.Id, Instance.Stacks, Instance.Level);
+		Instance.Entity.Id, Instance.Stacks, Instance.Level);
 }

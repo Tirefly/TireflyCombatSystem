@@ -1,5 +1,7 @@
 # Change: 状态参数快照、等级源与 Duration-Period 到期堆（R5 Task 3）
 
+> **术语订正（2026-10-14）**：本文原用「单位 / `Unit`」，该词已退役，现统一为「**实体 / `Entity`**」（见 `DEC-2026-10-14-entity-vocabulary`）。**正文为当时原话，保留不改。**
+
 ## Why
 
 `TcsState` 今天只有"身份骨架"：实例建得出来、查得到、删得掉，但**没有一个数值属于它**——`DurationRemaining` / `PeriodRemaining` 恒为 0（施加时刻意不编造），`FTcsStateInstance::ParamSnapshot` 按注释留白，`TcsEvent.State.Periodic` 只有声明、零广播，`ExtendDuration` / `SetRemaining` 只改字段、不碰到期堆。buff 之所以是 buff 的两条腿——**"施加瞬间冻结的数值"**与**"到期/周期两个时间语义"**——都还没长出来。

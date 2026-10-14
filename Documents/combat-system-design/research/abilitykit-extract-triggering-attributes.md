@@ -91,7 +91,7 @@ readonly struct，13 槽：项目 `Context(TCtx)`、`EventBus`、`Functions`、`
 - EventBus 双模式：**默认 Immediate 零缓冲同步直派**；Queued 需显式构造并配 Flush 驱动【源码·04§4.1：`EventBusOptions.cs`】。Flush 多轮清空直至无 pending，超过 `MaxFlushPasses`（默认 1024）抛 "Possible infinite event loop"——事件环保护【源码·04§4.1：`EventBus.cs:88-107`】。
 - **坑**：Dispatch 遍历实时列表（无快照），回调中注册/注销改变同一次派发的可见性，文档要求隔离时应用层自复制【文档·04§8.4：`TriggerRunner.cs:164`】。
 - **坑**：Cooldown 用 `ctx.Policy.TotalTimeMs`，Runner 不更新时间，宿主必须按派发批次刷新 ExecPolicy 否则失真【推断·04§8.8】。
-- 对照我方：我方"状态类事件帧末统一泵 + 连锁新事件下一轮"是**结构性切断重入**；AbilityKit 默认同步直派、以环计数器兜底——我方更严格，代价是跨单位联动天然延迟一拍（自走棋可接受，AbilityKit 为动作游戏选了 Immediate）。**核实点**：我方事件分级清单（哪些同步哪些帧末）尚未裁决（事件分发文档 §9 待定），AbilityKit 的"查询类立即/状态类排队"思路与我方一致。
+- 对照我方：我方"状态类事件帧末统一泵 + 连锁新事件下一轮"是**结构性切断重入**；AbilityKit 默认同步直派、以环计数器兜底——我方更严格，代价是跨实体联动天然延迟一拍（自走棋可接受，AbilityKit 为动作游戏选了 Immediate）。**核实点**：我方事件分级清单（哪些同步哪些帧末）尚未裁决（事件分发文档 §9 待定），AbilityKit 的"查询类立即/状态类排队"思路与我方一致。
 
 ### 3.6 可观测四通道
 
@@ -187,13 +187,13 @@ AbilityKit 是完整的**重算式**参照：脏标记懒重算 + 分组公式 +
 | 5 | `Priority` | `int8` | 同一事件内行序，**大者先**，同优先级按声明序 | `TriggerRunnerEntry.Priority`（大者先）+ 注册序 tiebreak（04§4.2） | 对应物（方向语义显式写进表头注释） |
 | 6 | `ExecutionGate` | `FBuffTriggerGate{Mode: Once/Cooldown/Repeat, MaxExecutions, CooldownSeconds}` | 执行门槛；Cooldown 记账用战斗泵时间轴（ScaledDt 累积），不用墙钟 | `ETriggerExecutionMode`(Always/Once/Cooldown/Repeat)+`MaxExecutions`+`CooldownMs`（本次复核 `TriggerExecutionControlPlan.cs:3-26`） | 对应物 + 修正：修掉"宿主忘刷新 TotalTimeMs"坑（04§8.8） |
 | 7 | `InterruptPriority` | `int8`（0=不启用） | 本行执行成功后压制同事件内低于该值的后续行（如"死亡打断后续掉落触发"） | `TriggerPlan.InterruptPriority` → `StopBelowPriority` 自动压制（04§3.2/§4.3） | 对应物：补我方中断语义缺口 |
-| 8 | `Scope` | `enum EBuffTriggerScope { Buff（默认）, Unit }` | 生命周期绑定：随 Buff Remove 注销订阅（默认），或随单位驻留（被动特性） | MOBA 持续订阅调和链 + 按 TriggerId 分桶调度（04§4.10） | **我方新增**：把示例层调和链收敛为一个枚举 + Apply/Remove 闭合纪律 |
+| 8 | `Scope` | `enum EBuffTriggerScope { Buff（默认）, Entity }` | 生命周期绑定：随 Buff Remove 注销订阅（默认），或随实体驻留（被动特性） | MOBA 持续订阅调和链 + 按 TriggerId 分桶调度（04§4.10） | **我方新增**：把示例层调和链收敛为一个枚举 + Apply/Remove 闭合纪律 |
 | 9 | `GateTags` | `FGameplayTagRequirements`（可选） | 行级 Tag 门控（Activation/Ongoing 语义：激活需 Tag、持续需 Tag） | `GameplayTagRequirements` / `ContinuousTagRequirements` 四段式（02§3.1） | 对应物：与修饰器 Tag 门控同一词汇 |
 | 10 | `HandlerClass` | `TSubclassOf<UBuffTriggerHandler>`（可选） | 特例触发器指定共享 Handler 类；缺省 = 按 Effects 生成的通用执行器 | 无（AbilityKit 全走委托注册表 + 计划解释器） | **我方新增**：事件分发文档已定的 Handler 形态，计划数据与直调代码的分界 |
 | 11 | `Cues` | `TArray<FBuffCueBinding>` | 表现挂钩（ConditionPassed/Executed/Interrupted/Skipped 时机 → 表现键） | `ITriggerCue` 两层（Trigger/Behavior）+ `ECueLifecycleStage` + 空实现早退（04§4.11） | 对应物 |
 | 12 | `bConditionMissIsSilent` | `bool`（默认 true） | 条件不满足 = 静默无事（联动触发），false = 记失败信号（供技能门禁/调试统计） | `MobaTriggerPlanExecutor.Execute` 的 `predicateMissIsSuccess` 双入口（04§4.10） | 对应物升格：示例策略进数据面 |
 
-**不抄清单与理由**：① RPN 表达式条件——谓词 AND 链 + 结构化参数覆盖自走棋条件全集，表达式层带来装载/校验/调试三份复杂度（04§4.4 栈机 + 校验器七类的体量是前车之鉴）；② Blackboard/NumericVarDomain/五源 NumericValueRef——我方数据源是单位容器 + 事件参数，黑板是"服务面缺省项"而非 Buff 必需（04§3.2）；③ 执行节点树（Sequence/Selector/Parallel…）——与平面 Actions 双轨并存正是 AbilityKit 的复杂度教训（04§4.8），我方效果链单轨；④ Phase 分组——我方事件分级（同步查询类/帧末状态类）+ Priority 已覆盖，两组正交维度只留一个。
+**不抄清单与理由**：① RPN 表达式条件——谓词 AND 链 + 结构化参数覆盖自走棋条件全集，表达式层带来装载/校验/调试三份复杂度（04§4.4 栈机 + 校验器七类的体量是前车之鉴）；② Blackboard/NumericVarDomain/五源 NumericValueRef——我方数据源是实体容器 + 事件参数，黑板是"服务面缺省项"而非 Buff 必需（04§3.2）；③ 执行节点树（Sequence/Selector/Parallel…）——与平面 Actions 双轨并存正是 AbilityKit 的复杂度教训（04§4.8），我方效果链单轨；④ Phase 分组——我方事件分级（同步查询类/帧末状态类）+ Priority 已覆盖，两组正交维度只留一个。
 
 ### 7.2 修饰器聚合取舍：重算式 vs 增量式
 
@@ -204,17 +204,17 @@ AbilityKit 是完整的**重算式**参照：脏标记懒重算 + 分组公式 +
 | 确定性 | 分组公式顺序无关（§5.3），同输入同输出；AddSum/乘积天然可交换 | 累积和依赖挂载顺序历史，回放/快照要额外封存聚合中间态 |
 | 实现复杂度 | 低：置脏 + 一个纯函数组合器 + 阈值事件 | 高：聚合器不变量维护、删除补偿、与修饰器生命周期的一致性 |
 | 适配的查询模式 | 写多读少（Buff 挂/删/刷新频繁，每帧读的属性有限） | 读多写少（属性面板常开、海量查询） |
-| 规模判定 | 200 武将级 × 每单位 ~10-20 属性 × 活跃修饰器 ~10：单次重算百级浮点运算，懒重算天然合并同帧 N 次写 | 收益要在属性数/修饰器数再高一个量级才显 |
+| 规模判定 | 200 武将级 × 每实体 ~10-20 属性 × 活跃修饰器 ~10：单次重算百级浮点运算，懒重算天然合并同帧 N 次写 | 收益要在属性数/修饰器数再高一个量级才显 |
 
 **结论：v1 维持重算式**，与既有决策（载体讨论 §6.2"比 GAS 增量聚合简单一档"）一致，AbilityKit 全框架采用重算式是第三方佐证（§5.7）。具体采用清单：
 
 1. **组合公式照抄 AbilityKit**：`Override(终止) > (Base+AddSum)×PercentProduct×MulProduct`，Op 优先级组 Override=0/Add=10/PercentAdd=15/Mul=20（§5.3）——顺序无关免去排序正确性争论，比 GAS 逐条 fold 更可解释。
 2. **ModifierOp 词汇**：四内置（Add/PercentAdd/Mul/Override）+ Custom 扩展槽；不上 Divide/FinalAdd 等（自走棋无需求，AbilityKit 四种撑住 MOBA 全部 Buff 实证有效）。
-3. **重算细节**：脏标记懒重算 + BaseValue/结果阈值 1e-5 的 Changed 事件（§5.4）；组合走 scratch 缓冲零分配（避开 `new ModifierData[count]` 坑 §5.7）；可选"单条目缓存"后置——200 单位规模先不做，留测量后再加。
+3. **重算细节**：脏标记懒重算 + BaseValue/结果阈值 1e-5 的 Changed 事件（§5.4）；组合走 scratch 缓冲零分配（避开 `new ModifierData[count]` 坑 §5.7）；可选"单条目缓存"后置——200 实体规模先不做，留测量后再加。
 4. **失效传播**：v1 只做属性依赖图 + 写路径置脏两条；ContextFloat 式上下文依赖不引入（时变修饰器改由 Buff 的 Duration/周期 tick 驱动，见第 6 条）。
 5. **时变修饰器**：不用"修饰器内部读 ElapsedTime"的 AbilityKit 形态（§8.6 的隐坑：context 缺失即永不衰减）；TimeDecay 类需求走 Buff 生命周期——到期/刷新时重挂修饰器，修饰器本体保持纯函数（base+列表+上下文快照 → 值）。
 6. **来源与键空间**（吸收 §5.6 坑）：修饰器目标 = 强类型 `FCombatAttributeId`（枚举或 NameStamp，编译期隔离），**不走 packed int 复用整数空间**；来源 = `FBuffHandle`（generation 校验既有），来源清理 = 按 Handle 批量摘除 + 置脏——AbilityKit `AttributeContext.ApplyEffect` 上下文自增 SourceId 的不可跨上下文教训（02§8.1.5）一并规避。
-7. **千人前瞻**：兵海层本就简化属性模型（载体讨论 §千人两层），重算式在武将层 ≤200 全功能单位没有可测瓶颈；增量式列入兵海层若需全功能属性时的再评估项，非当前承诺。
+7. **千人前瞻**：兵海层本就简化属性模型（载体讨论 §千人两层），重算式在武将层 ≤200 全功能实体没有可测瓶颈；增量式列入兵海层若需全功能属性时的再评估项，非当前承诺。
 
 ## 8 静默坑启示（对我方设计的具体动作）
 
@@ -237,5 +237,5 @@ AbilityKit 是完整的**重算式**参照：脏标记懒重算 + 分组公式 +
 - 【未证实】`ExecPolicy` 由宿主刷新的失真场景（04§8.8 标注为推断）；`StronglyTypedPayloads` 半落地状态的实际影响面。
 - 【推断】我方触发器行 12 字段对暗黑类词缀组合的覆盖度——FEffectStep 原语集合未定稿（载体讨论 §6.5 待定项），条件链能否表达"击杀时 if 目标带 X 标签"之外的嵌套逻辑待验证。
 - 【假设】事件键 = GameplayTag 且事件风暴规模下层级匹配可接受（我方事件分发文档 §9 待定项，AbilityKit 无对应实证——它用精确 Id，未给层级匹配的性能数据）。
-- 【假设】200 单位 × 5-10 并发 Buff 的规模账（载体讨论 §6.2 数字沿用）；修饰器重算在此规模下的实测成本未做 benchmark。
+- 【假设】200 实体 × 5-10 并发 Buff 的规模账（载体讨论 §6.2 数字沿用）；修饰器重算在此规模下的实测成本未做 benchmark。
 - 与我方文档的差异声明：AbilityKit 默认 Immediate 直派（§3.5）**不构成对我方帧末泵的反证**——两者是同步性 tradeoff 的不同选择，但事件分级清单必须裁决，否则"查询类立即返回"在我方形态中无处安放。

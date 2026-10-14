@@ -1,5 +1,7 @@
 # Tasks: add-skill-param-chain
 
+> **术语订正（2026-10-14）**：本文原用「单位 / `Unit`」，该词已退役，现统一为「**实体 / `Entity`**」（见 `DEC-2026-10-14-entity-vocabulary`）。**正文为当时原话，保留不改。**
+
 > 对应计划 `PLN-R6` Task 4（`Documents/combat-system-design/plans/plan-r6-skill-layer.md`，Step 1~8）。
 > **★ 本稿是重写版（2026-10-09 第二版）**：第一版按"定义侧 = 账本侧单一形状"写，
 > 已按用户四条裁决（双形状 / `FTcsNumericParamModInstance` / Apply 落条目 / 加 `OverridePriority`）重写。

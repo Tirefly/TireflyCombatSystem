@@ -280,7 +280,7 @@ USTRUCT() struct FTcsStepDamage { FName FlowTemplateId;   // 空=默认模板；
 ```cpp
 UCLASS(ClassGroup=(Combat), meta=(BlueprintSpawnableComponent))
 class UTcsCombatEntityComponent : public UActorComponent
-	// 身份锚：BeginPlay 门禁（定义库就绪）→ RegisterUnit；EndPlay → 映射摘除 + UnregisterUnit
+	// 身份锚：BeginPlay 门禁（定义库就绪）→ RegisterEntity；EndPlay → 映射摘除 + UnregisterEntity
 	// 查询门面：GetCurrent(FTcsAttributeName)/ApplyModifier(...)/RemoveBySource(...)——D2-1 裸 FName 不进属性 API
 	// D2-15（2026-09-17 裁决）：本组件是 AttributeSet 的**引用点**（实体侧配置）——R3 竖切无 Set 资产
 	//   （属性由测试装置直接添加）；ApplyAttributeSet/ClearAttributeSet 属 R7（台账 INTEG-1）
@@ -360,11 +360,11 @@ UCLASS(BlueprintType) class UTcsEffectChainDef : public UPrimaryDataAsset   // �
 
 ### Task 6: 测试装置 + PIE 地图（内容资产）　**【已完成 2026-09-22：内容资产 + PIE 验收全项通过】**
 
-**Files（落地后的实际形态——与计划原文有四处偏离，见实施注记①）**：内容资产住**宿主项目** `Content/TcsDev/`（4 条 `UTcsAttributeDef` 属性资产 / 1 条 `UTcsEffectChainDef` 链资产 / 1 张地图 + 2 单位）；切片代码住**宿主项目独立模块** `Source/TcsDev/`（公式 delegate / 自研流程 2 步 / 装配 / 屏显观测 / `Tcs.Test.Slice.*` 命令）；插件侧仅新增 `FTcsSelSelf` 选择器 + 三处导出宏修正。
+**Files（落地后的实际形态——与计划原文有四处偏离，见实施注记①）**：内容资产住**宿主项目** `Content/TcsDev/`（4 条 `UTcsAttributeDef` 属性资产 / 1 条 `UTcsEffectChainDef` 链资产 / 1 张地图 + 2 实体）；切片代码住**宿主项目独立模块** `Source/TcsDev/`（公式 delegate / 自研流程 2 步 / 装配 / 屏显观测 / `Tcs.Test.Slice.*` 命令）；插件侧仅新增 `FTcsSelSelf` 选择器 + 三处导出宏修正。
 
 - [x] **Step 1: 属性定义资产 4 条**（`UTcsAttributeDef` 资产轨——**非**计划原文的 DataTable，见注记①）——*已建并实测装载 4/4*
 - [x] **Step 2: 测试链资产**（`UTcsEffectChainDef`：`WaitDelay 0.5 → SelectTargets(Self) → Damage`——检查点 6 的"零 C++ 加链"实证主体）——*已建；检查 3 实测 3/3 步类型全可解析*
-- [x] **Step 3: 测试公式 delegate + 2 个测试单位 + 地图**（公式落宿主 `Source/TcsDev/`；验收信号 = `UTcsDevScreenObserver` 订阅属性/记录广播直调 `GEngine->AddOnScreenDebugMessage`）——*地图 `L_TcsDev_Slice` 已建（含 2 个单位）；屏显观测实测生效*
+- [x] **Step 3: 测试公式 delegate + 2 个测试实体 + 地图**（公式落宿主 `Source/TcsDev/`；验收信号 = `UTcsDevScreenObserver` 订阅属性/记录广播直调 `GEngine->AddOnScreenDebugMessage`）——*地图 `L_TcsDev_Slice` 已建（含 2 个实体）；屏显观测实测生效*
 - [x] **Step 4: 编译 + 打开 PIE 就绪**（插件与宿主各一次 UBT Development Editor，**零警告**）
 - [x] **Step 5（2026-09-21 Task 5 追加）：DefLibrary 自动发现路径验收**——命令 `Tcs.Test.Slice.Run` 的检查 1b/2/3 已就位；拒绝面（瞬态双真相资产 / 空身份 / 未登记链）在 `.Reject`。**PIE 实测通过（见注记⑨）**。
 
@@ -406,7 +406,7 @@ UCLASS(BlueprintType) class UTcsEffectChainDef : public UPrimaryDataAsset   // �
 >
 > **⑨-B 两处新实证（Task 5 遗留缺口已闭合）**：
 > - **DefLibrary 自动发现路径首次真实生效**：Task 5 注记⑤列的三条受影响验收面（Scenario「链资产自动登记」/「新世界初始化后链仍可查」/ 检查点 6）**全部随本轮验收闭合**——检查 1b 实证"未调 `RegisterChain` 而链被缓存"，检查 2 实证"世界装配可查"，且 `IsLoadingAssets()` / `WaitForCompletion()` 异步扫描门首次在有资产的真实场景下生效。
-> - **关卡加载期组件注册路径（装置走不到的路径）**：用户在地图 `L_TcsDev_Slice` 里摆了 2 个单位，日志实测 `已注册实体 StaticMeshActor_1/2（句柄 1/2）`——**关卡加载期 `BeginPlay` 注册**，与装置"运行时 `SpawnActor` + `AddInstanceComponent`"是**两条不同路径**。该路径通了，且**就绪门禁在真实路径上成立**（装配 `18.15.42.567` 早于组件注册 `:595`，无 Warning 跳过）。这是本轮验收中"装置永远覆盖不到"的覆盖面增量。
+> - **关卡加载期组件注册路径（装置走不到的路径）**：用户在地图 `L_TcsDev_Slice` 里摆了 2 个实体，日志实测 `已注册实体 StaticMeshActor_1/2（句柄 1/2）`——**关卡加载期 `BeginPlay` 注册**，与装置"运行时 `SpawnActor` + `AddInstanceComponent`"是**两条不同路径**。该路径通了，且**就绪门禁在真实路径上成立**（装配 `18.15.42.567` 早于组件注册 `:595`，无 Warning 跳过）。这是本轮验收中"装置永远覆盖不到"的覆盖面增量。
 >
 > **⑨-C 验收操作方式（可复用）**：本轮由 agent 经 **UE MCP** 直接驱动——`DataAssetTools.create` + `ObjectTools.set_properties` 建资产（`FInstancedStruct` 用 `{"_structType": "/Script/<模块>.<StructName>", ...}` 写入），`EditorAppToolset.StartPIE/StopPIE` 控 PIE，命令经 Output Log 底部 `Cmd` 输入行（Slate ref）提交，结果读 `LogsToolset.GetLogEntries`。**注意**：编辑器内**原生模态对话框（如 Save Level As）会阻塞游戏线程 → 所有 MCP 调用超时**，须由人工操作或绕 Win32 输入。
 >

@@ -12,14 +12,14 @@
 // 授予
 bool FTcsSkillOps::Grant(
 	UTcsSkillSubsystem& Subsystem,
-	FTcsCombatEntityHandle Unit,
+	FTcsCombatEntityHandle Entity,
 	FGameplayTag DefTag,
 	FTcsSourceHandle Source,
 	FTcsSkillEntryHandle* OutHandle)
 {
-	if (!Unit.IsValid())
+	if (!Entity.IsValid())
 	{
-		UE_LOG(LogTcsSkill, Warning, TEXT("技能授予被拒：单位句柄无效"));
+		UE_LOG(LogTcsSkill, Warning, TEXT("技能授予被拒：实体句柄无效"));
 		return false;
 	}
 
@@ -50,9 +50,9 @@ bool FTcsSkillOps::Grant(
 		Source = Subsystem.SourceRegistry.Allocate();
 	}
 
-	FSkillBucket& Bucket = Subsystem.Registry.FindOrAddBucket(Unit);
+	FSkillBucket& Bucket = Subsystem.Registry.FindOrAddBucket(Entity);
 
-	// 重复授予同一 DefTag ⇒ **刷新**既有条目（同一单位"会同一个技能"只有一条事实），不新建第二条
+	// 重复授予同一 DefTag ⇒ **刷新**既有条目（同一实体"会同一个技能"只有一条事实），不新建第二条
 	FTcsSkillEntryHandle Existing;
 	bool bFound = false;
 	Bucket.ForEach([&DefTag, &Existing, &bFound](const FTcsLearnedSkillEntry& Entry)
@@ -94,7 +94,7 @@ bool FTcsSkillOps::Grant(
 
 		Entry->DefTag = DefTag;
 		Entry->Handle = Handle;
-		Entry->Unit = Unit;
+		Entry->Entity = Entity;
 		Entry->Level = Def->LevelBase;
 		Entry->LearnSource = Source;
 		Entry->RunHandles.Reset();
@@ -106,9 +106,9 @@ bool FTcsSkillOps::Grant(
 	}
 
 	const FTcsLearnedSkillEntry* Granted = Bucket.Find(Handle);
-	UE_LOG(LogTcsSkill, Log, TEXT("技能授予%s：单位=%lld 定义=%s 条目=%d/%d 等级=%d"),
+	UE_LOG(LogTcsSkill, Log, TEXT("技能授予%s：实体=%lld 定义=%s 条目=%d/%d 等级=%d"),
 		bFound ? TEXT("（刷新）") : TEXT(""),
-		Unit.Id, *DefTag.ToString(), Handle.Index, Handle.Generation,
+		Entity.Id, *DefTag.ToString(), Handle.Index, Handle.Generation,
 		Granted ? Granted->Level : 0);
 
 	return true;
@@ -119,7 +119,7 @@ bool FTcsSkillOps::Grant(
 // 撤销
 bool FTcsSkillOps::Revoke(
 	UTcsSkillSubsystem& Subsystem,
-	FTcsCombatEntityHandle Unit,
+	FTcsCombatEntityHandle Entity,
 	FTcsSkillEntryHandle Handle)
 {
 	if (!Handle.IsValid())
@@ -129,10 +129,10 @@ bool FTcsSkillOps::Revoke(
 		return false;
 	}
 
-	FSkillBucket* Bucket = Subsystem.Registry.FindBucket(Unit);
+	FSkillBucket* Bucket = Subsystem.Registry.FindBucket(Entity);
 	if (!Bucket)
 	{
-		UE_LOG(LogTcsSkill, Warning, TEXT("技能撤销被拒：单位 %lld 未注册"), Unit.Id);
+		UE_LOG(LogTcsSkill, Warning, TEXT("技能撤销被拒：实体 %lld 未注册"), Entity.Id);
 		return false;
 	}
 
@@ -149,19 +149,19 @@ bool FTcsSkillOps::Revoke(
 	// 只能等它自己到期再空跑一次回调（期间 `IsOnCooldown` 若被查询，还会按"时间判据"如实报冷却中
 	// ——而那条技能已经不在账本上了）。
 	//
-	// **组槽刻意不在此一并摘**：组槽是**单位级**的，它有自己的到期条目、会自行解除；
+	// **组槽刻意不在此一并摘**：组槽是**实体级**的，它有自己的到期条目、会自行解除；
 	// 替它解除会**替同组的其它技能**解除公共冷却（症状：撤销 A 之后同组的 B 立刻能放）。
-	FTcsCooldownOps::ReleaseEntryCooldowns(Subsystem, Unit, *Entry);
+	FTcsCooldownOps::ReleaseEntryCooldowns(Subsystem, Entity, *Entry);
 
 	Bucket->ReleaseSlot(static_cast<uint32>(Handle.Index));
 
-	UE_LOG(LogTcsSkill, Log, TEXT("技能撤销：单位=%lld 条目=%d/%d"), Unit.Id, Handle.Index, Handle.Generation);
+	UE_LOG(LogTcsSkill, Log, TEXT("技能撤销：实体=%lld 条目=%d/%d"), Entity.Id, Handle.Index, Handle.Generation);
 	return true;
 }
 
 int32 FTcsSkillOps::RevokeBySource(
 	UTcsSkillSubsystem& Subsystem,
-	FTcsCombatEntityHandle Unit,
+	FTcsCombatEntityHandle Entity,
 	FTcsSourceHandle Source)
 {
 	if (!Source.IsValid())
@@ -170,7 +170,7 @@ int32 FTcsSkillOps::RevokeBySource(
 		return 0;
 	}
 
-	FSkillBucket* Bucket = Subsystem.Registry.FindBucket(Unit);
+	FSkillBucket* Bucket = Subsystem.Registry.FindBucket(Entity);
 	if (!Bucket)
 	{
 		return 0;
@@ -195,7 +195,7 @@ int32 FTcsSkillOps::RevokeBySource(
 	{
 		if (FTcsLearnedSkillEntry* Entry = Bucket->Find(Handle))
 		{
-			FTcsCooldownOps::ReleaseEntryCooldowns(Subsystem, Unit, *Entry);
+			FTcsCooldownOps::ReleaseEntryCooldowns(Subsystem, Entity, *Entry);
 		}
 
 		Bucket->ReleaseSlot(static_cast<uint32>(Handle.Index));
@@ -203,39 +203,39 @@ int32 FTcsSkillOps::RevokeBySource(
 
 	if (Matched.Num() > 0)
 	{
-		UE_LOG(LogTcsSkill, Log, TEXT("技能按来源级联撤销：单位=%lld 来源=%llu 摘除 %d 条"),
-			Unit.Id, Source.Id, Matched.Num());
+		UE_LOG(LogTcsSkill, Log, TEXT("技能按来源级联撤销：实体=%lld 来源=%llu 摘除 %d 条"),
+			Entity.Id, Source.Id, Matched.Num());
 	}
 
 	return Matched.Num();
 }
 
-int32 FTcsSkillOps::UnregisterUnit(UTcsSkillSubsystem& Subsystem, FTcsCombatEntityHandle Unit)
+int32 FTcsSkillOps::UnregisterEntity(UTcsSkillSubsystem& Subsystem, FTcsCombatEntityHandle Entity)
 {
 	// **取可写桶**（不是 const）：下面要在槽位释放前**就地**清各条目的冷却状态
 	// ⇒ 需要 `ForEach` 的**可写重载**（const 桶只能给只读访问者，那会拿不到可改的条目引用）。
-	FSkillBucket* Bucket = Subsystem.Registry.FindBucket(Unit);
+	FSkillBucket* Bucket = Subsystem.Registry.FindBucket(Entity);
 	const int32 Count = Bucket ? Bucket->Num() : 0;
 
-	// **★ 单位级组冷却槽的清理归这里**（条目级撤销**刻意不动它**——替它解除会替同组其它技能
-	// 解除公共冷却，见 `Revoke` 的注释）。单位都没了 ⇒ 没有"留给谁"的问题，整表撤锚点后删除。
+	// **★ 实体级组冷却槽的清理归这里**（条目级撤销**刻意不动它**——替它解除会替同组其它技能
+	// 解除公共冷却，见 `Revoke` 的注释）。实体都没了 ⇒ 没有"留给谁"的问题，整表撤锚点后删除。
 	// **MUST 排在 `RemoveBucket` 之前**：桶一删，条目里的自身轨锚点也就找不回来了。
-	FTcsCooldownOps::ReleaseUnitCooldowns(Subsystem, Unit);
+	FTcsCooldownOps::ReleaseEntityCooldowns(Subsystem, Entity);
 
 	if (Bucket)
 	{
-		// 逐条目的自身轨锚点也一并撤（`ReleaseUnitCooldowns` 只管单位级组槽）
-		Bucket->ForEach([&Subsystem, Unit](FTcsLearnedSkillEntry& Entry)
+		// 逐条目的自身轨锚点也一并撤（`ReleaseEntityCooldowns` 只管实体级组槽）
+		Bucket->ForEach([&Subsystem, Entity](FTcsLearnedSkillEntry& Entry)
 		{
-			FTcsCooldownOps::ReleaseEntryCooldowns(Subsystem, Unit, Entry);
+			FTcsCooldownOps::ReleaseEntryCooldowns(Subsystem, Entity, Entry);
 			return true;
 		});
 	}
 
 	// 账本条目零外部资源（不挂修正器、不挂触发行）——**但冷却除外**（上面已配对清理）。
-	if (Subsystem.Registry.RemoveBucket(Unit) && Count > 0)
+	if (Subsystem.Registry.RemoveBucket(Entity) && Count > 0)
 	{
-		UE_LOG(LogTcsSkill, Log, TEXT("技能注销单位：单位=%lld 摘除 %d 条"), Unit.Id, Count);
+		UE_LOG(LogTcsSkill, Log, TEXT("技能注销实体：实体=%lld 摘除 %d 条"), Entity.Id, Count);
 	}
 
 	return Count;
@@ -246,30 +246,30 @@ int32 FTcsSkillOps::UnregisterUnit(UTcsSkillSubsystem& Subsystem, FTcsCombatEnti
 // 访问
 const FTcsLearnedSkillEntry* FTcsSkillOps::Find(
 	UTcsSkillSubsystem& Subsystem,
-	FTcsCombatEntityHandle Unit,
+	FTcsCombatEntityHandle Entity,
 	FTcsSkillEntryHandle Handle)
 {
-	return Subsystem.Registry.Find(Unit, Handle);
+	return Subsystem.Registry.Find(Entity, Handle);
 }
 
 void FTcsSkillOps::ForEachEntry(
 	UTcsSkillSubsystem& Subsystem,
-	FTcsCombatEntityHandle Unit,
+	FTcsCombatEntityHandle Entity,
 	TFunctionRef<bool(const FTcsLearnedSkillEntry&)> Visitor)
 {
-	if (const FSkillBucket* Bucket = Subsystem.Registry.FindBucket(Unit))
+	if (const FSkillBucket* Bucket = Subsystem.Registry.FindBucket(Entity))
 	{
 		Bucket->ForEach(Visitor);
 	}
 }
 
-int32 FTcsSkillOps::CountEntries(UTcsSkillSubsystem& Subsystem, FTcsCombatEntityHandle Unit)
+int32 FTcsSkillOps::CountEntries(UTcsSkillSubsystem& Subsystem, FTcsCombatEntityHandle Entity)
 {
-	const FSkillBucket* Bucket = Subsystem.Registry.FindBucket(Unit);
+	const FSkillBucket* Bucket = Subsystem.Registry.FindBucket(Entity);
 	return Bucket ? Bucket->Num() : 0;
 }
 
 int32 FTcsSkillOps::CountAllEntries(UTcsSkillSubsystem& Subsystem)
 {
-	return Subsystem.Registry.NumEntries();
+	return Subsystem.Registry.NumItems();
 }

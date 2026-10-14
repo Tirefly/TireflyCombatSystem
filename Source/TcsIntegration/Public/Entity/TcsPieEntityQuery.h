@@ -30,7 +30,7 @@ class AActor;
  * - `EnumerateEntities`：遍历带 `UTcsCombatEntityComponent` 的 Actor 并吐句柄（**稳定序 = 注册序**）；
  * - `GetLocation` / `IsAlive` / `IsEntityReady`：经本类持有的映射解析（组件注册时登记、注销时移除）。
  *
- * **映射归属纪律**：句柄由属性门面（`UTcsAttributeSubsystem::RegisterUnit`）发号，本类只记
+ * **映射归属纪律**：句柄由属性门面（`UTcsAttributeSubsystem::RegisterEntity`）发号，本类只记
  * "句柄 → Actor"的对应关系。机制层（TcsEffect/TcsTargeting/TcsDamage）MUST NOT 依赖本映射；
  * 内容资产 MUST NOT 存句柄（运行期发号，跨会话/跨机不同——要指定实体用"稳定标识 + 运行期宿主解析"）。
  *

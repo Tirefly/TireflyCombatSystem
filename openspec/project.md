@@ -59,7 +59,7 @@ TireflyCombatSystem（TCS）是一个面向 Unreal Engine 的通用、综合战�
 
 ## 重要约束
 - 确定性是一条轻量级纪律（D0-1），以单 tick 泵作为时间的唯一驱动器。
-- Mass/ECS 内存布局工作明确不在当前范围内（未来的 TcsMass）；按 `2026-09-02-mass-连续内存数据布局备忘.md` 用 1000 单位压力测试再审。
+- Mass/ECS 内存布局工作明确不在当前范围内（未来的 TcsMass）；按 `2026-09-02-mass-连续内存数据布局备忘.md` 用 1000 实体压力测试再审。
 - 开工前加载 agent skill：`unreal-development-workflow`（执行哲学）、`unreal-cpp-style`、`unreal-cpp-compile`（引擎路径探测 + UBT 构建）。
 - 对于新能力、破坏性变更、架构调整或重大性能工作，在实施之前先在本 `openspec/` 目录中创建并验证 OpenSpec proposal。
 

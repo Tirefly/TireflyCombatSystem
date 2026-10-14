@@ -12,8 +12,8 @@
 - 运行态类型 MUST 为 `FTcsCastRun`，**非反射**（无 `USTRUCT`——池内池化纯数据，本轮零过网与零脚本消费面；同 `FTcsChainRun` / `FTcsLearnedSkillEntry` 的处置与理由）；
 - MUST 提供句柄标签 `FTcsCastRunTag` 与池实例 `TTcsInstancePool<FTcsCastRun, FTcsCastRunTag>`；池 MUST 以 `UPROPERTY` 之外的方式**由门面持有**并在 `Deinitialize` 确定性清空（同状态门面对注册表的清理口径）；
 - `FTcsCastRunHandle` MUST 补 `GetInner()` / `SetInner()` **唯一转换对**（池的 `Allocate` / `Free` / `Resolve` 收发 `TTcsInstanceHandle<FTcsCastRunTag>`，而展平句柄与之**位模式一致但类型不同**——缺此对则句柄无法进池）；照 `FTcsChainRunHandle` 的既有形态（`static_cast` 保证 `-1` ↔ `0xFFFFFFFF`）；
-- `FTcsCastRun` MUST 至少含：条目身份 `FTcsSkillEntryHandle EntryHandle`、**所属单位** `FTcsCombatEntityHandle Unit`、激活时快照的等级 `int32 Level`、当前时段下标 `int32 PhaseIndex`、链运行句柄 `FTcsChainRunHandle ChainRunHandle`、参数快照 `FTcsParamSnapshot ParamSnapshot`、来源锚点 `FTcsSourceHandle RunSource`、时段到期条目 `FTcsTimeEntryHandle PhaseExpiryEntry`；
-  - **`Unit` 为何必须自持（MUST 记录）**：条目句柄的 `Index` **只在单位桶内有意义**（`TcsSkillRegistry.h` 明文）⇒ 仅凭 `EntryHandle` 无法跨单位定位条目；而施法终结路径（打断 / 顶替）只拿得到运行句柄，需要 `Unit` 才能摘账本条目与按来源回收。缺它会让终结路径要么无法定位、要么退化为全桶扫描；
+- `FTcsCastRun` MUST 至少含：条目身份 `FTcsSkillEntryHandle EntryHandle`、**所属实体** `FTcsCombatEntityHandle Entity`、激活时快照的等级 `int32 Level`、当前时段下标 `int32 PhaseIndex`、链运行句柄 `FTcsChainRunHandle ChainRunHandle`、参数快照 `FTcsParamSnapshot ParamSnapshot`、来源锚点 `FTcsSourceHandle RunSource`、时段到期条目 `FTcsTimeEntryHandle PhaseExpiryEntry`；
+  - **`Entity` 为何必须自持（MUST 记录）**：条目句柄的 `Index` **只在实体桶内有意义**（`TcsSkillRegistry.h` 明文）⇒ 仅凭 `EntryHandle` 无法跨实体定位条目；而施法终结路径（打断 / 顶替）只拿得到运行句柄，需要 `Entity` 才能摘账本条目与按来源回收。缺它会让终结路径要么无法定位、要么退化为全桶扫描；
   - **`PhaseExpiryEntry` 的写入者自本变更起存在**（时段推进落地）：它是**当前时段的取消锚点**——四路终结任一发生时 MUST 经 `UTcsClockSubsystem::CancelExpiry` 取消它，使作废的到期回调不再触发（池的句柄代际校验是第二道防线，取消是第一道）。
     **★ 本条取代了原文的一句（MUST 留痕，防后人以为该句被误删；**原文逐字保留**）**：
 
@@ -25,7 +25,7 @@
 - **终结 MUST 为「四路汇聚同一个例程」（本变更新增，MUST 记录以免后人"补第五份清理"）**：施法运行态的四个终结点 = ① **完成**（全时段走完，或**瞬发当刻**——其触发条件由 `skill-cast-phases` 能力的「时段推进与到期驱动」需求定义）、② **打断**（`CancelCast`，同上能力）、③ **顶替**（既有路径）、④ 世界拆解（池 `Reset`，**不逐槽走终结例程、不动账本**——世界正在拆，账本随之消亡）。四路 MUST 收敛到同一个终结例程，**MUST NOT 各写一份清理**——多份清理必然漂移，而漂移的后果是**静默泄漏**（条目留在账本里、属性不回退，且无人报错）。**四路只在一个地方分岔**：发哪一枚终止事件（完成 → `OnCastCompleted`；打断与顶替 → `OnCastInterrupted`）；
 - **统一例程 MUST 做五件事**（缺一即泄漏）：① 取消时段到期锚点（`PhaseExpiryEntry`）；② 按 `RunSource` 回收**链挂的 M2 属性账本条目**；③ 按 `RunSource` 回收**本 run 物化的 M5 参数链条目**；④ 摘除账本 `RunHandles` 中的该句柄；⑤ 归还池槽位。**事件广播 MUST 排在归还槽位之前**（"先广播后归还槽位"的既有纪律 ⇒ 载荷里的运行句柄在回调内仍有效）；
 - **`②` 与 `③` 是两本不同的账、同一个来源句柄（本变更闭合台账 `CHAIN-7`，MUST 写清以免后人只摘一本）**：
-  - `②` 走 `UTcsAttributeSubsystem::RemoveBySource(Unit, RunSource)`（该口**公开且已有真实使用者** `TcsDamageSubsystem.cpp:226`）——摘的是**链内 `ModifyAttribute`** 挂的条目（`TcsStepModifyAttribute.cpp:80` 挂的正是 `Context.RunSource`）；
+  - `②` 走 `UTcsAttributeSubsystem::RemoveBySource(Entity, RunSource)`（该口**公开且已有真实使用者** `TcsDamageSubsystem.cpp:226`）——摘的是**链内 `ModifyAttribute`** 挂的条目（`TcsStepModifyAttribute.cpp:80` 挂的正是 `Context.RunSource`）；
   - `③` 走 `FTcsParamChainOps::RemoveParamModifiersBySource`——摘的是**定义侧 `ParamChainRows` 物化**的条目；
   - 两者 `Source` **同源**（Task 3 已定 `Context.RunSource` = `FTcsCastRun.RunSource`）⇒ **一次摘净**。**MUST NOT 只摘其一**——只摘 `③` ⇒ 链改的属性常驻不回退，**正是 `CHAIN-7` 的实测症状"常驻停在 X−5"**（`EVID-2026-10-05-state-layer-pie` §1.2 检查 S15）；
   - **`CHAIN-7` 的闭合依据（MUST 记录，MUST NOT 读成"三条死路被修"）**：`CHAIN-7` 的触发条件原文是"出现**链改的属性必须随某生命周期回退**的真实内容需求"，而施法运行态是链运行态的**第一个长生命周期持有者** ⇒ 条件成立。**三条死路今天依然成立**：即时链的运行态在 `ExecuteChain` 返回前已释放（无回收窗口）、按 `CausedBy` 级联**已被明文禁止**（`TcsEffectContext.h:54-55`）、`FTcsStepModifyAttribute` **刻意不提供**回收器。⇒ 本需求落地的正是台账认定的"今天唯一合法用法"（宿主自存 `RunSource` 再自调 `RemoveBySource`）**所缺的那个触发点**；
@@ -74,7 +74,7 @@
 
 ### Requirement: 六道具名门禁与激活入口
 
-技能门面 MUST 提供 `TryActivate(FTcsCombatEntityHandle Unit, FGameplayTag DefTag, FTcsCastRunHandle* OutRun) -> ESkillActivateResult`，且**门禁 MUST 逐道具名、MUST NOT 内联成一个笼统失败**（修 TCS 库外报告 09 的"门禁内联无钩子"缺陷）：
+技能门面 MUST 提供 `TryActivate(FTcsCombatEntityHandle Entity, FGameplayTag DefTag, FTcsCastRunHandle* OutRun) -> ESkillActivateResult`，且**门禁 MUST 逐道具名、MUST NOT 内联成一个笼统失败**（修 TCS 库外报告 09 的"门禁内联无钩子"缺陷）：
 
 - 结果枚举 MUST 为 `UENUM(BlueprintType) ESkillActivateResult`，**值名带 `SAR_` 前缀**（全仓 `UENUM(BlueprintType)` 的枚举值无一例外带前缀；`BlueprintType` 是必需的——宿主查出"为什么放不出来"是本门禁的**唯一价值**）；
 - **门禁序列（本 Task 评估序）** MUST 为：**① 实体 Ready → ② 已学 → ③ 冷却 → ④ Instancing → ⑤ CanAfford → ⑥ 定义可解析**，每道各有独立枚举值：
@@ -88,7 +88,7 @@
   - `CI_InstancePerEntity` + **无在飞实例** ⇒ 正常建 run；
   - `CI_InstancePerEntity` + **有在飞实例** + `bRetriggerOnActive = false`（**默认**） ⇒ **驳回 `SAR_AlreadyActive`**（"该实体上已有在飞的同技能实例"——两个来源对调用方是同一件事，**MUST NOT** 拆成两个枚举值）；
   - `CI_InstancePerEntity` + **有在飞实例** + `bRetriggerOnActive = true` ⇒ **顶替**（见下条）；
-  - **"在飞实例"的判据 MUST 取该条目的 `RunHandles`**（它按构造就是 per-unit，无需跨桶扫描）；**在飞判据 MUST 按句柄经池复核**（账本里可能有已归还的陈旧句柄 ⇒ 复核失败即视为无在飞）；
+  - **"在飞实例"的判据 MUST 取该条目的 `RunHandles`**（它按构造就是 per-entity，无需跨桶扫描）；**在飞判据 MUST 按句柄经池复核**（账本里可能有已归还的陈旧句柄 ⇒ 复核失败即视为无在飞）；
 - **顶替语义（MUST，刻意与 GAS 分歧）**：① 先查旧 run 当前时段的可打断性，**不可打断 ⇒ 驳回 `SAR_AlreadyActive`**（旧 run 原样继续）；② 可打断 ⇒ **终止旧 run**——发 `OnCastInterrupted`、**MUST NOT** 发 `OnCastCompleted`、**不起旧 run 的主链**、归还旧 run 池槽位、摘除其 `RunHandles` 条目；③ 再建新 run。**顶替 = 打断的一种终止形态**，MUST NOT 新增第三枚终止事件；
   - **可打断性判据的 Task 3 → Task 5 接缝（MUST 写清）**：本 Task 取 `FTcsSkillDefData::bInterruptibleDefault`（即 `ECastQueryMode::DefSwitches` 档——**它是查询契约的默认档**，Task 1 已交付）。Task 5 落地 `IsInterruptibleNow()` 后改调它，而 **DefSwitches 档读的就是该字段 ⇒ 行为逐字不变、零回归**。本 Task **MUST NOT** 预建三档分派（`PhaseTable` 需时段推进、`Custom` 需 Fragment 求值）。
 
@@ -123,7 +123,7 @@
 
 - MUST 提供 `BuildSkillSnapshot`：按 `FTcsSkillDefData.Params` **逐行**处理并冻结进 `FTcsCastRun.ParamSnapshot`；**写入点规则 MUST 与状态侧逐字同款**（覆盖值优先且不再过值约定 / 否则求值后按该行 `ValueConvention` 转规范值 / 重建语义 = 先 `Reset` 再填）；
 - **`Mode` 列 MUST 参与分流（D5-12 v2 的"逐参数 Mode"）**：`EPM_Snapshot`（默认）⇒ **求值并冻结**进快照；`EPM_Live` ⇒ **标记跳过**（不进快照的数值面，实时读取走账本求值）。**MUST NOT 无差别地把 `EPM_Live` 行也冻结**——那会让"实时通道"名存实亡（配了 Live 的行在施法期读到的仍是冻结值）；
-- **快照的消费面 MUST 是"求值期的参数表载体"（2026-10-09 用户裁定 A′，本条是防误读的唯一说明）**：快照 MUST 作为**物化/求值时的参数表**被绑定（经既有读取适配器 `UTcsStateParamTableReader` + `FTcsStateSnapshotScope`），供引用类数值源（`ParamRef`）取值——**先例 = 状态侧的 `FTcsStateModifierMaterializer` 把 `Instance.ParamSnapshot` 装进 `Ctx.ParamTable`**。技能侧的落实点 = `FTcsCastOps::Activate` 物化 `ParamChainRows` 时的那段绑定作用域。**MUST NOT 把本快照读成"公共读口的冻结来源"**：`GetNumericParam` 走**实时**通道（参数行初值 + 账本槽位折叠），**MUST NOT** 被要求改读快照——判据：快照住**每次 run**（`FTcsCastRun.ParamSnapshot`），而读口签名 `(Unit, EntryHandle, Key)` **没有 run 段**，且 `CI_InstancePerExecution` 下同一 Entry **可有两个 run 并存** ⇒ "读哪一次施法的冻结值"**无唯一答案**；为一个无唯一答案的读数给读口加 run 形参 = 零消费者预建（施法期确需"某次 run 的冻结读数"时按台账另议读口）；
+- **快照的消费面 MUST 是"求值期的参数表载体"（2026-10-09 用户裁定 A′，本条是防误读的唯一说明）**：快照 MUST 作为**物化/求值时的参数表**被绑定（经既有读取适配器 `UTcsStateParamTableReader` + `FTcsStateSnapshotScope`），供引用类数值源（`ParamRef`）取值——**先例 = 状态侧的 `FTcsStateModifierMaterializer` 把 `Instance.ParamSnapshot` 装进 `Ctx.ParamTable`**。技能侧的落实点 = `FTcsCastOps::Activate` 物化 `ParamChainRows` 时的那段绑定作用域。**MUST NOT 把本快照读成"公共读口的冻结来源"**：`GetNumericParam` 走**实时**通道（参数行初值 + 账本槽位折叠），**MUST NOT** 被要求改读快照——判据：快照住**每次 run**（`FTcsCastRun.ParamSnapshot`），而读口签名 `(Entity, EntryHandle, Key)` **没有 run 段**，且 `CI_InstancePerExecution` 下同一 Entry **可有两个 run 并存** ⇒ "读哪一次施法的冻结值"**无唯一答案**；为一个无唯一答案的读数给读口加 run 形参 = 零消费者预建（施法期确需"某次 run 的冻结读数"时按台账另议读口）；
 - **缺口登记（2026-10-09 实测，MUST 记录以防"以为已实现"）**：本能力的初版**只构建了快照、没有任何消费者**，且 `Mode` 列**完全未被读取**（`BuildSkillSnapshot` 无 `Mode` 判断 ⇒ `EPM_Live` 行也被冻结、"实时通道"名存实亡）。本变更即其闭合：**补上 `Mode` 分流 + 快照作为求值参数表被真正消费**（快照从"只写不读"变为"激活期物化链行的求值表"）。**同批如实订正一处初版误记**：初版曾把缺口写成"`GetNumericParam` MUST 改走快照"，该措辞**与 A′ 裁定冲突且本身不成立**（读口无 run 段、无唯一答案）——正确缺口是"快照零消费者 + `Mode` 未接"，不是"读口未接快照"；
 - **复用面与不复用面 MUST 分清**（防后人误读为"建了第二套快照"）：**快照类型** `FTcsParamSnapshot` 与**读取适配器** `FTcsStateParamTableReader` + `FTcsStateSnapshotScope` MUST **复用**，MUST NOT 新建第二套快照类型、也 MUST NOT 出现第二处键查找语义；但**构建函数** MUST 另有一份——状态侧的 `FTcsStateOps::BuildSnapshot` 形参硬编码为 `const FTcsBuffDef&`，技能侧**物理上无法复用**。两份构建函数 MUST 保持同一套写入点规则（判据 = 规则同款，而非函数同一）；
 - **时序 MUST 为**：门禁全过 → 构建快照 → 绑定到新建的 run → 起主链 → 发 `OnCastStarted`。**MUST NOT** 在门禁之前构建（门禁失败即白算一份快照）；
@@ -146,7 +146,7 @@
 
 - `CastChainId` MUST 经**效果链登记表**解析（`UTcsEffectSubsystem::ExecuteChain` 的既有接口）；**无效 `CastChainId` MUST 在作者期校验拦下**（`skill-def-asset` 的既有校验规则），运行期遇到则**不阻断激活**（技能已放出去，只是没有链）+ `Warning`；
 - 起链 MUST 用 `ExecuteChain(CastChainId, Context)`，且 **`Context.RunSource` MUST = `FTcsCastRun.RunSource`**——这是台账 `CHAIN-7`（"链挂的账本条目没有框架侧回收触发点"）的**闭合依据**：施法运行态是链运行态的**第一个长生命周期持有者**，故链内 `ModifyAttribute` 挂的条目可按该锚点回收。**回收例程本身归 Task 5 Step 3**（施法终结三路统一回收），本 Task 只落锚点；
-- `Context.Caster` MUST = 施法单位、`Context.Instigator` MUST = 施法单位（本轮无独立的发起者参数）；
+- `Context.Caster` MUST = 施法实体、`Context.Instigator` MUST = 施法实体（本轮无独立的发起者参数）；
 - **`MainChainStart` 的档位处置（MUST 逐档写明，不得留白）**：本 Task 只实现 **`MCS_OnCastStarted`**；`MCS_OnPhaseEnter` / `MCS_OnCastCompleted` / `MCS_Custom` 三档**命中时 MUST 记 Warning 并明确报出"该档未实现、主链未起"**——**MUST NOT** 静默跳过（那会让配了 `OnCastCompleted` 的技能"不报错也不生效"）；
 - 链跑完与否 MUST NOT 影响激活的返回（链可挂起）；`ChainRunHandle` MUST 存入 run（本轮无读取者，如实登记——Task 5 的终结路径要按它摘链锚）。
 
@@ -166,7 +166,7 @@
 
 - 事件 Tag MUST 为 `TcsEvent.Cast.Started` / `TcsEvent.Cast.PhaseChanged` / `TcsEvent.Cast.Completed` / `TcsEvent.Cast.Interrupted`——**落在既有的 `TcsEvent` 根下**（域段 = `Cast`），**MUST NOT** 为此新增根；
 - 变量声明 MUST 带**模块导出宏**（`extern TCSSKILL_API FNativeGameplayTag Tag_TcsEvent_Cast_*`）：`UE_DECLARE_GAMEPLAY_TAG_EXTERN` 展开为**裸 `extern`**（无 `__declspec(dllexport)`）⇒ 跨模块引用必 `LNK2001`，而"供宿主订阅"正是本事件词汇的设计意图；
-- 载荷 MUST 为**单一 `USTRUCT`**（`FTcsCastEventPayload`，四枚共用一种形状，同状态侧六枚共用 `FTcsStateEventPayload` 的先例）：至少含 `FTcsCastRunHandle Run` / `FTcsCombatEntityHandle Unit` / `FGameplayTag DefTag` / `int32 Level` / `FTcsSkillEntryHandle EntryHandle`；
+- 载荷 MUST 为**单一 `USTRUCT`**（`FTcsCastEventPayload`，四枚共用一种形状，同状态侧六枚共用 `FTcsStateEventPayload` 的先例）：至少含 `FTcsCastRunHandle Run` / `FTcsCombatEntityHandle Entity` / `FGameplayTag DefTag` / `int32 Level` / `FTcsSkillEntryHandle EntryHandle`；
   - **`Run` 是句柄不是指针**：订阅者若要读运行态细节，在回调内用句柄复核——**"先广播后归还槽位"的纪律**保证那一刻 run 仍在册；
   - **句柄字段的反射性**：`FTcsCastRunHandle` 已是 `USTRUCT(BlueprintType)`（Task 2 落地）⇒ 载荷可反射，无需二次展平；
 - **四枚的产生者现已齐备（本变更落地后，MUST 逐枚写明，缺一即"声明了但不可达"）**：
@@ -185,7 +185,7 @@
 #### Scenario: 激活发出开始事件且载荷身份完整
 
 - **WHEN** 激活成功
-- **THEN** `TcsEvent.Cast.Started` 被广播一次，其载荷的 `Run` / `Unit` / `DefTag` / `EntryHandle` 与该次激活一致
+- **THEN** `TcsEvent.Cast.Started` 被广播一次，其载荷的 `Run` / `Entity` / `DefTag` / `EntryHandle` 与该次激活一致
 
 #### Scenario: 顶替发出打断事件而非完成事件
 

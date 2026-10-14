@@ -103,13 +103,13 @@ namespace
 	// 就会出现"修正器按规范值折叠、初值还是书写值"的双口径（差 100 倍的那类静默错误）。
 	void EvaluateParamChainRow(
 		const FTcsNumericParamRow& Row,
-		FTcsCombatEntityHandle Unit,
+		FTcsCombatEntityHandle Entity,
 		int32 Level,
 		double& OutValue)
 	{
 		FTcsParamEvaluateContext Ctx;
-		Ctx.Subject = Unit;
-		Ctx.Instigator = Unit;
+		Ctx.Subject = Entity;
+		Ctx.Instigator = Entity;
 		Ctx.EffectiveLevel = Level;
 		Ctx.ParamTable = TScriptInterface<ITcsParamTableReader>();
 
@@ -146,7 +146,7 @@ bool FTcsParamChainOps::EvaluateParamKey(
 		{
 			if (Row.Key == Key)
 			{
-				EvaluateParamChainRow(Row, Entry.Unit, Entry.Level, BaseValue);
+				EvaluateParamChainRow(Row, Entry.Entity, Entry.Level, BaseValue);
 				bHasParamRow = true;
 				break;
 			}

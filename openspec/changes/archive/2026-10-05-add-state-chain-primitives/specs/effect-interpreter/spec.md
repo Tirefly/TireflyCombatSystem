@@ -1,5 +1,7 @@
 ## ADDED Requirements
 
+> **术语订正（2026-10-14）**：本文原用「单位 / `Unit`」，该词已退役，现统一为「**实体 / `Entity`**」（见 `DEC-2026-10-14-entity-vocabulary`）。**正文为当时原话，保留不改。**
+
 ### Requirement: 链运行态来源锚点与因果边
 
 `TcsEffect` MUST 让每一次链运行持有**一个进程内唯一的来源锚点**（`FTcsSourceHandle`，经统一发号器 `FTcsSourceHandleRegistry::Allocate()` 发放）与**一条因果边**，分别装在黑板 `FTcsEffectContext::RunSource` 与 `FTcsEffectContext::CausedBy` 上。二者职责 MUST 分开（2026-10-05 拍板；起因见下"为什么不是一个字段"）：

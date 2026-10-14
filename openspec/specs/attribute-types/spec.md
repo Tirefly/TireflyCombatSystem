@@ -132,7 +132,7 @@ MUST 在 `IsDataValid`（`WITH_EDITOR`）实现 **D5-18 v3 约定列白名单**�
 
 `TcsAttribute` MUST 提供 `FTcsParamSource_AttributeScaled : FTcsParamValueSource`（PV-3）：`Attribute: FGameplayTag`（2026-09-22 改造——原 `FTcsAttributeName`）/ `Coefficient: double = 1.0` / `Fallback: double`；求值 = `Coefficient × Current(Attribute)`（**Snapshot 语义——R3 唯一路径**：快照构建时求值一次冻结）。读取经**扩展求值上下文** `FTcsAttributeEvaluateContext : FTcsParamEvaluateContext`（PV-1 扩展机制：结构体继承 + 源内 checked cast，类型标识走 Core 上下文的 `GetScriptStruct()` 虚函数）——持 `Provider: TScriptInterface<ITcsAttributeProvider>`。
 
-**"上下文单位"的落点（实施定案 2026-09-16）**：单位由 `ITcsAttributeProvider` 的实现者绑定（该契约签名不含单位参数，军官组件/Mass 桶适配器各绑自己的单位——02 §2.3），故 R3 上下文以读口本身代表"对谁求值"；PV-1 规划的 `Subject`（`FCombatEntityHandle`）与 `EffectiveLevel` 字段按 PV-1 既定时序随 TcsState 等级源同批进 Core 上下文——本任务**不预建**（该句柄是纯 C++ 值类型，不能作为 `USTRUCT()` 类型的 `UPROPERTY` 字段，预建即违反本能力的"上下文类型反射可见"约束）。
+**"上下文实体"的落点（实施定案 2026-09-16）**：实体由 `ITcsAttributeProvider` 的实现者绑定（该契约签名不含实体参数，军官组件/Mass 桶适配器各绑自己的实体——02 §2.3），故 R3 上下文以读口本身代表"对谁求值"；PV-1 规划的 `Subject`（`FCombatEntityHandle`）与 `EffectiveLevel` 字段按 PV-1 既定时序随 TcsState 等级源同批进 Core 上下文——本任务**不预建**（该句柄是纯 C++ 值类型，不能作为 `USTRUCT()` 类型的 `UPROPERTY` 字段，预建即违反本能力的"上下文类型反射可见"约束）。
 
 checked cast 失败或 Provider 为空 MUST 落 `Fallback`（不崩溃、不 ensure——上下文不匹配由 M8 校验矩阵兜底）。本源 MUST 覆写 `AllowsValueConvention()` 为 `false`（D5-18 v3）。R3 不实现 Live 模式与"读即登记"（已承诺基建，随 Live 化实现）。
 
@@ -261,7 +261,7 @@ MUST 在资产 `IsDataValid`（`WITH_EDITOR`）报错：`DefTag` 无效（`!DefT
 
 #### Scenario: 实例自持定义数据
 
-- **WHEN** 单位由定义行添加属性后再读取实例
+- **WHEN** 实体由定义行添加属性后再读取实例
 - **THEN** 实例的边界、值域模式与覆盖带同优先级策略来自定义行，但实例不持有定义行或资产的引用（改定义不影响已建实例）
 
 ### Requirement: 属性值比较枚举

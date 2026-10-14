@@ -24,11 +24,11 @@
 
 ## 3. 可视化（裁决 3：跟随数据形状，不做通用图编辑器）
 
-- 修饰符/参数 = **表**（NumericParameters/BoolSwitches 双表直编）；状态 = **表 + 关系矩阵**（Blocks/Requires/Priority 矩阵视图）；链 = **管线图**（UEdGraph/SGraphPanel 只读视图先行，受限编辑后续——离散事件图表是 D3-5 留下的未来方向，第一版只读）；重定向栈 = **检查器**（对某技能列出当前生效的重定向链，模拟"这个单位身上谁在改它"）。
+- 修饰符/参数 = **表**（NumericParameters/BoolSwitches 双表直编）；状态 = **表 + 关系矩阵**（Blocks/Requires/Priority 矩阵视图）；链 = **管线图**（UEdGraph/SGraphPanel 只读视图先行，受限编辑后续——离散事件图表是 D3-5 留下的未来方向，第一版只读）；重定向栈 = **检查器**（对某技能列出当前生效的重定向链，模拟"这个实体身上谁在改它"）。
 
 ## 4. Explain 与调试面板
 
-- **WhyNot 查询**：给定单位+触发行，回放四道门+条件逐项判定结果（`bConditionMissIsSilent=false` 的线索在此消费）。
+- **WhyNot 查询**：给定实体+触发行，回放四道门+条件逐项判定结果（`bConditionMissIsSilent=false` 的线索在此消费）。
 - **描述槽名交叉扫描**（D5-17 v3，2026-09-15，消费 TcsNotation 扫描接口）：StringTable 原文只含**槽名**（零语法）——文本 `{槽名}` ∈ 该 Def.Views 列表（缺 = 错误，指名 StringTable 条目）；Views 声明未被引用 = 孤儿**警告**；视图兼容性在配置元素上校验（`IsCompatible`，见 §2 四联矩阵）——**扫描器零语法解析，加视图不改扫描器**。
 - **链运行追踪**：FChainRun 生命周期事件（起链/每步/挂起/唤醒/结束原因）→ 时间线视图。
 - **属性求值过程**：依赖图 + 每键修正链 + clamp 级联的中间值展示——覆盖 **M2 实体属性**（惰性重算回放）与 **TcsDamage 流程属性黑板**（伤害计算每键贡献：BaseDamage→修改器→Final 的逐级解释，开发期开关控制，生产不记——见 09 非目标）。

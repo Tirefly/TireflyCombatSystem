@@ -13,6 +13,13 @@
 > **证据标注**：【源码取证】= 本机全仓实测（`Plugins/Tirefly/TireflyCombatSystem` + LAC 宿主仓 `Source/TcsDev/` + `Config/DefaultGameplayTags.ini`）；【引证】= 仓内既有文本的转述（**未经本机独立复核**，逐个标注）；【设计判断】= 架构推理；【用户拍板】= 2026-10-13 本会话逐项裁定。
 >
 > **本轮取证边界（如实，MUST 读）**：本机**未定位到 UE 引擎源码树**（见 §3.4 E11）⇒ 凡涉引擎内部事实的锚点（`FGameplayTag::MatchesTag` 的层级匹配语义、`FGameplayTagQuery` 的成员与编辑器定制）本轮**只有仓内引证**，未经本机源码复核。故本裁决的**仓内**判据（四字段形状与消费者、两表主体分工、M2 三级阶梯、根表与类目先例）全部本机实测；**涉引擎的**判据为引证。
+>
+> **★★ 2026-10-13 同日订正（本段"未定位到引擎源码树"这一判断是错的，MUST 读）**：引擎源码**在本机**，位于 **`E:\UnrealEngine\UE_5.8`**（`Build.version` 实测：`MajorVersion 5` / `MinorVersion 8` / `PatchVersion 3` / `Changelist 58210709` / `BranchName ++UE5+Release-5.8`；本机另有 `UE_5.6_ex` / `UE_5.7_ex`）。早期探查找错了位置（只查了 `C:\Program Files\Epic Games` 与注册表）。⇒ **本段所述"未经本机源码复核"的两条引擎判据，现已逐条读源复核，结论如下**：
+>
+> - **`FGameplayTag::MatchesTag` 的层级匹配语义** —— **复核成立**。`GameplayTagContainer.h:FGameplayTag::MatchesTag` 的头注释原文：「Determine if this tag matches TagToCheck, **expanding out parent tags**；`"A.1".MatchesTag("A")` will return True，`"A".MatchesTag("A.1")` will return False」⇒ **父词命中子词、反向不成立**，与 `DEC-2026-10-13-relation-row-shape` 采用的口径**逐字一致**。同头另有 `MatchesTagExact`（精确匹配）与 `MatchesTagDepth`（匹配深度）。
+> - **`FGameplayTagQuery` 的存在性** —— **确认存在**（`GameplayTagContainer.h:FGameplayTagQuery`，同类内另有 `FGameplayTagQueryExpression`、`FGameplayTagContainer::MatchesQuery`）。⇒ 当年"选它作匹配载体"在**类型存在性**上无障碍；`DEC-2026-10-13-relation-row-shape` 去掉该依赖的理由**不是"它不存在"**，而是"Lyra 以同一需求证明**容器 + 层级匹配**已足够"（该理由不受本次复核影响）。
+>
+> **本节按 `CONVENTION` §7 追加；正文一字未改。**
 
 ---
 
@@ -195,7 +202,7 @@
 
 | # | 判据 | 锚点 |
 |---|---|---|
-| E11 | `FGameplayTagQuery` 是引擎既有可反射类型 | **【引证，非本机实测】**：`Source/TcsSkill/Public/Skill/TcsSkillEntrySelector.h` 头注释（自述 `GameplayTagContainer.h` 的 `FGameplayTagQuery`，`USTRUCT(BlueprintType)` + `AllTagsMatch()` / `AnyTagsMatch()` 表达式 + 自带编辑器定制）+ 台账 `STAT-10` 行内的同一引擎事实（该行记 `GameplayTagContainer.h:737`）。**取证边界（如实）**：本机**未定位到 UE 引擎源码树**（`C:\Program Files\Epic Games` 下只有 Launcher / 分发件，注册表无 `InstalledDirectory`）⇒ 该引擎事实**本轮未经本机源码复核**，两处仓内引证**互相独立且一致**。MUST NOT 读成"已在本机核实" |
+| E11 | `FGameplayTagQuery` 是引擎既有可反射类型 | **【引证，非本机实测】**：`Source/TcsSkill/Public/Skill/TcsSkillEntrySelector.h` 头注释（自述 `GameplayTagContainer.h` 的 `FGameplayTagQuery`，`USTRUCT(BlueprintType)` + `AllTagsMatch()` / `AnyTagsMatch()` 表达式 + 自带编辑器定制）+ 台账 `STAT-10` 行内的同一引擎事实（该行记 `GameplayTagContainer.h:737`）。**取证边界（如实）**：~~本机**未定位到 UE 引擎源码树**（`C:\Program Files\Epic Games` 下只有 Launcher / 分发件，注册表无 `InstalledDirectory`）⇒ 该引擎事实**本轮**只有引证~~ → **★ 2026-10-13 同日订正：该边界为假，本条已升为【引擎源码】**——源码在 `E:\UnrealEngine\UE_5.8`（5.8.3 / CL 58210709）；`GameplayTagContainer.h` 内**确认存在** `FGameplayTagQuery`（同类内另有 `FGameplayTagQueryExpression` 与 `FGameplayTagContainer::MatchesQuery`），且 `MatchesTag` 的**父词命中子词**语义已逐字读源复核（头注释原文 `"A.1".MatchesTag("A")` → True）。**注意：本条"该类型存在"升为实测，但本行原先支持的"用它做匹配载体"这个**取舍**仍按 `DEC-2026-10-13-relation-row-shape` 作废（理由是容器+层级匹配已足够，非"无法核实"）**未经本机源码复核**，两处仓内引证**互相独立且一致**。MUST NOT 读成"已在本机核实" |
 | E12 | **宿主词汇根先例** = `DamageCategory` | `openspec/specs/gameplay-tag-governance/spec.md`「根段注册表」`DamageCategory` 行（声明方 = **宿主 ini**，消费角色 = 供条件匹配的伤害分类集） |
 | E13 | 插件 MUST NOT 声明具体分类词 | 同规格 `DamageCategory` 共享说明：判据是"**词的归属是否唯一**"，不是读取点是否唯一 |
 | E14 | 类目扩到定义级的同族论证 | `Source/TcsSkill/Public/Skill/TcsSkillEntrySelector.h` 头注释（"`Category` 有同族先例…同一形态扩到定义级，不是新造机制"） |

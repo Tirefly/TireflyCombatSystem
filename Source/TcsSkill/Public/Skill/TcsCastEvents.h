@@ -41,7 +41,7 @@ extern TCSSKILL_API FNativeGameplayTag Tag_TcsEvent_Cast_Interrupted;
 /**
  * 施法生命周期事件载荷（四枚共用一种形状）。
  *
- * **为什么四枚共用一个形状**：订阅者拿到的永远是"哪个技能的哪一次施法动作"——运行身份、所属单位、
+ * **为什么四枚共用一个形状**：订阅者拿到的永远是"哪个技能的哪一次施法动作"——运行身份、所属实体、
  * 定义身份、条目身份与等级在四枚上口径一致；各写一个 struct 会让订阅侧复制四份解析代码。
  * 先例 = 状态侧六枚生命周期事件共用 `FTcsStateEventPayload`。
  *
@@ -65,15 +65,15 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "Tcs|Skill|Cast Event")
 	FTcsCastRunHandle Run;
 
-	// 施法单位（本 run 的施法者）
+	// 施法实体（本 run 的施法者）
 	UPROPERTY(BlueprintReadOnly, Category = "Tcs|Skill|Cast Event")
-	FTcsCombatEntityHandle Unit;
+	FTcsCombatEntityHandle Entity;
 
 	// 技能定义身份（`FTcsSkillDefData` 的内容身份）
 	UPROPERTY(BlueprintReadOnly, Category = "Tcs|Skill|Cast Event")
 	FGameplayTag DefTag;
 
-	// 账本条目身份（该单位"会这个技能"的那条记录）
+	// 账本条目身份（该实体"会这个技能"的那条记录）
 	UPROPERTY(BlueprintReadOnly, Category = "Tcs|Skill|Cast Event")
 	FTcsSkillEntryHandle EntryHandle;
 

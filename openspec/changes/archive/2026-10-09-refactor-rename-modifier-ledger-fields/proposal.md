@@ -1,5 +1,7 @@
 # Change: 修正器账本字段改名（`ModifierSlots` → `AttrModInstances`、`ParamSlots` → `NumericParamModInstances`）
 
+> **术语订正（2026-10-14）**：本文原用「单位 / `Unit`」，该词已退役，现统一为「**实体 / `Entity`**」（见 `DEC-2026-10-14-entity-vocabulary`）。**正文为当时原话，保留不改。**
+
 ## Why
 
 两个账本容器的字段名用了 `Slots`，但它们的**形状与语义都不是槽位**：

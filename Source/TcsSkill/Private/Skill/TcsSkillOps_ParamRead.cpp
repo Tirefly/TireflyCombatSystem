@@ -17,11 +17,11 @@
 // 等级
 int32 FTcsSkillOps::GetLevel(
 	UTcsSkillSubsystem& Subsystem,
-	FTcsCombatEntityHandle Unit,
+	FTcsCombatEntityHandle Entity,
 	FTcsSkillEntryHandle Handle,
 	const TArray<double>& LevelModifiers)
 {
-	const FTcsLearnedSkillEntry* Entry = Subsystem.Registry.Find(Unit, Handle);
+	const FTcsLearnedSkillEntry* Entry = Subsystem.Registry.Find(Entity, Handle);
 	if (!Entry)
 	{
 		// 脏句柄 = 时序竞态（不 ensure）；返回 0 而不是条目等级的"合理猜测"——调用方应先用句柄有效性把关
@@ -62,12 +62,12 @@ int32 FTcsSkillOps::GetLevel(
 // 数值参数表
 bool FTcsSkillOps::GetNumericParam(
 	UTcsSkillSubsystem& Subsystem,
-	FTcsCombatEntityHandle Unit,
+	FTcsCombatEntityHandle Entity,
 	FTcsSkillEntryHandle Handle,
 	FGameplayTag Key,
 	double& OutValue)
 {
-	const FTcsLearnedSkillEntry* Entry = Subsystem.Registry.Find(Unit, Handle);
+	const FTcsLearnedSkillEntry* Entry = Subsystem.Registry.Find(Entity, Handle);
 	if (!Entry)
 	{
 		return false;
@@ -90,7 +90,7 @@ bool FTcsSkillOps::GetNumericParam(
 	// "求值 + 值约定转换"，而"值约定只转一次"是本仓硬纪律，两份实现就是两次转换的风险。
 	//
 	// 判据（为什么不能在这里读快照）：快照住在**每次 run** 的 `FTcsCastRun.ParamSnapshot` 里，
-	// 而本函数的签名是 `(Unit, EntryHandle, Key)`——**没有 run 段**；且 `CI_InstancePerExecution`
+	// 而本函数的签名是 `(Entity, EntryHandle, Key)`——**没有 run 段**；且 `CI_InstancePerExecution`
 	// 下同一 Entry **可有两个 run 并存**（Task 3 已实测"两个 run 并存，读数 = 2"）⇒
 	// "读哪一次施法的冻结值"**无唯一答案**。
 	//
@@ -108,12 +108,12 @@ bool FTcsSkillOps::GetNumericParam(
 // 布尔开关表
 bool FTcsSkillOps::IsSwitchSet(
 	UTcsSkillSubsystem& Subsystem,
-	FTcsCombatEntityHandle Unit,
+	FTcsCombatEntityHandle Entity,
 	FTcsSkillEntryHandle Handle,
 	FGameplayTag Key,
 	bool& OutValue)
 {
-	const FTcsLearnedSkillEntry* Entry = Subsystem.Registry.Find(Unit, Handle);
+	const FTcsLearnedSkillEntry* Entry = Subsystem.Registry.Find(Entity, Handle);
 	if (!Entry)
 	{
 		return false;

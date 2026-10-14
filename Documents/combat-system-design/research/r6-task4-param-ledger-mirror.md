@@ -72,8 +72,8 @@ M2 的账本架构（`TcsAttributePipeline.h` / `_Cascade.cpp`）——**这就�
 ### 3.1 Apply（`TcsAttributePipeline.cpp:85-120`）
 
 ```
-ApplyModifier(Unit, Modifier):
-  Store = ResolveStore(Unit)                     ← 单位未注册 → Warning + false（不 ensure）
+ApplyModifier(Entity, Modifier):
+  Store = ResolveStore(Entity)                     ← 实体未注册 → Warning + false（不 ensure）
   Instance = Store->FindInstance(Modifier.Target) ← 目标无实例 → Log + false（D2-14 允许动态增删）
   Instance->ModifierSlots.Add(Modifier)           ← 账本追加
   Instance->bDirty = true                         ← 标脏

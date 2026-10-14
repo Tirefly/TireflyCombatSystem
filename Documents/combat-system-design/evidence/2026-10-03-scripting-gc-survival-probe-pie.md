@@ -1,5 +1,7 @@
 # 脚本对象 GC 存活性观测：预注册预测与实跑证据（`Tcs.Test.Gc.Arm` / `Tcs.Test.Gc.Verify`）
 
+> **术语订正（2026-10-14）**：本文原用「单位 / `Unit`」，该词已退役，现统一为「**实体 / `Entity`**」（见 `DEC-2026-10-14-entity-vocabulary`）。**正文为当时原话，保留不改。**
+
 - **文档 ID**：`EVID-2026-10-03-scripting-gc-survival`
 - **类型**：EVID / 证据
 - **状态**：**PASS**（正例与负例均通过；日志快照哈希已冻结）

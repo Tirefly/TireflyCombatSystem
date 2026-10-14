@@ -1,5 +1,7 @@
 # Change: 落地 TcsAttribute 类型词汇与属性存储（attribute-types / attribute-store）
 
+> **术语订正（2026-10-14）**：本文原用「单位 / `Unit`」，该词已退役，现统一为「**实体 / `Entity`**」（见 `DEC-2026-10-14-entity-vocabulary`）。**正文为当时原话，保留不改。**
+
 ## Why
 plan1 Task 4（TcsAttribute 类型与存储）动工前的规格先行提案：M2 属性层的**全部对外词汇**（属性名、五带运算、操作数双形状、边界三态、值域模式、账本修正器、属性实例）与**数据宿主**（单位注册 + 单位键控 Store + 门面 API + 读侧契约）在此一次性落地，是 plan1 Task 5 聚合管线与 plan2 Damage 读 Armor/Attack、扣血写 Health 的编译前提。同时需要收口 2026-09-14/15 两轮拍板中落在本任务的实现缺口：D5-18 v3 约定列白名单的可执行落点、PV-3 属性值参数源（`AttributeScaled`）与 PV-1 的实体身份句柄边界记录。
 

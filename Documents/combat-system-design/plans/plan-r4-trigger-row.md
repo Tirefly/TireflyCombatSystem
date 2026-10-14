@@ -64,7 +64,7 @@
 | **R4.5**（**非正式轮号**） | **脚本通道收口**（寄在 R4 与 R5 之间，不占正式轮） | ①注册表跨世界寿命缺陷修复（**已闭环 2026-09-29**）；②R-1 参数源族宿主插槽（~~未开工~~ → **✅ 已落地闭环 2026-10-05**）；③R-2 两张注册表宿主脚本插槽 + 载荷读取器登记（~~半闭环~~ → **✅ 已落地闭环 2026-10-06**） | R4 Task 1/2 已落地 | 不消费台账条目；权威登记 = `LEDGER-reflection` 的 R-1 / R-2 |
 | R5 | **M3 状态层（TcsState）** | `UTcsStateDef` 家族 / `FStateInstance` + 中央注册表 / 五轴堆叠 / 关系表 + 级联重评 / Duration-Period + 到期堆 / `ParamSnapshot` / **修正器物化（D3-19）** / **`ApplyState` 链原语（随 M3 同批——否则 Buff 有事件却施加不了状态）** / 生命周期事件全集 / **`Heal` 原语** / `ModifyAttribute`（属性访问注入位与 `ApplyState` 同批） | R4（行为面验收） | **STAT-2**、**DAMAGE-2**、**STAT-3**、**DAMAGE-2 余**（`Repeat`/`Parallel`/`OnError`）、**DAMAGE-3 余**（`Heal`） |
 | R6 | **M5 技能层（TcsSkill）** | `UTcsSkillDef` / 账本 `FLearnedSkillEntry` / 六道门禁 / **时段驱动 `FPhaseSpan` + 打断** / 冷却多轨道 + 三事件 / Cost 策略 / **参数链（带式聚合，折叠器复用）** / 链重定向栈 / `FEntrySelector` | R5（`FSkillDef` 继承 `FStateDefBase`） | **STAT-1**（参数链接入折叠器）、**CORE-1**（若全域订阅需求成立） |
-| R7 | **M6 集成层** | 两级单位（Mass 小兵 + 全功能军官）/ StateTree 决策接线 / **AttributeSet 全套** / `PrimaryAssetTypesToScan` + 发现机制切换 AssetManager + 加载层三策略 | R6 | **INTEG-1**、**INTEG-2**、**INTEG-3**、**WAIT-2**、**WAIT-5**、**WAIT-6**、**WAIT-8 余**（模板资产化） |
+| R7 | **M6 集成层** | 两级实体（Mass 小兵 + 全功能军官）/ StateTree 决策接线 / **AttributeSet 全套** / `PrimaryAssetTypesToScan` + 发现机制切换 AssetManager + 加载层三策略 | R6 | **INTEG-1**、**INTEG-2**、**INTEG-3**、**WAIT-2**、**WAIT-5**、**WAIT-6**、**WAIT-8 余**（模板资产化） |
 | R8 | **M7 表现 + M8 编辑器与工具** | `TcsCue`（Cue 契约 + PlayCue + 默认适配）/ 校验矩阵（四联 + 定义校验）/ Def 双轨同步器 / Explain 调试面板 / K2 强引脚 | R7 | **TOOLS-1**~**TOOLS-6**、**WAIT-1**、**WAIT-4**、**WAIT-9 全量审计**、**WAIT-10** |
 
 **说明**：
@@ -363,7 +363,7 @@ struct TCSDAMAGE_API FTcsStepModifyFlow
 > - **⚠️ 同一次 PIE 重跑会"数字漂"，但那不是 FAIL**（**2026-09-30 修正一处我自己的误判**：初稿按屏显格式推断"重跑会因血量钳位假 FAIL"——**错**）：`检查 7b` 的判据只有 `ActualDamage > 0.0`（`TcsDevSliceRig.cpp:525`），**不是**判等于 `ExpectedDamage`。真正的重跑影响是——`检查 6` 每次扣**目标**血、`检查 7` 每次扣**施法者**血（链上 `Self` 选择器，`:476-477`），两个血池互不干扰；所以重跑时屏显的 `Health before/after` 与"实际扣"会逐次变化，但 `检查 7b` 仍 PASS，**除非施法者血已被打到 0**。要对照的稳定量是同一行里的"链资产配置的 `DamageBase`"（不随重跑变化）。**别把"数字变了"当缺陷**。想干净复现就先 Stop 再 Play。
 
 > **提交清单与三条日志（2026-09-30 备好，**用户裁定暂不提交**；授权后直接照用）**：
-> **分区已验证**——TCS 工作区 **27** 个变更 = 源码 9 / 文档 **14** / OpenSpec 4，**零重复、零漏项、零幻影**（脚本对齐 `git status --porcelain` 逐项核过）。**每个文件只出现在一个提交里**（拆分的单位是文件，不是内容主题——教训卡 `MEM-20260930-03`）。
+> **分区已验证**——TCS 工作区 **27** 个变更 = 源码 9 / 文档 **14** / OpenSpec 4，**零重复、零漏项、零幻影**（脚本对齐 `git status --porcelain` 逐项核过）。**每个文件只出现在一个提交里**（拆分的实体是文件，不是内容主题——教训卡 `MEM-20260930-03`）。
 > **① 源码（9）**：`Source/TcsDamage/` 下 3 新增（`Public/Chain/TcsStepModifyFlow.h`、`Private/Chain/TcsStepModifyFlow.cpp`、`Private/Flow/TcsDamageFlowCollectEvent.cpp`）+ 6 修改（`Public/Flow/TcsFlowAttributes.h`、`Private/Flow/TcsFlowAttributes.cpp`、`Public/Flow/Steps/TcsFlowDataSteps.h`、`Public/Flow/TcsDamageFlowContextView.h`、`Public/Flow/TcsDamageFlowCollectEvent.h`、`Private/TcsDamageSubsystem.cpp`）
 > **② 文档（14）**：`spec/09-module-damage.md`、`spec/tcs-contract-traceability.md`、`evidence/2026-09-30-modifyflow-primitive-acceptance-pie.md`、`GLOSSARY.md`、`INDEX.md`、`decisions/dec-04-callback-carriers.md`、`ledger/deferred-inputs-ledger.md`、`ledger/reflection-backlog.md`、`log/decisions-log.md`、`log/implementation-log.md`、`plans/plan-r4-trigger-row.md`、`research/csharp-authoring.md`、`research/replication-posture.md`、`research/scripting-language-ustruct.md`
 > **③ OpenSpec（4）**：`openspec/specs/{damage-primitive,damage-flow,damage-step-library}/spec.md` + `openspec/changes/archive/2026-09-30-add-damage-modifyflow-primitive/`
@@ -586,7 +586,7 @@ const FTcsEffectTriggerDef* ResolveTriggerDef(FGameplayTag TriggerTag) const;
 > **实施注记（必读；原文保留，逐条附实施结论）**：
 > - **GC 补引用**：DefLibrary 的缓存若用 `TMap<FGameplayTag, TUniquePtr<...>>` 持**定义内容**（值语义 struct）则无需 ARO；但**资产对象本身**必须 `UPROPERTY` 锚定（照 `ChainDefAssets` 的既有做法）——否则重载后资产被回收、`ResolveTriggerDef` 返回的指针指向已释放内容。 —— **❌ 前半句判据错（见上方 ③）**：值语义**也要**补 ARO，两份缓存都补；**后半句（资产 `UPROPERTY` 锚定）已照做并保留**。
 > - **内联位（SkillDef/BuffDef）本批不做**：`SkillDef`/`BuffDef` 今天都不存在（M3/M5 未落地）。**本批只做独立资产**，内联位在 R5/R6 给那两个 Def 加 `TArray<FTcsEffectTriggerDef>` 字段时自然成立（定义类型已是纯配置，可直接内联——**这正是 Task 1 分层的收益**）。
-> - **"系统级规则"是本资产的业务场景**（用户 2026-09-23 确认）：全局常驻、与任何 Def 无关的触发规则（如"任何单位死亡时触发某链"）。Buff/Skill 的行为走**内联**（施加时注册、Source = 状态实例句柄）。
+> - **"系统级规则"是本资产的业务场景**（用户 2026-09-23 确认）：全局常驻、与任何 Def 无关的触发规则（如"任何实体死亡时触发某链"）。Buff/Skill 的行为走**内联**（施加时注册、Source = 状态实例句柄）。
 
 ---
 

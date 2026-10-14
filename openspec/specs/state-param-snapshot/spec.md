@@ -34,7 +34,7 @@ TcsState MUST 提供参数快照类型：`FTcsParamSnapshotEntry{ FGameplayTag K
 
 #### Scenario: 刷新重建快照
 
-- **WHEN** 对同一单位以同一 `DefTag` 再次施加并传入不同的覆盖值
+- **WHEN** 对同一实体以同一 `DefTag` 再次施加并传入不同的覆盖值
 - **THEN** 原实例的快照被重建为该次施加的结果（新值覆盖旧值，不是两份并存）
 
 ### Requirement: 参数快照的参数表读取适配器
@@ -181,7 +181,7 @@ TcsState MUST 提供宿主等级读口 `ITcsEntityLevelProvider`（`UINTERFACE(M
 ### Requirement: 生命期与撤销顺序（条目面）
 
 - `RemoveState` / `ExpireState` MUST 在进入撤销流程时**先撤销该实例的到期与周期条目**，再走既有的 `Expiring → 广播 → 归还槽位` 顺序——条目持句柄，槽位复用后回调仍会到达，先撤条目才不产生无谓回调。
-- `UnregisterUnit` MUST 同样逐条撤销条目（它复用同一条移除链）。
+- `UnregisterEntity` MUST 同样逐条撤销条目（它复用同一条移除链）。
 - `UTcsStateSubsystem::Deinitialize` MUST 在清空桶之前撤销全部待撤销条目——MUST NOT 留跨世界残影。
 - 到期回调 MUST 经 `UWorld` 弱引用与句柄代际校验：世界已拆解或句柄悬空时 MUST 静默丢弃（时序竞态语义，不留红字、不 ensure）。
 

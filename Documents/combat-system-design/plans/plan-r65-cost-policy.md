@@ -221,12 +221,12 @@ USTRUCT(BlueprintType) struct FTcsSkillCostPolicy_HostDelegate : public FTcsSkil
   struct FTcsSkillCostContext
   {
       UTcsSkillSubsystem* Subsystem;
-      FTcsCombatEntityHandle Unit;
+      FTcsCombatEntityHandle Entity;
       const FTcsLearnedSkillEntry* Entry;  // 减免折叠 + 等级都从这里取
       int32 Level;
   };
   ```
-- **判据**：策略需要"单位 + 减免修正器 + 等级"三样，而这三样恰好都在 `Entry` 与 `Unit` 上。**`Subsystem` 必须给**（`_ResourceAttr` 要解析 `UTcsAttributeSubsystem`）。
+- **判据**：策略需要"实体 + 减免修正器 + 等级"三样，而这三样恰好都在 `Entry` 与 `Entity` 上。**`Subsystem` 必须给**（`_ResourceAttr` 要解析 `UTcsAttributeSubsystem`）。
 - **为什么纯 C++ 可以**：`USTRUCT` 虚函数**不受 UHT 签名面约束**（只有 `BlueprintNativeEvent` 受）⇒ 上下文**可以**持裸指针与非反射类型。**这是本轮一处刻意的分层**：
   - **C++ 面**（`FTcsSkillCostPolicy` 虚分派）：可用富类型（`FTcsLearnedSkillEntry*`）；
   - **脚本面**（`ITcsSkillCostPolicyHost`）：**MUST** 只用已反射类型 ⇒ 传 `FTcsSkillEntryHandle`，由**转发器**负责"句柄 → 解析条目 → 富上下文"的翻译。
@@ -242,11 +242,11 @@ USTRUCT(BlueprintType) struct FTcsSkillCostPolicy_HostDelegate : public FTcsSkil
   {
       // 检查（纯查询语义：MUST NOT 扣任何东西）
       UFUNCTION(BlueprintNativeEvent)
-      bool CanAfford(FTcsCombatEntityHandle Unit, FTcsSkillEntryHandle Entry, FString& OutReason);
+      bool CanAfford(FTcsCombatEntityHandle Entity, FTcsSkillEntryHandle Entry, FString& OutReason);
 
       // 提交（返回是否成功；出参 = 实际扣减量）
       UFUNCTION(BlueprintNativeEvent)
-      bool CommitCost(FTcsCombatEntityHandle Unit, FTcsSkillEntryHandle Entry, double& OutApplied);
+      bool CommitCost(FTcsCombatEntityHandle Entity, FTcsSkillEntryHandle Entry, double& OutApplied);
   };
   ```
 - **判据**：① 形参**不带 `const`**（`BlueprintNativeEvent` 上的 `const` 会让 UHT 生成错误的 thunk 签名——硬规则，先例 `ITcsEntityLevelProvider::GetEntityLevel` / `ITcsParamTableReader::TryGetNumericParam` / `ITcsCastStateQuery`）；② **`Entry` 用 `FTcsSkillEntryHandle`**——`FTcsLearnedSkillEntry` 是**非反射** struct（台账 `SCRIPT-10`），作形参是 **UHT 硬错误**（同 `CQM_Custom` 被迫传 `FTcsCastRunHandle` 而非 `FTcsCastRun`）；③ `FTcsCombatEntityHandle` / `FTcsSkillEntryHandle` 均已反射 ⇒ 可直接用，**无需**选择器族那套"传句柄 + 门面访问器"。
@@ -268,10 +268,10 @@ USTRUCT(BlueprintType) struct FTcsSkillCostPolicy_HostDelegate : public FTcsSkil
 
 ### D6 原子性（**按 §0.3 纠正二实施**）
 
-- **形状**：`CanAfford` 全判通过 ⇒ `BeginBatch(Unit)` → `CommitCost` → `Commit(Unit)`；`CanAfford` 不过 ⇒ **不进批**（零写入）。
+- **形状**：`CanAfford` 全判通过 ⇒ `BeginBatch(Entity)` → `CommitCost` → `Commit(Entity)`；`CanAfford` 不过 ⇒ **不进批**（零写入）。
 - **批的边界 MUST 恰好覆盖本策略的扣减**，MUST NOT 圈进施法激活的其它属性改动（如 `MaterializeParamChainRows`）。
 - **如实登记（MUST 写进实现注释）**：批给的是"**单次 flush + 订阅者看不到中间态**"（⇒ 关闭重入窗口），**不是回滚**。"全有全无"的实际保障 = **先判后扣**。
-- **一处跨单位限制（如实登记）**：`BeginBatch` / `Commit` 形参是**逐单位**的。宿主的"三消耗"若跨单位（施法者付蓝、目标付血），**框架包的那一层覆盖不到第二个单位** ⇒ 该场景宿主须自行组织（且脚本宿主调不到批）。**本轮不做、不入册**（无需求）。
+- **一处跨实体限制（如实登记）**：`BeginBatch` / `Commit` 形参是**逐实体**的。宿主的"三消耗"若跨实体（施法者付蓝、目标付血），**框架包的那一层覆盖不到第二个实体** ⇒ 该场景宿主须自行组织（且脚本宿主调不到批）。**本轮不做、不入册**（无需求）。
 
 ### D7 `COST-2`（多资源）的改判
 
@@ -315,7 +315,7 @@ USTRUCT(BlueprintType) struct FTcsSkillCostPolicy_HostDelegate : public FTcsSkil
 |---|---|
 | **`All` / `Group` / 多资源组合** | R2：宿主写策略自答（不是框架原语） |
 | **递归 / 嵌套组** | R2 同上；`FTcsSkillCostPolicy` 的虚分派天然允许宿主内部任意递归，框架不参与 |
-| **多单位成本**（跨单位扣减） | 无需求；且 `BeginBatch` 逐单位 ⇒ 框架包不住（D6 已如实登记） |
+| **多实体成本**（跨实体扣减） | 无需求；且 `BeginBatch` 逐实体 ⇒ 框架包不住（D6 已如实登记） |
 | **脚本策略的 `FTcsParamValue` 数值通道** | D3 已登记"另一层"，本轮不预建 |
 | **`ECT_OnEvent` 档** | 2026-10-12 已删除，**MUST NOT 补回** |
 | **"中性条件层"重构**（v1 D2 的遗留） | v1 的 `Conditional` 已作废 ⇒ 本轮**不需要**条件载体，该项**随之消失** |
@@ -427,7 +427,7 @@ USTRUCT(BlueprintType) struct FTcsSkillCostPolicy_HostDelegate : public FTcsSkil
 |---|---|
 | 换型触碰已交付公开类型（3 个归档提案 + `skill-cost` 规格 + 装置） | 迁移成本 **0**（§0.7 实测）；引用点逐处改；`openspec` 归档做**逐能力零丢失预检** |
 | **"全有全无"若只靠批 ⇒ 是假保障** | §0.3 纠正二已源码核实：批不给回滚 ⇒ 实现 MUST 是**先判后扣**；Task 3 判据 7 从行为面兜底 |
-| 脚本宿主**调不到批** ⇒ 它的原子性弱于 C++ 宿主 | 框架包住（R8）⇒ 两条路径**同等**；但跨单位场景框架包不住（D6 已登记） |
+| 脚本宿主**调不到批** ⇒ 它的原子性弱于 C++ 宿主 | 框架包住（R8）⇒ 两条路径**同等**；但跨实体场景框架包不住（D6 已登记） |
 | `FInstancedStruct` 双模板参数重载在 Shipping 下不校验类型 | **MUST 用单参数 `GetPtr<T>()`**（`TcsParamSourceHost` / 本仓既有纪律） |
 | `meta=(Hidden)` 漏写 ⇒ 基类可被 picker 选中 | Task 0 Step 5 明确要求；UHT 产物核对 |
 | `PURE_VIRTUAL` / `=0` 会让 Development 与 Shipping 行为分叉 | **禁**；用中性默认实现（先例 `FTcsParamValueSource`） |

@@ -1,5 +1,7 @@
 ## 1. 运行态句柄反射化（含实测修正：展平）
 
+> **术语订正（2026-10-14）**：本文原用「单位 / `Unit`」，该词已退役，现统一为「**实体 / `Entity`**」（见 `DEC-2026-10-14-entity-vocabulary`）。**正文为当时原话，保留不改。**
+
 - [x] 1.1 `Source/TcsEffect/Public/Chain/TcsChainRun.h`：`FTcsChainRunHandle` 加 `USTRUCT()` + `GENERATED_BODY()`
 - [x] 1.2 该头 include `TcsChainRun.generated.h`
 - [x] 1.3 编译验证：UBT Development 通过

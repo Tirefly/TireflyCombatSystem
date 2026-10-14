@@ -16,40 +16,40 @@ FTcsEffectAttributeAccess FTcsEffectAttributeAccess::Resolve(const UWorld* World
 	return Access;
 }
 
-bool FTcsEffectAttributeAccess::IsLedgerReady(FTcsCombatEntityHandle Unit) const
+bool FTcsEffectAttributeAccess::IsLedgerReady(FTcsCombatEntityHandle Entity) const
 {
 	// `ResolveStore` 是**非确保**查询口——未注册返回 nullptr，正是本判据要的
-	return AttributeSubsystem && AttributeSubsystem->ResolveStore(Unit) != nullptr;
+	return AttributeSubsystem && AttributeSubsystem->ResolveStore(Entity) != nullptr;
 }
 
-bool FTcsEffectAttributeAccess::HasAttribute(FTcsCombatEntityHandle Unit, const FGameplayTag& Attribute) const
+bool FTcsEffectAttributeAccess::HasAttribute(FTcsCombatEntityHandle Entity, const FGameplayTag& Attribute) const
 {
-	const FTcsAttributeStore* Store = AttributeSubsystem ? AttributeSubsystem->ResolveStore(Unit) : nullptr;
+	const FTcsAttributeStore* Store = AttributeSubsystem ? AttributeSubsystem->ResolveStore(Entity) : nullptr;
 	return Store && Store->FindInstance(Attribute) != nullptr;
 }
 
-bool FTcsEffectAttributeAccess::ApplyModifier(FTcsCombatEntityHandle Unit, const FTcsAttrModInstance& Modifier) const
+bool FTcsEffectAttributeAccess::ApplyModifier(FTcsCombatEntityHandle Entity, const FTcsAttrModInstance& Modifier) const
 {
-	return AttributeSubsystem ? AttributeSubsystem->ApplyModifier(Unit, Modifier) : false;
+	return AttributeSubsystem ? AttributeSubsystem->ApplyModifier(Entity, Modifier) : false;
 }
 
-void FTcsEffectAttributeAccess::BeginBatch(FTcsCombatEntityHandle Unit) const
+void FTcsEffectAttributeAccess::BeginBatch(FTcsCombatEntityHandle Entity) const
 {
 	if (AttributeSubsystem)
 	{
-		AttributeSubsystem->BeginBatch(Unit);
+		AttributeSubsystem->BeginBatch(Entity);
 	}
 }
 
-void FTcsEffectAttributeAccess::Commit(FTcsCombatEntityHandle Unit) const
+void FTcsEffectAttributeAccess::Commit(FTcsCombatEntityHandle Entity) const
 {
 	if (AttributeSubsystem)
 	{
-		AttributeSubsystem->Commit(Unit);
+		AttributeSubsystem->Commit(Entity);
 	}
 }
 
-double FTcsEffectAttributeAccess::EvaluateCurrent(FTcsCombatEntityHandle Unit, const FGameplayTag& Attribute) const
+double FTcsEffectAttributeAccess::EvaluateCurrent(FTcsCombatEntityHandle Entity, const FGameplayTag& Attribute) const
 {
-	return AttributeSubsystem ? AttributeSubsystem->EvaluateCurrent(Unit, Attribute) : 0.0;
+	return AttributeSubsystem ? AttributeSubsystem->EvaluateCurrent(Entity, Attribute) : 0.0;
 }

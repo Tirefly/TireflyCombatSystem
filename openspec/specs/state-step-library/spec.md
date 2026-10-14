@@ -18,7 +18,7 @@
 #### Scenario: 链里施加成功
 
 - **WHEN** 一条链执行 `ApplyState`（`DefTag` = 已登记定义），`Target` 取黑板 `Targets[0]`
-- **THEN** 该单位在册状态数 +1，且新实例的 `Source` = 本次运行的 `RunSource`（两次不同运行所施加的实例异源）
+- **THEN** 该实体在册状态数 +1，且新实例的 `Source` = 本次运行的 `RunSource`（两次不同运行所施加的实例异源）
 
 #### Scenario: 同一运行内重复施加同源
 

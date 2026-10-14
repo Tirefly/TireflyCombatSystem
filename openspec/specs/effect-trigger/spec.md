@@ -121,7 +121,7 @@
 - `FTcsEffectTriggerInstance`（USTRUCT）字段：`Def: FTcsEffectTriggerDef`（定义）+ `Source: FTcsSourceHandle`（级联退订锚点）+ `Self: FTcsEffectTriggerHandle`（自身句柄）+ `Subject: FInstancedStruct`（运行期实例主体绑定，`UPROPERTY`，默认空）；`Subject` MUST NOT 加进定义侧配置（它与 `Source` 一样是运行期身份，不进内容资产）；
 - `FTcsEffectTriggerHandle`（USTRUCT）以 `TTcsInstanceHandle<FTcsEffectTriggerTag>` 作下标句柄（类型区分标签防与链运行态句柄互换）；
 - **`Source` 的语义取决于"行怎么被登记"**：定义加载期登记（全局常驻规则）→ `Source` = 系统/DefLibrary 来源句柄；**施加状态时登记（Buff 行为）→ `Source` = 该状态实例的级联锚点 `FTcsStateInstance::CascadeAnchor`**（每实例恒发新号、刷新不换）。MUST NOT 用施加方来源 `FTcsStateInstance::Source` 作该行的撤销锚点——同一施加方可施加多个不同定义，按它撤销会互相误摘。该语义是 `09 §2.3`"订阅随 Source 生命周期自动退订——'状态在，修改器就在'天然成立"的机制落点；
-- **`Subject` 与 `Source` 分工不同**：`Source` 负责级联退订，`Subject` 只负责实例局部事件的路由。状态内联行 MUST 在登记时以 `FInstancedStruct::Make<FTcsStateHandle>(Instance.Handle)` 绑定主体；状态句柄的 `Index + Generation` 是完整实例身份（代际发号全局唯一，跨单位同槽位不撞身份），MUST NOT 另加单位字段构造第二套匹配键；
+- **`Subject` 与 `Source` 分工不同**：`Source` 负责级联退订，`Subject` 只负责实例局部事件的路由。状态内联行 MUST 在登记时以 `FInstancedStruct::Make<FTcsStateHandle>(Instance.Handle)` 绑定主体；状态句柄的 `Index + Generation` 是完整实例身份（代际发号全局唯一，跨实体同槽位不撞身份），MUST NOT 另加实体字段构造第二套匹配键；
 - **主体匹配的适用边界**：仅当行与载荷读取结果都提供有效 `Subject` 时筛选。主体 MUST 有完全相同的 `UScriptStruct` 类型，且 `UScriptStruct::CompareScriptStruct(A, B, 0)` 比较值相等，才允许投递；类型不同或值不同 MUST 静默跳过。未绑定全局行（空 `Subject`）仍接收该 Tag 下全部事件；载荷未提供 `Subject` 的非实例外部事件（Damage、没有读取器的自定义事件等）仍按原 Tag 语义投递给绑定行。此匹配 MUST NOT 被解读为 `EventPayloadFilter` 的实现——该内容预筛字段仍留位；
 - 级联退订：按 `Source` 一次性摘除该来源登记的全部行（与 M2 `RemoveBySource` 同款语义）；主体绑定 MUST NOT 改变该 API 的配对语义；
 - **持有形态**：登记表以 `TArray<FTcsEffectTriggerInstance>`（值语义）持有——触发行无高频增删、无挂起语义，**MUST NOT** 引入实例池类型（`TTcsInstancePool` 的挂起锚/占用统计在此是零收益的复杂度）。**代价**：`TArray` 扩容会搬移元素地址，故**MUST NOT 跨帧持有实例指针**——求值器每次从登记表按下标重解析（与链解释器"每步入器前重解析"同款纪律）。
@@ -248,7 +248,7 @@
 #### Scenario: 状态实例局部事件不会引爆其它实例绑定的行
 
 - **WHEN** 两个不同状态实例各自登记同 Tag 内联行，发布其中一个实例的生命周期事件
-- **THEN** 只命中 `Subject` 为该 `FTcsStateHandle` 的绑定行，其它实例的行在路由阶段静默跳过；同单位与跨单位均按完整句柄身份区分
+- **THEN** 只命中 `Subject` 为该 `FTcsStateHandle` 的绑定行，其它实例的行在路由阶段静默跳过；同实体与跨实体均按完整句柄身份区分
 
 #### Scenario: 主体比较必须同时满足精确类型和值相同
 
@@ -279,7 +279,7 @@
 
 `TcsEffect` MUST 以**载荷读取器注册表**承载"从事件载荷里读出主体信息"的能力——`TcsEffect` 全程**不认识任何领域载荷类型**（依赖铁律 `Core←Attribute←Effect←{Damage,…}`，04 §1）：
 
-- `FTcsTriggerPayloadInfo`（`USTRUCT(BlueprintType)`，反射）：`Caster: FTcsCombatEntityHandle` / `ClassificationTags: TArray<FGameplayTag>` / `Subject: FInstancedStruct`（`UPROPERTY`，默认空）——单位身份供条件求值，分类集供标签匹配，实例主体仅供事件路由；MUST NOT 在 TcsEffect 中 include 状态句柄类型或硬编码领域载荷类型。**2026-10-06 升格 `BlueprintType`**（`R-2` 后段）：本类型作宿主脚本插槽 `Read` 的返回类型与 `Test` 的形参族，`BlueprintNativeEvent` 触发 UHT 蓝图参数校验 ⇒ 非 `BlueprintType` 无法进该签名面；
+- `FTcsTriggerPayloadInfo`（`USTRUCT(BlueprintType)`，反射）：`Caster: FTcsCombatEntityHandle` / `ClassificationTags: TArray<FGameplayTag>` / `Subject: FInstancedStruct`（`UPROPERTY`，默认空）——实体身份供条件求值，分类集供标签匹配，实例主体仅供事件路由；MUST NOT 在 TcsEffect 中 include 状态句柄类型或硬编码领域载荷类型。**2026-10-06 升格 `BlueprintType`**（`R-2` 后段）：本类型作宿主脚本插槽 `Read` 的返回类型与 `Test` 的形参族，`BlueprintNativeEvent` 触发 UHT 蓝图参数校验 ⇒ 非 `BlueprintType` 无法进该签名面；
 - 读取器签名：`TFunction<FTcsTriggerPayloadInfo(const FInstancedStruct& Payload)>`；
 - `FTcsTriggerPayloadReaderRegistry`：`AddPending`（静态自注册）+ `Register(const UScriptStruct*, Reader)`（动态入口，同类型重复登记 MUST 拒绝）+ `Find`（未命中返回 nullptr，**不 ensure**）；
 - **寿命语义（2026-09-29 新增，`DEC-04` 裁定 ⑤）**：本注册表同为**进程级单例**且 MUST 保持如此；其**动态**登记项 MUST 受与步骤执行器注册表**同款**的寿命约束——**MUST 记录宿主对象弱引用 + 登记世界弱引用**；静态自注册的纯函数项（含由属主模块登记的领域读取器）MUST NOT 受寿命约束；
@@ -293,7 +293,7 @@
   - **GC 与寿命（两半都要）**：同条件求值器插槽——门面 `UPROPERTY` 强持有 + 对象/世界弱引用交注册表；`TScriptInterface` 本身不构成 GC 强引用；
   - **"每事件一次"语义 MUST 保住**：`ReadPayloadInfo` 已在求值器里优化为**各行共用、只读一次载荷**；本插槽转发**只替换"读取器"这一层**，MUST NOT 把读取点挪进每行循环；
 - 自注册宏对 `UE_DECLARE/DEFINE_TRIGGER_PAYLOAD_READER`——**由载荷类型的属主模块登记**（已有的 TcsDamage 收集事件读取器住 TcsDamage，本轮新增的状态生命周期读取器住 TcsState；MUST NOT 宣称本轮是首个全局读取器）；
-- **状态生命周期读取器**：TcsState MUST 为 `FTcsStateEventPayload` 静态自登记读取器（`Private/State/TcsStateEvents.cpp`，首个 include 为 `State/TcsStateEvents.h`，只依赖触发读取器注册表、不取效果门面）；`Caster` MUST 取有效 `Payload.Instigator`，否则取 `Payload.Unit`；`Subject` MUST 为 `FInstancedStruct::Make<FTcsStateHandle>(Payload.Handle)`。为满足无发起者时的单位回退，状态载荷 MUST 增加 `Unit: FTcsCombatEntityHandle`（`UPROPERTY(BlueprintReadOnly)`），广播构造点 MUST 从 `Instance.Unit` 复制；读取器直接读载荷快照，MUST NOT 回查正在移除或已被复用的状态实例。分类标签集仍为空（本轮不引入状态分类词）；
+- **状态生命周期读取器**：TcsState MUST 为 `FTcsStateEventPayload` 静态自登记读取器（`Private/State/TcsStateEvents.cpp`，首个 include 为 `State/TcsStateEvents.h`，只依赖触发读取器注册表、不取效果门面）；`Caster` MUST 取有效 `Payload.Instigator`，否则取 `Payload.Entity`；`Subject` MUST 为 `FInstancedStruct::Make<FTcsStateHandle>(Payload.Handle)`。为满足无发起者时的实体回退，状态载荷 MUST 增加 `Entity: FTcsCombatEntityHandle`（`UPROPERTY(BlueprintReadOnly)`），广播构造点 MUST 从 `Instance.Entity` 复制；读取器直接读载荷快照，MUST NOT 回查正在移除或已被复用的状态实例。分类标签集仍为空（本轮不引入状态分类词）；
 - **未注册载荷类型**：默认构造 `FTcsTriggerPayloadInfo`（空 Caster / 空标签集 / 空 Subject）+ **Verbose** 日志——**MUST NOT ensure**（"载荷类型未知"不是契约违规：手动发布一条自定义事件是合法用法）；
 - **`ClassificationTags` 无来源时为空集**：这是**显式交付的语义**，不是遗漏——空集上匹配非空 Tag 数组的 `HasAllTags` 恒不过（条件的既有语义），故内容侧若要用该条件，MUST 有读取器提供标签集；既有 TcsDamage 读取器未提供 `Subject` 时仍保持其分类与 Caster 的现有语义。
 
@@ -319,13 +319,13 @@
 
 #### Scenario: 状态载荷读取有效发起者与实例主体
 
-- **WHEN** 状态载荷的 `Instigator` 有效，并携带 `Unit` 与 `Handle`
+- **WHEN** 状态载荷的 `Instigator` 有效，并携带 `Entity` 与 `Handle`
 - **THEN** 读取结果的 `Caster` 等于 `Instigator`，`Subject` 内层类型为 `FTcsStateHandle`、值等于载荷的 `Handle`，无需 TcsEffect 依赖 TcsState
 
-#### Scenario: 无发起者的状态载荷回退到所属单位
+#### Scenario: 无发起者的状态载荷回退到所属实体
 
-- **WHEN** 状态载荷的 `Instigator` 无效而 `Unit` 有效
-- **THEN** 读取结果的 `Caster` 等于载荷的 `Unit`，`Subject` 仍是该实例句柄；不回查状态门面、不依赖实例是否已释放
+- **WHEN** 状态载荷的 `Instigator` 无效而 `Entity` 有效
+- **THEN** 读取结果的 `Caster` 等于载荷的 `Entity`，`Subject` 仍是该实例句柄；不回查状态门面、不依赖实例是否已释放
 
 #### Scenario: 宿主脚本读取器可被登记并参与求值
 
@@ -368,8 +368,8 @@
 - 求值 MUST 读**触发上下文 `Caster`** 的该属性**当前值**——经 `UTcsTriggerEvaluator` 填入的 `Context.World` 解析属性门面（口径与白名单见 `attribute-pipeline` 能力的「属性门面的解析点」），MUST NOT 读基值 / 未提交候选值；
 - 求值 MUST NOT 取随机数、MUST NOT 复用触发行的随机流（注入的 `RandomValue` 对本条件无意义）；
 - **失败面分两档（都不 ensure）**：
-  - `Attribute` 无效 / `Caster` 无效 / `Context.World` 为空 / 该单位无属性账本 ⇒ 返回"不通过"，**零红字**（与"条件未过不是故障"的既有口径一致）；
-  - **`Attribute` 有效但该单位账本上没有这个属性键 ⇒ 返回"不通过" + 一条含属性键的 `Warning`**——`EvaluateCurrent` 对"键不存在"与"值恰为 0"给同一个读数（0.0），不区分就会让"键写错"表现成"按 0 参与比较"（可能与阈值比较后**静默通过**）。该红字属**拒绝面**（常规验收命令 MUST NOT 覆盖这条路径）；
+  - `Attribute` 无效 / `Caster` 无效 / `Context.World` 为空 / 该实体无属性账本 ⇒ 返回"不通过"，**零红字**（与"条件未过不是故障"的既有口径一致）；
+  - **`Attribute` 有效但该实体账本上没有这个属性键 ⇒ 返回"不通过" + 一条含属性键的 `Warning`**——`EvaluateCurrent` 对"键不存在"与"值恰为 0"给同一个读数（0.0），不区分就会让"键写错"表现成"按 0 参与比较"（可能与阈值比较后**静默通过**）。该红字属**拒绝面**（常规验收命令 MUST NOT 覆盖这条路径）；
 - 登记 MUST 走既有 `FTcsTriggerConditionRegistry` 与自注册宏（`MUST NOT` 存在"内置 if-else + 宿主注册表"两套路径）。
 
 #### Scenario: 属性当前值满足比较时通过
@@ -384,7 +384,7 @@
 
 #### Scenario: 属性键在账本上不存在时不静默按 0 比较
 
-- **WHEN** 条件引用一个该单位账本上不存在的属性键（且方向与阈值使得"0 通过"成立，如 `Less(10)`）
+- **WHEN** 条件引用一个该实体账本上不存在的属性键（且方向与阈值使得"0 通过"成立，如 `Less(10)`）
 - **THEN** 条件判为**不通过**并留一条含该属性键的 `Warning`——MUST NOT 静默按 0.0 比较（那会让"键写错"表现成"条件通过"）
 
 #### Scenario: 无世界读数时不 ensure

@@ -46,7 +46,7 @@ class UTcsSkillCostPolicyHost : public UInterface
  *   （同 `ITcsCastStateQuery` 被迫传 `FTcsCastRunHandle` 而非 `FTcsCastRun`）
  *   ⇒ **必须传已反射的 `FTcsSkillEntryHandle`**。
  * - **翻译方向（MUST 写清，防写反）**：框架侧拿到的是**富上下文**（`FTcsSkillCostContext`，
- *   含 `FTcsLearnedSkillEntry*`），转发器把它**降级**为两个已反射句柄（`Unit` + 条目句柄）
+ *   含 `FTcsLearnedSkillEntry*`），转发器把它**降级**为两个已反射句柄（`Entity` + 条目句柄）
  *   再交给宿主。宿主若要读**等级 / 定义**等条目字段，**经技能门面按句柄解析**
  *   （`SCRIPT-8` 的"按句柄访问器"手法）——**MUST NOT** 期待框架把非反射字段塞进签名。
  * - `FTcsCombatEntityHandle` / `FTcsSkillEntryHandle` 均已 `USTRUCT(BlueprintType)`
@@ -72,20 +72,20 @@ class ITcsSkillCostPolicyHost
 
 public:
 	/**
-	 * 该单位**现在**付得起吗（门禁⑤ 的判据）。
+	 * 该实体**现在**付得起吗（门禁⑤ 的判据）。
 	 *
 	 * **纯查询语义（MUST）**：实现方 MUST NOT 扣任何资源、MUST NOT 改账本、MUST NOT 发事件——
 	 * 本口是"裁决"，不是"执行"（与 `ITcsCastStateQuery` 同款纪律）。
 	 *
 	 * **拒绝面形态**：返回 `bool`，**MUST NOT** 用 `ensure` 表达"付不起"——那是**正常业务路径**。
 	 *
-	 * @param Unit 被扣资源的单位。
+	 * @param Entity 被扣资源的实体。
 	 * @param Entry 账本条目身份（**已反射句柄**；实现方要读等级/定义须经技能门面按此解析）。
 	 * @param OutReason 输出"为什么付不起"的可读原因（宿主排查用）。
 	 * @return 返回是否付得起。
 	 */
 	UFUNCTION(BlueprintNativeEvent)
-	bool CanAfford(FTcsCombatEntityHandle Unit, FTcsSkillEntryHandle Entry, FString& OutReason);
+	bool CanAfford(FTcsCombatEntityHandle Entity, FTcsSkillEntryHandle Entry, FString& OutReason);
 
 #pragma endregion
 
@@ -97,7 +97,7 @@ public:
 	/**
 	 * 提交消耗（**实现方自己的扣减**）。
 	 *
-	 * **返回 `bool` 表示"是否成功"**——底层写口可能失败（单位未注册 / 资源不存在等）
+	 * **返回 `bool` 表示"是否成功"**——底层写口可能失败（实体未注册 / 资源不存在等）
 	 * ⇒ 实现方 MUST 检查并如实返回，**MUST NOT** 恒返回 true
 	 * （否则 `PayCost` 会报成功而资源没扣）。
 	 *
@@ -109,13 +109,13 @@ public:
 	 * ⇒ 多资源策略若中途失败，前面已写的部分**不会自动撤销**；
 	 * 实现方若要"全有全无"，MUST 自己**先全判后扣**（框架无法代判宿主资源语义）。
 	 *
-	 * @param Unit 被扣资源的单位。
+	 * @param Entity 被扣资源的实体。
 	 * @param Entry 账本条目身份（已反射句柄）。
 	 * @param OutApplied 输出实际扣减的数量（0 = 零动作）。
 	 * @return 返回是否提交成功。
 	 */
 	UFUNCTION(BlueprintNativeEvent)
-	bool CommitCost(FTcsCombatEntityHandle Unit, FTcsSkillEntryHandle Entry, double& OutApplied);
+	bool CommitCost(FTcsCombatEntityHandle Entity, FTcsSkillEntryHandle Entry, double& OutApplied);
 
 #pragma endregion
 };

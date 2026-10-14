@@ -1,5 +1,7 @@
 # TCS 实施记录与检查点状态
 
+> **术语订正（2026-10-14）**：本文原用「单位 / `Unit`」，该词已退役，现统一为「**实体 / `Entity`**」（见 `DEC-2026-10-14-entity-vocabulary`）。**正文为当时原话，保留不改。**
+
 - **文档 ID**：`LOG-IMPLEMENTATION`
 - **类型**：LOG / 实施记录
 - **状态**：LIVING
@@ -652,7 +654,7 @@
 
 > **性质**：**设计裁决轮（第二笔）**，**零代码 / 零资产 / 零提案**。触发 = 用户提出 `ULyraAbilityTagRelationshipMapping` 先例（"可不可以搬过来"）。**交付物 = 取代裁决 + 本计划五处同步**。
 
-**① 取证（本轮的实际动作，MUST 如实记）**：Epic 官方仓**匿名不可达**（`github.com/EpicGames/UnrealEngine` 取回 **HTTP 404**，需授权），且 **web_search 工具当轮失效**（搜索端点 401，非本 agent 可修）⇒ 改用**公开镜像** [`BulkheadLtd/Lyra_5_4`](https://github.com/BulkheadLtd/Lyra_5_4)（UE 5.4 Lyra），经 GitHub API 取文件（base64 解码）**实际读了三个文件**：`LyraAbilityTagRelationshipMapping.h`（结构定义）/ 同 `.cpp`（三个求值函数）/ `LyraAbilitySystemComponent.cpp`（**消费点**：`ApplyAbilityBlockAndCancelTags` / `GetAdditionalActivationTagRequirements` / `ActivationGroup` 一族）。**未读** GAS 自身 `ApplyAbilityBlockAndCancelTags` 实现（本机无引擎源码树）⇒ 该处语义标【通识】。**镜像可信度未独立验证**（第三方 fork，非 Epic 组织）⇒ 形态级结论可信，逐字级引用以镜像为准、**MUST NOT 当作官方出处**。
+**① 取证（本轮的实际动作，MUST 如实记）**：Epic 官方仓**匿名不可达**（`github.com/EpicGames/UnrealEngine` 取回 **HTTP 404**，需授权），且 **web_search 工具当轮失效**（搜索端点 401，非本 agent 可修）⇒ 改用**公开镜像** [`BulkheadLtd/Lyra_5_4`](https://github.com/BulkheadLtd/Lyra_5_4)（UE 5.4 Lyra），经 GitHub API 取文件（base64 解码）**实际读了三个文件**：`LyraAbilityTagRelationshipMapping.h`（结构定义）/ 同 `.cpp`（三个求值函数）/ `LyraAbilitySystemComponent.cpp`（**消费点**：`ApplyAbilityBlockAndCancelTags` / `GetAdditionalActivationTagRequirements` / `ActivationGroup` 一族）。~~**未读** GAS 自身 `ApplyAbilityBlockAndCancelTags` 实现（本机无引擎源码树）⇒ 该处语义标【通识】~~ → **★ 2026-10-13 订正：已读并升为【引擎源码】**——GAS 源码在 `E:\UnrealEngine\UE_5.8\Engine\Plugins\Runtime\GameplayAbilities\Source\GameplayAbilities\Private\AbilitySystemComponent_Abilities.cpp:UAbilitySystemComponent::ApplyAbilityBlockAndCancelTags`；实测 block / cancel 为**两条独立分支**、由两个独立 bool 控制，且 `AreAbilityTagsBlocked` 用 `Tags.HasAny(...)` + 注释「Expand the passed in tags to get **parents**」⇒ **同为容器 + 层级匹配**。**镜像可信度未独立验证**（第三方 fork，非 Epic 组织）⇒ 形态级结论可信，逐字级引用以镜像为准、**MUST NOT 当作官方出处**。
 
 **② 机制对照（八行，同构/超越/缺失三分类——依 `MEM-20260902-08`）**：**同构四项**（`ActivationBlockedTags` = 现 `Blocks` / `ActivationRequiredTags` = 现 `Requires` / `AbilityTagsToCancel` = 现 `Cancels` / 中心 DataAsset 行 = `D3-16` **早已写明但从未落地**）；**缺失一项**（`AbilityTagsToBlock` —— **真新能力**，预防语义）；**超越候选一项**（**容器 + 层级匹配 vs 我们的 `FGameplayTagQuery`** ⇒ 采纳更简的）；**反向支持一项**（Lyra **亦无 `Priority`**，其顶替仲裁住 ASC 侧 `ActivationGroup`）。
 
@@ -660,7 +662,7 @@
 
 **④ ★ 本轮自行抓出并更正的一处配对错误（最值钱的一条）**：首轮把 `Blocks` 与 `Cancels` 配成"退让 vs 强夺"一对。**回读 `TcsBuffDef.h` 的字段注释**后确认——`Blocks` = "这些状态**存在时本状态不可施加**"（**受动/前置**）、`Requires` = "必须已存在"（**前置**）、`Cancels` = "取消这些状态"（**施动/对外**）⇒ **真正的同轴配对是 `Blocks` / `Requires`**，`Cancels` 与它们**正交**。**根因** = 按**词形**（Block/Cancel 都是"拦"）而非**字段注释**配对。**外部对照佐证** = Lyra 把这两个方向**明确分成两个字段**（`ActivationBlockedTags` 受动 vs `AbilityTagsToBlock` 施动）。**连带撤销**首轮那条 `IsDataValid` 规则（`A.Blocks ∋ B` + `A.Cancels ∋ B` ⇒ Error）——按修正语义**两者同真合法**，且表达**在位者赢**（vs `Cancels` 单独 = **后到者赢**）⇒ **"填哪几个字段"即抢占策略，不需要 `Priority` 数字**。**教训沉淀**：`MEM-20261001-16`（命名争议 = 真实语义边界未知的信号）——**该回读字段注释、而不是按词形推理**。
 
-**⑤ 一处"本机不可核实的依赖"被去掉（附带的实质收益）**：首轮裁决③ 选的 `FGameplayTagQuery` **本机无法核实**（无引擎源码树，首轮已如实标注为【引证】）⇒ 本轮改为**容器 + 层级匹配**后，该未核实缺口**整体消失**（`MatchesTag` 本机有既有用法先例 `TcsParamChain.cpp`）。**留一条触发条件**：出现"一个主体词要同时命中两个不相邻父词"的真实需求时再评估引入查询（今天零消费者）。
+**⑤ 一处"本机不可核实的依赖"被去掉（附带的实质收益）**：首轮裁决③ 选的 `FGameplayTagQuery` **本机无法核实**（~~无引擎源码树~~ → **★ 2026-10-13 订正：该前提为假**，源码在 `E:\UnrealEngine\UE_5.8`，该类型**确认存在**）⇒ 本轮改为**容器 + 层级匹配**后，该未核实缺口**整体消失**（`MatchesTag` 本机有既有用法先例 `TcsParamChain.cpp`）。**留一条触发条件**：出现"一个主体词要同时命中两个不相邻父词"的真实需求时再评估引入查询（今天零消费者）。**★ 去掉该依赖的结论不变**——理由是"容器 + 层级匹配已足够"，**不是"无法核实"**。
 
 **⑥ 未被取代的部分（MUST NOT 读成全部推翻）**：**裁决①（`Priority` 移出关系字段族 → 槽位竞争表）继续有效、且被进一步加强**（Lyra 无 `Priority` + 其顶替仲裁在 ASC 侧，与"归槽位竞争表"同向 ⇒ **两份独立实现同向**）；裁决④⑤⑥ 不变；`STAT-10` 同批裁不变；`R6.5-g` 依赖分两半不变。
 

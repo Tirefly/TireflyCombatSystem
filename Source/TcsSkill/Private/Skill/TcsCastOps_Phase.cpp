@@ -36,7 +36,7 @@ namespace
 		UTcsSkillSubsystem& Subsystem,
 		const FTcsPhaseSpan& Phase,
 		const FTcsParamSnapshot& ParamSnapshot,
-		FTcsCombatEntityHandle Unit,
+		FTcsCombatEntityHandle Entity,
 		int32 Level)
 	{
 		// 状态门面不可得（世界拆解 / 单测无状态门面）⇒ 退化为"无参数表"：
@@ -49,8 +49,8 @@ namespace
 			&ParamSnapshot);
 
 		FTcsParamEvaluateContext Ctx;
-		Ctx.Subject = Unit;
-		Ctx.Instigator = Unit;
+		Ctx.Subject = Entity;
+		Ctx.Instigator = Entity;
 		Ctx.EffectiveLevel = Level;
 		Ctx.ParamTable = Scope.GetTable();
 
@@ -94,7 +94,7 @@ namespace
 void FTcsCastOps::TryStartMainChainAt(
 	UTcsSkillSubsystem& Subsystem,
 	FTcsCastRunHandle RunHandle,
-	FTcsCombatEntityHandle Unit,
+	FTcsCombatEntityHandle Entity,
 	FTcsSkillEntryHandle EntryHandle,
 	ECastChainTrigger Trigger)
 {
@@ -107,7 +107,7 @@ void FTcsCastOps::TryStartMainChainAt(
 	}
 
 	// **条目经门面的公开读口取**（不必进私有区——本函数只需要读条目）
-	const FTcsLearnedSkillEntry* Entry = Subsystem.GetEntry(Unit, EntryHandle);
+	const FTcsLearnedSkillEntry* Entry = Subsystem.GetEntry(Entity, EntryHandle);
 	if (!Entry)
 	{
 		return;
@@ -152,17 +152,17 @@ bool FTcsCastOps::EnterPhase(UTcsSkillSubsystem& Subsystem, FTcsCastRunHandle Ru
 	}
 
 	// 条目与定义：**定义取不到 ⇒ 无时段可推进**（定义在施法期间被注销是合法操作）
-	const FTcsCombatEntityHandle Unit = Run->Unit;
+	const FTcsCombatEntityHandle Entity = Run->Entity;
 	const int32 Level = Run->Level;
 	const FTcsSourceHandle RunSource = Run->RunSource;
 	const FTcsSkillEntryHandle EntryHandle = Run->EntryHandle;
 
-	FSkillBucket* Bucket = Subsystem.Registry.FindBucket(Unit);
+	FSkillBucket* Bucket = Subsystem.Registry.FindBucket(Entity);
 	const FTcsLearnedSkillEntry* Entry = Bucket ? Bucket->Find(EntryHandle) : nullptr;
 	const FTcsSkillDefData* Def = Entry ? Subsystem.GetRegisteredSkillDef(Entry->DefTag) : nullptr;
 	if (!Def)
 	{
-		UE_LOG(LogTcsSkill, Log, TEXT("时段未进入：定义取不到（单位=%lld）"), Unit.Id);
+		UE_LOG(LogTcsSkill, Log, TEXT("时段未进入：定义取不到（实体=%lld）"), Entity.Id);
 		return false;
 	}
 
@@ -172,8 +172,8 @@ bool FTcsCastOps::EnterPhase(UTcsSkillSubsystem& Subsystem, FTcsCastRunHandle Ru
 	if (!Def->Phases.IsValidIndex(Run->PhaseIndex))
 	{
 		// 正常路径（瞬发 / 已到末尾）⇒ Verbose 级，**零红字**
-		UE_LOG(LogTcsSkill, Verbose, TEXT("时段未进入：无当前时段（单位=%lld 下标=%d 段数=%d）"),
-			Unit.Id, Run->PhaseIndex, Def->Phases.Num());
+		UE_LOG(LogTcsSkill, Verbose, TEXT("时段未进入：无当前时段（实体=%lld 下标=%d 段数=%d）"),
+			Entity.Id, Run->PhaseIndex, Def->Phases.Num());
 		return false;
 	}
 
@@ -182,13 +182,13 @@ bool FTcsCastOps::EnterPhase(UTcsSkillSubsystem& Subsystem, FTcsCastRunHandle Ru
 	{
 		// **时钟不可得（世界拆解 / 单测）⇒ 静默降级**：Log 级、零红字、**不留待推进时段**
 		// （退化为瞬发语义，调用方随即走完成终结）、**MUST NOT ensure**——那是时序而非配置错误。
-		UE_LOG(LogTcsSkill, Log, TEXT("时段未进入：时钟子系统不可得（单位=%lld）——退化为瞬发语义"),
-			Unit.Id);
+		UE_LOG(LogTcsSkill, Log, TEXT("时段未进入：时钟子系统不可得（实体=%lld）——退化为瞬发语义"),
+			Entity.Id);
 		return false;
 	}
 
 	const FTcsPhaseSpan& Phase = Def->Phases[Run->PhaseIndex];
-	const double Duration = EvaluateCastPhaseDuration(Subsystem, Phase, Run->ParamSnapshot, Unit, Level);
+	const double Duration = EvaluateCastPhaseDuration(Subsystem, Phase, Run->ParamSnapshot, Entity, Level);
 
 	// 到期时刻 = **Elapsed 时轴上的绝对时刻**；入堆一律经门面读口（`FTcsExpiryHeap` 是泵私有）
 	const double DueTime = Clock->GetClock().Elapsed + Duration;
@@ -223,12 +223,12 @@ bool FTcsCastOps::EnterPhase(UTcsSkillSubsystem& Subsystem, FTcsCastRunHandle Ru
 			LiveClock->CancelExpiry(PushedEntry);
 		}
 
-		UE_LOG(LogTcsSkill, Log, TEXT("时段到期条目已撤销：运行态在入堆期间被终结（单位=%lld）"), Unit.Id);
+		UE_LOG(LogTcsSkill, Log, TEXT("时段到期条目已撤销：运行态在入堆期间被终结（实体=%lld）"), Entity.Id);
 		return false;
 	}
 
-	UE_LOG(LogTcsSkill, Log, TEXT("时段已进入：单位=%lld 下标=%d 时长=%.3f 到期=%.3f 条目=%d/%d"),
-		Unit.Id, Run->PhaseIndex, Duration, DueTime, PushedEntry.Inner.Index, PushedEntry.Inner.Generation);
+	UE_LOG(LogTcsSkill, Log, TEXT("时段已进入：实体=%lld 下标=%d 时长=%.3f 到期=%.3f 条目=%d/%d"),
+		Entity.Id, Run->PhaseIndex, Duration, DueTime, PushedEntry.Inner.Index, PushedEntry.Inner.Generation);
 
 	// **★ 这里再解析一次**（不是冗余）：上面的日志与回写之间没有广播，但**本函数被
 	// `AdvancePhase` 调用时，调用方可能在起链之后**（起链会搬移池）⇒ `Run` 指针可能已失效，
@@ -250,11 +250,11 @@ void FTcsCastOps::AdvancePhase(UTcsSkillSubsystem& Subsystem, FTcsCastRunHandle 
 	// 而"最后一段到期 → 完成终结"那条路径上，终结例程看到的将是**空锚点**（而非已死的句柄）。
 	Run->PhaseExpiryEntry = FTcsTimeEntryHandle();
 
-	const FTcsCombatEntityHandle Unit = Run->Unit;
+	const FTcsCombatEntityHandle Entity = Run->Entity;
 	const int32 CurrentPhase = Run->PhaseIndex;
 	const FTcsSkillEntryHandle EntryHandle = Run->EntryHandle;
 
-	FSkillBucket* Bucket = Subsystem.Registry.FindBucket(Unit);
+	FSkillBucket* Bucket = Subsystem.Registry.FindBucket(Entity);
 	const FTcsLearnedSkillEntry* Entry = Bucket ? Bucket->Find(EntryHandle) : nullptr;
 	const FTcsSkillDefData* Def = Entry ? Subsystem.GetRegisteredSkillDef(Entry->DefTag) : nullptr;
 	if (!Def)
@@ -262,7 +262,7 @@ void FTcsCastOps::AdvancePhase(UTcsSkillSubsystem& Subsystem, FTcsCastRunHandle 
 		// 定义在施法期间被注销 ⇒ 无法判定"还有没有下一段" ⇒ 如实报出并**停止推进时段**
 		// （**不在这里终结**：定义没了不等于这次施法该消失，本处只停推进，不承担终结决策）
 		UE_LOG(LogTcsSkill, Warning,
-			TEXT("时段推进中止：定义取不到（单位=%lld 下标=%d）——后续时段不再推进"), Unit.Id, CurrentPhase);
+			TEXT("时段推进中止：定义取不到（实体=%lld 下标=%d）——后续时段不再推进"), Entity.Id, CurrentPhase);
 		return;
 	}
 
@@ -298,7 +298,7 @@ void FTcsCastOps::AdvancePhase(UTcsSkillSubsystem& Subsystem, FTcsCastRunHandle 
 	// **重入面（§5.6）**：配 `OnPhaseEnter` 的技能**不会**在激活时起链（档位不匹配），
 	// 故与 `OnCastStarted` 不存在"同一流程里起两次"的组合——`MainChainStart` 是**单值枚举**。
 	TryStartMainChainAt(
-		Subsystem, RunHandle, Unit, EntryHandle, ECastChainTrigger::ECT_OnPhaseEnter);
+		Subsystem, RunHandle, Entity, EntryHandle, ECastChainTrigger::ECT_OnPhaseEnter);
 
 	// 注册下一段（**排在事件与起链之后**——它写 `PhaseExpiryEntry`，而上面两步都可能终结本 run）
 	if (!EnterPhase(Subsystem, RunHandle))

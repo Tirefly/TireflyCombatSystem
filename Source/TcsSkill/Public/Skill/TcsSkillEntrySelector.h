@@ -24,7 +24,7 @@
 UENUM(BlueprintType)
 enum class ETcsSkillEntrySelectorMode : uint8
 {
-	ESS_All = 0			UMETA(DisplayName = "全部条目", ToolTip = "该单位的全部在册条目都命中（默认）"),
+	ESS_All = 0			UMETA(DisplayName = "全部条目", ToolTip = "该实体的全部在册条目都命中（默认）"),
 	ESS_ByDefTag = 1	UMETA(DisplayName = "按定义身份", ToolTip = "按条目的 DefTag 匹配——层级匹配，父 tag 命中其全部子技能"),
 	ESS_ByCategoryTags = 2	UMETA(DisplayName = "按类别标识（未实现）", ToolTip = "按定义的类别标识容器筛选（HasAll / HasAny 等）——载体与规则未落地，本轮具名报出且零施加"),
 	ESS_Custom = 3		UMETA(DisplayName = "自定义", ToolTip = "宿主自定义片段——契约未实现，本轮具名报出且零施加"),

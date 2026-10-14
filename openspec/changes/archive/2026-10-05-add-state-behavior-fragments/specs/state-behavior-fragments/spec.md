@@ -1,5 +1,7 @@
 ## ADDED Requirements
 
+> **术语订正（2026-10-14）**：本文原用「单位 / `Unit`」，该词已退役，现统一为「**实体 / `Entity`**」（见 `DEC-2026-10-14-entity-vocabulary`）。**正文为当时原话，保留不改。**
+
 ### Requirement: 行为 Fragment 契约
 
 `TcsState` MUST 提供状态行为的作者面——**行为 Fragment**（D3-7 v2/v4 的两种 Fragment 之一；另一半"决策 Fragment"归 `state-stacking-policies`）：

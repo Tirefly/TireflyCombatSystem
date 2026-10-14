@@ -1,5 +1,7 @@
 # Change: 触发行独立资产载体（`UTcsEffectTriggerDefAsset` + 定义库发现与装配）
 
+> **术语订正（2026-10-14）**：本文原用「单位 / `Unit`」，该词已退役，现统一为「**实体 / `Entity`**」（见 `DEC-2026-10-14-entity-vocabulary`）。**正文为当时原话，保留不改。**
+
 ## Why
 
 R4 Task 1/2 已把"事件 → 触发行 → 效果链"的**机制层**打通（`FTcsEffectTriggerDef` 纯配置 + 登记表 + 共享求值器 + 四道门），但触发行**今天只能 C++ 注册**：全库 `RegisterTriggerRow` 在 `TcsEffect/` 之外使用点为零，纯内容侧配不出一条触发规则。而 `effect-trigger` 规格已把"**定义加载期登记**（全局常驻规则）→ `Source` = 系统/DefLibrary 来源句柄"写成事实——**该分支今天没有实现，规格与代码不符**。

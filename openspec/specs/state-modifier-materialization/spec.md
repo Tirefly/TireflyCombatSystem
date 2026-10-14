@@ -9,7 +9,7 @@
 
 TcsState MUST 提供修正器物化入口 `FTcsStateModifierMaterializer::Materialize(UTcsStateSubsystem& Subsystem, const FTcsBuffDef& Def, const FTcsStateInstance& Instance, TArray<FTcsAttrModInstance>& Out)`，把 `Def.ModifierRows` 逐条物化为属性账本条目（D3-19：模板 + 引用行 + 覆写走参数传值）。
 
-输入取**实例**而不是散字段：`Unit` / `Instigator` / `Level` / `Source` / `ParamSnapshot` 全是实例已有的信息（实例自持 `Unit` 正是为了让物化不必遍历桶找单位）——多传几个形参只会让"某处少填一个"成为可能，而少填在源侧表现为**静默落兜底**而不是报错。
+输入取**实例**而不是散字段：`Entity` / `Instigator` / `Level` / `Source` / `ParamSnapshot` 全是实例已有的信息（实例自持 `Entity` 正是为了让物化不必遍历桶找实体）——多传几个形参只会让"某处少填一个"成为可能，而少填在源侧表现为**静默落兜底**而不是报错。
 
 逐条流水 MUST 为：
 
@@ -58,12 +58,12 @@ MUST NOT 为同一次求值再开一条并行的数值表通道（同一个问�
 - 属性门面一律经**属性访问解析点**取得；
 - `Def.ModifierRows` 为空时 MUST NOT 产生账本条目、MUST NOT 产生额外广播；**施加路径**在此情形 MUST NOT 触碰属性账本（连批都不开）——零条不是错误。**刷新路径不受此限**：它 MUST 先按来源摘掉上次施加留下的条目，再按新快照挂新；
 - 单条模板解析失败 MUST 跳过该条并留 Warning，**不中断施加**（状态已生效，缺一条修正器不等于"施加失败"）；
-- 属性门面不可解析（世界类型不支持）或**目标单位没有属性账本**（状态与属性是两套登记，这是合法配置）时 MUST 无操作 + `Log` 级记录，MUST NOT ensure、MUST NOT 留 Warning；
-- **挂载提交之后 MUST 重新定位实例与桶**：提交会重算 + 广播（属性变更事件），订阅者可在其中重入状态操作（移除本实例 / 注销单位），那会让实例指针与桶引用双双失效；重新定位后实例已不在册时 MUST 不再补播施加事件（对已不在册的实例广播是错语义），并留 Warning。
+- 属性门面不可解析（世界类型不支持）或**目标实体没有属性账本**（状态与属性是两套登记，这是合法配置）时 MUST 无操作 + `Log` 级记录，MUST NOT ensure、MUST NOT 留 Warning；
+- **挂载提交之后 MUST 重新定位实例与桶**：提交会重算 + 广播（属性变更事件），订阅者可在其中重入状态操作（移除本实例 / 注销实体），那会让实例指针与桶引用双双失效；重新定位后实例已不在册时 MUST 不再补播施加事件（对已不在册的实例广播是错语义），并留 Warning。
 
 #### Scenario: 施加后账本条目出现且数值可观测
 
-- **WHEN** 对一个已持有目标属性的单位施加一个带修正器行的状态
+- **WHEN** 对一个已持有目标属性的实体施加一个带修正器行的状态
 - **THEN** 该属性的账本出现条目，且求值当前值读数与施加前可区分（差值等于物化出的操作数）
 
 #### Scenario: 施加广播前已完成挂载
@@ -76,9 +76,9 @@ MUST NOT 为同一次求值再开一条并行的数值表通道（同一个问�
 - **WHEN** 施加一个 `ModifierRows` 为空的状态
 - **THEN** 不产生任何账本条目、不产生属性变更广播，且不留下未配对的批（批深度回到 0）
 
-#### Scenario: 单位无属性账本时静默无操作
+#### Scenario: 实体无属性账本时静默无操作
 
-- **WHEN** 对一个没有属性账本的单位施加一个带修正器行的状态
+- **WHEN** 对一个没有属性账本的实体施加一个带修正器行的状态
 - **THEN** 状态照常施加且不产生任何账本操作、不留红字、不 ensure
 
 ### Requirement: 刷新时按来源重物化
@@ -87,7 +87,7 @@ MUST NOT 为同一次求值再开一条并行的数值表通道（同一个问�
 
 #### Scenario: 刷新后数值随快照变化且条数不累加
 
-- **WHEN** 对同一单位以同一 `DefTag` 再次施加并传入不同的覆盖值，使物化操作数变化
+- **WHEN** 对同一实体以同一 `DefTag` 再次施加并传入不同的覆盖值，使物化操作数变化
 - **THEN** 账本条目数不增加（旧条目已按来源摘除），且取值等于按新快照物化的结果
 
 #### Scenario: 刷新不更换来源句柄
@@ -97,11 +97,11 @@ MUST NOT 为同一次求值再开一条并行的数值表通道（同一个问�
 
 ### Requirement: 移除与到期时按来源级联摘除
 
-`RemoveState` / 到期路径 MUST 在进入 `Expiring` 迁移**之前**按该实例的**级联锚点**（`FTcsStateInstance::CascadeAnchor`——撤销语境下的"来源"自 2026-10-05 起特指该锚点，口径见 `state-instance-lifecycle` 的「池化状态实例记录」）做级联摘除（`RemoveBySource`），并 MUST 在同一个属性变更批内提交——`TcsEvent.State.Expired` / `TcsEvent.State.Removed` 的订阅者在回调里读该属性能读到**已归位**的数值。`UnregisterUnit` MUST 复用同一条移除链。
+`RemoveState` / 到期路径 MUST 在进入 `Expiring` 迁移**之前**按该实例的**级联锚点**（`FTcsStateInstance::CascadeAnchor`——撤销语境下的"来源"自 2026-10-05 起特指该锚点，口径见 `state-instance-lifecycle` 的「池化状态实例记录」）做级联摘除（`RemoveBySource`），并 MUST 在同一个属性变更批内提交——`TcsEvent.State.Expired` / `TcsEvent.State.Removed` 的订阅者在回调里读该属性能读到**已归位**的数值。`UnregisterEntity` MUST 复用同一条移除链。
 
 撤销顺序 MUST 为：**按锚点摘除修正器（批内提交）→ 退订该实例的内联触发行 → 撤时间条目 → `Expiring` → 广播 → 归还槽位**。
 
-**摘除 MUST 排在"取实例指针"之前**：摘除的批提交会重算 + 广播（属性变更事件），订阅者可在其中重入状态操作（移除本实例 / 注销单位）⇒ 摘除之后 MUST **重新定位桶与实例**，重入造成的失效由"桶不存在 / 实例查不到"两道守卫接住（MUST NOT 在摘除前后跨用同一个实例指针）。
+**摘除 MUST 排在"取实例指针"之前**：摘除的批提交会重算 + 广播（属性变更事件），订阅者可在其中重入状态操作（移除本实例 / 注销实体）⇒ 摘除之后 MUST **重新定位桶与实例**，重入造成的失效由"桶不存在 / 实例查不到"两道守卫接住（MUST NOT 在摘除前后跨用同一个实例指针）。
 
 摘除条数 MUST 由属性账本返回；返回 0（无匹配）MUST 是正常路径（锚点可能只挂过已摘除的条目），不 ensure。
 
@@ -115,21 +115,21 @@ MUST NOT 为同一次求值再开一条并行的数值表通道（同一个问�
 - **WHEN** 让时钟推进跨过到期时刻使实例到期
 - **THEN** 账本条目同样被摘除、属性归位（`Expired` 与显式移除走同一条摘除链）
 
-#### Scenario: 单位注销清理该单位全部条目
+#### Scenario: 实体注销清理该实体全部条目
 
-- **WHEN** 注销一个持有多个带修正器状态实例的单位
-- **THEN** 该单位属性账本上这些实例锚点的条目全部消失（逐条走同一条移除链）
+- **WHEN** 注销一个持有多个带修正器状态实例的实体
+- **THEN** 该实体属性账本上这些实例锚点的条目全部消失（逐条走同一条移除链）
 
 ### Requirement: 属性访问解析点
 
 TcsState MUST 只经**单一解析点** `FTcsStateAttributeAccess::Resolve(const UWorld*)` 取属性门面（住 `Private/State/`）。该解析点的头文件名 MUST NOT 与将来 TcsEffect 侧的同类解析点重名（UHT 要求全项目头文件名唯一）。
 
-本轮允许触碰的属性 API **上限**为：语义面三个（`UTcsAttributeSubsystem::ApplyModifier` / `RemoveBySource` / `EvaluateCurrent`）+ **事务对**（`BeginBatch` / `Commit`）+ **一个存在性判据**（`ResolveStore`，只作"账本认不认识这个单位"，MUST NOT 用于取值）。上限之外 MUST NOT 暴露任何属性 API；解析点 MUST 以注释写明"将来补属性访问注入契约时**只换这一处**"。
+本轮允许触碰的属性 API **上限**为：语义面三个（`UTcsAttributeSubsystem::ApplyModifier` / `RemoveBySource` / `EvaluateCurrent`）+ **事务对**（`BeginBatch` / `Commit`）+ **一个存在性判据**（`ResolveStore`，只作"账本认不认识这个实体"，MUST NOT 用于取值）。上限之外 MUST NOT 暴露任何属性 API；解析点 MUST 以注释写明"将来补属性访问注入契约时**只换这一处**"。
 
 **上限靠结构而不是靠记性**：解析点 MUST 是**薄包装**（暴露面 = 白名单方法，而不是把属性门面指针交出去）——越界因此在编译期就不可能。
 
 - **事务对为什么在允许面内**：逐条挂载若不开批，N 条修正器 = N 次重算 + N 次广播（重入窗口放大 N 倍），且"摘旧与挂新在同一批内"是"中间态不被订阅者看到"的前提；
-- **存在性判据为什么必要**：状态与属性是**两套登记**——状态可以施加到没有属性账本的单位上（合法），而 `BeginBatch` 对未注册单位会 `ensure`。挂点须先问一句，把"没有可改的属性"当配置状态静默处理（`Log` 级、不留红字）。
+- **存在性判据为什么必要**：状态与属性是**两套登记**——状态可以施加到没有属性账本的实体上（合法），而 `BeginBatch` 对未注册实体会 `ensure`。挂点须先问一句，把"没有可改的属性"当配置状态静默处理（`Log` 级、不留红字）。
 
 MUST NOT 在 TcsState 内另建第二处属性门面解析或第二套属性读写路径。
 

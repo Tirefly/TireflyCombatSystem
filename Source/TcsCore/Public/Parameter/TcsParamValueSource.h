@@ -57,7 +57,7 @@ public:
 #pragma region Subject
 
 public:
-	// 被施加方实体（状态/技能实例所依附的单位；0 = 无效）
+	// 被施加方实体（状态/技能实例所依附的实体；0 = 无效）
 	UPROPERTY(BlueprintReadWrite, Category = "Param Evaluate")
 	FTcsCombatEntityHandle Subject;
 

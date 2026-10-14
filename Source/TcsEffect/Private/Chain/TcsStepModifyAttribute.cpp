@@ -19,7 +19,7 @@ namespace
 	 * （`Source` = 本次运行的来源锚点）→ 开批挂载 → 提交（属性面唯一提交点）。
 	 *
 	 * 全部失败面按完成处理（不断链）；`Warning` 只留给"配置写错"（键无效 / 载荷类型不符），
-	 * "该单位没有属性账本"是配置状态 ⇒ `Log` 级、零红字。
+	 * "该实体没有属性账本"是配置状态 ⇒ `Log` 级、零红字。
 	 */
 	ETcsStepResult ExecuteStepModifyAttribute(const FInstancedStruct& StepData, FTcsEffectContext& Context, FTcsChainRun& Run)
 	{
@@ -53,8 +53,8 @@ namespace
 		const FTcsEffectAttributeAccess Access = FTcsEffectAttributeAccess::Resolve(World);
 		if (!Access.IsValid() || !Access.IsLedgerReady(Target))
 		{
-			// 链与属性是两套登记：链可以作用在没有属性账本的单位上（合法）⇒ 配置状态，不是错误
-			UE_LOG(LogTcsEffect, Log, TEXT("ModifyAttribute[%s]: 单位无属性账本——跳过（单位=%lld 属性=%s）"),
+			// 链与属性是两套登记：链可以作用在没有属性账本的实体上（合法）⇒ 配置状态，不是错误
+			UE_LOG(LogTcsEffect, Log, TEXT("ModifyAttribute[%s]: 实体无属性账本——跳过（实体=%lld 属性=%s）"),
 				*Run.ChainId.ToString(), Target.Id, *Step->Attribute.ToString());
 			return ETcsStepResult::TSR_Completed;
 		}
@@ -84,7 +84,7 @@ namespace
 		const bool bApplied = Access.ApplyModifier(Target, Modifier);
 		Access.Commit(Target);
 
-		UE_LOG(LogTcsEffect, Log, TEXT("ModifyAttribute[%s]: 单位=%lld 属性=%s 带=%d 值=%.6f 来源=%llu 结果=%s"),
+		UE_LOG(LogTcsEffect, Log, TEXT("ModifyAttribute[%s]: 实体=%lld 属性=%s 带=%d 值=%.6f 来源=%llu 结果=%s"),
 			*ChainId.ToString(), Target.Id, *StepSnapshot.Attribute.ToString(), static_cast<int32>(StepSnapshot.Op),
 			Value, RunSource.Id, bApplied ? TEXT("已挂载") : TEXT("被拒"));
 

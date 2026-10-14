@@ -1,5 +1,7 @@
 ## ADDED Requirements
 
+> **术语订正（2026-10-14）**：本文原用「单位 / `Unit`」，该词已退役，现统一为「**实体 / `Entity`**」（见 `DEC-2026-10-14-entity-vocabulary`）。**正文为当时原话，保留不改。**
+
 ### Requirement: 状态施加步骤（ApplyState）
 
 `TcsState` MUST 提供 `FTcsStepApplyState`（D4-16 十五原语之一，属本模块——`04 §2.1`"ApplyState 住 TcsState"）：

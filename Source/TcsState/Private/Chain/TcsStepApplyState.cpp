@@ -79,7 +79,7 @@ namespace
 			Target, StepSnapshot.DefTag, RunSource, Instigator, EmptyParamTable, StepSnapshot.Overrides);
 
 		// 四档回执全部是业务结果（`Rejected` 亦然）⇒ `Log` 级：常规验收命令保持零非预期红字
-		UE_LOG(LogTcsState, Log, TEXT("ApplyState[%s]: 单位=%lld 定义=%s 回执=%d 来源=%llu 覆盖=%d 条"),
+		UE_LOG(LogTcsState, Log, TEXT("ApplyState[%s]: 实体=%lld 定义=%s 回执=%d 来源=%llu 覆盖=%d 条"),
 			*ChainId.ToString(), Target.Id, *StepSnapshot.DefTag.ToString(), static_cast<int32>(Result),
 			RunSource.Id, StepSnapshot.Overrides.Num());
 

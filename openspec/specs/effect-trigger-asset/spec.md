@@ -7,7 +7,7 @@
 
 ### Requirement: 触发定义资产
 
-`TcsIntegration` MUST 提供触发定义资产类 `UTcsEffectTriggerDefAsset : UPrimaryDataAsset`（住 `Public/Trigger/TcsEffectTriggerDefAsset.h`）——供策划在编辑器里**零 C++** 创作"系统级规则"（全局常驻、与任何 Def 无关的触发规则，如"任何单位死亡时触发某链"）：
+`TcsIntegration` MUST 提供触发定义资产类 `UTcsEffectTriggerDefAsset : UPrimaryDataAsset`（住 `Public/Trigger/TcsEffectTriggerDefAsset.h`）——供策划在编辑器里**零 C++** 创作"系统级规则"（全局常驻、与任何 Def 无关的触发规则，如"任何实体死亡时触发某链"）：
 
 - **类名的 `Asset` 后缀是 UHT 硬约束下的明示例外**（2026-10-04 实测）：Def 资产命名标准是 `<Family>Def`，但本族的 `<Family>Def` 已被数据 struct `FTcsEffectTriggerDef` 占用，而 UHT 按"**去前缀后的引擎名**"判重——`UTcsEffectTriggerDef` 会被 UHT 直接拒绝（`Class '…' shares engine name '…' with struct '…'`，UHT 阶段即失败）。故资产类 MUST 取 `Asset` 后缀消歧，`openspec/project.md` 的标准条文已补该限定语；**MUST NOT** 因此改名数据 struct（它是 Task 1 已交付的公开面）；
 

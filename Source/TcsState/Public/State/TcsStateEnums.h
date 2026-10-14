@@ -54,7 +54,7 @@ UENUM(BlueprintType)
 enum class EStateRemoveCause : uint8
 {
 	ESRC_Expired = 0	UMETA(DisplayName = "到期", ToolTip = "时值走完由到期路径结束（ExpireState 或到期回调）"),
-	ESRC_Removed = 1	UMETA(DisplayName = "被移除", ToolTip = "外部显式驱散（RemoveState / 单位注销批量移除）"),
+	ESRC_Removed = 1	UMETA(DisplayName = "被移除", ToolTip = "外部显式驱散（RemoveState / 实体注销批量移除）"),
 	ESRC_Cancelled = 2	UMETA(DisplayName = "被取消", ToolTip = "被更高优先级的共存规则取消（关系表族归 R5.5-e；本轮无内建产生者，由调用方显式传入）"),
 };
 

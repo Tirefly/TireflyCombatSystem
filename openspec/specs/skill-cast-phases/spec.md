@@ -2,7 +2,7 @@
 
 ## Purpose
 
-M5 技能层的**施法时段面**：让"施法是一个有过程的事件"成为可裁决、可观测的运行事实——时段表按战斗时钟到期堆**逐段推进**并广播 `TcsEvent.Cast.PhaseChanged`；可打断性与可移动性按**查询契约三档**（定义开关 / 当前时段 / 宿主自定义）各自读自己的载体；打断**先过查询契约**再结算；以及**链重定向栈**（按单位与目标链把一次施法让渡给另一条链，带优先级与后挂者胜）。
+M5 技能层的**施法时段面**：让"施法是一个有过程的事件"成为可裁决、可观测的运行事实——时段表按战斗时钟到期堆**逐段推进**并广播 `TcsEvent.Cast.PhaseChanged`；可打断性与可移动性按**查询契约三档**（定义开关 / 当前时段 / 宿主自定义）各自读自己的载体；打断**先过查询契约**再结算；以及**链重定向栈**（按实体与目标链把一次施法让渡给另一条链，带优先级与后挂者胜）。
 
 **为什么需要它**：`skill-cast-runtime` 交付的是"技能放得出来且当刻就有运行态"，但**施法没有过程**——没有时段就没有"打到一半"，没有中断点就没有打断的语义落点，也就无法表达"前摇 / 后摇 / 引导"这类宿主内容词汇（本能力刻意**不内置**这些词，只提供宿主可声明的时段标识）。
 
@@ -95,9 +95,9 @@ M5 技能层的**施法时段面**：让"施法是一个有过程的事件"成�
 
 `TcsSkill` MUST 提供**链级让渡**的重定向栈，使 `CastChainId` 的解析为三级顺序：**全局定义（`FTcsSkillDefData.CastChainId`，默认）→ 链重定向栈 → Custom 契约**：
 
-- **栈条目 MUST 为纯反射数据** `FTcsChainRedirectEntry`（至少含 `Unit` / `TargetChainId` / `ReplacementChainId` / `Source` / `Priority`），使"策划零代码"表达成立（D5-7 的"数据重定向行，标准件保留"）——**MUST NOT** 做成"只能由 C++ 注册"的形状；
+- **栈条目 MUST 为纯反射数据** `FTcsChainRedirectEntry`（至少含 `Entity` / `TargetChainId` / `ReplacementChainId` / `Source` / `Priority`），使"策划零代码"表达成立（D5-7 的"数据重定向行，标准件保留"）——**MUST NOT** 做成"只能由 C++ 注册"的形状；
 - **挂 / 摘 API MUST 成对**：按来源 `Source` 级联摘除（判据同参数账本的成对性——不存在"摘不掉的条目"）；**来源无效 ⇒ 拒绝挂载**；
-- **解析 MUST 按 `(Unit, TargetChainId)` 命中**，多条命中时**取 `Priority` 大者、打平取后挂者**（"后挂/高优先"的设计原词）；
+- **解析 MUST 按 `(Entity, TargetChainId)` 命中**，多条命中时**取 `Priority` 大者、打平取后挂者**（"后挂/高优先"的设计原词）；
 - **`CastChainId` 解析结果 MUST 用于起链**（Task 3 的 `StartMainChain` 改走本解析口），且 **MUST NOT 修改共享 Def**（设计原文明文："绝不修改共享 Def"）——重定向是**解析期让渡**，不是**数据改写**；
 - **Custom 契约本轮 MUST 具名报出"未实现"**（`ITcsChainRedirectResolver` 注入点可留在形状上，但其求值归 `R6.5-g`）；未命中任何条目 ⇒ 落**全局定义**（默认档），**MUST NOT** 报"未实现"（那是正常路径）；
 - **MUST NOT 落 `FFlowRedirect` 的流程级实现**（同族，归台账 `STAT-3` / `R5.5-d`——不重复造）；
@@ -105,7 +105,7 @@ M5 技能层的**施法时段面**：让"施法是一个有过程的事件"成�
 
 #### Scenario: 挂上重定向后解析改变目标链
 
-- **WHEN** 某技能的 `CastChainId` 为 `ChainA`，挂一条 `(Unit, ChainA) → ChainB` 的重定向后激活该技能
+- **WHEN** 某技能的 `CastChainId` 为 `ChainA`，挂一条 `(Entity, ChainA) → ChainB` 的重定向后激活该技能
 - **THEN** 实际起来的链是 `ChainB`（**不是** `ChainA`）——读数取**链运行态实际用的链身份**，**MUST NOT** 取"重定向表里有几条"
 
 #### Scenario: 摘除后解析回到全局定义
@@ -115,10 +115,10 @@ M5 技能层的**施法时段面**：让"施法是一个有过程的事件"成�
 
 #### Scenario: 高优先级与后挂者胜出
 
-- **WHEN** 同一 `(Unit, ChainA)` 上先挂 `→ ChainB`（`Priority` 小）、再挂 `→ ChainC`（`Priority` 大）
+- **WHEN** 同一 `(Entity, ChainA)` 上先挂 `→ ChainB`（`Priority` 小）、再挂 `→ ChainC`（`Priority` 大）
 - **THEN** 解析结果为 `ChainC`——判据 MUST 覆盖**优先级**与**后挂**两个判据（只验其一无法区分两种实现）
 
 #### Scenario: 未命中任何重定向时走全局定义且不报未实现
 
-- **WHEN** 技能自身 `CastChainId` 有效但栈上没有任何 `(Unit, 该 id)` 条目时激活
+- **WHEN** 技能自身 `CastChainId` 有效但栈上没有任何 `(Entity, 该 id)` 条目时激活
 - **THEN** 起来的链就是该技能自己声明的链，且**不产生**"重定向未实现"的 `Warning`（未命中是**正常路径**，不是未实现）

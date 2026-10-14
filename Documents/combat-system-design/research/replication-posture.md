@@ -141,7 +141,7 @@
 - 数组长度上限：`RepLayout.cpp:277-293`，`ValidateArraySize` ⇒ **复制数组长度必须 < 65535**，否则 `ensureMsgf` + Error
 
 **成本特征（判据）**
-- **经典路径**：以"元素"为最小脏判定单位；元素内部若还有多个属性，变化只发该元素**变化的子属性**（`CompareProperties_r` 递归）；但**元素自身是 `FInstancedStruct`（NetSerialize struct）时，单条命令 ⇒ 元素内任何变化都重发整个元素载荷**，且 `NetSerialize` 每次都会写一次 `UScriptStruct*` 引用（`InstancedStruct.cpp:564-568`，PackageMap 去重后仍有位成本）
+- **经典路径**：以"元素"为最小脏判定实体；元素内部若还有多个属性，变化只发该元素**变化的子属性**（`CompareProperties_r` 递归）；但**元素自身是 `FInstancedStruct`（NetSerialize struct）时，单条命令 ⇒ 元素内任何变化都重发整个元素载荷**，且 `NetSerialize` 每次都会写一次 `UScriptStruct*` 引用（`InstancedStruct.cpp:564-568`，PackageMap 去重后仍有位成本）
 - 结构体整体（非数组）属性：`RepLayout.cpp:5716-5755` 单命令 ⇒ **全量重发**该 struct；变更检测靠 `Identical`（`FInstancedStruct` 是深比较，`InstancedStruct.cpp:478-504`）
 - 无 PushModel 时**每帧每属性都做比较**（PushModel.h:29-36 原文解释此代价），数组越大比较成本越高
 

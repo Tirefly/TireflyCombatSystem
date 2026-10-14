@@ -20,13 +20,13 @@ class FTcsAttributePipeline;
 
 
 /**
- * 属性系统门面（M2 数据宿主，02 §2.2a）：世界级子系统，持**属性定义表**、单位注册表与每单位属性容器。
+ * 属性系统门面（M2 数据宿主，02 §2.2a）：世界级子系统，持**属性定义表**、实体注册表与每实体属性容器。
  *
  * 非 Tickable（D2-8）：M2 不认识时间——聚合由调用方驱动（聚合管线），本门面只做存取与定义加载，
  * 自身不推进任何状态（零自 tick、零定时器）。
  *
- * 调用面纪律（2026-09-17 用户口径）：单位侧只按**属性名**操作（`AddAttribute` / `RemoveAttribute`），
- * 定义一律由本门面内部按名解析——调用方 MUST NOT 传定义数据（那是宿主单位不该知道的内部流程）。
+ * 调用面纪律（2026-09-17 用户口径）：实体侧只按**属性名**操作（`AddAttribute` / `RemoveAttribute`），
+ * 定义一律由本门面内部按名解析——调用方 MUST NOT 传定义数据（那是宿主实体不该知道的内部流程）。
  */
 UCLASS()
 class TCSATTRIBUTE_API UTcsAttributeSubsystem : public UWorldSubsystem
@@ -37,7 +37,7 @@ class TCSATTRIBUTE_API UTcsAttributeSubsystem : public UWorldSubsystem
 #pragma region Lifetime
 
 public:
-	// 构造函数：建聚合管线（管线持本门面引用——数据宿主与单位注册表）
+	// 构造函数：建聚合管线（管线持本门面引用——数据宿主与实体注册表）
 	UTcsAttributeSubsystem();
 
 	// 析构函数：显式定义（管线为前向声明的不完整类型，销毁点须在 .cpp 内——PIMPL 约束）
@@ -46,7 +46,7 @@ public:
 	// 世界类型过滤：仅游戏世界（Game/PIE/GamePreview）实例化——属性是运行时状态（对齐时钟/总线门面）
 	virtual bool DoesSupportWorldType(const EWorldType::Type WorldType) const override;
 
-	// 反初始化：确定性清空全部单位与属性实例（容器自持数据，无外部资源待释放）
+	// 反初始化：确定性清空全部实体与属性实例（容器自持数据，无外部资源待释放）
 	virtual void Deinitialize() override;
 
 #pragma endregion
@@ -64,7 +64,7 @@ public:
 	 * **注入契约**（`ITcsAttributeAccess`，台账 `R-7`），**只换这一处**，两个消费模块的解析点
 	 * 一行不动（口径见 `attribute-pipeline` 能力的「属性门面的解析点」需求）。
 	 *
-	 * **非确保**：非游戏世界或该世界无本子系统时返回 `nullptr`，调用方按"该单位无属性账本"的
+	 * **非确保**：非游戏世界或该世界无本子系统时返回 `nullptr`，调用方按"该实体无属性账本"的
 	 * 既有分支处置（`Log` 级、零红字），MUST NOT ensure。
 	 *
 	 * @param World 目标世界（可为 `nullptr`）。
@@ -75,42 +75,42 @@ public:
 #pragma endregion
 
 
-// 单位注册
-#pragma region Unit
+// 实体注册
+#pragma region Entity
 
 public:
 	/**
-	 * 注册单位：发放实体身份句柄并建空属性容器。
+	 * 注册实体：发放实体身份句柄并建空属性容器。
 	 * 发号说明：R3 由本门面发号；M6 世界注册表落地后移交发号（句柄类型与消费者签名不变）。
 	 *
 	 * **反射面（2026-09-24，提案 `add-scripting-reflection-surface`）**：`UFUNCTION()` 无 specifier
 	 * 是有意的——形参/返回全反射，但同批口径统一（避免蓝图参数校验带来的隐式承诺面）。
 	 * 本方法是**脚本层起链的必要前置**：没有注册实体就没有合法的 `Caster` 句柄，
-	 * 伤害流程会因"单位未注册"而 ensure（实测先例）。
+	 * 伤害流程会因"实体未注册"而 ensure（实测先例）。
 	 *
-	 * @param UnitName 单位名（调试/屏显用，不参与键控——同名单位可共存）。
-	 * @return 返回新单位的实体句柄（永不为无效值）。
+	 * @param EntityName 实体名（调试/屏显用，不参与键控——同名实体可共存）。
+	 * @return 返回新实体的实体句柄（永不为无效值）。
 	 */
 	UFUNCTION()
-	FTcsCombatEntityHandle RegisterUnit(FName UnitName);
+	FTcsCombatEntityHandle RegisterEntity(FName EntityName);
 
 	/**
-	 * 注销单位：释放该单位的全部属性实例与注册记录。
+	 * 注销实体：释放该实体的全部属性实例与注册记录。
 	 *
 	 * **反射面（2026-09-24）**：`UFUNCTION()` 无 specifier（口径同上）。
 	 *
-	 * @param Unit 单位句柄；未注册或已注销的句柄 ensure 拦截并忽略。
+	 * @param Entity 实体句柄；未注册或已注销的句柄 ensure 拦截并忽略。
 	 */
 	UFUNCTION()
-	void UnregisterUnit(FTcsCombatEntityHandle Unit);
+	void UnregisterEntity(FTcsCombatEntityHandle Entity);
 
 	/**
-	 * 读取单位名（调试/屏显用）。
+	 * 读取实体名（调试/屏显用）。
 	 *
-	 * @param Unit 单位句柄。
-	 * @return 返回注册时登记的单位名；未知句柄返回 NAME_None。
+	 * @param Entity 实体句柄。
+	 * @return 返回注册时登记的实体名；未知句柄返回 NAME_None。
 	 */
-	FName GetUnitName(FTcsCombatEntityHandle Unit) const;
+	FName GetEntityName(FTcsCombatEntityHandle Entity) const;
 
 #pragma endregion
 
@@ -146,40 +146,40 @@ public:
 #pragma endregion
 
 
-// 单位属性
+// 实体属性
 #pragma region Attribute
 
 public:
 	/**
-	 * 添加属性（单位侧唯一入口）：按**属性名**在该单位属性容器内建实例——定义由本门面
+	 * 添加属性（实体侧唯一入口）：按**属性名**在该实体属性容器内建实例——定义由本门面
 	 * 从定义表内部解析，调用方不需要也不应该知道定义数据。
 	 * **解冻优先**：暂存区已有同名实例 → 整条搬回（基础值/边界/值域模式/修正器条目原样保留，输出解冻日志）；
 	 * 否则按定义行新建（输出新建日志）。
-	 * 拒绝面（ensure 提示 + 返回 false）：单位未注册、属性名为空、该单位已持有同名属性、
+	 * 拒绝面（ensure 提示 + 返回 false）：实体未注册、属性名为空、该实体已持有同名属性、
 	 * 定义未登记（仅新建路径需要）、定义行的动态边界自引用（以自身为边界 = 循环依赖，D2-4）。
 	 *
-	 * @param Unit 单位句柄。
+	 * @param Entity 实体句柄。
 	 * @param Attribute 属性身份 tag（= 定义资产 `DefTag`）。
 	 * @return 返回是否添加成功。
 	 */
 	UFUNCTION()
 	bool AddAttribute(
-		FTcsCombatEntityHandle Unit,
+		FTcsCombatEntityHandle Entity,
 		const FGameplayTag& Attribute);
 
 	/**
 	 * 改写属性基础值（等级成长等宿主升级事务的落点，02 §2.2a）：标脏并按事务纪律重算/广播
 	 * （未开批 = 隐式批，立即生效）——属事务的"改基值"写操作类。
-	 * 拒绝面（ensure 提示 + 返回 false）：单位未注册、属性名为空、该单位未持有此属性。
+	 * 拒绝面（ensure 提示 + 返回 false）：实体未注册、属性名为空、该实体未持有此属性。
 	 *
-	 * @param Unit 单位句柄。
+	 * @param Entity 实体句柄。
 	 * @param Attribute 属性名。
 	 * @param NewBaseValue 新的基础值。
 	 * @return 返回是否改写成功。
 	 */
 	UFUNCTION()
 	bool SetBaseValue(
-		FTcsCombatEntityHandle Unit,
+		FTcsCombatEntityHandle Entity,
 		const FGameplayTag& Attribute,
 		double NewBaseValue);
 
@@ -188,14 +188,14 @@ public:
 	 * 搬入暂存区 `FrozenAttributes`——**不销毁、不丢弃修正器条目**，输出冻结日志。
 	 * 与来源撤销的关系：来源方（buff/装备等）的级联撤销仍按其自身生命周期走 `RemoveBySource`；
 	 * 被冻结实例的修正器条目集也在 `RemoveBySource` 的扫描面内（来源在冻结期结束不会被遗留）。
-	 * 拒绝面（ensure 提示 + 返回 false）：单位未注册、属性名为空、该单位未持有此属性。
+	 * 拒绝面（ensure 提示 + 返回 false）：实体未注册、属性名为空、该实体未持有此属性。
 	 *
-	 * @param Unit 单位句柄。
+	 * @param Entity 实体句柄。
 	 * @param Attribute 属性名。
 	 * @return 返回是否移除成功。
 	 */
 	bool RemoveAttribute(
-		FTcsCombatEntityHandle Unit,
+		FTcsCombatEntityHandle Entity,
 		const FGameplayTag& Attribute);
 
 #pragma endregion
@@ -207,31 +207,31 @@ public:
 public:
 	/**
 	 * 求值属性当前值（脏则惰性重算；事务期读旧值）。
-	 * 单位未注册或属性未定义时返回 0（读取是正常查询路径，不 ensure）。
+	 * 实体未注册或属性未定义时返回 0（读取是正常查询路径，不 ensure）。
 	 *
-	 * @param Unit 单位句柄。
+	 * @param Entity 实体句柄。
 	 * @param Attribute 属性名。
 	 * @return 返回当前值。
-	 * **反射面（2026-09-24）**：`UFUNCTION()` 无 specifier（口径同 `RegisterUnit`）——
+	 * **反射面（2026-09-24）**：`UFUNCTION()` 无 specifier（口径同 `RegisterEntity`）——
 	 * 脚本层读属性当前值是常见需求（写 Buff 逻辑要按血量分支）。
 	 */
 	UFUNCTION()
-	double EvaluateCurrent(FTcsCombatEntityHandle Unit, const FGameplayTag& Attribute);
+	double EvaluateCurrent(FTcsCombatEntityHandle Entity, const FGameplayTag& Attribute);
 
 	/**
 	 * 读未提交候选值（预览；不落账、不广播）。无进行中的批时等同求值当前值。
 	 *
 	 * **反射面（2026-09-24）**：`UFUNCTION()` 无 specifier（口径同上）。
 	 *
-	 * @param Unit 单位句柄。
+	 * @param Entity 实体句柄。
 	 * @param Attribute 属性名。
 	 * @return 返回候选值。
 	 */
 	UFUNCTION()
-	double PeekPending(FTcsCombatEntityHandle Unit, const FGameplayTag& Attribute);
+	double PeekPending(FTcsCombatEntityHandle Entity, const FGameplayTag& Attribute);
 
 	/**
-	 * **非确保**读取属性**基值**（不受修正器影响），并**同时**回答"该单位是否持有此属性"。
+	 * **非确保**读取属性**基值**（不受修正器影响），并**同时**回答"该实体是否持有此属性"。
 	 *
 	 * **为什么必须有这个口（`R6.5-1` Task 2 的唯一新增面，2026-10-11）**：技能侧 `Cost` 的
 	 * 属性资源消耗策略要"**读基值 → 减 → 写回**"，而门面此前只有 `EvaluateCurrent`
@@ -252,40 +252,40 @@ public:
 	 * **无反射面**：形参含未反射化句柄与出参引用（脚本侧的属性读面归 `SCRIPT` 系列，
 	 * 与 `ResolveStore` 同款——本口是**框架内部消费面**，不是脚本面）。
 	 *
-	 * @param Unit 单位句柄。
+	 * @param Entity 实体句柄。
 	 * @param Attribute 属性名。
 	 * @param OutBaseValue 输出基值（仅在返回 true 时有效）。
-	 * @return 返回该单位是否**持有**该属性（未注册 / 属性名为空 / 未持有 ⇒ false，**不 ensure**）。
+	 * @return 返回该实体是否**持有**该属性（未注册 / 属性名为空 / 未持有 ⇒ false，**不 ensure**）。
 	 */
 	bool TryGetBaseValue(
-		FTcsCombatEntityHandle Unit,
+		FTcsCombatEntityHandle Entity,
 		const FGameplayTag& Attribute,
 		double& OutBaseValue) const;
 
 	/**
 	 * 挂修正器（标脏；未开批时立即重算 + 广播 = 隐式批）。
-	 * 单位未注册或目标属性无实例时忽略并留日志（返回 false，不 ensure——D2-14）。
+	 * 实体未注册或目标属性无实例时忽略并留日志（返回 false，不 ensure——D2-14）。
 	 *
-	 * @param Unit 单位句柄。
+	 * @param Entity 实体句柄。
 	 * @param Modifier 修正器（Target 指向目标属性）。
 	 * @return 返回是否挂载成功。
 	 */
-	bool ApplyModifier(FTcsCombatEntityHandle Unit, const FTcsAttrModInstance& Modifier);
+	bool ApplyModifier(FTcsCombatEntityHandle Entity, const FTcsAttrModInstance& Modifier);
 
 	/**
 	 * 按来源级联摘除（扫描面含实例条目集与冻结暂存区）。
 	 *
-	 * @param Unit 单位句柄。
+	 * @param Entity 实体句柄。
 	 * @param Source 来源句柄。
 	 * @return 返回摘除条数（0 = 无匹配，正常路径）。
 	 */
-	int32 RemoveBySource(FTcsCombatEntityHandle Unit, const FTcsSourceHandle& Source);
+	int32 RemoveBySource(FTcsCombatEntityHandle Entity, const FTcsSourceHandle& Source);
 
 	// 开始变更批（嵌套计数；最外层提交才统一重算 + 广播）
-	void BeginBatch(FTcsCombatEntityHandle Unit);
+	void BeginBatch(FTcsCombatEntityHandle Entity);
 
 	// 提交变更批（唯一提交点；批内多次变更只重算一次、每属性最多广播一次）
-	void Commit(FTcsCombatEntityHandle Unit);
+	void Commit(FTcsCombatEntityHandle Entity);
 
 #pragma endregion
 
@@ -295,19 +295,19 @@ public:
 
 public:
 	/**
-	 * 取单位属性容器：消费者（聚合管线/战斗实体组件）可长期缓存该指针——**外层表存的是
-	 * `TUniquePtr`，故新增其他单位不会让既有容器指针失效**（引擎事实 2026-09-17：`TMap`/`TSet`
+	 * 取实体属性容器：消费者（聚合管线/战斗实体组件）可长期缓存该指针——**外层表存的是
+	 * `TUniquePtr`，故新增其他实体不会让既有容器指针失效**（引擎事实 2026-09-17：`TMap`/`TSet`
 	 * 元素存在连续缓冲里，扩容即搬移，直接按值存值类型会搬走指针）。
-	 * 缓存纪律：句柄注销后指针失效（该单位容器被释放）——注销与缓存不可交叉。
+	 * 缓存纪律：句柄注销后指针失效（该实体容器被释放）——注销与缓存不可交叉。
 	 * 容器**内部**实例指针不保证跨插入稳定（同一 TMap 语义）——实例按属性名查询，不缓存指针。
 	 *
-	 * @param Unit 单位句柄。
-	 * @return 返回该单位的属性容器；未注册或已注销句柄返回 nullptr（ensure 提示）。
+	 * @param Entity 实体句柄。
+	 * @return 返回该实体的属性容器；未注册或已注销句柄返回 nullptr（ensure 提示）。
 	 */
-	FTcsAttributeStore* GetStore(FTcsCombatEntityHandle Unit);
+	FTcsAttributeStore* GetStore(FTcsCombatEntityHandle Entity);
 
-	// 取单位属性容器（只读）
-	const FTcsAttributeStore* GetStore(FTcsCombatEntityHandle Unit) const;
+	// 取实体属性容器（只读）
+	const FTcsAttributeStore* GetStore(FTcsCombatEntityHandle Entity) const;
 
 #pragma endregion
 
@@ -319,14 +319,14 @@ private:
 	// 属性定义表（键 = 属性身份 tag；值 = 定义数据——AddAttribute 的解析源）
 	TMap<FGameplayTag, FTcsAttributeDefData> DefTable;
 
-	// 单位注册表（键 = 实体身份句柄；值 = 该单位的属性容器）
-	// 存 TUniquePtr：容器指针因此不随"新增其他单位"失效（TMap 元素地址会随扩容搬移——引擎事实）
+	// 实体注册表（键 = 实体身份句柄；值 = 该实体的属性容器）
+	// 存 TUniquePtr：容器指针因此不随"新增其他实体"失效（TMap 元素地址会随扩容搬移——引擎事实）
 	TMap<FTcsCombatEntityHandle, TUniquePtr<FTcsAttributeStore>> Stores;
 
-	// 单位名表（仅调试/屏显用，不参与键控）
-	TMap<FTcsCombatEntityHandle, FName> UnitNames;
+	// 实体名表（仅调试/屏显用，不参与键控）
+	TMap<FTcsCombatEntityHandle, FName> EntityNames;
 
-	// 实体身份发号器（R3 由本门面发号，见 RegisterUnit 说明）
+	// 实体身份发号器（R3 由本门面发号，见 RegisterEntity 说明）
 	FTcsCombatEntityHandleRegistry EntityRegistry;
 
 	// 聚合管线（模块内部类型，仅前向声明持有——公开头不暴露 Private 头；构造建、Deinitialize 清）
@@ -342,15 +342,15 @@ public:
 	/**
 	 * 非确保解析（句柄 → 容器）：命中返回容器指针，未命中返回 nullptr。
 	 * 与 `GetStore` 的区别：**不 ensure**——供管线与内部读取路径使用（读取是正常查询路径，
-	 * 单位未注册不算契约违规）。
+	 * 实体未注册不算契约违规）。
 	 *
-	 * @param Unit 单位句柄。
-	 * @return 返回该单位的属性容器；未注册返回 nullptr。
+	 * @param Entity 实体句柄。
+	 * @return 返回该实体的属性容器；未注册返回 nullptr。
 	 */
-	FTcsAttributeStore* ResolveStore(FTcsCombatEntityHandle Unit);
+	FTcsAttributeStore* ResolveStore(FTcsCombatEntityHandle Entity);
 
 	// 非确保解析（只读）
-	const FTcsAttributeStore* ResolveStore(FTcsCombatEntityHandle Unit) const;
+	const FTcsAttributeStore* ResolveStore(FTcsCombatEntityHandle Entity) const;
 
 #pragma endregion
 };

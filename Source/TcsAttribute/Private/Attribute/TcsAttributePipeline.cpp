@@ -27,9 +27,9 @@ namespace
 
 
 double FTcsAttributePipeline::EvaluateCurrent(
-	FTcsCombatEntityHandle Unit, const FGameplayTag& Attribute)
+	FTcsCombatEntityHandle Entity, const FGameplayTag& Attribute)
 {
-	FTcsAttributeStore* Store = Owner.ResolveStore(Unit);
+	FTcsAttributeStore* Store = Owner.ResolveStore(Entity);
 	if (!Store)
 	{
 		return 0.0;
@@ -51,7 +51,7 @@ double FTcsAttributePipeline::EvaluateCurrent(
 			return Instance->CachedCurrent;
 		}
 
-		Recalculate(Unit, *Store, *Instance, /*bInBatch=*/false);
+		Recalculate(Entity, *Store, *Instance, /*bInBatch=*/false);
 		PopEvalStack(Attribute);
 	}
 
@@ -59,9 +59,9 @@ double FTcsAttributePipeline::EvaluateCurrent(
 }
 
 double FTcsAttributePipeline::PeekPending(
-	FTcsCombatEntityHandle Unit, const FGameplayTag& Attribute)
+	FTcsCombatEntityHandle Entity, const FGameplayTag& Attribute)
 {
-	FTcsAttributeStore* Store = Owner.ResolveStore(Unit);
+	FTcsAttributeStore* Store = Owner.ResolveStore(Entity);
 	if (!Store)
 	{
 		return 0.0;
@@ -79,17 +79,17 @@ double FTcsAttributePipeline::PeekPending(
 		return Instance->CachedCurrent;
 	}
 
-	return ComputeCandidate(Unit, *Store, *Instance);
+	return ComputeCandidate(Entity, *Store, *Instance);
 }
 
 bool FTcsAttributePipeline::ApplyModifier(
-	FTcsCombatEntityHandle Unit, const FTcsAttrModInstance& Modifier)
+	FTcsCombatEntityHandle Entity, const FTcsAttrModInstance& Modifier)
 {
-	FTcsAttributeStore* Store = Owner.ResolveStore(Unit);
+	FTcsAttributeStore* Store = Owner.ResolveStore(Entity);
 	if (!Store)
 	{
-		UE_LOG(LogTcsAttribute, Warning, TEXT("FTcsAttributePipeline::ApplyModifier: 单位未注册（Id=%lld）——忽略"),
-			Unit.Id);
+		UE_LOG(LogTcsAttribute, Warning, TEXT("FTcsAttributePipeline::ApplyModifier: 实体未注册（Id=%lld）——忽略"),
+			Entity.Id);
 		return false;
 	}
 
@@ -98,8 +98,8 @@ bool FTcsAttributePipeline::ApplyModifier(
 	{
 		// 目标属性无实例（宿主动态删过属性）：忽略 + 留日志，不 ensure——
 		// 框架允许动态增删且不做来源追溯（D2-14）
-		UE_LOG(LogTcsAttribute, Log, TEXT("FTcsAttributePipeline::ApplyModifier: 目标属性无实例（单位 %llu，属性 %s）——忽略本次挂载"),
-			Unit.Id, *Modifier.Target.GetTagName().ToString());
+		UE_LOG(LogTcsAttribute, Log, TEXT("FTcsAttributePipeline::ApplyModifier: 目标属性无实例（实体 %llu，属性 %s）——忽略本次挂载"),
+			Entity.Id, *Modifier.Target.GetTagName().ToString());
 		return false;
 	}
 
@@ -111,7 +111,7 @@ bool FTcsAttributePipeline::ApplyModifier(
 	{
 		if (PushEvalStack(Instance->Attr))
 		{
-			Recalculate(Unit, *Store, *Instance, /*bInBatch=*/false);
+			Recalculate(Entity, *Store, *Instance, /*bInBatch=*/false);
 			PopEvalStack(Instance->Attr);
 		}
 	}
@@ -119,11 +119,11 @@ bool FTcsAttributePipeline::ApplyModifier(
 	return true;
 }
 
-void FTcsAttributePipeline::BeginBatch(FTcsCombatEntityHandle Unit)
+void FTcsAttributePipeline::BeginBatch(FTcsCombatEntityHandle Entity)
 {
-	FTcsAttributeStore* Store = Owner.ResolveStore(Unit);
+	FTcsAttributeStore* Store = Owner.ResolveStore(Entity);
 	if (!ensureMsgf(Store != nullptr,
-		TEXT("FTcsAttributePipeline::BeginBatch: 单位未注册（Id=%lld）"), Unit.Id))
+		TEXT("FTcsAttributePipeline::BeginBatch: 实体未注册（Id=%lld）"), Entity.Id))
 	{
 		return;
 	}
@@ -131,17 +131,17 @@ void FTcsAttributePipeline::BeginBatch(FTcsCombatEntityHandle Unit)
 	++Store->BatchDepth;
 }
 
-void FTcsAttributePipeline::Commit(FTcsCombatEntityHandle Unit)
+void FTcsAttributePipeline::Commit(FTcsCombatEntityHandle Entity)
 {
-	FTcsAttributeStore* Store = Owner.ResolveStore(Unit);
+	FTcsAttributeStore* Store = Owner.ResolveStore(Entity);
 	if (!ensureMsgf(Store != nullptr,
-		TEXT("FTcsAttributePipeline::Commit: 单位未注册（Id=%lld）"), Unit.Id))
+		TEXT("FTcsAttributePipeline::Commit: 实体未注册（Id=%lld）"), Entity.Id))
 	{
 		return;
 	}
 
 	if (!ensureMsgf(Store->BatchDepth > 0,
-		TEXT("FTcsAttributePipeline::Commit: 无对应的 BeginBatch（Id=%lld）"), Unit.Id))
+		TEXT("FTcsAttributePipeline::Commit: 无对应的 BeginBatch（Id=%lld）"), Entity.Id))
 	{
 		return;
 	}
@@ -154,10 +154,10 @@ void FTcsAttributePipeline::Commit(FTcsCombatEntityHandle Unit)
 		return;
 	}
 
-	FlushDirty(Unit, *Store);
+	FlushDirty(Entity, *Store);
 }
 
-void FTcsAttributePipeline::FlushDirty(FTcsCombatEntityHandle Unit, FTcsAttributeStore& Store)
+void FTcsAttributePipeline::FlushDirty(FTcsCombatEntityHandle Entity, FTcsAttributeStore& Store)
 {
 	// 多轮扫描直到无脏（依赖传播可能在本轮后再标脏；环已在登记期被拒，收敛有界）
 	for (int32 Pass = 0; Pass < MaxFlushPasses; ++Pass)
@@ -181,21 +181,21 @@ void FTcsAttributePipeline::FlushDirty(FTcsCombatEntityHandle Unit, FTcsAttribut
 			FTcsAttributeInstance* Instance = Store.FindInstance(Attribute);
 			if (Instance && Instance->bDirty && PushEvalStack(Attribute))
 			{
-				Recalculate(Unit, Store, *Instance, /*bInBatch=*/false);
+				Recalculate(Entity, Store, *Instance, /*bInBatch=*/false);
 				PopEvalStack(Attribute);
 			}
 		}
 	}
 
 	UE_LOG(LogTcsAttribute, Warning,
-		TEXT("FTcsAttributePipeline::FlushDirty: 重算未在 %d 轮内收敛（单位 %llu）——请检查依赖登记"), MaxFlushPasses, Unit.Id);
+		TEXT("FTcsAttributePipeline::FlushDirty: 重算未在 %d 轮内收敛（实体 %llu）——请检查依赖登记"), MaxFlushPasses, Entity.Id);
 }
 
 bool FTcsAttributePipeline::Recalculate(
-	FTcsCombatEntityHandle Unit, FTcsAttributeStore& Store, FTcsAttributeInstance& Instance, bool bInBatch)
+	FTcsCombatEntityHandle Entity, FTcsAttributeStore& Store, FTcsAttributeInstance& Instance, bool bInBatch)
 {
 	const double OldValue = Instance.CachedCurrent;
-	const double NewValue = ComputeFoldedValue(Unit, Store, Instance);
+	const double NewValue = ComputeFoldedValue(Entity, Store, Instance);
 
 	// 唯一写入点（缓存值的唯一生产者）
 	Instance.CachedCurrent = NewValue;
@@ -208,7 +208,7 @@ bool FTcsAttributePipeline::Recalculate(
 
 		if (!bInBatch)
 		{
-			BroadcastChange(Unit, Instance.Attr, OldValue, NewValue);
+			BroadcastChange(Entity, Instance.Attr, OldValue, NewValue);
 		}
 	}
 
@@ -216,14 +216,14 @@ bool FTcsAttributePipeline::Recalculate(
 }
 
 double FTcsAttributePipeline::ComputeCandidate(
-	FTcsCombatEntityHandle Unit, FTcsAttributeStore& Store, const FTcsAttributeInstance& Instance)
+	FTcsCombatEntityHandle Entity, FTcsAttributeStore& Store, const FTcsAttributeInstance& Instance)
 {
 	// 只算不写：候选值基于依赖的**当前缓存**（批内依赖也脏时以缓存值为准——预览用途足够）
-	return ComputeFoldedValue(Unit, Store, Instance);
+	return ComputeFoldedValue(Entity, Store, Instance);
 }
 
 double FTcsAttributePipeline::ComputeFoldedValue(
-	FTcsCombatEntityHandle Unit, FTcsAttributeStore& Store, const FTcsAttributeInstance& Instance)
+	FTcsCombatEntityHandle Entity, FTcsAttributeStore& Store, const FTcsAttributeInstance& Instance)
 {
 	TArray<FTcsAttributeBandEntry> Entries;
 	Entries.Reserve(Instance.AttrModInstances.Num());
@@ -237,7 +237,7 @@ double FTcsAttributePipeline::ComputeFoldedValue(
 			Modifier.Operand.Attribute.IsValid())
 		{
 			RegisterDependency(Store, Modifier.Operand.Attribute, Instance.Attr);
-			Value = Modifier.Operand.Coefficient * EvaluateCurrent(Unit, Modifier.Operand.Attribute);
+			Value = Modifier.Operand.Coefficient * EvaluateCurrent(Entity, Modifier.Operand.Attribute);
 		}
 
 		FTcsAttributeBandEntry Entry;
@@ -250,11 +250,11 @@ double FTcsAttributePipeline::ComputeFoldedValue(
 	// 覆盖带的同优先级策略由**属性定义**给出（实例内已展开）——修正器侧只说强弱排座次
 	const double Folded = FoldTcsAttributeBands(Instance.BaseValue, Entries, Instance.OverrideTieBreak);
 
-	return ApplyValueDomain(Unit, Store, Instance, Folded);
+	return ApplyValueDomain(Entity, Store, Instance, Folded);
 }
 
 double FTcsAttributePipeline::ApplyValueDomain(
-	FTcsCombatEntityHandle Unit, FTcsAttributeStore& Store, const FTcsAttributeInstance& Instance, double Value)
+	FTcsCombatEntityHandle Entity, FTcsAttributeStore& Store, const FTcsAttributeInstance& Instance, double Value)
 {
 	// 边界解析（ABM_Dynamic 先按管线求值——其依赖同样"读即登记"）
 	bool bHasMin = false;
@@ -262,8 +262,8 @@ double FTcsAttributePipeline::ApplyValueDomain(
 	double MinValue = 0.0;
 	double MaxValue = 0.0;
 
-	ResolveBound(Unit, Store, Instance.Attr, Instance.Bounds.Min, bHasMin, MinValue);
-	ResolveBound(Unit, Store, Instance.Attr, Instance.Bounds.Max, bHasMax, MaxValue);
+	ResolveBound(Entity, Store, Instance.Attr, Instance.Bounds.Min, bHasMin, MinValue);
+	ResolveBound(Entity, Store, Instance.Attr, Instance.Bounds.Max, bHasMax, MaxValue);
 
 	switch (Instance.ValueDomain)
 	{
@@ -310,7 +310,7 @@ double FTcsAttributePipeline::ApplyValueDomain(
 }
 
 void FTcsAttributePipeline::BroadcastChange(
-	FTcsCombatEntityHandle Unit, const FGameplayTag& Attribute, double OldValue, double NewValue) const
+	FTcsCombatEntityHandle Entity, const FGameplayTag& Attribute, double OldValue, double NewValue) const
 {
 	const UWorld* World = Owner.GetWorld();
 	UTcsEventBusSubsystem* BusSubsystem = World ? World->GetSubsystem<UTcsEventBusSubsystem>() : nullptr;
@@ -320,7 +320,7 @@ void FTcsAttributePipeline::BroadcastChange(
 	}
 
 	FTcsAttributeChangedEvent Event;
-	Event.Unit = Unit;
+	Event.Entity = Entity;
 	Event.Attribute = Attribute;
 	Event.OldValue = OldValue;
 	Event.NewValue = NewValue;
@@ -349,7 +349,7 @@ void FTcsAttributePipeline::PopEvalStack(const FGameplayTag& Attribute)
 
 
 void FTcsAttributePipeline::ResolveBound(
-	FTcsCombatEntityHandle Unit,
+	FTcsCombatEntityHandle Entity,
 	FTcsAttributeStore& Store,
 	const FGameplayTag& ForAttribute,
 	const FTcsAttributeBound& Bound,
@@ -369,6 +369,6 @@ void FTcsAttributePipeline::ResolveBound(
 		// 动态边界：先按管线求值（读即登记——边界属性变化同样把本属性标脏）
 		RegisterDependency(Store, Bound.DynamicAttribute, ForAttribute);
 		bOutHasValue = true;
-		OutValue = EvaluateCurrent(Unit, Bound.DynamicAttribute);
+		OutValue = EvaluateCurrent(Entity, Bound.DynamicAttribute);
 	}
 }

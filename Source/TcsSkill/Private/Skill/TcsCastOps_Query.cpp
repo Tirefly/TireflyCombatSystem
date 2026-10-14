@@ -92,13 +92,13 @@ bool FTcsCastOps::IsInterruptibleNow(UTcsSkillSubsystem& Subsystem, FTcsCastRunH
 		return false;
 	}
 
-	FSkillBucket* Bucket = Subsystem.Registry.FindBucket(Run->Unit);
+	FSkillBucket* Bucket = Subsystem.Registry.FindBucket(Run->Entity);
 	const FTcsLearnedSkillEntry* Entry = Bucket ? Bucket->Find(Run->EntryHandle) : nullptr;
 	const FTcsSkillDefData* Def = Entry ? Subsystem.GetRegisteredSkillDef(Entry->DefTag) : nullptr;
 	if (!Def)
 	{
 		// 定义取不到 ⇒ 无三档可言。**返回不可打断**（不动作的保守档），Log 级报出原因。
-		UE_LOG(LogTcsSkill, Log, TEXT("施法查询[可打断]：定义取不到（单位=%lld）——按不可打断处理"), Run->Unit.Id);
+		UE_LOG(LogTcsSkill, Log, TEXT("施法查询[可打断]：定义取不到（实体=%lld）——按不可打断处理"), Run->Entity.Id);
 		return false;
 	}
 
@@ -117,12 +117,12 @@ bool FTcsCastOps::CanMoveNow(UTcsSkillSubsystem& Subsystem, FTcsCastRunHandle Ru
 		return false;
 	}
 
-	FSkillBucket* Bucket = Subsystem.Registry.FindBucket(Run->Unit);
+	FSkillBucket* Bucket = Subsystem.Registry.FindBucket(Run->Entity);
 	const FTcsLearnedSkillEntry* Entry = Bucket ? Bucket->Find(Run->EntryHandle) : nullptr;
 	const FTcsSkillDefData* Def = Entry ? Subsystem.GetRegisteredSkillDef(Entry->DefTag) : nullptr;
 	if (!Def)
 	{
-		UE_LOG(LogTcsSkill, Log, TEXT("施法查询[可移动]：定义取不到（单位=%lld）——按不可移动处理"), Run->Unit.Id);
+		UE_LOG(LogTcsSkill, Log, TEXT("施法查询[可移动]：定义取不到（实体=%lld）——按不可移动处理"), Run->Entity.Id);
 		return false;
 	}
 
@@ -144,7 +144,7 @@ bool FTcsCastOps::CancelCast(UTcsSkillSubsystem& Subsystem, FTcsCastRunHandle Ru
 		return false;
 	}
 
-	const FTcsCombatEntityHandle Unit = Run->Unit;
+	const FTcsCombatEntityHandle Entity = Run->Entity;
 
 	// ① 先过查询契约（**MUST NOT 无条件打断**）——② 不可打断 ⇒ 拒绝
 	// **拒绝的判据 MUST 是"什么都没变"**：运行态原样继续、零事件、零账本改动。
@@ -152,8 +152,8 @@ bool FTcsCastOps::CancelCast(UTcsSkillSubsystem& Subsystem, FTcsCastRunHandle Ru
 	if (!IsInterruptibleNow(Subsystem, RunHandle))
 	{
 		UE_LOG(LogTcsSkill, Log,
-			TEXT("打断被拒：当前时段不可打断（单位=%lld run=%d/%d）——运行态原样继续、零事件、零账本改动"),
-			Unit.Id, RunHandle.Index, RunHandle.Generation);
+			TEXT("打断被拒：当前时段不可打断（实体=%lld run=%d/%d）——运行态原样继续、零事件、零账本改动"),
+			Entity.Id, RunHandle.Index, RunHandle.Generation);
 		return false;
 	}
 

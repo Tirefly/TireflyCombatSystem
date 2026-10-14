@@ -1,5 +1,7 @@
 # Change: 五轴堆叠与刷新政策（D3-4 / D3-17 落地）
 
+> **术语订正（2026-10-14）**：本文原用「单位 / `Unit`」，该词已退役，现统一为「**实体 / `Entity`**」（见 `DEC-2026-10-14-entity-vocabulary`）。**正文为当时原话，保留不改。**
+
 ## Why
 
 R5 状态层至今的"重复施加"是一条**暂用判据**：同单位 + 同 `DefTag` 即刷新（`TcsStateOps.cpp` 的替换点已就地标注释）。`FStateStackPolicy` 的五个轴（Task 1 落的形状）**零行为**，`EApplyResult::EAR_Stacked` 不可达，`TcsEvent.State.StackChanged` 只有声明、零广播——"同一 buff 重复施加"这件玩法上的头等大事今天没有确定语义。

@@ -18,6 +18,7 @@
 #include "State/TcsStateInstance.h"
 #include "State/TcsStateParamTableReader.h"
 #include "State/TcsStateRegistry.h"
+#include "Runtime/TcsEntityBroadcastGuard.h"
 
 #include "TcsStateSubsystem.generated.h"
 
@@ -29,10 +30,10 @@ class UTcsStateBehaviorHandler;
 
 /**
  * 状态门面（D3-1 "中央注册表"的落地形态，2026-10-04 R5 收窄轮定名）：世界级子系统，
- * 持**per-unit 状态桶**与**本世界的状态定义登记表**，是状态实例的唯一入口。
+ * 持**per-entity 状态桶**与**本世界的状态定义登记表**，是状态实例的唯一入口。
  *
  * 分工：本类 = 门面（世界过滤 / 定义登记 / 句柄与阶段纪律）；
- * `FTcsStateRegistry` = 登记表（per-unit 桶 + 槽位代际）；`FTcsStateOps` = 引擎函数（施加 / 移除 / 查询流程）。
+ * `FTcsStateRegistry` = 登记表（per-entity 桶 + 槽位代际）；`FTcsStateOps` = 引擎函数（施加 / 移除 / 查询流程）。
  * 桶只存数据与索引，操作全在引擎函数——**这是设计文档 §3.1 的既定分工**，不是可选项。
  *
  * 非 Tickable：到期推进归 M0 时钟泵（`UTcsClockSubsystem` 的到期堆），本门面零每帧成本。
@@ -163,7 +164,7 @@ public:
 
 public:
 	/**
-	 * 施加状态（**本轮的共存决策 = 同单位 + 同 `DefTag`**，即 `GroupBy = None` 的语义）。
+	 * 施加状态（**本轮的共存决策 = 同实体 + 同 `DefTag`**，即 `GroupBy = None` 的语义）。
 	 *
 	 * 三条出口（返回值与广播一一对应）：
 	 * - 无同组成活实例 ⇒ 分配槽位、建实例、广播 `TcsEvent.State.Applied`，返回 `EAR_Applied`；
@@ -217,7 +218,7 @@ public:
 	bool IsStateActive(FTcsStateHandle Handle) const;
 
 	/**
-	 * 遍历某单位的在册实例（**按桶内槽位下标升序**——稳定序，同输入同输出）。
+	 * 遍历某实体的在册实例（**按桶内槽位下标升序**——稳定序，同输入同输出）。
 	 * 访问者返回 false 即提前终止。
 	 *
 	 * **遍历期间 MUST NOT 增删实例**（会改动槽位/空闲栈）——需要增删时先收集句柄、
@@ -225,15 +226,15 @@ public:
 	 *
 	 * **无反射面**：形参含 `TFunctionRef`（C++ 专用面，同 `ITcsEntityQuery`）。
 	 *
-	 * @param Unit 单位实体句柄。
+	 * @param Entity 实体实体句柄。
 	 * @param Visitor 访问者（返回是否继续）。
 	 */
-	void ForEachState(FTcsCombatEntityHandle Unit, TFunctionRef<bool(const FTcsStateInstance&)> Visitor) const;
+	void ForEachState(FTcsCombatEntityHandle Entity, TFunctionRef<bool(const FTcsStateInstance&)> Visitor) const;
 
-	// 某单位在册实例数（观测与装置断言用）
-	int32 GetStateCount(FTcsCombatEntityHandle Unit) const;
+	// 某实体在册实例数（观测与装置断言用）
+	int32 GetStateCount(FTcsCombatEntityHandle Entity) const;
 
-	// 全部门面在册实例数（跨单位合计；观测用；`TcsState.PoolSlots` 一类的统计口留待需要时）
+	// 全部门面在册实例数（跨实体合计；观测用；`TcsState.PoolSlots` 一类的统计口留待需要时）
 	int32 GetTotalStateCount() const;
 
 #pragma endregion
@@ -267,15 +268,15 @@ public:
 	bool ExpireState(FTcsStateHandle Handle);
 
 	/**
-	 * 注销单位：对该单位**每条在册实例逐条广播** `Removed` 后删桶。
+	 * 注销实体：对该实体**每条在册实例逐条广播** `Removed` 后删桶。
 	 *
 	 * 顺序 = 逐个 `RemoveState(handle, ESRC_Removed)`（复用同一条撤销链，不另写一套）→ 删桶。
 	 * MUST NOT 先删桶再广播：订阅者那时已经查不到实例。
 	 *
-	 * @param Unit 单位实体句柄。
+	 * @param Entity 实体实体句柄。
 	 * @return 返回移除的实例数（未注册返回 0——正常路径，不 ensure）。
 	 */
-	int32 UnregisterUnit(FTcsCombatEntityHandle Unit);
+	int32 UnregisterEntity(FTcsCombatEntityHandle Entity);
 
 	/**
 	 * 延长剩余时长（`Delta` 秒，可负）。
@@ -401,7 +402,7 @@ private:
 	// 状态定义登记表（键 = DefTag；TUniquePtr 持有使解析返回的指针地址稳定）
 	TMap<FGameplayTag, TUniquePtr<FTcsBuffDef>> RegisteredDefs;
 
-	// per-unit 状态桶登记表
+	// per-entity 状态桶登记表
 	FTcsStateRegistry Registry;
 
 	// 来源发号器（施加时发放实例的来源句柄；Task 0 的统一发号器 = 进程内唯一、永不复用）
@@ -410,8 +411,9 @@ private:
 	// 行为兴趣旁表（只持值身份和弱引用，不持策略，不需要 ARO）
 	FTcsStateBehaviorRegistry BehaviorRegistry;
 
-	// 仅覆盖 Remove 的终止事件广播窗口，刷新过渡态不在此集合；不改实例结构或原阶段时序。
-	TSet<FTcsStateHandle> InRemovalBroadcastHandles;
+	// 仅覆盖 Remove 的终止事件广播窗口（**统一实现**，见 `TTcsEntityBroadcastGuard`）；
+	// 刷新过渡态不进本窗口；不改实例结构或原阶段时序。
+	TTcsEntityBroadcastGuard<FTcsStateHandle> RemovalBroadcastGuard;
 
 	// 首个非空行为载体接线时懒建；总线与注册表弱持有，唯一 GC 强引用归本门面。
 	UPROPERTY()

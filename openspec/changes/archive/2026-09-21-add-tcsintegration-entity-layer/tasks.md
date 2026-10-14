@@ -1,5 +1,7 @@
 ## 1. Implementation
 
+> **术语订正（2026-10-14）**：本文原用「单位 / `Unit`」，该词已退役，现统一为「**实体 / `Entity`**」（见 `DEC-2026-10-14-entity-vocabulary`）。**正文为当时原话，保留不改。**
+
 ### 链资产类（收口交接注记①）
 
 - [x] 1.1 `Public/Chain/TcsEffectChainDef.h` + `Private/Chain/TcsEffectChainDef.cpp`：`UTcsEffectChainDef : UPrimaryDataAsset`——`static const FPrimaryAssetType PrimaryAssetType`（显式，值 = **类名** `TEXT("TcsEffectChainDef")`——族内一致，2026-09-21 用户收口）+ `GetPrimaryAssetId()` 覆写（名取 `ChainId`）+ `IsDataValid`（双真相校验：`Chain.ChainId != ChainId` → Invalid）

@@ -275,7 +275,7 @@ namespace
 		const FTcsEffectAttributeAccess Access = FTcsEffectAttributeAccess::Resolve(Context.World);
 		if (!Access.IsValid() || !Access.IsLedgerReady(Context.Caster))
 		{
-			// 无世界读数 / 该单位没有属性账本：同上——不通过、零红字
+			// 无世界读数 / 该实体没有属性账本：同上——不通过、零红字
 			return false;
 		}
 
@@ -283,7 +283,7 @@ namespace
 		{
 			// 键写错 = 配置错误：**不静默按 0 比较**（与"未注册条件类型 ⇒ 不过 + Warning"同款 fail-closed）
 			UE_LOG(LogTcsEffect, Warning,
-				TEXT("触发条件 AttributeCompare：属性 %s 在该单位账本上不存在——按不通过处理（单位=%lld）"),
+				TEXT("触发条件 AttributeCompare：属性 %s 在该实体账本上不存在——按不通过处理（实体=%lld）"),
 				*Condition->Attribute.ToString(), Context.Caster.Id);
 			return false;
 		}

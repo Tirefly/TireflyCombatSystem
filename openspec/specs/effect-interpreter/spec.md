@@ -352,7 +352,7 @@
 - 字段：`Target: FTcsCombatEntityHandle`（无效则取黑板 `Targets[0]`，仍无效 ⇒ 软失败）/ `Attribute: FGameplayTag` / `Op: ETcsAttributeOp`（**复用 M2 运算带枚举，不新造词表**）/ `Operand: FTcsParamValue`（复用统一数值载体）；
 - 执行体 MUST 构造一条一次性 `FTcsAttrModInstance` 并经**属性访问解析点**写入账本（解析点口径见 `attribute-pipeline` 的「属性门面的解析点」）；条目的 `Source` MUST = 黑板 `RunSource`（⇒ 同一次运行挂上的条目可按该锚点回收）；
 - **依赖边界（本步骤是首次真实使用）**：`TcsEffect` 允许依赖**下层**领域模块 `TcsAttribute`，**MUST NOT** 依赖上层领域模块（`TcsDamage` / `TcsTargeting` / `TcsState` / `TcsSkill`）——头注释 MUST 写明该边界；
-- 步骤为**即时步骤**：恒 `TSR_Completed`；失败面（目标无效 / 单位无属性账本 / 属性键无效）MUST 记 `Warning` 后按完成处理，**MUST NOT 断链**（`ETcsStepResult` 无中断档，软失败接管归 `OnError`）；
+- 步骤为**即时步骤**：恒 `TSR_Completed`；失败面（目标无效 / 实体无属性账本 / 属性键无效）MUST 记 `Warning` 后按完成处理，**MUST NOT 断链**（`ETcsStepResult` 无中断档，软失败接管归 `OnError`）；
 - 自注册 MUST 走 `effect-step-dispatch` 的静态自注册宏（键 = 步骤 struct 的 `const UScriptStruct*`）。
 
 #### Scenario: 链里改得动属性账本
@@ -360,7 +360,7 @@
 - **WHEN** 一条链执行 `ModifyAttribute(属性 A, 加, 10)` 后读该属性的当前值
 - **THEN** 读数比执行前大 10，且账本上多出一条 `Source` = 本次运行 `RunSource` 的条目
 
-#### Scenario: 单位无属性账本时不断链
+#### Scenario: 实体无属性账本时不断链
 
-- **WHEN** 对没有属性账本的单位执行本步骤
+- **WHEN** 对没有属性账本的实体执行本步骤
 - **THEN** 记一条 `Warning`、本步返回 `TSR_Completed`，后续步骤照常执行（链不断）

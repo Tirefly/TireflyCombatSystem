@@ -39,7 +39,7 @@ void FTcsStateModifierMaterializer::Materialize(
 	// `ParamTable` 位 = 该实例的快照（D3-19："物化点从施加方 ParamSnapshot 解析"）。
 	FTcsStateEvaluateContext Ctx;
 	FTcsStateOps::MakeContext(
-		Ctx, Subsystem, Instance.Unit, Instance.Instigator, Instance.Level, Scope.GetTable());
+		Ctx, Subsystem, Instance.Entity, Instance.Instigator, Instance.Level, Scope.GetTable());
 
 	Out.Reserve(Def.ModifierRows.Num());
 
@@ -56,8 +56,8 @@ void FTcsStateModifierMaterializer::Materialize(
 		if (!ModDef)
 		{
 			// 单条解析失败不中断物化：状态已经生效，缺一条修正器不是"施加失败"（挂点侧留 Warning）
-			UE_LOG(LogTcsState, Warning, TEXT("修正器物化跳过：模板无法解析（定义=%s 单位=%lld）"),
-				*Instance.DefTag.ToString(), Instance.Unit.Id);
+			UE_LOG(LogTcsState, Warning, TEXT("修正器物化跳过：模板无法解析（定义=%s 实体=%lld）"),
+				*Instance.DefTag.ToString(), Instance.Entity.Id);
 			continue;
 		}
 
@@ -108,6 +108,6 @@ void FTcsStateModifierMaterializer::Materialize(
 		Out.Add(FTcsAttrModInstance::MakeFromDef(Template, Operand, Instance.CascadeAnchor));
 	}
 
-	UE_LOG(LogTcsState, Log, TEXT("状态修正器物化：定义=%s 单位=%lld 模板=%d 条目=%d 来源=%llu"),
-		*Instance.DefTag.ToString(), Instance.Unit.Id, Def.ModifierRows.Num(), Out.Num(), Instance.Source.Id);
+	UE_LOG(LogTcsState, Log, TEXT("状态修正器物化：定义=%s 实体=%lld 模板=%d 条目=%d 来源=%llu"),
+		*Instance.DefTag.ToString(), Instance.Entity.Id, Def.ModifierRows.Num(), Out.Num(), Instance.Source.Id);
 }

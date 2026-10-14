@@ -156,7 +156,7 @@ void FTcsStateOps::ScheduleTime(
 		if (!bKeepDurationRemaining)
 		{
 			Instance.DurationRemaining = EvaluateTotalDuration(
-				Subsystem, Def, Snapshot, Instance.Unit, Instance.Instigator, ParamTable);
+				Subsystem, Def, Snapshot, Instance.Entity, Instance.Instigator, ParamTable);
 		}
 
 		PushExpiry(Subsystem, Instance);
@@ -187,7 +187,7 @@ void FTcsStateOps::ScheduleTime(
 		const FTcsStateInstance PeriodSnapshot = Instance;
 		Broadcast(Subsystem, Tag_TcsEvent_State_Periodic, PeriodSnapshot, EStateRemoveCause::ESRC_Removed);
 
-		// 回调可自移除、注销单位或嵌套刷新；不可继续使用原 Instance 引用。
+		// 回调可自移除、注销实体或嵌套刷新；不可继续使用原 Instance 引用。
 		FTcsStateInstance* AfterBroadcast = const_cast<FTcsStateInstance*>(Find(Subsystem, Handle));
 		if (AfterBroadcast && !AfterBroadcast->PeriodEntry.IsValid())
 		{

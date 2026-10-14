@@ -1,5 +1,7 @@
 # Change: 落地已学技能账本（`TcsSkill` 门面 + 定义登记口 + 账本参数读取面 + 实体可操作门禁）
 
+> **术语订正（2026-10-14）**：本文原用「单位 / `Unit`」，该词已退役，现统一为「**实体 / `Entity`**」（见 `DEC-2026-10-14-entity-vocabulary`）。**正文为当时原话，保留不改。**
+
 > 对应计划 `PLN-R6` Task 2（`Documents/combat-system-design/plans/plan-r6-skill-layer.md`）。
 > **提案名与能力名的订正**：计划原稿的提案行写 `` `effect-trigger` 或 `host-entity-query` MODIFIED ``——
 > 前者与实体查询无关、后者**全仓零命中**（承载该方法的实名是 **`entity-query-contract`**），且"或"是一个未关掉的二选一 hedge。

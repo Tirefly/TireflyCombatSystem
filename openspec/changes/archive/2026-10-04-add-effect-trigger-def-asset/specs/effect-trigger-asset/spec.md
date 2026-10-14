@@ -1,5 +1,7 @@
 ## ADDED Requirements
 
+> **术语订正（2026-10-14）**：本文原用「单位 / `Unit`」，该词已退役，现统一为「**实体 / `Entity`**」（见 `DEC-2026-10-14-entity-vocabulary`）。**正文为当时原话，保留不改。**
+
 ### Requirement: 触发定义资产
 
 `TcsIntegration` MUST 提供触发定义资产类 `UTcsEffectTriggerDefAsset : UPrimaryDataAsset`（住 `Public/Trigger/TcsEffectTriggerDefAsset.h`）——供策划在编辑器里**零 C++** 创作"系统级规则"（全局常驻、与任何 Def 无关的触发规则，如"任何单位死亡时触发某链"）：

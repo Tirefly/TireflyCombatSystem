@@ -4,7 +4,7 @@
 - **类型**：治理（术语与编号权威表）
 - **状态**：生效中（2026-09-29 建立）
 - **权威范围**：本文是 TCS 设计文档里**全部缩写、编号族与代号**的唯一权威表，同时是**文档 ID → 当前路径**的唯一映射表。规格正文不在本文（见 `INDEX.md`）。
-- **最后更新**：2026-10-13（**`R5.5-e` 语义拍板回写**：§5.1 文档 ID → 路径映射表**新增两行**——`DEC-2026-10-13-relation-semantics`（关系表族语义，`FROZEN`）与 `PLN-R5.5`（关系表族计划，`R5.5` 首个含 Task 骨架者）。**编号族计数不变**（**十五族 / 各族规模全部不变**——两者皆是既有族的实例，不新开族）。**前一笔（2026-10-13）**：**R4.5 收口复核**：`R-1` 行的残留边界订正——原写"脚本（C#）侧自定义源仍未实测"**自 2026-10-04 当晚即已过期**（该面已补齐行为取证），改记**更窄的三条**（`AllowsValueConvention` 脚本覆写 / 快照构建参与 / 其他脚本语言）。**编号族计数不变**（`R-1`–`R-7` 仍 7 项——本轮是**状态订正**，非增删。**前一笔（2026-10-11）**：**R6 收束的编号族计数同步**：脚本化条目 `SCRIPT-1`–`SCRIPT-8` → **`–10`**；触发条件型 `WAIT-1`–`WAIT-10` → **`–14`**；反射未解决项 `R-1`–`R-6` → **`–7`**（`R-7` 已落地在册）；跨轮遗留规模 **37 → 70** 且前缀族实测 **8 → 9**（补 `ATTR`/`CHAIN`/`TRIG`）；两处小节标题同期改。**口径**：本表计数 MUST 随各册增删同批回改——它们是"最容易被打破且无校验器报警"的自指声称）
+- **最后更新**：2026-10-13（**架构裁决 + 重构计划回写**：§5.1 文档 ID → 路径映射表**新增两行**——`DEC-2026-10-13-state-module-positioning`（`TcsState` 定位，`FROZEN`；**★ 其 §6 同日修正了"基底归 `TcsCore`"与"正名 `TcsBuff`"两项**）与 `PLN-REFACTOR-1`（基底重构计划，`ACTIVE`）。**本节计数与族数不变**（两者皆住既有编号族，不新开族）。**前一笔（2026-10-13）**：**`R5.5-e` 语义拍板回写**：§5.1 文档 ID → 路径映射表**新增一行**——`DEC-2026-10-13-state-module-positioning`（`TcsState` 定位：通用机制层 / 基底 + 两 payload / 共享机制归 `TcsCore` / 模块正名 `TcsBuff`，`FROZEN`）。**本节计数与族数不变**（它是 `DEC-*` 编号族内新增一篇，不新增族）。**前一笔（2026-10-13）**：**`R5.5-e` 语义拍板回写**：§5.1 文档 ID → 路径映射表**新增两行**——`DEC-2026-10-13-relation-semantics`（关系表族语义，`FROZEN`）与 `PLN-R5.5`（关系表族计划，`R5.5` 首个含 Task 骨架者）。**编号族计数不变**（**十五族 / 各族规模全部不变**——两者皆是既有族的实例，不新开族）。**前一笔（2026-10-13）**：**R4.5 收口复核**：`R-1` 行的残留边界订正——原写"脚本（C#）侧自定义源仍未实测"**自 2026-10-04 当晚即已过期**（该面已补齐行为取证），改记**更窄的三条**（`AllowsValueConvention` 脚本覆写 / 快照构建参与 / 其他脚本语言）。**编号族计数不变**（`R-1`–`R-7` 仍 7 项——本轮是**状态订正**，非增删。**前一笔（2026-10-11）**：**R6 收束的编号族计数同步**：脚本化条目 `SCRIPT-1`–`SCRIPT-8` → **`–10`**；触发条件型 `WAIT-1`–`WAIT-10` → **`–14`**；反射未解决项 `R-1`–`R-6` → **`–7`**（`R-7` 已落地在册）；跨轮遗留规模 **37 → 70** 且前缀族实测 **8 → 9**（补 `ATTR`/`CHAIN`/`TRIG`）；两处小节标题同期改。**口径**：本表计数 MUST 随各册增删同批回改——它们是"最容易被打破且无校验器报警"的自指声称）
 
 > **怎么用**：读到不认识的三五个字母就先来这里查。查法有两种——① 按首字母看 §2 的族表；② 直接 Ctrl+F 搜编号（如 `D5-17`、`STAT-2`）。
 
@@ -35,6 +35,21 @@
 
 `R5`（轮次）≠ `R-5`（反射项）≠ 旧 `R5-4`（台账条目）；`S-8` 是编码，而 `S8` / `S1` 在全库**不作为编码存在**（历史上有过脱字符误写，见 `LEDGER-reflection` 里你的原话"R2 与 R1 可以紧邻"——那里指的是反射项 `R-1`/`R-2`）。**书写纪律：所有编号 MUST 带连字符，禁止脱字符写法。**
 
+### 1.4 「实体 / `Entity`」是本仓**唯一**合法的该概念词汇（2026-10-14 立，**第五类记号陷阱**）
+
+**「单位 / `Unit`」已整体退役**（含中文行文、代码标识符、装置夹具名、英文短语 `per-unit`、以及目录名）。
+见 `DEC-2026-10-14-entity-vocabulary`。**判据**：一词一义——同义近义并存即二义性来源。
+
+- **本节的用途 = 拦住"把 `Unit` 读成独立概念"的误判**：`FTcsCombatEntityHandle` 是**唯一**的实体句柄类型；
+  旧名 `FCombatUnitHandle` / `FUnitIndex` / `UCombatUnitComponent` **从未在本仓长期存在**（只出现在早期日志的构想里）。
+- **★ 三类必须区分的"看起来像"**（照 §1.1 的三义陷阱体例）：
+  1. **`Unity` / `unity`** = **不是实体**。前者指 Unity 引擎（AbilityKit 调研语境），后者指 **UE 的 unity build**（UBT 概念）⇒ **MUST NOT 改**；
+  2. **`UE_DECLARE_UNIT_RUNTIME_HANDLE`**（出现在 `DEC-2026-10-13-state-module-positioning` §8）= **被否决的宏方案的记录**，属**历史陈述** ⇒ **MUST NOT 改**（它不是真宏，全仓零 `#define`）；
+  3. **真·计量单位义**（"以秒为单位"）——**全仓零命中**（2026-10-14 grep 确认）⇒ 不存在"单位"作计量义的合法用法。
+- **★ 已定术语的连带改名**：「**两级单位**注册协议」（`D6-2`）→ 「**两级实体**注册协议」——
+  它指的是"Mass 小兵与全功能军官**都是实体的不同注册载体**"，改名后反而更准确。
+  **历史载体（`dec-00-constitution` §9 决策表 / `log-04-integration`）按纪律保留原文并加术语订正注记。**
+
 ---
 
 ## 2. 编号族总表（十七族）
@@ -53,7 +68,7 @@
 | 状态决策 | `D3-1`–`D3-19`（**无 `D3-8`/`D3-9`**） | M3 状态/Buff（实例存储、就绪、关系表、堆叠、到期、扩展点、物化…） | `LOG-01-states`（`2026-09-02-m3-states-decision-points.md`） | 17 |
 | 效果决策 | `D4-1`–`D4-5`、`D4-14`–`D4-17`（**无 `D4-6`–`D4-13`**） | M4 效果执行（触发行、事件分类、原语集、目标选择、条件；注册制分派、模块成立、原语移除、语言无关执行器） | `LOG-02-effects`；**`D4-5` 定义在 `LOG-03-skill` §定案总表首行** | 9 |
 | 技能决策 | `D5-1`–`D5-19`（多版本：`D5-5` v2/v3、`D5-17` v2/v3、`D5-18` v2/v3） | M5 技能/施法（查询契约、账本、冷却、Cost、快照、形态组、参数链、描述绑定、值约定…） | `LOG-03-skill`；v2/v3 亦见于 `DEC-02-fold-display` | 19 |
-| 集成决策 | `D6-1`–`D6-5`（`D6-3` 有 v3） | M6 集成（StateTree 形态、两级单位、引导时序、复制契约、tick 接线） | `LOG-04-integration` | 5 |
+| 集成决策 | `D6-1`–`D6-5`（`D6-3` 有 v3） | M6 集成（StateTree 形态、两级实体、引导时序、复制契约、tick 接线） | `LOG-04-integration` | 5 |
 | **伤害流程决策** | `D7-1`–`D7-7` | **TcsDamage 瞬时流程层**（独立模块、原语语义、流程属性、消耗型修正器、流程模板化、修改器唯一通道、四粒度让渡） | `LOG-02-effects` §D7 增补（**注意：数字 7 ≠ 模块 M7**） | 7 |
 | 参数值来源 | `PV-0`–`PV-10` | Parameter 值来源策略体系（载体/内置源/属性源/等级表/逃生口/消费面/伤害值来源/校验/链行来源/可枚举） | `DEC-01-pv`（`2026-09-10-param-value-source-decision-points.md`） | 11 |
 | 脚本缺口 | `G-1`–`G-4` | C# 脚本化缺口（G-1 上下文反射化、G-2 注册表反射入口、G-3 原语缺口、G-4 策略虚分派） | `RSCH-scripting-ustruct` §7.6；`RSCH-csharp-authoring` §7 | 4 |
@@ -114,7 +129,7 @@
 | `D2-1` | 属性身份 = `FGameplayTag`（**2026-09-22 有据重开**，取代原 `FName` 词表） | `LOG-00-core` + 提案 `switch-identifiers-to-gameplay-tags` |
 | `D2-9` | 热路径零回查 Def（实例持快照/缓存） | `LOG-00-core` |
 | `D2-15` | AttributeSet 形态：`UTcsAttributeSet` + 实体侧引用 + diff 替换 | `DEC-03-attribute-set` |
-| `D3-1` | 状态实例住中央注册表（per-unit 句柄桶） | `LOG-01-states` |
+| `D3-1` | 状态实例住中央注册表（per-entity 句柄桶） | `LOG-01-states` |
 | `D3-7` | 生命周期扩展点 = 三件套 + Custom 逃逸位；**v3 = 策略载体切 `FInstancedStruct`** | `LOG-01-states` §D3-7 v3 |
 | `D3-19` | 修正器模板：独立资产 + 引用行纯引用 + 覆写唯一通道=参数传值 | `LOG-01-states` |
 | `D4-1` | 触发行 **10 字段**（v2，原提案为 12） | `LOG-02-effects` |
@@ -232,7 +247,7 @@
 | 编号 | 含义 | 落点 |
 |---|---|---|
 | `D6-1` | StateTree 集成形态（只做决策/编排） | `SPEC-05-integration` |
-| `D6-2` | 两级单位注册协议 | `SPEC-05-integration` |
+| `D6-2` | 两级实体注册协议 | `SPEC-05-integration` |
 | `D6-3` | 双层引导时序状态机（v3 终定） | `SPEC-05-integration` §2.1 |
 | `D6-4` | 复制代理契约（**仅契约不实现**） | `SPEC-05-integration` §2.3 |
 | `D6-5` | tick 接线 | `SPEC-05-integration` |
@@ -274,7 +289,7 @@
 | `MD-3` | TCS 旧仓冻结 + 两个悬空提案冻结，Fragment 思路迁 M3 重审 | 已拍板 |
 | `NET-1` | LAC 本作不联机；插件须可扩展至网络同步 | 需求（非决策）；落点 = 各模块《网络姿态落点》节 |
 | `NET-2` | 千人战场 = 联机、服务器权威、士兵层不做本地预测 | 同上 |
-| `裁决1` | 状态约束 = Tag 关系表 `FUnitStatusRule{Status,Blocks,Requires,Priority}` | 已定不重议 → `SPEC-02-states` §3.4 |
+| `裁决1` | 状态约束 = Tag 关系表 `FEntityStatusRule{Status,Blocks,Requires,Priority}` | 已定不重议 → `SPEC-02-states` §3.4 |
 | `裁决2a` | 事件 = 总线 + 订阅表 + 共享 Handler UClass；struct 不自绑 delegate | 已定不重议 → `SPEC-00-core` §2.2 |
 | `裁决2b` | tick = TickableWorldSubsystem 泵 `ScaledDt` | 已定不重议 → `SPEC-00-core` §2.3 |
 | `裁决3` | 可视化跟随数据形状（表/矩阵/管线图，不做通用图编辑器） | 已定不重议 → `SPEC-09-editor` §3 |
@@ -368,6 +383,9 @@
 | `PLN-R5.5` | `plans/plan-r5.5-relation-table.md` | 实施计划（R5.5：关系表族批次 `e`，Task 0~4 对应 `e`~`e4`；**2026-10-13 建立**——Task 0 语义拍板已完成，Task 1~4 未开工） |
 | `DEC-2026-10-13-relation-semantics` | `decisions/dec-2026-10-13-relation-semantics.md` | 决策记录（关系表族语义：`Priority` 归槽位竞争表 / 互斥组两层 / 族规则载体；**2026-10-13 拍板，`FROZEN`**；裁决②③ 已被下行取代） |
 | `DEC-2026-10-13-relation-row-shape` | `decisions/dec-2026-10-13-relation-row-shape.md` | 决策记录（关系表**行形态与字段命名**，吸收 Lyra 形态；**取代上行的裁决②③**；**2026-10-13 拍板，`FROZEN`**） |
+| `DEC-2026-10-13-state-module-positioning` | `decisions/dec-2026-10-13-state-module-positioning.md` | 决策记录（**架构级**：`TcsState` 保留为**共享层**（定义族 + 运行机制）/ 运行态**基底 + 两 payload** / Buff 专属语义**拆出为新建模块 `TcsBuff`** / 去掉 `TcsEffect → TcsState` 边；十二项裁定（含 §6 同日修正）；**2026-10-13 拍板，`FROZEN`**；**实现未开工**） |
+| `PLN-REFACTOR-1` | `plans/plan-refactor-1-runtime-base.md` | 实施计划（**架构重构**：运行态基底化 + 共享机制合并 + **`TcsBuff` 模块拆出**；Task 1~7；**2026-10-13 建立，`ACTIVE`**；实施未开工） |
+| `DEC-2026-10-13-asset-butler` | `decisions/dec-2026-10-13-asset-butler.md` | 决策记录（**架构级**：新建 **`TcsAssetButler`** 承载 PrimaryAsset 加载/注册机制，住低层、注册键类型擦除；分层 = 加载注册层 vs 定义缓存层；四处搬迁；**StateTree 将来单独成 `TcsStateTree`**；八项裁定；**2026-10-13 拍板，`FROZEN`**；**实现未开工**） |
 | `PLN-R3-content-guide` | `plans/plan-r3-content-guide.md` | 实施计划（竖切内容资产指南） |
 | `RSCH-abilitykit-editor` | `research/abilitykit-extract-editor-determinism.md` | 调研（AbilityKit C 路） |
 | `RSCH-abilitykit-pipeline` | `research/abilitykit-extract-skill-pipeline.md` | 调研（AbilityKit A 路） |

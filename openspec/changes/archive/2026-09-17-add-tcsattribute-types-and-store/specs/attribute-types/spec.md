@@ -1,5 +1,7 @@
 ## ADDED Requirements
 
+> **术语订正（2026-10-14）**：本文原用「单位 / `Unit`」，该词已退役，现统一为「**实体 / `Entity`**」（见 `DEC-2026-10-14-entity-vocabulary`）。**正文为当时原话，保留不改。**
+
 ### Requirement: 属性名包装
 
 `TcsAttribute` MUST 提供 `FTcsAttributeName`（USTRUCT，反射可见——Def 资产与属性定义数据行需要承载它）：内含 `FName Name`（默认 `NAME_None`）、默认构造、**`explicit` 单参构造 `FTcsAttributeName(FName)`**（裸 FName/TEXT 传不进属性 API，D2-1）、`IsNone()`、相等比较与 `GetTypeHash`（供 `TMap` 键控）。**MUST NOT** 在本任务落"稠密 int32 id 缓存"字段——该字段的维护者（属性词表注册表）属 M8，零消费者不预建。

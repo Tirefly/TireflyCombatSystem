@@ -77,10 +77,10 @@ struct FTcsSkillDefData;
  * 与中央注册表的分工（**不重叠**，三层结构）：本类 = Const 定义（"有哪些定义、定义是什么"）；
  * 各领域子系统登记表 = 定义的运行期副本（"当前世界有哪些定义可用"）；中央注册表
  * （**实体状态机 + 泵接线 + 就绪门禁**，R7/M6 落地——2026-10-04 R5 收窄轮把"中央注册表"这个名字
- * 判给了 `UTcsStateSubsystem`，故此处不再用它指代未落地的那一层）= 可变运行态 per-unit 桶。
+ * 判给了 `UTcsStateSubsystem`，故此处不再用它指代未落地的那一层）= 可变运行态 per-entity 桶。
  * 门禁关系：那一层查本类 `IsRuntimeReady()`。
  *
- * **状态门面（`UTcsStateSubsystem`）是已落地的 per-unit 桶**（R5 Task 2）：它持的是"每个单位有哪些
+ * **状态门面（`UTcsStateSubsystem`）是已落地的 per-entity 桶**（R5 Task 2）：它持的是"每个实体有哪些
  * 状态"，不是"世界里有哪些实体"——后者才是上面那一层的职责，故两者不是同一件事。
  */
 UCLASS()

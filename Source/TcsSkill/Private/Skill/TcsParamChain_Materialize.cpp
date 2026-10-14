@@ -50,8 +50,8 @@ int32 FTcsParamChainOps::MaterializeParamChainRows(
 	// 用 `Entry.Level` 是"激活时写回条目"的既有口径）；参数表 = 本次 run 的快照（引用类源经它取值——
 	// 这是技能侧唯一的参数表载体：**它是求值期的上下文装填，不是"冻结读取面"**）
 	FTcsParamEvaluateContext Ctx;
-	Ctx.Subject = Entry.Unit;
-	Ctx.Instigator = Entry.Unit;
+	Ctx.Subject = Entry.Entity;
+	Ctx.Instigator = Entry.Entity;
 	Ctx.EffectiveLevel = Entry.Level;
 	Ctx.ParamTable = ParamTable;
 
@@ -68,8 +68,8 @@ int32 FTcsParamChainOps::MaterializeParamChainRows(
 	}
 
 	UE_LOG(LogTcsSkill, Log,
-		TEXT("参数链行物化：定义=%s 单位=%lld 条目=%d/%d 行=%d 来源=%llu 累计条目=%d"),
-		*Entry.DefTag.ToString(), Entry.Unit.Id, Entry.Handle.Index, Entry.Handle.Generation,
+		TEXT("参数链行物化：定义=%s 实体=%lld 条目=%d/%d 行=%d 来源=%llu 累计条目=%d"),
+		*Entry.DefTag.ToString(), Entry.Entity.Id, Entry.Handle.Index, Entry.Handle.Generation,
 		Def.ParamChainRows.Num(), RunSource.Id, Entry.NumericParamModInstances.Num());
 
 	return Def.ParamChainRows.Num();

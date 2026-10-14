@@ -19,7 +19,7 @@
 ## 范围内
 
 **固定装置**
-- 1 个 PIE 测试地图；2 个测试单位（均走 `UTcsCombatEntityComponent` 军官组件路径；**Mass 不进竖切**）
+- 1 个 PIE 测试地图；2 个测试实体（均走 `UTcsCombatEntityComponent` 军官组件路径；**Mass 不进竖切**）
 - 属性表 4 行：Health / MaxHealth / Attack / Armor（**FName 词表 + 显式包装结构** + DataTable 行，验 D2-1 终定；~~强类型 UEnum~~ 已否决）
 - 1 条测试链：`WaitDelay(0.5s) → SelectTargets(单体) → Damage`（手动 API 触发，**不做触发行**）
   - Damage 步骤走 TcsDamage **官方默认模板**（本测试可裁剪 Hit/Crit/Element 段：CollectStart → BaseDamage → Execute → Completed），公式 = 测试项目 delegate（`max(1, Attack聚合值 − Armor聚合值)`）

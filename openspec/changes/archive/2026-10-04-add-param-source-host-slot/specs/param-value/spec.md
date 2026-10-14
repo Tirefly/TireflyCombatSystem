@@ -1,5 +1,7 @@
 # Delta: param-value
 
+> **术语订正（2026-10-14）**：本文原用「单位 / `Unit`」，该词已退役，现统一为「**实体 / `Entity`**」（见 `DEC-2026-10-14-entity-vocabulary`）。**正文为当时原话，保留不改。**
+
 > **本 delta 含一条 MODIFIED（补 `Instigator` 字段）**——起草期原以为"上下文零改动"，实施期编译暴露：`Instigator` **不在** Task 0 补的那两个字段里（只有 `Subject` 与 `EffectiveLevel`），而发起者等级源必须读它。裁定 = **补进基础上下文**（与 `Subject` 同族的主体字段；`FTcsParamSource_AttributeScaled` 的父注本就写着它随等级源同批进 Core 上下文），**而不是**塞进 `TcsState` 的派生上下文。
 >
 > **宿主等级读口仍不进 Core 上下文**（调研 R-1 原设想的第三字段**不采用**）：它的唯一消费者是 `TcsState` 的四个等级源，Core 不该持有只有上层使用的域读口——改用既立的"派生上下文 + 源内 checked cast"机制（先例 `FTcsAttributeEvaluateContext` 持 `ITcsAttributeProvider`）。**两者的分界判据**：字段本身是**通用主体身份**（发起者/被施加方，跨域都会问）⇒ 进 Core；字段是**某域的读口**（属性读口、等级读口）⇒ 进该域派生上下文。

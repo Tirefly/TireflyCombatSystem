@@ -1,5 +1,7 @@
 # Change: 状态修正器物化（D3-19 落地）
 
+> **术语订正（2026-10-14）**：本文原用「单位 / `Unit`」，该词已退役，现统一为「**实体 / `Entity`**」（见 `DEC-2026-10-14-entity-vocabulary`）。**正文为当时原话，保留不改。**
+
 ## Why
 
 R5 状态层已能让状态被施加、查到、到期（`state-instance-lifecycle`），并冻结自己的数值快照（`state-param-snapshot`）——但 `FTcsStateDefBase::ModifierRows` 至今**零消费者**：施加一个 buff 还改不动任何一个数值，"状态"只是一条会过期的记录。

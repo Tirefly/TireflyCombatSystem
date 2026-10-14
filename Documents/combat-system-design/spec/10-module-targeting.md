@@ -13,7 +13,7 @@
 ## 1. 模块边界
 
 - 消费者：M4（SelectTargets 步骤+执行器经注册表分派）、M5（技能链编排经链步骤间接消费）、宿主（策略实现/注入接口实现/指示器渲染）。
-- 依赖：TcsCore（句柄/总线）、TcsEffect（FEffectStep 基类型 + EStepResult + `UE_DEFINE_EFFECT_STEP_EXECUTOR` 自注册宏；**ICombatEntityQuery 注入接口**——机制层定义，宿主实现；实现名 ITcsEntityQuery 见 plan2）。**不依赖 TcsState/TcsAttribute/TcsDamage/TcsSkill**——单位遍历/存活/阵营判定经注入接口（具名审计 MEM-20260902-13）。
+- 依赖：TcsCore（句柄/总线）、TcsEffect（FEffectStep 基类型 + EStepResult + `UE_DEFINE_EFFECT_STEP_EXECUTOR` 自注册宏；**ICombatEntityQuery 注入接口**——机制层定义，宿主实现；实现名 ITcsEntityQuery 见 plan2）。**不依赖 TcsState/TcsAttribute/TcsDamage/TcsSkill**——实体遍历/存活/阵营判定经注入接口（具名审计 MEM-20260902-13）。
 - R3：六模块之一（计划二）——**策略接口 + Self/EventTarget 两默认实现 + SelectTargets 执行器**；RadiusArea/FTargetingShape 后置（用户拍板：竖切剧本单体选择已覆盖，无消费者不预设）。
 
 ## 2. 类型词汇（对外）

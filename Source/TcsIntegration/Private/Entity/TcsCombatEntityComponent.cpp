@@ -76,7 +76,7 @@ void UTcsCombatEntityComponent::BeginPlay()
 		return;
 	}
 
-	EntityHandle = AttributeSubsystem->RegisterUnit(Owner->GetFName());
+	EntityHandle = AttributeSubsystem->RegisterEntity(Owner->GetFName());
 
 	// 登记进实体查询映射（宿主侧唯一"句柄 ↔ Actor"映射点）
 	if (UTcsPieEntityQuery* EntityQuery = ResolveEntityQuery().Get())
@@ -92,7 +92,7 @@ void UTcsCombatEntityComponent::EndPlay(const EEndPlayReason::Type EndPlayReason
 {
 	if (EntityHandle.IsValid())
 	{
-		// 先摘映射（此后查询不再吐本句柄），再注销单位（句柄随之失效）
+		// 先摘映射（此后查询不再吐本句柄），再注销实体（句柄随之失效）
 		if (UTcsPieEntityQuery* EntityQuery = ResolveEntityQuery().Get())
 		{
 			EntityQuery->UnregisterEntity(EntityHandle);
@@ -102,7 +102,7 @@ void UTcsCombatEntityComponent::EndPlay(const EEndPlayReason::Type EndPlayReason
 		{
 			if (UTcsAttributeSubsystem* AttributeSubsystem = World->GetSubsystem<UTcsAttributeSubsystem>())
 			{
-				AttributeSubsystem->UnregisterUnit(EntityHandle);
+				AttributeSubsystem->UnregisterEntity(EntityHandle);
 			}
 		}
 

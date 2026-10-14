@@ -181,11 +181,11 @@
 | G5 | `FTcsSelHostDelegate` 未配置 ⇒ 空集 + Warning | `TcsSelHostDelegate.cpp` | 空集 = 零判定；与 G4 方向相反是**有意区分** | 删 Warning 则装配缺失与合法空集混淆 |
 | G6 | `ITcsEntityQuery::GetLocation` | `TcsEffect/Public/Host/TcsEntityQuery.h` | **判据明文列举的正面样本**（"实体有位置"）；纯虚契约，实现权在宿主 | 范围选择/距离判定失去唯一位置通路 |
 | G7 | `ITcsEntityQuery::IsAlive` / `EnumerateEntities` | 同上 | **只声明"能问"，不声明答案**；框架执行器**拒绝**内部裁决存活 | 宿主无法表达存活语义 |
-| G8 | 伤害委托 5 个中性默认实现 | `TcsDamage/Public/Flow/TcsDamageFlowDelegate.h` | 五值全是**单位元**（1.0 必中 / 0.0 不暴击 / 空 Tag / 原样返回 / 0 无护盾）；**对称性**：都落在"不介入"一侧 | "普通项目零 delegate"承诺（PV-7/D7-2）当场破产 |
+| G8 | 伤害委托 5 个中性默认实现 | `TcsDamage/Public/Flow/TcsDamageFlowDelegate.h` | 五值全是**实体元**（1.0 必中 / 0.0 不暴击 / 空 Tag / 原样返回 / 0 无护盾）；**对称性**：都落在"不介入"一侧 | "普通项目零 delegate"承诺（PV-7/D7-2）当场破产 |
 | G9 | `FTcsFlowBaseDamage` 空 `Delegate` ⇒ 原样用输入 | `TcsDamage/Public/Flow/Steps/TcsFlowSteps.h` | 输入由调用方给，框架不推导（流程零计算） | 不配公式的项目无法造成伤害 |
 | G10 | `FTcsFlowExecute` 键兜底 → 框架契约键 | `TcsFlowStepsCore.cpp` | 框架词汇（步骤间接口）；步骤字段优先，宿主可改指 | 官方默认模板跑不通；"漏配静默读到 0"回归 |
-| G11 | 黑板 `Read` 折叠初值 0.0 | `TcsDamage/Private/Flow/TcsFlowAttributes.cpp` | 加法单位元 + "流程工作值空集语义" | 无收集时按残留值扣血（不可复现） |
-| G12 | 护盾默认 0 | `TcsFlowStepsCore.cpp` | 数值单位元 ⇒ 不吸收 | 同 G8 |
+| G11 | 黑板 `Read` 折叠初值 0.0 | `TcsDamage/Private/Flow/TcsFlowAttributes.cpp` | 加法实体元 + "流程工作值空集语义" | 无收集时按残留值扣血（不可复现） |
+| G12 | 护盾默认 0 | `TcsFlowStepsCore.cpp` | 数值实体元 ⇒ 不吸收 | 同 G8 |
 | G13 | `FTcsFlowHit/Crit/Element` 空 Delegate 降级 | `TcsFlowStepsRest.cpp` | 与 G8 同源同值；三步**不在**默认模板 | 宿主失去步骤级挂点，只能改全局接口默认 |
 | G14 | `FTcsStepDamage::FlowTemplateId` 空 = 官方默认模板 | `TcsDamage/Public/Chain/TcsStepDamage.h` | 判据 2 形状层；替换点三处（字段 / `RegisterTemplate` / `RunTemplate`） | 每个宿主须先登记模板才能发伤害 |
 | G15 | 官方默认流程模板四步骨架 | `TcsDamage/Private/TcsDamageSubsystem.cpp:51-56` | 判据 2 明文授权；**刻意不组装 Hit/Crit/Element** 恰是不下结论的证据 | `RunTemplate` 直接 Error；零配置项目一次伤害都打不出 |
@@ -211,7 +211,7 @@
 
 `G1` `FTcsSelSelf` · `G3` 空 Filter = 全过 · `G6` `GetLocation` · `G8` 伤害委托 5 个中性默认 · `G14`/`G15` 官方默认模板（四步骨架 + 空 id 兜底）· `G16` `ResolvedAttrKey` 双空字段 · `G23`/`G26` 覆盖带四值 / 运算带五带 · `G29` `GateTags` 空 = 无开关。
 
-**最需要论证的一条 = `G8`**（五个默认值第一眼全是玩法结论）。其合规性靠**对称性论证**：`1.0`（必中）与 `0.0`（不暴击）在各自判定式（`TcsFlowStepsRest.cpp:91` 的 `Modified >= 1.0`、`:118` 的 `Modified > 0.0`）里**都落在"该阶段不改变流程走向"的那一侧**。框架若要下玩法结论，会去挑一个**有区分度**的值（如命中率 0.85）；选单位元是唯一不携带玩法信息的选法。
+**最需要论证的一条 = `G8`**（五个默认值第一眼全是玩法结论）。其合规性靠**对称性论证**：`1.0`（必中）与 `0.0`（不暴击）在各自判定式（`TcsFlowStepsRest.cpp:91` 的 `Modified >= 1.0`、`:118` 的 `Modified > 0.0`）里**都落在"该阶段不改变流程走向"的那一侧**。框架若要下玩法结论，会去挑一个**有区分度**的值（如命中率 0.85）；选实体元是唯一不携带玩法信息的选法。
 
 ---
 
@@ -259,7 +259,7 @@
 
 | # | 项 | 两种读法 | 为何未定 |
 |---|---|---|---|
-| E1 | `Hit = 1.0` / `Crit = 0.0` 借用**合法取值域**而非"未提供"哨兵 | A：单位元 ⇒ 契约默认（本报告 §5 G8 采用）。B：与"命中率真的是 100%"不可区分 ⇒ 框架**确实**宣告了"默认必中无暴击" | 取决于"单位元借用合法取值域"算不算下结论。**建议**：判为契约默认，但 MUST 补注释明示"1.0/0.0 是'该阶段不介入'的编码，不是推荐的命中/暴击设定" |
+| E1 | `Hit = 1.0` / `Crit = 0.0` 借用**合法取值域**而非"未提供"哨兵 | A：实体元 ⇒ 契约默认（本报告 §5 G8 采用）。B：与"命中率真的是 100%"不可区分 ⇒ 框架**确实**宣告了"默认必中无暴击" | 取决于"实体元借用合法取值域"算不算下结论。**建议**：判为契约默认，但 MUST 补注释明示"1.0/0.0 是'该阶段不介入'的编码，不是推荐的命中/暴击设定" |
 | E2 | `ETcsExecutionGate::TEG_AuthorityOnly` 未实现但恒通过 | A：网络姿态形状层字段，"未实现"已写进 `DisplayName`，属透明。B：**有名字但语义未兑现**且给了相反行为 ⇒ 属误导性默认 | "透明地给错行为"与"不给"哪个更合规，需口径裁决 |
 | E3 | 三处**过期注释**（`TcsTargetSelectorStrategy.h:18` 与 `TcsCombatEntityComponent.{h,cpp}` 的"R3 不提供任何框架默认选择器" / "R3 无 `FTcsSelSelf` 选择器"） | 与代码已不一致（R3 vs R5 台账） | **MUST NOT** 据陈旧注释判 `FTcsSelSelf` 越界——注释写的是 R3 事实，代码是 R5 事实。**只改注释、不动代码** |
 

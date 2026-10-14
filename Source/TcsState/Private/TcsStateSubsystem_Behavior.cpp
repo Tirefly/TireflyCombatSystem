@@ -112,7 +112,7 @@ void UTcsStateSubsystem::DispatchBehaviorEvent(
 
 				Ctx.Subsystem = this;
 				Ctx.Handle = Handle;
-				Ctx.Unit = Instance->Unit;
+				Ctx.Entity = Instance->Entity;
 				Ctx.DefTag = Instance->DefTag;
 				Ctx.Stacks = Instance->Stacks;
 				Ctx.Level = Instance->Level;

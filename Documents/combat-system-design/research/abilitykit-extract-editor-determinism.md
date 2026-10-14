@@ -128,7 +128,7 @@ SkillAsset (impl, NBC 编辑器资产)
 ### 4.5 对照我方 tick pump（缩放 dt 单点 + 待定定步长积累器）
 
 - 我方"缩放 dt 单点" ≈ AbilityKit 的"帧时间单点注入"（ServerFrameTimeModule 注册 IFrameTime / 帧驱动 Step）：两家共识是**时间只允许从一个口进**；差异在 AbilityKit 进一步把逻辑时刻做成 Q32.32 定点，我方当前是 float ScaledDt。
-- 我方待定"定步长积累器"的现成最小参照 = `FixedStepReplayClock`：`_acc += deltaTime * Speed; if (_acc < _fixedDelta) return false; _acc -= _fixedDelta; frame++`（约 9 行）【R11 §3.7；【本次核实】FixedStepReplayClock.cs L29-42】。注意定位：它只是**回放分发节奏器**（float 累加，本身非逐位确定），逐位确定性由逻辑侧定点 FrameTime + 输入重演承担；变速=改 Speed，暂停=不喂 dt。对我方的启示：积累器可以很薄，**先回答"逻辑帧与渲染帧是否解耦"再决定引入**——200 单位同帧顺序 tick 时无需它；需要慢机追赶/加速观看/逐位回放时，在 pump 外包一层积累器即可，组件仍收逻辑 dt。
+- 我方待定"定步长积累器"的现成最小参照 = `FixedStepReplayClock`：`_acc += deltaTime * Speed; if (_acc < _fixedDelta) return false; _acc -= _fixedDelta; frame++`（约 9 行）【R11 §3.7；【本次核实】FixedStepReplayClock.cs L29-42】。注意定位：它只是**回放分发节奏器**（float 累加，本身非逐位确定），逐位确定性由逻辑侧定点 FrameTime + 输入重演承担；变速=改 Speed，暂停=不喂 dt。对我方的启示：积累器可以很薄，**先回答"逻辑帧与渲染帧是否解耦"再决定引入**——200 实体同帧顺序 tick 时无需它；需要慢机追赶/加速观看/逐位回放时，在 pump 外包一层积累器即可，组件仍收逻辑 dt。
 - 我方四条护栏与之对应的增量项：若引入定步长，护栏 1（dt 单点）应升级为"逻辑 dt=定点 raw，ScaledDt 仅表现"。
 
 ## 5 Record 回放最小形态

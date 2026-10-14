@@ -14,7 +14,7 @@
 
 TcsState MUST 提供 `FStateStackPolicy`（`USTRUCT(BlueprintType)`）——五轴 + 一个附带字段：
 
-- `EGroupByPolicy GroupBy`：`EGB_None = 0`（默认；同单位 + 同 `DefTag` 共处一组）/ `EGB_PerSource = 1`（组键附来源句柄）/ `EGB_PerInstigator = 2`（附发起者实体）/ `EGB_Custom = 1 << 4`（逃逸位：分组判定交给决策 Fragment）。**Custom MUST 走高位置位**，MUST NOT 占用低位的可枚举取值；**值 3 曾预留给"按分组词"档，已裁撤**（理由见「组键解析」需求末段）；
+- `EGroupByPolicy GroupBy`：`EGB_None = 0`（默认；同实体 + 同 `DefTag` 共处一组）/ `EGB_PerSource = 1`（组键附来源句柄）/ `EGB_PerInstigator = 2`（附发起者实体）/ `EGB_Custom = 1 << 4`（逃逸位：分组判定交给决策 Fragment）。**Custom MUST 走高位置位**，MUST NOT 占用低位的可枚举取值；**值 3 曾预留给"按分组词"档，已裁撤**（理由见「组键解析」需求末段）；
 - `int32 MaxStacks`：组内最大层数，**`<= 0` = 无限**（默认 `0`）；
 - `EOverflowPolicy Overflow`：`EOP_RejectNew = 0`（默认）/ `EOP_ReplaceExisting = 1`；
 - `EValueStackPolicy ValueStack`：`EVS_KeepMax = 0`（默认；层数不参与取值）/ `EVS_AddValues = 1`（值随层数成倍）/ `EVS_PerStackValue = 2`（**本轮只落形状**，零行为，见本需求末段）；
@@ -47,7 +47,7 @@ TcsState MUST 提供 `FStateStackPolicy`（`USTRUCT(BlueprintType)`）——五�
 
 ### Requirement: 组键解析
 
-组键 MUST = `(单位, DefTag)` 再按 `GroupBy` 附一项：`PerSource` 附**来源句柄**、`PerInstigator` 附**发起者实体**、`None` 不附、`Custom` 交给决策 Fragment 判定。组键解析 MUST 确定性（同输入同分组，可复现验收的前提）。
+组键 MUST = `(实体, DefTag)` 再按 `GroupBy` 附一项：`PerSource` 附**来源句柄**、`PerInstigator` 附**发起者实体**、`None` 不附、`Custom` 交给决策 Fragment 判定。组键解析 MUST 确定性（同输入同分组，可复现验收的前提）。
 
 **基座含 `DefTag` 是硬约束**：一条实例 = 一个定义的数据（快照、修正器、事件载荷全按该定义来），故**不同 `DefTag` 的实例永不共组**。这正是"按分组词分组"档被裁撤的原因——分组词取自定义自身，同一 `DefTag` 内它恒定 ⇒ 该档与 `None` 完全同义；而要让不同定义共享一个组（层数上限跨定义累计），必须允许**组内多条实例**，那是另一套层模型（"层 = 独立实例"），本轮已明确不采用。"跨定义共享层数组"作为未落地面登记台账。
 
@@ -65,7 +65,7 @@ TcsState MUST 提供 `FStateStackPolicy`（`USTRUCT(BlueprintType)`）——五�
 
 #### Scenario: 不同定义永不共组
 
-- **WHEN** 两枚不同的 `DefTag` 施在同一单位上（任意 `GroupBy`）
+- **WHEN** 两枚不同的 `DefTag` 施在同一实体上（任意 `GroupBy`）
 - **THEN** 各自建出实例（两笔 `Applied`），互不刷新、互不替换——基座含定义身份
 
 #### Scenario: 按分组词档已裁撤
@@ -153,7 +153,7 @@ TcsState MUST 提供 `FStateStackPolicy`（`USTRUCT(BlueprintType)`）——五�
 
 `EGB_Custom` 的分组与决策 MUST 由 `FTcsStateStackDecisionFragment` 接管：`USTRUCT(meta = (Hidden))`，三个决策方法**全部中性默认实现**（MUST NOT `= 0`、MUST NOT `PURE_VIRTUAL`——同一份代码在 Development 与 Shipping 下行为不同）：
 
-- `virtual bool IsSameGroup(...) const`：默认 = 内置 `None` 语义（同单位 + 同 `DefTag`）；
+- `virtual bool IsSameGroup(...) const`：默认 = 内置 `None` 语义（同实体 + 同 `DefTag`）；
 - `virtual bool ShouldAccept(...) const`：默认 = 接受；
 - `virtual int32 ResolveStacks(...) const`：默认 = 沿用内置规则（同来源不变 / 异来源 +1）。
 

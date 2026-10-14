@@ -10,11 +10,11 @@
 
 // 激活（薄壳：门禁裁决与运行态全部住 FTcsCastOps——设计文档 §3.1 的既定分工）
 ESkillActivateResult UTcsSkillSubsystem::TryActivate(
-	FTcsCombatEntityHandle Unit,
+	FTcsCombatEntityHandle Entity,
 	FGameplayTag DefTag,
 	FTcsCastRunHandle* OutRun)
 {
-	return FTcsCastOps::Activate(*this, Unit, DefTag, OutRun);
+	return FTcsCastOps::Activate(*this, Entity, DefTag, OutRun);
 }
 
 // **`TerminateCastRun` / `CancelCast` / 查询契约住在 `TcsSkillSubsystem_CastPhase.cpp`**
@@ -35,49 +35,49 @@ int32 UTcsSkillSubsystem::GetCastRunCount() const
 
 // 授予与撤销（薄壳：流程逻辑住 FTcsSkillOps——设计文档 §3.1 的既定分工）
 bool UTcsSkillSubsystem::GrantSkill(
-	FTcsCombatEntityHandle Unit,
+	FTcsCombatEntityHandle Entity,
 	FGameplayTag DefTag,
 	FTcsSourceHandle Source,
 	FTcsSkillEntryHandle* OutHandle)
 {
-	return FTcsSkillOps::Grant(*this, Unit, DefTag, Source, OutHandle);
+	return FTcsSkillOps::Grant(*this, Entity, DefTag, Source, OutHandle);
 }
 
-bool UTcsSkillSubsystem::RevokeSkill(FTcsCombatEntityHandle Unit, FTcsSkillEntryHandle Handle)
+bool UTcsSkillSubsystem::RevokeSkill(FTcsCombatEntityHandle Entity, FTcsSkillEntryHandle Handle)
 {
-	return FTcsSkillOps::Revoke(*this, Unit, Handle);
+	return FTcsSkillOps::Revoke(*this, Entity, Handle);
 }
 
-int32 UTcsSkillSubsystem::RevokeSkillBySource(FTcsCombatEntityHandle Unit, FTcsSourceHandle Source)
+int32 UTcsSkillSubsystem::RevokeSkillBySource(FTcsCombatEntityHandle Entity, FTcsSourceHandle Source)
 {
-	return FTcsSkillOps::RevokeBySource(*this, Unit, Source);
+	return FTcsSkillOps::RevokeBySource(*this, Entity, Source);
 }
 
-int32 UTcsSkillSubsystem::UnregisterUnit(FTcsCombatEntityHandle Unit)
+int32 UTcsSkillSubsystem::UnregisterEntity(FTcsCombatEntityHandle Entity)
 {
-	return FTcsSkillOps::UnregisterUnit(*this, Unit);
+	return FTcsSkillOps::UnregisterEntity(*this, Entity);
 }
 
 
 
 // 访问（同样薄壳）
 const FTcsLearnedSkillEntry* UTcsSkillSubsystem::GetEntry(
-	FTcsCombatEntityHandle Unit,
+	FTcsCombatEntityHandle Entity,
 	FTcsSkillEntryHandle Handle) const
 {
-	return FTcsSkillOps::Find(*const_cast<UTcsSkillSubsystem*>(this), Unit, Handle);
+	return FTcsSkillOps::Find(*const_cast<UTcsSkillSubsystem*>(this), Entity, Handle);
 }
 
 void UTcsSkillSubsystem::ForEachEntry(
-	FTcsCombatEntityHandle Unit,
+	FTcsCombatEntityHandle Entity,
 	TFunctionRef<bool(const FTcsLearnedSkillEntry&)> Visitor) const
 {
-	FTcsSkillOps::ForEachEntry(*const_cast<UTcsSkillSubsystem*>(this), Unit, Visitor);
+	FTcsSkillOps::ForEachEntry(*const_cast<UTcsSkillSubsystem*>(this), Entity, Visitor);
 }
 
-int32 UTcsSkillSubsystem::GetEntryCount(FTcsCombatEntityHandle Unit) const
+int32 UTcsSkillSubsystem::GetEntryCount(FTcsCombatEntityHandle Entity) const
 {
-	return FTcsSkillOps::CountEntries(*const_cast<UTcsSkillSubsystem*>(this), Unit);
+	return FTcsSkillOps::CountEntries(*const_cast<UTcsSkillSubsystem*>(this), Entity);
 }
 
 int32 UTcsSkillSubsystem::GetTotalEntryCount() const

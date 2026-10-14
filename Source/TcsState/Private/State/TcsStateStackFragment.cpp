@@ -2,36 +2,16 @@
 
 #include "State/TcsStateStackFragment.h"
 
-#include "State/TcsStateInstance.h"
-
-
-
-bool FTcsStateStackDecisionFragment::IsSameGroup(
-	const FTcsStateStackRequest& Request,
-	const FTcsStateInstance& Existing) const
-{
-	// 默认 = 内置"不分组"语义：组键基座（同单位 + 同定义），不含来源与发起者
-	return Existing.DefTag == Request.DefTag && Existing.Unit == Request.Unit;
-}
-
-
-
-bool FTcsStateStackDecisionFragment::ShouldAccept(
-	const FTcsStateStackRequest& /*Request*/,
-	const FTcsStateInstance& /*Existing*/) const
-{
-	// 默认恒接受：容量与溢出政策在引擎侧照常生效
-	return true;
-}
-
-
-
-int32 FTcsStateStackDecisionFragment::ResolveStacks(
-	const FTcsStateStackRequest& Request,
-	const FTcsStateInstance& Existing) const
-{
-	// 默认 = 内置规则：同来源续杯（层数不变）、异来源叠一层。
-	// 与引擎侧同一处口径：**未声明来源按同来源处理**（否则门面每次发新号都会被判成"换了施加方"）。
-	const bool bSameSource = !Request.Source.IsValid() || Request.Source == Existing.Source;
-	return bSameSource ? Existing.Stacks : Existing.Stacks + 1;
-}
+// 本文件原为状态侧决策 Fragment 的**三方法实现处**；那三个方法已于 2026-10-14
+// **上提到共享层的统一决策接口** `FTcsEntityAdmission`
+// （见 `Runtime/TcsEntityAdmission.cpp` 的中性默认实现）。
+//
+// **本类型现只剩"继承 + 反射身份"**：`FTcsStateStackDecisionFragment : public FTcsEntityAdmission`
+// 不再声明任何决策方法 ⇒ 本翻译单元**不再需要任何实现**。
+// 保留本文件是为了让"状态侧的决策实现已上提"这件事在目录结构上可见（空实现体不是笔误）。
+//
+// **行为不变（可核）**：共享层默认实现与原先这三条**逐字相同**——
+// `IsSameGroup` = 同实体 + 同 `DefTag`；`ShouldAccept` = 恒 true；
+// `ResolveStacks` = 未声明来源按同来源、同来源不变、异来源 +1。
+// 差异只有一处且是**修 bug 性质**：原先比较的是 `FTcsStateStackRequest` / `FTcsStateInstance`
+// 两个域类型，现经适配层转成通用视图（字段直取、零加工）⇒ 同输入同结论。

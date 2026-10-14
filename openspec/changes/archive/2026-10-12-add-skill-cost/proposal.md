@@ -1,5 +1,7 @@
 # Change: 技能消耗的运行态（策略 × 时机 / fail-closed 判定 / 提交与 TOCTOU）
 
+> **术语订正（2026-10-14）**：本文原用「单位 / `Unit`」，该词已退役，现统一为「**实体 / `Entity`**」（见 `DEC-2026-10-14-entity-vocabulary`）。**正文为当时原话，保留不改。**
+
 > 对应计划 `PLN-R6.5-1`（`Documents/combat-system-design/plans/plan-r6.5-cooldown-and-cost.md`）
 > **Task 2 + Task 3 的 Cost 半 + Task 4 的 `CostApplied`**。
 > 依赖 `add-cooldown-and-cost-types`（已交付数据形状）。

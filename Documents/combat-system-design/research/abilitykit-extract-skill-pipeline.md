@@ -31,7 +31,7 @@ AbilityKit Pipeline 是**解释执行**的阶段图：线性根列表 + 复合�
 
 ## 1 我方模型一句话回顾
 
-技能 = DefAsset 内 FEffectStep 步骤链（UObject 词汇类 instanced 定义 + 运行时 struct 实例 + 游标 + 等待句柄，事件驱动不逐帧空转，集中 tick 泵）；Buff = 触发器表（Event×Condition×Effect）+ 修饰器聚合；跨单位事件走总线 + 订阅表；泵 + 组件执行（TickableWorldSubsystem 管秩序、ActorComponent 管状态本地执行、词汇类管逻辑）。
+技能 = DefAsset 内 FEffectStep 步骤链（UObject 词汇类 instanced 定义 + 运行时 struct 实例 + 游标 + 等待句柄，事件驱动不逐帧空转，集中 tick 泵）；Buff = 触发器表（Event×Condition×Effect）+ 修饰器聚合；跨实体事件走总线 + 订阅表；泵 + 组件执行（TickableWorldSubsystem 管秩序、ActorComponent 管状态本地执行、词汇类管逻辑）。
 
 ---
 
@@ -143,7 +143,7 @@ AbilityKit 的"强类型动作"分两层：**Plan 层**（triggering 包主线�
 | 数据结构 | 阶段=类实例（接口 9 成员 + 四层基类），定义实例与运行实例经工厂克隆分离（深树浅值） | 步骤=USTRUCT 数据（DefAsset 内）+ UObject 词汇类 instanced 执行逻辑 + struct 运行实例（游标/等待句柄） | 同构且我方更彻底：定义是纯数据、逻辑在永生词汇类，无克隆语义可漏 |
 | 图形状 | 线性根列表 + 复合递归嵌套；无节点级跳转/循环边 | 步骤链同构（线性 + 复合）；子链用 RunSubChain 引用 | 一致——两者都论证了"技能不需要任意图" |
 | 推进模型 | 宿主每帧 Tick；每 Tick 推进 1 个跨帧阶段 + while 连续跑完瞬时阶段 | 集中 tick 泵 + 组件执行；游标推进 + 步进预算（单帧 N 步兜底） | 同构；我方多一层"泵不执行逻辑"的职责隔离与步进预算 |
-| 等待语义 | **轮询**：Duration 计时 + WaitUntil 每帧查谓词；跨帧动作靠 Triggering 侧 IRunningAction/ActionScheduler 宿主推进 | **等待句柄**（定时/事件/动画帧），事件驱动不逐帧空转 | **能力差异（我方设计目标）**：AbilityKit 没有事件句柄等待原语，WaitUntil 轮询在 200 单位×高频链下是浪费；其替代方案是把等待拆到 Triggering 侧 running action——两套体系接缝成本高，佐证我方"等待句柄内建于步骤链"的取舍 |
+| 等待语义 | **轮询**：Duration 计时 + WaitUntil 每帧查谓词；跨帧动作靠 Triggering 侧 IRunningAction/ActionScheduler 宿主推进 | **等待句柄**（定时/事件/动画帧），事件驱动不逐帧空转 | **能力差异（我方设计目标）**：AbilityKit 没有事件句柄等待原语，WaitUntil 轮询在 200 实体×高频链下是浪费；其替代方案是把等待拆到 Triggering 侧 running action——两套体系接缝成本高，佐证我方"等待句柄内建于步骤链"的取舍 |
 | 分支表达 | Conditional 多分支 + CheckStrategy（Continuous 可切分支/至少跨 1 Tick）+ NoConditionBehavior（Fail 语义失真）+ Gate 硬门控 | Branch 步骤 + WaitUntil 条件；提案修正：真三态无命中策略、瞬时分支同帧完成 | 映射直接；其 Fail≠失败与跨 Tick 问题是现成反面教材 |
 | 并行 | Parallel 复合阶段（逻辑并发单线程、逆序更新、全部完成才过） | Parallel 原语（提案加 All/Any 完成策略） | 同构，补完策略 |
 | 取消/打断 | Pause（State 保持 Executing）/Cancel（下 Tick 生效）/Interrupt（立即 Fail+通知不递归+无独立终态） | 句柄 generation 失效即取消；打断=泵级统一语义（无需逐阶段 OnInterrupt 传播——struct 实例无对象身份，不存在"通知不到"） | 我方结构性规避其"中断不递归"坑：句柄失效是数据判定不是对象遍历 |
@@ -175,7 +175,7 @@ AbilityKit 的"强类型动作"分两层：**Plan 层**（triggering 包主线�
 
 | # | 原语 | 参数面 | 来源 | 取舍理由 |
 |---|---|---|---|---|
-| 8 | `SelectTargets` | 候选源（阵营/范围单位）+ 形状（圆形/扇形〔源码证实 CircleShapeRule/SectorShapeRule〕；矩形/环形〔提案：源码无，ARPG 冲刺条/十字斩需要〕）+ 过滤（白/黑名单/排除自身/存活〔源码 5 规则〕）+ 排序（距离/固定种子随机〔源码 SeededHashRandomScorer〕/自定义评分）+ TopK/MaxCount + 去重〔源码证实全部〕；结果集写入上下文供后续步骤复用〔提案〕 | ≈combat.targeting 全管线【源码】`references/AbilityKit-master/Unity/Packages/com.abilitykit.combat.targeting/Runtime/SearchTarget/Execution/TargetSearchEngine.cs`、`Rules/CommonRules.cs`、`Scorers/CommonScorers.cs`【09 §3.1、§4.1】 | **形状判定独立成原语**（不内嵌进 Damage）：同一次选择的结果集要被伤害+挂状态+击退多步复用；targeting 与 damage 分离是 AbilityKit 证实正确的边界 |
+| 8 | `SelectTargets` | 候选源（阵营/范围实体）+ 形状（圆形/扇形〔源码证实 CircleShapeRule/SectorShapeRule〕；矩形/环形〔提案：源码无，ARPG 冲刺条/十字斩需要〕）+ 过滤（白/黑名单/排除自身/存活〔源码 5 规则〕）+ 排序（距离/固定种子随机〔源码 SeededHashRandomScorer〕/自定义评分）+ TopK/MaxCount + 去重〔源码证实全部〕；结果集写入上下文供后续步骤复用〔提案〕 | ≈combat.targeting 全管线【源码】`references/AbilityKit-master/Unity/Packages/com.abilitykit.combat.targeting/Runtime/SearchTarget/Execution/TargetSearchEngine.cs`、`Rules/CommonRules.cs`、`Scorers/CommonScorers.cs`【09 §3.1、§4.1】 | **形状判定独立成原语**（不内嵌进 Damage）：同一次选择的结果集要被伤害+挂状态+击退多步复用；targeting 与 damage 分离是 AbilityKit 证实正确的边界 |
 | 9 | `Damage` | 目标集（来自 SelectTargets 或单目标）+ BaseValue（走 NumericValueRef 式引用〔源码证实 NumericValueRef 五源+clamp/scale〕）+ 类型（〔提案〕**单值** Physical/Magic/True/Mixed + 管线内 Mixed=两段分别结算——修正 Mixed 绕减免坑）+ 暴击（Chance/倍数/Roll 由泵注入种子随机〔源码证实 CritRoll 上层注入〕）+ 穿透（显式百分比/固定槽位〔源码证实槽位承载〕，**不做 Flags**）+ 护盾吸收/Overkill 区分〔源码证实〕+ 结果旗标进事件（击杀/暴击供 Buff 触发器消费〔提案〕） | ≈combat.damage 8 阶段管线【源码】`references/AbilityKit-master/Unity/Packages/com.abilitykit.combat.damage/Runtime/Damage/Processor/DamageProcessors.cs:15-44,51-102`【09 §3.3、§4.3】 | 词缀第一高频点；8 阶段顺序被源码+文档双重证实可直接借用；旗标教训见 §7 |
 | 10 | `Heal` | BaseValue（引用）+ 受治疗加成钩子〔提案〕+ 溢出策略（截断/转护盾〔提案〕）+ 目标集 | **我方新增**（AbilityKit 无治疗原语；DamageResult 有 ShieldDamage 但无 HoT 管线）【09 全文无】 | 词缀高频点且与 Damage 对称；借 Damage 槽位模式做受治疗加成 |
 | 11 | `ApplyState` | StateDef 引用 + 等级/层数 + DurationPolicy（Instant/Duration/Infinite〔源码证实枚举〕）+ 周期（Period + 首拍立即〔源码证实 ExecutePeriodicOnApply〕）+ **堆叠策略（Add/Refresh/Replace + 上限）〔提案：AbilityKit 无堆叠，StackCount 恒 1，我方暗黑类必须有〕** + Tag 门禁（Required/Blocked〔源码证实 ApplicationRequirements〕）+ 授予/回收 Tag 配对〔源码证实〕 | ≈`GameplayEffectSpec/EffectContainer.Apply`【源码】`references/AbilityKit-master/Unity/Packages/com.abilitykit.ability/Runtime/Ability/Effect/EffectContainer.cs:22-73`、`GameplayEffectSpec.cs:9-43`【05 §3.2、§4.1】 | 挂状态=DoT/控制/增益的总入口；其 Apply 序（门禁→事件→授 Tag→组件→Cue）与到期/移除配对回收被源码证实，直接借用顺序 |
@@ -188,7 +188,7 @@ AbilityKit 的"强类型动作"分两层：**Plan 层**（triggering 包主线�
 | # | 原语 | 参数面 | 来源 | 取舍理由 |
 |---|---|---|---|---|
 | 15 | `PlayCue` | CueTag + 时机（步骤前/后/命中点/状态期 OnActive/WhileActive/OnRemove〔源码证实双接口〕）+ 参数载荷 | ≈`IGameplayEffectCue`【源码】`references/AbilityKit-master/Unity/Packages/com.abilitykit.ability/Runtime/Ability/Effect/IGameplayEffectCue.cs` + `ITriggerCue/TriggerCueDescriptor`【源码】`.../triggering/Runtime/Triggering/Contracts/ITriggerCue.cs`【05 §3.2；04 §3.1】 | 表现与逻辑分离是 GAS 正确遗产；词缀只改逻辑步不碰表现层 |
-| 16 | `SetVar` | 键 + 值（NumericValueRef 五源：Const/Var/Expr/Blackboard/载荷 + clamp/scale/offset/fallback〔源码证实〕）；作用域（本链局部/单位级〔提案〕） | ≈`SetNumericVarAction` + `NumericValueRef`【源码】`references/AbilityKit-master/Unity/Packages/com.abilitykit.triggering/Runtime/Plans/Model/IntValueRef.cs:14`【04 §3.1；05 §3.1】 | 词缀组合的中间量传递（如"本次命中已弹射次数"）；引用化数值是组合而不硬编码的关键 |
+| 16 | `SetVar` | 键 + 值（NumericValueRef 五源：Const/Var/Expr/Blackboard/载荷 + clamp/scale/offset/fallback〔源码证实〕）；作用域（本链局部/实体级〔提案〕） | ≈`SetNumericVarAction` + `NumericValueRef`【源码】`references/AbilityKit-master/Unity/Packages/com.abilitykit.triggering/Runtime/Plans/Model/IntValueRef.cs:14`【04 §3.1；05 §3.1】 | 词缀组合的中间量传递（如"本次命中已弹射次数"）；引用化数值是组合而不硬编码的关键 |
 | 17 | `OnError` | 包裹子链 + 策略（FailChain/Continue/Retry(N)〔提案〕）+ 失败原因写入 | **我方新增**（AbilityKit 无统一例外原语；异常语义分散且多处坑，见 §7）【03 §4.3、§8】 | 词缀组合链越长越需要局部容错；泵级统一 try/catch + 步级可配策略，FailReason 通道借其设计 |
 
 ### 6.4 不做成独立原语的裁决（3）

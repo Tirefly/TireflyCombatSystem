@@ -1,5 +1,7 @@
 # Change: 施法时段、查询契约、打断与完成终结（含 `CHAIN-7` 闭合）
 
+> **术语订正（2026-10-14）**：本文原用「单位 / `Unit`」，该词已退役，现统一为「**实体 / `Entity`**」（见 `DEC-2026-10-14-entity-vocabulary`）。**正文为当时原话，保留不改。**
+
 > 对应计划 `PLN-R6` Task 5（`Documents/combat-system-design/plans/plan-r6-skill-layer.md`，Step 1~7）。
 > 依赖：Task 3（`FTcsCastRun` / 六道门禁 / 施法事件四枚，提案 `add-cast-run-and-gates` 已归档）/
 > Task 4（参数快照消费面 + 参数链，提案 `add-skill-param-chain` 已归档）。

@@ -30,7 +30,7 @@ FStateDefBase（抽象，M3 定义：词表/FragmentSet/通用默认参数 Level
 - **~~AttrCapture 声明列表（D5-12 v2）~~：`CastConfig{AttrKey, From: Instigator/Target}`——activate 时捕获进 `FCastRun.Context.CapturedAttrs`（属性读默认 Live、捕获命中读快照）；伤害流程侧另有步骤级 AttrCaptureList（09 文档，作用域=流程）——两层机制各自独立。**★ 2026-10-08 技能侧整体删除（用户裁定，原文保留以记现场）**：三条判据同时成立 ⇒ **零消费者**（技能侧 `CapturedAttrs` 全仓无任何类型读取）/ **机制重叠**（设计给捕获写的用途"改 `CapturedAttrs`、随流程消失、零账本污染"已被**流程属性黑板** `FTcsFlowAttributes`（作用域 = 流程用完即弃）+ `FlowModify` 数据步骤覆盖 ⇒ 同一个"流程局部可变值空间"存在两份）/ **技能侧已被参数快照占满**（技能自己的参数由 `FCastRun.ParamSnapshot` 在激活瞬间冻结，流程内工作值由黑板承担；剩下空间**说不出技能侧独有的业务场景**，设计语料也未给出该用例）。**删除面** = `FTcsCastAttrCapture` / `ETcsCastAttrCaptureFrom` 类型 + `FSkillDef.AttrCaptureList` 字段 + `FCastRun.CapturedAttrs`。**边界（MUST 记录）**：**只涉技能侧**——伤害流程侧的 `FTcsDamageFlowContext::CapturedAttrs` 归台账 `WAIT-7`，触发条件**不因此改变**，本删除 MUST NOT 被读成"关闭了 `WAIT-7`"。落点 = 提案 `add-cast-run-and-gates`；**MUST NOT 补回**。
 - **描述文本绑定（D5-17 v3——视图策略化，2026-09-15）**：`SkillDef.Descriptions: TArray<FTcsDescriptionEntry{DescriptionId, TextKey, Views[]}>`（**取代单字段 DescriptionTextKey**——多描述入口：Tip 简述 / Codex 图鉴 / 升级预览各自独立，支撑"简单描述=当前档单值、复杂描述=全表+高亮"多对多）；**视图 = 结构化策略配置**：`Views: TArray<FTcsDescriptionViewSlot{SlotName, TInstancedStruct<FTcsParamView>}>`——内置 `Value`（单值）/`Series`（整表+当前档高亮）/`Range`（区间）/`Attribute`（属性现值），宿主 C++ 自定义视图一步接入（零公共代码）；**StringTable 原文只含槽名 `{Rate}`（零语法）**——机器语义全部进结构化配置，编辑器可校验（`IsCompatible` 探针 + 槽名交叉扫描，见 11/08）；组装器按 Entry 自身 Def 的账本**现值**取值（EffectiveDefId 已整体移除——D5-9/D5-14 重构 2026-09-11），RichTextBlock 渲染归宿主；技能面板索引口径 = 当前 `EffectiveLevel`（实例侧 = 快照 Level，见 03 §3.6）；
 - **施法时段表**（可选）：`TArray<FPhaseSpan{Duration(FTcsParamValue——原"字面量|Param"，PV 系列 2026-09-11 换型), bInterruptible, bCanMove, Tag}>`——任意段数；"前摇/后摇"= 项目命名惯例；瞬发 = 空表；
-- **冷却（D5-15 多轨道）**：`FCooldownPolicy{Tracks: TArray<FCooldownTrack{Duration(FTcsParamValue——同上换型), GroupTag?}>, CustomFragment}` × `FCooldownTiming{OnCastStarted(默认)/OnCastCompleted/OnCastInterrupted/Custom(ICooldownTimingFragment)}`——无 GroupTag=自身轨道，有=写单位级组槽；可施放=全部自身轨道+所属组槽清空；真 GCD=自身轨道+GCD 组轨道并存（纯数据）；
+- **冷却（D5-15 多轨道）**：`FCooldownPolicy{Tracks: TArray<FCooldownTrack{Duration(FTcsParamValue——同上换型), GroupTag?}>, CustomFragment}` × `FCooldownTiming{OnCastStarted(默认)/OnCastCompleted/OnCastInterrupted/Custom(ICooldownTimingFragment)}`——无 GroupTag=自身轨道，有=写实体级组槽；可施放=全部自身轨道+所属组槽清空；真 GCD=自身轨道+GCD 组轨道并存（纯数据）；
 
 > **★ 2026-10-12 R6.5-1 参数化批次落地注记（上段原文逐字保留，MUST NOT 抹除）**：
 > **两处数值字段换型落地**（台账 `COST-1` / `COOLDOWN-1` **同批闭合**，用户裁定）：
@@ -295,9 +295,9 @@ FStateDefBase（抽象，M3 定义：词表/FragmentSet/通用默认参数 Level
 
 ## 4. 入口服务
 
-- `GrantSkill / RevokeSkill(unit, DefTag, Source)`
-- `TryActivate(unit, SkillId, Context) -> ESkillActivateResult`：**显式门禁序列**（实体 Ready → 已学 → 冷却 → Instancing 顶替/并存判定 → CanAfford → Def 校验；每道门具名原因——修 TCS 门禁内联缺陷）
-- `CancelCast(run, Reason)`；~~`ApplyParamModifiers(unit, FEntrySelector, TArrayView<FParamModifier>)`~~（**实现名 `FTcsSkillEntrySelector`**，见 §3.4 的就地订正）；`MaterializeModifiers(unit, TemplateIds, ParamContext, Source)`（D5-19 宿主命令式入口——与声明式 ModifierRows 共用同一物化器）；`AdjustCooldown / ResetCooldown(unit, EntryHandle, Track, Delta|Clear)`（D5-16 事件源——改动轨状态发 `OnCooldownUpdated`）；`GetNumericParam / IsSwitchSet / GetLevel`
+- `GrantSkill / RevokeSkill(entity, DefTag, Source)`
+- `TryActivate(entity, SkillId, Context) -> ESkillActivateResult`：**显式门禁序列**（实体 Ready → 已学 → 冷却 → Instancing 顶替/并存判定 → CanAfford → Def 校验；每道门具名原因——修 TCS 门禁内联缺陷）
+- `CancelCast(run, Reason)`；~~`ApplyParamModifiers(entity, FEntrySelector, TArrayView<FParamModifier>)`~~（**实现名 `FTcsSkillEntrySelector`**，见 §3.4 的就地订正）；`MaterializeModifiers(entity, TemplateIds, ParamContext, Source)`（D5-19 宿主命令式入口——与声明式 ModifierRows 共用同一物化器）；`AdjustCooldown / ResetCooldown(entity, EntryHandle, Track, Delta|Clear)`（D5-16 事件源——改动轨状态发 `OnCooldownUpdated`）；`GetNumericParam / IsSwitchSet / GetLevel`
 
 ## 5. 关键机制
 
@@ -325,7 +325,7 @@ FStateDefBase（抽象，M3 定义：词表/FragmentSet/通用默认参数 Level
   > "打断来源的优先级"（技能关系字段 `Priority` 的语义属 `R5.5-e` 关系字段检查器，未定稿）
   > ⇒ 本轮**只落可打断性裁决**，**MUST NOT** 读成"优先级仲裁已实现"（也不为它发明零消费者的形参）。
   > 取证：`EVID-2026-10-10-skill-cast-phases` §1.3（`P4`/`P4b` 成对）、§6.2 边界 6。
-- **冷却触发（D5-15/D5-16）**：Timing 枚举到达 → CDR 快照 → 各轨到期堆注册（组轨写单位级组槽）→ Entry 轨道状态翻转 → `OnCooldownStarted`；`AdjustCooldown/ResetCooldown` 改动轨状态 → 重挂到期堆 → `OnCooldownUpdated`；到期出队 → `OnCooldownEnded`。
+- **冷却触发（D5-15/D5-16）**：Timing 枚举到达 → CDR 快照 → 各轨到期堆注册（组轨写实体级组槽）→ Entry 轨道状态翻转 → `OnCooldownStarted`；`AdjustCooldown/ResetCooldown` 改动轨状态 → 重挂到期堆 → `OnCooldownUpdated`；到期出队 → `OnCooldownEnded`。
 - **起链解析**（D5-7；链级让渡保留）：`CastChainId` 解析 = 全局定义 → 链重定向栈 → Custom Fragment；生效 Def（= Entry 自身 `DefTag`，EffectiveDefId 已移除）决定用哪套参数。
 - **ParamSnapshot 构建时序**：门禁全过 → BuildSkillSnapshot（按 Entry 自身 Def 账本求值一次）→ FCastRun 绑定 → 后续一切读快照。
 
@@ -374,7 +374,7 @@ M5 专项人工检查路径：门禁六态逐态触发；冷却策略/时机切�
 | # | 面 | 落地内容 | 证据 |
 |---|---|---|---|
 | 1 | **模块与 Def 资产族** | `TcsSkill` 成第 9 个模块（`TcsCore ← TcsNotation/TcsAttribute ← TcsEffect ← TcsSkill`，**不依赖 `TcsDamage`/`TcsTargeting`/`TcsIntegration`**）；`UTcsSkillDef` 资产 + `FTcsSkillDefData` 数据（继承 `FTcsStateDefBase`）+ `FTcsBoolSwitchRow` / `FTcsPhaseSpan` / `FTcsSkillActivateResult`（`SAR_` 前缀）/ `FTcsSkillDefTableRow` / `TcsSkillEnums`；定义库**第五条按类发现路径**（`DiscoverSkillDefs` / `ResolveSkillDef`） | `EVID-2026-10-07-skill-def-asset` |
-| 2 | **账本与门禁第一道** | `FTcsLearnedSkillEntry` + per-unit 桶与**槽位代际**（`FTcsSkillRegistry`）+ `FTcsSkillOps`（授予/撤销/按来源级联/解析/读取）；`GrantSkill` / `RevokeSkill` / `RevokeSkillBySource` / `UnregisterUnit`；`ITcsEntityQuery::IsEntityReady` 作门禁第一道（与 `IsAlive` **正交**） | `EVID-2026-10-08-skill-registry` |
+| 2 | **账本与门禁第一道** | `FTcsLearnedSkillEntry` + per-entity 桶与**槽位代际**（`FTcsSkillRegistry`）+ `FTcsSkillOps`（授予/撤销/按来源级联/解析/读取）；`GrantSkill` / `RevokeSkill` / `RevokeSkillBySource` / `UnregisterEntity`；`ITcsEntityQuery::IsEntityReady` 作门禁第一道（与 `IsAlive` **正交**） | `EVID-2026-10-08-skill-registry` |
 | 3 | **施法运行态与六道门禁** | `FTcsCastRun` 池化运行态 + `FTcsCastRunHandle`（含 `GetInner`/`SetInner` 转换对）+ `TryActivate` **六道具名门禁**（实体 Ready / 已学 / 冷却占位 / Instancing 四路分流 / CanAfford 占位 / 定义可解析）；激活期 `ParamSnapshot`；四枚 `TcsEvent.Cast.*` 事件与载荷 | `EVID-2026-10-08-skill-cast-runtime` |
 | 4 | **参数链（带式折叠）** | 双形状修正器（定义侧 `FTcsNumericParamModifier` / 账本侧 `FTcsNumericParamModInstance`）+ 每条目 `NumericParamModInstances` + **五带折叠收束到唯一 `FoldTcsAttributeBands` 调用点**（台账 `STAT-1` 全三处收束）+ `FTcsSkillEntrySelector` 四档 + `Level` 特殊键（`TcsStateParam.Level` 由 `TcsState` 原生声明）+ 激活期物化与终结**按 `RunSource` 级联摘除** + `Mode` 列分流（`EPM_Live` 不进快照数值面） | `EVID-2026-10-09-skill-param-chain` |
 | 5 | **时段、查询契约、四路终结、链重定向** | `FTcsPhaseSpan` 时段表按**战斗时钟到期堆**逐段推进 + `TcsEvent.Cast.PhaseChanged`；`ICastStateQuery` 三档（`CQM_DefSwitches` / `CQM_PhaseTable` / `CQM_Custom`）；`CancelCast` **先过查询契约**；**四路终结汇聚同一例程**（全时段走完 / **瞬发当刻完成** / 打断 / 顶替，只在"发哪一枚终止事件"处分岔）；`FTcsChainRedirect` 挂摘 + 优先级 + 后挂者胜 | `EVID-2026-10-10-skill-cast-phases` |

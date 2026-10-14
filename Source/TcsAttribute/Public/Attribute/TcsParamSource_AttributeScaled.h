@@ -16,8 +16,8 @@
  * 属性域求值上下文（PV-1 扩展机制：结构体继承 + 源内 checked cast）：
  * 在 Core 求值上下文之外增持属性读口——Core 不得反向依赖域接口，故属性读口挂在派生上下文上。
  *
- * 上下文"单位"的落点说明：本契约的单位由实现者绑定（ITcsAttributeProvider 的签名不含单位，
- * 军官组件/Mass 桶适配器各绑自己的单位），故 R3 上下文以读口本身代表"对谁求值"；
+ * 上下文"实体"的落点说明：本契约的实体由实现者绑定（ITcsAttributeProvider 的签名不含实体，
+ * 军官组件/Mass 桶适配器各绑自己的实体），故 R3 上下文以读口本身代表"对谁求值"；
  * PV-1 规划的 Subject/EffectiveLevel 字段随 TcsState 等级源同批进 Core 上下文。
  */
 USTRUCT(BlueprintType)
@@ -42,7 +42,7 @@ public:
 #pragma region Provider
 
 public:
-	// 属性读契约实现（该实现自身绑定单位；空 = 本上下文不提供属性读取，源落 Fallback）
+	// 属性读契约实现（该实现自身绑定实体；空 = 本上下文不提供属性读取，源落 Fallback）
 	UPROPERTY(BlueprintReadWrite, Category = "Param Evaluate")
 	TScriptInterface<ITcsAttributeProvider> Provider;
 

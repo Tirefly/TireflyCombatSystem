@@ -1,5 +1,7 @@
 ## ADDED Requirements
 
+> **术语订正（2026-10-14）**：本文原用「单位 / `Unit`」，该词已退役，现统一为「**实体 / `Entity`**」（见 `DEC-2026-10-14-entity-vocabulary`）。**正文为当时原话，保留不改。**
+
 ### Requirement: 五带折叠纯函数（单份）
 
 `TcsAttribute` MUST 以**一个纯函数**提供属性/参数/流程属性三处共用的带式折叠（D5-5 v3："运算符相同则实现必须单份"），住 `Public/Attribute/TcsAttributeBandFold.h`（**Public**——M5 参数链与 TcsDamage 流程属性容器要复用）：

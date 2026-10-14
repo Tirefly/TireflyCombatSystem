@@ -24,7 +24,7 @@ void FTcsStateOps::MakeContext(
 {
 	OutContext.ParamTable = ParamTable;
 
-	// 被施加方 = 实例所依附的单位；发起者无效时取被施加方（"谁施加的"缺省即被施加方）
+	// 被施加方 = 实例所依附的实体；发起者无效时取被施加方（"谁施加的"缺省即被施加方）
 	OutContext.Subject = Target;
 	OutContext.Instigator = Instigator.IsValid() ? Instigator : Target;
 

@@ -18,7 +18,7 @@
 // 链身份解析
 FGameplayTag FTcsCastOps::ResolveCastChainId(
 	UTcsSkillSubsystem& Subsystem,
-	FTcsCombatEntityHandle Unit,
+	FTcsCombatEntityHandle Entity,
 	FGameplayTag GlobalChainId)
 {
 	// ── 第 2 级：链重定向栈（数据行，策划零代码） ──
@@ -26,7 +26,7 @@ FGameplayTag FTcsCastOps::ResolveCastChainId(
 	// **未命中 ⇒ 返回 `GlobalChainId`**（第 1 级 = 全局定义）：这是**正常路径**，
 	// **MUST NOT** 报"未实现"——报它会让"零意外红字"这条验收信号被自己的正常路径淹没。
 	// 解析函数自己保证这一点（`FTcsChainRedirectRegistry::Resolve` 未命中即原样返回）。
-	const FGameplayTag AfterStack = Subsystem.ChainRedirects.Resolve(Unit, GlobalChainId);
+	const FGameplayTag AfterStack = Subsystem.ChainRedirects.Resolve(Entity, GlobalChainId);
 
 	// ── 第 3 级：Custom 契约（**本轮具名未实现**，归 `R6.5-g`） ──
 	//
@@ -75,18 +75,18 @@ bool FTcsCastOps::ExecuteMainChain(
 		? Subsystem.GetWorld()->GetSubsystem<UTcsEffectSubsystem>() : nullptr;
 	if (!Effect)
 	{
-		UE_LOG(LogTcsSkill, Warning, TEXT("主链未起：效果链门面不可得（单位=%lld）"), Run->Unit.Id);
+		UE_LOG(LogTcsSkill, Warning, TEXT("主链未起：效果链门面不可得（实体=%lld）"), Run->Entity.Id);
 		return false;
 	}
 
 	// 黑板装配：`RunSource` MUST = 本 run 的来源锚点——**台账 `CHAIN-7` 的闭合依据**：
 	// 施法运行态是链运行态的**第一个长生命周期持有者**，链内 `ModifyAttribute` 挂的账本条目
 	// 即以该 Source 为锚点 ⇒ 施法终结时可按它回收（回收例程住 `FinishCastRun`）。
-	// 本轮无独立的施法上下文形参 ⇒ 主体与发起者同为施法单位、目标集留空
+	// 本轮无独立的施法上下文形参 ⇒ 主体与发起者同为施法实体、目标集留空
 	// （链侧 `SelectTargets` 自填；`Instigator` 缺省 = 施法者）。
 	FTcsEffectContext Context;
-	Context.Caster = Run->Unit;
-	Context.Instigator = Run->Unit;
+	Context.Caster = Run->Entity;
+	Context.Instigator = Run->Entity;
 	Context.RunSource = Run->RunSource;
 
 	// **★ 起链前 MUST 把结果以外的一切先取出来，且 MUST NOT 在 `ExecuteChain` 之后再写 `Run`**
@@ -95,13 +95,13 @@ bool FTcsCastOps::ExecuteMainChain(
 	// （技能起链 → 链里一个步骤又激活另一个技能）⇒ 那会让施法池 `TArray` **扩容搬移** ⇒
 	// 传进来的 `Run` 引用**在返回时已悬空**（本仓明文纪律：池元素"扩容即搬移，MUST NOT 跨可能
 	// 触发扩容的调用缓存指针/引用"，`TcsInstancePool.h` 与 `TcsChainRun.h` 两处都写着）。
-	const FTcsCombatEntityHandle CasterUnit = Run->Unit;
+	const FTcsCombatEntityHandle CasterEntity = Run->Entity;
 	const FTcsSourceHandle RunSource = Run->RunSource;
 
 	const FTcsChainRunHandle ChainRun = Effect->ExecuteChain(ChainId, MoveTemp(Context));
 
-	UE_LOG(LogTcsSkill, Log, TEXT("主链已起：单位=%lld 链=%s 运行态=%d/%d 来源=%llu"),
-		CasterUnit.Id, *ChainId.ToString(),
+	UE_LOG(LogTcsSkill, Log, TEXT("主链已起：实体=%lld 链=%s 运行态=%d/%d 来源=%llu"),
+		CasterEntity.Id, *ChainId.ToString(),
 		ChainRun.Index, ChainRun.Generation, RunSource.Id);
 
 	// **按句柄重新解析后回写**（`Run` 引用此刻可能已悬空）：
@@ -185,8 +185,8 @@ void FTcsCastOps::StartMainChain(
 		// 本档与触发点无关（它压根不由框架决定时点）⇒ 在档位判定处即报出并返回。
 		UE_LOG(LogTcsSkill, Warning,
 			TEXT("主链未起：MainChainStart=%d 档（自定义）未实现——主链启动时点归宿主编排（R6.5-g）。")
-			TEXT("单位=%lld 定义=%s 链=%s"),
-			static_cast<int32>(StartMode), Run.Unit.Id, *Entry.DefTag.ToString(),
+			TEXT("实体=%lld 定义=%s 链=%s"),
+			static_cast<int32>(StartMode), Run.Entity.Id, *Entry.DefTag.ToString(),
 			*Def.CastChainId.ToString());
 		return;
 	}
@@ -196,8 +196,8 @@ void FTcsCastOps::StartMainChain(
 		// 作者期已由 `IsDataValid` 拦（`skill-def asset` 的既有规则）——运行期遇到**不阻断激活**。
 		// 本处只报"全局定义缺失"；**不由本函数去猜替代链**（重定向是"替代已声明的链"，
 		// 没有全局定义时它没有输入）。
-		UE_LOG(LogTcsSkill, Warning, TEXT("主链未起：CastChainId 无效（单位=%lld 定义=%s）"),
-			Run.Unit.Id, *Entry.DefTag.ToString());
+		UE_LOG(LogTcsSkill, Warning, TEXT("主链未起：CastChainId 无效（实体=%lld 定义=%s）"),
+			Run.Entity.Id, *Entry.DefTag.ToString());
 		return;
 	}
 
@@ -211,7 +211,7 @@ void FTcsCastOps::StartMainChain(
 	//
 	// **MUST NOT 修改共享 Def**：解析是**读**（全局定义 → 数据栈 → Custom），
 	// 结果只用于本次 `ExecuteChain`——设计原文明文"绝不修改共享 Def"。
-	const FGameplayTag ResolvedChainId = ResolveCastChainId(Subsystem, Run.Unit, Def.CastChainId);
+	const FGameplayTag ResolvedChainId = ResolveCastChainId(Subsystem, Run.Entity, Def.CastChainId);
 
 	// **起链**（结果与"实际链身份"都在 `ExecuteMainChain` 内落定）。
 	// **句柄显式传入**（见头文件的形参纪律：**MUST NOT** 从账本条目反查——在

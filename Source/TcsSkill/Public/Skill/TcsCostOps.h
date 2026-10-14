@@ -55,19 +55,19 @@ public:
 	static const FTcsSkillCostPolicy* ResolvePolicy(const FTcsSkillCostConfig& Config);
 
 	/**
-	 * 组装策略求值上下文（`Subsystem` / `Unit` / `Entry` / `Level` 四件）。
+	 * 组装策略求值上下文（`Subsystem` / `Entity` / `Entry` / `Level` 四件）。
 	 *
 	 * **等级从哪来**：`Entry` 存在时取**条目等级**（等级表参数源读的就是它）；
 	 * 无条目（装置验配置边界）时取 0——那种场景的判据不依赖等级。
 	 *
 	 * @param Subsystem 技能门面。
-	 * @param Unit 单位实体句柄。
+	 * @param Entity 实体实体句柄。
 	 * @param Entry 账本条目（可为空 = 无减免、无等级）。
 	 * @return 返回装配好的上下文。
 	 */
 	static FTcsSkillCostContext MakeContext(
 		UTcsSkillSubsystem& Subsystem,
-		FTcsCombatEntityHandle Unit,
+		FTcsCombatEntityHandle Entity,
 		const FTcsLearnedSkillEntry* Entry);
 
 #pragma endregion
@@ -78,7 +78,7 @@ public:
 
 public:
 	/**
-	 * 该单位**现在**付得起吗（门禁⑤ 的判据）。
+	 * 该实体**现在**付得起吗（门禁⑤ 的判据）。
 	 *
 	 * **★ 三类分开处置（MUST NOT 二选一，判据见下）**：
 	 *
@@ -109,7 +109,7 @@ public:
 	 * **纯查询语义（MUST）**：MUST NOT 扣任何资源、MUST NOT 改账本、MUST NOT 发事件。
 	 *
 	 * @param Subsystem 技能门面。
-	 * @param Unit 单位实体句柄。
+	 * @param Entity 实体实体句柄。
 	 * @param Config 消耗配置。
 	 * @param OutReason 输出"为什么付不起"的可读原因（可空）——宿主排查最需要的读数。
 	 * @param Entry 账本条目（策略的减免修正器与等级来源；**可为空 = 无减免**）。
@@ -119,7 +119,7 @@ public:
 	 */
 	static bool CanAffordCost(
 		UTcsSkillSubsystem& Subsystem,
-		FTcsCombatEntityHandle Unit,
+		FTcsCombatEntityHandle Entity,
 		const FTcsSkillCostConfig& Config,
 		FString* OutReason = nullptr,
 		const FTcsLearnedSkillEntry* Entry = nullptr);
@@ -147,8 +147,8 @@ public:
 	 *   **MUST NOT** 把批当作事务/回滚来依赖。
 	 *
 	 * **★ 一处必须的守卫（本框架包批引入的新问题）**：`BeginBatch` / `Commit` 对
-	 * **未注册单位**会触发 `ensureMsgf`（红字）。内建属性策略不可能走到那里（它先要
-	 * `TryGetBaseValue` 成功 ⇒ 单位必然已注册），但**宿主自定义策略**可能"没注册单位也判可付"
+	 * **未注册实体**会触发 `ensureMsgf`（红字）。内建属性策略不可能走到那里（它先要
+	 * `TryGetBaseValue` 成功 ⇒ 实体必然已注册），但**宿主自定义策略**可能"没注册实体也判可付"
 	 * ⇒ 框架包批会**替宿主多报一条 ensure**。故包批前 MUST 用**不 ensure** 的
 	 * `ResolveStore` 探测注册状态；未注册时**不包批**（策略照常提交，其自身失败面自行上报）。
 	 *
@@ -163,7 +163,7 @@ public:
 	 * **`ECT_None` ⇒ 零动作**（不看策略、零日志）。
 	 * **`Timing != None` 而策略为空 ⇒ 零提交 + `Warning`**（与 `CanAffordCost` 同判据）。
 	 *
-	 * **提交失败 MUST 被报出**：策略内部的写口（如 `SetBaseValue`）自身对"单位未注册 / 属性名为空 /
+	 * **提交失败 MUST 被报出**：策略内部的写口（如 `SetBaseValue`）自身对"实体未注册 / 属性名为空 /
 	 * 未持有此属性"返回 `false` ⇒ 本函数 MUST 把该失败**向上报**，
 	 * **MUST NOT 假设它一定成功**（否则 `PayCost` 会报成功而资源没扣）。
 	 *
@@ -179,7 +179,7 @@ public:
 	 * **读基值（而不是 `EvaluateCurrent`）**：从**当前值**减会在有修正器时**多减**。
 	 *
 	 * @param Subsystem 技能门面。
-	 * @param Unit 单位实体句柄。
+	 * @param Entity 实体实体句柄。
 	 * @param Config 消耗配置。
 	 * @param OutApplied 输出实际扣减的数量（0 = 零动作；仅返回 true 时有意义）。
 	 * @param Entry 账本条目（策略的减免修正器与等级来源；**可为空 = 无减免**，同 `CanAffordCost`）。
@@ -187,7 +187,7 @@ public:
 	 */
 	static bool CommitCost(
 		UTcsSkillSubsystem& Subsystem,
-		FTcsCombatEntityHandle Unit,
+		FTcsCombatEntityHandle Entity,
 		const FTcsSkillCostConfig& Config,
 		double* OutApplied = nullptr,
 		const FTcsLearnedSkillEntry* Entry = nullptr);
@@ -209,13 +209,13 @@ public:
 	 * （宿主在自己的确定逻辑处调本口）——框架替它挑时机就违背了该档的存在理由。
 	 *
 	 * @param Subsystem 技能门面。
-	 * @param Unit 单位实体句柄。
+	 * @param Entity 实体实体句柄。
 	 * @param EntryHandle 账本条目句柄。
 	 * @return 返回是否提交成功（`None` 档恒 true；付不起 / 悬空 / 定义取不到 ⇒ false）。
 	 */
 	static bool PayCostForEntry(
 		UTcsSkillSubsystem& Subsystem,
-		FTcsCombatEntityHandle Unit,
+		FTcsCombatEntityHandle Entity,
 		FTcsSkillEntryHandle EntryHandle);
 
 	/**

@@ -47,10 +47,10 @@
 `TcsSkill` MUST 把参数修正器做成**账本**——照 `FTcsAttributeInstance::AttrModInstances` 的既有形状，**每个已学条目持自己的参数修正器槽位**：
 
 - `FTcsLearnedSkillEntry` MUST 增第七条字段 `TArray<FTcsNumericParamModInstance> NumericParamModInstances`——**账本侧类型（纯 C++、无对象引用）**，故账本**仍然**满足「MUST NOT 持任何 UObject 引用」的既有纪律，`UTcsSkillSubsystem::AddReferencedObjects` **MUST NOT** 为此新增遍历；
-- **Apply MUST 形如 `ApplyParamModifiers(Unit, FTcsSkillEntrySelector, TArrayView<FTcsNumericParamModifier>, FTcsSourceHandle Source)`**：先按选择器定位目标条目，再把每条修正器**物化**（求值 + 转规范值，见下条需求）后追加进该条目的 `NumericParamModInstances`；单位未注册 / 无匹配条目 ⇒ **忽略并留日志、返回 false（MUST NOT ensure**——同 M2 `ApplyModifier` 的 D2-14 口径）；
+- **Apply MUST 形如 `ApplyParamModifiers(Entity, FTcsSkillEntrySelector, TArrayView<FTcsNumericParamModifier>, FTcsSourceHandle Source)`**：先按选择器定位目标条目，再把每条修正器**物化**（求值 + 转规范值，见下条需求）后追加进该条目的 `NumericParamModInstances`；实体未注册 / 无匹配条目 ⇒ **忽略并留日志、返回 false（MUST NOT ensure**——同 M2 `ApplyModifier` 的 D2-14 口径）；
   - **`Source` MUST 是形参**（见上条需求对定义侧的订正）：来源属**这一次施加**，由调用方声明"这次是谁给的"；
   - **`Source` 无效 ⇒ MUST 拒绝且零写入**：`Source` 是"按来源摘除"的锚点，无锚点的条目**摘不掉**（表现为"参数改不回去"，静默且远离根因）⇒ 宁可拒绝这次施加。**判据 MUST 是"条目 `NumericParamModInstances` 未被改动"**，MUST NOT 只查"返回了 false"（"先写后判"的实现也能返回 false）；
-- **级联摘除 MUST 提供 `RemoveParamModifiersBySource(Unit, Source)`**：扫描该单位**全部条目的 `NumericParamModInstances`**，摘除 `Source` 匹配者，**返回摘除条数**；`0` 条命中 = **正常路径，MUST NOT ensure**（来源可能只挂过已撤销的修正器）；
+- **级联摘除 MUST 提供 `RemoveParamModifiersBySource(Entity, Source)`**：扫描该实体**全部条目的 `NumericParamModInstances`**，摘除 `Source` 匹配者，**返回摘除条数**；`0` 条命中 = **正常路径，MUST NOT ensure**（来源可能只挂过已撤销的修正器）；
 - **Apply 与 Removal MUST 成对**：凡写入 `NumericParamModInstances` 的条目 MUST 带一个 `Source`，且该 `Source` MUST 能被 `RemoveParamModifiersBySource` 摘除（判据 = 不存在"摘不掉的条目"）。
 
 #### Scenario: Apply 落在目标条目的槽位
@@ -60,7 +60,7 @@
 
 #### Scenario: 按 Source 级联摘除恰摘该来源
 
-- **WHEN** 同一单位的两个条目各挂一条不同 `Source` 的修正器，按其中一个 `Source` 调 `RemoveParamModifiersBySource`
+- **WHEN** 同一实体的两个条目各挂一条不同 `Source` 的修正器，按其中一个 `Source` 调 `RemoveParamModifiersBySource`
 - **THEN** 恰摘掉该来源的那 1 条（返回 1），另一来源的条目**原样保留**；再次调用同一 `Source` ⇒ 返回 **0 且不 ensure**
 
 #### Scenario: 账本侧不持对象引用（GC 纪律自证）

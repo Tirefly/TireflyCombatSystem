@@ -1,5 +1,7 @@
 # TCS 决策日志（逐条拍板流水）
 
+> **术语订正（2026-10-14）**：本文原用「单位 / `Unit`」，该词已退役，现统一为「**实体 / `Entity`**」（见 `DEC-2026-10-14-entity-vocabulary`）。**正文为当时原话，保留不改。**
+
 - **文档 ID**：`LOG-DECISIONS`
 - **类型**：LOG / 决策日志
 - **状态**：LIVING
@@ -795,7 +797,7 @@
 ### 第二十四轮：吸收 Lyra 行形态（关系表形态取代，2026-10-13 同日第二笔）
 
 - **触发**：用户提问——"看到 `FBuffDef` / `FTcsSkillDefData` 那四个字段，想到 Lyra 有一个 `LyraAbilityTagRelationshipMapping` 的设计，**可不可以搬过来**"。
-- **取证（本轮实际动作）**：Epic 官方仓**匿名不可达**（HTTP 404，需授权）；**web_search 工具当轮失效**（搜索端点 401）⇒ 改走**公开镜像** [`BulkheadLtd/Lyra_5_4`](https://github.com/BulkheadLtd/Lyra_5_4)，**实读三文件**（`.h` 结构 / `.cpp` 三求值函数 / `LyraAbilitySystemComponent.cpp` 消费点）。**未读** GAS 自身实现（本机无引擎源码树）。**镜像可信度未独立验证** ⇒ 形态级结论可信、逐字级引用不作官方出处。
+- **取证（本轮实际动作）**：Epic 官方仓**匿名不可达**（HTTP 404，需授权）；**web_search 工具当轮失效**（搜索端点 401）⇒ 改走**公开镜像** [`BulkheadLtd/Lyra_5_4`](https://github.com/BulkheadLtd/Lyra_5_4)，**实读三文件**（`.h` 结构 / `.cpp` 三求值函数 / `LyraAbilitySystemComponent.cpp` 消费点）。~~**未读** GAS 自身实现（本机无引擎源码树）~~ → **★ 2026-10-13 订正：已读**——GAS 插件源码在 `E:\UnrealEngine\UE_5.8\Engine\Plugins\Runtime\GameplayAbilities\Source\`，`ApplyAbilityBlockAndCancelTags` 的**实现**已逐字复核（block / cancel 为**两条独立分支**，由两个独立 bool 控制）。**镜像可信度未独立验证** ⇒ 形态级结论可信、逐字级引用不作官方出处。
 - **实测形状**：**一行 = 一个主体词（单 `FGameplayTag`）+ 四个容器**（`AbilityTag` / `AbilityTagsToBlock` / `AbilityTagsToCancel` / `ActivationRequiredTags` / `ActivationBlockedTags`）；载体 = **中心 `UDataAsset`**；匹配 = **`HasTag` / `HasAny` 层级匹配，无查询语言**；三个求值函数都是朴素线性迭代（源码自注 `// Simple iteration for now`）。
 - **★ 主裁定：开取代裁决** [`DEC-2026-10-13-relation-row-shape`](../decisions/dec-2026-10-13-relation-row-shape.md)（取代首轮 `DEC-2026-10-13-relation-semantics` 的**裁决②③**）——五项改判：**①行形态**（`{SubjectQuery, ObjectQuery, Action}` → 一主体词 + 四容器）/ **②匹配机制**（**去掉 `FGameplayTagQuery`** → 容器 + `MatchesTag` 层级匹配）/ **③字段改名**（`AppliesToTag` / `RequiredTags` / `ForbiddenTags` / `TagsToBlock` / `TagsToCancel`）/ **④撤销一条 Error 规则** / **⑤新增 `TagsToBlock`（预防）**。
 - **★★ 本轮最值钱的产出 = 自行抓出并更正的一处配对错误**：首轮我把 `Blocks` 与 `Cancels` 配成"退让声明 vs 强夺声明"一对，并据此写了一条 `IsDataValid` Error 规则。**回读 `TcsBuffDef.h` 的字段注释**后确认——`Blocks` = "这些状态**存在时本状态不可施加**"（**受动/前置**）、`Requires` = "必须已存在"（**前置**）、`Cancels` = "取消这些状态"（**施动/对外**）⇒ **同轴者 = `Blocks` / `Requires`**，`Cancels` 与它们**正交**。**根因 = 按词形（Block/Cancel 都是"拦"）而非字段注释配对**。⇒ **撤销那条 Error 规则**（按修正语义，`Blocks` + `Cancels` 同真**合法**且表达**在位者赢**，而 `Cancels` 单独 = **后到者赢**）。**教训** = `MEM-20261001-16`（命名争议 = 真实语义边界未知的信号——该回读注释，而非按词形推理）。

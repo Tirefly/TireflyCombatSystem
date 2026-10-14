@@ -43,13 +43,13 @@ struct TCSSKILL_API FTcsCostEventPayload
 #pragma region Identity
 
 public:
-	// 账本条目身份（该单位"会这个技能"的那条记录）
+	// 账本条目身份（该实体"会这个技能"的那条记录）
 	UPROPERTY(BlueprintReadOnly, Category = "Tcs|Skill|Cost Event")
 	FTcsSkillEntryHandle EntryHandle;
 
-	// 所属单位（被扣资源的那一方）
+	// 所属实体（被扣资源的那一方）
 	UPROPERTY(BlueprintReadOnly, Category = "Tcs|Skill|Cost Event")
-	FTcsCombatEntityHandle Unit;
+	FTcsCombatEntityHandle Entity;
 
 	// 技能定义身份
 	UPROPERTY(BlueprintReadOnly, Category = "Tcs|Skill|Cost Event")

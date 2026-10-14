@@ -28,9 +28,9 @@ struct FTcsSkillDefData;
  *
  * **冷却的真值在哪（MUST 分清，这是本类最容易读错的一处）**：
  * - **自身轨**（`GroupTag` 无效）⇒ 真值住**账本条目**的 `FTcsLearnedSkillEntry::CooldownTracks[i]`；
- * - **组轨**（`GroupTag` 有效）⇒ 真值住**单位级共享槽**（`UTcsSkillSubsystem` 的
- *   `CooldownGroups`，键 = `(单位, 组标签)`），**MUST NOT** 再往条目里写一份
- *   （公共冷却的作用域是**单位**，"同组所有技能共用一条线"就是它的定义——
+ * - **组轨**（`GroupTag` 有效）⇒ 真值住**实体级共享槽**（`UTcsSkillSubsystem` 的
+ *   `CooldownGroups`，键 = `(实体, 组标签)`），**MUST NOT** 再往条目里写一份
+ *   （公共冷却的作用域是**实体**，"同组所有技能共用一条线"就是它的定义——
  *   写两份会让同组两个条目各起各的线，那就**不是 GCD 了**）。
  *
  * **导出宏是必需项**（判据 = "该符号是否被跨模块引用"）：宿主侧装置（`TcsDev`）要直接调本族静态成员
@@ -56,13 +56,13 @@ public:
 	 * 而 GCD 的作用恰恰是**不许**这样做）。
 	 *
 	 * @param Subsystem 技能门面。
-	 * @param Unit 单位实体句柄。
+	 * @param Entity 实体实体句柄。
 	 * @param EntryHandle 账本条目句柄。
 	 * @return 返回实际起的轨道条数（0 = 无轨道 / 条目悬空 / 定义取不到 / 时钟不可得）。
 	 */
 	static int32 StartCooldownOnEntry(
 		UTcsSkillSubsystem& Subsystem,
-		FTcsCombatEntityHandle Unit,
+		FTcsCombatEntityHandle Entity,
 		FTcsSkillEntryHandle EntryHandle);
 
 #pragma endregion
@@ -104,7 +104,7 @@ public:
 	// 按句柄判可放（门面公开口用；条目/定义解析失败 ⇒ false = 不阻拦，交给上游具名拒绝）
 	static bool IsEntryOnCooldownByHandle(
 		UTcsSkillSubsystem& Subsystem,
-		FTcsCombatEntityHandle Unit,
+		FTcsCombatEntityHandle Entity,
 		FTcsSkillEntryHandle EntryHandle,
 		FString* OutHeldBy = nullptr);
 
@@ -115,14 +115,14 @@ public:
 	 * 表现为"UI 显示没冷却、但技能放不出来"。
 	 *
 	 * @param Subsystem 技能门面。
-	 * @param Unit 单位实体句柄。
+	 * @param Entity 实体实体句柄。
 	 * @param EntryHandle 账本条目句柄。
 	 * @param TrackIndex 轨道下标（对应 `FTcsCooldownPolicy::Tracks` 的序）。
 	 * @return 返回剩余秒数（未在冷却 / 越界 / 悬空 ⇒ 0）。
 	 */
 	static double GetTrackRemaining(
 		UTcsSkillSubsystem& Subsystem,
-		FTcsCombatEntityHandle Unit,
+		FTcsCombatEntityHandle Entity,
 		FTcsSkillEntryHandle EntryHandle,
 		int32 TrackIndex);
 
@@ -133,14 +133,14 @@ public:
 	 * `AdjustTrack` 因此只可能让 `Total` **变大**（见该函数的注释）。
 	 *
 	 * @param Subsystem 技能门面。
-	 * @param Unit 单位实体句柄。
+	 * @param Entity 实体实体句柄。
 	 * @param EntryHandle 账本条目句柄。
 	 * @param TrackIndex 轨道下标。
 	 * @return 返回总时长（未在冷却 / 越界 / 悬空 ⇒ 0）。
 	 */
 	static double GetTrackTotal(
 		UTcsSkillSubsystem& Subsystem,
-		FTcsCombatEntityHandle Unit,
+		FTcsCombatEntityHandle Entity,
 		FTcsSkillEntryHandle EntryHandle,
 		int32 TrackIndex);
 
@@ -152,13 +152,13 @@ public:
 	 * 与"这个技能根本没有冷却"给出同一个 0。
 	 *
 	 * @param Subsystem 技能门面。
-	 * @param Unit 单位实体句柄。
+	 * @param Entity 实体实体句柄。
 	 * @param EntryHandle 账本条目句柄。
 	 * @return 返回轨道数（悬空 / 定义取不到 ⇒ 0）。
 	 */
 	static int32 GetTrackCount(
 		UTcsSkillSubsystem& Subsystem,
-		FTcsCombatEntityHandle Unit,
+		FTcsCombatEntityHandle Entity,
 		FTcsSkillEntryHandle EntryHandle);
 
 #pragma endregion
@@ -182,7 +182,7 @@ public:
 	 * 缩短不会让分母变小，因为"这条冷却是多久"是**已经发生过的事实**。
 	 *
 	 * @param Subsystem 技能门面。
-	 * @param Unit 单位实体句柄。
+	 * @param Entity 实体实体句柄。
 	 * @param EntryHandle 账本条目句柄。
 	 * @param TrackIndex 轨道下标。
 	 * @param Delta 剩余时长的增量（秒；正 = 延长、负 = 缩短）。
@@ -190,7 +190,7 @@ public:
 	 */
 	static bool AdjustTrack(
 		UTcsSkillSubsystem& Subsystem,
-		FTcsCombatEntityHandle Unit,
+		FTcsCombatEntityHandle Entity,
 		FTcsSkillEntryHandle EntryHandle,
 		int32 TrackIndex,
 		double Delta);
@@ -199,14 +199,14 @@ public:
 	 * 清某轨（`D5-16` 承诺的 `ResetCooldown`）——撤到期条目 + 状态整体复位。
 	 *
 	 * @param Subsystem 技能门面。
-	 * @param Unit 单位实体句柄。
+	 * @param Entity 实体实体句柄。
 	 * @param EntryHandle 账本条目句柄。
 	 * @param TrackIndex 轨道下标。
 	 * @return 返回是否确实清掉了一条在跑的轨道（否则 false，不 ensure）。
 	 */
 	static bool ClearTrack(
 		UTcsSkillSubsystem& Subsystem,
-		FTcsCombatEntityHandle Unit,
+		FTcsCombatEntityHandle Entity,
 		FTcsSkillEntryHandle EntryHandle,
 		int32 TrackIndex);
 
@@ -218,34 +218,34 @@ public:
 
 public:
 	/**
-	 * 摘掉某条目的全部冷却（**撤销技能 / 注销单位前的配对清理**）。
+	 * 摘掉某条目的全部冷却（**撤销技能 / 注销实体前的配对清理**）。
 	 *
 	 * **为什么必须有它（本仓"成对性"纪律的落点）**：冷却持有**外部资源**——到期堆条目与
-	 * 单位级组槽。撤销条目时若不清：
+	 * 实体级组槽。撤销条目时若不清：
 	 * ① 自身轨的到期条目**失去唯一的取消锚点**（条目槽被 `ReleaseSlot` 整体重置 ⇒ 句柄没了），
 	 *    只能等它自己到期再空跑一次；
-	 * ② **组槽会留下**，而组槽是**单位级**的 ⇒ 它继续拦着同组的**其它**技能，
+	 * ② **组槽会留下**，而组槽是**实体级**的 ⇒ 它继续拦着同组的**其它**技能，
 	 *    表现为"我把 A 撤了，B 却还是放不出来"——**远离根因的一类**。
 	 *
-	 * **调用点 = 撤销路径**（`FTcsSkillOps::Revoke` / `RevokeBySource` / `UnregisterUnit`），
+	 * **调用点 = 撤销路径**（`FTcsSkillOps::Revoke` / `RevokeBySource` / `UnregisterEntity`），
 	 * **MUST 排在释放槽位之前**（槽位一放，条目内容就没了，锚点也就找不回来了）。
 	 *
 	 * @param Subsystem 技能门面。
-	 * @param Unit 单位实体句柄。
+	 * @param Entity 实体实体句柄。
 	 * @param Entry 目标条目（就地复位其轨道状态）。
 	 */
 	static void ReleaseEntryCooldowns(
 		UTcsSkillSubsystem& Subsystem,
-		FTcsCombatEntityHandle Unit,
+		FTcsCombatEntityHandle Entity,
 		FTcsLearnedSkillEntry& Entry);
 
 	/**
-	 * 摘掉某单位的**全部**冷却（含**全部组槽**）——`UnregisterUnit` 与门面反初始化用。
+	 * 摘掉某实体的**全部**冷却（含**全部组槽**）——`UnregisterEntity` 与门面反初始化用。
 	 *
 	 * @param Subsystem 技能门面。
-	 * @param Unit 单位实体句柄。
+	 * @param Entity 实体实体句柄。
 	 */
-	static void ReleaseUnitCooldowns(UTcsSkillSubsystem& Subsystem, FTcsCombatEntityHandle Unit);
+	static void ReleaseEntityCooldowns(UTcsSkillSubsystem& Subsystem, FTcsCombatEntityHandle Entity);
 
 	/**
 	 * 取该条目的**冷却缩减（CDR）系数**——`CooldownPct` 契约键上的折叠结果。
@@ -292,13 +292,13 @@ public:
 	 *    （将来给该结构加字段时自动是干净的）。
 	 *
 	 * @param Subsystem 技能门面。
-	 * @param Unit 单位实体句柄（**回调捕获**，不是从 `OwnerId` 解出来的）。
+	 * @param Entity 实体实体句柄（**回调捕获**，不是从 `OwnerId` 解出来的）。
 	 * @param EntryHandle 账本条目句柄（同上）。
 	 * @param TrackIndex 轨道下标（同上）。
 	 */
 	static void ExpireTrack(
 		UTcsSkillSubsystem& Subsystem,
-		FTcsCombatEntityHandle Unit,
+		FTcsCombatEntityHandle Entity,
 		FTcsSkillEntryHandle EntryHandle,
 		int32 TrackIndex);
 
@@ -306,15 +306,15 @@ public:
 	 * 组轨到期（到期堆回调的落点）——**整槽移除**。
 	 *
 	 * 与自身轨的差别：组槽是"一个组一条线"，到期即**该组解除**（不需要逐条目遍历去清）——
-	 * 这正是"组槽住单位、条目只引用它"的收益：解除是 O(1) 的。
+	 * 这正是"组槽住实体、条目只引用它"的收益：解除是 O(1) 的。
 	 *
 	 * @param Subsystem 技能门面。
-	 * @param Unit 单位实体句柄（回调捕获）。
+	 * @param Entity 实体实体句柄（回调捕获）。
 	 * @param GroupTag 组身份（回调捕获）。
 	 */
 	static void ExpireGroup(
 		UTcsSkillSubsystem& Subsystem,
-		FTcsCombatEntityHandle Unit,
+		FTcsCombatEntityHandle Entity,
 		FGameplayTag GroupTag);
 
 #pragma endregion
@@ -325,20 +325,20 @@ public:
 
 public:
 	/**
-	 * 取该单位**当前时刻**的组槽表（未注册返回 nullptr——正常查询路径，不 ensure）。
+	 * 取该实体**当前时刻**的组槽表（未注册返回 nullptr——正常查询路径，不 ensure）。
 	 *
 	 * **为什么公开这个口**：到期回调与组槽写入发生在引擎函数里，而 `CooldownGroups` 是门面私有区；
 	 * 藏起来只会让下一处再往 friend 名单加一个名字（同 `GetClockSubsystem` 的理由）。
 	 * **返回指针的稳定性**：外层表存值类型 `TMap`，`TMap` 元素扩容即搬移 ⇒ 调用方
-	 * **MUST NOT 跨"可能新增其它单位"的调用缓存它**（同本仓 `TMap`/`TSet` 的既有纪律）。
+	 * **MUST NOT 跨"可能新增其它实体"的调用缓存它**（同本仓 `TMap`/`TSet` 的既有纪律）。
 	 *
 	 * @param Subsystem 技能门面。
-	 * @param Unit 单位实体句柄。
-	 * @return 返回该单位的组槽表；该单位没有活组槽时返回 nullptr。
+	 * @param Entity 实体实体句柄。
+	 * @return 返回该实体的组槽表；该实体没有活组槽时返回 nullptr。
 	 */
 	static TMap<FGameplayTag, FTcsCooldownGroupState>* FindGroupSlots(
 		UTcsSkillSubsystem& Subsystem,
-		FTcsCombatEntityHandle Unit);
+		FTcsCombatEntityHandle Entity);
 
 #pragma endregion
 };

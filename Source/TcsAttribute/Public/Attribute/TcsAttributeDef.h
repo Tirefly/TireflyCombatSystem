@@ -36,7 +36,7 @@ struct TCSATTRIBUTE_API FTcsAttributeDefData
 #pragma region BaseValue
 
 public:
-	// 基础值（单位侧实例的初值；等级成长 = 宿主升级事务改写基础值，等级 → 数值映射归项目）
+	// 基础值（实体侧实例的初值；等级成长 = 宿主升级事务改写基础值，等级 → 数值映射归项目）
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Attribute Definition")
 	double BaseValue = 0.0;
 

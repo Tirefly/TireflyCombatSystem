@@ -15,9 +15,9 @@ void UTcsSkillSubsystem::SetEntityQuery(TScriptInterface<ITcsEntityQuery> InEnti
 		InEntityQuery.GetObject() ? *InEntityQuery.GetObject()->GetName() : TEXT("（已清空，门禁第一道降级为只判句柄有效）"));
 }
 
-bool UTcsSkillSubsystem::IsEntityReady(FTcsCombatEntityHandle Unit) const
+bool UTcsSkillSubsystem::IsEntityReady(FTcsCombatEntityHandle Entity) const
 {
-	if (!Unit.IsValid())
+	if (!Entity.IsValid())
 	{
 		return false;
 	}
@@ -34,5 +34,5 @@ bool UTcsSkillSubsystem::IsEntityReady(FTcsCombatEntityHandle Unit) const
 	// 两者是正交轴：死亡触发的被动 / 复活技能应当 IsAlive == false 但可放；
 	// 待销毁尸体应当 IsAlive == true 但不可放。IsAlive 的 PIE 实现是"映射里还有这个句柄"而非"活着"
 	// （TcsPieEntityQuery.cpp:71，其类注释自认"框架不认识死亡"）⇒ 拿它当门禁会双向误判。
-	return Query->IsEntityReady(Unit);
+	return Query->IsEntityReady(Entity);
 }

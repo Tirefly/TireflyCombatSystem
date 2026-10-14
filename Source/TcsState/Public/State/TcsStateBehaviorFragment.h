@@ -31,8 +31,8 @@ public:
 	// 接收本次行为回调的状态实例
 	FTcsStateHandle Handle;
 
-	// 该实例所属单位
-	FTcsCombatEntityHandle Unit;
+	// 该实例所属实体
+	FTcsCombatEntityHandle Entity;
 
 	// 状态定义身份
 	FGameplayTag DefTag;

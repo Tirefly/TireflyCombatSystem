@@ -1,5 +1,7 @@
 ## 1. 状态实例与注册表
 
+> **术语订正（2026-10-14）**：本文原用「单位 / `Unit`」，该词已退役，现统一为「**实体 / `Entity`**」（见 `DEC-2026-10-14-entity-vocabulary`）。**正文为当时原话，保留不改。**
+
 - [x] 1.1 `TcsStateEnums.h` 补 `EStatePhase` / `EStateRemoveCause` / `EApplyResult`（`EDurationPolicy` / `ETcsPeriodRefresh` 已于 Task 1 落地，不重写）—— **✅ 2026-10-04**
 - [x] 1.2 新增 `Public/State/TcsStateHandle.h`：`FTcsStateHandle`（`USTRUCT(BlueprintType)`、`Index` + `Generation`、`IsValid`、相等比较、`GetTypeHash`）—— **✅ 2026-10-04**（`HashCombine` 需显式 include `Templates/TypeHash.h`，不在 `CoreMinimal` 传递闭包内）
 - [x] 1.3 新增 `Public/State/TcsStateInstance.h`：`FTcsStateInstance` 纯数据（身份 / 数值 / 时间 / 阶段），MUST NOT 持策略、载荷、订阅句柄、`UObject` 引用 —— **✅ 2026-10-04**（**实现名 `FTcsStateInstance`**；**新增 `Unit` 字段**——原提案未列，理由见 `PLN-R5` Task 2 落地记录；`ParamSnapshot` 类型归 Task 3 故按注释留白）

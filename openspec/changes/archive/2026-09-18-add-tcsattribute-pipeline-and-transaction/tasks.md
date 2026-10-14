@@ -1,5 +1,7 @@
 ## 1. Implementation
 
+> **术语订正（2026-10-14）**：本文原用「单位 / `Unit`」，该词已退役，现统一为「**实体 / `Entity`**」（见 `DEC-2026-10-14-entity-vocabulary`）。**正文为当时原话，保留不改。**
+
 ### 折叠器（Public 复用件，M5/TcsDamage 也要用）
 
 - [x] 1.1 `Public/Attribute/TcsAttributeBandFold.h`（header-only 纯函数）：`FTcsAttributeBandEntry{ ETcsAttributeOp Op; double Value; int32 OverridePriority; }` + `FoldTcsAttributeBands(double BaseValue, TConstArrayView<FTcsAttributeBandEntry> Entries, ETcsAttrOverrideTieBreak OverrideTieBreak = OTB_Max)`——五带公式 + 覆盖带按"优先级 → 同优先级策略 → 有符号值"三级选出赢家并覆盖一切；带序由 `Op` 决定（`SortKey` 不参与）；**空集返回 `BaseValue`**；纯函数（无副作用/时间/随机，D0-1）；注释写明"**三处消费者（M2 聚合 / M5 参数链 / TcsDamage 流程属性）一律调用本函数，不得另有并列同义实现**"（D5-5 v3）

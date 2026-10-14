@@ -1,5 +1,7 @@
 # EVID-2026-10-04-chains-primitives：链原语批次六项定向人工检查（PIE 实跑）
 
+> **术语订正（2026-10-14）**：本文原用「单位 / `Unit`」，该词已退役，现统一为「**实体 / `Entity`**」（见 `DEC-2026-10-14-entity-vocabulary`）。**正文为当时原话，保留不改。**
+
 - **文档 ID**：`EVID-2026-10-04-chains-primitives`
 - **类型**：EVID / 证据
 - **状态**：VALID

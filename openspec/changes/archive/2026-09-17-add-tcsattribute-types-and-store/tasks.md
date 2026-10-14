@@ -1,5 +1,7 @@
 ## 1. Implementation
 
+> **术语订正（2026-10-14）**：本文原用「单位 / `Unit`」，该词已退役，现统一为「**实体 / `Entity`**」（见 `DEC-2026-10-14-entity-vocabulary`）。**正文为当时原话，保留不改。**
+
 ### TcsCore（两处公共面改动）
 
 - [x] 1.1 `Public/Handle/TcsCombatEntityHandle.h`（header-only）：`FTcsCombatEntityHandle{uint64 Id, 0=无效}` + `IsValid` + 相等 + `GetTypeHash`；`FTcsCombatEntityHandleRegistry::Allocate()`（std::atomic 递增、首个为 1、进程内永不复用——对齐 `FTcsSourceHandleRegistry` 形式）——**不加导出宏**（见 1.12）

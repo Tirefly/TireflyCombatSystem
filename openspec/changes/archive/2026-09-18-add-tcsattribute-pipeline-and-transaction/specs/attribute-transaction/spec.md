@@ -1,5 +1,7 @@
 ## ADDED Requirements
 
+> **术语订正（2026-10-14）**：本文原用「单位 / `Unit`」，该词已退役，现统一为「**实体 / `Entity`**」（见 `DEC-2026-10-14-entity-vocabulary`）。**正文为当时原话，保留不改。**
+
 ### Requirement: 变更批与提交
 
 管线 MUST 提供事务式写入（D2-5）：`BeginBatch(Unit)` / `Commit(Unit)`，同一批内完成的全部变更（挂修正器 / 摘修正器 / 改基础值 / **属性增删**）MUST 汇总为**一次重算 + 每属性最多一次广播**：

@@ -1,5 +1,7 @@
 # Change: 冷却与消耗的类型层（策略族 + 契约键 + Def 字段回补）
 
+> **术语订正（2026-10-14）**：本文原用「单位 / `Unit`」，该词已退役，现统一为「**实体 / `Entity`**」（见 `DEC-2026-10-14-entity-vocabulary`）。**正文为当时原话，保留不改。**
+
 > 对应计划 `PLN-R6.5-1`（`Documents/combat-system-design/plans/plan-r6.5-cooldown-and-cost.md`）**Task 0**。
 > **本变更零行为变更**——只落类型、字段与契约键，**无任何调用点**（门禁 / 到期堆 / 事件全部归 Task 1~5）。
 

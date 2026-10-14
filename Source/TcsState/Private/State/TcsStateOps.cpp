@@ -36,14 +36,14 @@ EApplyResult FTcsStateOps::Apply(
 		return EApplyResult::EAR_Rejected;
 	}
 
-	// 组键与共存决策（**策略驱动**——R5 Task 5 落地，原"同单位 + 同 `DefTag` 即刷新"的暂用判据已替换）：
-	// 组键 = `(单位, DefTag)` + 轴附加项，命中后按容量与溢出政策决定刷新 / 叠层 / 替换 / 拒绝。
+	// 组键与共存决策（**策略驱动**——R5 Task 5 落地，原"同实体 + 同 `DefTag` 即刷新"的暂用判据已替换）：
+	// 组键 = `(实体, DefTag)` + 轴附加项，命中后按容量与溢出政策决定刷新 / 叠层 / 替换 / 拒绝。
 	// 决策与后续更新流水住 `TcsStateOps_Stack.cpp`；本函数只做校验、决策分派与"新建"一支。
 	FStateBucket* Bucket = &Subsystem.Registry.FindOrAddBucket(Target);
 
 	FTcsStateStackRequest StackRequest;
 	StackRequest.DefTag = DefTag;
-	StackRequest.Unit = Target;
+	StackRequest.Entity = Target;
 	StackRequest.Source = Source;
 	StackRequest.Instigator = Instigator.IsValid() ? Instigator : Target;
 
@@ -54,7 +54,7 @@ EApplyResult FTcsStateOps::Apply(
 	if (Decision.Kind == ETcsStateStackDecisionKind::Reject)
 	{
 		const FTcsStateInstance* Member = Bucket->Find(MemberHandle);
-		UE_LOG(LogTcsState, Log, TEXT("状态施加被共存策略拒绝：单位=%lld 定义=%s 组内层数=%d 层数上限=%d 溢出政策=%d"),
+		UE_LOG(LogTcsState, Log, TEXT("状态施加被共存策略拒绝：实体=%lld 定义=%s 组内层数=%d 层数上限=%d 溢出政策=%d"),
 			Target.Id, *DefTag.ToString(), Member ? Member->Stacks : 0,
 			Def->StackPolicy.MaxStacks, static_cast<int32>(Def->StackPolicy.Overflow));
 		return EApplyResult::EAR_Rejected;
@@ -66,12 +66,12 @@ EApplyResult FTcsStateOps::Apply(
 	{
 		Remove(Subsystem, Decision.ExistingHandle, EStateRemoveCause::ESRC_Removed);
 
-		// 移除会广播 ⇒ 订阅者可重入状态操作（注销该单位）⇒ MUST 重新取桶。桶对象经 `TUniquePtr` 持有、
+		// 移除会广播 ⇒ 订阅者可重入状态操作（注销该实体）⇒ MUST 重新取桶。桶对象经 `TUniquePtr` 持有、
 		// 地址稳定，但**对象本身可能已被销毁** ⇒ 必须重取而不是复用旧指针（Task 4 的重入纪律）。
 		Bucket = Subsystem.Registry.FindBucket(Target);
 		if (!Bucket)
 		{
-			UE_LOG(LogTcsState, Warning, TEXT("状态替换的移除阶段期间单位桶已注销：单位=%lld 定义=%s"),
+			UE_LOG(LogTcsState, Warning, TEXT("状态替换的移除阶段期间实体桶已注销：实体=%lld 定义=%s"),
 				Target.Id, *DefTag.ToString());
 			return EApplyResult::EAR_Rejected;
 		}
@@ -84,7 +84,7 @@ EApplyResult FTcsStateOps::Apply(
 		FTcsStateInstance* Existing = Bucket->Find(Decision.ExistingHandle);
 		if (!Existing)
 		{
-			UE_LOG(LogTcsState, Warning, TEXT("状态共存决策后实例已不在册：单位=%lld 定义=%s 句柄=%d/%d"),
+			UE_LOG(LogTcsState, Warning, TEXT("状态共存决策后实例已不在册：实体=%lld 定义=%s 句柄=%d/%d"),
 				Target.Id, *DefTag.ToString(), Decision.ExistingHandle.Index, Decision.ExistingHandle.Generation);
 			return EApplyResult::EAR_Rejected;
 		}
@@ -100,7 +100,7 @@ EApplyResult FTcsStateOps::Apply(
 
 	NewInstance->DefTag = DefTag;
 	NewInstance->Handle = NewHandle;
-	NewInstance->Unit = Target;
+	NewInstance->Entity = Target;
 	NewInstance->Source = Source.IsValid() ? Source : Subsystem.SourceRegistry.Allocate();
 
 	// 级联锚点：**每实例恒发新号**（与 `Source` 解耦——一个来源可施加多个不同定义，
@@ -128,7 +128,7 @@ EApplyResult FTcsStateOps::Apply(
 	if (!LiveInstance)
 	{
 		UE_LOG(LogTcsState, Log,
-			TEXT("状态施加后实例已不在册（挂载提交期间被重入移除）：单位=%lld 定义=%s 句柄=%d/%d"),
+			TEXT("状态施加后实例已不在册（挂载提交期间被重入移除）：实体=%lld 定义=%s 句柄=%d/%d"),
 			Target.Id, *DefTag.ToString(), NewHandle.Index, NewHandle.Generation);
 		return EApplyResult::EAR_Applied;
 	}
@@ -137,7 +137,7 @@ EApplyResult FTcsStateOps::Apply(
 	const FTcsBuffDef* LiveDef = Subsystem.GetRegisteredStateDef(DefTag);
 	if (!LiveDef)
 	{
-		UE_LOG(LogTcsState, Log, TEXT("状态施加接线已停止：挂载期间定义被注销（单位=%lld 定义=%s）"),
+		UE_LOG(LogTcsState, Log, TEXT("状态施加接线已停止：挂载期间定义被注销（实体=%lld 定义=%s）"),
 			Target.Id, *DefTag.ToString());
 		return EApplyResult::EAR_Applied;
 	}
@@ -150,11 +150,11 @@ EApplyResult FTcsStateOps::Apply(
 	WireTriggerRows(Subsystem, *LiveInstance, *LiveDef);
 	WireBehaviors(Subsystem, *LiveInstance, *LiveDef);
 
-	// 行为回调可移除自己或注销单位；广播后不使用原实例指针，日志也只读这一份值快照。
+	// 行为回调可移除自己或注销实体；广播后不使用原实例指针，日志也只读这一份值快照。
 	const FTcsStateInstance AppliedSnapshot = *LiveInstance;
 	Broadcast(Subsystem, Tag_TcsEvent_State_Applied, AppliedSnapshot, EStateRemoveCause::ESRC_Removed);
 
-	UE_LOG(LogTcsState, Log, TEXT("状态施加：单位=%lld 定义=%s 句柄=%d/%d 来源=%llu 等级=%d 快照=%d 条 剩余=%.3f 周期=%.3f"),
+	UE_LOG(LogTcsState, Log, TEXT("状态施加：实体=%lld 定义=%s 句柄=%d/%d 来源=%llu 等级=%d 快照=%d 条 剩余=%.3f 周期=%.3f"),
 		Target.Id, *DefTag.ToString(), NewHandle.Index, NewHandle.Generation,
 		AppliedSnapshot.Source.Id, AppliedSnapshot.Level, AppliedSnapshot.ParamSnapshot.Num(),
 		AppliedSnapshot.DurationRemaining, AppliedSnapshot.PeriodRemaining);
@@ -179,20 +179,20 @@ bool FTcsStateOps::Remove(
 	const FTcsStateInstance* Found = Find(Subsystem, Handle);
 	if (!Found)
 	{
-		// 代际失配 / 单位已注销 = 时序竞态，不是契约违规（不 ensure）
+		// 代际失配 / 实体已注销 = 时序竞态，不是契约违规（不 ensure）
 		UE_LOG(LogTcsState, Warning, TEXT("状态移除被拒：句柄悬空（%d/%d）"), Handle.Index, Handle.Generation);
 		return false;
 	}
 
 	// 仅拒绝 Remove 的终止事件广播窗口重入；刷新也使用 Expiring 过渡态，不能按 Phase 一刀拒绝。
-	if (Subsystem.InRemovalBroadcastHandles.Contains(Handle))
+	if (Subsystem.RemovalBroadcastGuard.IsBroadcasting(Handle))
 	{
 		return false;
 	}
 
-	// 先把单位与槽位下标取出来（**按值**）：广播之后本函数不再持实例指针
+	// 先把实体与槽位下标取出来（**按值**）：广播之后本函数不再持实例指针
 	// （订阅者可在回调里增删状态，槽位可能被复用）。
-	const FTcsCombatEntityHandle Unit = Found->Unit;
+	const FTcsCombatEntityHandle Entity = Found->Entity;
 	const uint32 SlotIndex = static_cast<uint32>(Handle.Index);
 	const FGameplayTag DefTag = Found->DefTag;
 	const FTcsSourceHandle Source = Found->Source;
@@ -201,17 +201,17 @@ bool FTcsStateOps::Remove(
 	const FTcsSourceHandle CascadeAnchor = Found->CascadeAnchor;
 
 	// **修正器摘除排在"取实例指针"之前**（顺序有理由，不是随手排的）：`StripModifiers` 内的批提交
-	// 会重算 + 广播（属性变更事件），订阅者可在其中重入状态操作（移除本实例 / 注销单位）——
+	// 会重算 + 广播（属性变更事件），订阅者可在其中重入状态操作（移除本实例 / 注销实体）——
 	// 先摘除、再重新定位桶与实例，下面两道既有守卫（桶不存在 / 实例查不到）就同时接住了重入造成的失效。
 	// 完整撤销顺序：**摘除修正器 → 退订触发行与行为片段 → 撤时间条目 → `Expiring` → 广播 → 归还槽位**。
 	// 三处撤销都排在广播之前 ⇒ 订阅者读到的是"已经还清"的属性值、行与实例；其中退订排在广播之前
 	// 还有一层意义：**该实例自己的触发行 MUST NOT 因自己的死亡事件起链**（"状态走了，行为先走"）。
-	StripModifiers(Subsystem, Unit, CascadeAnchor);
+	StripModifiers(Subsystem, Entity, CascadeAnchor);
 
-	FStateBucket* Bucket = Subsystem.Registry.FindBucket(Unit);
+	FStateBucket* Bucket = Subsystem.Registry.FindBucket(Entity);
 	if (!Bucket)
 	{
-		UE_LOG(LogTcsState, Warning, TEXT("状态移除被拒：单位桶不存在（单位=%lld）"), Unit.Id);
+		UE_LOG(LogTcsState, Warning, TEXT("状态移除被拒：实体桶不存在（实体=%lld）"), Entity.Id);
 		return false;
 	}
 
@@ -222,7 +222,7 @@ bool FTcsStateOps::Remove(
 	FTcsStateInstance* Instance = Bucket->Find(Handle);
 	if (!Instance)
 	{
-		// 摘除提交期间被重入者移除（或单位已注销）——按已移除处理，不重复归还槽位
+		// 摘除提交期间被重入者移除（或实体已注销）——按已移除处理，不重复归还槽位
 		return false;
 	}
 
@@ -241,27 +241,27 @@ bool FTcsStateOps::Remove(
 	// 广播前把实例复制一份：广播会让订阅者改桶（槽位可能被复用），故不用引用跨过广播。
 	// **复制的是广播当时的快照**（阶段 = `Expiring`，正是"移除中"的语义）。
 	const FTcsStateInstance Snapshot = *Instance;
-	Subsystem.InRemovalBroadcastHandles.Add(Handle);
+	Subsystem.RemovalBroadcastGuard.Enter(Handle);
 	Broadcast(Subsystem, Cause == EStateRemoveCause::ESRC_Expired ? Tag_TcsEvent_State_Expired : Tag_TcsEvent_State_Removed,
 		Snapshot, Cause);
-	Subsystem.InRemovalBroadcastHandles.Remove(Handle);
+	Subsystem.RemovalBroadcastGuard.Exit(Handle);
 
 	// 广播可注销整个桶，也可使该句柄失效；重新定位后才归还，防双次归还或误释放复用槽位。
-	FStateBucket* ReleaseBucket = Subsystem.Registry.FindBucket(Unit);
+	FStateBucket* ReleaseBucket = Subsystem.Registry.FindBucket(Entity);
 	if (ReleaseBucket && ReleaseBucket->Find(Handle))
 	{
 		ReleaseBucket->ReleaseSlot(SlotIndex);
 	}
 
-	UE_LOG(LogTcsState, Log, TEXT("状态移除：单位=%lld 定义=%s 句柄=%d/%d 原因=%d 来源=%llu"),
-		Unit.Id, *DefTag.ToString(), Handle.Index, Handle.Generation, static_cast<int32>(Cause), Source.Id);
+	UE_LOG(LogTcsState, Log, TEXT("状态移除：实体=%lld 定义=%s 句柄=%d/%d 原因=%d 来源=%llu"),
+		Entity.Id, *DefTag.ToString(), Handle.Index, Handle.Generation, static_cast<int32>(Cause), Source.Id);
 
 	return true;
 }
 
-int32 FTcsStateOps::UnregisterUnit(UTcsStateSubsystem& Subsystem, FTcsCombatEntityHandle Unit)
+int32 FTcsStateOps::UnregisterEntity(UTcsStateSubsystem& Subsystem, FTcsCombatEntityHandle Entity)
 {
-	const FStateBucket* Bucket = Subsystem.Registry.FindBucket(Unit);
+	const FStateBucket* Bucket = Subsystem.Registry.FindBucket(Entity);
 	if (!Bucket)
 	{
 		return 0;
@@ -285,9 +285,9 @@ int32 FTcsStateOps::UnregisterUnit(UTcsStateSubsystem& Subsystem, FTcsCombatEnti
 		}
 	}
 
-	Subsystem.Registry.RemoveBucket(Unit);
+	Subsystem.Registry.RemoveBucket(Entity);
 
-	UE_LOG(LogTcsState, Log, TEXT("单位状态注销：单位=%lld 移除=%d 条"), Unit.Id, RemovedCount);
+	UE_LOG(LogTcsState, Log, TEXT("实体状态注销：实体=%lld 移除=%d 条"), Entity.Id, RemovedCount);
 
 	return RemovedCount;
 }

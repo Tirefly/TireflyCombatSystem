@@ -42,19 +42,46 @@ namespace
 	}
 
 	/**
+	 * 把状态侧的决策输入 / 既有实例**适配**成共享层的通用视图。
+	 *
+	 * **为什么需要适配层**：共享层 MUST NOT 认识 `FTcsStateInstance`（域语义）⇒ 统一决策接口收的是
+	 * 它自己的 `FTcsEntityAdmissionRequest` / `...Existing`。两个 `From*` 函数就是那层适配，
+	 * 且**逐字段直取、不做任何加工**（判据全在策略里，适配层不得掺入语义）。
+	 */
+	void TcsStackOps_ToAdmission(
+		const FTcsStateStackRequest& Request,
+		const FTcsStateInstance& Existing,
+		FTcsEntityAdmissionRequest& OutRequest,
+		FTcsEntityAdmissionExisting& OutExisting)
+	{
+		OutRequest.DefTag = Request.DefTag;
+		OutRequest.Entity = Request.Entity;
+		OutRequest.Source = Request.Source;
+		OutRequest.Instigator = Request.Instigator;
+
+		OutExisting.DefTag = Existing.DefTag;
+		OutExisting.Entity = Existing.Entity;
+		OutExisting.Source = Existing.Source;
+		OutExisting.Instigator = Existing.Instigator;
+		OutExisting.Stacks = Existing.Stacks;
+	}
+
+	/**
 	 * 取自定义决策载荷（**只有 `EGB_Custom` 才查**）。
 	 *
 	 * 缺失 / 类型不符 ⇒ 返回 nullptr + `Warning`（**配置错误**语义：作者选了逃逸位却没挂策略）。
 	 * 调用方据此退化为内置"不分组"语义——策略缺失不该让施加失败。
+	 *
+	 * **返回类型 = 共享层的统一接口**（本类型现继承它）⇒ 调用点走统一的虚分派。
 	 */
-	const FTcsStateStackDecisionFragment* TcsStackOps_ResolveFragment(const FStateStackPolicy& Policy)
+	const FTcsEntityAdmission* TcsStackOps_ResolveFragment(const FStateStackPolicy& Policy)
 	{
 		if (Policy.GroupBy != EGroupByPolicy::EGB_Custom)
 		{
 			return nullptr;
 		}
 
-		const FTcsStateStackDecisionFragment* Fragment =
+		const FTcsEntityAdmission* Fragment =
 			Policy.CustomDecision.GetPtr<FTcsStateStackDecisionFragment>();
 
 		if (!Fragment)
@@ -87,10 +114,10 @@ namespace
 		const FTcsStateStackRequest& Request,
 		const FTcsStateInstance& Existing,
 		const FStateStackPolicy& Policy,
-		const FTcsStateStackDecisionFragment* Fragment)
+		const FTcsEntityAdmission* Fragment)
 	{
-		// 组键基座：同单位 + 同定义（一条实例 = 一个定义的数据 ⇒ **不同定义永不共组**）
-		if (Existing.Unit != Request.Unit || Existing.DefTag != Request.DefTag)
+		// 组键基座：同实体 + 同定义（一条实例 = 一个定义的数据 ⇒ **不同定义永不共组**）
+		if (Existing.Entity != Request.Entity || Existing.DefTag != Request.DefTag)
 		{
 			return false;
 		}
@@ -105,7 +132,15 @@ namespace
 
 		case EGroupByPolicy::EGB_Custom:
 			// 载荷可用则由它判；不可用 ⇒ 退化为"不分组"（基座已过 ⇒ 同组）
-			return Fragment ? Fragment->IsSameGroup(Request, Existing) : true;
+			if (Fragment)
+			{
+				FTcsEntityAdmissionRequest AdmissionRequest;
+				FTcsEntityAdmissionExisting AdmissionExisting;
+				TcsStackOps_ToAdmission(Request, Existing, AdmissionRequest, AdmissionExisting);
+				return Fragment->IsSameGroup(AdmissionRequest, AdmissionExisting);
+			}
+
+			return true;
 
 		case EGroupByPolicy::EGB_None:
 		default:
@@ -125,7 +160,7 @@ FTcsStateStackDecision FTcsStateOps::ResolveStackDecision(
 
 	// 决策载荷**只解析一次**（解析失败会留一条 Warning ⇒ 一次施加只该出现一条：
 	// 若"找成员"与"出决策"各解析一次，同一处配置错误会刷两条重复 Warning）
-	const FTcsStateStackDecisionFragment* Fragment = TcsStackOps_ResolveFragment(Policy);
+	const FTcsEntityAdmission* Fragment = TcsStackOps_ResolveFragment(Policy);
 
 	// 在桶内找同组成员（**至多命中一条**——本模型下组内至多一条实例）。
 	// 两段式读：`ForEach` 期间不得增删实例（本处只读，命中即提前终止）。
@@ -156,10 +191,16 @@ FTcsStateStackDecision FTcsStateOps::ResolveStackDecision(
 
 	// ② 接受与否（Custom 特有的第一道门；内置路径恒接受）——排在容量之前：
 	// 逃逸位的意思就是"它能接受容量政策会拒的那一次"
-	if (Fragment && !Fragment->ShouldAccept(Request, *Existing))
+	if (Fragment)
 	{
-		Decision.Kind = ETcsStateStackDecisionKind::Reject;
-		return Decision;
+		FTcsEntityAdmissionRequest AdmissionRequest;
+		FTcsEntityAdmissionExisting AdmissionExisting;
+		TcsStackOps_ToAdmission(Request, *Existing, AdmissionRequest, AdmissionExisting);
+		if (!Fragment->ShouldAccept(AdmissionRequest, AdmissionExisting))
+		{
+			Decision.Kind = ETcsStateStackDecisionKind::Reject;
+			return Decision;
+		}
 	}
 
 	// ③ 容量：`MaxStacks <= 0` = 无限 ⇒ 本档不可达（无限层永不判满）
@@ -175,9 +216,17 @@ FTcsStateStackDecision FTcsStateOps::ResolveStackDecision(
 
 	// ④ 未满仓：同来源续杯（层数不变）、异来源叠一层。层数由 Custom 接管（若挂了策略）或内置规则给出；
 	// **档位由"层数变没变"反推**——这样 Custom 的 `ResolveStacks` 可以直接决定"这一次算不算叠层"。
-	Decision.NewStacks = Fragment
-		? Fragment->ResolveStacks(Request, *Existing)
-		: (TcsStackOps_IsSameOrigin(Request, *Existing) ? Existing->Stacks : Existing->Stacks + 1);
+	if (Fragment)
+	{
+		FTcsEntityAdmissionRequest AdmissionRequest;
+		FTcsEntityAdmissionExisting AdmissionExisting;
+		TcsStackOps_ToAdmission(Request, *Existing, AdmissionRequest, AdmissionExisting);
+		Decision.NewStacks = Fragment->ResolveStacks(AdmissionRequest, AdmissionExisting);
+	}
+	else
+	{
+		Decision.NewStacks = TcsStackOps_IsSameOrigin(Request, *Existing) ? Existing->Stacks : Existing->Stacks + 1;
+	}
 
 	Decision.Kind = Decision.NewStacks != Existing->Stacks
 		? ETcsStateStackDecisionKind::Stack
@@ -210,7 +259,7 @@ EApplyResult FTcsStateOps::RefreshStacked(
 
 	// ② 快照重建（D3-12："修改 = 重新施加，新 payload 覆盖旧的"）
 	FTcsStateEvaluateContext Ctx;
-	MakeContext(Ctx, Subsystem, Request.Unit, Instance.Instigator, Def.LevelBase, ParamTable);
+	MakeContext(Ctx, Subsystem, Request.Entity, Instance.Instigator, Def.LevelBase, ParamTable);
 	BuildSnapshot(Instance.ParamSnapshot, Def, Ctx, Overrides);
 
 	// ③ 修正器重挂：先按级联锚点摘旧、再按新快照挂新（同一批内完成，条数不累加）。
@@ -218,15 +267,15 @@ EApplyResult FTcsStateOps::RefreshStacked(
 	// 故物化器读到的是本次施加之后的层数（顺序有意：层数先落，数值后算）。
 	MountModifiers(Subsystem, Def, Instance, /*bStripFirst=*/true);
 
-	// 挂载提交会重算 + 广播 ⇒ 订阅者可重入状态操作（移除本实例 / 注销单位）⇒ MUST 重新定位
-	FStateBucket* LiveBucket = Subsystem.Registry.FindBucket(Request.Unit);
+	// 挂载提交会重算 + 广播 ⇒ 订阅者可重入状态操作（移除本实例 / 注销实体）⇒ MUST 重新定位
+	FStateBucket* LiveBucket = Subsystem.Registry.FindBucket(Request.Entity);
 	FTcsStateInstance* Live = LiveBucket ? LiveBucket->Find(Handle) : nullptr;
 	if (!Live)
 	{
 		// 更新已完成，回调合法移除实例时不再补播事件，回执仍按决策档给。
 		UE_LOG(LogTcsState, Log,
-			TEXT("状态%s后实例已不在册（挂载提交期间被重入移除）：单位=%lld 定义=%s 句柄=%d/%d"),
-			TcsStackOps_DecisionToString(Decision.Kind), Request.Unit.Id, *Request.DefTag.ToString(),
+			TEXT("状态%s后实例已不在册（挂载提交期间被重入移除）：实体=%lld 定义=%s 句柄=%d/%d"),
+			TcsStackOps_DecisionToString(Decision.Kind), Request.Entity.Id, *Request.DefTag.ToString(),
 			Handle.Index, Handle.Generation);
 		return Result;
 	}
@@ -245,7 +294,7 @@ EApplyResult FTcsStateOps::RefreshStacked(
 
 	// 时间重挂的 Immediate 周期事件也可能移除本实例，返回后必须重新定位。
 	ScheduleTime(Subsystem, *Live, *LiveDef, Live->ParamSnapshot, ParamTable, /*bRefresh=*/true);
-	Live = Subsystem.Registry.Find(Request.Unit, Handle);
+	Live = Subsystem.Registry.Find(Request.Entity, Handle);
 	if (!Live)
 	{
 		return Result;
@@ -258,7 +307,7 @@ EApplyResult FTcsStateOps::RefreshStacked(
 		Broadcast(Subsystem, Tag_TcsEvent_State_StackChanged, EventSnapshot, EStateRemoveCause::ESRC_Removed);
 	}
 
-	Live = Subsystem.Registry.Find(Request.Unit, Handle);
+	Live = Subsystem.Registry.Find(Request.Entity, Handle);
 	if (Live)
 	{
 		// 同次更新的两笔载荷保持相同层数；重入后的 Live 只用作活性检查，不覆写事件快照。
@@ -266,14 +315,14 @@ EApplyResult FTcsStateOps::RefreshStacked(
 	}
 
 	// Refreshed 回调可以自移除或嵌套刷新。只恢复仍在册且仍处过渡态的实例。
-	Live = Subsystem.Registry.Find(Request.Unit, Handle);
+	Live = Subsystem.Registry.Find(Request.Entity, Handle);
 	if (Live && Live->Phase == EStatePhase::ESP_Expiring)
 	{
 		Transit(Subsystem, Live, EStatePhase::ESP_Active);
 	}
 
-	UE_LOG(LogTcsState, Log, TEXT("状态%s：单位=%lld 定义=%s 句柄=%d/%d 层数=%d 快照=%d 条 剩余=%.3f"),
-		TcsStackOps_DecisionToString(Decision.Kind), Request.Unit.Id, *Request.DefTag.ToString(),
+	UE_LOG(LogTcsState, Log, TEXT("状态%s：实体=%lld 定义=%s 句柄=%d/%d 层数=%d 快照=%d 条 剩余=%.3f"),
+		TcsStackOps_DecisionToString(Decision.Kind), Request.Entity.Id, *Request.DefTag.ToString(),
 		EventSnapshot.Handle.Index, EventSnapshot.Handle.Generation, EventSnapshot.Stacks, EventSnapshot.ParamSnapshot.Num(),
 		EventSnapshot.DurationRemaining);
 

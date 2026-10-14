@@ -1,5 +1,7 @@
 # Change: 施法运行态与六道具名门禁（`TryActivate` / `FTcsCastRun` / 事件四枚）+ 删除技能侧 AttrCapture
 
+> **术语订正（2026-10-14）**：本文原用「单位 / `Unit`」，该词已退役，现统一为「**实体 / `Entity`**」（见 `DEC-2026-10-14-entity-vocabulary`）。**正文为当时原话，保留不改。**
+
 > 对应计划 `PLN-R6` Task 3（`Documents/combat-system-design/plans/plan-r6-skill-layer.md`）。
 > **本轮同批并入一处对已归档能力的删除**：技能侧 `AttrCapture` 整套判定为**机制重叠、零消费者**（依据见 What Changes 第 3 条），
 > 字段与机制一并删除。删除动作按用户 2026-10-08 裁定**并入本提案**，不另开独立删除提案。

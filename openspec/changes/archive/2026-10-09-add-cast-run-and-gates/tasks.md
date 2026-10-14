@@ -1,5 +1,7 @@
 # Tasks: add-cast-run-and-gates
 
+> **术语订正（2026-10-14）**：本文原用「单位 / `Unit`」，该词已退役，现统一为「**实体 / `Entity`**」（见 `DEC-2026-10-14-entity-vocabulary`）。**正文为当时原话，保留不改。**
+
 > 对应计划 `PLN-R6` Task 3（`Documents/combat-system-design/plans/plan-r6-skill-layer.md`，Step 1~8）。
 > **本清单是 Task 3 的验收面**：每一项 MUST 在实施后回读本文件逐条勾选
 > （`MEM-20260916-01` 第 3 条的教训：**"计划写了"不等于"实施时照做"**）。

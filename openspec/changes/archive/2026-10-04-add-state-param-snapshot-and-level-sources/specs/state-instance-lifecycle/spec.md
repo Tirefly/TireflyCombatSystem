@@ -1,5 +1,7 @@
 # Delta: state-instance-lifecycle
 
+> **术语订正（2026-10-14）**：本文原用「单位 / `Unit`」，该词已退役，现统一为「**实体 / `Entity`**」（见 `DEC-2026-10-14-entity-vocabulary`）。**正文为当时原话，保留不改。**
+
 > **本 delta 的性质**：Task 2 已把"实例骨架"落进主规格；本 delta 只补**时间与数值两条腿**带来的四处口径变化（实例字段面 / 门面时长操作与等级读口 / 撤销顺序扩展 / 反初始化清空面）。
 >
 > **归档器硬约束（第三次实证，2026-10-04）**：MODIFIED 块里 `### Requirement:` 与 `#### Scenario:` 的**标题都不可改、不可删**——改名或删除会被 `validate` 拒为 `omits scenario(s)`，`## RENAMED Requirements` 写 `#### Scenario:` 会被**静默丢弃**。故下面每条 MODIFIED 均**原样保留全部既有场景标题**，新语义只以"新增场景 + 正文补句"承载。

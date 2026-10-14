@@ -5,14 +5,14 @@
 ## Requirements
 ### Requirement: 变更批与提交
 
-管线 MUST 提供事务式写入（D2-5）：`BeginBatch(Unit)` / `Commit(Unit)`，同一批内完成的全部变更（挂修正器 / 摘修正器 / 改基础值 / **属性增删**）MUST 汇总为**一次重算 + 每属性最多一次广播**：
+管线 MUST 提供事务式写入（D2-5）：`BeginBatch(Entity)` / `Commit(Entity)`，同一批内完成的全部变更（挂修正器 / 摘修正器 / 改基础值 / **属性增删**）MUST 汇总为**一次重算 + 每属性最多一次广播**：
 
 - **批内**：变更只标脏、只累加候选集（求值 → 折叠 → 值域收口全在内存候选值上做），不写回、不广播；
 - **`Commit` 尾**：对全部脏属性逐个重算（含依赖顺延）并按 epsilon 比较后广播——**单帧多次变更只算一次**；
 - 未显式开批时，各写入口 MUST 各自视为一个**隐式批**（行为与"开批-操作-提交"一致）；
 - 批 MUST 支持嵌套计数（内层提交不触发 flush，最外层提交才触发）；
-- **每单位事务状态与依赖边住 `FTcsAttributeStore`**（批深度 `BatchDepth` / 依赖边 `Dependents`）——与属性实例、冻结暂存区同生命周期，`UnregisterUnit` / `Deinitialize` 一并释放（无跨单位残留）；
-- 写操作类 MUST 覆盖：挂修正器 / 按来源摘除 / **改基值**（`SetBaseValue(Unit, Attribute, NewBaseValue)`）/ 属性增删（`AddAttribute` / `RemoveAttribute`）。
+- **每实体事务状态与依赖边住 `FTcsAttributeStore`**（批深度 `BatchDepth` / 依赖边 `Dependents`）——与属性实例、冻结暂存区同生命周期，`UnregisterEntity` / `Deinitialize` 一并释放（无跨实体残留）；
+- 写操作类 MUST 覆盖：挂修正器 / 按来源摘除 / **改基值**（`SetBaseValue(Entity, Attribute, NewBaseValue)`）/ 属性增删（`AddAttribute` / `RemoveAttribute`）。
 
 #### Scenario: 批内多次改同属性只广播一次
 
@@ -38,7 +38,7 @@
 
 ### Requirement: 未提交候选值预览
 
-`PeekPending(Unit, FGameplayTag)` MUST 返回**不落账**的候选值预览（D2-5，供表现层预览；**2026-09-22 改造：属性参数从 `FTcsAttributeName` 改为 `FGameplayTag`**）：
+`PeekPending(Entity, FGameplayTag)` MUST 返回**不落账**的候选值预览（D2-5，供表现层预览；**2026-09-22 改造：属性参数从 `FTcsAttributeName` 改为 `FGameplayTag`**）：
 
 - 批进行中：返回该属性在当前批内**候选集**上算出的值（含尚未提交的变更）；
 - 无进行中的批：返回与 `EvaluateCurrent` 相同的当前值；
@@ -51,9 +51,9 @@
 
 ### Requirement: 按来源级联摘除
 
-管线 MUST 提供 `RemoveBySource(Unit, FTcsSourceHandle)`（D2-2：modifier 生死完全绑定来源句柄，M2 无计时器）：
+管线 MUST 提供 `RemoveBySource(Entity, FTcsSourceHandle)`（D2-2：modifier 生死完全绑定来源句柄，M2 无计时器）：
 
-- 从该单位**全部属性**的修正器槽位中摘除 Source 匹配的条目 → 受影响属性标脏 → 重算 → 按变更规则广播；
+- 从该实体**全部属性**的修正器槽位中摘除 Source 匹配的条目 → 受影响属性标脏 → 重算 → 按变更规则广播；
 - **扫描面 MUST 含冻结暂存区**（`FTcsAttributeStore::FrozenAttributes`）：来源可能在"属性被冻结"期间结束——若只在实例槽位里找，其修正器会永久滞留，属性恢复时**凭空多出数值**（比丢数值更难查）。命中暂存区时 MUST 留痕（日志）；
 - 未命中任何条目时 MUST 为**正常路径**（不 ensure——来源可能只挂过已撤销的修正器）。
 

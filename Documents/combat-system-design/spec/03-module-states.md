@@ -36,7 +36,7 @@ FStateDefBase（抽象，编辑器隐藏）          ← 本模块定义
 - `FStateInstance`（USTRUCT，池化）：`DefTag / Handle / Source / Stacks / Level / Phase / ParamSnapshot`（**快照类型 `FTcsParamSnapshot`，2026-09-14 命名批**；**v3：FragmentSet 移除**——Fragment 配置归 Def，实例零策略/载荷/订阅句柄，D3-7 v2）。**实例-定义引用规范（D3-18；身份 2026-09-22 tag 化）**：权威=`DefTag`（`FGameplayTag`）；热路径=`GetDef()` 解析缓存（const 指针+DefLibrary 版本校验；重定向/热重载自动失效）；**运行期零回查 Def**（数值类基础信息在快照构建时消化——发现"执行中查 Def"即设计漏洞）。无 UObject、无每实例 StateTree（D3-5）。
 - **`FStateInstance.ParamSnapshot`（D3-12）**：apply 时把全部生效参数一次性求值冻结（强度/Duration/Period/Level——施加上下文覆盖值优先，Def 默认兜底）；实例生命周期内读快照；**修改 = 按刷新政策重新施加（快照重建，新 payload 覆盖）**。
 - **live 通道分界**：实例施加的持续修正器（Source=状态句柄，走 M2 账本）实时生效、随驱散/强化级联——与快照通道正交（灼烧幅度=快照；灼烧附带的-20% 火抗=live）。修正器来自 Def 的 ModifierRows 模板引用，apply 物化时可变值从 ParamSnapshot 解析（D3-19）——账本内纯规范值。
-- ~~`UCombatStateRegistry`~~ → **`UTcsStateSubsystem : UWorldSubsystem`**（2026-10-04 R5 收窄轮定，见 §12.3；原命名与 06 文档统一待办就此结案）：中央注册表 per-unit 桶（`FCombatEntityHandle → 桶`）；军官组件与 Mass 桶只是访问适配器（桶指针缓存+代际校验）；桶只存数据与索引，操作全在引擎函数 `FStateOps`。
+- ~~`UCombatStateRegistry`~~ → **`UTcsStateSubsystem : UWorldSubsystem`**（2026-10-04 R5 收窄轮定，见 §12.3；原命名与 06 文档统一待办就此结案）：中央注册表 per-entity 桶（`FCombatEntityHandle → 桶`）；军官组件与 Mass 桶只是访问适配器（桶指针缓存+代际校验）；桶只存数据与索引，操作全在引擎函数 `FStateOps`。
 
 ### 3.2 堆叠与刷新（D3-4，FBuffDef 字段）
 `FStateStackPolicy` 五轴（每轴枚举**值 0 = 默认**；需要逃逸的轴以**高位置位**作 Custom——Custom 选中→编辑器暴露**裸 `FInstancedStruct`** 决策策略载荷（手写 `BaseStruct` 元数据收窄选择器，D3-7 v3））：
@@ -72,7 +72,7 @@ FStateDefBase（抽象，编辑器隐藏）          ← 本模块定义
 - **组织与解析栈（D3-16）**：关系表/槽位竞争表**并存**（槽位=施法运行/动作状态，关系=Buff 施加态，互相影响）；统一 DataTable/DataAsset 行（行=单个或**一类** StateDef——StatusTag 匹配）；**解析栈**：全局默认表（插件）→ 游戏模式表 → 角色覆盖表（Boss）——让渡点模式应用；关系引用走 Tag（StateTag/SkillTag 子域）；**槽位竞争不用 StateTree**（数据行+引擎抢占规则）。
   > **★ 2026-10-13 补（族规则载体的改判，`R5.5-e` 裁决③）**：**"类目降维"机制保留**（`DEC-2026-08-31` §4 第 1 条把 N×M 压成 K 条），但**载体改判**——原文举例的 `State.Control.*` 阻断 `Action.*` **依赖两个不存在的 tag 根**（全仓实测）⇒ 改用**宿主词汇的类目容器（`FTcsStateDefBase` 新增 `FGameplayTagContainer CategoryTags`）+ 一族规则行**（补的那一层 = `FGameplayTagQuery` 是**一元谓词**、族规则是**二元关系**）。**同族先例 = `DamageCategory` 根**（宿主 ini 声明词、插件零具体词）⇒ **本议题不开任何新根**。落地归 `PLN-R5.5` Task 2，与台账 **`STAT-10`**（类别标识容器 + `ByCategoryTags` 档）**同批裁**——二者是**同一套机制的两半**（声明面同一个字段、两个消费者）。
   >
-  > **★★ 2026-10-13 同日第二笔（进一步取代上段的两处）**：载体 = [`DEC-2026-10-13-relation-row-shape`](../decisions/dec-2026-10-13-relation-row-shape.md)（吸收 Lyra 的 `ULyraAbilityTagRelationshipMapping`）。**① 行形态**改为**一行 = 一个主体词（单 `FGameplayTag`）+ 四个容器**（`AppliesToTag` / `RequiredTags` / `ForbiddenTags` / `TagsToBlock` / `TagsToCancel`），载体 = **中心 `UDataAsset`**——即**回到本行 `D3-16` 原本写的"统一 DataTable/DataAsset 行"**，与既有规格合流。**② 匹配机制**改为**容器 + `FGameplayTag::MatchesTag` 层级匹配**，**不再需要 `FGameplayTagQuery`**——理由 = Lyra 用同一个需求（域间阻断）证明**主体词填父词即覆盖一族**，查询表达式是多余的（且该引擎类型本机不可核实）。**③ 字段命名与语义方向**另见 §3.4 就地注记（`Blocks` = **受动/前置** ⇒ 改名 `ForbiddenTags`，**MUST NOT** 与新增的施动字段 `TagsToBlock` 混）。
+  > **★★ 2026-10-13 同日第二笔（进一步取代上段的两处）**：载体 = [`DEC-2026-10-13-relation-row-shape`](../decisions/dec-2026-10-13-relation-row-shape.md)（吸收 Lyra 的 `ULyraAbilityTagRelationshipMapping`）。**① 行形态**改为**一行 = 一个主体词（单 `FGameplayTag`）+ 四个容器**（`AppliesToTag` / `RequiredTags` / `ForbiddenTags` / `TagsToBlock` / `TagsToCancel`），载体 = **中心 `UDataAsset`**——即**回到本行 `D3-16` 原本写的"统一 DataTable/DataAsset 行"**，与既有规格合流。**② 匹配机制**改为**容器 + `FGameplayTag::MatchesTag` 层级匹配**，**不再需要 `FGameplayTagQuery`**——理由 = Lyra 用同一个需求（域间阻断）证明**主体词填父词即覆盖一族**，查询表达式是多余的〔**★ 2026-10-13 订正**：原文续写"（且该引擎类型**本机不可核实**）"——**该理由为假**，引擎源码在 `E:\UnrealEngine\UE_5.8`，`FGameplayTagQuery` **确认存在**于 `GameplayTagContainer.h`；**"查询表达式多余"这一条独立成立**，去掉该依赖的结论不变〕。**③ 字段命名与语义方向**另见 §3.4 就地注记（`Blocks` = **受动/前置** ⇒ 改名 `ForbiddenTags`，**MUST NOT** 与新增的施动字段 `TagsToBlock` 混）。
 
 ### 3.5 Level（D3-11 终定）
 - StateDef 通用默认参数含 `LevelBase / MaxLevel`；`FStateInstance.Level`（实例携带）。
@@ -83,7 +83,7 @@ FStateDefBase（抽象，编辑器隐藏）          ← 本模块定义
 - **apply 那一刻**：全部生效参数一次性求值冻结进 `ParamSnapshot`（施加上下文覆盖值优先，Def 默认兜底；参数行 ValueConvention 转换在快照构建写入点——D5-18 v2，快照内永远规范值）。
 - 实例生命周期内读快照；**修改 = 重新施加（快照重建）**；持续修正器通道保持 live。
 - **快照条目形状（PV-3，2026-09-11；实现名 `FTcsParamSnapshotEntry`，2026-09-14 命名批）**：已解析规范值 + **源引用位**双字段——Debug 可见取值来源，Live 化（已承诺基建）零结构迁移。**注意禁用 `Resolved*` 命名**（动词纪律：Resolve 仅句柄/Id→对象）。
-- **tooltip 索引口径（D5-17 v2/v3，2026-09-14/15）**：实例（buff/状态）tooltip 的 Series 视图（整表+当前档高亮）当前档索引取**该实例快照的 Level**，不是查询时单位等级——"运行中升级不追溯"的既定语义（D3-12），用现等级高亮会出现"显示 5 级、实际按 3 级生效"。技能面板侧口径不同（Entry 当前 EffectiveLevel，见 05）。
+- **tooltip 索引口径（D5-17 v2/v3，2026-09-14/15）**：实例（buff/状态）tooltip 的 Series 视图（整表+当前档高亮）当前档索引取**该实例快照的 Level**，不是查询时实体等级——"运行中升级不追溯"的既定语义（D3-12），用现等级高亮会出现"显示 5 级、实际按 3 级生效"。技能面板侧口径不同（Entry 当前 EffectiveLevel，见 05）。
 - 收益：客户端预演、可预测（施法/施加中途换装备不追溯）、回放输入完备。
 
 ### 3.7 就绪状态机（D3-2）
@@ -93,7 +93,7 @@ FStateDefBase（抽象，编辑器隐藏）          ← 本模块定义
 
 - `ApplyState(目标, DefTag, Source, Overrides?) -> EApplyResult`（Overrides = 施加方传入的参数覆盖，进快照）
 - `ExtendDuration(handle, Δ) / SetRemaining(handle, T)`（D3-15：运行实例生命周期操作——"灼烧延长"，到期堆同步）；**MaxStacks 无运行时修改**（政策常量；成长=变体+重定向）
-- `RemoveState / ExpireState(handle, Cause)`、`GetState(handle)`、`ForEachState(unit, 谓词)`
+- `RemoveState / ExpireState(handle, Cause)`、`GetState(handle)`、`ForEachState(entity, 谓词)`
 - `SetLevel / GetLevel`（Custom 增长模式的项目入口；FollowStacks 之类由项目实现）
 - 关系检查器：`CheckRelations(主体, 动作) -> 结果`（通用，主体=状态实例/施法运行）
 
@@ -142,8 +142,8 @@ FStateDefBase（抽象，编辑器隐藏）          ← 本模块定义
 - v2 增补 11（2026-10-04，**R5 开工收窄轮**）：新增 **§12「R5 实施范围与切分」**（落地对照 / 不落及归属 / 两处实现口径 / 四处口径待澄清）；身份块状态改 `PENDING（R5 实施中）`；**两处实现口径改名**记录在 §12.3——宿主类 `UCombatStateRegistry` → `UTcsStateSubsystem`（§3.1 正文加注）、资产类 `UTcsBuffDef` → `UTcsBuffDefAsset`（§2 正文加注），两处正文改名的**规格提案随 `PLN-R5` Task 1 一并落地**。计划见 [`PLN-R5`](../plans/plan-r5-state-layer.md)。
 - v2 增补 12（2026-10-04，**R5 Task 1 落地**）：模块与 Def 资产族物化——`TcsState` 进 `.uplugin`（第 8 个模块）、`FTcsStateDefBase` / `FTcsBuffDef` / `FTcsBuffDefTableRow` / `UTcsStateDef` / `UTcsBuffDefAsset` / `FTcsNumericParamRow` / `FTcsDescriptionEntry`(+`FTcsDescriptionViewSlot`) 落地、定义库第三条发现路径 `DiscoverStateDefs` / `ResolveStateDef` 接通（第三份缓存 + GC 引用收集）。
   **订正 v2 增补 9 的"描述载体类型住 TcsNotation"**：改判 **TcsState**（依据 `DEC-02-fold-display` v3 命名批"住哪"表）；新增 **§12.5** 记四条落地口径（两处类型提前落 / 状态词根归属挂账 / 描述载体归属订正）。规格提案 = `2026-10-04-add-tcs-state-module`（四份 delta）。
-- v2 增补 13（2026-10-04，**R5 Task 2 落地**）：运行态骨架物化——`FTcsStateHandle` / `FTcsStateInstance` / `FTcsStateRegistry`（per-unit 桶 + 槽位代际）/ `FTcsStateOps`（引擎函数，三拆）/ `UTcsStateSubsystem`（世界门面 + 定义登记口）/ `EStatePhase`+`EStateRemoveCause`+`EApplyResult` 三枚举 / 六枚生命周期事件 tag + 载荷 `FTcsStateEventPayload` 落地；**§3.1 的实现名与 §3.3 的 tag 名就此定型**（见 **§12.6**）。
-  **§3.1 正文的两处落地订正**：① `FStateInstance` 的实现名是 **`FTcsStateInstance`**（成族）且**非反射结构体**（只在 C++ 侧流转；进总线的载荷是 `FTcsStateEventPayload`）；② 实例**自持 `Unit`（宿主单位）**并**只持 `DefTag`（定义身份）**——`GetDef()` 解析缓存在本轮**不落**（热路径不回查 Def 的承诺登记在 §12.6 第 3 条，快照构建落地后才有意义）。
+- v2 增补 13（2026-10-04，**R5 Task 2 落地**）：运行态骨架物化——`FTcsStateHandle` / `FTcsStateInstance` / `FTcsStateRegistry`（per-entity 桶 + 槽位代际）/ `FTcsStateOps`（引擎函数，三拆）/ `UTcsStateSubsystem`（世界门面 + 定义登记口）/ `EStatePhase`+`EStateRemoveCause`+`EApplyResult` 三枚举 / 六枚生命周期事件 tag + 载荷 `FTcsStateEventPayload` 落地；**§3.1 的实现名与 §3.3 的 tag 名就此定型**（见 **§12.6**）。
+  **§3.1 正文的两处落地订正**：① `FStateInstance` 的实现名是 **`FTcsStateInstance`**（成族）且**非反射结构体**（只在 C++ 侧流转；进总线的载荷是 `FTcsStateEventPayload`）；② 实例**自持 `Entity`（宿主实体）**并**只持 `DefTag`（定义身份）**——`GetDef()` 解析缓存在本轮**不落**（热路径不回查 Def 的承诺登记在 §12.6 第 3 条，快照构建落地后才有意义）。
   **§4 的门面归位**：`ApplyState` / `RemoveState` / `ExpireState` / `GetState` / `ForEachState` 已落；`ExtendDuration` / `SetRemaining` 本轮只落**签名 + 拒绝面**（堆同步归 Task 3）；`SetLevel` / `GetLevel` / `CheckRelations` 仍归后续（§12.2）。
 - v2 增补 14（2026-10-04，**R5 Task 3 落地**）：数值与时间两条腿——`FTcsParamSnapshot` 与快照构建（`ConvertToCanonical` 首次点亮）、四个等级源 + `ITcsEntityLevelProvider`（**接口住本模块**、走派生上下文，非 Core）、Duration-Period 重复到期条目与 `PeriodRefresh` 三态、`ExtendDuration` / `SetRemaining` 的堆同步。落地口径 = **§12.7**；证据 `EVID-2026-10-04-state-param-snapshot-and-level-sources`。
 - v2 增补 15（2026-10-04，**R5 Task 4 落地**）：**修正器物化（D3-19）**——`ModifierRows` 模板 → M2 账本条目（`Source` = 实例来源句柄）、引用类操作数**从该实例自己的快照取值**（反射壳 + RAII 栈式绑定）、施加/刷新同批内挂载、移除/到期按同一来源一次摘净。落地口径 = **§12.8**；证据 `EVID-2026-10-04-state-modifier-materialization`。
@@ -176,7 +176,7 @@ FStateDefBase（抽象，编辑器隐藏）          ← 本模块定义
 - **Period 联动**：Period 独立可配（Finite+Period=标准 DoT、Infinite+Period=光环、四组合全合法；Policy 联动仅为编辑器显示逻辑）；**`PeriodRefresh{Keep(默认)/Reset(重置周期计时)/Immediate(立即执行一次并重置)}`**——堆叠刷新对周期计时器的影响（用户提案采纳）。
 - **Overflow 升级替换：引擎不内建**（用户确认）：事件组合三步表达（`StackChanged 满仓` 触发行 → `ApplyState{更强}` + `RemoveState{原}`）；状态级重定向（DefTag 存在期解析选路）留未来扩展；引擎保证 StackChanged 时序与同帧合并。
 - **运行实例生命周期操作**：`FStateOps::ExtendDuration(handle, Δ) / SetRemaining(handle, T)` 进 API（"灼烧延长"类）；**MaxStacks 无运行时修改**（政策常量；"层数上限+2"成长 = 变体 BuffDef + 技能/状态级重定向）。
-- **关系表/槽位竞争表组织（用户提案采纳）**：两者**并存**（槽位竞争管施法运行/动作状态，关系表管 Buff 施加态，互相影响）；组织 = **统一 DataTable/DataAsset 行**（行 = 单个 StateDef **或一类**——StatusTag 匹配）；**解析栈**：全局默认表（插件）→ 游戏模式表 → 角色覆盖表（Boss）——让渡点模式再次应用；关系字段引用走 Tag（StateTag/SkillTag 子域）；**槽位竞争不用 StateTree**（数据行 + 引擎抢占规则；StateTree 只做单位级决策）。
+- **关系表/槽位竞争表组织（用户提案采纳）**：两者**并存**（槽位竞争管施法运行/动作状态，关系表管 Buff 施加态，互相影响）；组织 = **统一 DataTable/DataAsset 行**（行 = 单个 StateDef **或一类**——StatusTag 匹配）；**解析栈**：全局默认表（插件）→ 游戏模式表 → 角色覆盖表（Boss）——让渡点模式再次应用；关系字段引用走 Tag（StateTag/SkillTag 子域）；**槽位竞争不用 StateTree**（数据行 + 引擎抢占规则；StateTree 只做实体级决策）。
 - **堆叠轴命名**：~~DurationMerge~~ 撤回——值名回 TCS（{None, RefreshRemainingToTotal}），**轴名 StackDurationPolicy 已终定（D3-17，已回写 §3.2）**。
 
 ---
@@ -190,7 +190,7 @@ FStateDefBase（抽象，编辑器隐藏）          ← 本模块定义
 | § | 条款 | 落点 |
 |---|---|---|
 | §2 | `FStateDefBase` / `FBuffDef` 形状 + `UTcsStateDef` / `UTcsBuffDefAsset` 资产 + `FTcsBuffDefTableRow` | PLN-R5 Task 1 |
-| §3.1 | `FStateInstance`（池化、纯数据）+ per-unit 桶 + `FStateOps` | Task 2（**✅ 2026-10-04**，落地口径见 §12.6——实现名 `FTcsStateInstance`、类名 `FTcsStateRegistry` / `FTcsStateOps`） |
+| §3.1 | `FStateInstance`（池化、纯数据）+ per-entity 桶 + `FStateOps` | Task 2（**✅ 2026-10-04**，落地口径见 §12.6——实现名 `FTcsStateInstance`、类名 `FTcsStateRegistry` / `FTcsStateOps`） |
 | §3.2 | `FStateStackPolicy` 五轴（含 Custom 决策 Fragment） | Task 5 |
 | §3.3 | Duration 两态 + Period + `PeriodRefresh` 三态 | Task 3（**✅ 2026-10-04**，落地口径见 §12.7） |
 | §3.5 | `LevelBase` / `MaxLevel` + **四型等级源** + `ITcsEntityLevelProvider` | Task 3（**✅ 2026-10-04**，落地口径见 §12.7——接口住 **TcsState**、读口走派生上下文） |
@@ -212,7 +212,7 @@ FStateDefBase（抽象，编辑器隐藏）          ← 本模块定义
 
 ### 12.3 收窄轮定下的两处实现口径（与本文正文的差异）
 
-1. **宿主类名**：§3.1 的 `UCombatStateRegistry` **作废**——本轮定为 **`UTcsStateSubsystem : UWorldSubsystem`**（per-unit 状态桶；与既有 `UTcsAttributeSubsystem` 同构）。`SPEC-05-integration` §2.1 的 `UCombatWorldRegistrySubsystem`（实体状态机 + 泵接线 + DefLibrary 门禁）**仍有效但属 R7/M6**——两者分工：**状态桶归 TcsState，实体注册与门禁归集成层**。
+1. **宿主类名**：§3.1 的 `UCombatStateRegistry` **作废**——本轮定为 **`UTcsStateSubsystem : UWorldSubsystem`**（per-entity 状态桶；与既有 `UTcsAttributeSubsystem` 同构）。`SPEC-05-integration` §2.1 的 `UCombatWorldRegistrySubsystem`（实体状态机 + 泵接线 + DefLibrary 门禁）**仍有效但属 R7/M6**——两者分工：**状态桶归 TcsState，实体注册与门禁归集成层**。
 2. **资产类名**：§2 的 `UTcsBuffDef` → **`UTcsBuffDefAsset`**（UHT 按"去前缀引擎名"判重：`UTcsBuffDef` 与数据 `FTcsBuffDef` 同名即编译失败，先例 `UTcsEffectTriggerDefAsset`；`openspec/project.md` 既定补救条款）。`UTcsStateDef` 不变。
 
 ### 12.4 口径待澄清（本轮登记，不阻塞）
@@ -236,11 +236,11 @@ FStateDefBase（抽象，编辑器隐藏）          ← 本模块定义
 | # | 口径 | 依据 / 后果 |
 |---|---|---|
 | 1 | **身份归资产、登记口显式收身份**：`UTcsStateSubsystem::RegisterStateDef(FGameplayTag DefTag, const FTcsBuffDef& Def)` 收两个形参；**不往 `FTcsStateDefBase` 加 `DefTag`** | 身份是**资产**属性（`UTcsStateDef::DefTag`：资产身份、`GetPrimaryAssetId()` 取值来源、作者期校验对象），`FTcsBuffDef` 是**定义内容**。为"从内容读身份"再加一份 = 策划在同一资产里手填两遍同一个 tag（**双真相**）。运行期副本的身份由登记口一次对齐（调用方 = 定义库，其缓存键本就是 `DefTag`） |
-| 2 | **实例自持 `Unit`（宿主单位）** | 句柄里没有单位段 ⇒ 不自持则 `GetState(Handle)` 只能遍历所有桶（O(桶数)）；且 Task 4 的修正器物化要用它把修正器挂到该单位的属性账本上（同一份信息，不是重复真相） |
-| 3 | **注册表自建槽位、不复用 `TTcsInstancePool`**；`GetDef()` 解析缓存**本轮不落** | 那个池是"一池一句柄空间"，状态要"**每单位**一个句柄空间"（桶）；套用只有"一桶一池"（同一件事两套身份）或"全局一池"（句柄与单位解耦 ⇒ `GetState` 无法直接定位）两条更差的路。槽位语义**刻意与池一致**（分配优先复用空闲槽 / 释放使代际 +1 / 新槽从 1 起 / 奇偶簿记）。`GetDef()` 缓存**等快照构建**：本轮"热路径不回查 Def"由"实例只用 `DefTag` 做身份比较、数值面尚不存在"自然满足，缓存与版本失效判据纯属预建（零消费者） |
+| 2 | **实例自持 `Entity`（宿主实体）** | 句柄里没有实体段 ⇒ 不自持则 `GetState(Handle)` 只能遍历所有桶（O(桶数)）；且 Task 4 的修正器物化要用它把修正器挂到该实体的属性账本上（同一份信息，不是重复真相） |
+| 3 | **注册表自建槽位、不复用 `TTcsInstancePool`**；`GetDef()` 解析缓存**本轮不落** | 那个池是"一池一句柄空间"，状态要"**每实体**一个句柄空间"（桶）；套用只有"一桶一池"（同一件事两套身份）或"全局一池"（句柄与实体解耦 ⇒ `GetState` 无法直接定位）两条更差的路。槽位语义**刻意与池一致**（分配优先复用空闲槽 / 释放使代际 +1 / 新槽从 1 起 / 奇偶簿记）。`GetDef()` 缓存**等快照构建**：本轮"热路径不回查 Def"由"实例只用 `DefTag` 做身份比较、数值面尚不存在"自然满足，缓存与版本失效判据纯属预建（零消费者） |
 | 4 | **事件载荷的 `Source` 不是 `UPROPERTY`**；六枚 tag 落在既有 `TcsEvent` 根下（**零新增根**） | `FTcsSourceHandle` 是**非反射**纯 C++ struct（"纯内联类型不得带导出宏"那条纪律的另一面）——需要脚本层可达时须先反射化它（台账 `SCRIPT` 系列连带项）。事件词属**框架契约**（广播面漏配即静默失效），故由本模块原生声明并带导出宏 |
 | 5 | **阶段机三态与"先广播后释放"** | `EStatePhase{Inactive/Active/Expiring}`：`Expiring` 是"已进入移除流程、槽位尚未归还"的窗口——**它是"订阅者在移除回调里仍能 `GetState` 读到实例"能成立的前提**；非法迁移 `ensure`（配置错误语义），与脏句柄的时序竞态口径（只 `Warning`）刻意分开。四条合法边含 `Expiring → Active`（刷新是"过渡后挂回"） |
-| 6 | **共存决策的暂用位**：本轮"同组"判据 = **同单位 + 同 `DefTag`**（`GroupBy = None` 语义） | 它是 Task 5 五轴共存决策的**替换点**（代码注释已就地标明）；`EApplyResult::EAR_Stacked` 本轮不可达，`EStateRemoveCause::ESRC_Cancelled` 本轮无内建产生者（归 R5.5-e）——两处均已在枚举注释里写明归属 |
+| 6 | **共存决策的暂用位**：本轮"同组"判据 = **同实体 + 同 `DefTag`**（`GroupBy = None` 语义） | 它是 Task 5 五轴共存决策的**替换点**（代码注释已就地标明）；`EApplyResult::EAR_Stacked` 本轮不可达，`EStateRemoveCause::ESRC_Cancelled` 本轮无内建产生者（归 R5.5-e）——两处均已在枚举注释里写明归属 |
 
 ### 12.7 Task 3 落地口径（2026-10-04，R5）
 
@@ -260,11 +260,11 @@ FStateDefBase（抽象，编辑器隐藏）          ← 本模块定义
 | # | 口径 | 依据 / 后果 |
 |---|---|---|
 | 1 | **物化求值的参数表 = 该实例的快照，经反射壳装进 `Ctx.ParamTable`（甲案）**——纯类本体 `FTcsStateParamTableReader` 不动（仍是查找语义的唯一实现），**另加薄壳** `UTcsStateParamTableReader`（只委托）+ 门面单例（`UPROPERTY` 持有）+ `FTcsStateSnapshotScope`（**RAII 栈式绑定**，嵌套按栈恢复） | **修订 §12.7 第 4 条的推论**（本体"不派生 `UObject`"仍成立，被推翻的是"因此物化器不需要反射壳"）。理由：物化求值要经**反射上下文**把快照交给参数源，而"读参数表"**已有反射契约**；为它另开一条纯 C++ 表通道会让"本次求值的参数表是哪张"出现**两个不一致的答案**（反射位说没有、旁路说有）。栈式绑定是为了让嵌套物化按栈恢复而不是互相覆盖（先例 = 属性管线的 `PushEvalStack` / `PopEvalStack`）。**被否方案**：乙案（Core 加纯 C++ 表端口 `ITcsNumericParamTable` + `EvaluateWithTable` 虚函数）、丙案（物化点自解析 `ParamRef`——ParamRef 语义出现第二份实现）。理由与取舍见 `LOG-DECISIONS` |
-| 2 | **物化器收"实例"而不是散字段**：`Materialize(Subsystem, Def, Instance, Out)` | `Unit` / `Instigator` / `Level` / `Source` / `ParamSnapshot` 全是实例已有信息（实例自持 `Unit` 正是为了免去"遍历桶找单位"）——多形参只会让"某处少填一个"成为可能，而**少填在源侧表现为静默落兜底**（最坏的一类错，因为不报错） |
+| 2 | **物化器收"实例"而不是散字段**：`Materialize(Subsystem, Def, Instance, Out)` | `Entity` / `Instigator` / `Level` / `Source` / `ParamSnapshot` 全是实例已有信息（实例自持 `Entity` 正是为了免去"遍历桶找实体"）——多形参只会让"某处少填一个"成为可能，而**少填在源侧表现为静默落兜底**（最坏的一类错，因为不报错） |
 | 3 | **同一批内"摘旧 + 挂新"**（刷新路径）：`BeginBatch` → `RemoveBySource(来源)` → 逐条 `ApplyModifier` → `Commit` | 三条后果都要：① 多个修正器只触发**一次**重算 + 一次广播；② 订阅者看不到"摘了一半"的中间态；③ 逐条挂载若不批，重入窗口放大 N 倍。刷新不这么做就会出现"快照是新值、账本还是旧值"的静默不一致 |
 | 4 | **撤销顺序再前伸一步**：**摘除修正器 → 撤时间条目 → `Expiring` → 广播 → 归还槽位**；且**摘除 MUST 排在"取实例指针"之前** | §12.7 第 5 条把撤销顺序前伸到"先撤时间条目"；本条再前伸一步（属性面还清）。顺序中的"取指针之后"是硬约束：摘除的批提交会广播，订阅者可在其中重入状态操作 ⇒ 之后 MUST 重新定位桶与实例（既有守卫接住失效）。完整重入纪律见第 5 条 |
-| 5 | **重入纪律（本轮新增的一条通用纪律）**：**任何"可能广播"的调用之后，调用方手里的实例指针与桶引用都可能失效** ⇒ 施加/刷新路径在挂载提交后 MUST 重新定位实例与桶；重新定位后发现实例已不在册时 MUST **不再补播施加事件**（对已不在册的实例广播是错语义）+ Warning | 提交/广播会同步派发到订阅者（`PublishImmediate`），订阅者能改状态（移除本实例 / 注销单位）⇒ 那会让实例指针与桶引用双双失效，症状从"数值错"到"槽位复用后写坏别人的实例"都可能。本轮闭合了**自己引入的两处**；既有的"`Removed` 广播窗口内重入移除同一句柄"**未修**，入册台账 **`STAT-5`**（触发条件 = Task 6 起回调里能改状态的消费者出现） |
-| 6 | **属性访问解析点是"薄包装 + 白名单"**：`FTcsStateAttributeAccess`（住 `Private/State/TcsStateAttributeAccess.h`，实现体落 `Private/State/TcsStateOps_Modifier.cpp`——该文件是 TcsState 内**唯一** include 属性门面头处）；暴露面 = 语义面三个（`ApplyModifier` / `RemoveBySource` / `EvaluateCurrent`）+ **事务对** + **一个存在性判据** `IsLedgerReady` | Q-2 缓解①的落地：把"直接依赖属性门面"的影响面钉死在可替换的最小范围内（将来补注入契约只换这一处）。**上限用结构表达而不是靠记性**（不把门面指针交出去 ⇒ 越界在编译期不可达）。**事务对进上限**的理由见第 3 条；**存在性判据**的理由：状态与属性是**两套登记**（状态可施加到没有属性账本的单位上，合法），而账本侧 `BeginBatch` 对未注册单位会 **ensure** ⇒ 挂点先问一句，"没有可改的属性"按配置状态静默处理（`Log` 级、不留红字） |
+| 5 | **重入纪律（本轮新增的一条通用纪律）**：**任何"可能广播"的调用之后，调用方手里的实例指针与桶引用都可能失效** ⇒ 施加/刷新路径在挂载提交后 MUST 重新定位实例与桶；重新定位后发现实例已不在册时 MUST **不再补播施加事件**（对已不在册的实例广播是错语义）+ Warning | 提交/广播会同步派发到订阅者（`PublishImmediate`），订阅者能改状态（移除本实例 / 注销实体）⇒ 那会让实例指针与桶引用双双失效，症状从"数值错"到"槽位复用后写坏别人的实例"都可能。本轮闭合了**自己引入的两处**；既有的"`Removed` 广播窗口内重入移除同一句柄"**未修**，入册台账 **`STAT-5`**（触发条件 = Task 6 起回调里能改状态的消费者出现） |
+| 6 | **属性访问解析点是"薄包装 + 白名单"**：`FTcsStateAttributeAccess`（住 `Private/State/TcsStateAttributeAccess.h`，实现体落 `Private/State/TcsStateOps_Modifier.cpp`——该文件是 TcsState 内**唯一** include 属性门面头处）；暴露面 = 语义面三个（`ApplyModifier` / `RemoveBySource` / `EvaluateCurrent`）+ **事务对** + **一个存在性判据** `IsLedgerReady` | Q-2 缓解①的落地：把"直接依赖属性门面"的影响面钉死在可替换的最小范围内（将来补注入契约只换这一处）。**上限用结构表达而不是靠记性**（不把门面指针交出去 ⇒ 越界在编译期不可达）。**事务对进上限**的理由见第 3 条；**存在性判据**的理由：状态与属性是**两套登记**（状态可施加到没有属性账本的实体上，合法），而账本侧 `BeginBatch` 对未注册实体会 **ensure** ⇒ 挂点先问一句，"没有可改的属性"按配置状态静默处理（`Log` 级、不留红字） |
 | 7 | **账本条目的 `Source` = 状态实例的来源句柄**（`FTcsStateInstance::Source`），刷新 MUST NOT 更换；模板行 → 账本条目的字段映射的唯一声明处 = `FTcsAttrModInstance::MakeFromDef(Row, Operand, Source)`（实现住 `TcsAttrModDef.h` 文件末——行类型在那里才完备；header-only `inline` ⇒ 不需要模块导出宏） | "**同一个状态实例 = 同一个来源**"是 Task 6 内联触发行退订要复用的同一条锚点（一次按来源摘除清掉该实例的**两族**条目）。字段映射放在**同时拥有两个形状**的模块里，上层只负责"求值 + 转规范值"，R6 技能侧物化复用同一处 |
 | 8 | **`TSoftObjectPtr` 取值顺序 = 先 `Get()`、未加载才 `LoadSynchronous()`** | 命中已加载对象时 MUST NOT 发加载请求；且该顺序使**装置瞬态模板**成为可行夹具（瞬态对象无资产路径，`LoadSynchronous()` 解不出）。GC 可达性由状态门面对登记表副本里 `TSoftObjectPtr` 的 ARO 承担 |
 | 9 | **"零红字"的准确读法 = 零*非预期*红字**：`Tcs.Test.Slice.Run` 固有 3 条预期 Warning（19f 未登记定义 ×1 / 20j 无限时值时长操作 ×2），装置头部 MUST 逐条列出预期红字与归属 | 本轮实测发现装置头部原写"红字都在 `.Reject`"与事实不符（会让复核者把预期当故障）。**验收报告引用"零红字"时 MUST 同时给出预期红字清单** |
@@ -300,8 +300,8 @@ FStateDefBase（抽象，编辑器隐藏）          ← 本模块定义
 | 10 | **链运行态的只读观测面**：`UTcsEffectSubsystem::GetRunSource(Handle)` / `GetRunCausedBy(Handle)`（**非 `UFUNCTION`**，句柄无效或运行态已释放时返回默认构造，不 ensure） | 两个新字段若无读数就是"只写不读"（原始版的教训）⇒ 给出观测面：宿主装置与将来的 Explain 面板读它；**脚本可达面归 R8 Explain 轮**（故不加 `UFUNCTION`，不动 `effect-interpreter` 的反射面规格） |
 | 11 | **溯源树（血缘遍历 / Explain / 按血缘回放）归 R8**，本轮只落"链运行态的第一段边" | 台账新增一行登记它（含原始版 AbilityKit 借鉴调研的三阶段路线：A 只维护父子链接 / B explain 窗口 / C Snapshot 回放；建议的新能力名 `add-source-lineage`）。**判据**：原始版的教训是"边不可读就等于没有"——本轮先把边做成**可读**，成树与可视化等真实消费者（R8） |
 | 12 | **行为 Fragment 的订阅承接形态**（6b）：**每兴趣 Tag 一条订阅 + 共享 `UTcsStateBehaviorHandler`**（`UPROPERTY` 由门面强持有、对门面弱引用）；**MUST NOT** 每实例各订一次 | 总线 `Subscribe` 只收 `UTcsEventHandler*`、派发只传 `(EventTag, Payload)` ⇒ 回调**无法自辨身份**（拿不到订阅句柄）⇒ 每实例各订一次收益为零、成本为正（订阅表随实例数膨胀、退订易漏）。**先例 = `FTcsChainEventWaitRegistry`**（同款"每 Tag 一条 + 计数配对"）。**一条实测事实**：总线订阅表对 Handler 持**弱引用** ⇒ 不加 `UPROPERTY` 强持有会被 GC 掉、订阅**静默失效**（无红字、无日志） |
-| 13 | **状态载荷自筛 + 泛型主体匹配**（6b，`TRIG-6` 甲案）：补**首个状态**载荷读取器（`Caster` = 有效 `Instigator` 否则新增字段 `Unit`；`Subject` = `FTcsStateHandle`）；载荷信息与触发行实例各持反射 `FInstancedStruct Subject`，**两侧均有效**时须精确 `UScriptStruct` 一致 + `CompareScriptStruct(A, B, 0)` 值相等才命中；**未绑定的全局行与外部无 `Subject` 事件保留原 Tag 路由** | `TcsEffect` MUST NOT 反向依赖 `TcsState`（铁律）⇒ 泛型主体装在**反射 `FInstancedStruct`** 里、匹配用"脚本结构同一性 + 反射值相等"，**不引入对上层类型的依赖**。**行为 Fragment 侧的对应语义**：只对状态载荷按单参数 `GetPtr<FTcsStateEventPayload>()` + `Handle` 相等自筛；**非状态载荷（含自定义 reader 给出 `Subject` 者）仍按兴趣向全部存活实例扇出**（`Subject` 只约束 effect-trigger 的绑定行）。**验收读数** = 23g **恢复"先主后次"顺序**后仍 `+25.000 / 计数增量 1`（6a 首轮 `30 / 2` 正是该顺序的症状）⇒ 不再依赖夹具顺序规避 |
-| 14 | **身份修复（6b，裁定 8 甲案）**：`FTcsStateRegistry` 的分配代际改由**出线（模块级）进程唯一发号器**发出——每次分配取**不复用的正奇数**、释放 `+1` 置偶数、**世界拆解不复位**、`int32` 正值空间耗尽 `Fatal`（不回绕）；句柄**仍是** `(Index, Generation)` 两反射字段，API 不变 | **缺陷**：原实现**各桶各自从代际 1 起发** ⇒ 两个单位的**首个**实例都得到 `{Index=0, Generation=1}`，而 `GetState(Handle)` **扫描所有桶**且句柄里**没有单位段** ⇒ 拿 A 单位首实例的句柄会命中 B 单位的首实例（错单位 / 错移除 / 事件误路由）。**被否乙案**（句柄加 `Unit` 段）需迁移反射面与全部消费者 ⇒ `Unit` 本轮只加到**事件载荷**上。**读数** = 23j `旧句柄0/57拒绝`（同 PIE 内）+ 23l 第二轮 `旧句柄拒绝=是`（跨世界不复位） |
+| 13 | **状态载荷自筛 + 泛型主体匹配**（6b，`TRIG-6` 甲案）：补**首个状态**载荷读取器（`Caster` = 有效 `Instigator` 否则新增字段 `Entity`；`Subject` = `FTcsStateHandle`）；载荷信息与触发行实例各持反射 `FInstancedStruct Subject`，**两侧均有效**时须精确 `UScriptStruct` 一致 + `CompareScriptStruct(A, B, 0)` 值相等才命中；**未绑定的全局行与外部无 `Subject` 事件保留原 Tag 路由** | `TcsEffect` MUST NOT 反向依赖 `TcsState`（铁律）⇒ 泛型主体装在**反射 `FInstancedStruct`** 里、匹配用"脚本结构同一性 + 反射值相等"，**不引入对上层类型的依赖**。**行为 Fragment 侧的对应语义**：只对状态载荷按单参数 `GetPtr<FTcsStateEventPayload>()` + `Handle` 相等自筛；**非状态载荷（含自定义 reader 给出 `Subject` 者）仍按兴趣向全部存活实例扇出**（`Subject` 只约束 effect-trigger 的绑定行）。**验收读数** = 23g **恢复"先主后次"顺序**后仍 `+25.000 / 计数增量 1`（6a 首轮 `30 / 2` 正是该顺序的症状）⇒ 不再依赖夹具顺序规避 |
+| 14 | **身份修复（6b，裁定 8 甲案）**：`FTcsStateRegistry` 的分配代际改由**出线（模块级）进程唯一发号器**发出——每次分配取**不复用的正奇数**、释放 `+1` 置偶数、**世界拆解不复位**、`int32` 正值空间耗尽 `Fatal`（不回绕）；句柄**仍是** `(Index, Generation)` 两反射字段，API 不变 | **缺陷**：原实现**各桶各自从代际 1 起发** ⇒ 两个实体的**首个**实例都得到 `{Index=0, Generation=1}`，而 `GetState(Handle)` **扫描所有桶**且句柄里**没有实体段** ⇒ 拿 A 实体首实例的句柄会命中 B 实体的首实例（错实体 / 错移除 / 事件误路由）。**被否乙案**（句柄加 `Entity` 段）需迁移反射面与全部消费者 ⇒ `Entity` 本轮只加到**事件载荷**上。**读数** = 23j `旧句柄0/57拒绝`（同 PIE 内）+ 23l 第二轮 `旧句柄拒绝=是`（跨世界不复位） |
 | 15 | **`STAT-5` 有限重入守卫的宽度**（6b）：`UTcsStateSubsystem::InRemovalBroadcastHandles` **只**在**真正的移除广播窗口**成对标记 / 解除（进入广播前加入、广播返回后移除）⇒ 递归 `Remove` 同句柄返回 `false` 静默、不重复广播与释放。**MUST NOT** 用"`Phase == ESP_Expiring`"当"正在移除"的判据 | `Expiring` **不是**"正在移除"的同义词——`RefreshStacked` 在刷新期间**也临时用 `Expiring`**（`TcsStateOps_Stack.cpp:235–249`）⇒ 按阶段判会**静默拒绝**合法的 `Refreshed` 自移除（最坏的一类错：不报错、只少做事）。**同批闭合**六处"广播 / 副作用后仍读旧指针"（`Apply` / `RefreshStacked` / `EPR_Immediate` / `PushPeriod` / `TcsStepApplyState` / `TcsStepModifyAttribute`）⇒ 统一"**副作用前取值快照、副作用后按句柄重查**"。**边界**：本条**只**承诺"递归 `Remove` 同句柄"这一支；终止广播内**同定义重施**那一支未修（台账 `STAT-9`） |
 
 ### 12.11 Task 7 落地口径（2026-10-05，R5；端到端竖切与首批真内容资产）
@@ -321,7 +321,7 @@ FStateDefBase（抽象，编辑器隐藏）          ← 本模块定义
 
 **八个 Task 全部完成**，逐 Task 的落地口径 = §12.5~§12.11。本轮的**证据面**为 **七份**：`EVID-2026-10-04-tcs-state-def-asset`（Task 1）/ `-state-instance-lifecycle`（Task 2）/ `-state-param-snapshot-and-level-sources`（Task 3）/ `-state-modifier-materialization`（Task 4）/ `EVID-2026-10-05-state-stacking-policies`（Task 5）/ `-state-chain-primitives` + `-state-behavior-fragments`（Task 6 6a/6b）/ **`EVID-2026-10-05-state-layer-pie`（Task 7 端到端）**。
 
-**本轮落地面（按 §12.1 逐条兑现）**：§2 Def 形状与资产族、§3.1 实例与 per-unit 桶、§3.2 五轴堆叠、§3.3 Duration/Period、§3.5 四型等级源与读口、§3.6 参数快照、§4 门面、§5 生命周期 + **修正器物化** + **行为 Fragment 订阅挂接**、§6 `ApplyState` 步骤与内联触发行。**一处扩张**：`AttrModDef` 根（10 → 11）与定义库第四发现路径——它不是原计划条款，而是**验收要求真内容资产**倒逼出的实现（§12.11 第 7 条）。
+**本轮落地面（按 §12.1 逐条兑现）**：§2 Def 形状与资产族、§3.1 实例与 per-entity 桶、§3.2 五轴堆叠、§3.3 Duration/Period、§3.5 四型等级源与读口、§3.6 参数快照、§4 门面、§5 生命周期 + **修正器物化** + **行为 Fragment 订阅挂接**、§6 `ApplyState` 步骤与内联触发行。**一处扩张**：`AttrModDef` 根（10 → 11）与定义库第四发现路径——它不是原计划条款，而是**验收要求真内容资产**倒逼出的实现（§12.11 第 7 条）。
 
 **本轮不落面**（逐条归属见 §12.2）：§3.4 关系表检查器与级联重评、§3.7 就绪状态机、技能参数行分派、网络操作复制。
 

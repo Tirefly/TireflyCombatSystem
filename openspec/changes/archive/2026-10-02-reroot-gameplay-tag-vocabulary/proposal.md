@@ -1,5 +1,7 @@
 # Change: GameplayTag 词表换根（re-root）
 
+> **术语订正（2026-10-14）**：本文原用「单位 / `Unit`」，该词已退役，现统一为「**实体 / `Entity`**」（见 `DEC-2026-10-14-entity-vocabulary`）。**正文为当时原话，保留不改。**
+
 ## Why
 
 本插件的 tag 词表用**单一 owner 前缀** `Tcs` 当命名空间，把"事件"、"流程黑板键"、"流程模板 id"、"链 id"、"参数键"全部塞在一棵树下用 facet 段（`Tcs.Event.*` / `Tcs.Flow.Key.*` / `Tcs.Flow.Template.*` / `Tcs.Chain.*` / `Tcs.Param.*`）区分。这与既定规范冲突且已经付出代价：

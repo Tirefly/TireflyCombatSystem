@@ -1,5 +1,7 @@
 ## 1. 提案与规格（本批 Step 1）
 
+> **术语订正（2026-10-14）**：本文原用「单位 / `Unit`」，该词已退役，现统一为「**实体 / `Entity`**」（见 `DEC-2026-10-14-entity-vocabulary`）。**正文为当时原话，保留不改。**
+
 - [x] 1.1 `openspec validate add-chain-primitives-and-target-sorting --strict --no-interactive` 通过
 - [x] 1.2 提案获用户评审批准（**未获批不得开工实施**）
 

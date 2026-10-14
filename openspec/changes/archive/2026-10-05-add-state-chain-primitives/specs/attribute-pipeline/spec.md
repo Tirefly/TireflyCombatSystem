@@ -1,5 +1,7 @@
 ## ADDED Requirements
 
+> **术语订正（2026-10-14）**：本文原用「单位 / `Unit`」，该词已退役，现统一为「**实体 / `Entity`**」（见 `DEC-2026-10-14-entity-vocabulary`）。**正文为当时原话，保留不改。**
+
 ### Requirement: 属性门面的解析点
 
 `TcsAttribute` MUST 提供**唯一的门面查找点** `UTcsAttributeSubsystem::Resolve(const UWorld*)`（静态；**非确保**：非游戏世界或该世界无本子系统时返回 `nullptr`）：

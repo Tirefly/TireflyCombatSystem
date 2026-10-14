@@ -14,8 +14,8 @@ bool FTcsChainRedirectRegistry::Mount(const FTcsChainRedirectEntry& Entry, FTcsS
 	if (!Source.IsValid())
 	{
 		UE_LOG(LogTcsSkill, Warning,
-			TEXT("链重定向挂载被拒：来源句柄无效（单位=%lld）——无来源锚点则条目摘不掉，本次零挂载"),
-			Entry.Unit.Id);
+			TEXT("链重定向挂载被拒：来源句柄无效（实体=%lld）——无来源锚点则条目摘不掉，本次零挂载"),
+			Entry.Entity.Id);
 		return false;
 	}
 
@@ -24,8 +24,8 @@ bool FTcsChainRedirectRegistry::Mount(const FTcsChainRedirectEntry& Entry, FTcsS
 	if (!Entry.TargetChainId.IsValid() || !Entry.ReplacementChainId.IsValid())
 	{
 		UE_LOG(LogTcsSkill, Warning,
-			TEXT("链重定向挂载被拒：链身份无效（单位=%lld 目标=%s 替换=%s）"),
-			Entry.Unit.Id, *Entry.TargetChainId.ToString(), *Entry.ReplacementChainId.ToString());
+			TEXT("链重定向挂载被拒：链身份无效（实体=%lld 目标=%s 替换=%s）"),
+			Entry.Entity.Id, *Entry.TargetChainId.ToString(), *Entry.ReplacementChainId.ToString());
 		return false;
 	}
 
@@ -37,8 +37,8 @@ bool FTcsChainRedirectRegistry::Mount(const FTcsChainRedirectEntry& Entry, FTcsS
 	Records.Add(MoveTemp(Record));
 
 	UE_LOG(LogTcsSkill, Log,
-		TEXT("链重定向已挂载：单位=%lld %s → %s 优先级=%d 来源=%llu（在册 %d 条）"),
-		Entry.Unit.Id, *Entry.TargetChainId.ToString(), *Entry.ReplacementChainId.ToString(),
+		TEXT("链重定向已挂载：实体=%lld %s → %s 优先级=%d 来源=%llu（在册 %d 条）"),
+		Entry.Entity.Id, *Entry.TargetChainId.ToString(), *Entry.ReplacementChainId.ToString(),
 		Entry.Priority, Source.Id, Records.Num());
 
 	return true;
@@ -69,7 +69,7 @@ int32 FTcsChainRedirectRegistry::UnmountBySource(FTcsSourceHandle Source)
 
 
 // 解析
-FGameplayTag FTcsChainRedirectRegistry::Resolve(FTcsCombatEntityHandle Unit, FGameplayTag GlobalChainId) const
+FGameplayTag FTcsChainRedirectRegistry::Resolve(FTcsCombatEntityHandle Entity, FGameplayTag GlobalChainId) const
 {
 	// **未命中任何记录 ⇒ 原样返回**（**正常路径**：既不是错误，也 MUST NOT 报"未实现"）。
 	// 本函数因此**没有"未找到"的日志分支**——把正常路径也报出来会让常规命令的输出失去信号意义。
@@ -77,10 +77,10 @@ FGameplayTag FTcsChainRedirectRegistry::Resolve(FTcsCombatEntityHandle Unit, FGa
 
 	for (const FRecord& Record : Records)
 	{
-		// **命中的第一段键 = `(单位, 目标链)`**：两个都要等。
-		// **只比 `TargetChainId` 会跨单位误命中**（甲身上"链 A → B"的让渡不该影响乙），
+		// **命中的第一段键 = `(实体, 目标链)`**：两个都要等。
+		// **只比 `TargetChainId` 会跨实体误命中**（甲身上"链 A → B"的让渡不该影响乙），
 		// 那是"重定向泄漏到别人身上"的一类缺陷。
-		if (Record.Entry.Unit != Unit || Record.Entry.TargetChainId != GlobalChainId)
+		if (Record.Entry.Entity != Entity || Record.Entry.TargetChainId != GlobalChainId)
 		{
 			continue;
 		}
@@ -112,8 +112,8 @@ FGameplayTag FTcsChainRedirectRegistry::Resolve(FTcsCombatEntityHandle Unit, FGa
 	}
 
 	UE_LOG(LogTcsSkill, Log,
-		TEXT("链重定向解析：单位=%lld %s → %s（优先级=%d 挂载序=%llu）"),
-		Unit.Id, *GlobalChainId.ToString(), *Best->Entry.ReplacementChainId.ToString(),
+		TEXT("链重定向解析：实体=%lld %s → %s（优先级=%d 挂载序=%llu）"),
+		Entity.Id, *GlobalChainId.ToString(), *Best->Entry.ReplacementChainId.ToString(),
 		Best->Entry.Priority, Best->Sequence);
 
 	return Best->Entry.ReplacementChainId;

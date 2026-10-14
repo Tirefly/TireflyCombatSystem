@@ -1,5 +1,7 @@
 ## MODIFIED Requirements
 
+> **术语订正（2026-10-14）**：本文原用「单位 / `Unit`」，该词已退役，现统一为「**实体 / `Entity`**」（见 `DEC-2026-10-14-entity-vocabulary`）。**正文为当时原话，保留不改。**
+
 ### Requirement: 战斗实体身份句柄与发号
 
 TcsCore MUST 提供 `FTcsCombatEntityHandle`（**`USTRUCT(BlueprintType)`**，`int64 Id`，0 = 无效）与 `FTcsCombatEntityHandleRegistry`（`std::atomic<int64>` 递增发号、首个分配为 1、进程内永不复用）——与既有的 `FTcsSourceHandle` / `FTcsSourceHandleRegistry` 同域（Core 的词汇句柄，同住 `Handle/` 目录）。MUST 提供 `IsValid`、相等比较与 `GetTypeHash`（供 `TMap` 键控）。

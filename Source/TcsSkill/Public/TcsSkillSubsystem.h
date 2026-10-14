@@ -20,6 +20,7 @@
 #include "Skill/TcsNumericParamModifier.h"
 #include "Skill/TcsSkillEntryHandle.h"
 #include "Skill/TcsSkillRegistry.h"
+#include "Runtime/TcsEntityBroadcastGuard.h"
 
 #include "TcsSkillSubsystem.generated.h"
 
@@ -29,10 +30,10 @@ class UTcsClockSubsystem;
 
 
 /**
- * 技能门面（M5 技能层唯一入口）：世界级子系统，持**per-unit 已学技能账本**与**本世界的技能定义登记表**。
+ * 技能门面（M5 技能层唯一入口）：世界级子系统，持**per-entity 已学技能账本**与**本世界的技能定义登记表**。
  *
  * 分工：本类 = 门面（世界过滤 / 定义登记 / 授予与撤销 / 账本读取面 / 门禁第一道的判据持有 / 激活入口）；
- * `FTcsSkillRegistry` = 账本登记表（per-unit 桶 + 槽位代际）；`TTcsInstancePool` = 施法运行态池；
+ * `FTcsSkillRegistry` = 账本登记表（per-entity 桶 + 槽位代际）；`TTcsInstancePool` = 施法运行态池；
  * **`FTcsSkillOps` = 账本引擎函数**（授予 / 撤销 / 按来源级联 / 解析 / 读取的流程逻辑）、
  * **`FTcsCastOps` = 施法引擎函数**（六道门禁裁决 / 运行态建与终结 / 快照构建 / 起链 / 广播）——
  * **桶只存数据与索引，操作全在引擎函数**，这是设计文档 §3.1 的既定分工，同 `UTcsStateSubsystem` 的处置。
@@ -159,7 +160,7 @@ public:
 
 public:
 	/**
-	 * 授予技能（把"这个单位会这个技能"写进账本）。
+	 * 授予技能（把"这个实体会这个技能"写进账本）。
 	 *
 	 * **授予前置门禁（硬约束）**：`DefTag` 在本世界**未登记** ⇒ **拒绝授予** + `Warning`（**不 ensure**——
 	 * 内容缺口不是契约违规）。**MUST NOT** 建出一个取不到定义内容的条目：那样账本的三个读取面
@@ -167,18 +168,18 @@ public:
 	 * ——那是**静默错误**。
 	 *
 	 * 重复授予同一 `DefTag`：**刷新**既有条目（更新 `Level` 与 `LearnSource`），不新建第二条
-	 * （同一单位"会同一个技能"只有一条事实）。
+	 * （同一实体"会同一个技能"只有一条事实）。
 	 *
 	 * **无反射面**：形参含未反射化句柄（本轮不加 `UFUNCTION`——账本的脚本/蓝图读写面归台账 `SCRIPT-10`）。
 	 *
-	 * @param Unit 被授予方实体（无效即拒绝）。
+	 * @param Entity 被授予方实体（无效即拒绝）。
 	 * @param DefTag 技能定义身份（须已在本世界登记）。
 	 * @param Source 学习来源句柄（无效则由本门面发号——同一次授予内该条目共用它，亦作级联撤销锚点）。
 	 * @param OutHandle 输出条目句柄（可选；失败时不写）。
 	 * @return 返回是否授予成功。
 	 */
 	bool GrantSkill(
-		FTcsCombatEntityHandle Unit,
+		FTcsCombatEntityHandle Entity,
 		FGameplayTag DefTag,
 		FTcsSourceHandle Source,
 		FTcsSkillEntryHandle* OutHandle = nullptr);
@@ -186,61 +187,61 @@ public:
 	/**
 	 * 撤销单个条目（脏句柄 = Warning + false，不 ensure——时序竞态语义）。
 	 *
-	 * @param Unit 单位实体句柄。
+	 * @param Entity 实体实体句柄。
 	 * @param Handle 账本条目句柄。
 	 * @return 返回是否撤销成功。
 	 */
-	bool RevokeSkill(FTcsCombatEntityHandle Unit, FTcsSkillEntryHandle Handle);
+	bool RevokeSkill(FTcsCombatEntityHandle Entity, FTcsSkillEntryHandle Handle);
 
 	/**
-	 * 按学习来源级联撤销（摘该来源**在该单位**的全部条目）。
+	 * 按学习来源级联撤销（摘该来源**在该实体**的全部条目）。
 	 *
 	 * **读数 = 返回实际摘掉的条目数**（观测与装置断言用）。
 	 *
 	 * **遍历纪律**：先收集命中句柄、再逐个撤销（两段式）——桶的 `ForEach` 期间 MUST NOT 增删条目。
 	 *
-	 * @param Unit 单位实体句柄。
+	 * @param Entity 实体实体句柄。
 	 * @param Source 学习来源句柄（无效 = 0 命中，返回 0）。
 	 * @return 返回摘掉的条目数。
 	 */
-	int32 RevokeSkillBySource(FTcsCombatEntityHandle Unit, FTcsSourceHandle Source);
+	int32 RevokeSkillBySource(FTcsCombatEntityHandle Entity, FTcsSourceHandle Source);
 
 	/**
-	 * 注销单位：摘掉该单位全部条目并删除其桶。
+	 * 注销实体：摘掉该实体全部条目并删除其桶。
 	 *
-	 * @param Unit 单位实体句柄。
+	 * @param Entity 实体实体句柄。
 	 * @return 返回摘掉的条目数（未注册返回 0——正常路径，不 ensure）。
 	 */
-	int32 UnregisterUnit(FTcsCombatEntityHandle Unit);
+	int32 UnregisterEntity(FTcsCombatEntityHandle Entity);
 
 	/**
 	 * 按句柄取条目（脏句柄返回 nullptr 且不 ensure——时序竞态是正常路径）。
 	 *
 	 * **无反射面**：返回裸 struct 指针（UHT 表达不了）。
 	 *
-	 * @param Unit 单位实体句柄。
+	 * @param Entity 实体实体句柄。
 	 * @param Handle 账本条目句柄。
 	 * @return 返回条目；脏句柄返回 nullptr。
 	 */
-	const FTcsLearnedSkillEntry* GetEntry(FTcsCombatEntityHandle Unit, FTcsSkillEntryHandle Handle) const;
+	const FTcsLearnedSkillEntry* GetEntry(FTcsCombatEntityHandle Entity, FTcsSkillEntryHandle Handle) const;
 
 	/**
-	 * 遍历某单位的在册条目（**按桶内槽位下标升序**——稳定序，同输入同输出）。
+	 * 遍历某实体的在册条目（**按桶内槽位下标升序**——稳定序，同输入同输出）。
 	 * 访问者返回 false 即提前终止。
 	 *
 	 * **遍历期间 MUST NOT 增删条目**（会改动槽位/空闲栈）——需要增删时先收集句柄、遍历结束后再动。
 	 *
 	 * **无反射面**：形参含 `TFunctionRef`（C++ 专用面，同 `ITcsEntityQuery`）。
 	 *
-	 * @param Unit 单位实体句柄。
+	 * @param Entity 实体实体句柄。
 	 * @param Visitor 访问者（返回是否继续）。
 	 */
-	void ForEachEntry(FTcsCombatEntityHandle Unit, TFunctionRef<bool(const FTcsLearnedSkillEntry&)> Visitor) const;
+	void ForEachEntry(FTcsCombatEntityHandle Entity, TFunctionRef<bool(const FTcsLearnedSkillEntry&)> Visitor) const;
 
-	// 某单位在册条目数（观测与装置断言用；**验收读数取它**，MUST NOT 取"GrantSkill 被调用几次"）
-	int32 GetEntryCount(FTcsCombatEntityHandle Unit) const;
+	// 某实体在册条目数（观测与装置断言用；**验收读数取它**，MUST NOT 取"GrantSkill 被调用几次"）
+	int32 GetEntryCount(FTcsCombatEntityHandle Entity) const;
 
-	// 全部门面在册条目数（跨单位合计；观测用）
+	// 全部门面在册条目数（跨实体合计；观测用）
 	int32 GetTotalEntryCount() const;
 
 #pragma endregion
@@ -266,28 +267,28 @@ public:
 	 *
 	 * **无反射面**：形参含未反射化句柄与 C++ 容器（本轮不加 `UFUNCTION`——脚本读写面归 `SCRIPT-10`）。
 	 *
-	 * @param Unit 单位实体句柄。
+	 * @param Entity 实体实体句柄。
 	 * @param Selector 条目选择器。
 	 * @param Modifiers 定义侧修正器行。
 	 * @param Source 本次施加的来源锚点（级联摘除用，由调用方声明"这次是谁给的"）。
 	 * @return 返回是否至少命中一个条目并施加。
 	 */
 	bool ApplyParamModifiers(
-		FTcsCombatEntityHandle Unit,
+		FTcsCombatEntityHandle Entity,
 		const FTcsSkillEntrySelector& Selector,
 		const TArray<FTcsNumericParamModifier>& Modifiers,
 		FTcsSourceHandle Source);
 
 	/**
-	 * 按来源级联摘除参数修正器（摘该单位全部条目的 `NumericParamModInstances` 中 `Source` 匹配者）。
+	 * 按来源级联摘除参数修正器（摘该实体全部条目的 `NumericParamModInstances` 中 `Source` 匹配者）。
 	 *
 	 * **读数 = 返回摘除条数**；`0` 条命中 = 正常路径（**不 ensure**）。
 	 *
-	 * @param Unit 单位实体句柄。
+	 * @param Entity 实体实体句柄。
 	 * @param Source 归属来源句柄。
 	 * @return 返回摘除的修正器条数。
 	 */
-	int32 RemoveParamModifiersBySource(FTcsCombatEntityHandle Unit, FTcsSourceHandle Source);
+	int32 RemoveParamModifiersBySource(FTcsCombatEntityHandle Entity, FTcsSourceHandle Source);
 
 #pragma endregion
 
@@ -336,13 +337,13 @@ public:
 	 *
 	 * **无反射面**：形参含未反射化句柄（本轮不加 `UFUNCTION`——施法面的脚本读写面归台账 `SCRIPT-10`）。
 	 *
-	 * @param Unit 施法单位。
+	 * @param Entity 施法实体。
 	 * @param DefTag 技能定义身份。
 	 * @param OutRun 输出运行态句柄（可选；失败时不写）。
 	 * @return 返回激活结果（具名）。
 	 */
 	ESkillActivateResult TryActivate(
-		FTcsCombatEntityHandle Unit,
+		FTcsCombatEntityHandle Entity,
 		FGameplayTag DefTag,
 		FTcsCastRunHandle* OutRun = nullptr);
 
@@ -457,13 +458,13 @@ public:
 	 *
 	 * **无反射面**：形参含未反射化句柄。
 	 *
-	 * @param Unit 单位实体句柄。
+	 * @param Entity 实体实体句柄。
 	 * @param Handle 账本条目句柄。
 	 * @param LevelModifiers 带 `Level` 键的修正器列表（本轮由参数链轮提供；可传空表）。
 	 * @return 返回生效等级（脏句柄返回 0）。
 	 */
 	int32 GetLevel(
-		FTcsCombatEntityHandle Unit,
+		FTcsCombatEntityHandle Entity,
 		FTcsSkillEntryHandle Handle,
 		const TArray<double>& LevelModifiers) const;
 
@@ -475,14 +476,14 @@ public:
 	 *
 	 * **两表互不兜底**：本函数只看数值参数表（`Params`），**MUST NOT** 回落到布尔开关表。
 	 *
-	 * @param Unit 单位实体句柄。
+	 * @param Entity 实体实体句柄。
 	 * @param Handle 账本条目句柄。
 	 * @param Key 参数键（`TcsStateParam` 根；该根 `State` 取广义，含技能激活运行态）。
 	 * @param OutValue 输出读到的规范值（miss 时内容未定义）。
 	 * @return 返回是否命中。
 	 */
 	bool GetNumericParam(
-		FTcsCombatEntityHandle Unit,
+		FTcsCombatEntityHandle Entity,
 		FTcsSkillEntryHandle Handle,
 		FGameplayTag Key,
 		double& OutValue) const;
@@ -492,14 +493,14 @@ public:
 	 *
 	 * **未命中落 miss**（返回 false），语义同上。
 	 *
-	 * @param Unit 单位实体句柄。
+	 * @param Entity 实体实体句柄。
 	 * @param Handle 账本条目句柄。
 	 * @param Key 布尔参数键（`TcsStateParam` 根）。
 	 * @param OutValue 输出读到的开关值（miss 时内容未定义）。
 	 * @return 返回是否命中。
 	 */
 	bool IsSwitchSet(
-		FTcsCombatEntityHandle Unit,
+		FTcsCombatEntityHandle Entity,
 		FTcsSkillEntryHandle Handle,
 		FGameplayTag Key,
 		bool& OutValue) const;
@@ -525,21 +526,21 @@ public:
 	 * 且形参 `FTcsSkillEntryHandle` 虽已反射，但口径不统一会让 `SCRIPT-10` 落地时**无法一次对齐**。
 	 * ⇒ 该缺口统一由 `SCRIPT-10` 收口，**MUST NOT 在此提前破例**。
 	 *
-	 * @param Unit 单位实体句柄。
+	 * @param Entity 实体实体句柄。
 	 * @param Entry 账本条目句柄。
 	 * @return 返回是否在冷却中（悬空句柄 / 定义取不到 ⇒ false，不 ensure）。
 	 */
-	bool IsOnCooldown(FTcsCombatEntityHandle Unit, FTcsSkillEntryHandle Entry);
+	bool IsOnCooldown(FTcsCombatEntityHandle Entity, FTcsSkillEntryHandle Entry);
 
 	/**
 	 * 取某轨的剩余秒数（UI 径向进度的分子）。
 	 *
-	 * @param Unit 单位实体句柄。
+	 * @param Entity 实体实体句柄。
 	 * @param Entry 账本条目句柄。
 	 * @param TrackIndex 轨道下标（对应 `FTcsCooldownPolicy::Tracks` 的序）。
 	 * @return 返回剩余秒数（未在冷却 / 越界 / 悬空 ⇒ 0）。
 	 */
-	double GetCooldownRemaining(FTcsCombatEntityHandle Unit, FTcsSkillEntryHandle Entry, int32 TrackIndex);
+	double GetCooldownRemaining(FTcsCombatEntityHandle Entity, FTcsSkillEntryHandle Entry, int32 TrackIndex);
 
 	/**
 	 * 取某轨本次冷却的**展示总时长**（径向进展的分母）。
@@ -547,21 +548,21 @@ public:
 	 * **不变量 `Remaining <= Total` 恒成立**（否则 UI 会画出超过 100% 的弧）——由
 	 * `FTcsCooldownOps::AdjustTrack` 的"`Total` 只增不减"保证。
 	 *
-	 * @param Unit 单位实体句柄。
+	 * @param Entity 实体实体句柄。
 	 * @param Entry 账本条目句柄。
 	 * @param TrackIndex 轨道下标。
 	 * @return 返回总时长（未在冷却 / 越界 / 悬空 ⇒ 0）。
 	 */
-	double GetCooldownTotal(FTcsCombatEntityHandle Unit, FTcsSkillEntryHandle Entry, int32 TrackIndex);
+	double GetCooldownTotal(FTcsCombatEntityHandle Entity, FTcsSkillEntryHandle Entry, int32 TrackIndex);
 
 	/**
 	 * 取该条目的轨道数（**读定义**，不是数"正在跑的轨道"——理由见 `FTcsCooldownOps::GetTrackCount`）。
 	 *
-	 * @param Unit 单位实体句柄。
+	 * @param Entity 实体实体句柄。
 	 * @param Entry 账本条目句柄。
 	 * @return 返回轨道数（悬空 / 定义取不到 ⇒ 0）。
 	 */
-	int32 GetCooldownTrackCount(FTcsCombatEntityHandle Unit, FTcsSkillEntryHandle Entry);
+	int32 GetCooldownTrackCount(FTcsCombatEntityHandle Entity, FTcsSkillEntryHandle Entry);
 
 	/**
 	 * 调整某轨的剩余时长（`D5-16` 承诺的 `AdjustCooldown`）——`Delta > 0` 延长、`< 0` 缩短；
@@ -570,21 +571,21 @@ public:
 	 * **改完 MUST 重挂到期堆**（`CancelExpiry` 旧的 + `PushExpiry` 新的）——只改时刻不重挂会让
 	 * 堆里的旧时刻继续生效，症状是"改了却不生效"或"提前到期"。
 	 *
-	 * @param Unit 单位实体句柄。
+	 * @param Entity 实体实体句柄。
 	 * @param Entry 账本条目句柄。
 	 * @param TrackIndex 轨道下标。
 	 * @param Delta 剩余时长的增量（秒）。
 	 */
-	void AdjustCooldown(FTcsCombatEntityHandle Unit, FTcsSkillEntryHandle Entry, int32 TrackIndex, double Delta);
+	void AdjustCooldown(FTcsCombatEntityHandle Entity, FTcsSkillEntryHandle Entry, int32 TrackIndex, double Delta);
 
 	/**
 	 * 清某轨（`D5-16` 承诺的 `ResetCooldown`）：撤到期条目 + 状态整体复位。
 	 *
-	 * @param Unit 单位实体句柄。
+	 * @param Entity 实体实体句柄。
 	 * @param Entry 账本条目句柄。
 	 * @param TrackIndex 轨道下标。
 	 */
-	void ResetCooldown(FTcsCombatEntityHandle Unit, FTcsSkillEntryHandle Entry, int32 TrackIndex);
+	void ResetCooldown(FTcsCombatEntityHandle Entity, FTcsSkillEntryHandle Entry, int32 TrackIndex);
 
 	/**
 	 * **起该条目的全部自身轨 + 所属组轨**（`PLN-R6.5-1` §0.2 裁决 ⑤ 新增）。
@@ -596,11 +597,11 @@ public:
 	 * **它与自动档走完全同一条路径**（`FTcsCooldownOps::StartCooldownOnEntry`）——
 	 * 手动档的含义是"框架不挑时机"，**不是**"框架不干活"。
 	 *
-	 * @param Unit 单位实体句柄。
+	 * @param Entity 实体实体句柄。
 	 * @param Entry 账本条目句柄。
 	 * @return 返回实际起的轨道条数（0 = 无轨道 / 悬空 / 定义取不到 / 时钟不可得）。
 	 */
-	int32 StartCooldown(FTcsCombatEntityHandle Unit, FTcsSkillEntryHandle Entry);
+	int32 StartCooldown(FTcsCombatEntityHandle Entity, FTcsSkillEntryHandle Entry);
 
 #pragma endregion
 
@@ -624,11 +625,11 @@ public:
 	 *
 	 * **无反射面**：同冷却是族——脚本读写面整体归台账 `SCRIPT-10`（见 `IsOnCooldown` 的注释）。
 	 *
-	 * @param Unit 单位实体句柄。
+	 * @param Entity 实体实体句柄。
 	 * @param Entry 账本条目句柄。
 	 * @return 返回是否提交成功（`ECT_None` 档恒 true；付不起 / 悬空 / 定义取不到 ⇒ false）。
 	 */
-	bool PayCost(FTcsCombatEntityHandle Unit, FTcsSkillEntryHandle Entry);
+	bool PayCost(FTcsCombatEntityHandle Entity, FTcsSkillEntryHandle Entry);
 
 	/**
 	 * 该条目**现在**付得起吗（纯查询语义：MUST NOT 扣任何资源、MUST NOT 改账本、MUST NOT 发事件）。
@@ -636,11 +637,11 @@ public:
 	 * **与门禁⑤ 同一判据**（同一实现 `FTcsCostOps::CanAffordCost`）——宿主据此可预先灰掉按钮，
 	 * 而**不应该**用它替代真正的激活（门禁⑤ 在 `TryActivate` 内仍会判一次）。
 	 *
-	 * @param Unit 单位实体句柄。
+	 * @param Entity 实体实体句柄。
 	 * @param Entry 账本条目句柄。
 	 * @return 返回是否付得起（悬空 / 定义取不到 ⇒ false）。
 	 */
-	bool CanAfford(FTcsCombatEntityHandle Unit, FTcsSkillEntryHandle Entry);
+	bool CanAfford(FTcsCombatEntityHandle Entity, FTcsSkillEntryHandle Entry);
 
 #pragma endregion
 
@@ -708,10 +709,10 @@ public:
 	 *
 	 * **MUST NOT 反查 `TcsIntegration`**（依赖方向单向——`TcsIntegration` 是终端模块，反查会成环）。
 	 *
-	 * @param Unit 单位实体句柄。
+	 * @param Entity 实体实体句柄。
 	 * @return 返回该实体当前是否可操作。
 	 */
-	bool IsEntityReady(FTcsCombatEntityHandle Unit) const;
+	bool IsEntityReady(FTcsCombatEntityHandle Entity) const;
 
 #pragma endregion
 
@@ -732,16 +733,16 @@ private:
 	friend class FTcsCooldownOps;
 	friend class FTcsCostOps;
 
-	// per-unit 已学技能注册表（桶 + 槽位代际）
+	// per-entity 已学技能注册表（桶 + 槽位代际）
 	FTcsSkillRegistry Registry;
 
 	/**
-	 * **单位级**共享组冷却槽（`D5-15` 的"公共冷却 = 共享组轨道"）。
+	 * **实体级**共享组冷却槽（`D5-15` 的"公共冷却 = 共享组轨道"）。
 	 *
-	 * **为什么是"单位 → 组 → 槽"两层而不是一张平表**：公共冷却的作用域是**单位**
-	 * （"同一个单位不能连续放任意技能"），组标签只在**单位内**比较——两个单位各有自己的
-	 * GCD 线，互不影响。平表会让 A 单位的冷却拦住 B 单位的技能（跨单位串味），
-	 * 或逼出一个"复合键 = 单位+组"的手工拼装（那是在重造一层 TMap）。
+	 * **为什么是"实体 → 组 → 槽"两层而不是一张平表**：公共冷却的作用域是**实体**
+	 * （"同一个实体不能连续放任意技能"），组标签只在**实体内**比较——两个实体各有自己的
+	 * GCD 线，互不影响。平表会让 A 实体的冷却拦住 B 实体的技能（跨实体串味），
+	 * 或逼出一个"复合键 = 实体+组"的手工拼装（那是在重造一层 TMap）。
 	 *
 	 * **键取 `FTcsCombatEntityHandle`**（已反射、有 `GetTypeHash`），不是 `int64`——
 	 * 与 `Registry` / `Stores` 的键控口径一致。
@@ -750,7 +751,7 @@ private:
 	 * ⇒ `AddReferencedObjects` MUST NOT 为它新增遍历。
 	 *
 	 * **清理归属**：条目级撤销**刻意不动它**（组槽会自行到期解除；替它解除会**替同组的其它技能**
-	 * 解除公共冷却）——完整清理由 `ReleaseUnitCooldowns`（注销单位）与门面 `Deinitialize` 承担。
+	 * 解除公共冷却）——完整清理由 `ReleaseEntityCooldowns`（注销实体）与门面 `Deinitialize` 承担。
 	 */
 	TMap<FTcsCombatEntityHandle, TMap<FGameplayTag, FTcsCooldownGroupState>> CooldownGroups;
 
@@ -787,15 +788,17 @@ private:
 	 * （靠归还前复核池句柄是否仍有效），**"打断事件发两次"当时仍然存在**
 	 * （`TcsCastOps.cpp` 的旧注释自认，其归属即本轮）。
 	 *
-	 * **体例照状态侧已验证的解法**：`UTcsStateSubsystem::InRemovalBroadcastHandles`
-	 * （进出广播窗口**成对**标记 / 解除）⇒ 递归终结同句柄**返回 false 且静默**，
-	 * 既不重复广播、也不重复归还槽位。**判据 = 订阅者重入一次，`Interrupted` 仍为 1。**
+	 * **体例 = 共享层的统一重入守卫**（`TTcsEntityBroadcastGuard`，2026-10-14）：
+	 * 它取代了状态侧的 `InRemovalBroadcastHandles` 与技能侧原本这份 `InFinishBroadcastHandles`
+	 * ——**一份实现、两个实例**（各持自己句柄类型）。语义不变：进出广播窗口**成对**标记 / 解除
+	 * ⇒ 递归终结同句柄**返回 false 且静默**，既不重复广播、也不重复归还槽位。
+	 * **判据 = 订阅者重入一次，`Interrupted` 仍为 1。**
 	 *
 	 * **为什么是"进出成对"而不是"终结即加入、永不删"**：本集是**窗口**（广播期间），
 	 * 不是"已终结"的历史——广播结束即须移除，否则池槽位复用给新 run（同 `Index`、新 `Generation`）
 	 * 时不会误伤（句柄含代际，本已不撞），但**同一句柄的后续合法终结**会被永久拒绝。
 	 */
-	TSet<FTcsCastRunHandle> InFinishBroadcastHandles;
+	TTcsEntityBroadcastGuard<FTcsCastRunHandle> FinishBroadcastGuard;
 
 	// 宿主链重定向 Custom 契约（未注入 = 空接口；`UPROPERTY` 持有以满足 TScriptInterface 的 GC 纪律）
 	UPROPERTY()

@@ -1,5 +1,7 @@
 # Change: 落地内容资产竖切装置与框架内置 Self 选择器（targeting-strategy 补需求）
 
+> **术语订正（2026-10-14）**：本文原用「单位 / `Unit`」，该词已退役，现统一为「**实体 / `Entity`**」（见 `DEC-2026-10-14-entity-vocabulary`）。**正文为当时原话，保留不改。**
+
 ## Why
 plan2 Task 6 动工前的规格先行提案。前五站交付的全是**机制与领域层**（链解释器 / 目标策略 / 流程机制 / 标准步骤库 / 集成层），装置一直是**临时件**（`Source/*/Private/Testing/`，不入库），且 **R3 至今没有一份内容资产**——于是 Task 5 的 `UTcsDefinitionSubsystem` 自动发现路径（`GetAssetsByClass` → 缓存 → 装配到世界）**从未被实证**，竖切剧本**检查点 6"零 C++ 加链"**也从未被验（Task 5 装置走的是手动 `RegisterChain`）。
 

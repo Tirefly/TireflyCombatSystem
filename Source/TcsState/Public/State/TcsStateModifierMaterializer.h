@@ -40,8 +40,8 @@ public:
 	/**
 	 * 物化一个状态实例的全部修正器条目。
 	 *
-	 * 输入取**实例**而不是散字段：`Unit` / `Instigator` / `Level` / `Source` / `ParamSnapshot`
-	 * 全是实例已有的信息（实例自持 `Unit` 正是为了让物化不必遍历桶找单位）——多传几个形参
+	 * 输入取**实例**而不是散字段：`Entity` / `Instigator` / `Level` / `Source` / `ParamSnapshot`
+	 * 全是实例已有的信息（实例自持 `Entity` 正是为了让物化不必遍历桶找实体）——多传几个形参
 	 * 只会让"某处少填一个"成为可能，而少填在源侧表现为**静默落兜底**而不是报错。
 	 *
 	 * 求值上下文经 `FTcsStateOps::MakeContext` **同一处装配**（与快照构建同源），且其中的

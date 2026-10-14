@@ -44,7 +44,7 @@ void UTcsStateSubsystem::Deinitialize()
 	// 顺序 = 撤条目 → 清桶 → 复位登记表。
 	// **发号器不复位**：`Id` 的契约是"进程内唯一且永不复用"（`instance-handle-pool` 规格），
 	// 复位会让新世界的来源号与上一世界撞车——那正是级联摘除会误伤别人的缺陷形态（`WAIT-6`）。
-	Registry.ForEachBucket([this](FTcsCombatEntityHandle Unit, FStateBucket& Bucket)
+	Registry.ForEachBucket([this](FTcsCombatEntityHandle Entity, FStateBucket& Bucket)
 	{
 		Bucket.ForEach([this](FTcsStateInstance& Instance)
 		{
@@ -57,7 +57,7 @@ void UTcsStateSubsystem::Deinitialize()
 
 	Registry.Reset();
 	RegisteredDefs.Reset();
-	InRemovalBroadcastHandles.Reset();
+	RemovalBroadcastGuard.Reset();
 
 	Super::Deinitialize();
 }
@@ -86,11 +86,18 @@ void UTcsStateSubsystem::AddReferencedObjects(UObject* InThis, FReferenceCollect
 	// **不是反射结构体**（快照只在 C++ 侧流转）⇒ 没有 `StaticStruct()` 可给。逐条走 `SourceRef`
 	// 自己的 ARO 反而更准：它只补真正持对象的那一层，且递归进内层结构体的属性
 	// （引擎 `FInstancedStruct::AddStructReferencedObjects` 已实现该递归）。
-	This->Registry.ForEachBucket([&Collector](FTcsCombatEntityHandle Unit, FStateBucket& Bucket)
+	// **⚠ 遍历口 MUST 用 `ForEachForGC`，MUST NOT 用 `Bucket.ForEach`**（2026-10-14 补齐）：
+	// 状态桶自本变更起**改由共享层的 `TTcsInstancePool` 承载**，而池的**每一个正常进入点**都
+	// 无条件 `ensure(IsInGameThread())`（D0-4 单游戏线程假设），**GC 的引用收集不在游戏线程上**
+	// ⇒ 在 ARO 里走 `ForEach` 会**每次 GC 触发一次** `Ensure condition failed: IsInGameThread()`。
+	// 该症状极具隐蔽性：`ensure` 每站点每进程只报一次 ⇒ 表现为"偶尔一条红字"、且与池空不空无关。
+	// （技能侧 2026-10-08 首轮 PIE 实测已踩过同一个坑，其 ARO 早已改用 `ForEachForGC`；
+	// 状态侧原为手写桶、没有这条断言，故**本变更把它引入**——必须同批接上 GC 口。）
+	This->Registry.ForEachBucket([&Collector](FTcsCombatEntityHandle Entity, const FStateBucket& Bucket)
 	{
-		Bucket.ForEach([&Collector](FTcsStateInstance& Instance)
+		Bucket.ForEachForGC([&Collector](const FTcsStateInstance& Instance)
 		{
-			for (FTcsParamSnapshotEntry& Entry : Instance.ParamSnapshot.Entries)
+			for (const FTcsParamSnapshotEntry& Entry : Instance.ParamSnapshot.Entries)
 			{
 				if (Entry.SourceRef.IsValid())
 				{
@@ -98,8 +105,6 @@ void UTcsStateSubsystem::AddReferencedObjects(UObject* InThis, FReferenceCollect
 					const_cast<FInstancedStruct&>(Entry.SourceRef).AddStructReferencedObjects(Collector);
 				}
 			}
-
-			return true;
 		});
 
 		return true;
@@ -134,23 +139,24 @@ bool UTcsStateSubsystem::IsStateActive(FTcsStateHandle Handle) const
 }
 
 void UTcsStateSubsystem::ForEachState(
-	FTcsCombatEntityHandle Unit,
+	FTcsCombatEntityHandle Entity,
 	TFunctionRef<bool(const FTcsStateInstance&)> Visitor) const
 {
-	if (const FStateBucket* Bucket = Registry.FindBucket(Unit))
+	if (const FStateBucket* Bucket = Registry.FindBucket(Entity))
 	{
 		Bucket->ForEach(Visitor);
 	}
 }
 
-int32 UTcsStateSubsystem::GetStateCount(FTcsCombatEntityHandle Unit) const
+int32 UTcsStateSubsystem::GetStateCount(FTcsCombatEntityHandle Entity) const
 {
-	return FTcsStateOps::CountStates(*const_cast<UTcsStateSubsystem*>(this), Unit);
+	return FTcsStateOps::CountStates(*const_cast<UTcsStateSubsystem*>(this), Entity);
 }
 
 int32 UTcsStateSubsystem::GetTotalStateCount() const
 {
-	return Registry.NumInstances();
+	// 共享层模板的口名是 `NumItems`（它对两域都叫"条目/实例"——沿用域侧旧名会逼模板长两张脸）
+	return Registry.NumItems();
 }
 
 
@@ -168,9 +174,9 @@ bool UTcsStateSubsystem::ExpireState(FTcsStateHandle Handle)
 	return FTcsStateOps::Remove(*this, Handle, EStateRemoveCause::ESRC_Expired);
 }
 
-int32 UTcsStateSubsystem::UnregisterUnit(FTcsCombatEntityHandle Unit)
+int32 UTcsStateSubsystem::UnregisterEntity(FTcsCombatEntityHandle Entity)
 {
-	return FTcsStateOps::UnregisterUnit(*this, Unit);
+	return FTcsStateOps::UnregisterEntity(*this, Entity);
 }
 
 bool UTcsStateSubsystem::ExtendDuration(FTcsStateHandle Handle, double Delta)

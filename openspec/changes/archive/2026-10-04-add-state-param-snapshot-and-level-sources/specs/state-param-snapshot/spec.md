@@ -1,5 +1,7 @@
 ## ADDED Requirements
 
+> **术语订正（2026-10-14）**：本文原用「单位 / `Unit`」，该词已退役，现统一为「**实体 / `Entity`**」（见 `DEC-2026-10-14-entity-vocabulary`）。**正文为当时原话，保留不改。**
+
 ### Requirement: 参数快照与其构建规则
 
 TcsState MUST 提供参数快照类型：`FTcsParamSnapshotEntry{ FGameplayTag Key; double Value; FInstancedStruct SourceRef; }` 与 `FTcsParamSnapshot{ TArray<FTcsParamSnapshotEntry> Entries; }`，并 MUST 提供只读查询 `TryGetNumericParam(FGameplayTag Key, double& OutValue) const`（miss 返回 false 且 `OutValue` 内容未定义）。

@@ -53,10 +53,10 @@ public:
 	 * 而失败面表现为"读数为 0"而非"没学到"——**静默错误**。
 	 *
 	 * **重复授予同一 `DefTag` ⇒ 刷新**既有条目（更新 `Level` 与 `LearnSource`），不新建第二条
-	 * （同一单位"会同一个技能"只有一条事实）；刷新**不回退**已冻结在他处的等级（运行中升级不追溯）。
+	 * （同一实体"会同一个技能"只有一条事实）；刷新**不回退**已冻结在他处的等级（运行中升级不追溯）。
 	 *
 	 * @param Subsystem 技能门面（提供登记表、桶与发号器）。
-	 * @param Unit 被授予方实体（无效即拒绝）。
+	 * @param Entity 被授予方实体（无效即拒绝）。
 	 * @param DefTag 技能定义身份（须已在本世界登记）。
 	 * @param Source 学习来源句柄（无效则由门面发号；同一条目共用它，亦作级联撤销锚点）。
 	 * @param OutHandle 输出条目句柄（可选；失败时不写）。
@@ -64,7 +64,7 @@ public:
 	 */
 	static bool Grant(
 		UTcsSkillSubsystem& Subsystem,
-		FTcsCombatEntityHandle Unit,
+		FTcsCombatEntityHandle Entity,
 		FGameplayTag DefTag,
 		FTcsSourceHandle Source,
 		FTcsSkillEntryHandle* OutHandle);
@@ -80,42 +80,42 @@ public:
 	 * 撤销单个条目（脏句柄 = `Warning` + false，不 ensure——时序竞态语义）。
 	 *
 	 * @param Subsystem 技能门面。
-	 * @param Unit 单位实体句柄。
+	 * @param Entity 实体实体句柄。
 	 * @param Handle 账本条目句柄。
 	 * @return 返回是否撤销成功。
 	 */
 	static bool Revoke(
 		UTcsSkillSubsystem& Subsystem,
-		FTcsCombatEntityHandle Unit,
+		FTcsCombatEntityHandle Entity,
 		FTcsSkillEntryHandle Handle);
 
 	/**
-	 * 按学习来源级联撤销（摘该来源**在该单位**的全部条目）。
+	 * 按学习来源级联撤销（摘该来源**在该实体**的全部条目）。
 	 *
 	 * **两段式**：桶的 `ForEach` 期间 MUST NOT 增删（会改动槽位与空闲栈）⇒ 先收集命中句柄，
 	 * 遍历结束后再逐个撤销（同 `FTcsTriggerRegistry::UnregisterRowsBySource` 的手法）。
 	 *
 	 * @param Subsystem 技能门面。
-	 * @param Unit 单位实体句柄。
+	 * @param Entity 实体实体句柄。
 	 * @param Source 学习来源句柄（无效 = 0 命中，返回 0）。
 	 * @return 返回摘掉的条目数（观测与装置断言用）。
 	 */
 	static int32 RevokeBySource(
 		UTcsSkillSubsystem& Subsystem,
-		FTcsCombatEntityHandle Unit,
+		FTcsCombatEntityHandle Entity,
 		FTcsSourceHandle Source);
 
 	/**
-	 * 注销单位：摘掉该单位全部条目并删除其桶。
+	 * 注销实体：摘掉该实体全部条目并删除其桶。
 	 *
 	 * **账本条目零外部资源**（不挂修正器、不挂触发行、无时间条目）⇒ 无需逐条撤销流程，
 	 * 直接删桶即可——**这正是"只持一个 `LearnSource`"的收益**（没有需要配对摘除的东西）。
 	 *
 	 * @param Subsystem 技能门面。
-	 * @param Unit 单位实体句柄。
+	 * @param Entity 实体实体句柄。
 	 * @return 返回摘掉的条目数（未注册返回 0——正常路径，不 ensure）。
 	 */
-	static int32 UnregisterUnit(UTcsSkillSubsystem& Subsystem, FTcsCombatEntityHandle Unit);
+	static int32 UnregisterEntity(UTcsSkillSubsystem& Subsystem, FTcsCombatEntityHandle Entity);
 
 #pragma endregion
 
@@ -125,38 +125,38 @@ public:
 
 public:
 	/**
-	 * 按句柄取条目（脏句柄 / 单位未注册返回 nullptr——**正常查询路径，不 ensure**）。
+	 * 按句柄取条目（脏句柄 / 实体未注册返回 nullptr——**正常查询路径，不 ensure**）。
 	 *
-	 * 门面按句柄取条目时句柄里没有单位段，故 MUST 由调用方给出单位（同 `FTcsStateOps::Find`
-	 * 的处境；本模块的桶按单位定位，不做跨桶扫描——句柄的 `Index` 只在单位内有意）。
+	 * 门面按句柄取条目时句柄里没有实体段，故 MUST 由调用方给出实体（同 `FTcsStateOps::Find`
+	 * 的处境；本模块的桶按实体定位，不做跨桶扫描——句柄的 `Index` 只在实体内有意）。
 	 *
 	 * @param Subsystem 技能门面。
-	 * @param Unit 单位实体句柄。
+	 * @param Entity 实体实体句柄。
 	 * @param Handle 账本条目句柄。
 	 * @return 返回条目；脏句柄返回 nullptr。
 	 */
 	static const FTcsLearnedSkillEntry* Find(
 		UTcsSkillSubsystem& Subsystem,
-		FTcsCombatEntityHandle Unit,
+		FTcsCombatEntityHandle Entity,
 		FTcsSkillEntryHandle Handle);
 
 	/**
-	 * 遍历某单位的在册条目（**按桶内槽位下标升序**——稳定序，同输入同输出）。
+	 * 遍历某实体的在册条目（**按桶内槽位下标升序**——稳定序，同输入同输出）。
 	 * 访问者返回 false 即提前终止。
 	 *
 	 * @param Subsystem 技能门面。
-	 * @param Unit 单位实体句柄。
+	 * @param Entity 实体实体句柄。
 	 * @param Visitor 访问者（返回是否继续）。
 	 */
 	static void ForEachEntry(
 		UTcsSkillSubsystem& Subsystem,
-		FTcsCombatEntityHandle Unit,
+		FTcsCombatEntityHandle Entity,
 		TFunctionRef<bool(const FTcsLearnedSkillEntry&)> Visitor);
 
-	// 某单位在册条目数（观测与装置断言用；**验收读数取它**，MUST NOT 取"授予被调用几次"）
-	static int32 CountEntries(UTcsSkillSubsystem& Subsystem, FTcsCombatEntityHandle Unit);
+	// 某实体在册条目数（观测与装置断言用；**验收读数取它**，MUST NOT 取"授予被调用几次"）
+	static int32 CountEntries(UTcsSkillSubsystem& Subsystem, FTcsCombatEntityHandle Entity);
 
-	// 全部在册条目数（跨单位合计；观测用）
+	// 全部在册条目数（跨实体合计；观测用）
 	static int32 CountAllEntries(UTcsSkillSubsystem& Subsystem);
 
 #pragma endregion
@@ -175,14 +175,14 @@ public:
 	 * 参数修正链，见其类型注释）。脏句柄返回 0。
 	 *
 	 * @param Subsystem 技能门面。
-	 * @param Unit 单位实体句柄。
+	 * @param Entity 实体实体句柄。
 	 * @param Handle 账本条目句柄。
 	 * @param LevelModifiers 带 `Level` 键的修正器列表（本轮由参数链轮提供；可传空表）。
 	 * @return 返回生效等级（钳下界到 0）。
 	 */
 	static int32 GetLevel(
 		UTcsSkillSubsystem& Subsystem,
-		FTcsCombatEntityHandle Unit,
+		FTcsCombatEntityHandle Entity,
 		FTcsSkillEntryHandle Handle,
 		const TArray<double>& LevelModifiers);
 
@@ -195,7 +195,7 @@ public:
 	 * **两表互不兜底**：本函数只看数值参数表（`Params`），**MUST NOT** 回落到布尔开关表。
 	 *
 	 * @param Subsystem 技能门面。
-	 * @param Unit 单位实体句柄。
+	 * @param Entity 实体实体句柄。
 	 * @param Handle 账本条目句柄。
 	 * @param Key 参数键（`TcsStateParam` 根；该根 `State` 取广义，含技能激活运行态）。
 	 * @param OutValue 输出读到的规范值（miss 时内容未定义）。
@@ -203,7 +203,7 @@ public:
 	 */
 	static bool GetNumericParam(
 		UTcsSkillSubsystem& Subsystem,
-		FTcsCombatEntityHandle Unit,
+		FTcsCombatEntityHandle Entity,
 		FTcsSkillEntryHandle Handle,
 		FGameplayTag Key,
 		double& OutValue);
@@ -214,7 +214,7 @@ public:
 	 * **未命中落 miss**（返回 false），语义同上。
 	 *
 	 * @param Subsystem 技能门面。
-	 * @param Unit 单位实体句柄。
+	 * @param Entity 实体实体句柄。
 	 * @param Handle 账本条目句柄。
 	 * @param Key 布尔参数键（`TcsStateParam` 根）。
 	 * @param OutValue 输出读到的开关值（miss 时内容未定义）。
@@ -222,7 +222,7 @@ public:
 	 */
 	static bool IsSwitchSet(
 		UTcsSkillSubsystem& Subsystem,
-		FTcsCombatEntityHandle Unit,
+		FTcsCombatEntityHandle Entity,
 		FTcsSkillEntryHandle Handle,
 		FGameplayTag Key,
 		bool& OutValue);

@@ -24,7 +24,7 @@ class UTcsAttributeSubsystem;
  * 非 UObject：纯 C++ 组件，由 `UTcsAttributeSubsystem` 持有（PIMPL：门面头只前向声明）。
  *
  * **可见性口径（2026-09-18 用户拍板：表声明在 Public、实现在 Private）**——本头住 `Public/`
- * 是为了让**跨模块消费者**在不碰内部机制的前提下直接驱动某个单位的求值/事务（流程域属性容器、
+ * 是为了让**跨模块消费者**在不碰内部机制的前提下直接驱动某个实体的求值/事务（流程域属性容器、
  * 离屏或工具侧求值等）；实现仍留 `Private/Attribute/`（三份 `.cpp` 不随头公开）。
  *
  * 调用纪律：
@@ -55,21 +55,21 @@ public:
 	/**
 	 * 求值当前值（脏则惰性重算）。
 	 *
-	 * @param Unit 单位句柄。
+	 * @param Entity 实体句柄。
 	 * @param Attribute 属性名。
-	 * @return 返回当前值；单位未注册或属性未定义时返回 0（不 ensure——读取是正常查询路径）。
+	 * @return 返回当前值；实体未注册或属性未定义时返回 0（不 ensure——读取是正常查询路径）。
 	 */
-	double EvaluateCurrent(FTcsCombatEntityHandle Unit, const FGameplayTag& Attribute);
+	double EvaluateCurrent(FTcsCombatEntityHandle Entity, const FGameplayTag& Attribute);
 
 	/**
 	 * 读未提交候选值（不落账预览，D2-5）：批进行中返回"若此刻提交会是多少"，不做写回/标脏/广播；
 	 * 无进行中的批时等同 `EvaluateCurrent`。
 	 *
-	 * @param Unit 单位句柄。
+	 * @param Entity 实体句柄。
 	 * @param Attribute 属性名。
 	 * @return 返回候选值。
 	 */
-	double PeekPending(FTcsCombatEntityHandle Unit, const FGameplayTag& Attribute);
+	double PeekPending(FTcsCombatEntityHandle Entity, const FGameplayTag& Attribute);
 
 #pragma endregion
 
@@ -81,48 +81,48 @@ public:
 	/**
 	 * 挂修正器（标脏 + 登记；批内不立即重算/广播）。
 	 *
-	 * @param Unit 单位句柄。
+	 * @param Entity 实体句柄。
 	 * @param Modifier 修正器（Target 指向目标属性）。
-	 * @return 返回是否挂载成功（单位未注册 / 目标属性未定义 = 忽略并留日志，返回 false）。
+	 * @return 返回是否挂载成功（实体未注册 / 目标属性未定义 = 忽略并留日志，返回 false）。
 	 */
-	bool ApplyModifier(FTcsCombatEntityHandle Unit, const FTcsAttrModInstance& Modifier);
+	bool ApplyModifier(FTcsCombatEntityHandle Entity, const FTcsAttrModInstance& Modifier);
 
 	/**
 	 * 改写基础值（事务的"改基值"写操作类，02 §2.2a/§4）：标脏并按事务纪律重算/广播
 	 * （批内只标脏、提交期统一处理；批外立即生效）。
-	 * 单位未注册或属性无实例时忽略并留日志（返回 false）。
+	 * 实体未注册或属性无实例时忽略并留日志（返回 false）。
 	 *
-	 * @param Unit 单位句柄。
+	 * @param Entity 实体句柄。
 	 * @param Attribute 属性名。
 	 * @param NewBaseValue 新的基础值。
 	 * @return 返回是否改写成功。
 	 */
-	bool SetBaseValue(FTcsCombatEntityHandle Unit, const FGameplayTag& Attribute, double NewBaseValue);
+	bool SetBaseValue(FTcsCombatEntityHandle Entity, const FGameplayTag& Attribute, double NewBaseValue);
 
 	/**
-	 * 按来源级联摘除（D2-2）：扫描该单位全部属性的修正器条目集**与冻结暂存区**，
+	 * 按来源级联摘除（D2-2）：扫描该实体全部属性的修正器条目集**与冻结暂存区**，
 	 * 摘除 Source 匹配的条目 → 标脏 → 重算 → 按变更规则广播。
 	 *
-	 * @param Unit 单位句柄。
+	 * @param Entity 实体句柄。
 	 * @param Source 来源句柄。
 	 * @return 返回摘除的修正器条数（0 = 无匹配，属正常路径）。
 	 */
-	int32 RemoveBySource(FTcsCombatEntityHandle Unit, const FTcsSourceHandle& Source);
+	int32 RemoveBySource(FTcsCombatEntityHandle Entity, const FTcsSourceHandle& Source);
 
 	/**
 	 * 开始一次变更批（嵌套计数：内层提交不触发 flush，最外层提交才触发）。
 	 *
-	 * @param Unit 单位句柄。
+	 * @param Entity 实体句柄。
 	 */
-	void BeginBatch(FTcsCombatEntityHandle Unit);
+	void BeginBatch(FTcsCombatEntityHandle Entity);
 
 	/**
 	 * 提交变更批：对全部脏属性重算并按 epsilon 比较后广播（每个属性最多一次）。
 	 * 唯一提交点：重算失败（如成环）的属性**不写回**（保持提交前的缓存值）。
 	 *
-	 * @param Unit 单位句柄。
+	 * @param Entity 实体句柄。
 	 */
-	void Commit(FTcsCombatEntityHandle Unit);
+	void Commit(FTcsCombatEntityHandle Entity);
 
 #pragma endregion
 
@@ -132,22 +132,22 @@ public:
 
 private:
 	// 重算内核（写回 + 清脏 + 广播）：返回是否发生实质变化
-	bool Recalculate(FTcsCombatEntityHandle Unit, FTcsAttributeStore& Store, FTcsAttributeInstance& Instance, bool bInBatch);
+	bool Recalculate(FTcsCombatEntityHandle Entity, FTcsAttributeStore& Store, FTcsAttributeInstance& Instance, bool bInBatch);
 
 	// 重算全部脏属性（多轮扫描至收敛；提交尾与按来源摘除后共用）
-	void FlushDirty(FTcsCombatEntityHandle Unit, FTcsAttributeStore& Store);
+	void FlushDirty(FTcsCombatEntityHandle Entity, FTcsAttributeStore& Store);
 
 	// 只算不写（PeekPending 用——评估候选值但不落账）
-	double ComputeCandidate(FTcsCombatEntityHandle Unit, FTcsAttributeStore& Store, const FTcsAttributeInstance& Instance);
+	double ComputeCandidate(FTcsCombatEntityHandle Entity, FTcsAttributeStore& Store, const FTcsAttributeInstance& Instance);
 
 	// 收集 + 折叠 + 值域收口（重算与候选值共用；会登记依赖边）
-	double ComputeFoldedValue(FTcsCombatEntityHandle Unit, FTcsAttributeStore& Store, const FTcsAttributeInstance& Instance);
+	double ComputeFoldedValue(FTcsCombatEntityHandle Entity, FTcsAttributeStore& Store, const FTcsAttributeInstance& Instance);
 
 	// 值域收口（Clamp / Wrap / Custom 逃逸位）
-	double ApplyValueDomain(FTcsCombatEntityHandle Unit, FTcsAttributeStore& Store, const FTcsAttributeInstance& Instance, double Value);
+	double ApplyValueDomain(FTcsCombatEntityHandle Entity, FTcsAttributeStore& Store, const FTcsAttributeInstance& Instance, double Value);
 
 	// 边界解析（ABM_Static 取静态值；ABM_Dynamic 先按管线求值——其依赖同样"读即登记"）
-	void ResolveBound(FTcsCombatEntityHandle Unit, FTcsAttributeStore& Store, const FGameplayTag& ForAttribute,
+	void ResolveBound(FTcsCombatEntityHandle Entity, FTcsAttributeStore& Store, const FGameplayTag& ForAttribute,
 		const FTcsAttributeBound& Bound, bool& bOutHasValue, double& OutValue);
 
 	// 读即登记依赖边（被读者 → 读者）；成环则拒绝该边并 ensure
@@ -157,13 +157,13 @@ private:
 	void MarkDependentsDirty(FTcsAttributeStore& Store, const FGameplayTag& ChangedAttribute);
 
 	// 变更广播（epsilon 1e-5 判定；未变不广播）
-	void BroadcastChange(FTcsCombatEntityHandle Unit, const FGameplayTag& Attribute, double OldValue, double NewValue) const;
+	void BroadcastChange(FTcsCombatEntityHandle Entity, const FGameplayTag& Attribute, double OldValue, double NewValue) const;
 
 	// 求值栈防重入（同一属性在单次求值链中只允许出现一次；命中 = 环）
 	bool PushEvalStack(const FGameplayTag& Attribute);
 	void PopEvalStack(const FGameplayTag& Attribute);
 
-	// 所属门面（数据宿主与单位注册表）
+	// 所属门面（数据宿主与实体注册表）
 	UTcsAttributeSubsystem& Owner;
 
 	// 求值栈（防重入：AttributeScaled 链上的环会在 RegisterDependency 处被拒，此处为兜底）

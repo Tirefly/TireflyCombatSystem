@@ -1,5 +1,7 @@
 ## 1. 取证准备（无代码改动）
 
+> **术语订正（2026-10-14）**：本文原用「单位 / `Unit`」，该词已退役，现统一为「**实体 / `Entity`**」（见 `DEC-2026-10-14-entity-vocabulary`）。**正文为当时原话，保留不改。**
+
 - [x] 1.1 冻结基线：记录 TCS / LAC 两仓的 `git rev-parse HEAD` 与 `git status --porcelain` 干净状态
 - [x] 1.2 记录既有 16 个 `.uasset` 的大小/mtime 清单，作为"未误改既有资产"的对照
 - [x] 1.3 记录改动前三命令读数基线：`Tcs.Test.Slice.Run` 即时 65/0、延时 72/0、`Tcs.Test.Slice.Reject` 11/0

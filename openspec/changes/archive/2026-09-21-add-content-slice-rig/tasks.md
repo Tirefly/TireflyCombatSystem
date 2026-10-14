@@ -1,4 +1,6 @@
 ## 1. 插件侧：框架内置 Self 选择器
+
+> **术语订正（2026-10-14）**：本文原用「单位 / `Unit`」，该词已退役，现统一为「**实体 / `Entity`**」（见 `DEC-2026-10-14-entity-vocabulary`）。**正文为当时原话，保留不改。**
 - [x] 1.1 `Source/TcsTargeting/Public/Targeting/TcsSelSelf.h`：`FTcsSelSelf : FTcsTargetSelectorStrategy`（`USTRUCT()`，非 Hidden）——`Resolve` 写 `Context.Caster`；无效 → 不产出 + Warning；`EntityQuery` 为 `nullptr` 照常工作；头注释写明"内容资产的类型稳定性"理由
 - [x] 1.2 `Source/TcsTargeting/Private/Targeting/TcsSelSelf.cpp`（非内联实现——含 LogChannel include）
 - [x] 1.3 编译验证（UBT Development Editor 零警告）

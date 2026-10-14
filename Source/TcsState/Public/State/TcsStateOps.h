@@ -16,13 +16,22 @@ class UTcsStateSubsystem;
 class UTcsClockSubsystem;
 class ITcsEntityLevelProvider;
 class ITcsParamTableReader;
-struct FStateBucket;
 struct FStateStackPolicy;
 struct FTcsBuffDef;
 struct FTcsStateEvaluateContext;
 struct FTcsStateStackDecision;
 struct FTcsStateStackRequest;
 struct FTcsTimeEntryHandle;
+
+// **`FStateBucket` MUST NOT 在此前向声明**（2026-10-14）：它已改为共享层模板的**别名**
+// （`State/TcsStateRegistry.h`）——别名与 `struct FStateBucket;` 前向声明同时存在会让
+// 该名字被解析成**两个不同的类型**（C2371 redefinition）。
+//
+// **★ 故此处直接 include 它**（2026-10-14 编译实证）：本头的 `ResolveStackDecision` 形参用到
+// `const FStateBucket&`，而**别名的定义者必须可见**（前向声明对别名不适用）。
+// 此前该头未 include 也能编过，是因为消费方恰好先 include 了注册表头——
+// **那是靠顺序侥幸，不是正确性**（清 UBT 缓存后当场 C4430/C2143）。
+#include "State/TcsStateRegistry.h"
 
 
 
@@ -55,8 +64,8 @@ public:
 	/**
 	 * 施加（或按共存策略刷新 / 叠层 / 替换）一个状态——`UTcsStateSubsystem::ApplyState` 的实现体。
 	 *
-	 * **共存判据归 `Def.StackPolicy` 五轴**（R5 Task 5 落地，原"同单位 + 同 `DefTag` 即刷新"的暂用判据已替换）：
-	 * 组键 = `(单位, DefTag)` + 轴附加项，命中后按容量与溢出政策决定刷新 / 叠层 / 替换 / 拒绝。
+	 * **共存判据归 `Def.StackPolicy` 五轴**（R5 Task 5 落地，原"同实体 + 同 `DefTag` 即刷新"的暂用判据已替换）：
+	 * 组键 = `(实体, DefTag)` + 轴附加项，命中后按容量与溢出政策决定刷新 / 叠层 / 替换 / 拒绝。
 	 * 决策与更新流水住 `TcsStateOps_Stack.cpp`，本函数只做校验、决策分派与"新建"一支。
 	 *
 	 * **`Source` 是"续杯 / 叠层"的判据**（施加方身份）：生命周期长于一次施加的调用方 MUST 传稳定的
@@ -98,7 +107,7 @@ public:
 	 * 未满仓 ⇒ 同来源续杯（层数不变）/ 异来源叠一层（层数由 Custom 或内置规则给出）。
 	 *
 	 * @param Request 本次施加的决策输入。
-	 * @param Bucket 被施加方单位的桶。
+	 * @param Bucket 被施加方实体的桶。
 	 * @param Policy 该定义的堆叠策略。
 	 * @return 返回决策结果（`ExistingHandle` = 命中的同组成员；无成员时无效）。
 	 */
@@ -119,7 +128,7 @@ public:
 	 * @param Subsystem 状态门面。
 	 * @param Def 状态定义内容（取策略、等级基准与修正器模板）。
 	 * @param Instance 命中的既有实例（**须已在册**；层数会被就地更新）。
-	 * @param Request 本次施加的决策输入（提供发起者 / 单位 / 定义身份与参数表位）。
+	 * @param Request 本次施加的决策输入（提供发起者 / 实体 / 定义身份与参数表位）。
 	 * @param Decision 共存决策结果（提供目标层数与决策种类）。
 	 * @param ParamTable 施加方参数表（快照重建与时值求值用）。
 	 * @param Overrides 施加方参数覆盖（快照重建用）。
@@ -152,13 +161,13 @@ public:
 	static bool Remove(UTcsStateSubsystem& Subsystem, FTcsStateHandle Handle, EStateRemoveCause Cause);
 
 	/**
-	 * 注销单位：逐条移除该单位全部实例后删桶。
+	 * 注销实体：逐条移除该实体全部实例后删桶。
 	 *
 	 * @param Subsystem 状态门面。
-	 * @param Unit 单位实体句柄。
+	 * @param Entity 实体实体句柄。
 	 * @return 返回移除的实例数。
 	 */
-	static int32 UnregisterUnit(UTcsStateSubsystem& Subsystem, FTcsCombatEntityHandle Unit);
+	static int32 UnregisterEntity(UTcsStateSubsystem& Subsystem, FTcsCombatEntityHandle Entity);
 
 #pragma endregion
 
@@ -210,7 +219,7 @@ public:
 	/**
 	 * 撤销某实例的全部时间条目（时值 + 周期）。
 	 *
-	 * **撤销顺序的前置一步**：移除 / 到期 / 单位注销 MUST 先调本函数再走广播链——
+	 * **撤销顺序的前置一步**：移除 / 到期 / 实体注销 MUST 先调本函数再走广播链——
 	 * 条目持句柄，槽位复用后回调仍会到达；先撤条目才不产生无谓回调。
 	 *
 	 * @param Subsystem 状态门面。
@@ -233,11 +242,11 @@ public:
 	 * 且逐条挂载会多次广播、把重入窗口放大成 N 个。
 	 *
 	 * **提交点之后调用方 MUST 重新定位实例与桶**：提交会重算 + 广播（属性变更事件），
-	 * 订阅者可在其中重入状态操作（施加/移除/注销单位）——那会让本函数调用方手里的
+	 * 订阅者可在其中重入状态操作（施加/移除/注销实体）——那会让本函数调用方手里的
 	 * 实例指针与桶引用**双双失效**（槽位释放后可能被复用）。
 	 *
-	 * 正常分支（零模板 + 非刷新 / 单位无属性账本）MUST 静默返回：状态与属性是两套登记，
-	 * "这个单位没有属性可改"不是错误（不 ensure、不留 Warning）。
+	 * 正常分支（零模板 + 非刷新 / 实体无属性账本）MUST 静默返回：状态与属性是两套登记，
+	 * "这个实体没有属性可改"不是错误（不 ensure、不留 Warning）。
 	 *
 	 * @param Subsystem 状态门面（提供登记表与快照读取壳）。
 	 * @param Def 状态定义内容（取 `ModifierRows`）。
@@ -261,12 +270,12 @@ public:
 	 * 之后重新定位桶与实例（`FTcsStateOps::Remove` 即按此顺序书写）。
 	 *
 	 * @param Subsystem 状态门面。
-	 * @param Unit 单位实体句柄。
+	 * @param Entity 实体实体句柄。
 	 * @param Source 级联锚点（= `FTcsStateInstance::CascadeAnchor`；**不是**"施加方来源句柄"）。
 	 */
 	static void StripModifiers(
 		UTcsStateSubsystem& Subsystem,
-		FTcsCombatEntityHandle Unit,
+		FTcsCombatEntityHandle Entity,
 		FTcsSourceHandle Source);
 
 #pragma endregion
@@ -288,7 +297,7 @@ public:
 	 * 门面不可得（世界拆解期）⇒ `Warning` + 跳过：状态本身照常生效（状态与触发行是两套登记）。
 	 *
 	 * @param Subsystem 状态门面（取世界用）。
-	 * @param Instance 目标实例（只读它的 `Unit` / `CascadeAnchor`）。
+	 * @param Instance 目标实例（只读它的 `Entity` / `CascadeAnchor`）。
 	 * @param Def 状态定义内容（取 `Triggers`）。
 	 */
 	static void WireTriggerRows(
@@ -348,10 +357,10 @@ public:
 	/**
 	 * 按句柄查实例。
 	 *
-	 * **为何不需要"单位"形参**：本函数先在全部桶里做一次**代际校验式定位**（脏句柄上
-	 * `Instance.Unit` 是陈旧值、定位必然失败 ⇒ 返回 nullptr，正是我们要的），再进该桶解析。
-	 * 代价 = 一次 O(桶数) 遍历（桶数量级 = 在场单位数，且查询不是热路径）。
-	 * 之所以不为"句柄 → 单位"另建旁路登记表：那会引入**第二处身份真相**（表与桶可能不同步），
+	 * **为何不需要"实体"形参**：本函数先在全部桶里做一次**代际校验式定位**（脏句柄上
+	 * `Instance.Entity` 是陈旧值、定位必然失败 ⇒ 返回 nullptr，正是我们要的），再进该桶解析。
+	 * 代价 = 一次 O(桶数) 遍历（桶数量级 = 在场实体数，且查询不是热路径）。
+	 * 之所以不为"句柄 → 实体"另建旁路登记表：那会引入**第二处身份真相**（表与桶可能不同步），
 	 * 收益只是把一次遍历换成一次哈希——不值。
 	 *
 	 * @param Subsystem 状态门面。
@@ -394,13 +403,13 @@ public:
 	static void Transit(UTcsStateSubsystem& Subsystem, FTcsStateInstance* Instance, EStatePhase NewPhase);
 
 	/**
-	 * 取某单位桶内在册实例数。
+	 * 取某实体桶内在册实例数。
 	 *
 	 * @param Subsystem 状态门面。
-	 * @param Unit 单位实体句柄。
+	 * @param Entity 实体实体句柄。
 	 * @return 返回到在册实例数。
 	 */
-	static int32 CountStates(UTcsStateSubsystem& Subsystem, FTcsCombatEntityHandle Unit);
+	static int32 CountStates(UTcsStateSubsystem& Subsystem, FTcsCombatEntityHandle Entity);
 
 #pragma endregion
 

@@ -1,5 +1,7 @@
 ## 0. 前置：TRIG-6 自筛、身份修复与 STAT-5 有限重入
 
+> **术语订正（2026-10-14）**：本文原用「单位 / `Unit`」，该词已退役，现统一为「**实体 / `Entity`**」（见 `DEC-2026-10-14-entity-vocabulary`）。**正文为当时原话，保留不改。**
+
 - [x] 0.1 登记首个状态生命周期读取器（已有 Damage collect 在先）；状态载荷新增反射 Unit，从 Instance.Unit 填入。Caster 取有效 Instigator，否则取 Unit；Subject 装 FTcsStateHandle。
 - [x] 0.2 载荷信息与行实例各持反射 FInstancedStruct Subject，状态行登记时绑定实例 Handle；两侧 Subject 均有效时须精确类型与反射值相等。全局未绑定行、外部无 Subject 事件保持原路由。Fragment 只直接识别状态载荷自筛，非状态载荷按兴趣扇出。
 - [x] 0.3 同步四能力 delta：behavior 4 ADDED、state-def 1 MODIFIED、effect-trigger 3 MODIFIED、state-instance-lifecycle 4 MODIFIED；TRIG-6 验收后就地改判。

@@ -93,7 +93,7 @@
   ——那正是 `ECT_Manual` 档 + `PayCost` 的既有组合；
 - **伴随面 MUST 一并删除**（否则留下悬空契约）：`TriggerEventTag` 字段、
   `UTcsCostEventRelay` 整个类、门面的 `GetCostEventRelay()` 与 `CostEventRelay` 成员、
-  以及三处撤销路径（`Revoke` / `RevokeBySource` / `UnregisterUnit`）的中继退订。
+  以及三处撤销路径（`Revoke` / `RevokeBySource` / `UnregisterEntity`）的中继退订。
   **判据 = 「零消费者不预建」的反向使用**：消费者归零 ⇒ MUST 删掉；
 - **`CostApplied` 事件本身 MUST 保留**（它与档位无关：任何提交路径都发它）；
 - **`ETcsSkillCooldownTiming` 不受本裁定影响**——冷却侧本来就没有 `OnEvent` 档
@@ -171,9 +171,9 @@
 
 - **策略解析** `ResolvePolicy(Config)` ⇒ `const FTcsSkillCostPolicy*`（**唯一解析点**；
   空载荷与类型不符都返回 `nullptr`）；
-- **上下文装配** `MakeContext(Subsystem, Unit, Entry)` ⇒ `FTcsSkillCostContext`
-  （`Subsystem` / `Unit` / `Entry` / `Level` 四件；**等级从条目取** ⇒ "按等级配消耗"的落点）；
-- **门禁判定** `CanAffordCost(Subsystem, Unit, Config, OutReason, Entry)`——**三类分开处置**：
+- **上下文装配** `MakeContext(Subsystem, Entity, Entry)` ⇒ `FTcsSkillCostContext`
+  （`Subsystem` / `Entity` / `Entry` / `Level` 四件；**等级从条目取** ⇒ "按等级配消耗"的落点）；
+- **门禁判定** `CanAffordCost(Subsystem, Entity, Config, OutReason, Entry)`——**三类分开处置**：
 
   | `Timing` | `CostMode` | 返回 | 日志 |
   |---|---|---|---|
@@ -193,7 +193,7 @@
   - **纯查询语义**：MUST NOT 扣任何资源、MUST NOT 改账本、MUST NOT 发事件；
   - **属性门面不可得 ⇒ 判为不可付**（fail-closed）：资源都没法查就放技能，等于免费放
     ——那是"配置了消耗却静默不生效"的最坏形态。
-- **提交** `CommitCost(Subsystem, Unit, Config, OutApplied, Entry)`——**唯一的提交实现**：
+- **提交** `CommitCost(Subsystem, Entity, Config, OutApplied, Entry)`——**唯一的提交实现**：
   - **框架 MUST 把策略的整个提交包进属性批**（`BeginBatch` / `Commit`，2026-10-12 用户裁定）；
     **批的边界 = 紧邻本策略的提交**，**MUST NOT** 圈进施法激活的其它属性改动
     （如 `MaterializeParamChainRows`）；
@@ -202,8 +202,8 @@
     （`Instance->BaseValue = NewBaseValue;`），批只推迟 `Recalculate`。
     ⇒ **"全有全无"的实际保障 = 先判后扣**（调用方 MUST 先过 `CanAffordCost`），
     **不是批本身**。**MUST NOT** 把批当作事务/回滚来依赖；
-  - **包批前 MUST 用不 ensure 的口探测单位注册态**：`BeginBatch` / `Commit` 对**未注册单位**
-    触发 `ensureMsgf`（红字），而**宿主自定义策略**可能"没注册单位也判可付"
+  - **包批前 MUST 用不 ensure 的口探测实体注册态**：`BeginBatch` / `Commit` 对**未注册实体**
+    触发 `ensureMsgf`（红字），而**宿主自定义策略**可能"没注册实体也判可付"
     ⇒ 框架包批会**替宿主多报一条 ensure**。未注册时**不包批**（策略照常提交，其自身失败面上报）；
   - **内建策略的扣减载体 = `SetBaseValue` 直写（读基值 → 减 → 写回）**，
     **MUST NOT 用 `ApplyModifier` 挂修正器**。判据三条，缺一都不成立：
@@ -217,9 +217,9 @@
     `TAO_Override` **整体抹掉**、参与 `PercentAdd`/`Mul` **复利**、可按来源摘除。
     **"花掉 50 点蓝"若被一个 Override 抹掉就是荒谬的**；
   - **提交失败 MUST 被报出**：策略内部的写口（如 `SetBaseValue`）自身对
-    "单位未注册 / 属性名为空 / 未持有此属性"返回 `false`（含 `ensureMsgf`）
+    "实体未注册 / 属性名为空 / 未持有此属性"返回 `false`（含 `ensureMsgf`）
     ⇒ MUST 检查返回值，**MUST NOT** 假设它一定成功（否则 `PayCost` 会报成功而资源没扣）。
-- **`PayCostForEntry(Subsystem, Unit, EntryHandle)`**——**`ECT_Manual` 档的专用提交入口** + 宿主重试口：
+- **`PayCostForEntry(Subsystem, Entity, EntryHandle)`**——**`ECT_Manual` 档的专用提交入口** + 宿主重试口：
   - **自动档 MUST NOT 走它**（`OnCastStarted` / `OnCastCompleted` 直调 `CommitCost`）：
     自动档的提交点**已经知道**自己该不该提交，走本口会多一层"按 Timing 判断"的分支
     ——那正是"同一件事两个入口"；
@@ -261,7 +261,7 @@
 
 #### Scenario: 资源足够时按基值扣减
 
-- **WHEN** 某单位持有资源属性（基值 100），一个配内建属性资源策略
+- **WHEN** 某实体持有资源属性（基值 100），一个配内建属性资源策略
   （`ResourceAttr` + `Amount = 30`）+ `OnCastStarted` 档的技能被激活
 - **THEN** 激活成功，且该属性**基值**从 100 变为 70（**MUST NOT** 用 `EvaluateCurrent` 判读——
   它含修正器，与扣减口径不同层）
@@ -278,7 +278,7 @@
 
 #### Scenario: 未持有属性与"基值为 0"可区分
 
-- **WHEN** 某技能配了一个该单位**未持有**的属性作为 `ResourceAttr`
+- **WHEN** 某技能配了一个该实体**未持有**的属性作为 `ResourceAttr`
 - **THEN** 判定为不可付并留 `Warning`（指明"未持有"），**MUST NOT** 表现成"资源不足"——
   两者是含义完全不同的红字
 
@@ -300,14 +300,14 @@
 #### Scenario: 策略提交后无残留批
 
 - **WHEN** 一次消耗提交走完（含"框架包批"那条路）
-- **THEN** 该单位的属性批深度归零、**无残留开启批**
+- **THEN** 该实体的属性批深度归零、**无残留开启批**
   （判据：提交后的 `PeekPending` 与 `EvaluateCurrent` 相等——不等说明批没 `Commit`、
   后续属性广播会被吞）
 
 ### Requirement: 消耗事件与 `CostApplied`
 
 - `TcsSkill` MUST 提供 `TcsEvent.Cast.CostApplied` + `FTcsCostEventPayload`
-  （`{EntryHandle, Unit, DefTag, ResourceAttr, Amount}`）；
+  （`{EntryHandle, Entity, DefTag, ResourceAttr, Amount}`）；
 - **`D5-16` 的 `SkillId` 字段 MUST 用 `DefTag` 取代**（**MUST NOT 为它发明一个类型**）：
   `D5-9` 修订后 `EffectiveDefId` 已整体移除；
 - **命名 MUST 去掉 `On` 前缀**（`D5-16` 原文写 `OnCostApplied`）：`TcsEvent.Cast` 根下既有四枚
@@ -322,7 +322,7 @@
 #### Scenario: 提交成功后发 `CostApplied` 且载荷逐项吻合
 
 - **WHEN** 一个配内建属性资源策略的技能成功扣减
-- **THEN** 恰发 **1** 次 `CostApplied`，其 `EntryHandle` / `Unit` / `ResourceAttr` / `Amount` 与本次扣减一致
+- **THEN** 恰发 **1** 次 `CostApplied`，其 `EntryHandle` / `Entity` / `ResourceAttr` / `Amount` 与本次扣减一致
 
 #### Scenario: 扣减失败不发事件
 

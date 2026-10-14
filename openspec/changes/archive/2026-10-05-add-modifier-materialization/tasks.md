@@ -1,5 +1,7 @@
 ## 1. 类型与入口
 
+> **术语订正（2026-10-14）**：本文原用「单位 / `Unit`」，该词已退役，现统一为「**实体 / `Entity`**」（见 `DEC-2026-10-14-entity-vocabulary`）。**正文为当时原话，保留不改。**
+
 - [ ] 1.1 `FTcsAttrModInstance::MakeFromDef(Row, Operand, Source)` 显式构造入口（TcsAttribute；不改字段集）
 - [ ] 1.2 `UTcsStateParamTableReader` 反射壳（委托纯类本体）+ `FTcsStateParamTableReader` 标注实现纯读取契约
 - [ ] 1.3 状态门面持有壳单例（`UPROPERTY`）+ RAII 栈式绑定作用域（进入存旧、退出恢复）

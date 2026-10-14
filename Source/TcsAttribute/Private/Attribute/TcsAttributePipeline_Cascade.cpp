@@ -8,13 +8,13 @@
 
 
 
-int32 FTcsAttributePipeline::RemoveBySource(FTcsCombatEntityHandle Unit, const FTcsSourceHandle& Source)
+int32 FTcsAttributePipeline::RemoveBySource(FTcsCombatEntityHandle Entity, const FTcsSourceHandle& Source)
 {
-	FTcsAttributeStore* Store = Owner.ResolveStore(Unit);
+	FTcsAttributeStore* Store = Owner.ResolveStore(Entity);
 	if (!Store)
 	{
-		UE_LOG(LogTcsAttribute, Warning, TEXT("FTcsAttributePipeline::RemoveBySource: 单位未注册（Id=%lld）——忽略"),
-			Unit.Id);
+		UE_LOG(LogTcsAttribute, Warning, TEXT("FTcsAttributePipeline::RemoveBySource: 实体未注册（Id=%lld）——忽略"),
+			Entity.Id);
 		return 0;
 	}
 
@@ -52,8 +52,8 @@ int32 FTcsAttributePipeline::RemoveBySource(FTcsCombatEntityHandle Unit, const F
 			Pair.Value.bDirty = true;
 			RemovedCount += Removed;
 			UE_LOG(LogTcsAttribute, Log,
-				TEXT("FTcsAttributePipeline::RemoveBySource: 命中冻结暂存区（单位 %lld，属性 %s 摘除 %d 条——来源在冻结期结束）"),
-				Unit.Id, *Pair.Key.GetTagName().ToString(), Removed);
+				TEXT("FTcsAttributePipeline::RemoveBySource: 命中冻结暂存区（实体 %lld，属性 %s 摘除 %d 条——来源在冻结期结束）"),
+				Entity.Id, *Pair.Key.GetTagName().ToString(), Removed);
 		}
 	}
 
@@ -66,7 +66,7 @@ int32 FTcsAttributePipeline::RemoveBySource(FTcsCombatEntityHandle Unit, const F
 	// 批内只标脏（提交期统一重算 + 广播）；批外立即 flush（隐式批）
 	if (bAnyInstanceChanged && Store->BatchDepth == 0)
 	{
-		FlushDirty(Unit, *Store);
+		FlushDirty(Entity, *Store);
 	}
 
 	return RemovedCount;
@@ -75,21 +75,21 @@ int32 FTcsAttributePipeline::RemoveBySource(FTcsCombatEntityHandle Unit, const F
 
 
 bool FTcsAttributePipeline::SetBaseValue(
-	FTcsCombatEntityHandle Unit, const FGameplayTag& Attribute, double NewBaseValue)
+	FTcsCombatEntityHandle Entity, const FGameplayTag& Attribute, double NewBaseValue)
 {
-	FTcsAttributeStore* Store = Owner.ResolveStore(Unit);
+	FTcsAttributeStore* Store = Owner.ResolveStore(Entity);
 	if (!Store)
 	{
-		UE_LOG(LogTcsAttribute, Warning, TEXT("FTcsAttributePipeline::SetBaseValue: 单位未注册（Id=%lld）——忽略"),
-			Unit.Id);
+		UE_LOG(LogTcsAttribute, Warning, TEXT("FTcsAttributePipeline::SetBaseValue: 实体未注册（Id=%lld）——忽略"),
+			Entity.Id);
 		return false;
 	}
 
 	FTcsAttributeInstance* Instance = Store->FindInstance(Attribute);
 	if (!Instance)
 	{
-		UE_LOG(LogTcsAttribute, Log, TEXT("FTcsAttributePipeline::SetBaseValue: 属性无实例（单位 %lld，属性 %s）——忽略"),
-			Unit.Id, *Attribute.GetTagName().ToString());
+		UE_LOG(LogTcsAttribute, Log, TEXT("FTcsAttributePipeline::SetBaseValue: 属性无实例（实体 %lld，属性 %s）——忽略"),
+			Entity.Id, *Attribute.GetTagName().ToString());
 		return false;
 	}
 
@@ -99,7 +99,7 @@ bool FTcsAttributePipeline::SetBaseValue(
 	// 未开批 = 隐式批：立即重算 + 广播
 	if (Store->BatchDepth == 0 && PushEvalStack(Attribute))
 	{
-		Recalculate(Unit, *Store, *Instance, /*bInBatch=*/false);
+		Recalculate(Entity, *Store, *Instance, /*bInBatch=*/false);
 		PopEvalStack(Attribute);
 	}
 

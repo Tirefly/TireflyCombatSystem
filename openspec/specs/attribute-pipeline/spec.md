@@ -42,12 +42,12 @@
 
 ### Requirement: 按需重算与脏标记
 
-管线 MUST 提供 `EvaluateCurrent(Unit, FGameplayTag)`（动词 = 求值，不是 `Resolve`——不从标识符取对象；**2026-09-22 改造：属性参数从 `FTcsAttributeName` 改为 `FGameplayTag`**）：
+管线 MUST 提供 `EvaluateCurrent(Entity, FGameplayTag)`（动词 = 求值，不是 `Resolve`——不从标识符取对象；**2026-09-22 改造：属性参数从 `FTcsAttributeName` 改为 `FGameplayTag`**）：
 
 - 目标属性**不脏** → 直接返回 `CachedCurrent`（零重算）；
 - 目标属性**脏** → 重算：收集该属性的修正器（按 `Op` 分桶）→ 求值各操作数 → 折叠 → 值域收口 → 写回 `CachedCurrent` → 清脏标记；
 - **管线是 `CachedCurrent` 的唯一生产者**（定义期初值与任何外部写入都不算）；`BaseValue` 变更、修正器挂/摘、依赖属性变更、**`AddAttribute` 新建实例（含"解冻时实例已带脏标记"）** MUST 标脏；
-- **新建即脏的理由（2026-09-18 增补）**：结算会被推迟到"批外读取或提交"这一刻——此时单位上的属性图通常已搭好（动态边界指向的引用属性、同期挂上的修正器都在位），**定义/添加顺序不影响结果**；若在 `AddAttribute` 内立即结算，动态边界会读到尚未添加的引用属性（求值 0）→ 把原值钳成 0 且无人再标脏（静默错值）。代价：首次结算可能广播一次（旧值 = 原始基础值）——结算前的缓存值不对外承诺；
+- **新建即脏的理由（2026-09-18 增补）**：结算会被推迟到"批外读取或提交"这一刻——此时实体上的属性图通常已搭好（动态边界指向的引用属性、同期挂上的修正器都在位），**定义/添加顺序不影响结果**；若在 `AddAttribute` 内立即结算，动态边界会读到尚未添加的引用属性（求值 0）→ 把原值钳成 0 且无人再标脏（静默错值）。代价：首次结算可能广播一次（旧值 = 原始基础值）——结算前的缓存值不对外承诺；
 - 属性未定义时 MUST 返回 0 且不崩溃（与读侧契约一致）。
 
 #### Scenario: 干净属性零重算
@@ -120,7 +120,7 @@
 重算产生**实质变化**时 MUST 经总线立即通道广播属性变更事件：
 
 - 比较阈值 **epsilon = 1e-5**：`|NewValue - OldValue| <= 1e-5` 视为未变，**不广播**；
-- 事件形状 `FTcsAttributeChangedEvent{ Unit, Attribute, OldValue, NewValue }`（核心词汇 FStruct，走 TcsCore 总线；`Reason` 字段待有消费者再加）——语义是**当前值（对外可读值）变了**，不是"某次写操作发生了"：改基值 / 挂摘修正器 / 依赖连带变化都只在**当前值确实动了**时产生这一条事件，因此它 MUST NOT 被当作"基础值变更日志"（基础值改了但被值域收口吃掉 = 对外没变 = 不广播，与"未变不广播"一致）；
+- 事件形状 `FTcsAttributeChangedEvent{ Entity, Attribute, OldValue, NewValue }`（核心词汇 FStruct，走 TcsCore 总线；`Reason` 字段待有消费者再加）——语义是**当前值（对外可读值）变了**，不是"某次写操作发生了"：改基值 / 挂摘修正器 / 依赖连带变化都只在**当前值确实动了**时产生这一条事件，因此它 MUST NOT 被当作"基础值变更日志"（基础值改了但被值域收口吃掉 = 对外没变 = 不广播，与"未变不广播"一致）；
 - **事件 Tag 为原生 Tag `TcsEvent.Attribute.ValueChanged`**（常量 `Tag_TcsEvent_Attribute_ValueChanged`，TcsAttribute 内声明——订阅方按它过滤）：命名公约 **`TcsEvent.<域>.<事件名>`**（**2026-10-01 换根**：原 `Tcs.Event.<域>.<事件名>`；域段是真层级节点，同域后续事件如属性上线/下线挂 `TcsEvent.Attribute` 下；根 = `TcsEvent`，见 `gameplay-tag-governance` 能力的根段注册表）；**原生**而非宿主 Tag 表（插件自足、宿主漏配不会静默丢事件）；由事件所属模块声明（TcsCore 不持战斗域词汇）。注意**原生订阅路径当前为精确匹配**——父标签订阅需等原生层级匹配落地（已列总线输入），期间原生消费者按叶子逐条订阅；BP/CS 动态层已支持部分匹配；
 - 广播时机由事务控制（提交尾、行内 flush）——见 `attribute-transaction` 能力；同一提交内同一属性**最多广播一次**。
 
@@ -136,7 +136,7 @@
 
 ### Requirement: 管线可见性与调用纪律
 
-`FTcsAttributePipeline` 的**声明 MUST 住 `Public/Attribute/`**（跨模块消费者需要直调它驱动某单位的求值/事务，2026-09-18 用户拍板从 Private 移出），**实现 MUST 留 `Private/`**（`.cpp` 不随头公开）；类 MUST 带模块导出宏（有 out-of-line 成员，消费方否则 LNK2019）。
+`FTcsAttributePipeline` 的**声明 MUST 住 `Public/Attribute/`**（跨模块消费者需要直调它驱动某实体的求值/事务，2026-09-18 用户拍板从 Private 移出），**实现 MUST 留 `Private/`**（`.cpp` 不随头公开）；类 MUST 带模块导出宏（有 out-of-line 成员，消费方否则 LNK2019）。
 
 调用纪律（MUST）：
 - **推荐路径是门面** `UTcsAttributeSubsystem`（转发同名入口）——游戏逻辑一律经门面，门面是唯一入口；
@@ -162,7 +162,7 @@
 - **消费方 MUST 只经它取门面**：`TcsState` 与 `TcsEffect` 各自的"属性访问解析点"（`FTcsStateAttributeAccess` / `FTcsEffectAttributeAccess`）MUST 以它为实现，MUST NOT 各自散写 `World->GetSubsystem<UTcsAttributeSubsystem>()`；
 - **白名单仍归各消费模块**：解析点 MUST 是**薄包装**（暴露面 = 该模块自己的白名单方法，而不是把门面指针交出去）；两个模块的白名单**不合并**——各自的审计面不同（`TcsState` 侧窄，`TcsEffect` 侧另需取值口 `EvaluateCurrent`）；
 - **该点是注入契约的替换点**：将来若补属性访问注入契约（`ITcsAttributeAccess`，台账 `R-7`），MUST 只改这一处，两个消费模块的解析点不动；
-- 解析失败 MUST NOT `ensure`：返回 `nullptr`，调用方按"单位无属性账本"的既有分支处置（`Log` 级、零红字）。
+- 解析失败 MUST NOT `ensure`：返回 `nullptr`，调用方按"实体无属性账本"的既有分支处置（`Log` 级、零红字）。
 
 #### Scenario: 两个消费模块共用同一查找点
 
@@ -179,10 +179,10 @@
 `UTcsAttributeSubsystem` MUST 提供**门面级**的基值读口：
 
 ```cpp
-bool TryGetBaseValue(FTcsCombatEntityHandle Unit, const FGameplayTag& Attribute, double& OutBaseValue) const;
+bool TryGetBaseValue(FTcsCombatEntityHandle Entity, const FGameplayTag& Attribute, double& OutBaseValue) const;
 ```
 
-- **它回答两个问题、且两个答案天然自洽**：① 该单位是否**持有**该属性；② 若持有，其**基值**是多少。
+- **它回答两个问题、且两个答案天然自洽**：① 该实体是否**持有**该属性；② 若持有，其**基值**是多少。
   返回 `true` 时 `OutBaseValue` 有效；返回 `false` 时出参内容未定义、调用方不得使用。
 - **为什么必须是 `TryGet` 双答案形态**（**MUST NOT** 退回纯 `double` 口）：
   `FTcsAttributeStore::GetBaseValue` 对**未持有**返回 `0.0`，与"确实持有且基值为 0"**不可区分**
@@ -192,8 +192,8 @@ bool TryGetBaseValue(FTcsCombatEntityHandle Unit, const FGameplayTag& Attribute,
 - **持有性判据 MUST 走实例查询**（`FindInstance` 命中），
   **MUST NOT** 依赖 `GetBaseValue` 的返回值来判断——理由同上（`0.0` 是二义的）。
 - **非确保（MUST）**：走**非确保**解析（`ResolveStore`）而非 `GetStore`。
-  读取是**正常查询路径**，"单位未注册 / 属性名为空 / 该单位未持有此属性"都**不是契约违规**
-  ⇒ MUST NOT `ensure`、MUST NOT 留红字。调用方拿到 `false` 即可如实报出"该单位没有这个属性"，
+  读取是**正常查询路径**，"实体未注册 / 属性名为空 / 该实体未持有此属性"都**不是契约违规**
+  ⇒ MUST NOT `ensure`、MUST NOT 留红字。调用方拿到 `false` 即可如实报出"该实体没有这个属性"，
   而**不应**为此产生红字噪音（那会让常态路径污染"零意外红字"这条验收信号）。
 - **`const`（MUST）**：纯读——MUST NOT 改任何状态、MUST NOT 标脏、MUST NOT 广播。
 - **MUST NOT 让跨模块消费者直伸存储**：`TcsSkill` 等消费模块 MUST 经本口读基值，
@@ -206,18 +206,18 @@ bool TryGetBaseValue(FTcsCombatEntityHandle Unit, const FGameplayTag& Attribute,
 
 #### Scenario: 持有且基值可读
 
-- **WHEN** 某单位持有某属性（基值 100），调用 `TryGetBaseValue`
+- **WHEN** 某实体持有某属性（基值 100），调用 `TryGetBaseValue`
 - **THEN** 返回 `true` 且出参为 `100.0`
 
 #### Scenario: 未持有与"基值为 0"可区分
 
-- **WHEN** 对**未持有**该属性的单位调用 `TryGetBaseValue`
+- **WHEN** 对**未持有**该属性的实体调用 `TryGetBaseValue`
 - **THEN** 返回 `false`（**MUST NOT** 返回 `true` 且出参 `0.0`——那会让"属性没加"与
   "属性加了但基值为 0"不可区分，而两者的红字含义完全不同）
 
-#### Scenario: 未注册单位不 ensure
+#### Scenario: 未注册实体不 ensure
 
-- **WHEN** 传入未注册的单位句柄或无效的属性 tag
+- **WHEN** 传入未注册的实体句柄或无效的属性 tag
 - **THEN** 返回 `false`，**无 `ensure`、无红字**（读取是正常查询路径）
 
 #### Scenario: 改基值后读数随之变化

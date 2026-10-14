@@ -28,7 +28,7 @@
 // （同模块内的定义 TU 见到 dllexport 声明即导出符号，定义处零改动）。
 extern TCSSTATE_API FNativeGameplayTag Tag_TcsEvent_State_Applied;
 
-// 状态**刷新**事件 Tag（重复施加命中同组成活实例——本轮判据 = 同单位 + 同 DefTag）
+// 状态**刷新**事件 Tag（重复施加命中同组成活实例——本轮判据 = 同实体 + 同 DefTag）
 extern TCSSTATE_API FNativeGameplayTag Tag_TcsEvent_State_Refreshed;
 
 // 状态**层数变化**事件 Tag（组内层数 +1 / 替换；同组判据归 R5 Task 5）
@@ -37,7 +37,7 @@ extern TCSSTATE_API FNativeGameplayTag Tag_TcsEvent_State_StackChanged;
 // 状态**到期**事件 Tag（时值走完的自然结束——载荷 `Cause` = `ESRC_Expired`）
 extern TCSSTATE_API FNativeGameplayTag Tag_TcsEvent_State_Expired;
 
-// 状态**移除**事件 Tag（显式驱散 / 取消 / 单位注销批量移除——载荷 `Cause` 由调用方给定）
+// 状态**移除**事件 Tag（显式驱散 / 取消 / 实体注销批量移除——载荷 `Cause` 由调用方给定）
 extern TCSSTATE_API FNativeGameplayTag Tag_TcsEvent_State_Removed;
 
 // 状态**周期到点**事件 Tag（载荷带当前层数与等级；**产生者归 R5 Task 3**——本轮只声明词与载荷）
@@ -49,7 +49,7 @@ extern TCSSTATE_API FNativeGameplayTag Tag_TcsEvent_State_Periodic;
  * 状态生命周期事件载荷（D3-7 生命周期事件全集）：六枚事件共用一种载荷形状。
  *
  * **为什么六枚共用一个形状**：订阅者拿到的永远是"哪个状态的哪一次生命周期动作"——
- * 实例身份、定义身份、所属单位、来源、发起者、层数与等级在六枚上口径一致，
+ * 实例身份、定义身份、所属实体、来源、发起者、层数与等级在六枚上口径一致，
  * 各写一个 struct 会让订阅侧复制六份解析代码。差异只有 `Cause`：它**仅 `Expired` / `Removed`
  * 有意义**（其余四枚里无意义，读它属调用方责任）。
  *
@@ -73,9 +73,9 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "Tcs|State|Event")
 	FTcsStateHandle Handle;
 
-	// 状态所属的单位（读取器在 Instigator 无效时以它作为 Caster，不回查可能正在释放的实例）
+	// 状态所属的实体（读取器在 Instigator 无效时以它作为 Caster，不回查可能正在释放的实例）
 	UPROPERTY(BlueprintReadOnly, Category = "Tcs|State|Event")
-	FTcsCombatEntityHandle Unit;
+	FTcsCombatEntityHandle Entity;
 
 	// 定义身份（状态 Def 的 `DefTag`）
 	UPROPERTY(BlueprintReadOnly, Category = "Tcs|State|Event")

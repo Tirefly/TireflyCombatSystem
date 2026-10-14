@@ -1,5 +1,7 @@
 ## RENAMED Requirements
 
+> **术语订正（2026-10-14）**：本文原用「单位 / `Unit`」，该词已退役，现统一为「**实体 / `Entity`**」（见 `DEC-2026-10-14-entity-vocabulary`）。**正文为当时原话，保留不改。**
+
 - FROM: `### Requirement: 属性名包装`
 - TO: `### Requirement: 属性身份 = GameplayTag`
 - FROM: `### Requirement: 属性定义（双轨制）`
