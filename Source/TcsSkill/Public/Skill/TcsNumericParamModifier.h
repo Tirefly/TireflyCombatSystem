@@ -55,7 +55,7 @@
  *    ⇒ 它**不进细节面板、不进资产**（UHT 产物实测：本类型的反射属性只有
  *    `ParamKey / Op / Operand / ValueConvention / SortKey / OverridePriority / CompeteGroup`，
  *    无 `Source`）。一个 Def 类型上"配不了也存不下"的字段只会误导后人。
- * ② **定义侧路径根本不读它**：`MaterializeParamChainRows` 盖的是 **`FTcsCastRun.RunSource`**
+ * ② **定义侧路径根本不读它**：`MaterializeParamChainRows` 盖的是 **`FTcsSkillInstance.RunSource`**
  *    （"这一次施法"的来源），不是行上的值。
  * ③ **"源"从来不是"这一行"的属性**：同一个 `ParamChainRows[0]`，甲玩家靠装备给、乙玩家靠天赋给
  *    ⇒ **来源因实例而异**，属**实例**而非 Def。M2 正是这么做的——`FTcsAttrModDefTableRow`
@@ -288,7 +288,7 @@ struct FTcsNumericParamModInstance
 	 *
 	 * **`InSource` 是形参而不是定义侧字段**（见本文件定义侧的订正说明）：来源**因实例而异**，
 	 * 属账本面。两个调用点各传各的：
-	 * - 定义侧物化（`MaterializeParamChainRows`）⇒ 传 **`FTcsCastRun.RunSource`**（这一次施法）；
+	 * - 定义侧物化（`MaterializeParamChainRows`）⇒ 传 **`FTcsSkillInstance.RunSource`**（这一次施法）；
 	 * - 外部施加（`ApplyParamModifiers`）⇒ 传**该入口的 `Source` 形参**（调用方声明"这次是谁给的"）。
 	 *
 	 * @param Row 定义侧行（字段形状的唯一声明处）。

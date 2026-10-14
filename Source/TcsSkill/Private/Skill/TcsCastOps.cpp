@@ -37,41 +37,41 @@ void FTcsCastOps::MakeContext(
 	OutContext.ParamTable = TScriptInterface<ITcsParamTableReader>();
 }
 
-FTcsCastRun* FTcsCastOps::ResolveRun(UTcsSkillSubsystem& Subsystem, FTcsCastRunHandle RunHandle)
+FTcsSkillInstance* FTcsCastOps::ResolveInstance(UTcsSkillSubsystem& Subsystem, FTcsSkillInstanceHandle RunHandle)
 {
 	// **先判有效性再取指针**：池的 `Resolve` 对悬空句柄会 **ensure**（它是"调用方给错句柄"的
 	// 契约违规口径），而本族的查询面 MUST 走"时序竞态静默返回 nullptr"的语义 ⇒ 必须用非确保的
 	// `IsValid` 先挡一道。
-	const TTcsInstanceHandle<FTcsCastRunTag> Inner = RunHandle.GetInner();
-	if (!Subsystem.CastRuns.IsValid(Inner))
+	const TTcsInstanceHandle<FTcsSkillInstanceTag> Inner = RunHandle.GetInner();
+	if (!Subsystem.SkillInstances.IsValid(Inner))
 	{
 		return nullptr;
 	}
 
-	return Subsystem.CastRuns.Resolve(Inner);
+	return Subsystem.SkillInstances.Resolve(Inner);
 }
 
-FTcsCastRunHandle FTcsCastOps::FindActiveRun(
+FTcsSkillInstanceHandle FTcsCastOps::FindActiveInstance(
 	UTcsSkillSubsystem& Subsystem,
 	const FTcsLearnedSkillEntry& Entry)
 {
-	for (const FTcsCastRunHandle& Candidate : Entry.RunHandles)
+	for (const FTcsSkillInstanceHandle& Candidate : Entry.RunHandles)
 	{
 		// 账本可能残留已归还的陈旧句柄 ⇒ 逐个经池复核（失败 = 视为无在飞，**不 ensure**）
-		if (ResolveRun(Subsystem, Candidate))
+		if (ResolveInstance(Subsystem, Candidate))
 		{
 			return Candidate;
 		}
 	}
 
-	return FTcsCastRunHandle();
+	return FTcsSkillInstanceHandle();
 }
 
 void FTcsCastOps::Broadcast(
 	UTcsSkillSubsystem& Subsystem,
 	FGameplayTag EventTag,
-	FTcsCastRunHandle RunHandle,
-	const FTcsCastRun& Run,
+	FTcsSkillInstanceHandle RunHandle,
+	const FTcsSkillInstance& Run,
 	const FTcsLearnedSkillEntry& Entry)
 {
 	UTcsEventBusSubsystem* Bus = Subsystem.GetEventBus();
@@ -79,7 +79,7 @@ void FTcsCastOps::Broadcast(
 	{
 		// 世界拆解期（总线已回收）——时序而非配置错误，故 Warning 不 ensure
 		UE_LOG(LogTcsSkill, Warning, TEXT("施法事件丢弃：事件总线不可得（Tag=%s 定义=%s）"),
-			*EventTag.ToString(), *Entry.DefTag.ToString());
+			*EventTag.ToString(), *Run.DefTag.ToString());
 		return;
 	}
 
@@ -87,7 +87,7 @@ void FTcsCastOps::Broadcast(
 	FTcsCastEventPayload Payload;
 	Payload.Run = RunHandle;
 	Payload.Entity = Run.Entity;
-	Payload.DefTag = Entry.DefTag;
+	Payload.DefTag = Run.DefTag;
 	Payload.EntryHandle = Entry.Handle;
 	Payload.Level = Run.Level;
 
@@ -100,7 +100,7 @@ void FTcsCastOps::Broadcast(
 	// **命名注（编译实测订正）**：这些局部量 MUST NOT 叫 `LogLevel` —— 它会与 UE 的全局枚举值
 	// `ELogVerbosity::LogLevel` 撞名，MSVC 报 **C4459: declaration of 'LogLevel' hides global
 	// declaration**（本仓零 warning 门槛 ⇒ 直接算失败）。故一律带 `Broadcast` 前缀区分。
-	const FGameplayTag BroadcastDefTag = Entry.DefTag;
+	const FGameplayTag BroadcastDefTag = Run.DefTag;
 	const int64 BroadcastEntityId = Run.Entity.Id;
 	const int32 BroadcastRunIndex = RunHandle.Index;
 	const int32 BroadcastRunGeneration = RunHandle.Generation;
@@ -110,7 +110,7 @@ void FTcsCastOps::Broadcast(
 	PayloadStruct.InitializeAs<FTcsCastEventPayload>(Payload);
 
 	// 立即通道：同一提交内到达——订阅者可在本次调用返回前读到运行态
-	// （**"先广播后归还槽位"的纪律**：`TerminateRun` 的广播排在 `Free` 之前，正因如此载荷里的
+	// （**"先广播后归还槽位"的纪律**：`TerminateInstance` 的广播排在 `Free` 之前，正因如此载荷里的
 	// 运行句柄在回调内仍然有效）
 	Bus->PublishImmediate(EventTag, PayloadStruct);
 
@@ -127,7 +127,7 @@ ESkillActivateResult FTcsCastOps::Activate(
 	UTcsSkillSubsystem& Subsystem,
 	FTcsCombatEntityHandle Entity,
 	FGameplayTag DefTag,
-	FTcsCastRunHandle* OutRun)
+	FTcsSkillInstanceHandle* OutRun)
 {
 	// ── 门禁① 实体 Ready ────────────────────────────────────────────────
 	// 判据 = 注入的 `ITcsEntityQuery::IsEntityReady`（**不是** `IsAlive`——两者正交：
@@ -213,7 +213,7 @@ ESkillActivateResult FTcsCastOps::Activate(
 	// ① **档位 → 策略的绑定**（读 Def 字段选出策略实例——框架零具体策略，故绑定在域侧）；
 	// ② **决策结果的消费**（按 `Kind` 走"驳回"或"顶替"——含可打断性查询）。
 	// 决策（同组 / 接受 / 层数）全部住在策略类里，**本处 MUST NOT 再写一份**。
-	const FTcsCastRunHandle ActiveRun = FindActiveRun(Subsystem, *Entry);
+	const FTcsSkillInstanceHandle ActiveRun = FindActiveInstance(Subsystem, *Entry);
 
 	// ① 档位 → 策略（三个默认策略都是无状态值类型，取址后走虚分派）
 	const FTcsEntityAdmissionAlwaysNew AdmissionAlwaysNew;
@@ -240,7 +240,7 @@ ESkillActivateResult FTcsCastOps::Activate(
 
 	// **在飞实例的判据取该条目的 `RunHandles`**（它按构造就是 per-entity，无需跨桶扫描），
 	// 且**按句柄经池复核**（账本里可能有已归还的陈旧句柄 ⇒ 复核失败即视为无在飞）——
-	// `FindActiveRun` 正是这个语义。无在飞 ⇒ **不问策略**，直接新建。
+	// `FindActiveInstance` 正是这个语义。无在飞 ⇒ **不问策略**，直接新建。
 	ETcsEntityAdmissionKind AdmissionKind = ETcsEntityAdmissionKind::NewInstance;
 	if (ActiveRun.IsValid() && Admission->IsSameGroup(AdmissionRequest, AdmissionExisting))
 	{
@@ -290,7 +290,7 @@ ESkillActivateResult FTcsCastOps::Activate(
 		// 摘账本句柄、归还池槽位）。**MUST NOT** 在此自己写一份清理。
 		UE_LOG(LogTcsSkill, Log, TEXT("技能顶替：实体=%lld 定义=%s 终止旧 run=%d/%d"),
 			Entity.Id, *DefTag.ToString(), ActiveRun.Index, ActiveRun.Generation);
-		TerminateRun(Subsystem, ActiveRun);
+		TerminateInstance(Subsystem, ActiveRun);
 
 		// **重入纪律（三样都要重新定位，2026-10-08 静态自查补齐）**：终结例程会广播
 		// （`PublishImmediate` 当场同步派发）⇒ 订阅者可在其中：
@@ -405,8 +405,8 @@ ESkillActivateResult FTcsCastOps::Activate(
 	// **MUST NOT 在此为它们补一个"默认提交"**——那会让三档的语义全部塌成 `OnCastStarted`。
 
 	// ── 门禁全过：建运行态 ──────────────────────────────────────────────
-	const TTcsInstanceHandle<FTcsCastRunTag> Inner = Subsystem.CastRuns.Allocate();
-	FTcsCastRun* Run = Subsystem.CastRuns.Resolve(Inner);
+	const TTcsInstanceHandle<FTcsSkillInstanceTag> Inner = Subsystem.SkillInstances.Allocate();
+	FTcsSkillInstance* Run = Subsystem.SkillInstances.Resolve(Inner);
 	if (!Run)
 	{
 		// 分配后必然可解析（同一次调用内无释放）——防御性返回
@@ -414,7 +414,7 @@ ESkillActivateResult FTcsCastOps::Activate(
 		return ESkillActivateResult::SAR_DefInvalid;
 	}
 
-	FTcsCastRunHandle RunHandle;
+	FTcsSkillInstanceHandle RunHandle;
 	RunHandle.SetInner(Inner);
 
 	// **先整体重置再用**（2026-10-08 静态自查抓到的一处真实潜伏缺陷）：
@@ -423,17 +423,18 @@ ESkillActivateResult FTcsCastOps::Activate(
 	// 本轮就有一个：`PhaseExpiryEntry`（Task 3 零写入者）会留着上一个 run 的到期句柄——今天无害
 	// （无读取者），但 **Task 5 一旦加上读取者，就会把"上一任的陈旧到期条目"当成自己的**，
 	// 症状是"莫名取消了别人的到期回调"或"自己的时段永不推进"（远离根因的一类）。
-	// ⇒ 纪律：**复用池槽后 MUST 先整体重置**（而非逐字段赋值）——这样**将来给 `FTcsCastRun`
+	// ⇒ 纪律：**复用池槽后 MUST 先整体重置**（而非逐字段赋值）——这样**将来给 `FTcsSkillInstance`
 	// 加字段时自动是干净的**，不依赖"加字段的人记得来补一行"。
-	*Run = FTcsCastRun();
+	*Run = FTcsSkillInstance();
 
 	Run->EntryHandle = Entry->Handle;
 	Run->Entity = Entity;
+	Run->DefTag = DefTag;
 	Run->Level = Entry->Level;
 	Run->PhaseIndex = 0;
 	Run->ChainRunHandle = FTcsChainRunHandle();
 
-	// **起链档位与时段标识一并冻结**（理由见 `FTcsCastRun::MainChainStart` 的注释）：
+	// **起链档位与时段标识一并冻结**（理由见 `FTcsSkillInstance::MainChainStart` 的注释）：
 	// `StartMainChain` 在"时段进入"与"完成终结"两处被调用，而定义**可在这两处之间被注销**
 	// （顶替/完成的广播会让订阅者有机会这么做）⇒ 回查会拿到 nullptr，表现为"该起链却没起、
 	// 且无任何解释"。冻结它之后，**这次施法按它自己开始时的档位走完**。
@@ -441,7 +442,7 @@ ESkillActivateResult FTcsCastOps::Activate(
 	Run->MainChainStartPhaseTag = Def->MainChainStartPhaseTag;
 
 	// 来源锚点：每次运行一枚（`FTcsSourceHandleRegistry` 进程唯一、永不复用）
-	Run->RunSource = Subsystem.SourceRegistry.Allocate();
+	Run->CascadeAnchor = Subsystem.SourceRegistry.Allocate();
 
 	// ── ★ 冷却的 `ECT_OnCastStarted` 档：**激活成功后立即起** ──────────────
 	//
@@ -478,7 +479,7 @@ ESkillActivateResult FTcsCastOps::Activate(
 		}
 	}
 
-	// **回填与摘除成对**：建 run 成功后回填账本条目；终结时（`TerminateRun`）摘除。
+	// **回填与摘除成对**：建 run 成功后回填账本条目；终结时（`TerminateInstance`）摘除。
 	// 只写不摘 ⇒ 账本永久持有已归还的句柄（表现为"技能显示在飞但实际放完了"，静默错误）。
 	Entry->RunHandles.Add(RunHandle);
 
@@ -509,7 +510,7 @@ ESkillActivateResult FTcsCastOps::Activate(
 	// 查键（比如"倍率"这一项）。而这张表就是**本次施法快照**。不绑 ⇒ 引用取不到值、
 	// **静默落各自兜底**（不报错、不崩溃，只是数值悄悄不对）。
 	//
-	// 实现要点：`Source` 一律 = **本 run 的 `RunSource`** ⇒ 随施法终结按来源一次摘净。
+	// 实现要点：`Source` 一律 = **本 run 的 `CascadeAnchor`** ⇒ 随施法终结按来源一次摘净。
 	// 作用域覆盖整段物化（退出时按栈恢复上一份绑定——嵌套天然正确，同状态侧先例）。
 	// 状态门面不可得（世界拆解 / 单测无状态门面）时退化为"无参数表"：引用类源落各自兜底，
 	// **不 ensure、不红字**（与 `UTcsStateParamTableReader` 可空的口径一致）。
@@ -522,7 +523,7 @@ ESkillActivateResult FTcsCastOps::Activate(
 			&Run->ParamSnapshot);
 
 		FTcsParamChainOps::MaterializeParamChainRows(
-			Subsystem, *Def, *Entry, Scope.GetTable(), Run->RunSource);
+			Subsystem, *Def, *Entry, Scope.GetTable(), Run->CascadeAnchor);
 	}
 
 	// ── 生效等级（`Level` 键的接线：重算并写回 run） ──────────────────────
@@ -535,7 +536,7 @@ ESkillActivateResult FTcsCastOps::Activate(
 	// 实现要点：`EffectiveLevel = clamp(0, LevelBase + Σ参数账本 Level 键修正)`。
 	// **如实登记的边界**：本步是**单趟**——`Level` 键自身若配"按等级取档"的数值源，它读到的
 	// 是折叠前的等级（`Entry->Level`）；等级修正链套等级链不存在于设计语料，不为其预建多趟收敛。
-	if (FTcsCastRun* LevelRun = ResolveRun(Subsystem, RunHandle))
+	if (FTcsSkillInstance* LevelRun = ResolveInstance(Subsystem, RunHandle))
 	{
 		LevelRun->Level = FTcsParamChainOps::EvaluateEffectiveLevel(Subsystem, *Entry, Def);
 	}
@@ -544,7 +545,7 @@ ESkillActivateResult FTcsCastOps::Activate(
 	// 之后 MUST NOT 再假定 `Run` 与 `Entry` 指针有效（池扩容即搬移；广播可重入撤销条目或注销实体）。
 	// **账本条目是纯数据**（无 UObject、无自引用）⇒ 直接**按值拷一份**即可安全跨过起链。
 	const int32 SnapshotLevel = Run->Level;
-	const FTcsSourceHandle SnapshotRunSource = Run->RunSource;
+	const FTcsSourceHandle SnapshotCascadeAnchor = Run->CascadeAnchor;
 	const FTcsLearnedSkillEntry EntryCopy = *Entry;
 
 	// ── 主链起链（档位判定单点在 `StartMainChain`；本处只报"我是激活末尾"） ──
@@ -558,19 +559,19 @@ ESkillActivateResult FTcsCastOps::Activate(
 	// （判据可证伪：若将来 `MainChainStart` 变成**数组**，本条结论即失效，届时 MUST 补去重。）
 	FTcsChainRunHandle ChainRun;
 	StartMainChain(
-		Subsystem, RunHandle, *Run, *Def, *Entry,
+		Subsystem, RunHandle, *Run, *Def,
 		ECastChainTrigger::ECT_OnCastStarted, ChainRun);
 
 	// **按句柄回写链句柄**（`Run` 指针在起链后可能已失效 ⇒ 必须重新解析；解析不到即条目/运行态
 	// 已在起链期间被终结，此时不回写——那是正确的，run 都不在了）
-	if (FTcsCastRun* LiveRun = ResolveRun(Subsystem, RunHandle))
+	if (FTcsSkillInstance* LiveRun = ResolveInstance(Subsystem, RunHandle))
 	{
 		LiveRun->ChainRunHandle = ChainRun;
 	}
 
 	UE_LOG(LogTcsSkill, Log, TEXT("技能激活成功：实体=%lld 定义=%s 条目=%d/%d run=%d/%d 等级=%d 来源=%llu"),
 		Entity.Id, *DefTag.ToString(), EntryCopy.Handle.Index, EntryCopy.Handle.Generation,
-		RunHandle.Index, RunHandle.Generation, SnapshotLevel, SnapshotRunSource.Id);
+		RunHandle.Index, RunHandle.Generation, SnapshotLevel, SnapshotCascadeAnchor.Id);
 
 	if (OutRun)
 	{
@@ -580,7 +581,7 @@ ESkillActivateResult FTcsCastOps::Activate(
 	// ── 发 `OnCastStarted`（**排在起链之后**：起链可能已产生副作用与广播，事件排在它们之后） ──
 	// `Run` 指针在起链后可能已失效 ⇒ **按句柄重新解析**；载荷的账本面用上面那份**按值拷贝**
 	// （条目若在起链期间被撤销，本次激活的事实仍然成立——run 已建、事件该发，只是身份取自拷贝）。
-	if (const FTcsCastRun* LiveRun = ResolveRun(Subsystem, RunHandle))
+	if (const FTcsSkillInstance* LiveRun = ResolveInstance(Subsystem, RunHandle))
 	{
 		Broadcast(Subsystem, Tag_TcsEvent_Cast_Started, RunHandle, *LiveRun, EntryCopy);
 	}
@@ -602,9 +603,9 @@ ESkillActivateResult FTcsCastOps::Activate(
 	{
 		// **只在运行态仍在册时补完成终结**：上面的起链与 `OnCastStarted` 广播都可能已经终结它
 		// （订阅者可以这么做），那时再调就是重入（会被守卫挡下，但没必要发这一枪）。
-		if (ResolveRun(Subsystem, RunHandle))
+		if (ResolveInstance(Subsystem, RunHandle))
 		{
-			FinishCastRun(Subsystem, RunHandle, ECastFinishReason::ECFR_Completed);
+			FinishSkillInstance(Subsystem, RunHandle, ECastFinishReason::ECFR_Completed);
 		}
 	}
 
@@ -644,12 +645,12 @@ namespace
 	}
 }
 
-bool FTcsCastOps::FinishCastRun(
+bool FTcsCastOps::FinishSkillInstance(
 	UTcsSkillSubsystem& Subsystem,
-	FTcsCastRunHandle RunHandle,
+	FTcsSkillInstanceHandle RunHandle,
 	ECastFinishReason Reason)
 {
-	FTcsCastRun* Run = ResolveRun(Subsystem, RunHandle);
+	FTcsSkillInstance* Run = ResolveInstance(Subsystem, RunHandle);
 	if (!Run)
 	{
 		// 悬空句柄 = 时序竞态（调用方手上的句柄过期），不是契约违规 ⇒ 静默 false，不 ensure
@@ -681,18 +682,18 @@ bool FTcsCastOps::FinishCastRun(
 	Subsystem.FinishBroadcastGuard.Enter(RunHandle);
 
 	// **先把终结所需的数据拷出来再动池**：下面要归还槽位，而池操作可能搬移元素。
-	// `FTcsCastRun` 是**纯数据**（无 UObject、无自引用）⇒ 按值拷一份即可安全跨过全部后续调用
+	// `FTcsSkillInstance` 是**纯数据**（无 UObject、无自引用）⇒ 按值拷一份即可安全跨过全部后续调用
 	// （包含会广播的回收与事件派发——那两处都可能让池扩容或让本 run 被重入终结）。
-	const FTcsCastRun RunCopy = *Run;
+	const FTcsSkillInstance RunCopy = *Run;
 	const FTcsSkillEntryHandle EntryHandle = RunCopy.EntryHandle;
 	const FTcsCombatEntityHandle Entity = RunCopy.Entity;
-	const FTcsSourceHandle RunSource = RunCopy.RunSource;
+	const FTcsSourceHandle CascadeAnchor = RunCopy.CascadeAnchor;
 
 	// ── ⓪ **完成档的主链起链**（只在 `ECFR_Completed` 且档位匹配时真的起链） ──
 	//
 	// **为什么起链排在"回收"之前**：完成 ≠ 取消。完成路径的语义是"这次施法**办完了它要办的事**"
 	// ——而"起链"正是它要办的事（`MCS_OnCastCompleted` 档的存在意义就是"放完了才打出效果"）。
-	// 若排在回收之后，新起的链挂的条目会**当场被自己的终结例程摘掉**（同一个 `RunSource`）
+	// 若排在回收之后，新起的链挂的条目会**当场被自己的终结例程摘掉**（同一个 `CascadeAnchor`）
 	// ⇒ 表现为"配了完成档的技能永远打不出效果"，而**日志上一切正常**（这正是最难查的一类）。
 	//
 	// **`ECFR_Interrupted` / `ECFR_Replaced` 两档不起链**（判据 = 触发点，见 `StartMainChain`）：
@@ -709,19 +710,19 @@ bool FTcsCastOps::FinishCastRun(
 	// ── ① 取消时段到期锚点（**就地置空**——理由见 `CancelCastFinishExpiry` 的注释） ──
 	// 取消是作废残留回调的**第一道防线**（代际校验是第二道）：不取消则本 run 的条目仍会到期、
 	// 回调一个已终结的 run（表现为"什么都没发生"，属静默无效，但会占着堆与池的槽位）。
-	if (FTcsCastRun* LiveRun = ResolveRun(Subsystem, RunHandle))
+	if (FTcsSkillInstance* LiveRun = ResolveInstance(Subsystem, RunHandle))
 	{
-		CancelCastFinishExpiry(Subsystem, LiveRun->PhaseExpiryEntry);
+		CancelCastFinishExpiry(Subsystem, LiveRun->ExpiryEntry);
 	}
 
-	// ── ② 按 `RunSource` 回收**链挂的 M2 属性账本条目**（`CHAIN-7` 的闭合动作） ──
+	// ── ② 按 `CascadeAnchor` 回收**链挂的 M2 属性账本条目**（`CHAIN-7` 的闭合动作） ──
 	//
 	// **★ 为什么是两本账、同一个来源句柄（MUST NOT 只摘其一）**：
 	// - **M2 属性账本**：链内 `ModifyAttribute` 挂的条目——`TcsStepModifyAttribute` 把
 	//   `Context.RunSource` 写进属性修正器条目，而 Task 3 已定 `Context.RunSource` =
-	//   `FTcsCastRun.RunSource`（`TcsCastOps_Chain.cpp` 的起链路径）⇒ 按它一次摘净。
+	//   `FTcsSkillInstance.CascadeAnchor`（`TcsCastOps_Chain.cpp` 的起链路径）⇒ 按它一次摘净。
 	// - **M5 技能账本**：本次施法在激活期物化的 `ParamChainRows` 条目（Task 4 落的，
-	//   `Source` 同样 = 本 run 的 `RunSource`，见下面一步）。
+	//   `Source` 同样 = 本 run 的 `CascadeAnchor`，见下面一步）。
 	// 只摘后者 ⇒ 链改的属性**常驻不回退**——**正是 `CHAIN-7` 的实测症状"常驻停在 X−5"**
 	// （`EVID-2026-10-05-state-layer-pie` §1.2 检查 S15 的对照读数）。
 	//
@@ -732,10 +733,10 @@ bool FTcsCastOps::FinishCastRun(
 	// ① **随链运行结束回收**：全部即时链的运行态在 `ExecuteChain` 返回前**已释放** ⇒ 无回收窗口；
 	// ② **按因果边 `CausedBy` 级联**：**已被明文禁止**（`TcsEffectContext.h:54-55`）；
 	// ③ **框架自动回收**：`FTcsStepModifyAttribute` **刻意不提供**回收器。
-	// ⇒ 本处落地的正是台账认定的"今天唯一合法用法"（宿主自存 `RunSource` 再自调 `RemoveBySource`）
+	// ⇒ 本处落地的正是台账认定的"今天唯一合法用法"（宿主自存来源锚点再自调 `RemoveBySource`）
 	// **所缺的那个触发点**——不是发明新机制。
 	//
-	// **★ 只摘自己起的链（MUST NOT 越界）**：`RunSource` 取的是**本 run 自己的**。
+	// **★ 只摘自己起的链（MUST NOT 越界）**：`CascadeAnchor` 取的是**本 run 自己的**。
 	// **子链另发新号、不沿用父链的**（`TcsEffectContext.h:49`）⇒ 只摘本 run **直接**挂的条目；
 	// **MUST NOT 递归下探**（递归会摘掉不属于自己的东西，且 `CausedBy` 级联已被禁止）。
 	// **残留边界（如实登记，MUST NOT 假装已解）**："技能起链 → 链起子链 → 子链挂属性且子链比施法
@@ -754,23 +755,23 @@ bool FTcsCastOps::FinishCastRun(
 		if (Attribute && Attribute->ResolveStore(Entity))
 		{
 			// **0 条命中 = 正常路径**（该 run 的链没改过属性 / 属性实例已被移除），不 ensure。
-			const int32 RemovedAttrSlots = Attribute->RemoveBySource(Entity, RunSource);
+			const int32 RemovedAttrSlots = Attribute->RemoveBySource(Entity, CascadeAnchor);
 			if (RemovedAttrSlots > 0)
 			{
 				UE_LOG(LogTcsSkill, Log, TEXT("施法终结：按来源回收属性账本条目 %d 条（实体=%lld 来源=%llu）"),
-					RemovedAttrSlots, Entity.Id, RunSource.Id);
+					RemovedAttrSlots, Entity.Id, CascadeAnchor.Id);
 			}
 		}
 	}
 
-	// ── ③ 按 `RunSource` 回收**本 run 物化的 M5 参数链条目**（`add-skill-param-chain` 的明文条款：
+	// ── ③ 按 `CascadeAnchor` 回收**本 run 物化的 M5 参数链条目**（`add-skill-param-chain` 的明文条款：
 	// "物化时 `Source` MUST = 本施法运行态来源句柄 ⇒ 随施法终结**级联摘除**"） ──
 	//
 	// **业务上不摘会怎样（玩家能直接感觉到的错）**：物化是"每次激活都追加"（同一技能可先后放多次，
-	// 各带自己的 `RunSource`）；终结时不摘 ⇒ 加成**逐次累积**，表现为**"放两次技能，参数翻倍"**。
+	// 各带自己的 `CascadeAnchor`）；终结时不摘 ⇒ 加成**逐次累积**，表现为**"放两次技能，参数翻倍"**。
 	// 且它是**静默**的——只放一次技能时读数完全正常，所以"只验一次激活"的检查必漏。
 	// 摘除按来源全量命中 ⇒ 只摘本次 run 那一批，其它 run 的条目原样保留。
-	FTcsParamChainOps::RemoveParamModifiersBySource(Subsystem, Entity, RunSource);
+	FTcsParamChainOps::RemoveParamModifiersBySource(Subsystem, Entity, CascadeAnchor);
 
 	// ── ④ 摘账本条目里的在飞句柄（**与回填成对**） ──
 	// 条目可能已被撤销 ⇒ 静默跳过，不 ensure。
@@ -782,9 +783,9 @@ bool FTcsCastOps::FinishCastRun(
 	// **定义在"回收之后"才重新解析**（MUST，理由见下方 ③′ 段的次序判据）：
 	// ②③ 两段回收会**广播属性变更事件** ⇒ 订阅者可在其中**注销技能定义**
 	// ⇒ 之前拿到的 `Def` 指针可能已悬空（登记表是 `TUniquePtr` 持有，注销即析构
-	// ——`FTcsCastRun` 顶替分支的既有注释已就"任何可能广播的调用之后，手里的指针都可能失效"
+	// ——`FTcsSkillInstance` 顶替分支的既有注释已就"任何可能广播的调用之后，手里的指针都可能失效"
 	// 立过同款纪律）。本处按句柄重新解析一次，**MUST NOT 沿用更早的 `Def`**。
-	const FTcsSkillDefData* Def = Entry ? Subsystem.GetRegisteredSkillDef(Entry->DefTag) : nullptr;
+	const FTcsSkillDefData* Def = Entry ? Subsystem.GetRegisteredSkillDef(Run->DefTag) : nullptr;
 
 	if (Entry)
 	{
@@ -799,7 +800,7 @@ bool FTcsCastOps::FinishCastRun(
 	//
 	// **次序判据（MUST，与 ⓪ 段起链的理由相反、判据相同）**：
 	// - ⓪ 段（完成档起链）**必须排在回收之前**——否则新起的链挂的条目会**当场被自己的终结例程摘掉**
-	//   （同一个 `RunSource`），表现为"配了完成档的技能永远打不出效果"；
+	//   （同一个 `CascadeAnchor`），表现为"配了完成档的技能永远打不出效果"；
 	// - 本段（冷却 / Cost 触发）**必须排在回收之后**——因为回收会**广播属性变更事件**
 	//   （M2 批提交重算 + 广播），而 `OnEvent` 档的 Cost 提交可能被那些广播触发；
 	//   排在回收之前的话，回收尚未完成就可能提交消耗，且新起的链 / 条目会与回收动作交错。
@@ -824,7 +825,7 @@ bool FTcsCastOps::FinishCastRun(
 		// ——本处是该纪律在新触发点上的落点，**MUST NOT 省略**。
 		Bucket = Subsystem.Registry.FindBucket(Entity);
 		Entry = Bucket ? Bucket->Find(EntryHandle) : nullptr;
-		Def = Entry ? Subsystem.GetRegisteredSkillDef(Entry->DefTag) : nullptr;
+		Def = Entry ? Subsystem.GetRegisteredSkillDef(Run->DefTag) : nullptr;
 	}
 	else if (Entry)
 	{
@@ -867,10 +868,10 @@ bool FTcsCastOps::FinishCastRun(
 	// 让本 run 以别的路径归还（例如撤销整个实体）。若不复核，第二次 `Free` 会命中池的 `ensureMsgf`
 	// ⇒ **留红字**，破坏"零 ensure / 零意外红字"这条验收信号。
 	// ⇒ 本处用**非确保**的 `IsValid` 先挡一道（复核失败 = 已在回收/广播期间被别的路径归还 ⇒ 静默跳过）。
-	const TTcsInstanceHandle<FTcsCastRunTag> FreeInner = RunHandle.GetInner();
-	if (Subsystem.CastRuns.IsValid(FreeInner))
+	const TTcsInstanceHandle<FTcsSkillInstanceTag> FreeInner = RunHandle.GetInner();
+	if (Subsystem.SkillInstances.IsValid(FreeInner))
 	{
-		Subsystem.CastRuns.Free(FreeInner);
+		Subsystem.SkillInstances.Free(FreeInner);
 	}
 	else
 	{
@@ -886,16 +887,16 @@ bool FTcsCastOps::FinishCastRun(
 	UE_LOG(LogTcsSkill, Log,
 		TEXT("施法终结：实体=%lld 条目=%d/%d run=%d/%d 来源=%llu 原因=%d（已回收两本账、发终止事件、归还槽位）"),
 		Entity.Id, EntryHandle.Index, EntryHandle.Generation,
-		RunHandle.Index, RunHandle.Generation, RunSource.Id, static_cast<int32>(Reason));
+		RunHandle.Index, RunHandle.Generation, CascadeAnchor.Id, static_cast<int32>(Reason));
 
 	return true;
 }
 
-bool FTcsCastOps::TerminateRun(UTcsSkillSubsystem& Subsystem, FTcsCastRunHandle RunHandle)
+bool FTcsCastOps::TerminateInstance(UTcsSkillSubsystem& Subsystem, FTcsSkillInstanceHandle RunHandle)
 {
 	// **顶替档的便捷入口**（只转发一条、零逻辑——这正是"四路只在一个地方分岔"的形式）：
-	// 回收动作与事件选择全在 `FinishCastRun`，本函数 MUST NOT 再写一份清理。
-	return FinishCastRun(Subsystem, RunHandle, ECastFinishReason::ECFR_Replaced);
+	// 回收动作与事件选择全在 `FinishSkillInstance`，本函数 MUST NOT 再写一份清理。
+	return FinishSkillInstance(Subsystem, RunHandle, ECastFinishReason::ECFR_Replaced);
 }
 
 void FTcsCastOps::DispatchCooldownTiming(
@@ -915,7 +916,7 @@ void FTcsCastOps::DispatchCooldownTiming(
 	// | `ECFR_Replaced` | **是**（`SPEC-04-skill` §11.5 裁决 1 明文"顶替 = 打断的一种终止形态"） | `ECT_OnCastInterrupted` |
 	// | `ECFR_Completed` | **否**（含瞬发） | `ECT_OnCastCompleted` |
 	//
-	// **⇒ 瞬发自动被覆盖**：瞬发以 `ECFR_Completed` 终结 ⇒ 只要本分派挂在 `FinishCastRun` 里，
+	// **⇒ 瞬发自动被覆盖**：瞬发以 `ECFR_Completed` 终结 ⇒ 只要本分派挂在 `FinishSkillInstance` 里，
 	// 它就被 `ECT_OnCastCompleted` 档覆盖，**不需要额外挂点**。
 	// **同族教训**：`SPEC-04-skill` §3.3 的实施注记已就"空 `Phases` 意味着没有任何时段到期
 	// ⇒ 原句'全时段走完'对瞬发永不成立"留过同款教训；本轮 MUST NOT 复犯。
@@ -972,23 +973,23 @@ void FTcsCastOps::DispatchCostTiming(
 
 int32 FTcsCastOps::ResetAll(UTcsSkillSubsystem& Subsystem)
 {
-	const int32 CountBefore = CountRuns(Subsystem);
+	const int32 CountBefore = CountInstances(Subsystem);
 
 	// 池的零策略纪律：不逐槽清理实例内容（`Reset` 使全部旧句柄代际失配）
-	Subsystem.CastRuns.Reset();
+	Subsystem.SkillInstances.Reset();
 
 	return CountBefore;
 }
 
-FTcsCastRun* FTcsCastOps::Find(UTcsSkillSubsystem& Subsystem, FTcsCastRunHandle RunHandle)
+FTcsSkillInstance* FTcsCastOps::Find(UTcsSkillSubsystem& Subsystem, FTcsSkillInstanceHandle RunHandle)
 {
-	return ResolveRun(Subsystem, RunHandle);
+	return ResolveInstance(Subsystem, RunHandle);
 }
 
-int32 FTcsCastOps::CountRuns(UTcsSkillSubsystem& Subsystem)
+int32 FTcsCastOps::CountInstances(UTcsSkillSubsystem& Subsystem)
 {
 	int32 Count = 0;
-	Subsystem.CastRuns.ForEach([&Count](FTcsCastRun&)
+	Subsystem.SkillInstances.ForEach([&Count](FTcsSkillInstance&)
 	{
 		++Count;
 	});

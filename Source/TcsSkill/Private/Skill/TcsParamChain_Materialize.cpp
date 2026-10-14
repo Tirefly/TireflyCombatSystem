@@ -39,7 +39,7 @@ int32 FTcsParamChainOps::MaterializeParamChainRows(
 	const FTcsSkillDefData& Def,
 	FTcsLearnedSkillEntry& Entry,
 	const TScriptInterface<ITcsParamTableReader>& ParamTable,
-	FTcsSourceHandle RunSource)
+	FTcsSourceHandle CascadeAnchor)
 {
 	if (Def.ParamChainRows.Num() == 0)
 	{
@@ -62,7 +62,7 @@ int32 FTcsParamChainOps::MaterializeParamChainRows(
 		// `Source` 一律取**本施法运行态的来源句柄**（定义侧行自带的 `Source` 在此不作数——
 		// 定义是共享模板，逐次施法各挂各的来源，才能"一次施法终结 ⇒ 一次摘净"）
 		FTcsNumericParamModInstance Instance = FTcsNumericParamModInstance::MakeFromModifier(
-			Row, ResolveModifierValue(Row, Ctx), RunSource);
+			Row, ResolveModifierValue(Row, Ctx), CascadeAnchor);
 
 		Entry.NumericParamModInstances.Add(MoveTemp(Instance));
 	}
@@ -70,7 +70,7 @@ int32 FTcsParamChainOps::MaterializeParamChainRows(
 	UE_LOG(LogTcsSkill, Log,
 		TEXT("参数链行物化：定义=%s 实体=%lld 条目=%d/%d 行=%d 来源=%llu 累计条目=%d"),
 		*Entry.DefTag.ToString(), Entry.Entity.Id, Entry.Handle.Index, Entry.Handle.Generation,
-		Def.ParamChainRows.Num(), RunSource.Id, Entry.NumericParamModInstances.Num());
+		Def.ParamChainRows.Num(), CascadeAnchor.Id, Entry.NumericParamModInstances.Num());
 
 	return Def.ParamChainRows.Num();
 }

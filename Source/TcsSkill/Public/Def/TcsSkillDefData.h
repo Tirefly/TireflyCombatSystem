@@ -30,7 +30,7 @@
  * ① **零消费者**（技能侧 `CapturedAttrs` 全仓无任何类型读取）；② **机制重叠**——设计给捕获写的用途
  * （"捕获命中 → 改 `CapturedAttrs`，随流程消失、零账本污染"）已由**流程属性黑板** `FTcsFlowAttributes`
  * （作用域 = 流程用完即弃）与 `FlowModify` 数据步骤覆盖 ⇒ 同一个"流程局部可变值空间"存在两份；
- * ③ **技能侧已被参数快照占满**——技能自己的参数由 `FTcsCastRun.ParamSnapshot` 在激活瞬间冻结
+ * ③ **技能侧已被参数快照占满**——技能自己的参数由 `FTcsSkillInstance.ParamSnapshot` 在激活瞬间冻结
  * （`AttributeScaled` 类源在快照构建时即取值），流程内工作值由黑板承担，**剩下的空间说不出技能侧独有的
  * 业务场景**，设计语料也未给出该用例。**边界**：只涉技能侧——伤害流程侧的
  * `FTcsDamageFlowContext::CapturedAttrs` 归台账 `WAIT-7`，其触发条件**不因此改变**。

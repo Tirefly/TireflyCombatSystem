@@ -12,8 +12,8 @@
 
 #include "Def/TcsSkillActivateResult.h"
 #include "Def/TcsSkillDefData.h"
-#include "Skill/TcsCastRun.h"
-#include "Skill/TcsCastRunHandle.h"
+#include "Skill/TcsSkillInstance.h"
+#include "Skill/TcsSkillInstanceHandle.h"
 #include "Skill/TcsChainRedirect.h"
 #include "Skill/TcsCooldownState.h"
 #include "Skill/TcsSkillEntrySelector.h"
@@ -80,7 +80,7 @@ public:
 	 *
 	 * 为什么必须自己实现（**两处非 UPROPERTY 容器**）：
 	 * ① `RegisteredDefs` 是 `TMap<FGameplayTag, TUniquePtr<FTcsSkillDefData>>`；
-	 * ② `CastRuns` 是 `TTcsInstancePool`（元素住 `TArray`）——
+	 * ② `SkillInstances` 是 `TTcsInstancePool`（元素住 `TArray`）——
 	 * 本类的**非 `UPROPERTY` 成员**，GC 的 `RefLink` 遍历**走不到它们**；而两者的内容里都有
 	 * `FInstancedStruct`（定义的 `CastQueryFragment` / 参数行的数值来源；运行态的参数快照条目
 	 * `SourceRef`），其**内层内存可以放宿主自定义 struct 的 `UPROPERTY` 对象引用** ⇒ 不补引用即
@@ -294,13 +294,13 @@ public:
 
 
 // 施法运行态的 GC 遍历口
-#pragma region CastRunGC
+#pragma region SkillInstanceGC
 
 public:
 	/**
 	 * GC 引用收集专用：遍历在册施法运行态。
 	 *
-	 * **⚠ 为什么不能直接用 `CastRuns.ForEach`（2026-08-10 首轮 PIE 实测暴露的真实缺陷）**：
+	 * **⚠ 为什么不能直接用 `SkillInstances.ForEach`（2026-08-10 首轮 PIE 实测暴露的真实缺陷）**：
 	 * `TTcsInstancePool` 的**每一个**进入点（含 `ForEach` / `Resolve` / `IsValid`）都无条件
 	 * `ensure(IsInGameThread())`（`TcsInstancePool.h:29/54/69/91/109`），而**GC 的引用收集不在游戏线程上**
 	 * （实测 callstack：`FRealtimeGC::CollectReferencesForGC` → `AddReferencedObjects` → `ForEach`
@@ -313,7 +313,7 @@ public:
 	 *
 	 * @param Visitor 访问者（只读运行态）。
 	 */
-	void ForEachCastRunForGC(TFunctionRef<void(const FTcsCastRun&)> Visitor) const;
+	void ForEachSkillInstanceForGC(TFunctionRef<void(const FTcsSkillInstance&)> Visitor) const;
 
 #pragma endregion
 
@@ -345,10 +345,10 @@ public:
 	ESkillActivateResult TryActivate(
 		FTcsCombatEntityHandle Entity,
 		FGameplayTag DefTag,
-		FTcsCastRunHandle* OutRun = nullptr);
+		FTcsSkillInstanceHandle* OutRun = nullptr);
 
 	/**
-	 * 终结一个施法运行态（四路汇聚的唯一入口——回收动作与事件分岔见 `FTcsCastOps::FinishCastRun`）。
+	 * 终结一个施法运行态（四路汇聚的唯一入口——回收动作与事件分岔见 `FTcsCastOps::FinishSkillInstance`）。
 	 *
 	 * **本口发的是 `OnCastInterrupted`**（等价"顶替"档）；**完成**档与**打断**档各有自己的入口
 	 * （激活流程末尾的完成终结 / `CancelCast`），三者最终都落到同一个例程上。
@@ -356,7 +356,7 @@ public:
 	 * @param RunHandle 运行态句柄。
 	 * @return 返回是否确实终结了一个在册运行态。
 	 */
-	bool TerminateCastRun(FTcsCastRunHandle RunHandle);
+	bool TerminateSkillInstance(FTcsSkillInstanceHandle RunHandle);
 
 	/**
 	 * **打断一个施法运行态**（`CancelCast`）：先过查询契约，不可打断 ⇒ 拒绝且运行态原样继续。
@@ -366,7 +366,7 @@ public:
 	 * @param RunHandle 运行态句柄。
 	 * @return 返回是否真的打断了（已终结）。
 	 */
-	bool CancelCast(FTcsCastRunHandle RunHandle);
+	bool CancelCast(FTcsSkillInstanceHandle RunHandle);
 
 	/**
 	 * 当前这次施法能不能被打断（D5-1 查询契约）——**打断结算与宿主移动系统询问的唯一合法入口**。
@@ -377,7 +377,7 @@ public:
 	 * @param RunHandle 运行态句柄。
 	 * @return 返回当前是否可打断（悬空句柄 ⇒ false，不 ensure）。
 	 */
-	bool IsInterruptibleNow(FTcsCastRunHandle RunHandle);
+	bool IsInterruptibleNow(FTcsSkillInstanceHandle RunHandle);
 
 	/**
 	 * 当前是否允许移动（宿主移动系统询问）。
@@ -385,7 +385,7 @@ public:
 	 * @param RunHandle 运行态句柄。
 	 * @return 返回当前是否允许移动（悬空句柄 ⇒ false，不 ensure）。
 	 */
-	bool CanMoveNow(FTcsCastRunHandle RunHandle);
+	bool CanMoveNow(FTcsSkillInstanceHandle RunHandle);
 
 	/**
 	 * 取当前时段下标（观测与装置断言用）。
@@ -393,7 +393,7 @@ public:
 	 * @param RunHandle 运行态句柄。
 	 * @return 返回当前时段下标；悬空句柄返回 `-1`（**与"第 0 段"可区分**——0 是合法下标）。
 	 */
-	int32 GetCastPhaseIndex(FTcsCastRunHandle RunHandle) const;
+	int32 GetCastPhaseIndex(FTcsSkillInstanceHandle RunHandle) const;
 
 	/**
 	 * 取本 run **实际起来的链身份**（重定向的验收读数取它）。
@@ -404,7 +404,7 @@ public:
 	 * @param RunHandle 运行态句柄。
 	 * @return 返回实际起的链身份；未起链或悬空句柄返回空 tag。
 	 */
-	FGameplayTag GetCastActiveChainId(FTcsCastRunHandle RunHandle) const;
+	FGameplayTag GetCastActiveChainId(FTcsSkillInstanceHandle RunHandle) const;
 
 	// 挂载一条链重定向（`Source` 无效 / 身份无效 ⇒ 拒绝并返回 false）
 	bool MountChainRedirect(const FTcsChainRedirectEntry& Entry, FTcsSourceHandle Source);
@@ -434,10 +434,10 @@ public:
 	 * @param RunHandle 运行态句柄。
 	 * @return 返回运行态；悬空句柄返回 nullptr。
 	 */
-	const FTcsCastRun* GetCastRun(FTcsCastRunHandle RunHandle) const;
+	const FTcsSkillInstance* GetSkillInstance(FTcsSkillInstanceHandle RunHandle) const;
 
 	// 在册施法运行态数（观测与装置断言用；**验收读数取它**，MUST NOT 取"TryActivate 被调用几次"）
-	int32 GetCastRunCount() const;
+	int32 GetSkillInstanceCount() const;
 
 #pragma endregion
 
@@ -759,12 +759,12 @@ private:
 	 * 施法运行态池（一次激活一个实例）。
 	 *
 	 * **元素住 `TArray` ⇒ 扩容即搬移**：调用方 MUST NOT 跨"可能触发池扩容的调用"缓存
-	 * `FTcsCastRun*`（同 `FTcsChainRun` 的持有纪律）。
+	 * `FTcsSkillInstance*`（同 `FTcsChainRun` 的持有纪律）。
 	 *
 	 * **GC 纪律**：池是本类的非 `UPROPERTY` 成员，而运行态里的 `ParamSnapshot` 可持对象引用
 	 * ⇒ `AddReferencedObjects` MUST 覆盖它（见该函数注释）。
 	 */
-	TTcsInstancePool<FTcsCastRun, FTcsCastRunTag> CastRuns;
+	TTcsInstancePool<FTcsSkillInstance, FTcsSkillInstanceTag> SkillInstances;
 
 	// 技能定义登记表（键 = DefTag；TUniquePtr 持有使解析返回的指针地址稳定）
 	TMap<FGameplayTag, TUniquePtr<FTcsSkillDefData>> RegisteredDefs;
@@ -783,7 +783,7 @@ private:
 	/**
 	 * **在飞终结标记集**：终结例程已进入广播窗口的 run 句柄。
 	 *
-	 * **它修的是 Task 3 留下的真实缺陷**：`FinishCastRun` 的事件广播是**当场同步派发**
+	 * **它修的是 Task 3 留下的真实缺陷**：`FinishSkillInstance` 的事件广播是**当场同步派发**
 	 * ⇒ 订阅者可在回调内**重入终结同一句柄**。Task 3 只挡住了"双次归还槽位"这一半
 	 * （靠归还前复核池句柄是否仍有效），**"打断事件发两次"当时仍然存在**
 	 * （`TcsCastOps.cpp` 的旧注释自认，其归属即本轮）。
@@ -798,7 +798,7 @@ private:
 	 * 不是"已终结"的历史——广播结束即须移除，否则池槽位复用给新 run（同 `Index`、新 `Generation`）
 	 * 时不会误伤（句柄含代际，本已不撞），但**同一句柄的后续合法终结**会被永久拒绝。
 	 */
-	TTcsEntityBroadcastGuard<FTcsCastRunHandle> FinishBroadcastGuard;
+	TTcsEntityBroadcastGuard<FTcsSkillInstanceHandle> FinishBroadcastGuard;
 
 	// 宿主链重定向 Custom 契约（未注入 = 空接口；`UPROPERTY` 持有以满足 TScriptInterface 的 GC 纪律）
 	UPROPERTY()

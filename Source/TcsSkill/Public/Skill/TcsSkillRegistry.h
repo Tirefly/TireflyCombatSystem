@@ -8,7 +8,7 @@
 #include "Handle/TcsSourceHandle.h"
 
 #include "Runtime/TcsEntityRuntimeBucket.h"
-#include "Skill/TcsCastRunHandle.h"
+#include "Skill/TcsSkillInstanceHandle.h"
 #include "Skill/TcsCooldownState.h"
 #include "Skill/TcsNumericParamModifier.h"
 #include "Skill/TcsSkillEntryHandle.h"
@@ -88,16 +88,16 @@ public:
 
 
 // 在飞施法
-#pragma region CastRuns
+#pragma region SkillInstances
 
 public:
 	/**
 	 * 该条目当前在飞的施法运行句柄集。
 	 *
 	 * **本轮恒为空数组**（如实登记）：写入者是激活路径（建 run 后回填），归后续任务。
-	 * 本字段此刻存在的理由是**数组元素类型必须完整**——它是 `FTcsCastRunHandle` 在本任务落地的唯一原因。
+	 * 本字段此刻存在的理由是**数组元素类型必须完整**——它是 `FTcsSkillInstanceHandle` 在本任务落地的唯一原因。
 	 */
-	TArray<FTcsCastRunHandle> RunHandles;
+	TArray<FTcsSkillInstanceHandle> RunHandles;
 
 #pragma endregion
 

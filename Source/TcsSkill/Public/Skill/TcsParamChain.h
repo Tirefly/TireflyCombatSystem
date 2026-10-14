@@ -121,7 +121,7 @@ public:
 
 	/**
 	 * 定义侧 `ParamChainRows` 的**激活期物化**（PV-9）：逐行求值 + 转规范值后追加进该条目的
-	 * `NumericParamModInstances`，且 `Source` 一律取**本次施法运行态的来源句柄**（`FTcsCastRun.RunSource`）
+	 * `NumericParamModInstances`，且 `Source` 一律取**本次施法运行态的来源句柄**（`FTcsSkillInstance.RunSource`）
 	 * ⇒ 随施法终结**级联摘除**，生命周期语义与基类 `ModifierRows` 同款。
 	 *
 	 * **为什么在这里做（而不是照搬状态侧的独立物化器类）**：状态侧的

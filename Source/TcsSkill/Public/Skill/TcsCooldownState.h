@@ -10,9 +10,9 @@
 
 
 /**
- * 单条冷却轨道的**运行态**（非反射——沿 `FTcsCastRun` 的处置）。
+ * 单条冷却轨道的**运行态**（非反射——沿 `FTcsSkillInstance` 的处置）。
  *
- * **为什么不反射**：同 `FTcsCastRun` / `FTcsStateInstance`——它只在 C++ 侧流转，
+ * **为什么不反射**：同 `FTcsSkillInstance` / `FTcsStateInstance`——它只在 C++ 侧流转，
  * 本轮**零过网需求、零脚本消费面**；反射化留给"运行态要整体过网"的轮次（`SPEC-04-skill` §6）。
  *
  * **为什么与 `FTcsCooldownTrack` 分开**：Def 侧那条是**作者配的时长**（可编辑、被序列化），
@@ -42,7 +42,7 @@ struct FTcsCooldownTrackState
 	 * （`TcsExpiryHeap.h:92`），而"到期回调正在跑"那一刻它自己的条目**仍然有效**
 	 * （`FireDueItem` 在回调**返回之后**才释放，`:223-246`）⇒ 回调内若再 `CancelExpiry` 本句柄，
 	 * 就是"取消一个正在跑的条目"。复位后 `IsValid()` 为假，后续清理路径天然跳过。
-	 * **同款先例 = `FTcsCastRun::PhaseExpiryEntry` 的既有注释。**
+	 * **同款先例 = `FTcsSkillInstance::PhaseExpiryEntry` 的既有注释。**
 	 */
 	FTcsTimeEntryHandle ExpiryEntry;
 };

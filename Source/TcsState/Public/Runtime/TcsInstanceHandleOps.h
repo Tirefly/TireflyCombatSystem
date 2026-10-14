@@ -11,14 +11,14 @@
 /**
  * 运行态句柄的**语义单点**（共享层公共件，2026-10-14 立）。
  *
- * **它是什么**：三个展平句柄（`FTcsStateHandle` / `FTcsCastRunHandle` / `FTcsSkillEntryHandle`）
+ * **它是什么**：三个展平句柄（`FTcsStateHandle` / `FTcsSkillInstanceHandle` / `FTcsSkillEntryHandle`）
  * 的**判据 / 身份比较 / 哈希 / 池位模式转换**的唯一实现处；三个薄型各自**委托**它。
  *
  * **它不是什么（MUST NOT 误读）**：**它不是第三个句柄类型，也不是"统一句柄"**。
  * 三个句柄类型 **MUST 保持各自独立**（裁决④ 的 2026-10-14 改述 =「**3 个反射声明 + 1 处逻辑单点**」）。
  * 判据三条（本节是它们的唯一载体，MUST NOT 在别处复述第二份）：
  * 1. **合并为一个类型会移除一道现存的编译期护栏**：各型持有**幻影标签**
- *    （`FTcsStateTag` / `FTcsCastRunTag` / …），使"把状态句柄传给施法运行 API"在**编译期失败**。
+ *    （`FTcsStateTag` / `FTcsSkillInstanceTag` / …），使"把状态句柄传给施法运行 API"在**编译期失败**。
  *    合并后该误用降为**运行期查不到**——正是本仓反复拦的"静默错配 + 误导性症状"形态。
  *    `instance-handle-pool` 能力为此**立了两条**判据（「不同池的句柄类型不可互换」+
  *    Scenario「句柄类型隔离」→ **编译失败**，原文"跨池误用在编译期拦截，无运行期成本"）。
@@ -52,7 +52,7 @@ public:
 	 * 句柄有效性判据（**三个句柄的唯一判据**）。
 	 *
 	 * **统一为最严**：`Index >= 0 && Generation > 0`。
-	 * **被统一的真不一致**：`FTcsCastRunHandle` 原判 `Index != -1`（**不看 `Generation`**），
+	 * **被统一的真不一致**：`FTcsSkillInstanceHandle` 原判 `Index != -1`（**不看 `Generation`**），
 	 * 而另两者判本式。
 	 *
 	 * **为什么连 `Generation` 一起判**（原注释自述"本结构只判『是否曾被赋值』"，此处改述）：

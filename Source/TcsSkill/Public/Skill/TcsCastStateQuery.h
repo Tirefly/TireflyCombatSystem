@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "UObject/Interface.h"
 
-#include "Skill/TcsCastRunHandle.h"
+#include "Skill/TcsSkillInstanceHandle.h"
 
 #include "TcsCastStateQuery.generated.h"
 
@@ -34,7 +34,7 @@ class UTcsCastStateQuery : public UInterface
  * 只有 `CQM_Custom` 一档会走到本接口。宿主 MUST NOT 自行读 `FTcsSkillDefData` 的开关字段来代判
  * （那会在三档之间制造**第二真相**）。
  *
- * **形参 MUST 是已反射句柄**（`FTcsCastRunHandle`）：`FTcsCastRun` 自身**非反射**（池内池化纯数据，
+ * **形参 MUST 是已反射句柄**（`FTcsSkillInstanceHandle`）：`FTcsSkillInstance` 自身**非反射**（池内池化纯数据，
  * 无 `USTRUCT`）⇒ 拿它作 `BlueprintNativeEvent` 形参是 **UHT 硬错误**。句柄已反射 ⇒ 脚本面可达。
  *
  * **⚠ 本轮（R6 Task 5）本接口"可声明、不可求值"（如实登记，MUST NOT 被误读）**：
@@ -67,7 +67,7 @@ public:
 	 * @return 返回当前是否可打断。
 	 */
 	UFUNCTION(BlueprintNativeEvent)
-	bool IsInterruptibleNow(FTcsCastRunHandle Run);
+	bool IsInterruptibleNow(FTcsSkillInstanceHandle Run);
 
 	/**
 	 * 当前是否允许移动（宿主移动系统询问）。
@@ -78,7 +78,7 @@ public:
 	 * @return 返回当前是否允许移动。
 	 */
 	UFUNCTION(BlueprintNativeEvent)
-	bool CanMoveNow(FTcsCastRunHandle Run);
+	bool CanMoveNow(FTcsSkillInstanceHandle Run);
 
 #pragma endregion
 };

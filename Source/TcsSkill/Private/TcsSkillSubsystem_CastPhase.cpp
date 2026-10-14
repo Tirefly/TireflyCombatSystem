@@ -21,38 +21,38 @@ UTcsClockSubsystem* UTcsSkillSubsystem::GetClockSubsystem() const
 
 
 // 施法运行态：终结 / 打断 / 查询（薄壳一行转发——门面签名稳定，流程逻辑住引擎函数）
-bool UTcsSkillSubsystem::TerminateCastRun(FTcsCastRunHandle RunHandle)
+bool UTcsSkillSubsystem::TerminateSkillInstance(FTcsSkillInstanceHandle RunHandle)
 {
-	return FTcsCastOps::TerminateRun(*this, RunHandle);
+	return FTcsCastOps::TerminateInstance(*this, RunHandle);
 }
 
-bool UTcsSkillSubsystem::CancelCast(FTcsCastRunHandle RunHandle)
+bool UTcsSkillSubsystem::CancelCast(FTcsSkillInstanceHandle RunHandle)
 {
 	return FTcsCastOps::CancelCast(*this, RunHandle);
 }
 
-bool UTcsSkillSubsystem::IsInterruptibleNow(FTcsCastRunHandle RunHandle)
+bool UTcsSkillSubsystem::IsInterruptibleNow(FTcsSkillInstanceHandle RunHandle)
 {
 	return FTcsCastOps::IsInterruptibleNow(*this, RunHandle);
 }
 
-bool UTcsSkillSubsystem::CanMoveNow(FTcsCastRunHandle RunHandle)
+bool UTcsSkillSubsystem::CanMoveNow(FTcsSkillInstanceHandle RunHandle)
 {
 	return FTcsCastOps::CanMoveNow(*this, RunHandle);
 }
 
-int32 UTcsSkillSubsystem::GetCastPhaseIndex(FTcsCastRunHandle RunHandle) const
+int32 UTcsSkillSubsystem::GetCastPhaseIndex(FTcsSkillInstanceHandle RunHandle) const
 {
-	const FTcsCastRun* Run = FTcsCastOps::Find(const_cast<UTcsSkillSubsystem&>(*this), RunHandle);
+	const FTcsSkillInstance* Run = FTcsCastOps::Find(const_cast<UTcsSkillSubsystem&>(*this), RunHandle);
 
 	// **悬空句柄返回 `-1`**（不是 0）：0 是**合法下标**（第 1 段）⇒ 用 0 当"没有"会让
 	// "第 1 段"与"查不到"读数相同——那正是"标称验 X 的检查没证明 X 的前提"这一类缺陷的温床。
 	return Run ? Run->PhaseIndex : -1;
 }
 
-FGameplayTag UTcsSkillSubsystem::GetCastActiveChainId(FTcsCastRunHandle RunHandle) const
+FGameplayTag UTcsSkillSubsystem::GetCastActiveChainId(FTcsSkillInstanceHandle RunHandle) const
 {
-	const FTcsCastRun* Run = FTcsCastOps::Find(const_cast<UTcsSkillSubsystem&>(*this), RunHandle);
+	const FTcsSkillInstance* Run = FTcsCastOps::Find(const_cast<UTcsSkillSubsystem&>(*this), RunHandle);
 	return Run ? Run->ActiveChainId : FGameplayTag();
 }
 

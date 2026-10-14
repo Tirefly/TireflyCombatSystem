@@ -8,7 +8,7 @@
 
 #include "Handle/TcsCombatEntityHandle.h"
 
-#include "Skill/TcsCastRunHandle.h"
+#include "Skill/TcsSkillInstanceHandle.h"
 #include "Skill/TcsSkillEntryHandle.h"
 
 #include "TcsCastEvents.generated.h"
@@ -49,7 +49,7 @@ extern TCSSKILL_API FNativeGameplayTag Tag_TcsEvent_Cast_Interrupted;
  * **"先广播后归还槽位"的纪律**保证那一刻 run 仍在册（同状态侧"先广播后释放槽位"）。
  *
  * **`Run` / `EntryHandle` 的反射性已具备**：两者都是 `USTRUCT(BlueprintType)`
- * （`FTcsCastRunHandle` 于 Task 2 落地、`FTcsSkillEntryHandle` 同批）⇒ 载荷可整块过反射面，
+ * （`FTcsSkillInstanceHandle` 于 Task 2 落地、`FTcsSkillEntryHandle` 同批）⇒ 载荷可整块过反射面，
  * **不需要** SCRIPT-8 那种"传句柄 + 门面访问器"的展平绕行。
  */
 USTRUCT(BlueprintType)
@@ -63,7 +63,7 @@ struct TCSSKILL_API FTcsCastEventPayload
 public:
 	// 施法运行态句柄（回调内可据此复核运行态）
 	UPROPERTY(BlueprintReadOnly, Category = "Tcs|Skill|Cast Event")
-	FTcsCastRunHandle Run;
+	FTcsSkillInstanceHandle Run;
 
 	// 施法实体（本 run 的施法者）
 	UPROPERTY(BlueprintReadOnly, Category = "Tcs|Skill|Cast Event")

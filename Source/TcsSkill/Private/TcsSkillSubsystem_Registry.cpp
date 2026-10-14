@@ -12,23 +12,23 @@
 ESkillActivateResult UTcsSkillSubsystem::TryActivate(
 	FTcsCombatEntityHandle Entity,
 	FGameplayTag DefTag,
-	FTcsCastRunHandle* OutRun)
+	FTcsSkillInstanceHandle* OutRun)
 {
 	return FTcsCastOps::Activate(*this, Entity, DefTag, OutRun);
 }
 
-// **`TerminateCastRun` / `CancelCast` / 查询契约住在 `TcsSkillSubsystem_CastPhase.cpp`**
+// **`TerminateSkillInstance` / `CancelCast` / 查询契约住在 `TcsSkillSubsystem_CastPhase.cpp`**
 // （Task 5 把施法运行态面的薄壳归到那一片，与本片的"账本面薄壳"分开——
-// 本文件保留 `TryActivate` / `GetCastRun*` / 授予撤销 / 访问，改动面最小）。
+// 本文件保留 `TryActivate` / `GetSkillInstance*` / 授予撤销 / 访问，改动面最小）。
 
-const FTcsCastRun* UTcsSkillSubsystem::GetCastRun(FTcsCastRunHandle RunHandle) const
+const FTcsSkillInstance* UTcsSkillSubsystem::GetSkillInstance(FTcsSkillInstanceHandle RunHandle) const
 {
 	return FTcsCastOps::Find(*const_cast<UTcsSkillSubsystem*>(this), RunHandle);
 }
 
-int32 UTcsSkillSubsystem::GetCastRunCount() const
+int32 UTcsSkillSubsystem::GetSkillInstanceCount() const
 {
-	return FTcsCastOps::CountRuns(*const_cast<UTcsSkillSubsystem*>(this));
+	return FTcsCastOps::CountInstances(*const_cast<UTcsSkillSubsystem*>(this));
 }
 
 

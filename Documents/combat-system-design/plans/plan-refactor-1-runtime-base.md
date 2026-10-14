@@ -2,9 +2,9 @@
 
 - **文档 ID**：`PLN-REFACTOR-1`
 - **类型**：PLN / 计划
-- **状态**：ACTIVE（2026-10-13 建立；**实施进行中**——Task 1 / Task 2 已交付，**下一开工点 = Task 3**。本计划是 `DEC-2026-10-13-state-module-positioning` **与** `DEC-2026-10-13-asset-butler` 两份裁决的**合并执行形状**）
+- **状态**：ACTIVE（2026-10-13 建立；**实施进行中**——Task 1 / Task 2 / Task 3 已交付，**下一开工点 = Task 4**。本计划是 `DEC-2026-10-13-state-module-positioning` **与** `DEC-2026-10-13-asset-butler` 两份裁决的**合并执行形状**）
 - **权威范围**：**两条线合成一份执行形状**（★ 2026-10-13 合并，理由见 §0.5）——(A) 运行态**基底抽形**与**共享机制合并**、两个 payload 的拆分、**`TcsBuff` 新模块的拆出**；(B) **`TcsAssetButler` 新模块落地**、四处类型搬迁、定义库瘦身。附规格面回写与证据重取。**不在本文**——裁定本身（住两份 `DEC-*`）、关系表族语义（住 `DEC-2026-10-13-relation-*`）、`e1`/`e4` 的重写明细（各归 `PLN-R5.5` 改述后）
-- **最后更新**：2026-10-14（**★ 同日第七笔 = Task 2 落地**：六个 Step 全部完成 + 双配置 **0/0** + 无头装置 **11 条读数逐字相同**。**★ 两处形状由用户开工时改定**（取代计划原文）：① **不单开 payload 类型**、字段直接平铺进派生结构；② 命名按 **Def 层同构** = 基底 `FTcsStateInstance`（**保留原名**）+ 派生 **`FTcsBuffInstance`**（**MUST NOT 含 `Entity`**——它在本仓专指"战斗实体"）。**同批记录我自己的错名**（初稿 `FTcsEntityRuntime`/`FTcsBuffRuntime` 撞上 `Entity` 专指）。**一处判据作废**：原验收信号"`FTcsStateInstance` 已不存在于代码"因基底保留原名而**不再成立**，已按实况改写。**一处未闭合**：状态侧实例 ARO 分支无头不可达（三次阴性对照空转，已如实记边界）。**两仓零提交**。**前一笔（同日）＝第六笔 = 三个待裁点裁定 + 动作 D**：① 基底只放**撤销锚点**、不放**施加方来源**（两者**角色相反**；Task 1 的表 `Source` 行写错 + `CascadeAnchor` 行漏写）；② **`Phase` 留状态侧**；③ **新立 §0.5.2 动作 D「代码文件超限走三段式」**——用户原话「**先执行重构，然后留档，在测试没问题后再拆分**」。**同批落纸《14 字段最终归属表》**（基底 6 / 状态侧独有 4 / Buff payload 4 = 14 ✓）。**前一笔（同日）＝第五笔 = Task 2 开工前置**：动作 A 过完在册 **75 条**（结论 = 本 Task **不消费任何条目**）、动作 B 现场日 **2026-10-14**（与轮次日一致、无错位）、动作 C 出**逐字段护栏表**；抓到两处缺口（基底表只表态 11 个实测 14 个 / §0.5.2 体例债表漏登记 3 个文件，其中两个正面波及 Task 2）⇒ Task 2 的 `Files` 段**原缺宿主装置侧**，实测波及约 **80 处调用点**，已补入。**前一笔（同日）＝第四笔 = Task 1 落地**：九个 Step 全部完成 + 双配置 0/0 + 无头装置 10 条读数逐字不变 + ARO 阴性对照复现（见 Task 1 末尾《实施记录》）。**两仓零提交**。**前一笔：开工门禁与日期留痕**——新增 **§0.5.2**「每个 Task 开工前 MUST 执行的固定动作」（**动作 A** 逐条对已登记债的触发条件，`MEM-20261010-08`；**动作 B** 日期取现场值，`MEM-20261004-05`；**动作 C** 合并前先出护栏表，`MEM-20261014-01`；**动作 D** 超限三段式，2026-10-14 补立）；**动作 A 首稿曾误判**（把"include 了要动的头"当成"会被改动影响"）⇒ 已在 §0.5.2 内**就地订正并留痕**，并补立「**体例债表 MUST 按 Task 重新枚举、MUST NOT 沿用上一轮**」的使用纪律。**★ 日期留痕**：本计划与两份 `DEC-2026-10-13-*`、Task 1 提案**实际创建于 2026-10-14 凌晨**，文档 ID / 文件名 / 正文日期**一律沿用轮次日 2026-10-13**（跨零点收尾，改名牵动 ID/文件名/映射表/计数 ⇒ 收益零、漂移正）⇒ **留痕不改名**（先例 `MEM-20261004-12`）。**前两笔（2026-10-13）**：**第二笔：并入资产加载层线**——`DEC-2026-10-13-asset-butler` 裁定新建 `TcsAssetButler` + 四处搬迁 + 定义库瘦身；**两条线会改同一批文件**（`TcsEffect` / `TcsIntegration` / `.uplugin` / 模块计数）⇒ 合并为本计划，顺序见 §0.5。**第一笔**：**同日修正**：初稿按裁决⑦ 把 Task 4 写成"`TcsState` → `TcsBuff` **改名**"⇒ 用户评审时提问驱动实测，**该前提被推翻**（`TcsState` 是三层：共用 Def 族 + 通用运行时机制 + Buff 专属），现行 = **拆出新模块**、基底与机制**留 `TcsState`**。详见 §0.3.0 与该裁决 §6）
+- **最后更新**：2026-10-14（**★ 同日第八笔 = Task 3 落地**：七个 Step 全部完成（Step 3 由 Task 1 交付、本 Task 只订正状态）+ 双配置 **0/0** + 无头装置 **11 条行为信号逐字相同**。**★ 两处形状由用户开工时改定**（取代计划原文）：① **不单开 payload 类型**（与 Task 2 同一条判据）；② **彻底一词一义**——记录 `FTcsCastRun` → **`FTcsSkillInstance`**、句柄 → **`FTcsSkillInstanceHandle`**、**方法/成员名一并改**（12 个标识符）。**11 字段去向 = 5 上提基底 + 6 留本域**（`RunSource`→`CascadeAnchor`、`PhaseExpiryEntry`→`ExpiryEntry`）。**两处用户裁定**：① 基底 `DefTag` 在技能侧**填上 + 8 处改读自己**，**但保留"条目撤销 ⇒ 不发终止事件"那处守卫**（去掉即行为变更）；② 句柄与方法名一并改。**一处过期描述订正**：计划原文把「门禁④ 改走共享决策」列为 Task 3 的 Step 并称"本重构的实质收益点"——**该收益点已在 Task 1 落地**（`git log -S` 唯一命中 `0ac43b6`），本 Task **零改动**。**一处判据的归属订正**：原验收信号"`TcsCastOps.cpp` 内零内联 Instancing 分流"已在 Task 1 满足（今日仍成立，但**不是**本 Task 的成绩）。**★ 一处真实的过程缺陷如实登记**：机械改名中途**出过一次文件损坏**（PowerShell 辅助函数参数被拍平、退化成逐字符替换 ⇒ 三个文件共 **1430 个字符**被换掉），**按 `HEAD` 逐字节还原**后改用**脚本文件 + 命中护栏 + 字符不变量核对**重做 ⇒ 立纪律「**批量替换 MUST 走脚本文件、MUST NOT 走 shell 内联；每次替换后 MUST 核对成对字符守恒**」。**一处基线选型陷阱**：Task 2 的 `03-SkillCast.Phase.log` 是**截断版**（P9 命中 0），基线 MUST 取 `03b` —— **同一坑的第二次**。**★ 一处由用户提问暴露的流程缺口**：Task 2 / Task 3 **都未开提案**（属**静默跳步**），根因 = Global Constraints 的「每个 Task 以提案开道」与 Task 5 的**批处理设计自相矛盾** ⇒ 已订正为**两条合法路径 + 选路判据**，并补记未偿欠账（主规格 **14 能力 / 52 处**引用旧类型名，归 Task 5）。**两仓零提交**。**前一笔（同日）＝第七笔 = Task 2 落地**：六个 Step 全部完成 + 双配置 **0/0** + 无头装置 **11 条读数逐字相同**。**★ 两处形状由用户开工时改定**（取代计划原文）：① **不单开 payload 类型**、字段直接平铺进派生结构；② 命名按 **Def 层同构** = 基底 `FTcsStateInstance`（**保留原名**）+ 派生 **`FTcsBuffInstance`**（**MUST NOT 含 `Entity`**——它在本仓专指"战斗实体"）。**同批记录我自己的错名**（初稿 `FTcsEntityRuntime`/`FTcsBuffRuntime` 撞上 `Entity` 专指）。**一处判据作废**：原验收信号"`FTcsStateInstance` 已不存在于代码"因基底保留原名而**不再成立**，已按实况改写。**一处未闭合**：状态侧实例 ARO 分支无头不可达（三次阴性对照空转，已如实记边界）。**两仓零提交**。**前一笔（同日）＝第六笔 = 三个待裁点裁定 + 动作 D**：① 基底只放**撤销锚点**、不放**施加方来源**（两者**角色相反**；Task 1 的表 `Source` 行写错 + `CascadeAnchor` 行漏写）；② **`Phase` 留状态侧**；③ **新立 §0.5.2 动作 D「代码文件超限走三段式」**——用户原话「**先执行重构，然后留档，在测试没问题后再拆分**」。**同批落纸《14 字段最终归属表》**（基底 6 / 状态侧独有 4 / Buff payload 4 = 14 ✓）。**前一笔（同日）＝第五笔 = Task 2 开工前置**：动作 A 过完在册 **75 条**（结论 = 本 Task **不消费任何条目**）、动作 B 现场日 **2026-10-14**（与轮次日一致、无错位）、动作 C 出**逐字段护栏表**；抓到两处缺口（基底表只表态 11 个实测 14 个 / §0.5.2 体例债表漏登记 3 个文件，其中两个正面波及 Task 2）⇒ Task 2 的 `Files` 段**原缺宿主装置侧**，实测波及约 **80 处调用点**，已补入。**前一笔（同日）＝第四笔 = Task 1 落地**：九个 Step 全部完成 + 双配置 0/0 + 无头装置 10 条读数逐字不变 + ARO 阴性对照复现（见 Task 1 末尾《实施记录》）。**两仓零提交**。**前一笔：开工门禁与日期留痕**——新增 **§0.5.2**「每个 Task 开工前 MUST 执行的固定动作」（**动作 A** 逐条对已登记债的触发条件，`MEM-20261010-08`；**动作 B** 日期取现场值，`MEM-20261004-05`；**动作 C** 合并前先出护栏表，`MEM-20261014-01`；**动作 D** 超限三段式，2026-10-14 补立）；**动作 A 首稿曾误判**（把"include 了要动的头"当成"会被改动影响"）⇒ 已在 §0.5.2 内**就地订正并留痕**，并补立「**体例债表 MUST 按 Task 重新枚举、MUST NOT 沿用上一轮**」的使用纪律。**★ 日期留痕**：本计划与两份 `DEC-2026-10-13-*`、Task 1 提案**实际创建于 2026-10-14 凌晨**，文档 ID / 文件名 / 正文日期**一律沿用轮次日 2026-10-13**（跨零点收尾，改名牵动 ID/文件名/映射表/计数 ⇒ 收益零、漂移正）⇒ **留痕不改名**（先例 `MEM-20261004-12`）。**前两笔（2026-10-13）**：**第二笔：并入资产加载层线**——`DEC-2026-10-13-asset-butler` 裁定新建 `TcsAssetButler` + 四处搬迁 + 定义库瘦身；**两条线会改同一批文件**（`TcsEffect` / `TcsIntegration` / `.uplugin` / 模块计数）⇒ 合并为本计划，顺序见 §0.5。**第一笔**：**同日修正**：初稿按裁决⑦ 把 Task 4 写成"`TcsState` → `TcsBuff` **改名**"⇒ 用户评审时提问驱动实测，**该前提被推翻**（`TcsState` 是三层：共用 Def 族 + 通用运行时机制 + Buff 专属），现行 = **拆出新模块**、基底与机制**留 `TcsState`**。详见 §0.3.0 与该裁决 §6）
 
 **Goal:** 一次交付三件事——① 让 `TcsState` 与 `TcsSkill` 的**运行态共享同一基底与同一套机制**（消除 8 条机制轴中重复的 7 条）；② 把 Buff 专属语义与机制**拆出为独立新模块 `TcsBuff`**；③ 为 Def 类资产建立**独立低层加载模块 `TcsAssetButler`**（类型注册表 / 加载三策略 / 异步默认 + 同步逃生口 / 加载防重 / 编辑器期规则），并把四样走错模块的类型**搬回各自的家**。**§0.2 给出工作量预期**（★ 按 2026-10-13 用户口径：**工作量不进决策判据**，只用于排期）。
 
@@ -33,7 +33,26 @@
 - **`IsDataValid` 收尾**：无错无警时 MUST 把基类返回的 `NotValidated` 提升为 `Valid`。
 - **零消费者不预建**：字段可先就位，但**不得为无消费者的字段造机制**；未落地面 MUST 写进计划注记 + `LEDGER-deferred`。
 - **过网结构纪律**：MUST 纯反射数据——禁 `TFunction`、禁 `TMap`/`TSet` 作 `UPROPERTY`；`FInstancedStruct` 内层须可复制。
-- **规格先行**：每个 Task 的实施以 OpenSpec 提案开道（`openspec validate <id> --strict --no-interactive` 通过 → 实施 → `openspec archive <id> --yes`）；归档时 MODIFIED 需求的**标题 MUST 与主规格逐字一致**。
+- **规格面处置：两条合法路径，MUST 显式选一条（★ 2026-10-14 订正，见下方留痕）**
+  - **路径 A（逐 Task 开提案）**：`openspec propose <id>` → `openspec validate <id> --strict --no-interactive` 通过
+    → 实施 → `openspec archive <id> --yes`；归档时 MODIFIED 需求的**标题 MUST 与主规格逐字一致**。
+  - **路径 B（批处理，集中到 Task 5）**：实施期**不开提案**，规格回写**集中在 Task 5** 一次做完。
+  - **选路判据**：该 Task 是否**新建能力**或**改变对外语义** ⇒ **路径 A**；
+    只在**既有能力内部换实现形状**（类型改名 / 字段归属迁移 / 模块搬迁）⇒ **路径 B 合法**。
+  - **★ 走路径 B 时的硬要求**：该 Task 的《实施记录》MUST 写明
+    ①**选了 B 及其判据**；②**待回写的能力清单与处数**（实测得出，MUST NOT 只写"规格待同步"）。
+    **MUST NOT 静默跳步**——不开提案又不写处置，等于让规格与代码的偏差无人登记。
+
+  > **★ 本条是订正后的形态（2026-10-14，MUST 读）**：原文为「**每个 Task** 的实施以 OpenSpec 提案开道」，
+  > 该措辞与本计划 **Task 5（规格与能力面回写）** 的**批处理设计直接矛盾**——若每个 Task 都开提案，
+  > Task 5 就无事可做；而若集中到 Task 5，原文那条就被违反。**两条并存 = 谁都不知道该听谁的。**
+  > **后果实证**：Task 2 与 Task 3 两轮**都未开提案、也都没有记录这个决定**（属**静默跳步**），
+  > 直到用户 2026-10-14 提问「Task 3 的执行没有创建提案吗」才暴露。
+  > **订正依据**：原计划 §0.4 与 Task 5 的 Step 1 已明写"规格回写集中做"，且
+  > **Task 1 走的正是路径 A**（`merge-entity-runtime-mechanisms`，含新建能力 `entity-runtime-mechanism` + 归档）
+  > ⇒ 两条路径**在本计划内本来就都存在**，缺的只是把它们命名出来并给判据。
+  > **⚠️ 未偿欠账（MUST 读）**：Task 2 / Task 3 走的是**路径 B 但当期未按 B 的硬要求登记清单**。
+  > 已实测补记于各自《实施记录》（**14 个能力 / 52 处**引用待回写），归 **Task 5** 消费。
 - **单游戏线程假设**：`TTcsInstancePool` 的每个常规进入点 `ensure(IsInGameThread())`；GC 期遍历 MUST 走 `ForEachForGC`（无线程断言、纯读）。
 - 设计规格来源：`DEC-2026-10-13-state-module-positioning`（本重构的裁定）；冲突时以该裁决 + 用户拍板为准。
 
@@ -319,10 +338,11 @@ MUST 先列一行为一物的**护栏表**（该物独有的拦截 / 拦截靠�
 
 | 文件 | 改动 |
 |---|---|
-| `Source/TcsSkill/Public/Skill/TcsCastPayload.h`（新） | **Cast payload**：`EntryHandle` + `PhaseIndex` + `ChainRunHandle` + `ActiveChainId` + `MainChainStart` + `MainChainStartPhaseTag` |
-| `Source/TcsSkill/Public/Skill/TcsCastRun.h` | 删除（被基底 + payload 取代） |
-| `Source/TcsSkill/Private/Skill/TcsCastOps*.cpp` | 改读基底 + payload；门禁④ 改走共享决策接口 |
-| `Source/TcsSkill/Public/TcsSkillSubsystem.h` | 池/注册表/ARO/重入守卫改为复用共享层版（`TcsState`） |
+| `Source/TcsSkill/Public/Skill/TcsSkillInstance.h`（新） | **★ 2026-10-14 Task 3 实测落地形态**：**`FTcsSkillInstance` 继承基底** + 6 个技能域字段（`EntryHandle` / `PhaseIndex` / `ChainRunHandle` / `ActiveChainId` / `MainChainStart` / `MainChainStartPhaseTag`）。**原计划的 `TcsCastPayload.h` 已作废**（用户裁定不单开 payload 类型，字段直接平铺） |
+| `Source/TcsSkill/Public/Skill/TcsSkillInstanceHandle.h`（新） | **★ 原计划未列**：句柄随记录一并改名（`FTcsCastRunHandle` → 本名，幻影标签同改）——判据 = **彻底一词一义** |
+| `Source/TcsSkill/Public/Skill/TcsCastRun.h` / `TcsCastRunHandle.h` | **删除**（被基底 + 派生取代；**`FTcsCastRun` 该名字已不存在于代码**） |
+| `Source/TcsSkill/Private/Skill/TcsCastOps*.cpp` | ✅ 改读基底 + 派生；✅ 门禁④ 改走共享决策接口（**已由 Task 1 交付**） |
+| `Source/TcsSkill/Public/TcsSkillSubsystem.h` | ✅ 池/注册表/ARO/重入守卫复用共享层版（`TcsState`，Task 1 + Task 2 已交付） |
 
 ### 新建（`TcsAssetButler`，资产加载层）
 
@@ -782,6 +802,13 @@ virtual int32 ResolveStacks(Request, Existing) const;// 默认：同来源不变
   **⇒ 未闭合项 = "状态侧实例的 ARO 分支"缺一条直接读数**，已按 `EVID` 惯例记为边界（不另立台账条目——它有本 Task 归属）。
 - **探针已零残留**：三次探针均已在验证后移除，文件与备份**逐字节相同**（已核）。
 
+**★ 规格面处置（走路径 B；同 Task 3，此处只登记不重复表格）**
+
+本 Task 同样**未开提案**（判据同上：既有能力内换形状）⇒ 规格回写**归 Task 5**。
+**待回写面并入 Task 3 的实测清单**（14 能力 / 52 处，两者合计计数，MUST NOT 各自另数一遍）。
+**本 Task 独有的一处 MUST 写进 Task 5**：`state-instance-lifecycle`（7 req / 40 scenario，状态侧最大面）
+——它的"实例"语义已从"装 14 字段的结构"变为"基底 + 派生两层"，**层数/时值/周期的归属是它的核心读数面**。
+
 **★ 动作 D 第②段留档（裁定③，超限文件与增长量）**
 
 | 文件 | 本 Task 前 | 本 Task 后 | 增长 |
@@ -813,24 +840,255 @@ virtual int32 ResolveStacks(Request, Existing) const;// 默认：同来源不变
 
 ## Task 3 — Cast payload 化 + 门禁④ 改走共享决策
 
-**Files:**
-- Create: `Source/TcsSkill/Public/Skill/TcsCastPayload.h`
-- Modify: `Source/TcsSkill/Private/Skill/TcsCastOps*.cpp`、`Source/TcsSkill/Public/TcsSkillSubsystem.h`
-- Modify: `Source/TcsSkill/Public/Skill/TcsCastRun.h` → 拆解
+**Files（★ 2026-10-14 实施后按实况订正；原 Files 段已作废，保留在下）:**
+- Create: `Source/TcsSkill/Public/Skill/TcsSkillInstance.h`（**★ 取代原计划的 `TcsCastPayload.h`**）
+- Create: `Source/TcsSkill/Public/Skill/TcsSkillInstanceHandle.h`（**★ 原计划未列**：句柄随记录一并改名）
+- Delete: `Source/TcsSkill/Public/Skill/TcsCastRun.h` / `TcsCastRunHandle.h`
+- Modify: 技能域全体（`TcsCastOps*.cpp` 4 / `TcsSkillSubsystem*` 3 / 域内头 15）
+- Modify: `Source/TcsCore/Public/Pool/TcsInstancePool.h`（**注释一处**：改名连带）
+- Modify: `Source/TcsState/Public/{Runtime,State}/*.h`（**注释三处**：改名连带）
+- Modify: 宿主装置 `Source/TcsDev/**`（**6 文件**）
+
+> **★ 原 Files 段（已作废，留痕）**：`Create TcsCastPayload.h` + `Modify TcsCastRun.h → 拆解`
+> ——**两行均不成立**（用户 2026-10-14 裁定：与 Task 2 同一条形状——**不单开 payload 类型**，
+> 字段**直接平铺**进继承基底后的派生结构）。**原 Interfaces 段同样作废**：`Produces: FTcsCastPayload`
+> ⇒ 现行 = **`FTcsSkillInstance` 取代 `FTcsCastRun`**（继承基底 + 6 个技能域字段）。
 
 **Interfaces:**
-- Consumes: Task 1 的基底与 `FTcsEntityAdmission`
-- Produces: `FTcsCastPayload`——与基底合并后构成技能运行态
+- Consumes: `FTcsStateInstance`（**基底**，Task 2 已建）/ `FTcsEntityAdmission`（Task 1 已建）
+- Produces: `FTcsSkillInstance`（基底 6 + 技能域 6 = **原 11 字段全有归属**）；`FTcsSkillInstanceHandle`
 
-- [ ] **Step 1：定 Cast payload 字段集**（6 个：`EntryHandle` / `PhaseIndex` / `ChainRunHandle` / `ActiveChainId` / `MainChainStart` / `MainChainStartPhaseTag`）
-- [ ] **Step 2：拆 `FTcsCastRun`**（11 字段逐一定归属）
-- [ ] **Step 3：门禁④ 改走共享决策接口**——删除 `TcsCastOps.cpp` 内联的 Instancing 分流，改挂 Task 1 的三个默认策略。**这是本重构的实质收益点**（裁决 §1.3 的重复在此消除）。
-- [ ] **Step 4：时段推进的锚点复位与悬空防护（Review Focus ③）**——保留现状明文纪律（"`AdvancePhase` 第一条语句即复位自己的锚点"、"起链会搬移池 ⇒ `Run` 指针可能已失效，故日志读回写前的值"）。
-- [ ] **Step 5：ARO（Review Focus ①）**
-- [ ] **Step 6：双配置编译 + 技能侧装置回归**——`Tcs.Test.SkillLayer.Run`（基线 24/0）、`Tcs.Test.CooldownCost.Run`（18/0 + 21/0）、`.Reject`（7/0）。
-- [ ] **Step 7：连带 `PLN-R5.5`**——按新基底改述其 Task 1 Step 7（"主体 = `FTcsCastRun`" → 基底句柄）与 Task 4（槽位竞争表主体）。
+- [x] **Step 1：定技能域字段集**——**6 个**（`EntryHandle` / `PhaseIndex` / `ChainRunHandle` / `ActiveChainId` / `MainChainStart` / `MainChainStartPhaseTag`）。**计划原文这一条是对的，零改动**。
+- [x] **Step 2：拆 `FTcsCastRun`**——11 字段**逐一有归属**：**5 上提基底**（`Entity` / `Level` / `ParamSnapshot` / `RunSource`→`CascadeAnchor` / `PhaseExpiryEntry`→`ExpiryEntry`）+ **6 留本域** = 11 ✓；**另加基底 `DefTag` 的填值**（见下方裁定②）。
+- [x] **Step 3：门禁④ 走共享决策接口**——**★ 已在 Task 1 落地，本 Task 零改动**（见下方《一处过期描述订正》）。
+- [x] **Step 4：时段推进的锚点复位与悬空防护（Review Focus ③）**——保留现状明文纪律（"`AdvancePhase` 第一条语句即复位自己的锚点"、"起链会搬移池 ⇒ `Run` 指针可能已失效，故日志读回写前的值"）。**改名为 `ExpiryEntry` 后语义与纪律均不变**。
+- [x] **Step 5：ARO（Review Focus ①）**——技能侧 ARO 遍历口改名 `ForEachSkillInstanceForGC`；**`ParamSnapshot` 仍在基底、ARO 覆盖路径不变**；实测无头下零红字。
+- [x] **Step 6：双配置编译 + 技能侧装置回归**——双配置 **0/0**；无头装置 **11 条行为信号逐字相同**（范围大于计划原文列的 3 条）。
+- [x] **Step 7：连带 `PLN-R5.5`**——`e1`/`e4` 的重写仍**留待后续轮**（本 Task 只改述状态，不改 `PLN-R5.5` 正文）。
 
-**验收信号**：技能侧全部既有读数逐字不变（含 Instancing 四态）；`FTcsCastRun` 已不存在于代码；`TcsCastOps.cpp` 内**零**内联 Instancing 分流。
+> **★ 一处过期描述订正（2026-10-14，MUST 读）**：计划原文把 Step 3「门禁④ 改走共享决策接口」
+> 列为本 Task 的 Step 并称"**这是本重构的实质收益点**"——**该收益点已在 Task 1 落地**
+> （`git log -S 'FTcsEntityAdmissionAlwaysNew'` 唯一命中 `0ac43b6` = Task 1）。
+> 该段的**现状**：只剩①**档位 → 策略的绑定**（读 `Def->Instancing` / `Def->bRetriggerOnActive` 选策略实例）
+> 与②**决策结果的消费**（按 `Kind` 走驳回/顶替）——**这正是计划允许保留的两件事**，
+> 决策（同组 / 接受 / 层数）全部住策略类。
+> ⇒ **订正**：本 Step 的状态为"**已由 Task 1 交付**"，**MUST NOT** 再当作 Task 3 的待办；
+> **验收信号**中"`TcsCastOps.cpp` 内零内联 Instancing 分流"**已由 Task 1 满足**。
+
+> **★ 两处形状由用户 2026-10-14 开工时改定（取代计划原文，MUST 读）**：
+> ① **不单开 payload 类型**——与 Task 2 同一条判据（已选继承后再包一层只多一层间接、不增加隔离）；
+> ② **命名按 Def 层同构且一次改到底**：记录 `FTcsCastRun` → **`FTcsSkillInstance`**，
+> **句柄 `FTcsCastRunHandle` → `FTcsSkillInstanceHandle`**（幻影标签同改），
+> **方法/成员名一并改**（`GetCastRun`→`GetSkillInstance`、`CastRuns`→`SkillInstances`、
+> `FinishCastRun`→`FinishSkillInstance`、`TerminateCastRun`→`TerminateSkillInstance`、
+> `ForEachCastRunForGC`→`ForEachSkillInstanceForGC`、`ResolveRun`→`ResolveInstance` 等 12 个标识符）。
+> **用户原话意旨**：**彻底一词一义**——"一次施法产生的记录"在全库只剩一个词。
+
+> **★ 判据作废（MUST 读，防后续误用）**：计划原验收信号写「`TcsCastOps.cpp` 内**零**内联 Instancing 分流」——
+> 该条**已在 Task 1 满足**（今日仍成立，但**不是**本 Task 的成绩）。**同段"`FTcsCastRun` 已不存在于代码"本次真的成立**
+> （与 Task 2 那条不同：Task 2 的基底**保留原名**故该判据作废；本 Task 的记录类型**确实被替换**）。
+
+**验收信号**：✅ 技能侧全部既有读数**逐字不变**（11/11 行为信号，含 Instancing 四态与 ARO 路径）；
+✅ **`FTcsCastRun` 已不存在于代码**（判据成立）；✅ **`TcsCastOps.cpp` 内零内联 Instancing 分流**（Task 1 已满足）；
+✅ 原 11 字段全有归属（5 上提 + 6 留域 = 11）；✅ 双配置 **0 error / 0 warning**。
+
+### Task 3 开工前置（§0.5.2 四个固定动作，2026-10-14 现场执行）
+
+> **★ 本节按 §0.5.2 的使用纪律"**每个 Task 按自己的改动面重新枚举**"执行**
+> （**MUST NOT** 沿用 Task 1 / Task 2 的表——那是它们各自改动面的产物）。
+
+**动作 A：逐条对已登记债的触发条件**（依 `MEM-20261010-08`）
+
+在册 **74 条**（`deferred-inputs-ledger.md` 幂等 id 行实测）**逐条过完**，结论 = **本 Task 不消费、不触发任何条目**。
+**三条擦边者逐条判定**：
+
+| 条目 | 擦边原因 | 判定 |
+|---|---|---|
+| `CHAIN-7` | 本 Task 改的就是它的**闭合依据字段**（`RunSource` → 基底 `CascadeAnchor`） | **不触发**——它是"按来源回收的触发点缺失"，触发点已于 R6 落地；本 Task 只**改字段归属**，回收行为逐字不变（装置 `C1/C2/C3` 三路读数逐字相同即证） |
+| `SCRIPT-10` | 技能账本 / 运行态的**脚本读写面缺席**，而它明文点名"`FTcsCastRunHandle` 本轮已定 `USTRUCT(BlueprintType)`" | **不触发**——判据是"出现脚本要读技能等级 / 在飞 run 的真实消费者"；本 Task **只改名不改反射性**（仍非反射 + 句柄仍反射），无新消费者。**但需同步一处措辞**：该条引用的类型名已变（归 Task 5 规格面） |
+| `MECH-1` | 槽位+代际+空闲栈的**第四份实现**（扁平 `FTcsTriggerRegistry`） | **不触发**——判据是"再出现一处扁平池 / 需要 GC 口 / 奇偶校验 / 可注入发号"；本 Task **不动任何池载体**（技能侧仍用扁平的 `TTcsInstancePool`，只换载荷类型名） |
+
+**★ 动作 A 的真实命中仍不在债务册，而在「体例债」登记表本身**（**Task 2 同类缺口的第二次**）：
+
+| 文件 | 行数 | 对本 Task 改动面的引用 | 处置 |
+|---|---|---|---|
+| `TcsDevSliceRig.cpp` | **3552** | `FTcsCastRun` **0 处**（其 46 处命中全是 `RunSource`——**链侧** `FTcsEffectContext` 的字段，与本 Task 无关） | ✅ **不触碰** |
+| `TcsDevSliceRig_CooldownCost.cpp` | **1671** | **0 处** | ✅ 不触碰 |
+| `TcsDevSliceRig_Skill.cpp` | **1129** | `FTcsCastRunHandle` 11 + `FTcsCastRun` 1 = **12 处（正面波及）** | ✅ **就地改名**（等长替换），**MUST NOT** 拆分 |
+| `TcsCooldownOps.cpp` | **1021** | **0 处** | ✅ 不触碰 |
+| `TcsCastOps.cpp` | **998** | **29 处（正面波及，本 Task 主战场之一）** | ✅ 就地改（+74/−73） |
+| `TcsDevSkillParamChainProbe.cpp` | **938** | `FTcsCastRunHandle` 3 + `FTcsCastRun` 2 = **5 处（正面波及）** | ✅ 就地改名 |
+| `TcsDevSkillCastProbe_Phase.cpp` | **856** | `FTcsCastRunHandle` 15 + `FTcsCastRun` 1 = **16 处（正面波及）** | ✅ 就地改名 |
+| `TcsSkillSubsystem.h` | **812** | `FTcsCastRunHandle` 9 + `FTcsCastRunTag` 1 + `FTcsCastRun` 4 = **14 处（正面波及）** | ✅ 就地改 |
+| `TcsDevSliceRig_State.cpp` | **803** | **0 处** | ✅ 不触碰 |
+
+> **★ 与 Task 2 的一处关键差别（MUST 读，防误判）**：Task 2 那次"漏登记"是**两个正面波及的文件未列入**，
+> 本次**正面波及的 5 个超限文件全部检出了**（因新纪律已生效）。⇒ 本表**不是**又一次漏登记，
+> 而是**新纪律第一次真的拦住了**（前一轮立的"MUST 按 Task 重枚举"在本轮产生效果）。
+> **一处如实登记**：`TcsDevSliceRig.cpp` 的 46 处 `RunSource` 命中**极易误判为波及**——
+> 它们是**链侧** `FTcsEffectContext::RunSource`（该字段**仍在、名字不变**）。判据 = **逐处核对字段归属，MUST NOT 按词形命中计数**。
+
+**动作 B：日期取现场值**（依 `MEM-20261004-05`）
+
+现场执行 `Get-Date -Format 'yyyy-MM-dd HH:mm:ss'` = **2026-10-14 15:51:57**，
+与轮次日 **2026-10-14** 一致 ⇒ **无跨零点错位、无需留痕**。
+
+**动作 C：「护栏表」**（依 `MEM-20261014-01`）
+
+本 Task 的实质 = "技能运行态**并入基底** + **一次施法记录的全面改名**" ⇒ 适用。
+逐字段出表（一行为一物，列该物**独有**的拦截）：
+
+| # | 原 `FTcsCastRun` 字段 | 归属 | 该字段**独有**的拦截（合并后是否失效） |
+|---|---|---|---|
+| 1 | `Entity` | **基底** | 无独有拦截（两域逐字同义，注释都自述"必须自持，O(1) 定位"） |
+| 2 | `Level` | **基底** | 无（冻结语义两域相同） |
+| 3 | `ParamSnapshot` | **基底** | 无（GC 地雷在基底统一由 ARO 覆盖，**优于**两域各写一遍） |
+| 4 | `RunSource` | **基底 `CascadeAnchor`** | 无——它的三个消费点全是"按它一次摘净"（链挂属性条目 / 本域物化参数链条目 / 传给链的锚点）⇒ **与 Buff 侧同角色**。**MUST NOT 与状态侧 `Source` 混同**（后者是"谁施加的"、明文 MUST NOT 当撤销锚点） |
+| 5 | `PhaseExpiryEntry` | **基底 `ExpiryEntry`** | 无——与 Buff 侧时值到期同角色（当前计时项的取消锚）。**MUST NOT 与 `PhaseIndex` 混同**（同词根不同义：一个是下标、一个是取消锚） |
+| 6 | `EntryHandle` | **本域** | **类型不同**（`FTcsSkillEntryHandle`）⇒ 基底是**一个** struct、只能有一个句柄类型；**且技能侧记录**不持自己的句柄**（扁平池，无"按自己句柄找自己"的需求） |
+| 7 | `PhaseIndex` | **本域** | 与基底 `ExpiryEntry` **同词根不同义** ⇒ 上提即制造二义性 |
+| 8 | `ChainRunHandle` | **本域** | 技能域专有（链运行态句柄） |
+| 9 | `ActiveChainId` | **本域** | 技能域专有（"**实际**起的是哪条链"——链运行态反查不到） |
+| 10 | `MainChainStart` | **本域** | 技能域专有（起链档位） |
+| 11 | `MainChainStartPhaseTag` | **本域** | 技能域专有（起链档位引用的时段标识） |
+
+**⇒ 11 = 5（上提基底）+ 6（留本域）** ✓
+**另有一项**：基底 `DefTag` 在技能侧**原本不存**（每次去账本条目上取）⇒ 继承后**MUST 填**（裁定②）。
+**两个句柄改名的护栏**：三个句柄 MUST 保持**独立反射类型**（`instance-handle-pool` 的编译期护栏）
+⇒ `FTcsSkillInstanceHandle` 只是**改名**，**MUST NOT** 借机合并三个句柄。
+
+**动作 D：超限文件与增长量留档**（★ 用户 2026-10-14 立，跨任务通用）
+
+**本 Task 无新增超限文件**；正面波及的 5 个超限文件**均有增长**（如实登记，**MUST NOT** 写"零增长"）：
+
+| 文件 | 行数（前 → 后） | 增长 |
+|---|---|---|
+| `TcsCastOps.cpp` | 997 → **998** | **+1** |
+| `TcsDevSliceRig_Skill.cpp` | 1129 → **1129** | 0（等长替换） |
+| `TcsDevSkillParamChainProbe.cpp` | 938 → **938** | 0（等长替换） |
+| `TcsDevSkillCastProbe_Phase.cpp` | 856 → **856** | 0（等长替换） |
+| `TcsSkillSubsystem.h` | 812 → **812** | 0（等长替换） |
+
+**拆分时机 = 本 Task 验收之后**（动作 D 第③段）；**MUST NOT** 插在重构与验收之间。
+
+### Task 3 实施记录（2026-10-14）
+
+**状态 = 七个 Step 全部落地**（Step 3 由 Task 1 交付，本 Task 只订正状态），
+双配置编译 `Result: Succeeded`（Dev Editor + Game Shipping，**0 error / 0 warning**），
+无头装置回归 **11 条行为信号逐字相同**。
+
+**★ 落地形状（可复算）**
+
+```
+FTcsStateInstance（基底，TcsState，Task 2 已建）
+│  DefTag · Entity · CascadeAnchor · ParamSnapshot · Level · ExpiryEntry
+│
+├── FTcsBuffInstance    （TcsState 暂住 → Task 4 搬 TcsBuff）  8 域字段，Task 2
+└── FTcsSkillInstance   （TcsSkill，本 Task 新建）              6 域字段
+       EntryHandle · PhaseIndex
+       ChainRunHandle · ActiveChainId · MainChainStart · MainChainStartPhaseTag
+```
+
+**★ 11 字段去向（实测落地）**：**5 上提基底** + **6 留本域** = **11 ✓**
+（上提者：`Entity` / `Level` / `ParamSnapshot` / `RunSource`→`CascadeAnchor` / `PhaseExpiryEntry`→`ExpiryEntry`）
+
+**★ 两处用户裁定（2026-10-14 开工时）**：
+
+| # | 议题 | 裁定 | 判据 |
+|---|---|---|---|
+| 1 | 基底 `DefTag` 在技能侧**恒空**怎么办 | **填上 + 8 处读取点改读自己**，**但保留"条目撤销 ⇒ 不发终止事件"那处守卫** | 值等价、行为中性；而"条目撤销⇒不发事件"是**有意**语义，去掉即行为变更 |
+| 2 | 记录改名后**句柄**跟不跟 | **一并改名**，**方法/成员名也一并改** | **彻底一词一义** |
+
+> **★ 裁定 1 的实施细节（MUST 读，防误读为"只填了个字段"）**：
+> 8 处原本从账本条目取定义身份（`Entry->DefTag`）改为读**运行态自己**（`Run->DefTag`）。
+> **但 `Entry` 作为"存在性门禁"的用法全部保留**——5 处形如 `Entry ? GetRegisteredSkillDef(...) : nullptr`
+> 的写法**只换了取值来源、没撤门禁**；载荷装配处的 `if (Entry)` 守卫**原样保留**。
+> ⇒ **"条目已被撤销 ⇒ 不广播终止事件"这一语义逐字不变**（装置 `SkillCast.Reject` 16/0 与
+> `SkillLayer.Run` 的 C2/C3 打断/顶替读数逐字相同即证）。
+> **一处连带**：`StartMainChain` 的 `Entry` 形参因此在改读自己后**零消费者**
+> ⇒ 按"零消费者不预建"**删除该形参**（含 `.h` 声明与 2 处调用点 + `@param` 文档同步）——
+> **MUST NOT** 留死形参（会触发未引用形参警告，破坏零 warning 门槛）。
+
+**★ 一处过期描述订正**：计划原文把「门禁④ 改走共享决策接口」列为 Task 3 的 Step 并称"本重构的实质收益点"
+——**该收益点已在 Task 1 落地**（`git log -S` 唯一命中 `0ac43b6`）。现状只剩"档位→策略绑定"与"决策结果消费"
+（计划允许保留的两件事）。⇒ 本 Task **零改动**，已在该 Step 就地标注。
+
+**★ 改名规模（可复算，TCS）**
+
+| 层 | 内容 | 量 |
+|---|---|---|
+| 类型名 | `FTcsCastRun` / `FTcsCastRunHandle` / `FTcsCastRunTag` | 78 / 120 / 11 处 |
+| 方法 / 成员 | 12 个标识符（`GetCastRun` / `CastRuns` / `FinishCastRun` / `TerminateCastRun` / `ForEachCastRunForGC` / `ResolveRun` / `CountRuns` / `FindActiveRun` / `TerminateRun` / `CastRunGC` / `ClearActiveRuns` …） | 约 150 处 |
+| 文件 | 2 个头 `git mv` + 删除 | 2 |
+| 文件路径引用 | `#include "Skill/TcsCastRun.h"` 一类 | 含在类型名内 |
+
+**改动规模**：TCS **28 文件**（26 改 + 2 删 + 2 新增 = 净 +0 文件），LAC **6 文件**（装置跟随改名）。
+
+**★ 装置回归（判据 = 与 Task 2 基线逐字相同）**
+
+| 装置 | 读数 | 判定 |
+|---|---|---|
+| `SkillCast.Run` | Passed=**26** Failed=0 在册 run=8 | ✅ |
+| `SkillCast.Reject` | Passed=**16** Failed=0 在册 run=0 条目=6 | ✅ |
+| `SkillCast.Phase` | `Phase` **29/0** + `PhaseDeferred` **34/0** + `PhaseEnterDeferred`（P9 三段齐） | ✅ |
+| `SkillParamChain.Run` / `.Reject` | **26/0** / **9/0** | ✅ |
+| `SkillLayer.Run` / `.Reject` | **24/0**（`[复现性摘要]` 逐字相同）/ **7/0** | ✅ |
+| `CooldownCost.Run` / `.Reject` | **33/0**（含跨帧尾段）/ **7/0** | ✅ |
+| `State.Reject` | 通过 **6** / 失败 **1** | ✅（基线同值） |
+| `Slice.Run` | 通过 **3** / 失败 **3** | ✅（基线同值，PIE-only 既有边界） |
+
+**★ 对比方法（MUST 读，防后人误判为"放过差异"）**：
+逐字对比 = **行为信号行**（`LogTcs*` 前缀）**归一后** `Compare-Object`，归一两类：
+
+1. **环境噪声**：时间戳 / PID / CrashGUID / ini 加载顺序与耗时 / 内存数 / 日志路径；
+2. **帧驱动量**（依本仓既有读法纪律）：`轮询拍数=N`、`轮询 N 拍`、战斗时钟读数、发号器 `Id` / `Owner` /
+   `来源` 数值、槽位 `A/B`、浮点读数、**时钟泵触发条数**。
+3. **改名产物**：`TerminateCastRun` → `TerminateSkillInstance`（装置日志文本内嵌函数名）——
+   **非行为差异**，已归一后比对。
+
+**★ 三处如实登记的边界（MUST NOT 读成已验）**：
+
+| # | 边界 | 实况 |
+|---|---|---|
+| 1 | **基线选型陷阱** | Task 2 的 `03-SkillCast.Phase.log` 是**截断版**（P9 段未执行、`P9` 命中 **0**），完整版是 `03b`。**若按 `03` 作基线会误判"本轮多了 16 行 = 行为差异"**。⇒ 基线 MUST 取 `03b`；**这已是同一坑的第二次**（Task 2 首跑即因等待不足截断） |
+| 2 | **时钟泵条数差** | `SkillLayer.Run` 泵触发 39→37 条、`CooldownCost.Run` 164→163 条。**定性 = 帧驱动**：两轮"条件成立"行号差恰为 2、总行数差亦为 2 ⇒ **停帧时刻差**，非行为差。**判据**：泵的最后一条 `DueTime` 分别 2.0399 / 2.0104（≈一拍） |
+| 3 | **一处措辞订正的有意字符变化** | `TcsCastOps.cpp` 反引号数 594→592：原文"宿主自存 `RunSource`"改为文字表述（该字段名已不存在）⇒ **有意**，非损坏 |
+
+**★ 一处真实的过程缺陷（如实登记，MUST 读）**：
+本轮机械改名**中途出过一次文件损坏** —— 我用的 PowerShell 辅助函数在**只传一对替换**时参数被拍平，
+`$pair[0]` 退化取到**单个字符**，于是把 `TcsCastOps.h` 的 **1075 个星号**换成空格、
+`TcsParamChain.h` 的 **65 个左括号**换成「或」、`TcsNumericParamModifier.h` 的 **290 个反引号**换成 `F`。
+**检出方式** = 逐文件"成对字符计数 vs `HEAD`"（星号 / 反引号 / 括号）。
+**处置** = 三文件按 `HEAD` **逐字节还原**后，改用**脚本文件 + 命中次数护栏 + 字符不变量核对**重做；
+最终全量核对仅剩 1 处反引号差（即上表边界 3，**有意**）。
+**⇒ 纪律（本仓首次登记）**：**批量文本替换 MUST 走脚本文件，MUST NOT 走 shell 内联**；
+每次替换后 **MUST 核对"成对字符计数守恒"**（`*` / 反引号 / 括号），**MUST NOT 只看替换目标词是否命中**。
+**根因** = shell 参数展开把"一元素数组"与"字符串"混同（`MEM-20261013-09` 的同族：
+**按表面形态推断数据结构**）。
+
+**★ 规格面处置（走路径 B，依 Global Constraints 的「规格面处置」条）**
+
+**选路判据**：本 Task **不新建能力**、**不改变对外语义**——只在既有能力内部**换实现形状**
+（类型改名 + 字段归属迁移）⇒ **路径 B（批处理，集中到 Task 5）合法**。
+
+**待回写清单（实测，MUST NOT 只写"规格待同步"）**：主规格中引用旧类型名的**14 个能力、52 处**：
+
+| 类型名 | 处数 | 说明 |
+|---|---|---|
+| `FTcsCastRun` | **31** | **该类型已从代码中消失**（被 `FTcsSkillInstance` 取代） |
+| `FTcsStateInstance` | **21** | 类型仍在，但**语义已变**（从"装 14 字段"变为"基底 6 字段"） |
+
+**按能力分布**（处数降序）：`skill-cast-runtime` **13** · `entity-runtime-mechanism` 7 ·
+`state-instance-lifecycle` 6 · `state-modifier-materialization` 5 · `state-stacking-policies` 4 ·
+`skill-cast-phases` 4 · `skill-param-chain` 3 · `skill-layer-e2e-validation` 2 ·
+`skill-registry` 3 · `effect-interpreter` 1 · `effect-trigger` 1 · `state-behavior-fragments` 1 ·
+`state-param-snapshot` 1 · `skill-cooldown` 1。
+
+**★ 其中最重的一处（Task 5 起草时 MUST 优先处理）**：`skill-cast-runtime` **逐条写死了**
+`FTcsCastRun` 非反射 + 必须经 `TTcsInstancePool` + **"MUST NOT 新建池实现"** + **8 个必具字段**
+——四句全部需要改述（新形状 = 基底 + 派生，池经 Core 的统一桶）。该能力的清单**计划 Task 5 Step 1 已预列**。
+
+**两仓零提交**（提交须用户显式授权）。
 
 ---
 
@@ -984,14 +1242,14 @@ Task 0（两份裁决，✅ 已完成：state-module-positioning + asset-butler�
    │      │
    │      ├─→ Task 2（Buff payload 化）
    │      │      └─→ Task 4（阶段 2：拆出 TcsBuff）────────────┐
-   │      └─→ Task 3（Cast payload 化 + 门禁④ 改共享决策）────┘   ← "技能运行态归入 State"在此完成
+   │      └─→ Task 3（Cast payload 化 ✅ + 门禁④ 改共享决策 ✅[Task 1 已交付]）┘ ← "技能运行态归入 State"在此完成
    │                                                            │
    │                                                     Task 8（阶段 3：TcsAssetButler + 四处搬迁）
    │                                                            │
    └────────────────────────────────────────────────────────────┴─→ Task 5（规格面）→ Task 6（证据重取）→ Task 7（收束）
 ```
 
-**关键路径** = Task 1 → 2 → 4 → **8** → 5 → 6 → 7。**Task 2 与 Task 3 可并行**（payload 各自独立、共享基底已定）。
+**关键路径** = Task 1 → 2 → 4 → **8** → 5 → 6 → 7。**Task 2 与 Task 3 可并行**（payload 各自独立、共享基底已定）——**两者均已交付**。
 **顺序硬约束（实测 + 已拍板，MUST 遵守）**：
 - **Task 1 MUST 先于 2/3**（基底未定则 payload 无处挂）；
 - **Task 4 MUST 先于 Task 8**（✅ 方案 A：`UTcsBuffDefAsset` 届时已在 `TcsBuff` ⇒ **少 2 处资产重定向**：`DA_Check_BuffDef` / `DA_State_E2E`）；
@@ -1063,7 +1321,8 @@ Task 0（两份裁决，✅ 已完成：state-module-positioning + asset-butler�
   无头装置 **10 条命令逐字不变**（`SkillCast.Run` 26/0、`.Reject` 16/0、`SkillParamChain.Run` 26/0、`.Reject` 9/0、
   `SkillLayer.Run` 24/0 + `[复现性摘要]` **逐字相同**、`.Reject` 7/0、`CooldownCost.Run` 33/0、`.Reject` 7/0、
   `State.Reject` 6/1、`Slice.Run` 3/3）；**ARO 阴性对照**：关 `ForEachForGC` ⇒ 26/0 → **24/2**、`存活=否`，还原后回 26/0。
-  **两仓零提交**（提交须用户显式授权）。**下一步 = Task 2（Buff payload 化）**；Task 1 残留两个 PIE 复核点（见《实施记录》末段）。
+
+**两仓零提交**（提交须用户显式授权）。**下一步 = Task 2（Buff payload 化）**；Task 1 残留两个 PIE 复核点（见《实施记录》末段）。
 - 2026-10-14 **Task 2 开工前置（§0.5.2 三个固定动作，第一次真的按"每个 Task 各跑一遍"执行）**：
   动作 A 把在册 **75 条**逐条过完（结论 = **本 Task 不消费、不触发任何条目**；三条擦边者 `STAT-8` / `MECH-1` / `WAIT-13` 逐条判定**不成立**）；
   动作 B 现场日 = **2026-10-14**，与轮次日一致，**无跨零点错位、无需留痕**；
@@ -1103,4 +1362,27 @@ Task 0（两份裁决，✅ 已完成：state-module-positioning + asset-butler�
   （**教训**：有两拍落地段的装置，MUST 先确认该段真的出现过）；② **状态侧实例的 ARO 分支在无头下不可达**
   （三次阴性对照全空转，根因 = GC 时状态侧无在册实例）⇒ 该项**未闭合**、记为边界，MUST NOT 读成已验。
   **★ 动作 D 留档**：两个正面波及的超限 Rig 文件实测**零增长**（3552 / 803 不变）——因字段平铺使访问写法不变、改名是等长替换。
-  **两仓零提交**（提交须用户显式授权）。**下一步 = Task 3（Cast payload 化 + 门禁④ 改走共享决策）**。
+- 2026-10-14 **Task 3 开工前置（§0.5.2 四个固定动作；动作 A/B/C 现场执行，动作 D 为新增）**：动作 A 把在册 **74 条**逐条过完（结论 = **本 Task 不消费、不触发任何条目**；三条擦边者 `CHAIN-7` / `SCRIPT-10` / `MECH-1` 逐条判定**不成立**）；动作 B 现场日 = **2026-10-14**，与轮次日一致、**无跨零点错位**；动作 C 出**逐字段护栏表**（11 行 + 句柄改名护栏）；动作 D 留档 **无新增超限文件**、正面波及 5 个超限文件（4 个等长替换 + `TcsCastOps.cpp` **+1**）。**★ 与 Task 2 的关键差别（MUST 读）**：Task 2 那次"漏登记"是**正面波及的文件未列入**，本次**正面波及的 5 个超限文件全部检出** ⇒ **上一轮立的"按 Task 重枚举"纪律第一次真的拦住了**。**一处极易误判处已就地登记**：`TcsDevSliceRig.cpp` 的 46 处 `RunSource` 命中是**链侧** `FTcsEffectContext::RunSource`（该字段仍在、名字不变）——判据 = **逐处核对字段归属，MUST NOT 按词形命中计数**。
+- 2026-10-14 **Task 3 落地**：七个 Step 全部完成（见 Task 3 末尾《实施记录》）。**★ 两处形状由用户开工时改定**：① **不单开 payload 类型**（`TcsCastPayload.h` 不创建，字段直接平铺进 `FTcsSkillInstance`）；② **彻底一词一义**——记录 / 句柄 / 方法 / 成员名**一次改到底**。**★ 两处用户裁定**：① 基底 `DefTag` 在技能侧**填上 + 8 处改读自己**，**但 `Entry` 的"存在性门禁"用法全部保留**（5 处 `Entry ? … : nullptr` 只换取值来源、载荷装配的 `if (Entry)` 守卫原样保留）⇒ **"条目撤销 ⇒ 不发终止事件"语义逐字不变**；一处连带 = `StartMainChain` 的 `Entry` 形参因此**零消费者** ⇒ 删除（含 `.h` + 2 调用点 + `@param`），**MUST NOT** 留死形参；② 句柄与方法名一并改。**★ 一处过期描述订正**：「门禁④ 改走共享决策」**已在 Task 1 落地**（`git log -S` 唯一命中 `0ac43b6`），本 Task **零改动** ⇒ 该 Step 状态改"已由 Task 1 交付"，**MUST NOT** 再当作 Task 3 的待办；**同批订正一条判据的归属**：原验收信号"`TcsCastOps.cpp` 内零内联 Instancing 分流"**已在 Task 1 满足**。**落地要点**：11 字段 = **5 上提基底**（`Entity` / `Level` / `ParamSnapshot` / `RunSource`→`CascadeAnchor` / `PhaseExpiryEntry`→`ExpiryEntry`）+ **6 留本域**；改动 TCS **28 文件**、LAC **6 文件**。**门禁**：双配置 **0 error / 0 warning**；无头装置 **11 条行为信号逐字相同**；`validate --all --strict` TCS **43/0**、LAC **4/0**。**★ 三处如实登记的边界（MUST NOT 读成已验）**：① **基线选型陷阱**——Task 2 的 `03-SkillCast.Phase.log` 是**截断版**（`P9` 命中 0），完整版是 `03b`，按 `03` 作基线会误判"本轮多 16 行 = 行为差异"（**同一坑的第二次**，首次即 Task 2 首跑等待不足）；② **时钟泵条数差**（39→37 / 164→163）定性 = **帧驱动**，判据 = 两轮"条件成立"行号差恰为 2、总行数差亦为 2；③ **一处有意字符变化**（`TcsCastOps.cpp` 反引号 594→592，因字段名已不存在而改措辞）。**★ 一处真实的过程缺陷（本仓首次登记，MUST 读）**：机械改名中途**出过一次文件损坏**——PowerShell 辅助函数在**只传一对替换**时参数被拍平、`$pair[0]` 退化取到**单个字符**，于是 `TcsCastOps.h` 的 **1075 个星号**→空格、`TcsParamChain.h` 的 **65 个左括号**→「或」、`TcsNumericParamModifier.h` 的 **290 个反引号**→`F`（三文件共 **1430 个字符**）。**检出方式** = 逐文件"成对字符计数 vs `HEAD`"；**处置** = 按 `HEAD` **逐字节还原**后，改用**脚本文件 + 命中次数护栏 + 字符不变量核对**重做。**⇒ 立纪律**：**批量文本替换 MUST 走脚本文件，MUST NOT 走 shell 内联；每次替换后 MUST 核对"成对字符计数守恒"（`*` / 反引号 / 括号），MUST NOT 只看替换目标词是否命中**。**根因** = shell 参数展开把"一元素数组"与"字符串"混同（`MEM-20261013-09` 同族：**按表面形态推断数据结构**）。**★ 规格面处置（走路径 B，依 Global Constraints 的「规格面处置」条）**
+
+**选路判据**：本 Task **不新建能力**、**不改变对外语义**——只在既有能力内部**换实现形状**
+（类型改名 + 字段归属迁移）⇒ **路径 B（批处理，集中到 Task 5）合法**。
+
+**待回写清单（实测，MUST NOT 只写"规格待同步"）**：主规格中引用旧类型名的**14 个能力、52 处**：
+
+| 类型名 | 处数 | 说明 |
+|---|---|---|
+| `FTcsCastRun` | **31** | **该类型已从代码中消失**（被 `FTcsSkillInstance` 取代） |
+| `FTcsStateInstance` | **21** | 类型仍在，但**语义已变**（从"装 14 字段"变为"基底 6 字段"） |
+
+**按能力分布**（处数降序）：`skill-cast-runtime` **13** · `entity-runtime-mechanism` 7 ·
+`state-instance-lifecycle` 6 · `state-modifier-materialization` 5 · `state-stacking-policies` 4 ·
+`skill-cast-phases` 4 · `skill-param-chain` 3 · `skill-layer-e2e-validation` 2 ·
+`skill-registry` 3 · `effect-interpreter` 1 · `effect-trigger` 1 · `state-behavior-fragments` 1 ·
+`state-param-snapshot` 1 · `skill-cooldown` 1。
+
+**★ 其中最重的一处（Task 5 起草时 MUST 优先处理）**：`skill-cast-runtime` **逐条写死了**
+`FTcsCastRun` 非反射 + 必须经 `TTcsInstancePool` + **"MUST NOT 新建池实现"** + **8 个必具字段**
+——四句全部需要改述（新形状 = 基底 + 派生，池经 Core 的统一桶）。该能力的清单**计划 Task 5 Step 1 已预列**。
+
+- 2026-10-14 **规格面处置条款订正（★ 用户提问驱动的缺口暴露，MUST 读）**：用户问「**Task 3 的执行没有创建提案吗**」——实测 **Task 2 与 Task 3 都没开提案**（`openspec/changes/` 零活动提案；而 **Task 1 那次是真开了的**：`merge-entity-runtime-mechanisms`，含新建能力 `entity-runtime-mechanism` + 归档）。**根因 = 计划自相矛盾**：Global Constraints 原文写「**每个 Task** 的实施以 OpenSpec 提案开道」，而 **Task 5（规格与能力面回写）** 的设计是**批处理**——两者不可能同时成立。**后果 = 静默跳步**：Task 2 / Task 3 两轮既没开提案、也没记录这个决定（**没有任何检查会因它失败**）。**订正** = 把该条改为**两条合法路径 + 选路判据**（新建能力或改对外语义 ⇒ A；既有能力内换实现形状 ⇒ B），并给路径 B 加硬要求（《实施记录》MUST 写明选了 B 及判据 + **待回写能力清单与处数**）。**依据** = 两条路径**在本计划内本来就都存在**（Task 1 走 A、Task 5 走 B），缺的只是把它们命名出来并给判据。**★ 同批补记未偿欠账（实测，MUST NOT 只写"规格待同步"）**：主规格中引用旧类型名的 **14 个能力、52 处** —— `FTcsCastRun` **31 处**（**该类型已从代码中消失**）+ `FTcsStateInstance` **21 处**（类型仍在、**语义已变**：从"装 14 字段"变为"基底 6 字段"）；按能力分布最重者 = `skill-cast-runtime` **13**（它逐条写死了 `FTcsCastRun` 非反射 + 必须经 `TTcsInstancePool` + "MUST NOT 新建池实现" + 8 个必具字段 —— **四句全部要改述**）。该清单已同时写进 **Task 2 / Task 3 的《实施记录》**，归 **Task 5** 消费。**两仓零提交**（提交须用户显式授权）。**下一步 = Task 4（拆出 `TcsBuff` 新模块）**；⚠️ **Task 3 遗留一处未闭合**：`PLN-R5.5` 的 `e1`/`e4` 改述（Step 7 只改述状态、正文未动）。

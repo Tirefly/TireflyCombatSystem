@@ -9,8 +9,8 @@
 
 #include "Def/TcsSkillActivateResult.h"
 #include "Skill/TcsCastFinishReason.h"
-#include "Skill/TcsCastRun.h"
-#include "Skill/TcsCastRunHandle.h"
+#include "Skill/TcsSkillInstance.h"
+#include "Skill/TcsSkillInstanceHandle.h"
 #include "Skill/TcsSkillEntryHandle.h"
 
 class UTcsSkillSubsystem;
@@ -38,7 +38,7 @@ struct FTcsParamEvaluateContext;
  * 按操作种类集中在本类，这样 `UTcsSkillSubsystem.cpp` 保持薄壳，而流程改动不与 UE 生命周期样板混在一起。
  *
  * **它不是"零消费者预建"**：本类的消费者**就是**门面的激活口（同族先例 = `FTcsStateOps` 的 `Apply`）。
- * **访问私有区是它的存在理由之一**——`Registry` / `CastRuns` / `RegisteredDefs` 是门面的私有成员，
+ * **访问私有区是它的存在理由之一**——`Registry` / `SkillInstances` / `RegisteredDefs` 是门面的私有成员，
  * 裁决逻辑落在门面类里会让"谁有权改运行态"与"谁是门面"混作一团
  * （状态侧同款：`FTcsStateOps` 是 `UTcsStateSubsystem` 的 friend）。
  *
@@ -79,7 +79,7 @@ public:
 		UTcsSkillSubsystem& Subsystem,
 		FTcsCombatEntityHandle Entity,
 		FGameplayTag DefTag,
-		FTcsCastRunHandle* OutRun);
+		FTcsSkillInstanceHandle* OutRun);
 
 #pragma endregion
 
@@ -115,13 +115,13 @@ public:
 	 * @param Reason 终结原因（决定发哪一枚事件）。
 	 * @return 返回是否确实终结了一个在册运行态；**重入调用 / 悬空句柄返回 false 且静默**（不 ensure）。
 	 */
-	static bool FinishCastRun(
+	static bool FinishSkillInstance(
 		UTcsSkillSubsystem& Subsystem,
-		FTcsCastRunHandle RunHandle,
+		FTcsSkillInstanceHandle RunHandle,
 		ECastFinishReason Reason);
 
 	/**
-	 * 终结一个运行态（**顶替路径**的便捷入口）——等价于 `FinishCastRun(…, ECFR_Replaced)`。
+	 * 终结一个运行态（**顶替路径**的便捷入口）——等价于 `FinishSkillInstance(…, ECFR_Replaced)`。
 	 *
 	 * **为什么保留它而不是把顶替路径直接改成 `ECFR_Replaced`**：它是 Task 3 已交付的公开面
 	 * （宿主装置 `TcsDevSkillCastProbe.cpp` 的夹具清理动作在调它）⇒ 改签名会波及既有装置；
@@ -132,7 +132,7 @@ public:
 	 * @param RunHandle 要终结的运行态句柄。
 	 * @return 返回是否确实终结了一个在册运行态。
 	 */
-	static bool TerminateRun(UTcsSkillSubsystem& Subsystem, FTcsCastRunHandle RunHandle);
+	static bool TerminateInstance(UTcsSkillSubsystem& Subsystem, FTcsSkillInstanceHandle RunHandle);
 
 	/**
 	 * 清空全部运行态（门面 `Deinitialize` 的确定性清空口）。
@@ -151,10 +151,10 @@ public:
 	 * @param RunHandle 运行态句柄。
 	 * @return 返回运行态；悬空句柄返回 nullptr。
 	 */
-	static FTcsCastRun* Find(UTcsSkillSubsystem& Subsystem, FTcsCastRunHandle RunHandle);
+	static FTcsSkillInstance* Find(UTcsSkillSubsystem& Subsystem, FTcsSkillInstanceHandle RunHandle);
 
 	// 在册运行态数（观测与装置断言用；**验收读数取它**，MUST NOT 取"Activate 被调用几次"）
-	static int32 CountRuns(UTcsSkillSubsystem& Subsystem);
+	static int32 CountInstances(UTcsSkillSubsystem& Subsystem);
 
 #pragma endregion
 
@@ -164,10 +164,10 @@ public:
 
 public:
 	/**
-	 * **冷却的终结侧触发点**（唯一挂点——`FinishCastRun` 内按 `Reason` 分派）。
+	 * **冷却的终结侧触发点**（唯一挂点——`FinishSkillInstance` 内按 `Reason` 分派）。
 	 *
 	 * **四路终结在此分派，MUST NOT 去四个调用点各挂一份**：末段走完 / 瞬发当刻 / 打断 / 顶替
-	 * 全部汇聚到 `FinishCastRun`，而它的签名自带 `ECastFinishReason Reason`。
+	 * 全部汇聚到 `FinishSkillInstance`，而它的签名自带 `ECastFinishReason Reason`。
 	 *
 	 * **分派表**：`ECFR_Interrupted` / `ECFR_Replaced` ⇒ 算"被打断"（起 `ECT_OnCastInterrupted`
 	 * 档——顶替是打断的一种终止形态，`SPEC-04-skill` §11.5 裁决 1）；`ECFR_Completed`
@@ -253,7 +253,7 @@ public:
 	/**
 	 * 进入（或推进到）某时段——**登记该段的到期条目**。
 	 *
-	 * **时长求值 MUST 取本次激活冻结的快照**（`FTcsCastRun.ParamSnapshot`，经
+	 * **时长求值 MUST 取本次激活冻结的快照**（`FTcsSkillInstance.ParamSnapshot`，经
 	 * `UTcsStateParamTableReader` + `FTcsStateSnapshotScope`，与 `ParamChainRows` 物化**同一套绑定手法**）
 	 * ⇒ 引用类时长（`Param()`）读到的是**激活时刻**的值 ⇒ "被修正器改变时段时长 ⇒ 下一次激活生效"
 	 * 的语义**天然成立**（不需要任何"重算"代码）。
@@ -269,7 +269,7 @@ public:
 	 * @param RunHandle 运行态句柄。
 	 * @return 返回是否真的排定了一个待推进时段（false = 无待推进时段或时钟不可得 ⇒ 调用方应走完成终结）。
 	 */
-	static bool EnterPhase(UTcsSkillSubsystem& Subsystem, FTcsCastRunHandle RunHandle);
+	static bool EnterPhase(UTcsSkillSubsystem& Subsystem, FTcsSkillInstanceHandle RunHandle);
 
 	/**
 	 * 时段到期推进（到期堆回调的落点）：`++PhaseIndex` → 发 `PhaseChanged` → 还有待推进时段则注册下一段，
@@ -286,7 +286,7 @@ public:
 	 * @param Subsystem 技能门面。
 	 * @param RunHandle 运行态句柄。
 	 */
-	static void AdvancePhase(UTcsSkillSubsystem& Subsystem, FTcsCastRunHandle RunHandle);
+	static void AdvancePhase(UTcsSkillSubsystem& Subsystem, FTcsSkillInstanceHandle RunHandle);
 
 #pragma endregion
 
@@ -318,10 +318,10 @@ public:
 	 * @return 返回当前是否可打断；**悬空句柄 ⇒ 返回 false**（不可打断是"不动作"的保守档——
 	 *         终结一个已不存在的 run 没有意义，且此处 MUST NOT ensure：那是时序竞态）。
 	 */
-	static bool IsInterruptibleNow(UTcsSkillSubsystem& Subsystem, FTcsCastRunHandle RunHandle);
+	static bool IsInterruptibleNow(UTcsSkillSubsystem& Subsystem, FTcsSkillInstanceHandle RunHandle);
 
 	// 当前是否允许移动（分派与降级规则同 `IsInterruptibleNow`；只是读另一列字段）
-	static bool CanMoveNow(UTcsSkillSubsystem& Subsystem, FTcsCastRunHandle RunHandle);
+	static bool CanMoveNow(UTcsSkillSubsystem& Subsystem, FTcsSkillInstanceHandle RunHandle);
 
 	/**
 	 * **打断入口**（`CancelCast`）：先过查询契约，**MUST NOT 无条件打断**。
@@ -341,7 +341,7 @@ public:
 	 * @param RunHandle 运行态句柄。
 	 * @return 返回是否真的打断了（已终结）；不可打断 / 悬空句柄 ⇒ false。
 	 */
-	static bool CancelCast(UTcsSkillSubsystem& Subsystem, FTcsCastRunHandle RunHandle);
+	static bool CancelCast(UTcsSkillSubsystem& Subsystem, FTcsSkillInstanceHandle RunHandle);
 
 #pragma endregion
 
@@ -372,7 +372,7 @@ private:
 	/**
 	 * 解析运行态（**先判有效性再取指针**）。
 	 *
-	 * **为什么不能直接 `CastRuns.Resolve`**：池的 `Resolve` 对悬空句柄会 **ensure**
+	 * **为什么不能直接 `SkillInstances.Resolve`**：池的 `Resolve` 对悬空句柄会 **ensure**
 	 * （它是"调用方给错句柄"的契约违规口径），而本族的查询面 MUST 走
 	 * "**时序竞态静默返回 nullptr**"的语义 ⇒ 必须用非确保的 `IsValid` 先挡一道。
 	 *
@@ -380,7 +380,7 @@ private:
 	 * @param RunHandle 运行态句柄。
 	 * @return 返回运行态；悬空句柄返回 nullptr（不 ensure）。
 	 */
-	static FTcsCastRun* ResolveRun(UTcsSkillSubsystem& Subsystem, FTcsCastRunHandle RunHandle);
+	static FTcsSkillInstance* ResolveInstance(UTcsSkillSubsystem& Subsystem, FTcsSkillInstanceHandle RunHandle);
 
 	/**
 	 * 在给定条目上找**经池复核有效**的在飞运行态。
@@ -392,7 +392,7 @@ private:
 	 * @param Entry 账本条目。
 	 * @return 返回在飞句柄；无在飞返回无效句柄。
 	 */
-	static FTcsCastRunHandle FindActiveRun(
+	static FTcsSkillInstanceHandle FindActiveInstance(
 		UTcsSkillSubsystem& Subsystem,
 		const FTcsLearnedSkillEntry& Entry);
 
@@ -444,18 +444,17 @@ private:
 	 * @param RunHandle 运行态句柄（**回写与重新解析都靠它**；`Run` 是不带自身句柄的结构体，
 	 *        故句柄 MUST 显式传入——**MUST NOT** 从账本条目的 `RunHandles` 反查，
 	 *        那在 `CI_InstancePerExecution` 下会取错那一发）。
-	 * @param Run 运行态（**只读**——见上）。
+	 * @param Run 运行态（**只读**——见上；定义身份取自它自己的 `DefTag`，**MUST NOT** 改从
+	 *        账本条目取——`Task 3` 已把该字段填进运行态，条目撤销后本条仍须答得出定义身份）。
 	 * @param Def 技能定义内容。
-	 * @param Entry 账本条目。
 	 * @param Trigger 当前触发点（档位判定的输入之一）。
 	 * @param OutChainRun 输出链运行态句柄（未起链时保持无效值）。
 	 */
 	static void StartMainChain(
 		UTcsSkillSubsystem& Subsystem,
-		FTcsCastRunHandle RunHandle,
-		const FTcsCastRun& Run,
+		FTcsSkillInstanceHandle RunHandle,
+		const FTcsSkillInstance& Run,
 		const FTcsSkillDefData& Def,
-		const FTcsLearnedSkillEntry& Entry,
 		ECastChainTrigger Trigger,
 		FTcsChainRunHandle& OutChainRun);
 
@@ -466,7 +465,7 @@ private:
 	 * 而它**无法从 `ChainRunHandle` 反查**（链运行态本身不持链身份；`FindChain` 只答"某条链
 	 * 是否登记"，答不了"这次起的是哪条"）。若靠"重定向表里有几条"或"解析函数返回了什么"来断言，
 	 * 那是在测**解析**而不是测**起链**——一个"解析对了但起链仍用旧 id"的实现会全绿。
-	 * ⇒ 把身份记在运行态上（`FTcsCastRun::ActiveChainId`），读数取它。
+	 * ⇒ 把身份记在运行态上（`FTcsSkillInstance::ActiveChainId`），读数取它。
 	 *
 	 * **重入安全（MUST）**：`ExecuteChain` 可能经链步骤再起一次激活 ⇒ 调用方传进来的 `Run`
 	 * 指针/引用**可能已悬空** ⇒ 本函数**按句柄重新解析**后才回写，MUST NOT 经形参引用回写。
@@ -478,7 +477,7 @@ private:
 	 */
 	static bool ExecuteMainChain(
 		UTcsSkillSubsystem& Subsystem,
-		FTcsCastRunHandle RunHandle,
+		FTcsSkillInstanceHandle RunHandle,
 		FGameplayTag ChainId);
 
 	/**
@@ -519,7 +518,7 @@ private:
 	 */
 	static void TryStartMainChainAt(
 		UTcsSkillSubsystem& Subsystem,
-		FTcsCastRunHandle RunHandle,
+		FTcsSkillInstanceHandle RunHandle,
 		FTcsCombatEntityHandle Entity,
 		FTcsSkillEntryHandle EntryHandle,
 		ECastChainTrigger Trigger);
@@ -536,8 +535,8 @@ private:
 	static void Broadcast(
 		UTcsSkillSubsystem& Subsystem,
 		FGameplayTag EventTag,
-		FTcsCastRunHandle RunHandle,
-		const FTcsCastRun& Run,
+		FTcsSkillInstanceHandle RunHandle,
+		const FTcsSkillInstance& Run,
 		const FTcsLearnedSkillEntry& Entry);
 
 #pragma endregion

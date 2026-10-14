@@ -93,14 +93,14 @@ namespace
 // 起链触发点（**私有静态成员**：它够得着私有的 `StartMainChain` 与 `ECastChainTrigger`）
 void FTcsCastOps::TryStartMainChainAt(
 	UTcsSkillSubsystem& Subsystem,
-	FTcsCastRunHandle RunHandle,
+	FTcsSkillInstanceHandle RunHandle,
 	FTcsCombatEntityHandle Entity,
 	FTcsSkillEntryHandle EntryHandle,
 	ECastChainTrigger Trigger)
 {
 	// **每一步都重新解析**（"任何可能广播/起链的调用之后，手里的指针都可能失效"）：
 	// 起链会同步执行链步骤，链步骤可再起激活（池扩容搬移）或终结本 run。
-	const FTcsCastRun* Run = Find(Subsystem, RunHandle);
+	const FTcsSkillInstance* Run = Find(Subsystem, RunHandle);
 	if (!Run)
 	{
 		return;
@@ -113,7 +113,7 @@ void FTcsCastOps::TryStartMainChainAt(
 		return;
 	}
 
-	const FTcsSkillDefData* Def = Subsystem.GetRegisteredSkillDef(Entry->DefTag);
+	const FTcsSkillDefData* Def = Subsystem.GetRegisteredSkillDef(Run->DefTag);
 	if (!Def)
 	{
 		// 定义被注销 ⇒ 起不了链。**不在这里报 Warning**：`StartMainChain` 只对"该档未实现"
@@ -123,7 +123,7 @@ void FTcsCastOps::TryStartMainChainAt(
 
 	// **`Run` 传 const 引用、`RunHandle` 显式传**（理由见 `StartMainChain` 的形参纪律）
 	FTcsChainRunHandle ChainRun;
-	StartMainChain(Subsystem, RunHandle, *Run, *Def, *Entry, Trigger, ChainRun);
+	StartMainChain(Subsystem, RunHandle, *Run, *Def, Trigger, ChainRun);
 
 	if (!ChainRun.IsValid())
 	{
@@ -133,7 +133,7 @@ void FTcsCastOps::TryStartMainChainAt(
 
 	// **按句柄重新解析后回写**（`Run` 引用在起链后可能已悬空）。
 	// **链身份不过手**：`ExecuteMainChain` 已把它写进运行态——那正是"单一写入点"。
-	if (FTcsCastRun* WriteRun = Find(Subsystem, RunHandle))
+	if (FTcsSkillInstance* WriteRun = Find(Subsystem, RunHandle))
 	{
 		WriteRun->ChainRunHandle = ChainRun;
 	}
@@ -142,9 +142,9 @@ void FTcsCastOps::TryStartMainChainAt(
 
 
 // 时段推进
-bool FTcsCastOps::EnterPhase(UTcsSkillSubsystem& Subsystem, FTcsCastRunHandle RunHandle)
+bool FTcsCastOps::EnterPhase(UTcsSkillSubsystem& Subsystem, FTcsSkillInstanceHandle RunHandle)
 {
-	FTcsCastRun* Run = ResolveRun(Subsystem, RunHandle);
+	FTcsSkillInstance* Run = ResolveInstance(Subsystem, RunHandle);
 	if (!Run)
 	{
 		// 悬空句柄 = 时序竞态（调用方手上的句柄过期），不是契约违规 ⇒ 静默 false，不 ensure
@@ -154,12 +154,12 @@ bool FTcsCastOps::EnterPhase(UTcsSkillSubsystem& Subsystem, FTcsCastRunHandle Ru
 	// 条目与定义：**定义取不到 ⇒ 无时段可推进**（定义在施法期间被注销是合法操作）
 	const FTcsCombatEntityHandle Entity = Run->Entity;
 	const int32 Level = Run->Level;
-	const FTcsSourceHandle RunSource = Run->RunSource;
+	const FTcsSourceHandle CascadeAnchor = Run->CascadeAnchor;
 	const FTcsSkillEntryHandle EntryHandle = Run->EntryHandle;
 
 	FSkillBucket* Bucket = Subsystem.Registry.FindBucket(Entity);
 	const FTcsLearnedSkillEntry* Entry = Bucket ? Bucket->Find(EntryHandle) : nullptr;
-	const FTcsSkillDefData* Def = Entry ? Subsystem.GetRegisteredSkillDef(Entry->DefTag) : nullptr;
+	const FTcsSkillDefData* Def = Entry ? Subsystem.GetRegisteredSkillDef(Run->DefTag) : nullptr;
 	if (!Def)
 	{
 		UE_LOG(LogTcsSkill, Log, TEXT("时段未进入：定义取不到（实体=%lld）"), Entity.Id);
@@ -197,8 +197,8 @@ bool FTcsCastOps::EnterPhase(UTcsSkillSubsystem& Subsystem, FTcsCastRunHandle Ru
 	// 世界已亡（世界拆解）或句柄悬空（run 已被终结）即静默丢弃 —— 不崩溃、不 ensure。
 	// `OwnerId` 传来源 Id（堆零领域词汇，只作回调归属读数）
 	TWeakObjectPtr<UTcsSkillSubsystem> WeakSubsystem(&Subsystem);
-	const FTcsCastRunHandle PhaseRunHandle = RunHandle;
-	const FTcsTimeEntryHandle PushedEntry = Clock->PushExpiry(DueTime, RunSource.Id,
+	const FTcsSkillInstanceHandle PhaseRunHandle = RunHandle;
+	const FTcsTimeEntryHandle PushedEntry = Clock->PushExpiry(DueTime, CascadeAnchor.Id,
 		[WeakSubsystem, PhaseRunHandle](uint64 /*OwnerId*/)
 		{
 			if (UTcsSkillSubsystem* LiveSubsystem = WeakSubsystem.Get())
@@ -209,9 +209,9 @@ bool FTcsCastOps::EnterPhase(UTcsSkillSubsystem& Subsystem, FTcsCastRunHandle Ru
 
 	// **回写靠句柄重新解析**：上面求值调用链可能经引用类源的求值路径再起一次激活
 	// （宿主自定义源是任意代码）⇒ 池可能已扩容搬移
-	if (FTcsCastRun* LiveRun = ResolveRun(Subsystem, RunHandle))
+	if (FTcsSkillInstance* LiveRun = ResolveInstance(Subsystem, RunHandle))
 	{
-		LiveRun->PhaseExpiryEntry = PushedEntry;
+		LiveRun->ExpiryEntry = PushedEntry;
 	}
 	else
 	{
@@ -236,9 +236,9 @@ bool FTcsCastOps::EnterPhase(UTcsSkillSubsystem& Subsystem, FTcsCastRunHandle Ru
 	return true;
 }
 
-void FTcsCastOps::AdvancePhase(UTcsSkillSubsystem& Subsystem, FTcsCastRunHandle RunHandle)
+void FTcsCastOps::AdvancePhase(UTcsSkillSubsystem& Subsystem, FTcsSkillInstanceHandle RunHandle)
 {
-	FTcsCastRun* Run = ResolveRun(Subsystem, RunHandle);
+	FTcsSkillInstance* Run = ResolveInstance(Subsystem, RunHandle);
 	if (!Run)
 	{
 		// 代际失配（旧 run 的残留条目出队）= 时序竞态：静默丢弃（条目本该已被终结路径撤销）
@@ -248,7 +248,7 @@ void FTcsCastOps::AdvancePhase(UTcsSkillSubsystem& Subsystem, FTcsCastRunHandle 
 	// **★ 先复位自己的锚点**（本条是防 ensure 的关键，理由见 `CancelPhaseExpiry` 的注释）：
 	// 条目已一次性失效（本回调正是它），若下面中途 return 也不留悬空句柄；
 	// 而"最后一段到期 → 完成终结"那条路径上，终结例程看到的将是**空锚点**（而非已死的句柄）。
-	Run->PhaseExpiryEntry = FTcsTimeEntryHandle();
+	Run->ExpiryEntry = FTcsTimeEntryHandle();
 
 	const FTcsCombatEntityHandle Entity = Run->Entity;
 	const int32 CurrentPhase = Run->PhaseIndex;
@@ -256,7 +256,7 @@ void FTcsCastOps::AdvancePhase(UTcsSkillSubsystem& Subsystem, FTcsCastRunHandle 
 
 	FSkillBucket* Bucket = Subsystem.Registry.FindBucket(Entity);
 	const FTcsLearnedSkillEntry* Entry = Bucket ? Bucket->Find(EntryHandle) : nullptr;
-	const FTcsSkillDefData* Def = Entry ? Subsystem.GetRegisteredSkillDef(Entry->DefTag) : nullptr;
+	const FTcsSkillDefData* Def = Entry ? Subsystem.GetRegisteredSkillDef(Run->DefTag) : nullptr;
 	if (!Def)
 	{
 		// 定义在施法期间被注销 ⇒ 无法判定"还有没有下一段" ⇒ 如实报出并**停止推进时段**
@@ -276,7 +276,7 @@ void FTcsCastOps::AdvancePhase(UTcsSkillSubsystem& Subsystem, FTcsCastRunHandle 
 		// 越界分支就成了**正常路径**——"正常路径报日志"会让日志失去信号意义，也让 `PhaseTable` 档的
 		// "无当前时段"降级在本该有时段时被误触发。
 		// ⇒ `PhaseIndex` 停在最后一个有效下标，完成这件事由**原因**表达，不由"下标越界"表达。
-		FinishCastRun(Subsystem, RunHandle, ECastFinishReason::ECFR_Completed);
+		FinishSkillInstance(Subsystem, RunHandle, ECastFinishReason::ECFR_Completed);
 		return;
 	}
 
@@ -286,7 +286,7 @@ void FTcsCastOps::AdvancePhase(UTcsSkillSubsystem& Subsystem, FTcsCastRunHandle 
 	// **事件排在起链与注册之前**：注册会求值下一段的时长（可经引用类参数源，是任意代码路径），
 	// 而起链会同步执行链步骤；两者都可能终结本 run 或让池搬移。
 	// 事件先发还有一个语义理由：订阅者此刻读到的状态是"已进入第 N 段、尚无到期条目"——自洽。
-	if (const FTcsCastRun* EventRun = ResolveRun(Subsystem, RunHandle))
+	if (const FTcsSkillInstance* EventRun = ResolveInstance(Subsystem, RunHandle))
 	{
 		if (const FTcsLearnedSkillEntry* EventEntry = Bucket->Find(EntryHandle))
 		{
@@ -306,9 +306,9 @@ void FTcsCastOps::AdvancePhase(UTcsSkillSubsystem& Subsystem, FTcsCastRunHandle 
 		// 下一段排不上（定义刚被注销 / 时钟不可得 / 运行态已终结）：
 		// **只有"运行态仍在册"时才补完成终结**——不这样做会留下"永不终结的在册运行态"；
 		// 但若它已经不在了（上面某步已终结它），再调就是重入（会被守卫挡住，返回 false）。
-		if (ResolveRun(Subsystem, RunHandle))
+		if (ResolveInstance(Subsystem, RunHandle))
 		{
-			FinishCastRun(Subsystem, RunHandle, ECastFinishReason::ECFR_Completed);
+			FinishSkillInstance(Subsystem, RunHandle, ECastFinishReason::ECFR_Completed);
 		}
 	}
 }

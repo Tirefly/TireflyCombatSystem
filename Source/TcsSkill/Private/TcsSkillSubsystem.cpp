@@ -85,7 +85,7 @@ void UTcsSkillSubsystem::Deinitialize()
 	UE_LOG(LogTcsSkill, Log,
 		TEXT("技能门面反初始化：账本条目 %d→%d 已登记定义 %d→%d 施法运行态 %d→%d 链重定向 %d→%d 组冷却槽 %d→0，注入接口已清空"),
 		EntriesBefore, Registry.NumItems(), DefsBefore, RegisteredDefs.Num(),
-		RunsBefore, GetCastRunCount(), RedirectsBefore, ChainRedirects.Num(), GroupSlotsBefore);
+		RunsBefore, GetSkillInstanceCount(), RedirectsBefore, ChainRedirects.Num(), GroupSlotsBefore);
 
 	Super::Deinitialize();
 }
@@ -164,11 +164,11 @@ UTcsEventBusSubsystem* UTcsSkillSubsystem::GetEventBus() const
 	return World ? World->GetSubsystem<UTcsEventBusSubsystem>() : nullptr;
 }
 
-void UTcsSkillSubsystem::ForEachCastRunForGC(TFunctionRef<void(const FTcsCastRun&)> Visitor) const
+void UTcsSkillSubsystem::ForEachSkillInstanceForGC(TFunctionRef<void(const FTcsSkillInstance&)> Visitor) const
 {
 	// 转调池的 **GC 专用只读遍历**（`TTcsInstancePool::ForEachForGC`）。
 	//
-	// **★ 为什么不能直接用 `CastRuns.ForEach`（2026-10-08 首轮 PIE 实测暴露的真实缺陷）**：
+	// **★ 为什么不能直接用 `SkillInstances.ForEach`（2026-10-08 首轮 PIE 实测暴露的真实缺陷）**：
 	// 池的**每一个正常进入点**都无条件 `ensure(IsInGameThread())`（`TcsInstancePool.h` 的
 	// `Allocate`/`Free`/`Resolve`/`IsValid`/`ForEach`/`Reset`，D0-4 单游戏线程假设），而
 	// **GC 的引用收集不在游戏线程上** ⇒ 实测 callstack：
@@ -177,7 +177,7 @@ void UTcsSkillSubsystem::ForEachCastRunForGC(TFunctionRef<void(const FTcsCastRun
 	// **症状极具隐蔽性**：`ensure` 每站点每进程只报一次 ⇒ 表现为"偶尔一条红字"、且**与池空不空无关**
 	// （首轮实测的两次命中都发生在探针运行之前 2 分 21 秒，即 GC 一跑就报）。
 	// ⇒ ARO 内 MUST NOT 走池的公开进入点，改用 `ForEachForGC`（纯读、无断言、判据同 `ForEach`）。
-	CastRuns.ForEachForGC(Visitor);
+	SkillInstances.ForEachForGC(Visitor);
 }
 
 void UTcsSkillSubsystem::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector)
@@ -200,7 +200,7 @@ void UTcsSkillSubsystem::AddReferencedObjects(UObject* InThis, FReferenceCollect
 	// **施法运行态池**同款地雷：池元素住 `TArray`（非 UPROPERTY 容器），而每个 run 的
 	// `ParamSnapshot` 条目可含对象引用（数值来源的副本）⇒ 不补引用即"那个对象被静默回收"。
 	//
-	// **⚠ 遍历口 MUST 用 `ForEachCastRunForGC`，MUST NOT 用 `CastRuns.ForEach`**
+	// **⚠ 遍历口 MUST 用 `ForEachSkillInstanceForGC`，MUST NOT 用 `SkillInstances.ForEach`**
 	// （2026-10-08 首轮 PIE 实测暴露：池的公开入口都断言游戏线程，而 GC 收集不在游戏线程
 	// ⇒ 每次 GC 留一条 `Ensure condition failed: IsInGameThread()` 红字）。详见该函数的注释。
 	//
@@ -208,7 +208,7 @@ void UTcsSkillSubsystem::AddReferencedObjects(UObject* InThis, FReferenceCollect
 	// `AddPropertyReferencesWithStructARO`**：后者要求一个 `UScriptStruct*`（会连带收集结构体
 	// 自身的引用），而 `FTcsParamSnapshotEntry` **不是反射结构体**（快照只在 C++ 侧流转）
 	// ⇒ 没有 `StaticStruct()` 可给。逐条走 `SourceRef` 自己的 ARO 反而更准。
-	This->ForEachCastRunForGC([&Collector](const FTcsCastRun& Run)
+	This->ForEachSkillInstanceForGC([&Collector](const FTcsSkillInstance& Run)
 	{
 		for (const FTcsParamSnapshotEntry& Entry : Run.ParamSnapshot.Entries)
 		{

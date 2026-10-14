@@ -7,7 +7,7 @@
 
 #include "Def/TcsSkillDefData.h"
 #include "Skill/TcsCastEvents.h"
-#include "Skill/TcsCastRun.h"
+#include "Skill/TcsSkillInstance.h"
 #include "Skill/TcsChainRedirect.h"
 #include "Skill/TcsSkillRegistry.h"
 #include "TcsSkillLogChannel.h"
@@ -51,7 +51,7 @@ FGameplayTag FTcsCastOps::ResolveCastChainId(
 // 起链
 bool FTcsCastOps::ExecuteMainChain(
 	UTcsSkillSubsystem& Subsystem,
-	FTcsCastRunHandle RunHandle,
+	FTcsSkillInstanceHandle RunHandle,
 	FGameplayTag ChainId)
 {
 	if (!ChainId.IsValid())
@@ -64,7 +64,7 @@ bool FTcsCastOps::ExecuteMainChain(
 	}
 
 	// **按句柄取运行态，且立刻把需要的一切拷成值**（理由见下方"起链前 MUST 取出"）
-	const FTcsCastRun* Run = ResolveRun(Subsystem, RunHandle);
+	const FTcsSkillInstance* Run = ResolveInstance(Subsystem, RunHandle);
 	if (!Run)
 	{
 		// 运行态在解析期间被终结（时序竞态）⇒ 静默 false，不 ensure
@@ -81,13 +81,13 @@ bool FTcsCastOps::ExecuteMainChain(
 
 	// 黑板装配：`RunSource` MUST = 本 run 的来源锚点——**台账 `CHAIN-7` 的闭合依据**：
 	// 施法运行态是链运行态的**第一个长生命周期持有者**，链内 `ModifyAttribute` 挂的账本条目
-	// 即以该 Source 为锚点 ⇒ 施法终结时可按它回收（回收例程住 `FinishCastRun`）。
+	// 即以该 Source 为锚点 ⇒ 施法终结时可按它回收（回收例程住 `FinishSkillInstance`）。
 	// 本轮无独立的施法上下文形参 ⇒ 主体与发起者同为施法实体、目标集留空
 	// （链侧 `SelectTargets` 自填；`Instigator` 缺省 = 施法者）。
 	FTcsEffectContext Context;
 	Context.Caster = Run->Entity;
 	Context.Instigator = Run->Entity;
-	Context.RunSource = Run->RunSource;
+	Context.RunSource = Run->CascadeAnchor;
 
 	// **★ 起链前 MUST 把结果以外的一切先取出来，且 MUST NOT 在 `ExecuteChain` 之后再写 `Run`**
 	// （2026-10-08 静态自查抓到的一处真实悬空引用）：
@@ -96,13 +96,13 @@ bool FTcsCastOps::ExecuteMainChain(
 	// 传进来的 `Run` 引用**在返回时已悬空**（本仓明文纪律：池元素"扩容即搬移，MUST NOT 跨可能
 	// 触发扩容的调用缓存指针/引用"，`TcsInstancePool.h` 与 `TcsChainRun.h` 两处都写着）。
 	const FTcsCombatEntityHandle CasterEntity = Run->Entity;
-	const FTcsSourceHandle RunSource = Run->RunSource;
+	const FTcsSourceHandle CascadeAnchor = Run->CascadeAnchor;
 
 	const FTcsChainRunHandle ChainRun = Effect->ExecuteChain(ChainId, MoveTemp(Context));
 
 	UE_LOG(LogTcsSkill, Log, TEXT("主链已起：实体=%lld 链=%s 运行态=%d/%d 来源=%llu"),
 		CasterEntity.Id, *ChainId.ToString(),
-		ChainRun.Index, ChainRun.Generation, RunSource.Id);
+		ChainRun.Index, ChainRun.Generation, CascadeAnchor.Id);
 
 	// **按句柄重新解析后回写**（`Run` 引用此刻可能已悬空）：
 	// ① `ChainRunHandle`——"这次施法起了哪条链"；
@@ -110,7 +110,7 @@ bool FTcsCastOps::ExecuteMainChain(
 	// **② 是重定向能被真正验证的关键**：链运行态不持链身份、`FindChain` 也只答"某条链是否登记"
 	// ⇒ 从 `ChainRunHandle` **反查不到**这次起的是哪条链。若装置改取"解析函数返回了什么"，
 	// 那是在测**解析**而不是测**起链**——一个"解析对了但起链仍用旧 id"的实现会全绿。
-	if (FTcsCastRun* LiveRun = ResolveRun(Subsystem, RunHandle))
+	if (FTcsSkillInstance* LiveRun = ResolveInstance(Subsystem, RunHandle))
 	{
 		LiveRun->ChainRunHandle = ChainRun;
 		LiveRun->ActiveChainId = ChainId;
@@ -122,17 +122,16 @@ bool FTcsCastOps::ExecuteMainChain(
 
 void FTcsCastOps::StartMainChain(
 	UTcsSkillSubsystem& Subsystem,
-	FTcsCastRunHandle RunHandle,
-	const FTcsCastRun& Run,
+	FTcsSkillInstanceHandle RunHandle,
+	const FTcsSkillInstance& Run,
 	const FTcsSkillDefData& Def,
-	const FTcsLearnedSkillEntry& Entry,
 	ECastChainTrigger Trigger,
 	FTcsChainRunHandle& OutChainRun)
 {
 	// ── 档位判定（**单点**：三个调用点只报"我是谁"，判"该不该起"只在本函数） ──
 	//
 	// **`Run.MainChainStart` 是激活时冻结的值**（不是 `Def.MainChainStart`）——理由见
-	// `FTcsCastRun::MainChainStart` 的注释：定义可在施法期间被注销，回查会拿到 nullptr。
+	// `FTcsSkillInstance::MainChainStart` 的注释：定义可在施法期间被注销，回查会拿到 nullptr。
 	// 本函数仍收 `Def` 是因为**链身份与时段标识**要从它取（调用方已保证它此刻有效）。
 	const EMainChainStart StartMode = Run.MainChainStart;
 
@@ -186,7 +185,7 @@ void FTcsCastOps::StartMainChain(
 		UE_LOG(LogTcsSkill, Warning,
 			TEXT("主链未起：MainChainStart=%d 档（自定义）未实现——主链启动时点归宿主编排（R6.5-g）。")
 			TEXT("实体=%lld 定义=%s 链=%s"),
-			static_cast<int32>(StartMode), Run.Entity.Id, *Entry.DefTag.ToString(),
+			static_cast<int32>(StartMode), Run.Entity.Id, *Run.DefTag.ToString(),
 			*Def.CastChainId.ToString());
 		return;
 	}
@@ -197,7 +196,7 @@ void FTcsCastOps::StartMainChain(
 		// 本处只报"全局定义缺失"；**不由本函数去猜替代链**（重定向是"替代已声明的链"，
 		// 没有全局定义时它没有输入）。
 		UE_LOG(LogTcsSkill, Warning, TEXT("主链未起：CastChainId 无效（实体=%lld 定义=%s）"),
-			Run.Entity.Id, *Entry.DefTag.ToString());
+			Run.Entity.Id, *Run.DefTag.ToString());
 		return;
 	}
 
@@ -218,7 +217,7 @@ void FTcsCastOps::StartMainChain(
 	// `CI_InstancePerExecution` 下同一条目可有多个在飞 run，反查会取错那一发）。
 	if (ExecuteMainChain(Subsystem, RunHandle, ResolvedChainId))
 	{
-		if (const FTcsCastRun* LiveRun = ResolveRun(Subsystem, RunHandle))
+		if (const FTcsSkillInstance* LiveRun = ResolveInstance(Subsystem, RunHandle))
 		{
 			OutChainRun = LiveRun->ChainRunHandle;
 		}

@@ -43,7 +43,7 @@ class UTcsSkillCostPolicyHost : public UInterface
  * **★ 形参 MUST 只用已反射类型（UHT 硬约束，MUST 读）**：
  * - **`FTcsLearnedSkillEntry` 是"非反射 struct"**（桶内池化纯数据，台账 `SCRIPT-10`；同
  *   `FTcsStateInstance`）⇒ 拿它作 `BlueprintNativeEvent` 形参是 **UHT 硬错误**
- *   （同 `ITcsCastStateQuery` 被迫传 `FTcsCastRunHandle` 而非 `FTcsCastRun`）
+ *   （同 `ITcsCastStateQuery` 被迫传 `FTcsSkillInstanceHandle` 而非 `FTcsSkillInstance`）
  *   ⇒ **必须传已反射的 `FTcsSkillEntryHandle`**。
  * - **翻译方向（MUST 写清，防写反）**：框架侧拿到的是**富上下文**（`FTcsSkillCostContext`，
  *   含 `FTcsLearnedSkillEntry*`），转发器把它**降级**为两个已反射句柄（`Entity` + 条目句柄）

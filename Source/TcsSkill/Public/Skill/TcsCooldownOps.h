@@ -286,7 +286,7 @@ public:
 	 * ① **防 `ensure` 红字**：`CancelExpiry` 对**悬空**句柄是 `ensureMsgf`，而"到期回调正在跑"
 	 *    那一刻它自己的条目**仍然有效**（`FireDueItem` 在回调**返回之后**才释放）
 	 *    ⇒ 回调内若再撤本句柄就是"取消一个正在跑的条目"（留红字）。复位后 `IsValid()` 为假，
-	 *    任何后续清理路径天然跳过。**同款先例 = `FTcsCastRun::PhaseExpiryEntry` 的既有注释、
+	 *    任何后续清理路径天然跳过。**同款先例 = `FTcsSkillInstance::PhaseExpiryEntry` 的既有注释、
 	 *    `FTcsCastOps::AdvancePhase` 的第一条语句。**
 	 * ② **池槽复用纪律**：本状态虽住 `TArray` 而非池，但"整体重置而非逐字段赋值"是同一条纪律
 	 *    （将来给该结构加字段时自动是干净的）。

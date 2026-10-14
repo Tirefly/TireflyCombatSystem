@@ -89,7 +89,7 @@ bool FTcsSkillOps::GetNumericParam(
 	// 参数链算出来的加成**完全看不见**）；② 它不再自己实现一遍求值 —— 改前这里有第二份
 	// "求值 + 值约定转换"，而"值约定只转一次"是本仓硬纪律，两份实现就是两次转换的风险。
 	//
-	// 判据（为什么不能在这里读快照）：快照住在**每次 run** 的 `FTcsCastRun.ParamSnapshot` 里，
+	// 判据（为什么不能在这里读快照）：快照住在**每次 run** 的 `FTcsSkillInstance.ParamSnapshot` 里，
 	// 而本函数的签名是 `(Entity, EntryHandle, Key)`——**没有 run 段**；且 `CI_InstancePerExecution`
 	// 下同一 Entry **可有两个 run 并存**（Task 3 已实测"两个 run 并存，读数 = 2"）⇒
 	// "读哪一次施法的冻结值"**无唯一答案**。

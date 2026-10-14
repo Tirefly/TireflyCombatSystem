@@ -34,7 +34,7 @@ namespace
 	 */
 	bool DispatchCastQueryColumn(
 		const FTcsSkillDefData& Def,
-		const FTcsCastRun& Run,
+		const FTcsSkillInstance& Run,
 		const TCHAR* ColumnName,
 		bool FTcsSkillDefData::* DefSwitch,
 		bool FTcsPhaseSpan::* PhaseSwitch)
@@ -81,9 +81,9 @@ namespace
 
 
 // 查询契约
-bool FTcsCastOps::IsInterruptibleNow(UTcsSkillSubsystem& Subsystem, FTcsCastRunHandle RunHandle)
+bool FTcsCastOps::IsInterruptibleNow(UTcsSkillSubsystem& Subsystem, FTcsSkillInstanceHandle RunHandle)
 {
-	const FTcsCastRun* Run = ResolveRun(Subsystem, RunHandle);
+	const FTcsSkillInstance* Run = ResolveInstance(Subsystem, RunHandle);
 	if (!Run)
 	{
 		// 悬空句柄 = 时序竞态 ⇒ 返回"不可打断"（不动作的保守档）。**不 ensure**：
@@ -94,7 +94,7 @@ bool FTcsCastOps::IsInterruptibleNow(UTcsSkillSubsystem& Subsystem, FTcsCastRunH
 
 	FSkillBucket* Bucket = Subsystem.Registry.FindBucket(Run->Entity);
 	const FTcsLearnedSkillEntry* Entry = Bucket ? Bucket->Find(Run->EntryHandle) : nullptr;
-	const FTcsSkillDefData* Def = Entry ? Subsystem.GetRegisteredSkillDef(Entry->DefTag) : nullptr;
+	const FTcsSkillDefData* Def = Entry ? Subsystem.GetRegisteredSkillDef(Run->DefTag) : nullptr;
 	if (!Def)
 	{
 		// 定义取不到 ⇒ 无三档可言。**返回不可打断**（不动作的保守档），Log 级报出原因。
@@ -108,9 +108,9 @@ bool FTcsCastOps::IsInterruptibleNow(UTcsSkillSubsystem& Subsystem, FTcsCastRunH
 		&FTcsPhaseSpan::bInterruptible);
 }
 
-bool FTcsCastOps::CanMoveNow(UTcsSkillSubsystem& Subsystem, FTcsCastRunHandle RunHandle)
+bool FTcsCastOps::CanMoveNow(UTcsSkillSubsystem& Subsystem, FTcsSkillInstanceHandle RunHandle)
 {
-	const FTcsCastRun* Run = ResolveRun(Subsystem, RunHandle);
+	const FTcsSkillInstance* Run = ResolveInstance(Subsystem, RunHandle);
 	if (!Run)
 	{
 		// 同 `IsInterruptibleNow`：悬空句柄返回"不允许"（保守档），不 ensure
@@ -119,7 +119,7 @@ bool FTcsCastOps::CanMoveNow(UTcsSkillSubsystem& Subsystem, FTcsCastRunHandle Ru
 
 	FSkillBucket* Bucket = Subsystem.Registry.FindBucket(Run->Entity);
 	const FTcsLearnedSkillEntry* Entry = Bucket ? Bucket->Find(Run->EntryHandle) : nullptr;
-	const FTcsSkillDefData* Def = Entry ? Subsystem.GetRegisteredSkillDef(Entry->DefTag) : nullptr;
+	const FTcsSkillDefData* Def = Entry ? Subsystem.GetRegisteredSkillDef(Run->DefTag) : nullptr;
 	if (!Def)
 	{
 		UE_LOG(LogTcsSkill, Log, TEXT("施法查询[可移动]：定义取不到（实体=%lld）——按不可移动处理"), Run->Entity.Id);
@@ -135,9 +135,9 @@ bool FTcsCastOps::CanMoveNow(UTcsSkillSubsystem& Subsystem, FTcsCastRunHandle Ru
 
 
 // 打断
-bool FTcsCastOps::CancelCast(UTcsSkillSubsystem& Subsystem, FTcsCastRunHandle RunHandle)
+bool FTcsCastOps::CancelCast(UTcsSkillSubsystem& Subsystem, FTcsSkillInstanceHandle RunHandle)
 {
-	const FTcsCastRun* Run = ResolveRun(Subsystem, RunHandle);
+	const FTcsSkillInstance* Run = ResolveInstance(Subsystem, RunHandle);
 	if (!Run)
 	{
 		// 悬空句柄 = 时序竞态（调用方手上的句柄过期）⇒ 静默 false，不 ensure
@@ -158,6 +158,6 @@ bool FTcsCastOps::CancelCast(UTcsSkillSubsystem& Subsystem, FTcsCastRunHandle Ru
 	}
 
 	// ③ 可打断 ⇒ 走**四路共用的终结例程**，记原因为"打断"
-	// （回收动作与事件分岔全在 `FinishCastRun` 里——本函数 MUST NOT 自己写一份清理）
-	return FinishCastRun(Subsystem, RunHandle, ECastFinishReason::ECFR_Interrupted);
+	// （回收动作与事件分岔全在 `FinishSkillInstance` 里——本函数 MUST NOT 自己写一份清理）
+	return FinishSkillInstance(Subsystem, RunHandle, ECastFinishReason::ECFR_Interrupted);
 }

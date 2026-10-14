@@ -46,7 +46,7 @@ struct FTcsEntityAdmissionRequest
  * **字段取舍判据 = "该字段是否两域共有且语义相同"**（MUST 逐条有据，MUST NOT 图省事多塞）：
  * 两域的运行态记录都持 `DefTag` 身份 / `Entity` 归属 / `Source` 来源（本仓实测：状态
  * `FTcsBuffInstance` 三样俱全——`DefTag` / `Entity` 继承自基底、`Source` 自持；
- * 技能 `FTcsCastRun` 有 `Entity` / `RunSource`，
+ * 技能 `FTcsSkillInstance` 有 `Entity` / `RunSource`，
  * 其 `DefTag` 由调用方从所属账本条目取——**不是新造信息，是调用方手上已有的**）。
  */
 struct FTcsEntityAdmissionExisting
