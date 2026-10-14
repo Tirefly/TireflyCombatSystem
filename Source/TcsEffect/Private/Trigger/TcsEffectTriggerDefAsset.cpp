@@ -2,11 +2,17 @@
 
 #include "Trigger/TcsEffectTriggerDefAsset.h"
 
+#include "Asset/TcsPrimaryAssetEntry.h"
+
 
 
 // 主资产类型取值 = **类名**（族内一致：UTcsAttributeDef → "TcsAttributeDef"、
 // UTcsEffectChainDef → "TcsEffectChainDef"；2026-09-21 用户收口）
 const FPrimaryAssetType UTcsEffectTriggerDefAsset::PrimaryAssetType(TEXT("TcsEffectTriggerDefAsset"));
+
+// 向资产加载层自注册本域的主资产类型（PLN-REFACTOR-1 Task 8 随搬迁一并落地）。
+// 扫描路径 = 宿主内容根；类型名由 StaticClass() 反射派生（零字符串面，类改名不必同步本处或任何 ini）。
+UE_DEFINE_PRIMARY_ASSET_TYPE(UTcsEffectTriggerDefAsset, { TEXT("/Game") }, ETcsAssetLoadPolicy::OnDemand)
 
 
 

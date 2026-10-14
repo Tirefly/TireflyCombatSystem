@@ -37,6 +37,13 @@ class AActor;
  * 存活判定（宿主本体论）：本实现取"组件仍注册"——框架不认识"死亡"；真实项目应覆写/替换为
  * 项目自己的存活规则（如血量归零、Actor 已销毁）。
  */
+/**
+ * **归属声明（2026-10-15，PLN-REFACTOR-1 Task 8 · 裁定⑤ 的落点澄清）**：本类**留在 `TcsIntegration`**，
+ * 不随两个 Def 资产类（`UTcsEffectChainDef` / `UTcsEffectTriggerDefAsset`，已搬入 `TcsEffect`）搬走。
+ * 判据 = **职责与消费面**：本类是 PIE 专用的"句柄 ↔ Actor"映射实现，与"主资产加载/注册"无关；
+ * 而裁决⑤ 所称的"**实体接线层**"**就是 `TcsIntegration` 自身**（不是要新建一个接线模块）。
+ * **MUST NOT 读成"待搬"**——本条只把归属写在类旁边，防止下一轮把它误当遗留物清走。
+ */
 UCLASS()
 class TCSINTEGRATION_API UTcsPieEntityQuery : public UObject, public ITcsEntityQuery
 {

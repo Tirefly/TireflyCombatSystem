@@ -38,6 +38,13 @@ class UTcsPieEntityQuery;
  * 与未来 Mass 的关系（D3-1）：本组件只是**军官侧适配器**——战斗核心（注册表/管线/解释器/流程）
  * 只认 `FTcsCombatEntityHandle`，不认识 Actor；Mass 小兵经桶适配器实现同一契约，核心零改动（台账 WAIT-2）。
  */
+/**
+ * **归属声明（2026-10-15，PLN-REFACTOR-1 Task 8 · 裁定⑤ 的落点澄清）**：本类**留在 `TcsIntegration`**，
+ * 不随两个 Def 资产类（`UTcsEffectChainDef` / `UTcsEffectTriggerDefAsset`，已搬入 `TcsEffect`）搬走。
+ * 判据 = **职责与消费面**：本类是 Actor 身份锚与查询门面（把 Actor 生死翻译成注册表条目），与"主资产加载/注册"无关；
+ * 而裁决⑤ 所称的"**实体接线层**"**就是 `TcsIntegration` 自身**（不是要新建一个接线模块）。
+ * **MUST NOT 读成"待搬"**——本条只把归属写在类旁边，防止下一轮把它误当遗留物清走。
+ */
 UCLASS(ClassGroup = (Combat), meta = (BlueprintSpawnableComponent))
 class TCSINTEGRATION_API UTcsCombatEntityComponent : public UActorComponent
 {

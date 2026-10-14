@@ -2,7 +2,9 @@
 
 ## Purpose
 定义 C++ 模块的目录与依赖骨架：模块骨架目录的收窄口径、最小编译集依赖方向，以及文件名去类型前缀的命名纪律。
+
 ## Requirements
+
 ### Requirement: 模块骨架目录收窄口径
 
 每个 UE 模块的根目录 MUST 仅平铺三（组）模块壳文件——`<模块名>.Build.cs`、`<模块名>Module.h`、`<模块名>Module.cpp`（IModuleInterface 实现 + IMPLEMENT_MODULE）；其余代码 MUST 按 `Public/` / `Private/` 分层，对外头文件放 `Public/<领域子目录>/`（领域子目录 PascalCase）；日志分类 MUST 独立通道文件（`Public/<模块名>LogChannel.h` 声明 + `Private/<模块名>LogChannel.cpp` 定义），使用日志只 include LogChannel 头、不 include Module.h。
@@ -19,12 +21,17 @@
 
 ### Requirement: 最小编译集依赖方向
 
-三模块 Build.cs 依赖 MUST 符合 R0 §9：TcsCore 仅依赖引擎基础（Core/CoreUObject/Engine/GameplayTags，禁依赖任何兄弟/上层模块）；TcsNotation 仅依赖 Core/CoreUObject（与 TcsCore 平级互不依赖）；TcsAttribute 依赖引擎基础 + TcsCore + TcsNotation（D5-18 v2）；禁止反向 include。
+各模块 `Build.cs` 依赖 MUST 符合 `DEC-00` §9：`TcsCore` 仅依赖引擎基础（Core/CoreUObject/Engine/DeveloperSettings/GameplayTags，禁依赖任何兄弟/上层模块）；`TcsNotation` 仅依赖 Core/CoreUObject；**`TcsAssetButler` 仅依赖引擎基础（Core/CoreUObject/Engine/DeveloperSettings/GameplayTags/AssetRegistry）——MUST NOT 依赖任何 Tcs 业务模块**（它是各域**向下注册**的落点，方向朝下）；`TcsAttribute` 依赖引擎基础 + TcsCore + TcsNotation（D5-18 v2）；`TcsEffect` 依赖 Core/Attribute + `TcsAssetButler`（其两个 Def 资产类自注册）；禁止反向 include。
 
 #### Scenario: 依赖按 R0 §9 落位
 
 - **WHEN** 读取三模块 Build.cs 的 PublicDependencyModuleNames
 - **THEN** TcsCore 不含任何 Tcs* 模块，TcsNotation 不含任何 Tcs* 模块，TcsAttribute 恰好含 TcsCore 与 TcsNotation
+
+#### Scenario: 加载层零业务依赖且被各域向下依赖（2026-10-15 新增）
+
+- **WHEN** 读取 `TcsAssetButler.Build.cs` 的 PublicDependencyModuleNames 与 `TcsEffect.Build.cs` 的同项
+- **THEN** 前者**不含**任何 `Tcs*` 模块（只有引擎六项）；后者**含** `TcsAssetButler` —— 依赖方向严格朝下，不成环
 
 ### Requirement: 文件名去类型前缀
 

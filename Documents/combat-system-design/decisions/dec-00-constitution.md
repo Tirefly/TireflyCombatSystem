@@ -126,6 +126,7 @@
 |---|---|---|
 | TcsCore | 句柄机制（**FTcsSourceHandle 归属来源标识归此**：系统级通用归属机制，非战斗本体论）、池、事件总线（含 BP/CS 动态监听层）、时钟/到期堆、诊断、词表/DefLibrary 机制、**数值配置载体 FTcsParamValue{TInstancedStruct<FTcsParamValueSource>}（PV 系列 2026-09-11 取代 D2-12 FTcsParamScalar；Evaluate 虚分派，Literal/ParamRef 内置）** | 引擎基础 |
 | TcsNotation | 策划记法与文本绑定层（M9 收尾轮新增，第十一模块）：**FTcsValueConvention 值约定**（Percent/OneMinus/Negate EnumFlags，固定顺序组合；写入点→规范值，UI 反变换显示）+ 描述文本绑定（StringTable 命名空间占位符 + FText::Format 组装便利 + 组装器按参数元数据包富文本样式）+ 占位符扫描接口（M8 消费）；渲染本体（RichTextBlock）归宿主 UI；零战斗语义——所有玩家可见/开发者编辑的数值类配置通用（SkillDef/SkillModifierDef/**StateDef 参数行/AttrModDef**/宿主装备） | 仅引擎基础（**与 TcsCore 平级互不依赖**：Core=运行时机制底座，Notation=策划记法底座；宿主非战斗配置可独立复用） |
+| **TcsAssetButler** | **★ 2026-10-15 新增**（`PLN-REFACTOR-1` Task 8）：**PrimaryAsset 加载/注册层**——类型注册表（**类型擦除**：只收 `FPrimaryAssetType` + `UClass*` + 扫描路径 + 策略 + `bIsEditorOnly`）、代码自注册宏 `UE_DEFINE_PRIMARY_ASSET_TYPE`、`UTcsAssetManager : UAssetManager`（覆写 `StartInitialLoading()` 补扫注册表）、加载三策略 `ETcsAssetLoadPolicy`、`FTcsAssetLoader`（异步默认 + 同步逃生口 + 同 id 防重与句柄计数）、编辑器期规则 `UTcsAssetButlerSettings`。**零业务类型依赖**——各域（含层级最低的 `TcsAttribute`）经宏向它**向下注册**；类型名走 `StaticClass()` 反射派生（零字符串面，**MUST NOT 用 ini 提供清单**） | Core, Notation（**与二者平级，不依赖任何 Tcs 业务模块**） |
 | TcsAttribute | M2 属性管线 + **修正器模板 UTcsAttrModDef（D3-19：纯模板+约定列，物化执行器住 TcsState）** | Core, **Notation**（D5-18 v2） |
 | TcsEffect | M4 触发行/链/解释器——**纯机制层（D4-14 注册制分派）**：只住控制流 6 + ModifyAttribute/SetVar/OnError 步骤、执行器注册表 + 自注册宏；领域步骤归领域模块 | Core, Attribute |
 | TcsDamage | 瞬时流程骨架（伤害/治疗）：阶段化事件实时收集修改器、流程属性（M2 语义复用）、临时修正器（流程 Source）、消耗型修正器、FDamageRecord 回放/统计流；**公式=项目 delegate，插件零公式**；**Damage/Heal/ModifyFlow 步骤+执行器住本模块** | Core, Attribute, Effect |
@@ -137,8 +138,9 @@
 | TcsIntegration | M6 集成（**全插件唯一依赖 GameplayStateTree 的模块**） | Skill, Cue |
 | TcsEditor | M8 工具，editor-only | 全部 |
 
-- **表列依赖 = 该模块代码实际 include 的最小编译集**；上文依赖链 `Core←Attribute←Effect←{Damage,Targeting}←State←{Buff,Skill}`（D4-14 + 2026-10-14 Task 4 拆分）是**方向许可**（层级序：谁在谁之上、允许依赖谁），不是强制边清单——跨模块组合（技能×伤害×目标选择）发生在 TcsIntegration/宿主。
+- **表列依赖 = 该模块代码实际 include 的最小编译集**；上文依赖链 `Core ─┬─ Notation` / `└─ AssetButler`（**加载层最低，零业务依赖**）与 `Attribute←Effect←{Damage,Targeting}←State←{Buff,Skill}`（D4-14 + 2026-10-14 Task 4 拆分 + 2026-10-15 Task 8 加载层）是**方向许可**（层级序：谁在谁之上、允许依赖谁），不是强制边清单——跨模块组合（技能×伤害×目标选择）发生在 TcsIntegration/宿主。
   - **★ 2026-10-14 拆分后的两处订正（MUST 读）**：① **`TcsState` 不再依赖 `TcsEffect`**——那条边**全部**由 Buff 专属层产生（内联触发行 / `ApplyState` 链步骤），随 Task 4 搬走即消失；② **`TcsSkill` 与 `TcsBuff` 平级、互不依赖**——技能侧对状态侧的代码级依赖只剩共享层的参数表读口（`GetParamTableReader()`），该口留在 `TcsState` 正是为了保住这条护栏。**模块总数 11 → 12**（R0 §9 的表行；`.uplugin` 的**已物化**计数走 9 → 10，**两组数字各自独立递增，MUST NOT 混算**）。
+  - **★ 2026-10-15 加载层落地后的第三处订正（MUST 读）**：`DEC-00` §9 表**新增 `TcsAssetButler` 行** ⇒ **模块总数 12 → 13**（表行，含两个未建的 `TcsCue` / `TcsEditor`）；而 `.uplugin` 的**已物化**计数走 **10 → 11**。**两组数字仍各自独立递增，MUST NOT 混算**（本 Task 只动 `.uplugin` 序列 → 11 与 `DEC-00` → 13）。**依赖方向**：各域 → `TcsAssetButler`（向下注册），`TcsAssetButler` → 无任何 Tcs 业务模块。
 
 - **语言无关规定（2026-09-02 增补；2026-09-24 补落地形态）**：插件不内嵌任何脚本引擎（AS/C#/TS 是宿主选择）；执行器注册双入口（C++ 静态宏 + 反射动态委托）保证任何语言/项目可用战斗系统；蓝图理论可行不承诺。
   - **落地形态（2026-09-24，台账 SCRIPT-8）**：**宿主脚本插槽 = UObject 接口 + `UFUNCTION(BlueprintNativeEvent)`**——这是 **UE 原生反射分发**（`UFunction::Invoke`），**不是 C# 专属**：AngelScript / Luau / Puerts(TS) / 蓝图**全部支持**，故它才是"语言无关"的真实底座（"反射动态委托"原表述过于笼统，落到具体机制即此）。

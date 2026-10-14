@@ -1466,6 +1466,103 @@ TcsSkill ── 三个技能域策略（原住共享层的 FTcsEntityAdmissionAl
 > **只有代码级引用才产生依赖边**，注释里的提及**不构成归属依据**。
 > **依据**：`MEM-20260902-13`（逐职责问具名了对方哪个类型）+ `MEM-20261013-09`（按词形/表面相邻配对）。
 
+### Task 8 实施记录（2026-10-15，现场执行）
+
+**结论**：九个 Step 全部完成。双配置编译 **0 error / 0 warning**（Dev Editor + Game Shipping）；逐资产重定向验证 **14/14**；`openspec validate --all --strict` = **44 passed / 0 failed**，`changes/` 零活动提案。**两仓零提交**（提交须用户显式授权）。
+
+#### ★ 规格面处置：本 Task 走 **路径 A**（开提案，与 Task 2/3/4 不同，MUST 读）
+
+- **选路判据**（Global Constraints 第 40-41 行）：**该 Task 新建能力或改变对外语义 ⇒ 路径 A**。
+  本 Task **新建了一个能力面**——插件此前**没有**任何 PrimaryAsset 类型注册与加载机制（实测 `PrimaryAssetTypesToScan` / `UAssetManager` 子类 / `AssetManagerClassName` / `CoreRedirects` **全库零命中**），本 Task 把它从零建起并**新增对外 API**（`UTcsAssetManager` / `FTcsPrimaryAssetRegistry` / `UE_DEFINE_PRIMARY_ASSET_TYPE` / `FTcsAssetLoader` / `ETcsAssetLoadPolicy` / `UTcsAssetButlerSettings`）
+  ⇒ **不是「既有能力内部换实现形状」**，属路径 A。**MUST NOT 与 Task 4 的路径 B 混为一谈**（Task 4 是纯模块搬迁 + 改名，零新 API）。
+- **提案 = `add-primary-asset-butler`**：**6 ADDED**（新能力 `primary-asset-loading`：模块边界 / 类型擦除注册项 / 注册表唯一性 / 启动扫描绕开 ini / 加载三件与防重 / 编辑器期规则）+ **3 MODIFIED**（`effect-chain-asset` / `effect-trigger-asset` / `cpp-module-structure`）+ `plugin-descriptor` MODIFIED（模块清单 10 → 11）。
+- **归档** = `2026-10-15-add-primary-asset-butler`（归档日 = 现场机器日，与轮次日一致、无跨零点错位）。
+- **归档后一处手工补正**：新能力的 `## Purpose` 被归档器写成占位句 `TBD - created by archiving change …`，已按字面补写（这正是计划 Task 7 Step 7「两处 `## Purpose` 手工补正」所指的那类动作；**本 Task 提前消费了它的一半**）。
+- **待回写能力清单（归 Task 5，实测处数；MUST NOT 只写「规格待同步」）**：本 Task 的规格面**已就地改到位**（走 A），故**只剩一条待回写**——`integration-entity` 能力的主规格仍描述「定义发现走 `IAssetRegistry::GetAssetsByClass`、不依赖 `PrimaryAssetTypesToScan` 注册」，而**本 Task 已让主资产类型在启动期被 `UTcsAssetManager` 扫进 `AssetManager`** ⇒ Task 5 MUST 补写该能力的「主资产注册」面。**实测处数 = 1 个能力**（`integration-entity` §发现机制段）。**另加**：Task 2/3 的 **14 能力 / 52 处**类型名欠账**仍按原计划归 Task 5**，本 Task 不消费。
+
+#### 动作 A：逐条对已登记债（**按 Task 8 自己的改动面重新枚举**，MUST NOT 沿用 Task 4 的表）
+
+**① 体例债重枚举（`Source/TcsDev/**` 全量扫行数）**：超 800 行者实为 **6 个**——
+`TcsDevSliceRig.cpp` 3552 / `TcsDevSliceRig_CooldownCost.cpp` 1671 / `TcsDevSliceRig_Skill.cpp` 1129 / `TcsDevSkillParamChainProbe.cpp` 938 / `TcsDevSkillCastProbe_Phase.cpp` 856 / `TcsDevSliceRig_State.cpp` 803。
+
+**② 对 Task 8 改动面的引用扫描（这才是「是否波及」的判据，按 include/符号级核）**：
+
+| 文件 | 行数 | 是否引用 Task 8 的改动面 | 处置 |
+|---|---|---|---|
+| `TcsDevSliceRig.cpp` | **3552** | ✅ **正面波及**——include `Chain/TcsEffectChainDef.h`(:18) 与 `Trigger/TcsEffectTriggerDefAsset.h`(:41)，并**具名类型** 18 处（`GatherChainDefAssets` / `GatherTriggerDefAssets` / 多个 `TArray<UTcsEffectChainDef*>` / `NewObject<UTcsEffectChainDef>`） | ✅ **绕开——零改动**（见 ③）；**MUST NOT** 拆分 |
+| `TcsDevSliceRig_State.cpp` | **803** | ✅ include `Chain/TcsEffectChainDef.h`(:21) | ✅ **绕开——零改动**；同上 |
+| 其余四个超限文件 | — | ❌ **零引用** Task 8 改动面 | ✅ 不触碰 |
+
+> **★ 两处「绕开」的可核项（收尾 MUST 逐条复核，MUST NOT 只写「本轮不拆」）**：
+> ① `TcsDevSliceRig.cpp` 行数**仍为 3552**（本 Task 对它零改动）；`TcsDevSliceRig_State.cpp` **仍为 803**。
+> ② **拆分 MUST NOT 发生**——若任一被拆，该次拆分作废其此前全部验收 ⇒ 计入本 Task 的回归面并重验。
+
+**③ 本 Task 的实际改动面（实测，非推断）——两个超限文件零改动，判据如下**：
+搬迁后**头文件相对路径逐字不变**（`TcsIntegration/Public/Chain/TcsEffectChainDef.h` → `TcsEffect/Public/Chain/TcsEffectChainDef.h`，两边的 include 写法都是 `"Chain/TcsEffectChainDef.h"`），
+且依赖方向是 `TcsDev → {TcsEffect, TcsIntegration}`（**两者都已在 `TcsDev.Build.cs` 的依赖表内**）⇒ **零 include 改动、零类型名改动、零 Build.cs 改动**。
+⇒ **体例债在本 Task 的净增长 = 0**（动作 A 结论：**两个超限文件的行数逐字不变**，可核）。
+
+#### 动作 B：日期取现场值
+
+`Get-Date` 现场值 = **2026-10-15**（00:18）。与轮次日一致，**无跨零点错位** ⇒ 无需留痕。
+
+#### 动作 C：护栏表
+
+本 Task **不合并任何同形物**（没有「合并 N 个句柄/桶/注册表/门面/守卫为 1」的动作）⇒ 动作 C **不触发**。
+**唯一相邻者**是新的 `FTcsPrimaryAssetRegistry`——它是**新建**的**唯一**一份主资产类型注册表（此前不存在），**不是**把既有几份合并而来。
+**同批一处必须守死的判据**（否则会重演「合并即失效」）：包含判据 = **`FPrimaryAssetType` 相等**，对齐引擎 `ScanPrimaryAssetTypesFromConfig` 的原话，**MUST NOT 自建第二套**（已写进规格的 scenario）。
+
+#### 动作 D：超限三段式
+
+本 Task **新建 5 个源文件**，逐个核行数：全部**远低于 300 行**（`TcsPrimaryAssetRegistry.cpp` 约 165 行 / `TcsAssetLoader.cpp` 约 125 行 / `TcsAssetManager.cpp` 约 70 行，其余更短）
+⇒ **无文件超限**，动作 D **不触发**。
+
+#### ★ 本 Task 的三处实测发现与文档不一致（逐条复验完毕，MUST NOT 照抄文档）
+
+| # | 文档记法 | **实测** | 处置 |
+|---|---|---|---|
+| ① | 决策 §3 记「两个接线类型资产引用 = 0」 | `TcsCombatEntityComponent` **被 1 个资产引用**（`L_TcsDev_Slice.umap`）；`TcsPieEntityQuery` 确为 0 | **已复验**——该表是「预计不搬但仍要核」的依据；**Step 7 的「留原地」动作以自己实测为准**，未据文档断言「零引用」。**两类型仍留原地**（判据是职责，不是引用数） |
+| ② | 决策 §3 记「14 个已落资产引用 `/Script/TcsIntegration.*`」 | **被搬类型的引用 = 14**（链 12 + 触发 2），但**含引用的资产文件 = 15**（多出 `L_TcsDev_Slice.umap`，它引用的是**不搬**的 `TcsCombatEntityComponent`） | **两者不是矛盾而是口径不同**（按被搬类型计 vs 按含引用的文件计）。**搬迁验收清单以自己实测为准**（14/14 逐个验证通过） |
+| ③ | —（用户提示的扫描口径） | uasset 把**包路径与对象名分开存储** | **已按两段分别扫描**（`/Script/TcsIntegration` 段与 `TcsEffectChainDef` 段各自匹配），未只 grep 连写形态 |
+
+#### 三条红线的验收（Task 8 独有）
+
+| # | 红线 | 验收方式 | 结果 |
+|---|---|---|---|
+| ① | `TcsAssetButler.Build.cs` **零 Tcs 业务依赖** | 读 `Build.cs` + 逐文件列 `Public/` 的全部 `#include` | ✅ 依赖 = `Core`/`CoreUObject`/`Engine`/`DeveloperSettings`/`GameplayTags`/`AssetRegistry`；`Public/` 六个头只 include 引擎头与**自身模块内**头 |
+| ② | 注册键**类型擦除**、**MUST NOT 用 ini 提供清单** | 读 `FTcsPrimaryAssetEntry` 字段集；全库 grep `PrimaryAssetTypesToScan` | ✅ 字段 = 基类 getter 函数指针 / `TArray<FString>` / 枚举 / `bool` / `FPrimaryAssetType` / `UClass*`（零业务类型）；全库 `PrimaryAssetTypesToScan` **零命中** |
+| ③ | 同类型重复 **MUST 报错**、**不自建第二套判据** | 读 `AddResolved` | ✅ 报错文案逐字含引擎原话 `Only a single entry per type is supported`；判据 = `Entries.Contains(Type)`，与引擎同源 |
+
+#### 双配置编译
+
+| 配置 | 命令 | 结果 |
+|---|---|---|
+| Dev Editor | `LegendAutoChessEditor Win64 Development` | **0 error / 0 warning**（`Saved/Task8Logs/editor_dev.log`） |
+| Game Shipping | `LegendAutoChess Win64 Shipping` | **0 error / 0 warning**（`Saved/Task8Logs/game_shipping.log`） |
+
+#### 装置回归（判据 = 既有读数逐字不变）
+
+**已取读数**（无头引擎启动即产出，非 PIE 命令）：
+- `UTcsAssetManager` 补扫日志三行 + `OnCompletedInitialScan` 行（见上方实测注记）——**T1/T3 的判据全由此成立**；
+- **逐资产加载 14/14**（`T2VERIFY SUMMARY ok=14 fail=0 total=14`）——重定向生效的硬判据。
+- **★ 未取项（如实登记，MUST NOT 读成「已回归」）**：`Tcs.Test.Slice.Run` / `.Reject` / `State.Run` 等**装置命令读数**——它们只在 **PIE/Game 世界**成立（`FAutoConsoleCommandWithWorldAndArgs`），本轮无头跑不触发 ⇒ **人工验证点**。**判据 = 与重构前逐字一致**（本 Task 对运行态是**纯搬迁**：两个 Def 类的**字段集与类型名一字未改**，只换宿主模块）。
+
+#### 过程纪律（正面验证与一处新教训）
+
+- **基线纪律**（`MEM-20261014-14`）：本轮**未复用任何既有日志当基线**——所有读数都是本 Task 现场新跑产生的。**未重犯**截断基线坑。
+- **★ 一处新的自伤（MUST 记，与 `MEM-20261014-13` 同源但换了载体）**：本轮我**两次**用「读全文 → 改字符串 → 整文件写回」的方式改**大文档**，而 read 工具对超长文件会**截断返回**（计划文件 1758 行只回 420 行）⇒ **写回即把文件截断**。
+  两次都**当场被读取/编译的异常拦住**，且**均从 git 完整恢复**（`git checkout --`）。
+  **判据**：改**超过工具读取上限**的文件 MUST 走 `edit`（局部替换）或脚本，**MUST NOT** 读全文再写回；写回后 MUST **立刻核行数**（本轮恢复后已逐处核过：计划 1758 → 1816 行；两份被截断的头文件各 +7 行且内容与原文一致）。
+- **一次 UHT 实测新发现**：枚举值**上方**的 `//` 注释会被 UHT 自动登记为 `ToolTip` 元数据，与显式 `ToolTip` 撞一致性检查（`Error: Metadata key 'ToolTip' first seen with value '…' then '…'`）⇒ 说明文字**只出现一处**。已写进 `TcsAssetLoadPolicy.h` 的文件注释。
+
+#### 未落地项（如实登记，MUST NOT 读成「已做」）
+
+1. **各域自注册只落了 `TcsEffect` 两个类型**（本 Task 的 Files 明确只列 `TcsEffect` + `TcsIntegration`）。其余域（`TcsAttribute` / `TcsState` / `TcsBuff` / `TcsSkill`）的 `UE_DEFINE_PRIMARY_ASSET_TYPE` **未落**，它们的 `Build.cs` 也**未加** `TcsAssetButler` 依赖。**判据** = 改动面纪律 + **零消费者不预建**（今天没有「按 `FPrimaryAssetId` 拿这四个域定义」的调用点）。**归后续轮次**。
+2. **`Discover*` 未改走 `UAssetManager` 官方发现**（T1 支持但不做，见上方注记）——5 条 `Discover*` 仍走 `IAssetRegistry::GetAssetsByClass`。
+3. **E2 的硬失败面（错类名 ⇒ `Fatal`）未构造**——属「故意触发失败输出」，按本仓纪律 MUST 独立 opt-in 命令。
+4. **装置命令读数未取**（需 PIE，人工验证点，见上）。
+
+---
 ---
 
 ## Task 5 — 规格与能力面回写
@@ -1562,7 +1659,65 @@ TcsSkill ── 三个技能域策略（原住共享层的 FTcsEntityAdmissionAl
   - `FTcsAssetLoader`——`LoadAsync(FPrimaryAssetId)` / `LoadSync(FPrimaryAssetId)` / 防重 + 句柄计数
 - Consumes: 引擎 `UAssetManager` / `FStreamableManager` / `UAssetManagerSettings`（本机源码可读：`E:\UnrealEngine\UE_5.8`）；各域现有 Def 资产类
 
-- [ ] **Step 1：★ 先做 §6 的 T1/T3 两项实测（MUST NOT 跳过）**——① 建一个最小 `UTcsAssetManager` 覆写 `StartInitialLoading()`：`Super::` 后补调 `ScanPathsForPrimaryAssets(...)`，**观察是否错过 bulk scan 批次 / 是否延误 `OnCompletedInitialScan`**（裁决 E3 的时序疑点）；② 确认 `AssetManagerClassName` 指向的类能被解析（**加载不到是硬 `Fatal`**）⇒ 定 `TcsAssetButler` 的 `LoadingPhase` 取值。**两项结论 MUST 写进本计划注记**，MUST NOT 带疑问继续。
+- [x] **Step 1：★ 已实测（2026-10-15；结论见紧跟其后的「Task 8 实测注记」块，两项均无阻碍）**——原要求：先做 §6 的 T1/T3 两项实测（MUST NOT 跳过）——① 建一个最小 `UTcsAssetManager` 覆写 `StartInitialLoading()`：`Super::` 后补调 `ScanPathsForPrimaryAssets(...)`，**观察是否错过 bulk scan 批次 / 是否延误 `OnCompletedInitialScan`**（裁决 E3 的时序疑点）；② 确认 `AssetManagerClassName` 指向的类能被解析（**加载不到是硬 `Fatal`**）⇒ 定 `TcsAssetButler` 的 `LoadingPhase` 取值。**两项结论 MUST 写进本计划注记**，MUST NOT 带疑问继续。
+> ### ★ Task 8 实测注记（2026-10-15，Step 1 的 T1/T3 结论 · MUST 读）
+>
+> 实测方式 = **真起引擎**（`UnrealEditor-Cmd -unattended -nosplash -NullRHI -ExecCmds="quit"`；日志 `Saved/Task8Logs/`），
+> 即 §6 要求的最小 `UTcsAssetManager` 已实际编译进 `TcsAssetButler` 模块并跑过。**两项均无阻碍，未带疑问继续。**
+>
+> #### T1 —— 覆写 `StartInitialLoading()` 后补调 `ScanPathsForPrimaryAssets(...)`：**既不错过 bulk scan，也不延误 `OnCompletedInitialScan`**
+>
+> **引擎读源（`E:\UnrealEngine\UE_5.8`，逐条）**：
+> - `UnrealEngine.cpp:3833`（在 `UEngine::InitializeObjectReferences()` 内）→ `AssetManager->StartInitialLoading()`；
+> - `AssetManager.cpp:4210-4221`（`StartInitialLoading` 体）= `WaitForPremadeAssetRegistry()` → `GInitialBulkScan.StartOnce(this)` → `ScanPrimaryAssetTypesFromConfig()` → 广播 `OnAssetManagerCreatedDelegate`；
+> - **同一次 `GEngine->Init()` 的更晚处**：`UnrealEngine.cpp:2616` → `AssetManager->FinishInitialLoading()` → `AssetManager.cpp:4238-4241` → `PostInitialAssetScan()` → `AssetManager.cpp:4069-4082` 置 `bHasCompletedInitialScan=true` 并广播 `OnCompletedInitialScanDelegate`；
+> - `GInitialBulkScan`（`AssetManager.cpp:648-678`）的收束点是 `FCoreDelegates::GetOnPostEngineInit()`（`LaunchEngineLoop.cpp:4837`），**远晚于** `FinishInitialLoading()`。
+>
+> **⇒ ① 不会错过 bulk scan**：`Super::` 已把窗口开到 `OnPostEngineInit`，补扫落在同一批次内；
+> **② 不会延误收束广播**：补扫发生在 `FinishInitialLoading()` **之前**（同一次 `GEngine->Init()` 内更早的位置）。
+>
+> **实跑佐证（装置日志逐字，`t1_t3_probe1.log`）**：
+> ```
+> LogTcsAssetButler: UTcsAssetManager: StartInitialLoading 进入补扫段——此刻 HasInitialScanCompleted=0（应为 0：初始扫描尚未收束）
+> LogTcsAssetButler: UTcsAssetManager: 扫描主资产类型 TcsAttributeDef ——路径 1 条，命中资产 6 个
+> LogTcsAssetButler: UTcsAssetManager: StartInitialLoading 完成——补扫代码注册类型 1 个
+> LogTcsAssetButler: UTcsAssetManager: OnCompletedInitialScan 已广播——补扫结果已落在同一初始扫描批次内
+> ```
+> 第三行到第四行相隔约 **11 秒**（16.41.54.592 → 16.42.05.878）：收束广播**后到**而非**当场同步**执行
+> ⇒ 与读源结论一致（若补扫落在收束之后，该回调会立即执行）。
+>
+> **⇒ Step 8 的选路**：T1 支持「`Discover*` 改走 `UAssetManager` 官方发现」。**本轮不改**，判据 = **零消费者不预建** +
+> 改动面纪律（会给 5 条 `Discover*` 同时带来行为变化，而当前无调用点需要「按 `FPrimaryAssetId` 拿定义」；
+> 装载已由本 Task 的注册表扫描覆盖）。**该迁移列入《实施记录》的待回写清单，MUST NOT 读成"已做"。**
+>
+> #### T3 —— `AssetManagerClassName` 的 `LoadingPhase`：**`Default` 已足够且已实证**
+>
+> **解析时机**：`UnrealEngine.cpp:3822` 的 `LoadClass<UObject>(nullptr, *AssetManagerClassName.ToString())` 在 `UEngine::InitializeObjectReferences()` 内。
+> **模块加载时机（`LaunchEngineLoop.cpp`）**：`GEngine->Init()` 在 :4053 / :4828，而 `LoadStartupModules()`（:3896 调用，:4669 定义）在其**之前**跑完 `PreDefault`(:4675) → **`Default`(:4682)** → `PostDefault`(:4689)；
+> `PostEngineInit`(:4069 / :4863) 则**晚于**类解析点。
+> **⇒ 取 `LoadingPhase: Default`**（与既有十模块一致；`PreDefault` 无必要，`PostEngineInit` 会 **`Fatal`**）。
+>
+> **实跑佐证**：`TcsAssetButler` 的 `InternalLoadLibrary` 出现在启动早期（16.41.53.869），补扫段（16.41.54.573）在其后且**零 `Fatal`** ⇒ 类解析成功。
+> **未验项（如实登记）**：E2 的硬失败面本轮**未构造**——故意写错类名会让每次启动 `Fatal`，属「故意触发失败输出」，按本仓纪律 MUST 独立 opt-in 命令，本轮不建。
+>
+> #### T2 —— 搬迁重定向（Step 7 判据，一并记录）
+>
+> **★ 与裁决 §6 T2 的方向性出入（MUST 读）**：E7 列的 `PrimaryAssetTypeRedirects` / `AssetPathRedirects` **不对症**——
+> 前者重定向的是 **`FPrimaryAssetType` 这个主资产类型名**、后者重定向的是**资产路径**；
+> 而搬迁后资产里坏掉的是 **`UClass` 的脚本路径引用**（`/Script/TcsIntegration.TcsEffectChainDef`）⇒ **只有 `CoreRedirects` 的 `ClassRedirects` 能救**。
+> **⇒ 本批选 `CoreRedirects`**，并承接 Task 4 的两条实测教训（section 名 = `[CoreRedirects]`；字段名 = `OldName`/`NewName`）。
+>
+> **实测读数**：
+> - `-DebugCoreRedirects` 下 `LogCoreRedirects` 逐段装载正常（该诊断参数本身可用）；
+> - 补扫按新类型命中：`TcsEffectChainDef → 12`、`TcsEffectTriggerDefAsset → 2`；
+> - **逐资产加载验证 = 14/14 全成功**（`T2VERIFY SUMMARY ok=14 fail=0 total=14`），且 `get_class().get_name()` 回读为
+>   **`TcsEffectChainDef` / `TcsEffectTriggerDefAsset`**（新模块下的类身份 ⇒ 重定向生效）。
+> - **★ 一处口径钉死（复验了用户提示第 2 条）**：**被搬类型的资产引用数 = 14**（12 链 + 2 触发）；
+>   而**含引用的资产文件数 = 15**（多出 `L_TcsDev_Slice.umap`——地图也算，但它引用的是 `TcsCombatEntityComponent`，**不随本批搬迁**）。
+>   ⇒ 两者**不是矛盾而是口径不同**；**验收以逐资产实测清单为准**，MUST NOT 照抄「14 个资产」这句话去核文件数。
+>
+> ---
+>
 - [ ] **Step 2：模块壳 + 依赖声明**——`TcsAssetButler.Build.cs` **MUST 零 Tcs 业务依赖**（只用 `Core`/`CoreUObject`/`Engine`/`GameplayTags`/`AssetRegistry`）；日志通道照 D0-6 v2（`Public/TcsAssetButlerLogChannel.h` + `Private/.cpp`，`LogTcsAssetButler`）。
 - [ ] **Step 3：注册项与注册表（类型擦除）**——`FTcsPrimaryAssetEntry` / `FTcsPrimaryAssetRegistry`；**同类型重复 MUST 报错**（对齐引擎语义，**不自建第二套唯一性判据**——裁决 E5）。
 - [ ] **Step 4：自注册宏**——`UE_DEFINE_PRIMARY_ASSET_TYPE(...)`，形态**照既有四枚** `UE_DEFINE_EFFECT_STEP_EXECUTOR` 一族（静态注册器 + 构造期登记）。**验收**：全模块 grep 确认 `TcsAssetButler` 的 `Public/` 头**零业务 Def include**（Review Focus ⑧）。

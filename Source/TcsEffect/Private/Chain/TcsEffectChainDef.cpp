@@ -2,11 +2,17 @@
 
 #include "Chain/TcsEffectChainDef.h"
 
+#include "Asset/TcsPrimaryAssetEntry.h"
+
 
 
 // 主资产类型取值 = **类名**（族内一致：UTcsAttributeDef → "TcsAttributeDef"、UTcsAttrModDef → "TcsAttrModDef"；
 // 2026-09-21 用户收口——原写 "TcsEffectChain" 是族内唯一例外）
 const FPrimaryAssetType UTcsEffectChainDef::PrimaryAssetType(TEXT("TcsEffectChainDef"));
+
+// 向资产加载层自注册本域的主资产类型（PLN-REFACTOR-1 Task 8 随搬迁一并落地）。
+// 扫描路径 = 宿主内容根；类型名由 StaticClass() 反射派生（零字符串面，类改名不必同步本处或任何 ini）。
+UE_DEFINE_PRIMARY_ASSET_TYPE(UTcsEffectChainDef, { TEXT("/Game") }, ETcsAssetLoadPolicy::OnDemand)
 
 
 

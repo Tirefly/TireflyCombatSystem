@@ -39,7 +39,7 @@
  * → `Source` = 系统/DefLibrary 来源句柄"那条的实现落点。**只发现不登记 = 资产零消费者**（策划填了不生效）。
  */
 UCLASS(BlueprintType)
-class TCSINTEGRATION_API UTcsEffectTriggerDefAsset : public UPrimaryDataAsset
+class TCSEFFECT_API UTcsEffectTriggerDefAsset : public UPrimaryDataAsset
 {
 	GENERATED_BODY()
 

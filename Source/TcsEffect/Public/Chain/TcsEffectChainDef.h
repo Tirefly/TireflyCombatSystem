@@ -30,7 +30,7 @@
  * 运行期由执行器注册表拒绝未注册类型（未注册 → 断链 + Error，见 `TcsEffectStepExecutor.h`）。
  */
 UCLASS(BlueprintType)
-class TCSINTEGRATION_API UTcsEffectChainDef : public UPrimaryDataAsset
+class TCSEFFECT_API UTcsEffectChainDef : public UPrimaryDataAsset
 {
 	GENERATED_BODY()
 

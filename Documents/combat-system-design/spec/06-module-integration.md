@@ -13,7 +13,7 @@
 ## 1. 模块边界
 
 - 消费者：宿主项目（挂组件/注入接口）、M7/M8。
-- 依赖：TcsSkill, TcsCue + GameplayStateTree（**全插件唯一依赖 StateTree 的模块**）——**最小编译集**（R0 §9；层级序允许触达全部下层，此处只列实际 include）。
+- 依赖：TcsSkill, TcsCue ——**最小编译集**（R0 §9；层级序允许触达全部下层，此处只列实际 include）。**★ 2026-10-15 重写（PLN-REFACTOR-1 Task 8；裁定⑦）**：原句写「+ GameplayStateTree（**全插件唯一依赖 StateTree 的模块**）」，本次删去该声称，两条依据：① **裁定⑦**——StateTree 若要引入，**将来单独成 `TcsStateTree` 模块**，MUST NOT 由别的模块承载，故本模块不再是它的落点；② **as-built 漂移已实测**——该声称所指的依赖**今天并不存在**：`Source/` 全仓对 `StateTree` 的命中**全是注释**（"StateTree 同构"一类），`Build.cs` **零依赖**、`.uplugin` **零插件依赖声明**。⇒ 它是 **R7 的设计意图**而非现状，与裁定⑦ 叠加后该句只能**重写**而不是小改。
 - 被依赖：TcsEditor（全部模块均被其消费）。
 
 ## 2. 类型词汇（对外）

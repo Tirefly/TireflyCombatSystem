@@ -65,6 +65,11 @@
 			"Name": "TcsBuff",
 			"Type": "Runtime",
 			"LoadingPhase": "Default"
+		},
+		{
+			"Name": "TcsAssetButler",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
 		}
 	]
 }

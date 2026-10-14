@@ -6,7 +6,7 @@
 - **类型**：LOG / 决策日志
 - **状态**：LIVING
 - **权威范围**：逐条拍板流水（历史裁决 / 模块物化 / 拍板记录）；**编号含义见 [GLOSSARY](../GLOSSARY.md)**，"哪些事没做"见 [LEDGER-deferred](../ledger/deferred-inputs-ledger.md)，实施与验收记录见 [LOG-IMPLEMENTATION](implementation-log.md)
-- **最后更新**：2026-10-13（**第二十三轮**：`R5.5-e` 关系表族**语义拍板**（设计裁决）——五项裁定（`Priority` 归槽位竞争表 / 互斥组两层 / `Blocks` 与 `Cancels` 正交 / 族规则用宿主词汇类目容器 + `FGameplayTagQuery` / 范围只含 §7 第 2 条）+ **两条错前提更正**（族规则举例依赖两个不存在的根、"槽位竞争已验证"依据库外不可复核）+ **批次重切 `e` → `e1`~`e4`**（新建 `PLN-R5.5`）。**前一笔（2026-10-13）**：第二十二轮：R4.5 收口复核——`PLN-R4` 转 `FROZEN`（执行其自己预写的转换条件）；含一条处置裁定（`FROZEN` 不追溯本轮收口订正 = "先改后冻"）与一条跨轮口径（**"写下即为假" vs "当时为真"** 两类过期文本的分野）。**前一笔（2026-10-13）**：第二十一轮 R6.5-CC 取证补齐——内容侧消费资产 + PIE 路线 + **三处缺陷**（一处产品：内建消耗策略缺 `BlueprintType` ⇒ 脚本层不可达；两处夹具）+ 一条 API 陷阱（`FInstancedStruct` 文本形态 MUST 带类型路径，缺则**静默保留默认 0**）。**前次（2026-10-12）**：**第二十轮**：消耗改点策略模式（`PLN-R6.5-CC`）——含两处自我纠正（"唯一实现"的范围、"批不给回滚"）与两处实施坑（`UCLASS` 住头文件 / 无头进程锁 DLL）；台账 `COST-3` + `COST-2` 同批闭合。**前次同日三笔**：第十九轮 `ECP_CustomFragment` 归因改正 + `COST-3` 入册 / 第十八轮 数值字段参数化 / 第十七轮 R6.5-1 两条裁定）
+- **最后更新**：2026-10-15（**第二十六轮**：`PLN-REFACTOR-1` Task 8 落地——新建 `TcsAssetButler` 资产加载层模块（`.uplugin` 10 → 11）+ 两个 Def 类搬入 `TcsEffect`（配 `CoreRedirects`，14/14 资产实测可打开）+ 三条实测结论 T1/T2/T3 落档；能力数 43 → 44）。**前一笔（2026-10-13）**：**第二十三轮**：`R5.5-e` 关系表族**语义拍板**（设计裁决）——五项裁定（`Priority` 归槽位竞争表 / 互斥组两层 / `Blocks` 与 `Cancels` 正交 / 族规则用宿主词汇类目容器 + `FGameplayTagQuery` / 范围只含 §7 第 2 条）+ **两条错前提更正**（族规则举例依赖两个不存在的根、"槽位竞争已验证"依据库外不可复核）+ **批次重切 `e` → `e1`~`e4`**（新建 `PLN-R5.5`）。**前一笔（2026-10-13）**：第二十二轮：R4.5 收口复核——`PLN-R4` 转 `FROZEN`（执行其自己预写的转换条件）；含一条处置裁定（`FROZEN` 不追溯本轮收口订正 = "先改后冻"）与一条跨轮口径（**"写下即为假" vs "当时为真"** 两类过期文本的分野）。**前一笔（2026-10-13）**：第二十一轮 R6.5-CC 取证补齐——内容侧消费资产 + PIE 路线 + **三处缺陷**（一处产品：内建消耗策略缺 `BlueprintType` ⇒ 脚本层不可达；两处夹具）+ 一条 API 陷阱（`FInstancedStruct` 文本形态 MUST 带类型路径，缺则**静默保留默认 0**）。**前次（2026-10-12）**：**第二十轮**：消耗改点策略模式（`PLN-R6.5-CC`）——含两处自我纠正（"唯一实现"的范围、"批不给回滚"）与两处实施坑（`UCLASS` 住头文件 / 无头进程锁 DLL）；台账 `COST-3` + `COST-2` 同批闭合。**前次同日三笔**：第十九轮 `ECP_CustomFragment` 归因改正 + `COST-3` 入册 / 第十八轮 数值字段参数化 / 第十七轮 R6.5-1 两条裁定）
 
 > **来源说明**：本文于 2026-09-29 从原 `README.md` 的「决策日志」节**逐字拆出**——该节原占 README 42% 篇幅，与"文档索引""检查点""实施记录"三种职能混装在一个文件里。拆分只动载体与位置，**未改任何结论**。
 > **纪律**：拍板一项更新一项（状态 待拍板 → 已拍板：日期 + 决定 + 一句话依据 + 落档点）。
@@ -823,3 +823,32 @@
 - **口径**：本轮**零台账条目增删**（`R6.5-f` 是批次号、不是台账条目）、**零能力/需求变更**（openspec 规格只改注释性指针）、**零证据档**。**计数变化** = `R6.5` 表 **7 → 6 批**、`GLOSSARY` §2 族数 **16 → 17**（并订正表头 15 → 17）、`INDEX` §2 族数 **15 → 17**。
 - **证据**：**无独立证据档**（性质 = 治理）；权威留痕 = `GLOSSARY` §1 / §2 / §2.1 / §6-第9条 + `PLN-R6` 批次表（删除行 + 追注）+ `INDEX` 三处 + 8 个活文档改指 + 本条。
 - **一处如实边界**：**`R4.5` 表只做登记、不追溯其历史引用**——该表已 `FROZEN` 且三批全闭环，本轮只把它列入 §2.1 清单。
+
+### 第二十六轮：`PLN-REFACTOR-1` Task 8 落地——资产加载层建立（实施，2026-10-15）
+
+**背景**：`DEC-2026-10-13-asset-butler` 只定分层与归属（**实现状态 = 零落地**）；本 Task 是它的实施轮，按 `PLN-REFACTOR-1` 方案 A 的执行顺序 `1 → 2 → 3 → 4 → 8 → 5 → 6 → 7` 落在第 5 位。
+
+**落地内容**：
+
+1. **新建模块 `TcsAssetButler`**（`.uplugin` **10 → 11**）——承载 PrimaryAsset 机制：类型注册表 / 运行期加载三策略 / 异步默认 + 同步逃生口 / 加载防重 / 编辑器期规则。**零 Tcs 业务依赖**（只依赖引擎 `Core`/`CoreUObject`/`Engine`/`DeveloperSettings`/`GameplayTags`/`AssetRegistry`）。
+2. **注册键类型擦除落地**：`FTcsPrimaryAssetEntry` 只收 `FPrimaryAssetType` + `UClass*` + 扫描路径 + 策略 + 两个引擎扫描开关；基类**延迟解析**（存 getter、首次查询才调用，同引擎 `FNativeGameplayTag::GetIfAllocated()` 手法）；类型名由 `StaticClass()` **反射派生**（零字符串面）。
+3. **注册表唯一性对齐引擎语义**：`FTcsPrimaryAssetRegistry` 对同类型重复报 `Error`，**文案逐字沿用引擎原话** `Only a single entry per type is supported`——**不自建第二套判据**。
+4. **`UTcsAssetManager : UAssetManager`** 覆写 `StartInitialLoading()`：`Super::` 之后遍历注册表补扫。**MUST NOT 用 ini 提供类型清单**（规避「改名漏改 ini」陷阱）。
+5. **运行期加载三件**：`ETcsAssetLoadPolicy{PreloadAll, PreloadSelected, OnDemand}` + `FTcsAssetLoader`（同 `FPrimaryAssetId` **只加载一次** + 句柄计数，计数归零才摘除）+ `FTcsAssetLoadHandle`。
+6. **编辑器期规则**：`UTcsAssetButlerSettings : UDeveloperSettings`（分类 `Tcs`）——**红线：字段 MUST NOT 影响模拟语义**（当前只落「扫描排除前缀」一项，**零消费者不预建**）。
+7. **四处搬迁（裁定⑤）**：`UTcsEffectChainDef` / `UTcsEffectTriggerDefAsset` 自 `TcsIntegration` **搬入 `TcsEffect`**（改导出宏 `TCSINTEGRATION_API` → `TCSEFFECT_API`），同批配宿主 `[CoreRedirects]` 两条 `ClassRedirects`；`UTcsCombatEntityComponent` / `UTcsPieEntityQuery` **留 `TcsIntegration`** 并就地声明归属（该「实体接线层」**就是 `TcsIntegration` 自身**，不是新建模块）。
+
+**★ 三条实测结论（写入计划注记，MUST NOT 带疑问继续）**：
+- **T1**：覆写 `StartInitialLoading()` 后补扫 **既不错过 bulk scan、也不延误 `OnCompletedInitialScan`**——引擎读源（`UnrealEngine.cpp:3833` 调 `StartInitialLoading`；`:2616` 调 `FinishInitialLoading`，同一次 `GEngine->Init()` 内更晚）+ 实跑佐证（补扫段 `HasInitialScanCompleted=0`，收束广播在 **11 秒后**到达而非当场同步）。
+- **T3**：`TcsAssetButler` 取 **`LoadingPhase: Default`**——`LoadStartupModules()` 的 `Default` 相位（`LaunchEngineLoop.cpp:4682`，调用点 :3896）早于 `AssetManagerClassName` 的类解析点（`UnrealEngine.cpp:3822`，在 :4053 的 `GEngine->Init` 内）；`PostEngineInit` 会 `Fatal`。实跑零 `Fatal` 佐证。
+- **T2**：**裁决 E7 列的 `PrimaryAssetTypeRedirects` / `AssetPathRedirects` 不对症**——前者重定向主资产**类型名**、后者重定向**资产路径**，而搬迁后坏掉的是 **`UClass` 的脚本路径引用** ⇒ **只有 `CoreRedirects` 的 `ClassRedirects` 能救**。实跑 **14/14 逐个可打开**且类身份回读为新模块下的类名。
+
+**★ 三处「文档与实测不一致」复验完毕**：① 决策 §3 记「两接线类型资产引用 = 0」——实测 `TcsCombatEntityComponent` **被 1 个资产引用**（`L_TcsDev_Slice.umap`）；② 决策 §3 记「14 个已落资产引用」——**按被搬类型计确为 14**，但**按含引用的文件计为 15**（多出的那个引用的是不搬的组件）；③ 扫描口径 MUST 分别扫**包路径**与**对象名**两段（uasset 分开存储）。
+
+**规格面**：走**路径 A**（新建能力 ⇒ 开提案），提案 `add-primary-asset-butler` = **6 ADDED + 3 MODIFIED**，已归档为 `2026-10-15-add-primary-asset-butler`。**能力数 43 → 44**。`validate --all --strict` = **44 passed / 0 failed**、`changes/` 零活动提案。
+
+**验证**：双配置编译 **0/0**（Dev Editor + Game Shipping）；逐资产 **14/14**；三条红线（零业务依赖 / 类型擦除 / 唯一性对齐引擎）逐条验收通过。**装置 PIE 命令读数为人工验证点**（本 Task 对运行态是纯搬迁）。
+
+**未落地**：其余四域（属性/状态/Buff/技能）的自注册未落（改动面纪律 + 零消费者不预建）；`Discover*` 未改走官方发现路径；E2 硬失败面未构造。**详见 Task 8《实施记录》**。
+
+---

@@ -16,7 +16,10 @@ public class TcsEffect : ModuleRules
 			"Engine",
 			"GameplayTags",
 			"TcsCore",
-			"TcsAttribute"
+			"TcsAttribute",
+			// 资产加载层（PLN-REFACTOR-1 Task 8）：本模块收下的两个 Def 资产类经
+			// UE_DEFINE_PRIMARY_ASSET_TYPE **向下注册**——"注册者 → 加载层"的边，方向朝下（裁定②）
+			"TcsAssetButler"
 		});
 	}
 }
