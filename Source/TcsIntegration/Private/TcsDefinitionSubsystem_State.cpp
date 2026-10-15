@@ -4,6 +4,7 @@
 
 #include "AssetRegistry/AssetData.h"
 #include "AssetRegistry/IAssetRegistry.h"
+#include "Asset/TcsPrimaryAssetQuery.h"
 #include "Def/TcsBuffDefAsset.h"
 
 #include "TcsIntegrationLogChannel.h"
@@ -12,25 +13,19 @@
 
 void UTcsDefinitionSubsystem::DiscoverStateDefs()
 {
-	IAssetRegistry* AssetRegistry = IAssetRegistry::Get();
-	if (!AssetRegistry)
-	{
-		FailureList.Add(TEXT("<AssetRegistry>: 不可得——状态定义资产发现被跳过"));
-		UE_LOG(LogTcsIntegration, Error, TEXT("UTcsDefinitionSubsystem: AssetRegistry 不可得——状态定义资产发现被跳过"));
-		return;
-	}
-
-	// 异步扫描就绪门（编辑器初始扫描是异步的：未完成时查询会**静默返回不完整结果**，不报错）
-	if (AssetRegistry->IsLoadingAssets())
-	{
-		AssetRegistry->WaitForCompletion();
-	}
-
+	// **发现手段（2026-10-15 Task 6 改）**：该类于 Task 4 自 `TcsState` 搬入 `TcsBuff`，
+	// `GetAssetsByClass` 按当前类路径查索引会**静默返 0**（实测 PIE 装置 `Tcs.Test.State.Run`
+	// 的 S2「buff 定义 未命中」及其下游 S5~S12 连锁 FAIL，由 26/0 退为 6/9）。
 	TArray<FAssetData> FoundAssets;
-	const FTopLevelAssetPath ClassPath = UTcsBuffDefAsset::StaticClass()->GetClassPathName();
-	if (!AssetRegistry->GetAssetsByClass(ClassPath, FoundAssets, /*bSearchSubClasses=*/false))
+	FString Diagnostic;
+	if (!FTcsPrimaryAssetQuery::GetAssetsForDefClass(
+			UTcsBuffDefAsset::StaticClass(), FoundAssets, &Diagnostic))
 	{
-		// 返回 false = 一个都没扫到（不是错误——尚无状态定义资产是正常状态）
+		if (!Diagnostic.IsEmpty())
+		{
+			FailureList.Add(FString::Printf(TEXT("状态定义资产: %s"), *Diagnostic));
+		}
+
 		UE_LOG(LogTcsIntegration, Log, TEXT("UTcsDefinitionSubsystem: 未发现任何状态定义资产（正常状态——尚无内容）"));
 		return;
 	}

@@ -5,6 +5,7 @@
 #include "AssetRegistry/ARFilter.h"
 #include "AssetRegistry/AssetData.h"
 #include "AssetRegistry/IAssetRegistry.h"
+#include "Asset/TcsPrimaryAssetQuery.h"
 #include "Attribute/TcsAttrModDef.h"
 #include "Chain/TcsEffectChain.h"
 #include "Chain/TcsEffectChainDef.h"
@@ -84,25 +85,22 @@ void UTcsDefinitionSubsystem::Deinitialize()
 
 void UTcsDefinitionSubsystem::DiscoverChainDefs()
 {
-	IAssetRegistry* AssetRegistry = IAssetRegistry::Get();
-	if (!AssetRegistry)
-	{
-		FailureList.Add(TEXT("<AssetRegistry>: 不可得——链资产发现被跳过"));
-		UE_LOG(LogTcsIntegration, Error, TEXT("UTcsDefinitionSubsystem: AssetRegistry 不可得——链资产发现被跳过"));
-		return;
-	}
-
-	// 异步扫描就绪门（编辑器初始扫描是异步的：未完成时查询会**静默返回不完整结果**，不报错）
-	if (AssetRegistry->IsLoadingAssets())
-	{
-		AssetRegistry->WaitForCompletion();
-	}
-
+	// **发现手段（2026-10-15 Task 6 改）**：走加载层统一查询口，不再直接 `GetAssetsByClass`。
+	// 判据与实测见 `Asset/TcsPrimaryAssetQuery.h` 的头注释：类换过模块后 `GetAssetsByClass`
+	// 按**当前类路径**查索引会**静默返回 0**（本类的 `UTcsEffectChainDef` 于 Task 8 自
+	// `TcsIntegration` 搬入 `TcsEffect` ⇒ 实测链资产发现由 12 个退为 0 个）。
 	TArray<FAssetData> FoundAssets;
-	const FTopLevelAssetPath ClassPath = UTcsEffectChainDef::StaticClass()->GetClassPathName();
-	if (!AssetRegistry->GetAssetsByClass(ClassPath, FoundAssets, /*bSearchSubClasses=*/false))
+	FString Diagnostic;
+	if (!FTcsPrimaryAssetQuery::GetAssetsForDefClass(
+			UTcsEffectChainDef::StaticClass(), FoundAssets, &Diagnostic))
 	{
-		// 返回 false = 一个都没扫到（不是错误——空项目/未创建链资产是正常状态）
+		// "未登记"是**退化**（需补 UE_DEFINE_PRIMARY_ASSET_TYPE），进失败清单；
+		// "已登记但零资产"是正常状态，只留日志。
+		if (!Diagnostic.IsEmpty())
+		{
+			FailureList.Add(FString::Printf(TEXT("链资产: %s"), *Diagnostic));
+		}
+
 		UE_LOG(LogTcsIntegration, Log, TEXT("UTcsDefinitionSubsystem: 未发现任何链资产（正常状态——尚无内容）"));
 		return;
 	}

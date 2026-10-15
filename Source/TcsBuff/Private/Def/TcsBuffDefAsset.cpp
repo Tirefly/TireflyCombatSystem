@@ -2,6 +2,7 @@
 
 #include "Def/TcsBuffDefAsset.h"
 
+#include "Asset/TcsPrimaryAssetEntry.h"
 #include "Parameter/TcsParamValueSource.h"
 #include "State/TcsBuffBehaviorFragment.h"
 #include "TcsValueConvention.h"
@@ -10,6 +11,17 @@
 
 // 主资产类型取值 = 类名（派生族各自遮蔽基类静态成员——见头文件说明）
 const FPrimaryAssetType UTcsBuffDefAsset::PrimaryAssetType(TEXT("TcsBuffDefAsset"));
+
+// 向资产加载层自注册本域的主资产类型（2026-10-15 PLN-REFACTOR-1 Task 6 补）。
+//
+// **为什么 MUST 登记**（实测，不是预建）：本类于 Task 4 自 `TcsState` 搬入 `TcsBuff`，
+// 而旧的定义库发现走 `IAssetRegistry::GetAssetsByClass(当前类路径)` —— 类换模块后该查询
+// **静默返回 0**（`CoreRedirects` 只在加载期映射，不改写 AssetRegistry 索引记录的类路径）。
+// 实测后果：PIE 装置 `Tcs.Test.State.Run` 由 **26/0 退为 6/9**（S2「buff 定义 未命中」
+// 及其下游 S5~S12 连锁 FAIL）。⇒ 改走按 `FPrimaryAssetType` 匹配的官方口，故本处 MUST 登记。
+//
+// 扫描路径 = 宿主内容根；类型名由 `StaticClass()` 反射派生（零字符串面）。
+UE_DEFINE_PRIMARY_ASSET_TYPE(UTcsBuffDefAsset, { TEXT("/Game") }, ETcsAssetLoadPolicy::OnDemand)
 
 
 

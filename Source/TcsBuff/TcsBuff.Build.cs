@@ -23,7 +23,11 @@ public class TcsBuff : ModuleRules
 			"TcsNotation",
 			"TcsAttribute",
 			"TcsEffect",
-			"TcsState"
+			"TcsState",
+			// 主资产加载层（2026-10-15 Task 6 补）：本域状态定义资产自 TcsState 搬入后，
+			// 旧的按类路径发现（GetAssetsByClass）静默返 0（实测 State.Run 由 26/0 退为 6/9）。
+			// 依赖方向仍是「注册者 → 加载层」朝下，与 TcsEffect 已建的同款边一致。
+			"TcsAssetButler"
 		});
 	}
 }

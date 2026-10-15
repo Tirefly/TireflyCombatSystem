@@ -31,7 +31,10 @@ public class TcsIntegration : ModuleRules
 			// 定义资产发现（UTcsDefinitionSubsystem 按类扫描）——Engine 里的那条是过渡期临时依赖
 			// （Engine.Build.cs:98 "Here until we update all modules using AssetRegistry to add a dependency on it"），
 			// 本模块显式声明，不靠 Engine 转发
-			"AssetRegistry"
+			"AssetRegistry",
+			// 主资产发现（2026-10-15 Task 6）：五条 Discover* 由 GetAssetsByClass 改走加载层统一口
+			// FTcsPrimaryAssetQuery——类换模块后旧口按当前类路径查索引会静默返 0（实测本条改动的由来）
+			"TcsAssetButler"
 		});
 	}
 }

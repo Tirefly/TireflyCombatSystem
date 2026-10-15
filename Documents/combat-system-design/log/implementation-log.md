@@ -6,7 +6,7 @@
 - **类型**：LOG / 实施记录
 - **状态**：LIVING
 - **权威范围**：逐 Task 的实施与验收记录 + 检查点状态；逐条**拍板**流水在 [LOG-DECISIONS](decisions-log.md)，"哪些事没做"在 [LEDGER-deferred](../ledger/deferred-inputs-ledger.md)
-- **最后更新**：2026-10-15（**第十五轮**：`PLN-REFACTOR-1` Task 5 规格与能力面回写落地——22 个能力 + `project.md` 改到位，**23 文件 / +149 −132**；★ **实测欠账 98 处远超登记的 52 处**（差额 46 处 = Task 3/4 改名波及其他能力规格）⇒ **立判据：改名族登记 MUST 按「被改的名字」逐名核**；★ 新教训 = 机械改名会改坏历史语境旧名；★ 护栏判据升级为「整体差值 == 意图差值」；`validate --all --strict` = **44 passed / 0 failed**、**逐能力零丢失（需求 214→214、场景 790→790）**）
+- **最后更新**：2026-10-15（**第十六轮**：`PLN-REFACTOR-1` Task 6 证据重取落地——11 篇作废读数逐篇重取 + 双配置 **0/0** + **ARO 阴性对照复现**（关 ARO ⇒ 26/0→**24/2**）+ PIE 复取；**★★ 独立产出 = 抓出并修复两处真实回归**（**两处都不在作废清单里**）：① **编辑器起不来**（Entity 归一漏扫 LAC 的 C# 夹具）；② **发现层静默返 0**（类换模块后 `GetAssetsByClass` 按当前类路径查索引查不到 ⇒ **重定向手段的第四层**）；**修复后 `Slice.Run` 65/0 · `State.Run` 15/0（三轮摘要逐字相同）· `State.Reject` 7/0，其余 9 条逐字未变**；**改动面 = TCS 9 项 + LAC 4 项 + 1 份新证据档**；★ 订正 `State.Run` 的基线口径（26/0 实为 `Slice.Run` 的读数，权威 = **15/0**）；**两仓零提交**）；**前一轮（同日第二笔）＝第十五轮：`PLN-REFACTOR-1` Task 5 规格与能力面回写落地——22 个能力 + `project.md` 改到位，**23 文件 / +149 −132**；★ **实测欠账 98 处远超登记的 52 处**（差额 46 处 = Task 3/4 改名波及其他能力规格）⇒ **立判据：改名族登记 MUST 按「被改的名字」逐名核**；★ 新教训 = 机械改名会改坏历史语境旧名；★ 护栏判据升级为「整体差值 == 意图差值」；`validate --all --strict` = **44 passed / 0 failed**、**逐能力零丢失（需求 214→214、场景 790→790）**）
 
 > **来源说明**：本文于 2026-09-29 从原 `README.md` 的「检查点状态」节**逐字拆出**（自原第 166 行起）。拆分只动载体与位置，**未改任何结论**；文中旧编号（如 `R8-6`/`R7-3`/`S-8`）的含义见 [GLOSSARY](../GLOSSARY.md) §5.2 改名映射。
 > **检查点**：本工作区当前检查点卡 = MEM-20260902-01（task-open，跨阶段断点）；另有脚本化断点卡 MEM-20260924-06（task-open），见 `~/.agents/memory`。
@@ -720,3 +720,58 @@
 **⑦ 两仓零提交**（提交须用户显式授权）。**下一步 = Task 6（证据重取，≥11 篇）**。
 
 ---
+
+## 第十六轮：`PLN-REFACTOR-1` Task 6 —— 证据重取（2026-10-15 同日第三笔）
+
+**一句话**：11 篇作废读数逐篇重取完成（双配置 0/0 + ARO 对照复现 + PIE 复取），
+**并抓出修复了两处真实回归**（编辑器起不来 / 发现层静默返 0）。
+
+### ① 验证读数（全部实测）
+
+| 命令 | 修前 | 修后 |
+|---|---|---|
+| `SkillCast.Run` / `.Reject` | 26/0 · 16/0 | **26/0 · 16/0** |
+| `SkillCast.Phase` | 29/0 + 34/0 | **29/0 + 34/0** |
+| `SkillParamChain.Run` / `.Reject` | 26/0 · 9/0 | **26/0 · 9/0** |
+| `SkillLayer.Run` / `.Reject` | 24/0 · 7/0 | **24/0 · 7/0** |
+| `CooldownCost.Run` / `.Reject` | 33/0+36/0 · 7/0 | **33/0+36/0 · 7/0** |
+| `State.Reject`（无头） | 6 / 1 | **7 / 0** ✅ |
+| `Slice.Run`（无头） | 2 / 4 | **65 / 0** ✅ |
+| `State.Run`（PIE-only） | 6 / 9 | **15 / 0** ✅（三轮摘要逐字相同） |
+
+- **零附带损伤**：其余 9 条**逐字未变**——"改动只影响发现层、不触碰行为面"的正面证据；
+- **ARO 阴性对照**：关 ARO ⇒ 26/0 → **24/2**、`存活=否`，与 2026-10-08 基线逐字一致；已还原（`git diff` 空、`if (false)` 零残留）；
+- **双配置**：Dev Editor + Game Shipping 均 `Result: Succeeded`；
+- **复现性**：`SkillLayer.Run` 摘要**无头两轮 + PIE 一轮三方逐字相同**；`State.Run` 三轮逐字相同。
+
+### ② ★ 一处基线口径订正（本 Task 查出）
+
+本计划把 `Tcs.Test.State.Run` 的基线记为 **26/0**——**该数字是错的**。
+26/0 实为 **`Tcs.Test.Slice.Run`** 的读数（`EVID-2026-10-04-state-instance-lifecycle` §1 的
+「即时判定汇总：通过 26 / 失败 0」，那一段通篇是 Slice 装置的检查编号 1–19f）。
+`State.Run` 的**权威基线 = 15/0**（`EVID-2026-10-05-state-layer-pie` §1，**且两轮各 15/0**）。
+⇒ **本轮 15/0 与权威基线逐字一致**，**MUST NOT** 按错误的 26/0 记为"未达基线"。
+
+### ③ 过程纪律与踩坑（MUST 留痕，防复犯）
+
+1. **跨模块新引用 MUST 逐项核 Build.cs 依赖 + 导出宏**：新增 `TcsAssetButler` 的 `.cpp` 后
+   `TcsIntegration` 链接报 `LNK2019`，**真因是本模块 Build.cs 缺 `TcsAssetButler` 依赖**——
+   报错只说"找不到的符号"，**不指向 Build.cs**（同 `MEM-20261014-21` 族）。本轮**两者各踩一次**。
+2. **量具自证（`MEM-20261014-05`）**：用 `strings <dll> | grep <符号>` 判"是否导出"得 0，
+   但同一量具对**已知必定导出**的 `FTcsAssetLoader` **同样得 0** ⇒ **量具自身失效**；
+   改用 `dumpbin /EXPORTS` 自证后确认**符号一直是对的**。
+3. **★ 无头运行的一条环境坑（新）**：Git-Bash 会把 `/Game/TcsDev/L_TcsDev_Slice` 当 Unix 路径
+   **转换成 Windows 路径**（实测 `commandline` 里变成 `C:/Users/.../bash/2.56.0.2/Game/...`），
+   引擎随之报"找不到 .NET SDK"并**每秒数 MB 刷屏**（日志涨到 **1.29 GB**）。
+   ⇒ **无头装置 MUST 用 pwsh 启动（或设 `MSYS_NO_PATHCONV=1`），且 MUST 带日志体积护栏**。
+4. **`State.Run` 的 `S1 跨 PIE 无残留` 是"世界必须干净"的前提**：同会话先前跑过别的命令 ⇒ 前提不成立
+   （实测 14/1 的唯一 FAIL 即此因，**非产品缺陷**）；补取须**新开 PIE 单跑**（本轮已按此取到 15/0）。
+
+### ④ 改动面与边界
+
+- **TCS 9 项**：改 6（`TcsBuffDefAsset.cpp` / `TcsBuff.Build.cs` / `TcsDefinitionSubsystem{, _State,_Trigger}.cpp` / `TcsIntegration.Build.cs`）+
+  新增 3（`TcsPrimaryAssetQuery.{h,cpp}` + 证据档 `EVID-2026-10-15-refactor-1-task6`）；
+- **LAC 4 项**：`TcsDevSliceRig.cpp` / `TcsDev.Build.cs` / 两个 C# 夹具文件；
+- **未落地（如实登记）**：`DiscoverAttrModDefs` / `DiscoverSkillDefs` **未改**（其类未搬迁、实测命中 1/5 正常；
+  判据 = 未搬类的旧口工作正常，迁到新口属**架构统一、非缺陷修复**）；
+- **两仓零提交**。
