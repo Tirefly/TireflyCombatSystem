@@ -4,7 +4,7 @@
 - **类型**：SPEC / 模块规格
 - **状态**：ACTIVE（**R6 核心已落地，2026-10-11 收束**——Task 0~7 全部完成并取证、两个提案已归档；落地范围与切分见 §11，**本轮不落**的条款逐条带归属于 §11.2，"不落"不等于"未定"）
 - **权威范围**：TcsSkill（M5）账本/施法/冷却/Cost/参数链；理由住 LOG-03-skill 与 DEC-02-fold-display
-- **最后更新**：2026-10-12（**`PLN-R6.5-CC` 策略化批次落地回写**：§2 加策略模式落地注记（含三处口径被取代的交代）；§11.2 两行（`COST-2` / `COST-3`）改判为 **✅ 已闭合**；§11.3 的 Cost 族实现名整行改写（旧名一律作废）。**前次（同日）**：**`SCRIPT-9` 误归因改正 + `COST-3` 入册回写**：§3.6 与 §11 的 `CustomFragment` 阻塞登记由 `SCRIPT-9` 改指 **`COST-3`**（真因 = 扩展点形状未裁，非属性反射面缺失），§11.2 补一行扩展点批次行。**前次（同日）**：**R6.5-1 落地回写**：§3.5 / §3.6 各加落地注记（含四处落地名订正与三处新增公开口）；§11.1 门禁可拒性时态到期；§11.2 前四行加"处置"列；§11.3 补冷却/Cost/事件三行实现名；§9 加 v3 修订行。**前次** 2026-10-11（R6 收束：新增 §11 实施范围与切分——落地面 / 不落面带归属 / 实现名对照 / 四条错前提更正回写 / 三条口径裁决 / 两处正文就地订正 / 边界；身份块状态 PENDING → ACTIVE））
+- **最后更新**：2026-10-15（**`PLN-REFACTOR-1` Task 7 收束回写**：本文的**运行态与依赖面按重构后实况改述**——技能运行态改为**基底 + 技能专属字段**（`FTcsStateInstance` ← **`FTcsSkillInstance`**，**取代 `FTcsCastRun`**）、对状态侧的依赖收窄为**共享层 `TcsState`**（**MUST NOT 依赖新建的 `TcsBuff`**）。**本步只改述与加注、不动正文原话**（逐处就地注明，**落点汇总见 §11.8**）。**前次最后更新**：2026-10-12（**`PLN-R6.5-CC` 策略化批次落地回写**：§2 加策略模式落地注记（含三处口径被取代的交代）；§11.2 两行（`COST-2` / `COST-3`）改判为 **✅ 已闭合**；§11.3 的 Cost 族实现名整行改写（旧名一律作废）。**前次（同日）**：**`SCRIPT-9` 误归因改正 + `COST-3` 入册回写**：§3.6 与 §11 的 `CustomFragment` 阻塞登记由 `SCRIPT-9` 改指 **`COST-3`**（真因 = 扩展点形状未裁，非属性反射面缺失），§11.2 补一行扩展点批次行。**前次（同日）**：**R6.5-1 落地回写**：§3.5 / §3.6 各加落地注记（含四处落地名订正与三处新增公开口）；§11.1 门禁可拒性时态到期；§11.2 前四行加"处置"列；§11.3 补冷却/Cost/事件三行实现名；§9 加 v3 修订行。**前次** 2026-10-11（R6 收束：新增 §11 实施范围与切分——落地面 / 不落面带归属 / 实现名对照 / 四条错前提更正回写 / 三条口径裁决 / 两处正文就地订正 / 边界；身份块状态 PENDING → ACTIVE））
 
 - 日期：2026-09-02
 - 状态：**v2 定稿**——全部增补（D5-9~12、D3-10/11 Skill 侧等）已折入正文；修订记录见文末
@@ -13,7 +13,7 @@
 ## 1. 模块边界
 
 - 消费者：M6（输入/适配接线）、M8（编辑器）、宿主项目（GrantSkill/TryActivate API）。
-- 依赖：TcsCore（句柄/总线/到期堆/时钟）、TcsNotation（ValueConvention/描述文本绑定，D5-18）、TcsAttribute（Cost ResourceAttr 扣减/属性读取——**AttrCapture 已于 2026-10-08 整体删除**，见 §2；伤害流程侧的步骤级捕获属 TcsDamage，与技能侧无关）、TcsState（FSkillDef 继承 FStateDefBase；关系字段 Block/Require/Cancels 执行）、TcsEffect（CastChain 起链/ChainRunHandle/打断协作）。**不依赖 TcsDamage/TcsTargeting**——链步骤是 FInstancedStruct 数据，运行时经执行器注册表分派（D4-14），本模块代码不具名任何领域步骤类型；"技能×伤害"的组合在 TcsIntegration/宿主完成。**FSkillDef 在本模块定义**（继承 M3 的 FStateDefBase）。**★ 2026-10-08 依赖面收窄**：AttrCapture 删除后，本模块对属性门面的**运行期**引用为零（`TcsAttribute` 依赖仅剩 **Cost ResourceAttr** 一路，而 Cost 归 R6.5）⇒ **MUST NOT** 为本模块新建属性访问白名单薄壳。
+- 依赖：TcsCore（句柄/总线/到期堆/时钟）、TcsNotation（ValueConvention/描述文本绑定，D5-18）、TcsAttribute（Cost ResourceAttr 扣减/属性读取——**AttrCapture 已于 2026-10-08 整体删除**，见 §2；伤害流程侧的步骤级捕获属 TcsDamage，与技能侧无关）、TcsState（FSkillDef 继承 FStateDefBase；关系字段 Block/Require/Cancels 执行）、TcsEffect（CastChain 起链/ChainRunHandle/打断协作）。**★ 2026-10-15 改述（`PLN-REFACTOR-1` Task 4/7，MUST 读）**：本行的 `TcsState` **现指『共享层』**——2026-10-14 起 Buff 专属语义拆出为**新建模块 `TcsBuff`**，而本模块**MUST NOT 依赖 `TcsBuff`**。本模块对状态侧的**唯一代码级依赖 = 共享层的参数表读口** `UTcsStateSubsystem::GetParamTableReader()`（实测两处：`TcsCastOps.cpp` / `TcsCastOps_Phase.cpp` 各一）；等级读口、事件与时钟读口**均为 Buff 域设施**，本模块不取（本模块自己的冷却/消耗等级经共享基类上下文读 `EffectiveLevel`）。**该口留在共享层正是为了保住这条护栏**（判据见 `TcsStateSubsystem.h` 头注释）。**不依赖 TcsDamage/TcsTargeting**——链步骤是 FInstancedStruct 数据，运行时经执行器注册表分派（D4-14），本模块代码不具名任何领域步骤类型；"技能×伤害"的组合在 TcsIntegration/宿主完成。**FSkillDef 在本模块定义**（继承 M3 的 FStateDefBase）。**★ 2026-10-08 依赖面收窄**：AttrCapture 删除后，本模块对属性门面的**运行期**引用为零（`TcsAttribute` 依赖仅剩 **Cost ResourceAttr** 一路，而 Cost 归 R6.5）⇒ **MUST NOT** 为本模块新建属性访问白名单薄壳。
 - **不依赖输入系统**（宿主/M6 职责）。
 
 ## 2. Def 类层级与 SkillDef（D3-10/D5-10）
@@ -124,16 +124,17 @@ FStateDefBase（抽象，M3 定义：词表/FragmentSet/通用默认参数 Level
 ### 3.1 账本与运行（D5-2/D3-11/D5-12）
 - `FLearnedSkillEntry`（struct，中央注册表桶内）：`DefTag / Level(持久) / LearnSource / 冷却轨道状态（每轨 Remaining/Total，D5-15）/ 运行句柄集 / 参数修正链集`。**实例-定义引用规范（D5-13；2026-09-11 随 D5-9 修订收窄；身份 2026-09-22 tag 化）**：权威=`DefTag: FGameplayTag`（原 `FName DefId`；EffectiveDefId 概念已整体移除）；`GetDef()` 解析缓存（const+版本校验）；**FCastRun 执行期零回查 Def**（ParamSnapshot 已冻结一切）。
 - `FCastRun`（struct，池化）：`EntryHandle / Level(激活时快照 EffectiveLevel) / PhaseIndex / ChainRunHandle / **ParamSnapshot**`。**无 UObject 壳**（TCS 8 转发 override 壳税不迁移）；索引先只留主表（YAGNI）。
+  > **★ 2026-10-15 落地改述（`PLN-REFACTOR-1` Task 3/7，MUST 读）**：实现名 = **`FTcsSkillInstance`**（**继承基底 `FTcsStateInstance`**），**`FTcsCastRun` 这个名字已从代码中消失**（旧名的 31 处引用已全部改名）。**原 11 字段逐一归属 = 5（上提基底）+ 6（留本类型）**：上提 = `Entity` / `Level` / `ParamSnapshot` / `RunSource` → **`CascadeAnchor`** / `PhaseExpiryEntry` → **`ExpiryEntry`**；留本类型 = `EntryHandle` / `PhaseIndex` / `ChainRunHandle` / `ActiveChainId` / `MainChainStart` / `MainChainStartPhaseTag`。**两处命名判据（MUST NOT 读成笔误）**：① `RunSource` → `CascadeAnchor` 是因为它的三个消费点**全是『按它一次摘净』**（链挂属性账本条目 / 本 run 物化的参数链条目 / 起链时传给链的来源锚点）⇒ 它是**级联撤销锚点**而**不是『谁施加的』**（台账 `CHAIN-7` 的闭合依据即此）；② `PhaseIndex` 与基底的 `ExpiryEntry` **同词根不同义**（前者是时段游标、后者是取消锚）⇒ MUST NOT 混为一谈。**`FTcsSkillInstanceHandle` 名字不变**（UHT 对『记录名』与『句柄名』无冲突要求，故句柄侧零改名）。
 - **StateParamSnapshot（D5-12）**：activate 那一刻一次性解析全部生效参数（逐参数 Mode：Snapshot 走账本冻结 / Live 标记跳过）+ EffectiveLevel + 各时段 Duration（字段引用从快照解析）——链/时段/门禁读快照；**live 修正器通道不受影响**（持续效果实时）；opt-in 实时为唯一例外。
 
 ### 3.2 Level（D3-11 终定）
-- `EffectiveLevel = clamp(0, LevelBase + Σ参数账本 Level 键修正)`；激活时快照进 FCastRun（运行中升级不追溯）；**等级→数值表进引擎（PV-4 2026-09-11 修订 D3-11；评判轮收束为四源）**：StateLevelArray/Map、InstigatorLevelArray/Map 源住 TcsState（经 `ITcsEntityLevelProvider::GetEntityLevel` 取实体级——**接口定义于 TcsState**、宿主实现，宿主可不经 TcsAttribute 承载等级；TargetLevel 系暂不提供——用户拍板），SkillDef 参数直配；宿主升级事务照旧（运行中升级不追溯）。
+- `EffectiveLevel = clamp(0, LevelBase + Σ参数账本 Level 键修正)`；激活时快照进 FCastRun（运行中升级不追溯；**★ 2026-10-15：实现名 = `FTcsSkillInstance` / 字段 = 基底 `Level`**）；**等级→数值表进引擎（PV-4 2026-09-11 修订 D3-11；评判轮收束为四源）**：StateLevelArray/Map、InstigatorLevelArray/Map 源住 TcsState（经 `ITcsEntityLevelProvider::GetEntityLevel` 取实体级——**接口定义于 TcsState**、宿主实现，宿主可不经 TcsAttribute 承载等级；TargetLevel 系暂不提供——用户拍板），SkillDef 参数直配；宿主升级事务照旧（运行中升级不追溯）。
 
 ### 3.3 查询契约与施法事件（D5-1）
 - `ICastStateQuery`：`IsInterruptibleNow() / CanMoveNow()`——打断结算与宿主移动系统询问的唯一合法入口。实现三级：Def 简单开关（默认）/ 时段表（当前时段字段）/ Custom Fragment。
   > **实施注记（2026-10-10，R6 Task 5 落地；保留原文、就地注明）**：实现名 = **`UTcsCastStateQuery` / `ITcsCastStateQuery`**
   > （`UINTERFACE(MinimalAPI, Blueprintable)` + `UFUNCTION(BlueprintNativeEvent)`，形参 = **已反射句柄**
-  > `FTcsCastRunHandle`；`FTcsCastRun` 自身非反射，作形参是 UHT 硬错误）。**三档分派按 `ECastQueryMode`**：
+  > ~~`FTcsCastRunHandle`~~ **`FTcsSkillInstanceHandle`**（**★ 2026-10-15 改述**：句柄名未变，与本行原写法一致）；~~`FTcsCastRun`~~ **`FTcsSkillInstance`** 自身非反射，作形参是 UHT 硬错误）。**三档分派按 `ECastQueryMode`**：
   > `CQM_DefSwitches`（默认）读 `bInterruptibleDefault` / `bCanMoveDefault`；
   > `CQM_PhaseTable` 读**当前时段** `Phases[PhaseIndex]` 的字段；`CQM_Custom` 求值 `CastQueryFragment`。
   > **一处降级 MUST 写明**：`PhaseTable` 档**无当前时段**（`Phases` 空或下标越界）时 MUST
@@ -154,7 +155,7 @@ FStateDefBase（抽象，M3 定义：词表/FragmentSet/通用默认参数 Level
 > ⑥ **定义侧 `FTcsNumericParamModifier` MUST NOT 携带 `Source`**（2026-10-09 用户质疑后订正）：
 > 上一段字段表里的 `Source` **是假字段**——`FTcsSourceHandle` 是**非反射纯 C++ struct**
 > （`TcsSourceHandle.h:20` 裸 `struct`）⇒ 不能作 `UPROPERTY`（UHT 产物实测：该类型反射属性
-> **无 `Source`**）⇒ **既不进细节面板、也不进资产**；且定义侧物化路径盖的是 `FTcsCastRun.RunSource`、
+> **无 `Source`**）⇒ **既不进细节面板、也不进资产**；且定义侧物化路径盖的是 ~~`FTcsCastRun.RunSource`~~ **`FTcsSkillInstance.CascadeAnchor`**（**★ 2026-10-15 改名**，判据同 §3.1 的注：它是级联撤销锚点）、`
 > **根本不读行上的值**（全库唯一读 `Row.Source` 的是外部施加路径）。**语义根因**：
 > **"源"从来不是"这一行"的属性**——同一个 `ParamChainRows[0]`，甲玩家靠装备给、乙玩家靠天赋给
 > ⇒ **来源因实例而异，属实例而非 Def**。M2 的形状即此（`FTcsAttrModDefTableRow` 无 `Source`，
@@ -324,10 +325,11 @@ FStateDefBase（抽象，M3 定义：词表/FragmentSet/通用默认参数 Level
   > **另如实登记一处未落面**：上句的"**来源优先级**"**本轮未落**——全仓**无任何类型**声明
   > "打断来源的优先级"（技能关系字段 `Priority` 的语义属 `R5.5-e` 关系字段检查器，未定稿）
   > ⇒ 本轮**只落可打断性裁决**，**MUST NOT** 读成"优先级仲裁已实现"（也不为它发明零消费者的形参）。
+  > **★ 2026-10-15 追注（一处措辞已过期，原文保留）**：上句的"**未定稿**"三字**已不成立**——关系表族语义**已于 2026-10-13 拍板**（`DEC-2026-10-13-relation-semantics` + `DEC-2026-10-13-relation-row-shape`），且 `Priority` **已移出关系字段族**（裁定①：它归**槽位竞争表**）⇒ **打断来源优先级仲裁的归属 = `PLN-R5.5` Task 4（`e4`）**，不是关系字段检查器。**"本轮未落"这一实况不变**（`e4` 实施仍未开工）；且 `e4` 曾被 `PLN-REFACTOR-1` 前置，**该前置已于 2026-10-15 解除**（见 §11.8）。
   > 取证：`EVID-2026-10-10-skill-cast-phases` §1.3（`P4`/`P4b` 成对）、§6.2 边界 6。
 - **冷却触发（D5-15/D5-16）**：Timing 枚举到达 → CDR 快照 → 各轨到期堆注册（组轨写实体级组槽）→ Entry 轨道状态翻转 → `OnCooldownStarted`；`AdjustCooldown/ResetCooldown` 改动轨状态 → 重挂到期堆 → `OnCooldownUpdated`；到期出队 → `OnCooldownEnded`。
 - **起链解析**（D5-7；链级让渡保留）：`CastChainId` 解析 = 全局定义 → 链重定向栈 → Custom Fragment；生效 Def（= Entry 自身 `DefTag`，EffectiveDefId 已移除）决定用哪套参数。
-- **ParamSnapshot 构建时序**：门禁全过 → BuildSkillSnapshot（按 Entry 自身 Def 账本求值一次）→ FCastRun 绑定 → 后续一切读快照。
+- **ParamSnapshot 构建时序**：门禁全过 → BuildSkillSnapshot（按 Entry 自身 Def 账本求值一次）→ FCastRun 绑定（**★ 2026-10-15：实现名 `FTcsSkillInstance`**）→ 后续一切读快照。
 
 ## 6. 网络姿态落点（NET-1/2）
 
@@ -375,7 +377,7 @@ M5 专项人工检查路径：门禁六态逐态触发；冷却策略/时机切�
 |---|---|---|---|
 | 1 | **模块与 Def 资产族** | `TcsSkill` 成第 9 个模块（`TcsCore ← TcsNotation/TcsAttribute ← TcsEffect ← TcsSkill`，**不依赖 `TcsDamage`/`TcsTargeting`/`TcsIntegration`**）；`UTcsSkillDef` 资产 + `FTcsSkillDefData` 数据（继承 `FTcsStateDefBase`）+ `FTcsBoolSwitchRow` / `FTcsPhaseSpan` / `FTcsSkillActivateResult`（`SAR_` 前缀）/ `FTcsSkillDefTableRow` / `TcsSkillEnums`；定义库**第五条按类发现路径**（`DiscoverSkillDefs` / `ResolveSkillDef`） | `EVID-2026-10-07-skill-def-asset` |
 | 2 | **账本与门禁第一道** | `FTcsLearnedSkillEntry` + per-entity 桶与**槽位代际**（`FTcsSkillRegistry`）+ `FTcsSkillOps`（授予/撤销/按来源级联/解析/读取）；`GrantSkill` / `RevokeSkill` / `RevokeSkillBySource` / `UnregisterEntity`；`ITcsEntityQuery::IsEntityReady` 作门禁第一道（与 `IsAlive` **正交**） | `EVID-2026-10-08-skill-registry` |
-| 3 | **施法运行态与六道门禁** | `FTcsCastRun` 池化运行态 + `FTcsCastRunHandle`（含 `GetInner`/`SetInner` 转换对）+ `TryActivate` **六道具名门禁**（实体 Ready / 已学 / 冷却占位 / Instancing 四路分流 / CanAfford 占位 / 定义可解析）；激活期 `ParamSnapshot`；四枚 `TcsEvent.Cast.*` 事件与载荷 | `EVID-2026-10-08-skill-cast-runtime` |
+| 3 | **施法运行态与六道门禁** | ~~`FTcsCastRun`~~ **`FTcsSkillInstance`**（**2026-10-15 归一**，继承基底）池化运行态 + `FTcsSkillInstanceHandle`（含 `GetInner`/`SetInner` 转换对）+ `TryActivate` **六道具名门禁**（实体 Ready / 已学 / 冷却占位 / Instancing 四路分流 / CanAfford 占位 / 定义可解析）；激活期 `ParamSnapshot`；四枚 `TcsEvent.Cast.*` 事件与载荷 | `EVID-2026-10-08-skill-cast-runtime` |
 | 4 | **参数链（带式折叠）** | 双形状修正器（定义侧 `FTcsNumericParamModifier` / 账本侧 `FTcsNumericParamModInstance`）+ 每条目 `NumericParamModInstances` + **五带折叠收束到唯一 `FoldTcsAttributeBands` 调用点**（台账 `STAT-1` 全三处收束）+ `FTcsSkillEntrySelector` 四档 + `Level` 特殊键（`TcsStateParam.Level` 由 `TcsState` 原生声明）+ 激活期物化与终结**按 `RunSource` 级联摘除** + `Mode` 列分流（`EPM_Live` 不进快照数值面） | `EVID-2026-10-09-skill-param-chain` |
 | 5 | **时段、查询契约、四路终结、链重定向** | `FTcsPhaseSpan` 时段表按**战斗时钟到期堆**逐段推进 + `TcsEvent.Cast.PhaseChanged`；`ICastStateQuery` 三档（`CQM_DefSwitches` / `CQM_PhaseTable` / `CQM_Custom`）；`CancelCast` **先过查询契约**；**四路终结汇聚同一例程**（全时段走完 / **瞬发当刻完成** / 打断 / 顶替，只在"发哪一枚终止事件"处分岔）；`FTcsChainRedirect` 挂摘 + 优先级 + 后挂者胜 | `EVID-2026-10-10-skill-cast-phases` |
 | 6 | **端到端竖切** | 内容资产驱动的全链验收 + **`CHAIN-7` 完整三路（完成/打断/顶替）读数**（属性现值 + 账本条目数**成对**，含**同一次施法内的阴性对照**）+ 跨帧时轴纪律落成宿主私有骨架 | `EVID-2026-10-11-skill-layer-e2e` |
@@ -400,7 +402,7 @@ M5 专项人工检查路径：门禁六态逐态触发；冷却策略/时机切�
 | **Cost 策略 × 时机 + `CanAfford` 真实现 + Pay 提交 + `OnCostApplied`** | §2「Cost（D5-10 v2）」、§3.6 | **`R6.5-d`** | ✅ **已落**（另+`CanAfford` 查询口） |
 | **`FBoolSwitchModifier` + `GateCheck` 条件求值器** | §2 参数双表的 `BoolSwitches` 运行期通道 | **`R6.5-e`**（形状已落，消费者未落） | ❌ 未落（不变） |
 | **`UTcsSkillModDef` 技能侧参数行分派** | §2「修正器引用行（D5-19）」的技能行那半 | **`R5.5-f`**（`ParamChainRows` 本轮**只落内联形态**）。〔**2026-10-13 追注**：**原写 `R6.5-f`，该编号已删除**（与 `R5.5-f` 是同一件工作量的两个编号，用户裁定收敛为一个）⇒ 本行**已改指 `R5.5-f`**；消歧表见 `GLOSSARY` §2.1〕 | ❌ 未落（不变） |
-| **`CQM_Custom` 查询档 / `MCS_Custom` 起链档** | §3.3 三级实现的第三级 / §2 主链四档 | **`R6.5-g`**（本轮**具名未实现 + 回退默认档**，MUST 记 `Warning`） | ❌ 未落（依赖 `R5.5-e` 仍未满足） |
+| **`CQM_Custom` 查询档 / `MCS_Custom` 起链档** | §3.3 三级实现的第三级 / §2 主链四档 | **`R6.5-g`**（本轮**具名未实现 + 回退默认档**，MUST 记 `Warning`） | ❌ 未落。**★ 2026-10-15 追注（依赖口径订正，MUST 读）**：原写『依赖 `R5.5-e` 仍未满足』——**该措辞的前半已过期**：`R5.5-e` 的**语义拍板**已于 2026-10-13 完成（`DEC-2026-10-13-relation-semantics` + `DEC-2026-10-13-relation-row-shape`）⇒ **本档的『形状门』已开**（两个 Custom 档要的是关系行的确定形状，现已定）；真正未满足的是 **`PLN-R5.5` Task 2（`e2`）的实现落地**（类目降维层 + `ESS_ByCategoryTags` 真实现）。**★ 同批一处前置已解除**：`PLN-R5.5` Task 1（`e1`）与 Task 4（`e4`）**原被 `PLN-REFACTOR-1` 前置**（其产出物明文绑 `FTcsCastRun`）——该重构**已于 2026-10-15 全轮完成**（Task 1~8 落地）⇒ **前置解除**，`e1`/`e4` 可按新基底（`FTcsSkillInstance` / `FTcsBuffInstance`）重写后开工。**⇒ 本档的阻塞面 = `e2`（实现），不再是 `e1`/`e4`（形状）**。 |
 | **关系字段检查器（`Blocks` / `Requires` / `Priority` / `Cancels`）** | §2「关系字段」的**语义**（形状已落） | **`R5.5-e`**（技能与状态共用同一检查器） | ❌ 未落（不变）。**★ 2026-10-13 追注**：**语义拍板已完成**（`DEC-2026-10-13-relation-semantics`）⇒ 本行"的**语义**"那半已解决、只剩**实现**；且 **`Priority` 已移出本族**（裁定①）⇒ 检查器的字段是**三**个；实施归 `PLN-R5.5` Task 1（`e1`） |
 | **多形态组合范式的完整走查** | §2「多形态/多段技能 = 组合范式」 | **`R6.5-g`**（本轮只落可运行基座） | ❌ 未落（不变） |
 | **`FTcsParamView` 视图策略族 + 技能面板** | §2「描述文本绑定（D5-17 v3）」的视图那半 | **`R8`**（`state-def-asset` 已钉死"本轮 MUST NOT 建视图策略族"） | ❌ 未落（不变） |
@@ -417,7 +419,7 @@ M5 专项人工检查路径：门禁六态逐态触发；冷却策略/时机切�
 |---|---|
 | `FStateDefBase` / `FSkillDef` | **`FTcsStateDefBase`**（基类）/ **`FTcsSkillDefData`**（数据）；资产 = `UTcsStateDef` / **`UTcsSkillDef`** |
 | `FLearnedSkillEntry` | **`FTcsLearnedSkillEntry`** |
-| `FCastRun` | **`FTcsCastRun`** |
+| `FCastRun` | ~~**`FTcsCastRun`**~~ → **`FTcsSkillInstance`**（**★ 2026-10-15 `PLN-REFACTOR-1` Task 3 改名**：改为**继承基底 `FTcsStateInstance`** + 6 个技能域字段；**`FTcsCastRun` 已从代码中消失、MUST NOT 再引用**。句柄侧 = `FTcsSkillInstanceHandle`，名字未变） |
 | `ICastStateQuery` | **`ITcsCastStateQuery`**（契约）+ **`UTcsCastStateQuery`**（U 类） |
 | `FPhaseSpan` | **`FTcsPhaseSpan`** |
 | `NumericParameters` / `BoolSwitches` | **`Params`**（`FTcsNumericParamRow`）/ **`BoolSwitches`**（`FTcsBoolSwitchRow`） |
@@ -465,3 +467,32 @@ M5 专项人工检查路径：门禁六态逐态触发；冷却策略/时机切�
 - **冷却与 Cost 的空实现是真占位**：`FCooldownTrack` 空 Tracks = 恒可放、`FCostConfig.Policy = None` = 恒可付；
 - **单机 / 单世界**：网络姿态只落"接口位不实现"（§6）；
 - **验收装置住宿主仓**（LAC `Source/TcsDev/`），属**宿主验收装置**；跨帧等待骨架亦**宿主私有**、**未提升为插件契约**。
+### 11.8 `PLN-REFACTOR-1` 收束回写（2026-10-15）——运行态与依赖面的现行读法
+
+> **本节性质同 §11**（实施视角的收窄，非新设计条款）：把 R6 期间记的运行态落点**按重构后实况改述一次**。**载体** = [`DEC-2026-10-13-state-module-positioning`](../decisions/dec-2026-10-13-state-module-positioning.md) + [`PLN-REFACTOR-1`](../plans/plan-refactor-1-runtime-base.md)（**2026-10-15 全轮收束**）。**正文一律原文保留 + 就地注明**（改述点已逐处加注）。
+
+#### 一、技能运行态（`FCastRun` 的落地形态）
+
+| 面 | 原记（§11.1 / §11.3） | **现行** |
+|---|---|---|
+| 记录类型 | `FTcsCastRun`（11 字段独立结构） | **`FTcsSkillInstance`**（**继承基底 `FTcsStateInstance`**；`FTcsCastRun` **已从代码中消失**） |
+| 句柄 | `FTcsCastRunHandle` | **`FTcsSkillInstanceHandle`**（名字**本来就叫这个**，本行原记属笔误；UHT 对记录名/句柄名无冲突要求） |
+| 字段归属 | 11 字段全在本类型 | **5 上提基底 + 6 留本类型**：上提 = `Entity` / `Level` / `ParamSnapshot` / **`RunSource` → `CascadeAnchor`** / **`PhaseExpiryEntry` → `ExpiryEntry`**；留本类型 = `EntryHandle` / `PhaseIndex` / `ChainRunHandle` / `ActiveChainId` / `MainChainStart` / `MainChainStartPhaseTag` |
+
+**两处命名判据（**MUST NOT 读成笔误**）**：① **`RunSource` → `CascadeAnchor`**——它的三个消费点**全是"按它一次摘净"**（链挂属性账本条目 / 本 run 物化的参数链条目 / 起链时传给链的来源锚点）⇒ 它是**级联撤销锚点**、**不是"谁施加的"**（台账 `CHAIN-7` 的闭合依据）；② **`PhaseIndex` 与基底 `ExpiryEntry` 同词根不同义**（前者 = 时段游标、后者 = 取消锚）⇒ MUST NOT 混用。
+
+#### 二、依赖面（§11 各处引用的 `TcsState` 现指"共享层"）
+
+- **`TcsSkill` 的现行依赖** = Core / Notation / Attribute / Effect / **State（共享层）**；**MUST NOT 依赖 `TcsBuff`**（2026-10-14 新建的 Buff 域模块）；
+- **唯一代码级的状态侧依赖 = 共享层的参数表读口** `UTcsStateSubsystem::GetParamTableReader()`（实测两处：`TcsCastOps.cpp` / `TcsCastOps_Phase.cpp` 各一）——**该口留在共享层正是为了保住这条护栏**；
+- **等级读口 / 事件与时钟读口均为 Buff 域设施**，本模块不取（本模块的冷却与消耗等级经共享基类上下文读 `EffectiveLevel`）；
+- **一处连带**：`ITcsEntityLevelProvider` 随 Buff 层搬走后补了导出宏 `TCSBUFF_API`（漏则跨模块 `LNK2019`——台账 `WAIT-9` 实例）。
+
+#### 三、不落面的现状（§11.2 的后续）
+
+| 面 | §11.2 记 | **2026-10-15 现状** |
+|---|---|---|
+| `CQM_Custom` / `MCS_Custom` 两档 | 具名未实现 + 回退默认档；归 `R6.5-g` | **仍未落**。**★ 依赖口径已订正**：`R5.5-e` 的**语义拍板**已完成（2026-10-13）⇒ **本档的"形状门"已开**；真正未满足的是 `PLN-R5.5` **Task 2（`e2`）的实现**。另：`e1`/`e4` 的重构前置**已于 2026-10-15 解除** |
+| 关系字段检查器 | 只有形状、零检查器 | **不变**（实施归 `PLN-R5.5` Task 1；语义已定） |
+| 内联触发行零框架登记 | 未落 | **不变**（消费者 = 后续强输入引导） |
+

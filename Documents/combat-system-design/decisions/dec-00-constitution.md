@@ -139,6 +139,7 @@
 | TcsEditor | M8 工具，editor-only | 全部 |
 
 - **表列依赖 = 该模块代码实际 include 的最小编译集**；上文依赖链 `Core ─┬─ Notation` / `└─ AssetButler`（**加载层最低，零业务依赖**）与 `Attribute←Effect←{Damage,Targeting}←State←{Buff,Skill}`（D4-14 + 2026-10-14 Task 4 拆分 + 2026-10-15 Task 8 加载层）是**方向许可**（层级序：谁在谁之上、允许依赖谁），不是强制边清单——跨模块组合（技能×伤害×目标选择）发生在 TcsIntegration/宿主。
+  - **★ 2026-10-15 `PLN-REFACTOR-1` 全轮收束后的逐处复算（MUST 读）**：两组计数**各自独立递增、MUST NOT 混算**——**表行 = 13**（本表 13 行，含两个未建的 `TcsCue` / `TcsEditor`），**`.uplugin` 已物化 = 11**（实测 `Modules` 数组 11 项）。**两处的本轮来源**：`TcsBuff`（Task 4：表 11→12 / `.uplugin` 9→10）、`TcsAssetButler`（Task 8：表 12→13 / `.uplugin` 10→11）⇒ **本 Step 只复算确认、不再递增**。**一字不差的复算命令**：`python -c "import json,io; print(len(json.load(io.open('TireflyCombatSystem.uplugin',encoding='utf-8-sig'))['Modules']))"` ⇒ `11`。
   - **★ 2026-10-14 拆分后的两处订正（MUST 读）**：① **`TcsState` 不再依赖 `TcsEffect`**——那条边**全部**由 Buff 专属层产生（内联触发行 / `ApplyState` 链步骤），随 Task 4 搬走即消失；② **`TcsSkill` 与 `TcsBuff` 平级、互不依赖**——技能侧对状态侧的代码级依赖只剩共享层的参数表读口（`GetParamTableReader()`），该口留在 `TcsState` 正是为了保住这条护栏。**模块总数 11 → 12**（R0 §9 的表行；`.uplugin` 的**已物化**计数走 9 → 10，**两组数字各自独立递增，MUST NOT 混算**）。
   - **★ 2026-10-15 加载层落地后的第三处订正（MUST 读）**：`DEC-00` §9 表**新增 `TcsAssetButler` 行** ⇒ **模块总数 12 → 13**（表行，含两个未建的 `TcsCue` / `TcsEditor`）；而 `.uplugin` 的**已物化**计数走 **10 → 11**。**两组数字仍各自独立递增，MUST NOT 混算**（本 Task 只动 `.uplugin` 序列 → 11 与 `DEC-00` → 13）。**依赖方向**：各域 → `TcsAssetButler`（向下注册），`TcsAssetButler` → 无任何 Tcs 业务模块。
 
@@ -148,6 +149,6 @@
   - **三类插槽**（选择器/过滤器宿主委托、步骤执行器 UObject 基类、伤害流程 delegate 反射化）与判据详见 04 §5b 与台账 SCRIPT-8。
 - **基础设施内置规定（2026-09-02 增补）**：事件总线与对象池内置 TcsCore，不自立插件、不依赖/不替换 Lyra GameplayMessageRouter（Handler 模型/双通道/稳定序三不匹配；宿主出站桥自建）；提炼时机 = rule of two（第二个消费者出现再议 TcsFoundation）。
 - **模块设置约定（2026-09-10 增补）**：DevSettings 按需生长——模块出现首个真实配置需求才建 `UTcs<模块名>Settings : UDeveloperSettings`（`GetCategoryName` 返回 `"Tcs"` 归拢同分类、SectionName 区分模块），不预建空壳；TcsCore 的 `UTcsDeveloperSettings` 为 "Tcs" 分类锚点保留；**红线：Settings 值不得影响模拟语义**——模拟可调量走 Def 或代码常量，观测走 CVar/日志分类（D0-6）。
-- **死规定**：域依赖只允许沿层级向下（2026-09-02 增补：十一模块——TcsDamage 瞬时流程骨架+记录流、TcsTargeting 目标选择、TcsNotation 策划记法层，公式归项目；**D4-14 依赖翻转：TcsEffect 纯机制层只依赖 Core/Attribute，领域步骤类型+执行器归领域模块并自注册**；**2026-10-14 拆分 `TcsBuff` ⇒ 十二模块**）（UBT 强制）；禁止反向 include与跨层旁路；新增横切能力要么下沉 Core、要么立新模块，不许在既有模块间开侧门；新代码归属判定 = 看它依赖谁、被谁依赖。
+- **死规定**：域依赖只允许沿层级向下（2026-09-02 增补：十一模块——TcsDamage 瞬时流程骨架+记录流、TcsTargeting 目标选择、TcsNotation 策划记法层，公式归项目；**D4-14 依赖翻转：TcsEffect 纯机制层只依赖 Core/Attribute，领域步骤类型+执行器归领域模块并自注册**；**2026-10-14 拆分 `TcsBuff` ⇒ 十二模块**；**2026-10-15 新增 `TcsAssetButler` ⇒ 十三模块**）（UBT 强制）；禁止反向 include与跨层旁路；新增横切能力要么下沉 Core、要么立新模块，不许在既有模块间开侧门；新代码归属判定 = 看它依赖谁、被谁依赖。
 - **命名**：模块前缀 Tcs（用户拍板；插件显示名仍开放，遗留拍板项 #3 收窄为仅显示名）；单复数随域名单数（TcsAttribute/TcsState/TcsEffect/TcsSkill）。
 - **未来扩展**：TcsMass（Mass 适配，核心零改动前提已由 D3-1 保证）；宿主侧表现替换层。

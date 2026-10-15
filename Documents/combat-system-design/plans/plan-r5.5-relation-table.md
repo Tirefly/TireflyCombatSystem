@@ -2,9 +2,9 @@
 
 - **文档 ID**：`PLN-R5.5`
 - **类型**：PLN / 计划
-- **状态**：ACTIVE（2026-10-13 建立；**实施未开工**——本计划是 `R5.5-e` 的开工收窄轮产物，Task 0 已由 `DEC-2026-10-13-relation-semantics` 完成）。**★ 2026-10-13 第三笔：`e1`/`e4` 被 `DEC-2026-10-13-state-module-positioning` 前置**（该裁决裁定运行态基底重构先行）⇒ **本计划 Task 1 / Task 4 的开工前提已变**，`e2`/`e3` 不受影响
+- **状态**：ACTIVE（2026-10-13 建立；**实施未开工**——本计划是 `R5.5-e` 的开工收窄轮产物，Task 0 已由 `DEC-2026-10-13-relation-semantics` 完成）。**★ 2026-10-13 第三笔：`e1`/`e4` 被 `DEC-2026-10-13-state-module-positioning` 前置**（该裁决裁定运行态基底重构先行）⇒ **本计划 Task 1 / Task 4 的开工前提已变**，`e2`/`e3` 不受影响。**★★ 2026-10-15 更新：该前置已解除**——`PLN-REFACTOR-1` **全轮完成**（Task 1~8 落地）⇒ **`e1`/`e4` 可按新基底重写后开工**（新旧名对照见下方《最后更新》与 Task 1 Step 7 的追注）
 - **权威范围**：`R5.5-e` 批次的执行形状（怎么做、怎么验）——字段语义落地与检查器 / 类目降维层 / 移除级联重评 / 槽位竞争表四批的 Task 切分、验收信号与边界。**不在本文**——《R5.5 批次表》本体（住 `PLN-R5`）、`R5.5` 其余批次 `a`~`d` / `f`~`h` 的实施（各自归属不变）、状态槽映射选型与工具排期（见 `DEC-2026-08-31-state-relation` §7 另两框）
-- **最后更新**：2026-10-13（**第三笔：被 `DEC-2026-10-13-state-module-positioning` 前置**——用户同日提出架构质疑（`TcsState` 是否混入 Buff 专属内容）⇒ 裁定运行态**基底 + 两 payload**、**Buff 专属语义拆出为新建模块 `TcsBuff`**（`TcsState` 保留为共享层）、**本重构先行**。**本计划 Task 1（`e1`）与 Task 4（`e4`）的产出物明文绑在 `FTcsCastRun` 上**（Task 1 Step 7"主体 = `FTcsCastRun`"、Task 4"主体 = 施法运行"）⇒ 按裁定⑧ **`e1`/`e4` 须按新基底重写**，MUST NOT 按现形状开工。**Task 2（`e2`）/ Task 3（`e3`）不受影响**（前者是类目声明面、后者是级联重评）。详见该裁决 §5.1、§1.5 与 §6（同日修正）。**前一笔（2026-10-13）**：**第二笔：吸收 Lyra 行形态**——用户提出 `ULyraAbilityTagRelationshipMapping` 先例 ⇒ 开取代裁决 [`DEC-2026-10-13-relation-row-shape`](../decisions/dec-2026-10-13-relation-row-shape.md)（取代前文裁决②③），本计划同步：**行形态 = 一行一个主体词 + 四容器**、**匹配机制 = 容器 + `MatchesTag` 层级匹配（不用 `FGameplayTagQuery`）**、**字段改名 `AppliesToTag`/`RequiredTags`/`ForbiddenTags`/`TagsToBlock`/`TagsToCancel`**、**撤销一条 Error 规则**、**新增 `TagsToBlock` 预防能力**。**★ 同日第一笔**：建立——Task 0（语义拍板）完成 + `e` 拆 `e1`~`e4`）
+- **最后更新**：2026-10-15（**前置解除**：`PLN-REFACTOR-1` **全轮完成**（Task 1~8；见 [该计划](plan-refactor-1-runtime-base.md)）⇒ 本文 Task 1（`e1`）/ Task 4（`e4`）的**开工前提已满足**，可按**新基底**重写后开工。**重写时的两处新旧名对照**：① 施法运行态 = **`FTcsSkillInstance`**（~~旧名 `FTcsCastRun`~~ 已从代码中消失）；② 状态/Buff 运行态 = **`FTcsBuffInstance`**（基底 `FTcsStateInstance`），域侧实现名 = **`FTcsBuffRegistry`** / **`FTcsBuffOps`** / **`UTcsBuffSubsystem`**（原 `FTcsStateRegistry` / `FTcsStateOps` / `UTcsStateSubsystem`）。**本追注不改 Task 拆分与 Step 草案**（其判据面不受重构影响，受影响的只有名与落点）。）**前次最后更新（2026-10-13）**：（**第三笔：被 `DEC-2026-10-13-state-module-positioning` 前置**——用户同日提出架构质疑（`TcsState` 是否混入 Buff 专属内容）⇒ 裁定运行态**基底 + 两 payload**、**Buff 专属语义拆出为新建模块 `TcsBuff`**（`TcsState` 保留为共享层）、**本重构先行**。**本计划 Task 1（`e1`）与 Task 4（`e4`）的产出物明文绑在 `FTcsCastRun` 上**（Task 1 Step 7"主体 = `FTcsCastRun`"、Task 4"主体 = 施法运行"）⇒ 按裁定⑧ **`e1`/`e4` 须按新基底重写**，MUST NOT 按现形状开工。**Task 2（`e2`）/ Task 3（`e3`）不受影响**（前者是类目声明面、后者是级联重评）。详见该裁决 §5.1、§1.5 与 §6（同日修正）。**前一笔（2026-10-13）**：**第二笔：吸收 Lyra 行形态**——用户提出 `ULyraAbilityTagRelationshipMapping` 先例 ⇒ 开取代裁决 [`DEC-2026-10-13-relation-row-shape`](../decisions/dec-2026-10-13-relation-row-shape.md)（取代前文裁决②③），本计划同步：**行形态 = 一行一个主体词 + 四容器**、**匹配机制 = 容器 + `MatchesTag` 层级匹配（不用 `FGameplayTagQuery`）**、**字段改名 `AppliesToTag`/`RequiredTags`/`ForbiddenTags`/`TagsToBlock`/`TagsToCancel`**、**撤销一条 Error 规则**、**新增 `TagsToBlock` 预防能力**。**★ 同日第一笔**：建立——Task 0（语义拍板）完成 + `e` 拆 `e1`~`e4`）
 
 **Goal:** 让关系表族的字段**第一次有真实消费者**——施加态与施法态的共存冲突有确定、可配、可复现的结果，且冲突的**事实源唯一**（不靠补丁顺序、不靠遍历顺序）。**★ 2026-10-13 第二笔后，字段集 = 四个容器（见 §0.2 Q-7）；"三个字段"是首轮的措辞，已被取代。**
 
@@ -253,7 +253,7 @@
 5. **`TagsToBlock` 挂点（新增能力）**——**预防语义**：A 在跑期间，命中的目标**无法开始且保持不能开始**（区别于 `TagsToCancel` 的"把已在跑的终止掉"）。**两处的检查时机 MUST 都覆盖**：① 目标尝试开始时；② **A 开始时就已存在的目标**须被即时阻断（否则出现"A 在跑、B 已在跑"的窗口）。**与 `ForbiddenTags` 的分工**：`TagsToBlock` 约束**目标**、`ForbiddenTags` 约束**自己**；两者可从相反一侧表达同一互斥（选哪侧 = 作者声明权的选择）。
 6. **`ForbiddenTags` 的检查时机裁决（本 Step MUST 二选一并写清判据）**——规格的执行时机是"apply 时校验 + **任何状态移除后**重评" ⇒ **A 已在跑、B 后到**时，若互斥**只由施动侧声明**（`A.TagsToBlock ∋ B`），B 的 apply 门禁需要**反向查找**才能拒绝。两条路：① 要求互斥**双向声明**（零新机制，但作者负担）；② apply 时做**反向查找**（"是否存在存活实例的 `TagsToBlock` 覆盖我"）。**判据 = 作者负担 vs 每次 apply 的一次扫描**；倾向 ②（装置与内容侧都更省），但须实测扫描成本。
 7. **技能侧调用点**——`TryActivate` 的门禁序列里插"关系门"（`ForbiddenTags` = 禁止激活 / `RequiredTags` = 激活前提）；`TagsToCancel` ⇒ 激活时取消指定运行/状态（姿态切换）；`TagsToBlock` ⇒ 预防。**共享同一检查器**（主体 = `FTcsCastRun`）。
-   > **★ 2026-10-13 第三笔追注（本 Step 的开工前提已变，MUST 读）**：本句写定的"**主体 = `FTcsCastRun`**"**已被 [`DEC-2026-10-13-state-module-positioning`](../decisions/dec-2026-10-13-state-module-positioning.md) 前置**——该裁决裁定运行态改为**基底 + 两个 payload**、基底归 `TcsCore`，且**该重构先行**（裁定⑧）。⇒ 本 Step **MUST 按新基底重写**（主体 = 基底句柄，而非 `FTcsCastRun`），**MUST NOT 按本句现字面开工**。同批：Step 2 的"判定排在五轴共存决策**之前**"也绑定到要重构的决策 API（该裁决 §1.3 记明技能 `Instancing` 四路分流与状态堆叠决策是**同型重复**，重构将合并为一处）。**原文保留记现场。**
+   > **★ 2026-10-13 第三笔追注（本 Step 的开工前提已变，MUST 读）**：本句写定的"**主体 = `FTcsCastRun`**"**已被 [`DEC-2026-10-13-state-module-positioning`](../decisions/dec-2026-10-13-state-module-positioning.md) 前置**——该裁决裁定运行态改为**基底 + 两个 payload**、基底归 `TcsCore`，且**该重构先行**（裁定⑧）。⇒ 本 Step **MUST 按新基底重写**（主体 = 基底句柄，而非 `FTcsCastRun`），**MUST NOT 按本句现字面开工**。同批：Step 2 的"判定排在五轴共存决策**之前**"也绑定到要重构的决策 API（该裁决 §1.3 记明技能 `Instancing` 四路分流与状态堆叠决策是**同型重复**，重构将合并为一处）。**原文保留记现场。** **★★ 2026-10-15 追注（该前置已解除，MUST 读）**：`PLN-REFACTOR-1` **全轮完成**（Task 1~8 落地）⇒ **本 Step 的重写前提已满足**：主体类型现为 **`FTcsSkillInstance`**（技能侧，继承基底 `FTcsStateInstance`；~~旧名 `FTcsCastRun`~~ 已从代码消失）/ **`FTcsBuffInstance`**（状态侧，同基底）。**本 Step 的判据面一字不改**（"共享同一检查器""主体类型化""插在门禁序列里"三条均不受重构影响），**变的只是名与落点**；Step 2 的"判定排在五轴共存决策之前"同理——合并后的决策接口 = 共享层的 **`FTcsEntityAdmission`**（本重构 Task 1 已落地，故"2 与 3 可并行"那条判据照旧成立）。
 8. **`StatusTag` 定根**（条件已成立）——本 Task 的检查器是 `StatusTag` 的**第一个解析消费者** ⇒ 按「一角色一根」查表、定根、**同步 `gameplay-tag-governance` 根表的行数与 `## Purpose` 数字**（E17；`STAT-4` 就地闭合）。
 9. **规格同步** + 提案归档 + 编译（双配置）+ 装置检查。
 
@@ -327,7 +327,7 @@
 - 两处 `Priority` 字段的**物理处置**（移除 / 改述）
 - openspec 提案（槽位竞争能力）
 
-**依赖**：R6（施法运行**已落地**）；**与 Task 1~3 正交**（可并行或先行）
+**依赖**：R6（施法运行**已落地**）；**与 Task 1~3 正交**（可并行或先行）。**★ 2026-10-15 追注**：另一处曾被登记为阻碍的依赖（**本 Task 的产出物明文绑在 ~~`FTcsCastRun`~~ 上**）**已解除**——`PLN-REFACTOR-1` 全轮完成后，施法运行态 = **`FTcsSkillInstance`**（继承基底）⇒ 本 Task 按新名写即可，**Step 草案与验收信号无需改判据**
 
 **边界**：
 - **MUST NOT** 照搬 `PriorityOnly` / `PreemptionPolicy`（其依据库外不可复核，E19/E20）；
@@ -417,6 +417,7 @@ Task 0（语义拍板，✅ 已完成）
 
 ## 变更记录
 
+- 2026-10-15 **前置解除追注（`PLN-REFACTOR-1` 全轮收束的连带）**：本文 Task 1（`e1`）/ Task 4（`e4`）被 `DEC-2026-10-13-state-module-positioning` **前置**的状态**已解除**——该裁决的实施（`PLN-REFACTOR-1`）**Task 1~8 全部落地**（2026-10-15）。**本次追注只做三件事**：① 状态行与《最后更新》加解除声明；② 给出**新旧名对照**（施法运行 `FTcsCastRun` → `FTcsSkillInstance`；状态域实现名 `FTcsStateRegistry` / `FTcsStateOps` / `UTcsStateSubsystem` → `FTcsBuffRegistry` / `FTcsBuffOps` / `UTcsBuffSubsystem`）；③ Task 1 Step 7 / Task 4 的依赖处就地加注。**MUST NOT 读成"本计划的 Task 已开工"**——**实施仍未开工**，变的是**开工前提**。**同批一处口径澄清**：本计划的"`e2`/`e3` 不受影响"**仍然成立**（它们的产出物不绑运行态类型）。
 - 2026-10-13 **第二笔：吸收 Lyra 行形态**（用户提出 `ULyraAbilityTagRelationshipMapping` 先例）——**开取代裁决** [`DEC-2026-10-13-relation-row-shape`](../decisions/dec-2026-10-13-relation-row-shape.md)（取代首轮的裁决②③），本计划五处同步：
   - **行形态**：`{SubjectQuery, ObjectQuery, Action}` → **`{AppliesToTag, RequiredTags, ForbiddenTags, TagsToBlock, TagsToCancel}`**（一行一个主体词 + 四容器；载体 = 中心 `UDataAsset`，兑现 `D3-16`）；
   - **匹配机制**：**去掉 `FGameplayTagQuery`** → 容器 + `FGameplayTag::MatchesTag` **层级匹配**（连带去掉一个"本机不可核实"的依赖）；

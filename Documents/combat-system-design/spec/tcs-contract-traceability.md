@@ -4,7 +4,7 @@
 - **类型**：SPEC / 追踪矩阵
 - **状态**：LIVING
 - **权威范围**：OpenSpec 需求 → 代码证据 → 设计文档 → 提案任务的追踪与验证边界
-- **最后更新**：2026-10-11（**R6 Task 1~7 收束**：新增 **6 行**（`skill-def-asset` / `skill-registry` / `skill-cast-runtime` / `skill-param-chain` / `skill-cast-phases` / `skill-layer-e2e-validation`）⇒ **R6 行由 1 增至 7**；两个提案同日归档 ⇒ **能力数 38 → 40**、`openspec/changes/` 归零；同批登记 `TOOLS-9`（归档器 Purpose 占位）与一处 `gameplay-tag-governance` 自相矛盾的订正。**前一笔**：2026-10-06 **R6 Task 0（`R-2` 后段）收官**——新增 1 行 `effect-trigger / 条件求值器与载荷读取器的宿主脚本插槽` + 首条 R6 增量块（本矩阵此前 `R6` 零命中）；该行证据状态 = **静态面 + 行为面均已闭环**，证据 `EVID-2026-10-06-trigger-host-slots`，提案已归档 `2026-10-06-add-trigger-host-slots`）
+- **最后更新**：2026-10-15（**`PLN-REFACTOR-1` Task 7 收束增量（全轮收束）**：本笔**不新增需求行**——该重构只新建 1 个能力（`primary-asset-loading`，已随 Task 8 归档），本笔是**对既有 9 行的模块归属与实现名做一次全量口径同步**（`TcsState` → 共享层 / `TcsBuff` 新建 / 运行态基底 + 两 payload / 桶·门面·步骤·行为·物化全体改名 / `.uplugin` 8 → **11**），并登记一处**缺陷级**发现（`GetAssetsByClass` 在类换模块后**静默返 0** ⇒ **重定向手段的第四层**）。**证据面**：Task 6 已逐篇重取（`Slice.Run` **65/0** / `State.Run` **15/0** 三轮 / `SkillLayer.Run` **24/0** 摘要三方逐字相同）。**前一笔（2026-10-11）**：（**R6 Task 1~7 收束**：新增 **6 行**（`skill-def-asset` / `skill-registry` / `skill-cast-runtime` / `skill-param-chain` / `skill-cast-phases` / `skill-layer-e2e-validation`）⇒ **R6 行由 1 增至 7**；两个提案同日归档 ⇒ **能力数 38 → 40**、`openspec/changes/` 归零；同批登记 `TOOLS-9`（归档器 Purpose 占位）与一处 `gameplay-tag-governance` 自相矛盾的订正。**前一笔**：2026-10-06 **R6 Task 0（`R-2` 后段）收官**——新增 1 行 `effect-trigger / 条件求值器与载荷读取器的宿主脚本插槽` + 首条 R6 增量块（本矩阵此前 `R6` 零命中）；该行证据状态 = **静态面 + 行为面均已闭环**，证据 `EVID-2026-10-06-trigger-host-slots`，提案已归档 `2026-10-06-add-trigger-host-slots`）
 
 > **换根注记（2026-10-01）**：本文 tag 名已随提案 `reroot-gameplay-tag-vocabulary` 换根——旧前缀 `Tcs.Event.*` / `Tcs.Flow.Key.*` / `Tcs.Flow.Template.*` / `Tcs.Attr.*` / `Tcs.Chain.*` 依次成为 `TcsEvent.*` / `DamageFlowKey.*` / `DamageFlowTemplate.*` / `Attribute.*` / `EffectChain.*`；本文正文一律用新名，旧名仅存于本注记与 `log/`、`ledger/`、`evidence/` 等历史文件。
 
@@ -54,7 +54,26 @@
 > **★ `TOOLS-9` 本轮再中两次**（两个新能力的 `## Purpose` 均为 `TBD` 占位）——归档后实测 `40 passed, 2 failed` ⇒ 手写 Purpose 后恢复 `42/0`。**这是第 3~4 次命中**（前两次在 R6 收束），该债由 `validate` 自己拦截，已作为**可预期步骤**写进计划 Task 6 Step 1。
 > **★ 一处术语订正（跨文档，MUST 按右侧引用）**：落地事件名**去掉 `On` 前缀**（`TcsEvent.Cast.CooldownStarted` / `.CooldownUpdated` / `.CooldownEnded` / `.CostApplied`），payload 的 `SkillId` 用 **`DefTag`** 取代；`ITcsCooldownTimingFragment` **整体删除、MUST NOT 补回**。三处订正均已在 `SPEC-04-skill` §3.5/§3.6/§11.3 就地注明（原文逐字保留）。
 
-| OpenSpec requirement | 当前代码证据 | 设计文档 | 提案任务 | 证据状态 |
+> **2026-10-15 `PLN-REFACTOR-1` Task 7 收束增量（全轮收束——**本矩阵的 R7 前最后一笔**）**：
+> **★ 本笔的性质与其余增量块不同（MUST 读）**：它不是"新增需求行"，而是**对既有行的模块归属与实现名做一次全量口径同步**——该重构**新建能力 1 个**（`primary-asset-loading`，Task 8，已随提案 `add-primary-asset-butler` 归档，**其行归 Task 5/8 的增量块**），Task 1~4/6/7 **零新增能力**。
+> **⇒ 本矩阵中受影响的 9 行（逐行对照，MUST 按右侧新名读）**：
+>
+> | 表行 | 原实现名 / 落点 | **现行名 / 落点（2026-10-15）** |
+> |---|---|---|
+> | `state-def-asset` 数据形状行 | `Source/TcsState/Public/Def/` 全部 | **`FTcsStateDefBase` / `UTcsStateDef` / `FTcsNumericParamRow` / `FTcsDescriptionEntry` / `TcsStateParamKeys` 留 `TcsState`**；**`FTcsBuffDef` / `UTcsBuffDefAsset` / `FTcsBuffDefTableRow` 搬 `TcsBuff`**（路径 `Source/TcsBuff/Public/Def/`） |
+> | `state-instance-lifecycle` 桶与门面行 | `FTcsStateRegistry` + `TcsStateSubsystem` + `FTcsStateOps*` | **`FTcsBuffRegistry` + `UTcsBuffSubsystem` + `FTcsBuffOps*`（模块 `TcsBuff`）**；**共享层另留薄 `UTcsStateSubsystem`**（只持参数表读口 + 生命期，≈90 行） |
+> | 同上 · 实例行 | `FTcsStateInstance`（全部字段） | **基底 `FTcsStateInstance`（6 字段）** ← 派生 **`FTcsBuffInstance`**（Buff 8 字段）/ **`FTcsSkillInstance`**（技能 6 字段） |
+> | `state-param-snapshot` 等级来源行 | `Host/TcsEntityLevelProvider.h` + 四个等级源（`TcsState`） | **整体搬 `TcsBuff`**（`Host/` + `Param/`）；接口补 **`TCSBUFF_API`**（漏则 `LNK2019`——台账 `WAIT-9` 新实例） |
+> | `state-stacking-policies` 行 | `Source/TcsState/Public/State/TcsStateStackPolicy.h` + `TcsStateOps_Stack.cpp` | **`Source/TcsBuff/Public/State/TcsBuffStackPolicy.h`** + **`FTcsBuffOps_Stack.cpp`**；`FTcsStateStackDecisionFragment` → **`FTcsBuffStackFragment`**（继承共享层 `FTcsEntityAdmission`） |
+> | `state-step-library` / `effect-chain` 合并行 | `Source/TcsState/Public\|Private/Chain/TcsStepApplyState.*` | **`Source/TcsBuff/.../Chain/TcsStepApplyState.*`**（**注册名与类型名均 MUST NOT 改**——资产按 `ScriptStruct` 路径引用它） |
+> | `state-behavior-fragments` 三行 | `Source/TcsState/Public\|Private/State/TcsStateBehavior*.{h,cpp}` | **整体搬 `TcsBuff`** 且改名 `FTcsBuffBehavior*` / `UTcsBuffBehaviorHandler` |
+> | `state-modifier-materialization` 行 | `State/TcsStateOps_Modifier.cpp` / `TcsStateAttributeAccess.h` | **`FTcsBuffOps_Modifier.cpp`** / **`TcsBuffAttributeAccess.h`** |
+> | `plugin-descriptor / R3 模块物化声明` | **8 个** Runtime 模块 | **11 个**（`PLN-REFACTOR-1` Task 4 加 `TcsBuff` 9→10、Task 8 加 `TcsAssetButler` 10→11）；`DEC-00` §9 表 = **13 行**（两组数字各自独立递增） |
+>
+> **★ 另 2 处结构性变化（不在上表）**：① **`FTcsStepApplyState` 与内联触发行随 Buff 层搬走** ⇒ **`TcsState` 不再依赖 `TcsEffect`**（裁定⑫兑现；本条影响的是"依赖方向"而非某一行）；② **`Discover*` 的发现手段换了**——3 条已迁类的 `Discover*` 与宿主 `GatherChainDefAssets` 改走 **`FTcsPrimaryAssetQuery::GetAssetsForDefClass`**（加载层统一口，内部 `UAssetManager::GetPrimaryAssetIdList`，**与类路径解耦**）——**这不是架构统一而是缺陷修复**：类换模块后 `GetAssetsByClass` 按**当前类路径**查 AssetRegistry 索引会**静默返 0**（实测 `Slice.Run` 3/3→2/4、PIE `State.Run` 15/0→6/9），机理 = **重定向手段的第四层**，见 `EVID-2026-10-15-refactor-1-task6`。
+>
+> **★ 证据状态（如实，MUST NOT 外推）**：本矩阵中**涉及运行态的行**，其"PIE 已验证"标记**由 `PLN-REFACTOR-1` Task 6 重取确认仍然成立**——`Slice.Run` **65/0**、`State.Run` **15/0**（三轮摘要逐字相同）、`SkillLayer.Run` **24/0**（摘要与无头逐字相同）、`State.Reject` / `SkillLayer.Reject` 各 **7/0**；其余 9 条无头读数**逐字未变**。**边界**：本矩阵**未逐行改写**的旧路径串（如 `State/TcsStateRegistry.h` 一类**文件相对路径**）**仍留在表内原样**——它们记的是"该行登记时的落点"，**MUST NOT 当作现役路径用**；权威路径以 `Source/` 实际目录为准。
+>| OpenSpec requirement | 当前代码证据 | 设计文档 | 提案任务 | 证据状态 |
 |---|---|---|---|---|
 | `plugin-descriptor / R3 模块物化声明` | `TireflyCombatSystem.uplugin`：**8 个** Runtime 模块（R3 的 7 个 + **`TcsState`**，后者随 R5 Task 1 进 `.uplugin`；本行原为 R3 静态快照，**2026-10-05 口径同步**） | `openspec/project.md` Tech Stack / R3 context | `reconcile-tcs-contract-drift` 2.1–2.3；`add-tcs-state-module` 2.1 | 静态完成；无运行时需求 |
 | `effect-chain / 链运行态句柄的反射性` | `Source/TcsEffect/Public/Chain/TcsChainRun.h`：展平 `Index`/`Generation`、`BlueprintType` | `04-module-effects.md` §5b；C# 调研 §12 | `reconcile-tcs-contract-drift` 3.1；SCRIPT-8 Task 6 | glue + C# PIE：活动句柄挂起/唤醒、完成后读写空值及同槽 Index=0 的 Generation 1→3 复用已验证；跨 PIE 生命周期另见 R-2。 |
