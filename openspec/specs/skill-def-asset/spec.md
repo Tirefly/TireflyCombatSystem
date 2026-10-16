@@ -7,7 +7,7 @@
 
 ### Requirement: 技能 Def 数据形状
 
-`TcsSkill` MUST 提供 `FTcsSkillDefData : FTcsStateDefBase`（`USTRUCT(BlueprintType)`），承载**施法语义**。它 MUST 继承基类的全部字段并**白拿**之——`StatusTag` / `LevelBase` / `MaxLevel` / `Params` / `Descriptions` / `ModifierRows` MUST NOT 在本类重复声明。
+`TcsSkill` MUST 提供 `FTcsSkillDefData : FTcsStateDefBase`（`USTRUCT(BlueprintType)`），承载**施法语义**。它 MUST 继承基类的全部字段并**白拿**之——`CategoryTags` / `LevelBase` / `MaxLevel` / `Params` / `Descriptions` / `ModifierRows` MUST NOT 在本类重复声明。**`CategoryTags` 在技能侧同样可用**（2026-10-15 随 `StatusTag` 并入基类而来；判据 = 技能 Def 与技能运行态都与状态侧共用同一基类/基底，"技能也有类别容器"与"技能也有 StateInstance"是同一件已成立的事实）。
 
 本类 MUST 只补**施法语义**字段：
 
@@ -66,7 +66,7 @@
 #### Scenario: 六个基类字段不在派生类重复声明
 
 - **WHEN** 检查 `FTcsSkillDefData` 的字段列表与其基类 `FTcsStateDefBase`
-- **THEN** `StatusTag` / `LevelBase` / `MaxLevel` / `Params` / `Descriptions` / `ModifierRows` 只出现在基类；派生类**不含**这六个的同名同型字段
+- **THEN** `CategoryTags` / `LevelBase` / `MaxLevel` / `Params` / `Descriptions` / `ModifierRows` 只出现在基类；派生类**不含**这六个的同名同型字段
 
 #### Scenario: 瞬发表达为空时段表
 

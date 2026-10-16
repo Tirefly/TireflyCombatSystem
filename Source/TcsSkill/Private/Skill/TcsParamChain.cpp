@@ -87,8 +87,9 @@ bool FTcsParamChainOps::ApplyParamModifiers(
 
 	// **未实现档 MUST 具名报出且零施加**（两档同款）：静默当 `All` 或静默无操作都会让宿主以为已施加。
 	// 此处先于任何写入返回。
-	// - `ESS_ByCategoryTags`：类别标识筛选的**载体与规则都未拍板**（台账 `STAT-10`）——载体不在
-	//   （StateDef 侧类别标识容器未新增）、档名仍是开放项、且可能另立 `TcsGameplayTag` 模块；
+	// - `ESS_ByCategoryTags`：**筛选规则未拍板**（台账 `STAT-10`）——载体已于 2026-10-15 落地
+	//   （`FTcsStateDefBase::CategoryTags`，变更 `merge-status-tag-into-category-tags`），
+	//   但 `HasAll` / `HasAny` 一类规则与真实现时机仍未定；
 	// - `ESS_Custom`：片段契约归 `R6.5-g`。
 	if (Selector.Mode == ETcsSkillEntrySelectorMode::ESS_ByCategoryTags
 		|| Selector.Mode == ETcsSkillEntrySelectorMode::ESS_Custom)

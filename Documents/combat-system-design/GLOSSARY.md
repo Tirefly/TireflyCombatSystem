@@ -20,7 +20,7 @@
 |---|---|---|---|---|
 | `R0`–`R8`（**无连字符**） | **实施轮次**（R=Round，"一轮 ≈ 一个模块的一次拍板→文档循环"） | `PLN-R5` 的《轮次路线图》§`R5–R8`（**现行真相源**，2026-10-04 自 `PLN-R4` 移交）；`DEC-2026-09-02-module-map`（原始定义，已存档） | 9 | `R3` 竖切、`R4` 触发行轮、`R5` 状态层轮 |
 | `R-1`–`R-7`（**连字符 + 1 位数字**） | **反射未解决项**（反射可达性专项待办） | `LEDGER-reflection`（`reflection-backlog.md`）的《未解决项总表》 | 7 | `R-1` 参数源族宿主插槽 |
-| `DAMAGE-1` / `STAT-2` / …（**两段主题词 + 序号**，2026-09-29 起） | **跨轮遗留输入条目**（台账条目；~~共 11 个主题词族~~ → **实测 14 个主题词族**（**2026-10-15 复算**：`ATTR`/`CHAIN`/`COOLDOWN`/`CORE`/`COST`/`DAMAGE`/`INTEG`/`MECH`/`PRES`/`SCRIPT`/`STAT`/`TOOLS`/`TRIG`/`WAIT`，**另有 1 条历史命名 `Task-3-1` 不带前缀族**）；**原写 11 与规模格 `37` 均为早期快照**：`CORE`/`DAMAGE`/`INTEG`/`PRES`/`SCRIPT`/`STAT`/`TOOLS`/`WAIT`…） | `LEDGER-deferred`（`deferred-inputs-ledger.md`） | 37 | **75**（**2026-10-15 复算**：表行 75 = 唯一 id 75；原写 `37` 系早期快照——**该格是计数声称，按 `INDEX` §5 纪律同批回改**） | `STAT-2` = 参数源可枚举能力（原 `R4-1`） |
+| `DAMAGE-1` / `STAT-2` / …（**两段主题词 + 序号**，2026-09-29 起） | **跨轮遗留输入条目**（台账条目；~~共 11 个主题词族~~ → **实测 14 个主题词族**（**2026-10-16 复算**：`ATTR`/`CHAIN`/`COOLDOWN`/`CORE`/`COST`/`DAMAGE`/`INTEG`/`MECH`/`PRES`/`SCRIPT`/`STAT`/`TOOLS`/`TRIG`/`WAIT`，**另有 1 条历史命名 `Task-3-1` 不带前缀族**）；**原写 11 与规模格 `37` 均为早期快照**：`CORE`/`DAMAGE`/`INTEG`/`PRES`/`SCRIPT`/`STAT`/`TOOLS`/`WAIT`…） | `LEDGER-deferred`（`deferred-inputs-ledger.md`） | 37 | **74**（**2026-10-16 复算**：表行 74 = 唯一 id 74（含 1 条历史命名）；原写 `37` 系早期快照——**该格是计数声称，按 `INDEX` §5 纪律同批回改**） | `STAT-2` = 参数源可枚举能力（原 `R4-1`） |
 
 > **旧写法已废**：台账条目曾写 `R4-1`、`R5-4`、`R8-6` 等"轮号-序号"形态，**与轮次 `R4`/`R5` 字面撞车**（实例：`R5` 在台账里指 M4a 触发行轮，在路线图里指 M3 状态层轮）。2026-09-29 全部改为主题 ID，映射表见 §5。
 
@@ -73,7 +73,7 @@
 | 参数值来源 | `PV-0`–`PV-10` | Parameter 值来源策略体系（载体/内置源/属性源/等级表/逃生口/消费面/伤害值来源/校验/链行来源/可枚举） | `DEC-01-pv`（`2026-09-10-param-value-source-decision-points.md`） | 11 |
 | 脚本缺口 | `G-1`–`G-4` | C# 脚本化缺口（G-1 上下文反射化、G-2 注册表反射入口、G-3 原语缺口、G-4 策略虚分派） | `RSCH-scripting-ustruct` §7.6；`RSCH-csharp-authoring` §7 | 4 |
 | 脚本化条目 | `SCRIPT-1`–`SCRIPT-10`（旧 `S-1`–`S-8`） | 脚本化工作流条目（门面反射化 → 宿主脚本插槽） | `LEDGER-deferred` §脚本化工作流 | 10 |
-| 跨轮遗留 | `CORE-n` / `DAMAGE-n` / `INTEG-n` / `PRES-n` / `SCRIPT-n` / `STAT-n` / `TOOLS-n` / `WAIT-n`（~~实测 9 个前缀族~~ → **实测 14 个前缀族**（**2026-10-15 复算**：`ATTR 1` / `CHAIN 8` / `COOLDOWN 1` / `CORE 1` / `COST 3` / `DAMAGE 5` / `INTEG 3` / `MECH 1` / `PRES 1` / `SCRIPT 10` / `STAT 11` / `TOOLS 9` / `TRIG 6` / `WAIT 14`，合计 **74** 条严格 `前缀-N` 形；另 **1 条**历史命名 `Task-3-1`）） | 台账条目（见 §5） | **75**（~~70~~） |
+| 跨轮遗留 | `CORE-n` / `DAMAGE-n` / `INTEG-n` / `PRES-n` / `SCRIPT-n` / `STAT-n` / `TOOLS-n` / `WAIT-n`（~~实测 9 个前缀族~~ → **实测 14 个前缀族**（**2026-10-16 复算**：`ATTR 1` / `CHAIN 8` / `COOLDOWN 1` / `CORE 1` / `COST 3` / `DAMAGE 5` / `INTEG 3` / `MECH 1` / `PRES 1` / `SCRIPT 10` / **`STAT 10`** / `TOOLS 9` / `TRIG 6` / `WAIT 14`，合计 **73** 条严格 `前缀-N` 形；另 **1 条**历史命名 `Task-3-1`）） | 台账条目（见 §5） | **74**（~~75~~；**2026-10-16 `STAT-10` 并入 `STAT-4`**） |
 | 触发条件型 | `WAIT-1`–`WAIT-14`（旧 `T-1`–`T-10`） | 不绑轮次、等真实消费者的条目 | `LEDGER-deferred` §触发条件型 | 14 |
 | 反射未解决项 | `R-1`–`R-7` | 反射可达性专项待办 | `LEDGER-reflection` | 7 |
 | **批次字母**（**多义族，见 §2.1**） | `R4.5-a~c` / `R5.5-a~h` / `R6.5-a~e`+`g` | **非正式轮的批次编号**；**每张表各自从 `a` 起编** ⇒ **跨表必须带轮号前缀** | 各计划内的《批次表》（`PLN-R4` / `PLN-R5` / `PLN-R6`） | 见 §2.1 |
@@ -387,6 +387,7 @@
 | `PLN-REFACTOR-1` | `plans/plan-refactor-1-runtime-base.md` | 实施计划（**架构重构**：运行态基底化 + 共享机制合并 + **`TcsBuff` 模块拆出** + **`TcsAssetButler` 加载层落地**；Task 1~8；**2026-10-13 建立 / 2026-10-15 全轮收束**——实际顺序 = 方案 A `1 → 2 → 3 → 4 → 8 → 5 → 6 → 7`） |
 | `DEC-2026-10-14-entity-vocabulary` | `decisions/dec-2026-10-14-entity-vocabulary.md` | 决策记录（**术语级**：「实体 / Entity」为唯一合法词汇、「单位 / Unit」彻底退役；含「词汇类改动只看能否一次改对、不计成本」的方法论口径；**2026-10-14 拍板，`FROZEN`**；**★ 2026-10-15 补入本表**——落地时漏行） |
 | `EVID-2026-10-15-refactor-1-task6` | `evidence/2026-10-15-refactor-1-task6.md` | 证据（`PLN-REFACTOR-1` Task 6 证据重取：11 篇作废读数重取 + 两处真实回归 + **重定向手段的第四层** + PIE 面复取；**★ 2026-10-15 补入本表**） |
+| `EVID-2026-10-16-merge-status-tag` | `evidence/2026-10-16-merge-status-tag.md` | 证据（变更 `merge-status-tag-into-category-tags`（`R5.5-e0`）：**类别容器统一**——`StatusTag` → `CategoryTags` + 资产迁移 + 双配置编译 + PIE 四轮；含一处真实遗漏与两条 MCP 错路；**★ 2026-10-16 补入本表**） |
 | `DEC-2026-10-13-asset-butler` | `decisions/dec-2026-10-13-asset-butler.md` | 决策记录（**架构级**：新建 **`TcsAssetButler`** 承载 PrimaryAsset 加载/注册机制，住低层、注册键类型擦除；分层 = 加载注册层 vs 定义缓存层；四处搬迁；**StateTree 将来单独成 `TcsStateTree`**；八项裁定；**2026-10-13 拍板，`FROZEN`**；**★ 实现已落地（2026-10-15，`PLN-REFACTOR-1` Task 8）**——模块建成、`.uplugin` 10 → 11、`DEC-00` §9 表 12 → 13） |
 | `PLN-R3-content-guide` | `plans/plan-r3-content-guide.md` | 实施计划（竖切内容资产指南） |
 | `RSCH-abilitykit-editor` | `research/abilitykit-extract-editor-determinism.md` | 调研（AbilityKit C 路） |

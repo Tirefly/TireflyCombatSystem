@@ -4,7 +4,20 @@
 - **类型**：DEC / 决策记录（关系表**行形态**与**字段命名**）
 - **状态**：FROZEN（2026-10-13 拍板；**实现状态 = 零落地**——本裁决只定形态，检查器属 `PLN-R5.5`）
 - **权威范围**：关系表的**行形态（一行一个主体词 + 四个容器）、字段命名、主体侧匹配面、抢占策略的表达方式**。**不在本文**——`Priority` 的归属与槽位竞争表（承 [`DEC-2026-10-13-relation-semantics`](dec-2026-10-13-relation-semantics.md) 裁决①，**未被本文取代**）、检查器实现步骤（属 `PLN-R5.5`）
-- **最后更新**：2026-10-13
+- **最后更新**：2026-10-13（**★ 2026-10-16 追加实施注记，见下方块；正文一字未改**）
+
+> **★★ 实施注记（2026-10-16，按 `CONVENTION` §7「冻结」只追加、正文不改）**：变更 `merge-status-tag-into-category-tags`（`R5.5-e0`）已落地，**取代本文两处**：
+>
+> **① 取代 §4.5 的一条否定判据**。原文否掉技能侧使用 `StatusTag`，理由是「它**单义**：状态词 ⇒ 复用会让『技能也有 `StatusTag`』读不通」。**该判据的前提已随 `PLN-REFACTOR-1`（2026-10-15 全轮收束）瓦解**——技能运行态现在真的继承同一基底（`FTcsSkillInstance : FTcsStateInstance`）、技能 Def 也真的继承同一 Def 基类（`FTcsSkillDefData : FTcsStateDefBase`）⇒「技能也有 StateInstance」与「技能也有 StatusTag」是**同构且同样成立**的事实。**处置不是放宽它，而是删掉该字段**：`FTcsStateDefBase.StatusTag`（单 tag）**已删除**，代之以 `FGameplayTagContainer CategoryTags`（容器）。
+> **判据三条**：① 容器 ⊇ 单值（元数冗余）；② 外部先例同向（GAS 的 `UGameplayEffect::InheritableGameplayEffectTags` 就是容器，`GameplayEffect.h:2346`，类型 `FInheritedTagContainer`）；③ 本文 §4.5 的否定判据已瓦解。**⇒ 问题随字段消失而消失，比打补丁干净。**
+>
+> **② 取代 §4.6 甲案的匹配面**。原文写「主体侧匹配面 = `{StatusTag} ∪ CategoryTags`；**不含 `DefTag`**」（乙案被否的理由 = 「会多出只作用于某个**资产**的寻址路径，同一语义出现两条路径」）。**用户 2026-10-15 裁定改判**：判据是「查询的核心不是查一类还是查一个，而是要**查询有明确结果**」——⇒ **`DefTag` 可作查询依据**，但**两个通道各自独立、MUST NOT 混为一个并集**：`DefTag` 通道答「是不是这个资产／这一族资产」（它是**唯一键**，定义库校验三拦重复），`CategoryTags` 通道答「属不属于这个语义类」（**语义词**，不参与去重，多资产可共享同值）。**真正的风险是「混在一个并集里」导致结果不明确**，不是「有两条通道」。
+>
+> **③ 连带一条改名**：`FTcsSkillEntrySelector` 的查询字段 `CategoryTags` → **`ByCategoryTags`**。它是 `FGameplayTagQuery`（表达「我要匹配谁」），与定义侧的容器 `CategoryTags`（声明「我是什么」）**同名不同型且语义方向相反**——正是本文 §4.5 记过的同类静默陷阱（词形相近而方向相反，同 `Blocks` vs `TagsToBlock` 的判据）。改名后与档名 `ESS_ByCategoryTags` 对齐。
+>
+> **不受影响（MUST NOT 读成被推翻）**：**S1 行形态**（一行一主体词 + 四容器）——不变；**S2 匹配机制**（容器 + `FGameplayTag::MatchesTag` 层级匹配，**不引入 `FGameplayTagQuery`**）——不变，且本次实测再证；**S3 字段命名**（`AppliesToTag` / `RequiredTags` / `ForbiddenTags` / `TagsToBlock` / `TagsToCancel`）——不变；**S4 `Blocks` 的受动/前置方向**——不变；**S5 撤销的那条 Error 规则**——不变；**S7 抢占策略 = 填哪几个字段**——不变；**S8 `TagsToBlock` 是新增能力**——不变。**`CategoryTags` 的 tag 根归属仍未裁**（该字段本轮落地后**仍零解析消费者**，检查器归 `R5.5-e1`、选择器真实现归 `R5.5-e2`）⇒ 台账 `STAT-4`（已与 `STAT-10` 合并）记其归属 = `PLN-R5.5` Task 1。
+>
+> **取证**：`EVID-2026-10-16-merge-status-tag`（双配置编译 0/0 + PIE 四轮全绿；**检查 18 新判据实测 `CategoryTags 含定义词=是`**）。
 
 > **本文是取代裁决**：它取代 [`DEC-2026-10-13-relation-semantics`](dec-2026-10-13-relation-semantics.md) 的**裁决② 与 裁决③**，并**撤销**该文在两处写下的一条 `IsDataValid` 规则（见 §3）。**裁决①（`Priority` 移出关系字段族）与裁决④⑤⑥ 未被取代、继续有效**。
 >

@@ -65,7 +65,7 @@
   MUST NOT 跳过登记（宿主可在世界运行期自行 `RegisterChain`，"先起世界后登记链"是合法时序，跳过会让该规则永久静默失效），MUST NOT 用 Error（内容缺口不是契约违规，且 `ExecuteChain` 已有自己的拒绝面）。**求值器 MUST NOT 重复该校验**（起链被拒的面归 `ExecuteChain`）；
 - **触发定义的失败清单条目（2026-10-04 新增）**：资产加载失败或类型不符 / `TriggerTag` 无效 / `Def.EventTag` 无效 / `Def.EffectChainId` 无效 / `TriggerTag` 与另一资产重复——
   **后两条正是 `RegisterTriggerRow` 的 ensure 拒绝面**，故 MUST 在发现期拦下（MUST NOT 等到装配期让编辑器刷 ensure 红字）；
-- **状态定义的发现期校验（2026-10-04 R5 Task 1 新增；四项构成经用户 2026-10-04 确认）**：四个**身份级**判据 MUST 计入失败清单——资产加载失败或类型不符 / `DefTag` 无效 / `Def.StatusTag` 无效 / `DefTag` 与另一资产重复。
+- **状态定义的发现期校验（2026-10-04 R5 Task 1 新增；四项构成经用户 2026-10-04 确认。★ 2026-10-15 收为三项）**：三个**身份级**判据 MUST 计入失败清单——资产加载失败或类型不符 / `DefTag` 无效 / `DefTag` 与另一资产重复。**原第三项 `Def.StatusTag` 非空校验随 `StatusTag` 并入 `CategoryTags` 一并删除**（判据：`CategoryTags` **非必填**——容器是筛选依据而非身份，为空是合法配置，拦它属**误报**）。
   内容级规则 MUST NOT 在此重复（`Params` 键重复 / `ModifierRows` 空引用 / `Triggers` 内空字段 / `DurationTime` 未配 全归资产 `IsDataValid`，见 `state-def-asset` 能力）——发现期只判"这条资产能不能被按 tag 寻址"；
 - **修正器模板的发现期校验（2026-10-05 R5 Task 7 新增）**：三个**身份级**判据 MUST 计入失败清单——资产加载失败或类型不符 / `TemplateTag` 无效 / `TemplateTag` 与另一资产重复。
   同款边界：内容级规则 MUST NOT 在此重复（`Def.Target` 无效 / 数值来源为空 / `OPK_AttributeScaled` 而属性 tag 无效 / 约定列白名单 全归 `UTcsAttrModDef::IsDataValid`，见 `attribute-types` 能力）；
@@ -127,7 +127,7 @@
 
 #### Scenario: 状态定义只进缓存、不被装配到世界
 
-- **WHEN** 内容目录存在一个合法状态定义资产（`DefTag` 与 `Def.StatusTag` 均有效），GameInstance 初始化后检查（**本步只看缓存那一步**）
+- **WHEN** 内容目录存在一个合法状态定义资产（`DefTag` 有效；`CategoryTags` 可空），GameInstance 初始化后检查（**本步只看缓存那一步**）
 - **THEN** 该资产可按 `DefTag` 解析到 `FTcsBuffDef`，且本类的缓存动作**本身**不建任何每世界结构（该世界的触发行数与其它每世界登记表不因它变化）
 
 #### Scenario: 状态定义被逐世界登记进状态门面

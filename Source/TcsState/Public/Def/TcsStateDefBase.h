@@ -29,19 +29,46 @@ class UTcsAttrModDef;
  *
  * **本轮 MUST NOT 预建的字段**：设计 §2 提到的"生命周期事件词汇"字段**零消费者**
  * （行为 Fragment 的兴趣 Tag 已是声明面）⇒ 等真实消费者（`PLN-R5` Task 1 非目标）。
+ *
+ * **字段沿革（2026-10-15，MUST 读，防按旧名找）**：本类原持 `FGameplayTag StatusTag`
+ * （单 tag），已**删除**并代之以 `FGameplayTagContainer CategoryTags`。
+ * 两者是**同一件事的单值形态与容器形态**——容器是超集，故合并不是"新增一个字段"，
+ * 而是"删掉冗余的那个"。改动理由与资产迁移见变更 `merge-status-tag-into-category-tags`。
  */
 USTRUCT(BlueprintType, meta = (Hidden))
 struct TCSSTATE_API FTcsStateDefBase
 {
 	GENERATED_BODY()
 
-// 词表身份
+// 类别标识
 #pragma region Identity
 
 public:
-	// 状态词表条目（区分"同名不同态"的实例；也是发现期的身份校验项之一，见 state-def-asset 能力）
+	/**
+	 * **定义级类别容器**：声明"**我是什么**"（语义分类），**不是**"我要匹配谁"
+	 * （后者是消费者侧的查询——如条目选择器的 `ByCategoryTags`）。
+	 *
+	 * **为什么是容器而不是单个 tag**（2026-10-15 由 `StatusTag` 合并而来）：
+	 * ① 容器 ⊇ 单值——单个词能表达的一切用单元素容器表达，反向不成立；
+	 * ② 外部先例同向——GAS 的 `UGameplayEffect::InheritableGameplayEffectTags` 就是容器
+	 *    （`GameplayEffect.h`，类型 `FInheritedTagContainer`）；
+	 * ③ 设计要的是"**行 = 单个或一类** StateDef"（`SPEC-02-states` §3.4），
+	 *    而单值表达不了"一类"。
+	 *
+	 * **非必填**：空容器是合法配置——它是**筛选依据**而非身份，有消费者筛选时
+	 * 自然不命中任何查询（明确结果，不是缺省故障）。**MUST NOT** 在发现期或
+	 * 作者期拦空值（那属误报）。原 `StatusTag` 的"非空"硬约束随本合并取消。
+	 *
+	 * **每词一义**：具体词 = 只作用于它自己；填**父词**则经层级匹配覆盖一族
+	 * （`FGameplayTag::MatchesTag`，父命中子；先例 `TcsParamChain.cpp`）。
+	 *
+	 * **与 `DefTag` 的分工（两个独立查询通道，MUST NOT 混为并集）**：
+	 * `DefTag` = **唯一键**（定义库的解析键与去重键，重复即报错），答"这是哪份资产"；
+	 * 本字段 = **语义词**（不参与去重，多个资产可共享同值），答"这在语义上属于什么"。
+	 * `DefTag` 表达不了"一类"，把它并进类别匹配会把"一族"退化成"一个资产"。
+	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "State Def")
-	FGameplayTag StatusTag;
+	FGameplayTagContainer CategoryTags;
 
 #pragma endregion
 

@@ -39,7 +39,9 @@ struct FTcsSkillDefData;
  *   查询会**静默返回空**，排障成本高，见台账 INTEG-3）；
  * - **校验**：双真相（`Chain.ChainId != ChainId`）/ 空 id / 重复登记 → 计入失败清单 + Error，不静默跳过；
  *   触发定义侧另有四条（空 `TriggerTag` / 空 `Def.EventTag` / 空 `Def.EffectChainId` / 身份重复）；
- *   **状态定义侧的四条是身份级**（加载失败或类型不符 / 空 `DefTag` / 空 `Def.StatusTag` / `DefTag` 重复）
+ *   **状态定义侧的三条是身份级**（加载失败或类型不符 / 空 `DefTag` / `DefTag` 重复；
+ *   ~~空 `Def.StatusTag`~~ 已于 2026-10-15 删除——该字段并入 `CategoryTags` 容器后**非必填**，
+ *   为空是合法配置，拦它属误报，见变更 `merge-status-tag-into-category-tags`）
  *   ——内容级规则（参数键重复、内联触发行缺项、时值来源为空、描述缺项）全归资产 `IsDataValid`，
  *   发现期只判"这条资产能不能被按 tag 寻址"；**修正器模板侧同为身份级三条**（加载失败或类型不符 /
  *   空 `TemplateTag` / `TemplateTag` 重复——`Def.Target`、操作数、值约定的内容规则归资产 `IsDataValid`）；

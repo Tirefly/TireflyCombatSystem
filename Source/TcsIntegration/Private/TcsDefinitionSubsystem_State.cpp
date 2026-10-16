@@ -50,14 +50,12 @@ void UTcsDefinitionSubsystem::DiscoverStateDefs()
 			continue;
 		}
 
-		// 校验二：词表身份（StatusTag 是"同名不同态"的区分依据，空值让该定义在状态词表里无从落位）
-		if (!BuffDefAsset->BuffDef.StatusTag.IsValid())
-		{
-			FailureList.Add(FString::Printf(TEXT("%s: 定义不完整——BuffDef.StatusTag 为空（状态词表里无从落位）"), *AssetPath));
-			continue;
-		}
+		// **原校验二已删除（2026-10-15）**：它拦的是 `Def.StatusTag` 非空。
+		// `StatusTag` 已并入 `CategoryTags`（容器），而容器是**筛选依据而非身份** ⇒
+		// 为空是合法配置（有消费者筛选时自然不命中，属明确结果而非缺省故障）。
+		// 拦它属**误报**——发现期只判"这条资产能不能被按 tag 寻址"，与类别是否填了无关。
 
-		// 校验三：身份重复（同身份两个资产 = 内容冲突，不得静默覆写——口径同链 / 触发定义的"重复定义"）
+		// 校验二：身份重复（同身份两个资产 = 内容冲突，不得静默覆写——口径同链 / 触发定义的"重复定义"）
 		if (StateDefs.Contains(BuffDefAsset->DefTag))
 		{
 			FailureList.Add(FString::Printf(TEXT("%s: 状态定义身份 %s 已被另一个资产占用（重复定义）"),

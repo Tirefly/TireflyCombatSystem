@@ -114,14 +114,26 @@ public:
 	/**
 	 * 类别标识查询（`ESS_ByCategoryTags` 档读取）——**本轮预留字段，零消费者**。
 	 *
+	 * **字段名 MUST 为 `ByCategoryTags`，MUST NOT 复用它要查询的那个容器名 `CategoryTags`**
+	 * （2026-10-15 改名）：本字段是**查询**（表达"**我要匹配谁**"），而定义侧
+	 * `FTcsStateDefBase::CategoryTags` 是**容器**（声明"**我是什么**"）——两者同名不同型
+	 * （`FGameplayTagQuery` vs `FGameplayTagContainer`）且语义方向相反。这类"词形相近而方向
+	 * 相反"是本仓记过的静默陷阱（同 `Blocks` vs `TagsToBlock` 的判据）；改名后与档名
+	 * `ESS_ByCategoryTags` 对齐，读代码即可知方向。
+	 *
 	 * **为什么字段先落而机制不落**：`FGameplayTagQuery` 是引擎既有的可反射类型 ⇒ 落下它**零成本**
 	 * （不需要新增任何自定义类型），而它让"这一档将来吃什么"在**形状上**立刻可见
 	 * （否则后人只会看到一个空枚举值，无法判断该档的意图）。**MUST NOT** 在此实现任何筛选逻辑
-	 * ——载体（StateDef 侧类别标识容器）与规则都未拍板，实现即"零消费者预建"。
+	 * ——规则未拍板，实现即"零消费者预建"。
+	 *
+	 * **★ 阻塞已减少一条（2026-10-15）**：原记的"载体不存在（StateDef 侧类别标识容器尚未新增）"
+	 * **已消失**——定义侧容器 `FTcsStateDefBase::CategoryTags` 已随变更
+	 * `merge-status-tag-into-category-tags` 落地。剩余阻塞 = 筛选规则（`HasAll` / `HasAny`）
+	 * 未拍板 + 真实现时机（归 `R5.5-e2`）。
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Skill Entry Selector",
 		Meta = (EditCondition = "Mode == ETcsSkillEntrySelectorMode::ESS_ByCategoryTags", EditConditionHides))
-	FGameplayTagQuery CategoryTags;
+	FGameplayTagQuery ByCategoryTags;
 
 	// 自定义片段（`ESS_Custom` 档读取；契约归 R6.5-g，本轮只报未实现）
 	UPROPERTY(EditAnywhere, Category = "Skill Entry Selector",

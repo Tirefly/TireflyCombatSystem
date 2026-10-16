@@ -1,6 +1,7 @@
 // Copyright Tirefly. All Rights Reserved.
 
 #include "State/TcsBuffOps.h"
+#include "GameplayTagContainer.h"
 
 #include "Clock/TcsClockSubsystem.h"
 #include "Def/TcsBuffDef.h"
@@ -106,8 +107,8 @@ double FTcsBuffOps::EvaluateTotalDuration(
 	const double TotalSeconds = Def.DurationTime.Evaluate(Ctx);
 	if (TotalSeconds <= 0.0)
 	{
-		UE_LOG(LogTcsBuff, Warning, TEXT("状态时值非正：按 0 处理（定义=%s 策略=%d 求值=%.3f）"),
-			*Def.StatusTag.ToString(), static_cast<int32>(Def.DurationPolicy), TotalSeconds);
+		UE_LOG(LogTcsBuff, Warning, TEXT("状态时值非正：按 0 处理（类别=%s 策略=%d 求值=%.3f）"),
+			*Def.CategoryTags.ToString(), static_cast<int32>(Def.DurationPolicy), TotalSeconds);
 		return 0.0;
 	}
 
