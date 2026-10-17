@@ -11,8 +11,10 @@
 #include "Skill/TcsCooldownOps.h"
 #include "Skill/TcsCostOps.h"
 #include "Skill/TcsParamChain.h"
+#include "Skill/TcsSkillOps_Relation.h"
 #include "Skill/TcsSkillRegistry.h"
 #include "Runtime/TcsEntityAdmission.h"
+#include "State/TcsStateLiveQuery.h"
 #include "State/TcsStateParamTableReader.h"
 #include "TcsAttributeSubsystem.h"
 #include "TcsSkillLogChannel.h"
@@ -72,7 +74,8 @@ void FTcsCastOps::Broadcast(
 	FGameplayTag EventTag,
 	FTcsSkillInstanceHandle RunHandle,
 	const FTcsSkillInstance& Run,
-	const FTcsLearnedSkillEntry& Entry)
+	const FTcsLearnedSkillEntry& Entry,
+	ECastFinishReason Reason)
 {
 	UTcsEventBusSubsystem* Bus = Subsystem.GetEventBus();
 	if (!Bus)
@@ -90,6 +93,8 @@ void FTcsCastOps::Broadcast(
 	Payload.DefTag = Run.DefTag;
 	Payload.EntryHandle = Entry.Handle;
 	Payload.Level = Run.Level;
+	// 终结原因（2026-10-16 R5.5-e1）：四枚共用同一形状 ⇒ 恒有值，见载荷字段注释
+	Payload.Reason = Reason;
 
 	// **★ 广播前把日志要用的读数先拷成值**（2026-10-08 静态自查抓到的一处真实悬空引用）：
 	// `PublishImmediate` 是**当场同步派发** ⇒ 订阅者可在其中注销实体（桶被删 ⇒ `Entry` 悬空）
@@ -180,6 +185,30 @@ ESkillActivateResult FTcsCastOps::Activate(
 	 */
 	const FTcsSkillEntryHandle EntryHandleForResolve = Entry->Handle;
 
+	// ── 门禁⑦ 关系门（2026-10-16 `R5.5-e1` 新增；**评估点在 ⑥ 之后**，但**枚举值序解耦**取 7） ──
+	//
+	// **为什么排在这里**：关系表的三道判定（`RequiredTags` / `ForbiddenTags` / 施动侧反向查找）
+	// 都要读**本定义的内容**与**跨域的在跑状态** ⇒ MUST 在 ⑥（定义可解析）之后，
+	// 否则会拿到空定义判出"看似合理但错误"的结果（同 ⑥ 那条"评估可达性"判据）。
+	//
+	// **跨域一步经共享层契约**（`ITcsStateLiveQuery`）：`TcsSkill` MUST NOT 依赖 `TcsBuff`，
+	// 而本判定要读状态域的在跑实例 ⇒ 走两域共同下层。**契约未注册时降级放行 + 具名 Warning**
+	// （取舍见 `ITcsStateLiveQuery` 类注释：缺注册不该变成随机的业务失败）。
+	//
+	// **拒绝路径零副作用**（同本条既有纪律）：不建 run、不改账本、不起链、不发事件。
+	{
+		ITcsStateLiveQuery* LiveQuery = nullptr;
+		if (UTcsStateSubsystem* StateSubsystem = Subsystem.GetWorld() ? Subsystem.GetWorld()->GetSubsystem<UTcsStateSubsystem>() : nullptr)
+		{
+			LiveQuery = StateSubsystem->GetLiveQuery();
+		}
+
+		if (!FTcsSkillOps_Relation::CheckRelationGate(LiveQuery, Entity, DefTag, *Def))
+		{
+			return ESkillActivateResult::SAR_RelationBlocked;
+		}
+	}
+
 	// ── 门禁③ 冷却（`D5-15`："可施放 = 全部自身轨道清空 + 所属组槽清空"） ──────────────
 	//
 	// **判据的唯一实现在 `FTcsCooldownOps::IsEntryOnCooldown`**（MUST NOT 在此内联一份判断）：
@@ -262,12 +291,12 @@ ESkillActivateResult FTcsCastOps::Activate(
 	{
 		// 分流 b：顶替 —— 先查旧 run 当前时段的可打断性。
 		//
-		// **★ 自 Task 5 起改调查询契约**（`IsInterruptibleNow`），不再直读 `Def->bInterruptibleDefault`：
+		// **★ 自 Task 5 起改调查询契约**（`CanBeCanceled`），不再直读 `Def->bCancellableDefault`：
 		// 查询契约才是"打断结算与宿主移动系统询问的唯一合法入口"，顶替**就是**一种打断
 		// ⇒ 它 MUST 走同一个判据，否则会出现"打断被拒、而顶替绕过判据成功"的第二真相。
 		//
 		// **零回归的证据（Task 3 的行为逐字保住）**：`DefSwitches` 档（**默认档**）读的就是
-		// `bInterruptibleDefault` 这一个字段 ⇒ 未配 `CastQueryMode` 的定义行为**完全不变**。
+		// `bCancellableDefault` 这一个字段 ⇒ 未配 `CastQueryMode` 的定义行为**完全不变**。
 		// 三档分派与两处具名降级都在被调方实现（本处 MUST NOT 再复制一份档位判定）。
 		//
 		// **注意判据的对象**：查的是**旧 run 的当前时段**（按旧 run 的句柄），不是"新激活这次"——
@@ -278,7 +307,7 @@ ESkillActivateResult FTcsCastOps::Activate(
 		// 定义被重新登记成另一档（`UnregisterSkillDef` + `RegisterSkillDef` 是合法序列），
 		// 那么"旧 run 的可打断性"按**新定义**判定。这是**有意的**（运行态不持定义内容的副本，
 		// 只持 `DefTag` 身份 ⇒ 定义是"当前生效的那一份"，与 `ParamRef` 的解析锚点同口径）。
-		if (!IsInterruptibleNow(Subsystem, ActiveRun))
+		if (!CanBeCanceled(Subsystem, ActiveRun))
 		{
 			UE_LOG(LogTcsSkill, Log,
 				TEXT("技能激活被拒[已在飞行中]：实体=%lld 定义=%s 顶替被拒（当前时段不可打断，run=%d/%d）"),
@@ -583,7 +612,8 @@ ESkillActivateResult FTcsCastOps::Activate(
 	// （条目若在起链期间被撤销，本次激活的事实仍然成立——run 已建、事件该发，只是身份取自拷贝）。
 	if (const FTcsSkillInstance* LiveRun = ResolveInstance(Subsystem, RunHandle))
 	{
-		Broadcast(Subsystem, Tag_TcsEvent_Cast_Started, RunHandle, *LiveRun, EntryCopy);
+		Broadcast(Subsystem, Tag_TcsEvent_Cast_Started, RunHandle, *LiveRun, EntryCopy,
+		/*Reason=*/ECastFinishReason::ECFR_Completed);  // 尚未终结，填中性默认
 	}
 
 	// ── ★ 时段推进的起点：**有当前时段 ⇒ 排定首段到期条目；没有 ⇒ 立即完成终结** ──
@@ -696,7 +726,7 @@ bool FTcsCastOps::FinishSkillInstance(
 	// 若排在回收之后，新起的链挂的条目会**当场被自己的终结例程摘掉**（同一个 `CascadeAnchor`）
 	// ⇒ 表现为"配了完成档的技能永远打不出效果"，而**日志上一切正常**（这正是最难查的一类）。
 	//
-	// **`ECFR_Interrupted` / `ECFR_Replaced` 两档不起链**（判据 = 触发点，见 `StartMainChain`）：
+	// **`ECFR_Canceled` / `ECFR_Replaced` 两档不起链**（判据 = 触发点，见 `StartMainChain`）：
 	// 被打断/顶替的施法**没有办完事**，此时打主链正是本能力明文要拦的形态
 	// （"被顶替的旧技能在瞬间真的打出主链"）。
 	//
@@ -853,7 +883,7 @@ bool FTcsCastOps::FinishSkillInstance(
 			? Tag_TcsEvent_Cast_Completed
 			: Tag_TcsEvent_Cast_Interrupted;
 
-		Broadcast(Subsystem, EventTag, RunHandle, RunCopy, *Entry);
+		Broadcast(Subsystem, EventTag, RunHandle, RunCopy, *Entry, Reason);
 	}
 	else
 	{
@@ -912,8 +942,8 @@ void FTcsCastOps::DispatchCooldownTiming(
 	//
 	// | `Reason` | 是否算"被打断" | 起哪一档 |
 	// |---|---|---|
-	// | `ECFR_Interrupted` | **是**（真打断） | `ECT_OnCastInterrupted` |
-	// | `ECFR_Replaced` | **是**（`SPEC-04-skill` §11.5 裁决 1 明文"顶替 = 打断的一种终止形态"） | `ECT_OnCastInterrupted` |
+	// | `ECFR_Canceled` | **是**（真打断） | `ECT_OnCastCanceled` |
+	// | `ECFR_Replaced` | **是**（`SPEC-04-skill` §11.5 裁决 1 明文"顶替 = 打断的一种终止形态"） | `ECT_OnCastCanceled` |
 	// | `ECFR_Completed` | **否**（含瞬发） | `ECT_OnCastCompleted` |
 	//
 	// **⇒ 瞬发自动被覆盖**：瞬发以 `ECFR_Completed` 终结 ⇒ 只要本分派挂在 `FinishSkillInstance` 里，
@@ -922,7 +952,7 @@ void FTcsCastOps::DispatchCooldownTiming(
 	// ⇒ 原句'全时段走完'对瞬发永不成立"留过同款教训；本轮 MUST NOT 复犯。
 	const bool bInterruptedPath = (Reason != ECastFinishReason::ECFR_Completed);
 	const ETcsSkillCooldownTiming WantedTiming = bInterruptedPath
-		? ETcsSkillCooldownTiming::ECT_OnCastInterrupted
+		? ETcsSkillCooldownTiming::ECT_OnCastCanceled
 		: ETcsSkillCooldownTiming::ECT_OnCastCompleted;
 
 	// **`ECT_Manual` 档框架什么都不做**（含日志）——它的定义就是"宿主自己调 `StartCooldown`"，

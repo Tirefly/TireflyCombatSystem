@@ -30,7 +30,7 @@ class UTcsCastStateQuery : public UInterface
  *    `FInstancedStruct` 选择器表达。
  *
  * **宿主可达性（谁在什么时候调它）**：宿主**不直接调本接口**。唯一合法入口是门面上的
- * `UTcsSkillSubsystem::IsInterruptibleNow` / `CanMoveNow`——它按 `ECastQueryMode` 三档分派，
+ * `UTcsSkillSubsystem::CanBeCanceled` / `CanMoveNow`——它按 `ECastQueryMode` 三档分派，
  * 只有 `CQM_Custom` 一档会走到本接口。宿主 MUST NOT 自行读 `FTcsSkillDefData` 的开关字段来代判
  * （那会在三档之间制造**第二真相**）。
  *
@@ -67,7 +67,7 @@ public:
 	 * @return 返回当前是否可打断。
 	 */
 	UFUNCTION(BlueprintNativeEvent)
-	bool IsInterruptibleNow(FTcsSkillInstanceHandle Run);
+	bool CanBeCanceled(FTcsSkillInstanceHandle Run);
 
 	/**
 	 * 当前是否允许移动（宿主移动系统询问）。

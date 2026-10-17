@@ -13,11 +13,11 @@
 
 - **布尔开关表**：`TArray<FTcsBoolSwitchRow> BoolSwitches`——与基类的 `Params`（数值参数行）构成设计所称的"参数双表"；
 - **施法时段表**：`TArray<FTcsPhaseSpan> Phases`——任意段数，"前摇/后摇"是项目命名惯例；**瞬发 MUST 表达为空表**（MUST NOT 用"单一零时长段"这一等价写法，否则查询契约的"瞬发"档无法与"一个零时长段"区分）；
-- **查询契约三档**：`ECastQueryMode CastQueryMode`（`DefSwitches` 默认 / `PhaseTable` / `Custom`）+ `bool bInterruptibleDefault` / `bool bCanMoveDefault`（`DefSwitches` 档）+ `FInstancedStruct CastQueryFragment`（`Custom` 档）——三档**各有字段载体**，MUST NOT 出现"枚举声明了某一档但没有对应字段"的形状缺口；
+- **查询契约三档**：`ECastQueryMode CastQueryMode`（`DefSwitches` 默认 / `PhaseTable` / `Custom`）+ `bool bCancellableDefault` / `bool bCanMoveDefault`（`DefSwitches` 档）+ `FInstancedStruct CastQueryFragment`（`Custom` 档）——三档**各有字段载体**，MUST NOT 出现"枚举声明了某一档但没有对应字段"的形状缺口；
 - **主链**：`FGameplayTag CastChainId` + `EMainChainStart MainChainStart`（`OnCastStarted` 默认 / `OnPhaseEnter` / `OnCastCompleted` / `Custom`）+ `FGameplayTag MainChainStartPhaseTag`；
 - **实例化**：`ECastInstancing Instancing`（默认 `InstancePerExecution`）；
 - **顶替位**：`bool bRetriggerOnActive = false`——`InstancePerEntity` 在飞时的分流位：`false`（**默认**）⇒ 驳回；`true` ⇒ 顶替。默认值 `false` 是**判据不是偏好**（GAS 的对应位无初值即 `false`，且本仓"框架零默认"纪律下默认档 MUST 取**行为最保守**的一档——驳回 > 顶替）；
-- **关系字段**（同 `FTcsBuffDef` 形状）：`Blocks` / `Requires` / `Priority` / `Cancels`；
+- **关系字段**（同 `FTcsBuffDef` 形状）：`TArray<FGameplayTag> RequiredTags` / `ForbiddenTags` / `TagsToBlock` / `TagsToCancel` / `int32 Priority = 0`——**2026-10-16 `R5.5-e1` 落地**，改名映射与「`Blocks` → `ForbiddenTags` 而非 `TagsToBlock`」的方向陷阱同 `state-def-asset` 能力；`Priority` 不属关系字段族（归 `R5.5-e4`）；
 - **内联触发行**：`TArray<FTcsEffectTriggerDef> Triggers`；
 - **冷却策略**：`FTcsCooldownPolicy Cooldown`（**2026-10-11 本轮落地**——见下方"冷却与 Cost 字段的落地"）；
 - **消耗配置**：`FTcsSkillCostConfig Cost`（**2026-10-12 类型名由 `FTcsCostConfig` 改**，
@@ -62,6 +62,8 @@
 - **资产迁移成本 = 0**（实测：全仓 `.uasset` 扫 `Cost` / `ResourceAttr` / `Cooldown` 零命中）。
 
 **`TcsSkill` MUST NOT 依赖 `TcsDamage` / `TcsTargeting`**：链步骤是 `FInstancedStruct` 数据、运行时经执行器注册表分派，本模块代码 MUST NOT 具名任何领域步骤类型。
+
+**★ 2026-10-16 `R5.5-e1` 改名（本需求已现况化）**：`bInterruptibleDefault` → **`bCancellableDefault`**，与 `FTcsPhaseSpan::bCancellable` / `ECastFinishReason::ECFR_Canceled` / `ITcsCastStateQuery::CanBeCanceled()` / `ETcsSkillCooldownTiming::ECT_OnCastCanceled` **同族同批**。**判据**：「打断」是手段、「取消」是结果——关系表族加入后，取消可由 `TagsToCancel` 直接产生（不经过「打断」这个手段）⇒ 字段名 MUST 描述**结果**，否则关系表取消路径读不通。**`TcsEvent.Cast.Interrupted` 事件词本轮不改**（该 tag 大概率退役）。
 
 #### Scenario: 六个基类字段不在派生类重复声明
 

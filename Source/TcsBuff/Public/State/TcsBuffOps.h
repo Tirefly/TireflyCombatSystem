@@ -172,6 +172,55 @@ public:
 #pragma endregion
 
 
+// 关系门（R5.5-e1）
+#pragma region Relation
+
+public:
+	/**
+	 * **关系门（apply 前）**——2026-10-16 @R5.5-e1@ @FTcsBuffOps::CheckApplyGate@ / @FTcsBuffOps::ApplyCancelAndBlock@。
+	 *
+	 * 三道判定，任一不过 ⇒ 拒绝（调用方返回 @EBAR_Rejected@，**零事件、实例数不变**）：
+	 * ① @RequiredTags@ 未全满足；② @ForbiddenTags@ 命中；
+	 * ③ **反向查找**：存在存活实例的 @TagsToBlock@ 覆盖我（施动侧单向声明即生效）。
+	 *
+	 * **判定 MUST 排在共存决策之前**：门禁答「能不能存在」，叠层答「以什么形态存在」——
+	 * 前者不成立时后者无意义。
+	 *
+	 * @param Subsystem 状态门面。
+	 * @param Target 被施加方实体。
+	 * @param DefTag 待施加的定义身份。
+	 * @param Def 该定义（调用方已解析）。
+	 * @return 通过返回 true。
+	 */
+	static bool CheckApplyGate(
+		UTcsBuffSubsystem& Subsystem,
+		FTcsCombatEntityHandle Target,
+		FGameplayTag DefTag,
+		const FTcsBuffDef& Def);
+
+	/**
+	 * **关系门的施动半（apply 成功后）**——@TagsToCancel@ 与 @TagsToBlock@ 的落地。
+	 *
+	 * - @TagsToCancel@：把这些**已有的**状态终止掉（原因 @EBRC_Cancelled@）；
+	 * - @TagsToBlock@：把**我已开始时已在跑**的目标终止掉（第二处时机；
+	 *   「目标后到时无法开始」那一半由 @CheckApplyGate@ 的 ③ 承担）。
+	 *
+	 * 两者落地动作相同（终止目标），故合并在同一处、共用两段式遍历纪律。
+	 *
+	 * @param Subsystem 状态门面。
+	 * @param Target 被施加方实体。
+	 * @param DefTag 刚施加的定义身份。
+	 * @param Def 该定义。
+	 */
+	static void ApplyCancelAndBlock(
+		UTcsBuffSubsystem& Subsystem,
+		FTcsCombatEntityHandle Target,
+		FGameplayTag DefTag,
+		const FTcsBuffDef& Def);
+
+#pragma endregion
+
+
 // 时间条目（到期 / 周期）
 #pragma region Time
 

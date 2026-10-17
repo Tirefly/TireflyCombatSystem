@@ -8,6 +8,7 @@
 #include "TcsStateSubsystem.generated.h"
 
 class UTcsStateParamTableReader;
+class ITcsStateLiveQuery;
 
 
 
@@ -82,7 +83,35 @@ public:
 	 */
 	UTcsStateParamTableReader* GetParamTableReader();
 
+	/**
+	 * 取在飞运行态查询契约（**R5.5-e1 新增**；未注册返回 nullptr）。
+	 *
+	 * **它为什么住共享层**：技能侧判关系表 `TagsToBlock` 时要读状态域的在飞实例，而
+	 * `TcsSkill` MUST NOT 依赖 `TcsBuff`（两域是兄弟）⇒ 互通口 MUST 经共同下层中转。
+	 * 本门面就是那个下层（它已是两域唯一的共用设施持有者）。
+	 *
+	 * **未注册是合法状态**（非错误）：调用方 MUST 走「无在飞实例」的保守路径并留具名日志，
+	 * MUST NOT 静默当真（判据见 `ITcsStateLiveQuery` 的类注释）。
+	 *
+	 * @return 返回契约指针（未注册返回 `nullptr`）。
+	 */
+	ITcsStateLiveQuery* GetLiveQuery() const;
+
+	/**
+	 * **注册**在飞运行态查询契约——由**状态域自己**在初始化期调用（`UTcsBuffSubsystem::Initialize`）。
+	 *
+	 * **为什么是「域向下注册」而不是「宿主注入」**：这不是宿主能力（宿主没有理由知道插件内部
+	 * 两个域要互通），而是框架自身机制的缺失（`PLN-REFACTOR-1` 把两域拆开后没留互通口）。
+	 * 若要求宿主接线，则每个宿主都要接一次，而**漏接的表现是关系门静默失效**。
+	 *
+	 * @param InQuery 实现对象（域子系统自身；须实现 `ITcsStateLiveQuery`）。
+	 */
+	void SetLiveQuery(ITcsStateLiveQuery* InQuery);
+
 private:
+	// 在飞运行态查询契约（域侧注册；未注册 = nullptr 是合法状态）
+	ITcsStateLiveQuery* LiveQuery = nullptr;
+
 	// 快照参数表反射壳（`Initialize` 建的单例；绑定由 `FTcsStateSnapshotScope` 作用域负责）
 	UPROPERTY()
 	TObjectPtr<UTcsStateParamTableReader> ParamTableReader;

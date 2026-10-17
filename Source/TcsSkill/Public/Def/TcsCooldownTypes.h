@@ -42,7 +42,7 @@ enum class ETcsSkillCooldownTiming : uint8
 
 	ECT_OnCastCompleted = 1		UMETA(DisplayName = "施法完成", ToolTip = "施法走完全部时段、或瞬发当刻完成时起冷却"),
 
-	ECT_OnCastInterrupted = 2	UMETA(DisplayName = "施法打断", ToolTip = "施法被打断或被顶替时起冷却（不消耗的施法反而进冷却）"),
+	ECT_OnCastCanceled = 2	UMETA(DisplayName = "施法打断", ToolTip = "施法被打断或被顶替时起冷却（不消耗的施法反而进冷却）"),
 
 	ECT_Manual = 3				UMETA(DisplayName = "手动", ToolTip = "框架不自动起冷却，由宿主在自己的逻辑处调 StartCooldown"),
 };

@@ -106,7 +106,7 @@ public:
 	 * ⑤ 广播终止事件（**MUST 排在归还槽位之前**——载荷里的运行句柄在回调内仍须有效）；
 	 * ⑥ 归还池槽位。
 	 *
-	 * **`Reason` 是唯一分岔输入**：`ECFR_Completed` → `OnCastCompleted`；`ECFR_Interrupted` /
+	 * **`Reason` 是唯一分岔输入**：`ECFR_Completed` → `OnCastCompleted`；`ECFR_Canceled` /
 	 * `ECFR_Replaced` → `OnCastInterrupted`。**MUST NOT 互相冒充**（照抄 GAS 的
 	 * `EndAbility(bWasCancelled = false)` 会让配 `OnCastCompleted` 起链的技能在被打断时真的打出主链）。
 	 *
@@ -169,7 +169,7 @@ public:
 	 * **四路终结在此分派，MUST NOT 去四个调用点各挂一份**：末段走完 / 瞬发当刻 / 打断 / 顶替
 	 * 全部汇聚到 `FinishSkillInstance`，而它的签名自带 `ECastFinishReason Reason`。
 	 *
-	 * **分派表**：`ECFR_Interrupted` / `ECFR_Replaced` ⇒ 算"被打断"（起 `ECT_OnCastInterrupted`
+	 * **分派表**：`ECFR_Canceled` / `ECFR_Replaced` ⇒ 算"被打断"（起 `ECT_OnCastCanceled`
 	 * 档——顶替是打断的一种终止形态，`SPEC-04-skill` §11.5 裁决 1）；`ECFR_Completed`
 	 * ⇒ `ECT_OnCastCompleted` 档（**含瞬发**：瞬发以 `ECFR_Completed` 终结，故天然被覆盖，
 	 * **不需要额外挂点**）。`ECT_Manual` / `ECT_OnCastStarted` 两档在此**零动作**
@@ -301,7 +301,7 @@ public:
 	 * **宿主 MUST NOT 自行读 `FTcsSkillDefData` 的开关字段代判**（那会在三档之间制造**第二真相**）。
 	 *
 	 * 三档按 `ECastQueryMode` 分派：
-	 * - `CQM_DefSwitches`（默认档）⇒ 读 `bInterruptibleDefault` / `bCanMoveDefault`；
+	 * - `CQM_DefSwitches`（默认档）⇒ 读 `bCancellableDefault` / `bCanMoveDefault`；
 	 * - `CQM_PhaseTable` ⇒ 读**当前时段**（`Phases[PhaseIndex]`）的字段；
 	 * - `CQM_Custom` ⇒ **本轮未实现**：具名 `Warning` + 回退默认档。
 	 *
@@ -318,21 +318,21 @@ public:
 	 * @return 返回当前是否可打断；**悬空句柄 ⇒ 返回 false**（不可打断是"不动作"的保守档——
 	 *         终结一个已不存在的 run 没有意义，且此处 MUST NOT ensure：那是时序竞态）。
 	 */
-	static bool IsInterruptibleNow(UTcsSkillSubsystem& Subsystem, FTcsSkillInstanceHandle RunHandle);
+	static bool CanBeCanceled(UTcsSkillSubsystem& Subsystem, FTcsSkillInstanceHandle RunHandle);
 
-	// 当前是否允许移动（分派与降级规则同 `IsInterruptibleNow`；只是读另一列字段）
+	// 当前是否允许移动（分派与降级规则同 `CanBeCanceled`；只是读另一列字段）
 	static bool CanMoveNow(UTcsSkillSubsystem& Subsystem, FTcsSkillInstanceHandle RunHandle);
 
 	/**
 	 * **打断入口**（`CancelCast`）：先过查询契约，**MUST NOT 无条件打断**。
 	 *
-	 * 结算序：① `IsInterruptibleNow()` 判可打断性 → ② **不可打断 ⇒ 拒绝**（返回 false + 具名 `Log`；
+	 * 结算序：① `CanBeCanceled()` 判可打断性 → ② **不可打断 ⇒ 拒绝**（返回 false + 具名 `Log`；
 	 * 运行态**原样继续**、零事件、零账本改动）→ ③ 可打断 ⇒ 走**四路共用的终结例程**并记原因为"打断"。
 	 *
 	 * **止于未来不追溯**（M4 约定）：MUST NOT 回退**已发生**的副作用——按来源回收账本条目是
 	 * **生命周期终结**（"这件事到此为止"），**不是"回滚历史"**（"把那一下抹掉"）。
 	 *
-	 * **"来源优先级"仲裁如实登记为未落面**：设计原词是"来源优先级 vs `IsInterruptibleNow()`"，
+	 * **"来源优先级"仲裁如实登记为未落面**：设计原词是"来源优先级 vs `CanBeCanceled()`"，
 	 * 而**全仓无任何类型声明"打断来源的优先级"**（技能关系字段 `Priority` 的语义属 `R5.5-e`
 	 * 关系字段检查器，尚未定稿）⇒ 本轮**只落可打断性裁决**，**MUST NOT** 为它发明一个零消费者的
 	 * 优先级形参（"零消费者不预建"）。
@@ -531,13 +531,15 @@ private:
 	 * @param RunHandle 运行态句柄（载荷身份）。
 	 * @param Run 运行态（载荷其余字段来源）。
 	 * @param Entry 该运行态对应的账本条目（载荷定义身份来源）。
+	 * @param Reason 本次终结的原因（2026-10-16 `R5.5-e1` 新增；非终结事件用默认档）。
 	 */
 	static void Broadcast(
 		UTcsSkillSubsystem& Subsystem,
 		FGameplayTag EventTag,
 		FTcsSkillInstanceHandle RunHandle,
 		const FTcsSkillInstance& Run,
-		const FTcsLearnedSkillEntry& Entry);
+		const FTcsLearnedSkillEntry& Entry,
+		ECastFinishReason Reason = ECastFinishReason::ECFR_Completed);
 
 #pragma endregion
 };

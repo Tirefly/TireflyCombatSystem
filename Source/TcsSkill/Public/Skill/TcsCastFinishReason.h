@@ -19,7 +19,7 @@
  *
  * **两枚事件的对应关系（MUST NOT 互相冒充）**：
  * - `ECFR_Completed` → `TcsEvent.Cast.Completed`（**只有它**）；
- * - `ECFR_Interrupted` / `ECFR_Replaced` → `TcsEvent.Cast.Interrupted`（**两者都不是完成**）。
+ * - `ECFR_Canceled` / `ECFR_Replaced` → `TcsEvent.Cast.Interrupted`（**两者都不是完成**）。
  *
  * **为什么"顶替"要单列一档而不是并进"打断"**：两者对订阅者语义不同（一个是外部打断、
  * 一个是同类技能抢位），且顶替是**先终结旧的、再建新的**——订阅者要靠这一档区分"我被打断了"
@@ -33,7 +33,7 @@ enum class ECastFinishReason : uint8
 {
 	ECFR_Completed = 0		UMETA(DisplayName = "完成", ToolTip = "全时段走完，或瞬发（空时段表）在激活当刻完成——发 TcsEvent.Cast.Completed"),
 
-	ECFR_Interrupted = 1	UMETA(DisplayName = "被打断", ToolTip = "经 CancelCast 打断（先过可打断性查询）——发 TcsEvent.Cast.Interrupted"),
+	ECFR_Canceled = 1	UMETA(DisplayName = "被打断", ToolTip = "经 CancelCast 打断（先过可打断性查询）——发 TcsEvent.Cast.Interrupted"),
 
 	ECFR_Replaced = 2		UMETA(DisplayName = "被顶替", ToolTip = "同类技能再次激活、顶替本次施法——发 TcsEvent.Cast.Interrupted"),
 };

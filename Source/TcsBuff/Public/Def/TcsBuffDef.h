@@ -97,21 +97,19 @@ public:
 #pragma region Relations
 
 public:
-	// 互斥：这些状态存在时本状态不可施加（检查器归 R5.5-e）
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Buff Def|Relations")
-	TArray<FGameplayTag> Blocks;
+	// **四个关系字段住在基类**（2026-10-17 上移，理由见 `FTcsStateDefBase` 的 `Relations` 区注释）：
+	// 本状态的「前摇/参与规则」与状态侧**逐字同义**，两侧共用同一检查器 `FTcsStateRelation`。
+	// 本类 MUST NOT 重复声明 `RequiredTags` / `ForbiddenTags` / `TagsToBlock` / `TagsToCancel`。
 
-	// 前提：这些状态必须已存在（检查器归 R5.5-e）
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Buff Def|Relations")
-	TArray<FGameplayTag> Requires;
-
-	// 顶替优先级（大者胜；检查器与槽位竞争归 R5.5-e）
+    // 顶替优先级（大者胜；**不属关系字段族**——归槽位竞争表 `R5.5-e4`）
+	// `R5.5-e1` MUST NOT 触碰本字段：它今天仍零消费者，检查器不为它做任何判定。
+	//
+	// **★ 布局（是否与关系字段同上移基类）同批归 `R5.5-e4`**（2026-10-17 用户裁定）：
+	// 它同样「无时值 / 无堆叠」⇒ 按基类自己的判据**本也该在基类**；但 `e4` 要裁的正是
+	// 「移除 / 改述」，**目的地未定** ⇒ 现在上移可能白做（搬进去又删掉）⇒ 留到 `e4` 一次动。
+	// ⇒ **`e4` MUST 把「物理去留」与「住哪一层」两件事一并裁**（两者同源，分开裁会漏）。
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Buff Def|Relations")
 	int32 Priority = 0;
-
-	// 施加本状态时取消这些状态（检查器归 R5.5-e）
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Buff Def|Relations")
-	TArray<FGameplayTag> Cancels;
 
 #pragma endregion
 };

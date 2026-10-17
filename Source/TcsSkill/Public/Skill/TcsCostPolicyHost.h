@@ -56,7 +56,7 @@ class UTcsSkillCostPolicyHost : public UInterface
  *
  * **形参 MUST NOT 带 `const`**（`BlueprintNativeEvent` 上的 `const` 会让 UHT 生成错误的 thunk
  * 签名，硬规则；先例 `ITcsEntityLevelProvider::GetEntityLevel` /
- * `ITcsParamTableReader::TryGetNumericParam` / `ITcsCastStateQuery::IsInterruptibleNow`）。
+ * `ITcsParamTableReader::TryGetNumericParam` / `ITcsCastStateQuery::CanBeCanceled`）。
  *
  * **一处该契约做不到的事（如实登记）**：它**无法**表达"这条自定义消耗要扣多少"的**参数化数值**
  * （`FTcsParamValue`）——脚本宿主要自己持有数值（或从自己的数据里取）。

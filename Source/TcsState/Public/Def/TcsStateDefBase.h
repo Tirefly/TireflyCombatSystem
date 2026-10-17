@@ -73,6 +73,75 @@ public:
 #pragma endregion
 
 
+// 关系
+#pragma region Relations
+
+public:
+	/**
+	 * **关系表族四字段**（2026-10-17 由两个派生类**上移到基类**，MUST 读沿革）。
+	 *
+	 * **为什么在基类**：本类自己的划分判据是「**无时值 / 无堆叠 = 基类；有时值 / 有堆叠 = 派生**」，
+	 * 而这四个字段**既无时值也无堆叠** ⇒ 按判据本就在基类。它们原先住 `FTcsBuffDef` /
+	 * `FTcsSkillDefData` **各一份、逐字同义**，是 R5 先落在 Buff、R6 建技能 Def 时照抄的结果，
+	 * **从未有过"为何住派生"的论证**（全库文档与注释均无）。
+	 *
+	 * **代价是真实的**：每次关系族演进都要改两处，且**漏一处不报错**（本仓反复拦的"同一语义
+	 * 两处表达 ⇒ 必然漂移"）。`R5.5-e1` 一次性付过两次：新增 `TagsToBlock`、以及 `Blocks` 改名，
+	 * 各改了两个文件。
+	 *
+	 * **当时的可能理由已不成立**：`SPEC-03` 原记"两侧语义映射不同"（状态侧约束**施加**、
+	 * 技能侧约束**激活**）——但 `R5.5-e1` 实现下来两侧走**同一个检查器** `FTcsStateRelation`，
+	 * 且**都拿"在跑状态"当客体词面**（技能侧经 `ITcsStateLiveQuery` 读的也是状态域）。
+	 * 「施加 vs 激活」只是各自域内的动词差异，**不是两种语义**。
+	 *
+	 * **⚠️ `Priority` MUST NOT 跟进**：它**不属关系字段族**（归槽位竞争表 `R5.5-e4`），
+	 * 故仍留在两个派生类各一份。
+	 */
+
+	/**
+	 * **前置·必须存在**（受动侧）：这些词必须已存在，本定义才可使用。
+	 *
+	 * 与 `ForbiddenTags` 构成**前置条件的正反两面**（必须存在 / 必须缺席）——
+	 * 它们才是真正的一对（**不是** `TagsToBlock`，后者是施动侧、方向相反）。
+	 * 检查器 = `FTcsStateRelation::CheckRequired`。
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "State Def|Relations")
+	TArray<FGameplayTag> RequiredTags;
+
+	/**
+	 * **前置·必须缺席**（受动侧）：这些词存在时，本定义不可使用。
+	 *
+	 * **⚠️ 与 `TagsToBlock` 的方向陷阱**：本字段约束**我自己**（B 在时我不可施加）；
+	 * `TagsToBlock` 约束**目标**（我在跑时 B 不能开始）。两格词形极近而**方向相反**，
+	 * 错映射是**静默的语义反转**（命名见 `DEC-2026-10-13-relation-row-shape` §4.2）。
+	 * 检查器 = `CheckForbidden`。
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "State Def|Relations")
+	TArray<FGameplayTag> ForbiddenTags;
+
+	/**
+	 * **施动·预防**：本定义在跑期间，命中的目标**无法开始且保持不能开始**。
+	 *
+	 * **与 `TagsToCancel` 的分工**：本字段是**事前**（不让开始），后者是**事后**（把已在跑的终止掉）。
+	 * **两处时机 MUST 都覆盖**：① 目标尝试开始时（apply 门禁的反向查找）；
+	 * ② 本定义开始时就已存在的目标（即时阻断）。检查器 = `CollectBlocks`。
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "State Def|Relations")
+	TArray<FGameplayTag> TagsToBlock;
+
+	/**
+	 * **施动·终止**：本定义在跑时，把它们**已有的**实例终止掉。
+	 *
+	 * 状态侧的移除原因传 `EBuffRemoveCause::EBRC_Cancelled`——
+	 * **该枚举首次有内建产生者**（此前只有注释自述"由调用方显式传入"）。检查器 = `CollectCancels`。
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "State Def|Relations")
+	TArray<FGameplayTag> TagsToCancel;
+
+#pragma endregion
+
+
+
 // 等级
 #pragma region Level
 

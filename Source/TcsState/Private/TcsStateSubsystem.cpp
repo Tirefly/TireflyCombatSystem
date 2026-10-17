@@ -42,3 +42,14 @@ UTcsStateParamTableReader* UTcsStateSubsystem::GetParamTableReader()
 {
 	return ParamTableReader;
 }
+
+
+ITcsStateLiveQuery* UTcsStateSubsystem::GetLiveQuery() const
+{
+	return LiveQuery;
+}
+
+void UTcsStateSubsystem::SetLiveQuery(ITcsStateLiveQuery* InQuery)
+{
+	LiveQuery = InQuery;
+}

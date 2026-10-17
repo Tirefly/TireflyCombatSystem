@@ -16,7 +16,11 @@
   `FGameplayTagContainer CategoryTags` / `int32 LevelBase = 1` / `int32 MaxLevel = 0` / `TArray<FTcsNumericParamRow> Params` / `TArray<FTcsDescriptionEntry> Descriptions`（载体见「描述配置载体」需求）/ `TArray<TSoftObjectPtr<UTcsAttrModDef>> ModifierRows`；
 - `FTcsBuffDef : FTcsStateDefBase`：时值 `EDurationPolicy DurationPolicy = EDP_Finite` / `FTcsParamValue DurationTime` / `double Period = 0.0` / `ETcsPeriodRefresh PeriodRefresh = EPR_Keep`；
   堆叠 `FTcsBuffStackPolicy StackPolicy`；行为 `TArray<FTcsEffectTriggerDef> Triggers`（内联触发行位）+ `TArray<FInstancedStruct> Fragments`（行为 Fragment 载荷，选择器经手写 `meta = (BaseStruct = "/Script/TcsState.TcsStateBehaviorFragment")` 收窄——形状与语义见 `state-behavior-fragments` 能力）；
-  关系 `TArray<FGameplayTag> Blocks` / `TArray<FGameplayTag> Requires` / `int32 Priority = 0` / `TArray<FGameplayTag> Cancels`。
+  关系 `TArray<FGameplayTag> RequiredTags` / `TArray<FGameplayTag> ForbiddenTags` / `TArray<FGameplayTag> TagsToBlock` / `TArray<FGameplayTag> TagsToCancel` / `int32 Priority = 0`——**四数组为 2026-10-16 `R5.5-e1` 落地**（检查器见 `state-relation-check` 能力）。
+  **改名映射（MUST 逐条照做，防语义反转）**：`Blocks` → **`ForbiddenTags`**（受动·前置：B 在时**我**不可施加）、`Requires` → **`RequiredTags`**（受动·前置：必须已存在）、`Cancels` → **`TagsToCancel`**（施动·终止）；**新增 `TagsToBlock`**（施动·预防：我在跑期间目标不能开始）。
+  **⚠ `Blocks` MUST 映射到 `ForbiddenTags`、MUST NOT 映射到 `TagsToBlock`**——两格词形极近而**方向相反**（前者约束**自己**、后者约束**目标**），且该字段族当时零消费者 ⇒ 错映射**编译器不报错**，是静默的语义反转。**受动**（我自己的门禁）与**施动**（我对外的影响）两个方向 MUST 分开。
+  **`Priority` 不属关系字段族**（它归槽位竞争表 `R5.5-e4`）：本变更 MUST NOT 触碰它，其物理去留亦然。
+  **数组去留不属本变更**：`DEC-2026-10-13-relation-row-shape` §4.4 已裁「Def 上三数组的去留归 `R5.5-e4`」⇒ 本变更**只改名 + 新增一格**，MUST NOT 把它们收拢成行结构体（那等于提前替 `e4` 决定去留）。
 
 **`CategoryTags` 的语义与约束（2026-10-15 由 `StatusTag` 合并而来，MUST 读）**：它是**定义级类别容器**，声明"**我是什么**"（语义分类），**不是**"我要匹配谁"（那是消费者侧的查询）。
 
@@ -55,8 +59,12 @@
 
 #### Scenario: 关系字段只落形状
 
-- **WHEN** 检查 `Blocks` / `Requires` / `Priority` / `Cancels` 的消费者
-- **THEN** 本轮无检查器（字段语义未定稿，归 R5.5-e）——字段只落形状，零消费者如实登记
+> 场景标题里的「只落形状」是**建立时的轮次标签**（本仓裁定：`#### Scenario:` 标题在 MODIFIED
+> 语义下**不可改名**，先例 = `openspec/changes/archive/2026-10-04-add-tcs-state-module/specs/plugin-descriptor/spec.md`）
+> ——本场景的**判据已随 `R5.5-e1` 现况化**：关系字段**已有消费者**（`state-relation-check` 能力的检查器）。
+
+- **WHEN** 检查关系四数组的消费者
+- **THEN** `RequiredTags` / `ForbiddenTags` / `TagsToBlock` / `TagsToCancel` 四者**均有检查器读取点**（apply 门禁 / 取消挂点 / 预防挂点）；**唯一仍零消费者的是 `Priority`**（不属关系字段族，归 `R5.5-e4` 槽位竞争表）——该事实 MUST 如实保留，MUST NOT 因「检查器已落地」而误读成「`Priority` 也已有消费者」
 
 ### Requirement: 描述配置载体（本轮最小集）
 

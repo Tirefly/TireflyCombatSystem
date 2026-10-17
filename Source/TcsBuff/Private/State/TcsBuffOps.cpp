@@ -5,6 +5,7 @@
 #include "Def/TcsBuffDef.h"
 #include "EventBus/TcsEventBusSubsystem.h"
 #include "State/TcsBuffEvents.h"
+#include "State/TcsStateRelation.h"
 #include "State/TcsBuffStackFragment.h"
 #include "TcsBuffLogChannel.h"
 #include "TcsBuffSubsystem.h"
@@ -29,10 +30,33 @@ EBuffApplyResult FTcsBuffOps::Apply(
 	}
 
 	// 定义必须已在本世界登记（定义库逐世界登记进来；未登记 = 内容缺口，不 ensure）
-	const FTcsBuffDef* Def = Subsystem.GetRegisteredBuffDef(DefTag);
+	// **非 const 指针**：关系挂点的施动半会移除实例并广播 ⇒ 订阅者可重入注销定义 ⇒ 需重取
+	FTcsBuffDef const* Def = Subsystem.GetRegisteredBuffDef(DefTag);
 	if (!Def)
 	{
 		UE_LOG(LogTcsBuff, Warning, TEXT("状态施加被拒：定义未在本世界登记（DefTag=%s）"), *DefTag.ToString());
+		return EBuffApplyResult::EBAR_Rejected;
+	}
+
+	// **关系门（R5.5-e1）MUST 排在共存决策之前**：门禁答"能不能存在"、叠层答"以什么形态存在"，
+	// 前者不成立时后者无意义。四数组为空的既有资产在此**恒过** ⇒ 零行为变化（阴性基线）。
+	// 拒绝路径**零副作用**：不建实例、不改账本、不发事件（只有一条具名 Log）。
+	if (!FTcsBuffOps::CheckApplyGate(Subsystem, Target, DefTag, *Def))
+	{
+		return EBuffApplyResult::EBAR_Rejected;
+	}
+
+	// **关系门的施动半（R5.5-e1）**：`TagsToCancel` 终止已在跑的目标、`TagsToBlock` 阻断"我已开始时"
+	// 已在跑的目标（第二处时机）。放在门禁之后、共存决策之前 ⇒ **刷新/叠层/新建三条路径都覆盖**。
+	// 落地动作 = 走同一条移除链（原因 `EBRC_Cancelled`），不另写一套撤销逻辑。
+	FTcsBuffOps::ApplyCancelAndBlock(Subsystem, Target, DefTag, *Def);
+
+	// 施动半会移除实例并广播 ⇒ 订阅者可重入状态操作 ⇒ `Def` 指针可能已被注销，
+	// 且下面的桶必须在移除之后**重新取**（同下方替换路径的重入纪律）。
+	Def = Subsystem.GetRegisteredBuffDef(DefTag);
+	if (!Def)
+	{
+		UE_LOG(LogTcsBuff, Warning, TEXT("状态施加中止：关系挂点期间定义被注销（DefTag=%s）"), *DefTag.ToString());
 		return EBuffApplyResult::EBAR_Rejected;
 	}
 

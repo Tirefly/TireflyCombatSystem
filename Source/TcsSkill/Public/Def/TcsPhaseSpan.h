@@ -32,7 +32,7 @@ public:
 public:
 	// 当前时段是否允许打断（PhaseTable 查询档读取）。
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Cast Phase|State")
-	bool bInterruptible = false;
+	bool bCancellable = false;
 
 	// 当前时段是否允许移动（PhaseTable 查询档读取）。
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Cast Phase|State")

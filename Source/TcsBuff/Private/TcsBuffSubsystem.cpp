@@ -15,6 +15,17 @@ void UTcsBuffSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);
 
+	// **向下注册在飞查询契约（R5.5-e1）**：共享层 `UTcsStateSubsystem` 是两域唯一共用设施持有者，
+	// 技能侧经它读本域在飞实例（`TcsSkill` MUST NOT 依赖 `TcsBuff`）。未注册时那边走降级路径。
+	if (UTcsStateSubsystem* StateSubsystem = GetWorld() ? GetWorld()->GetSubsystem<UTcsStateSubsystem>() : nullptr)
+	{
+		StateSubsystem->SetLiveQuery(this);
+	}
+	else
+	{
+		UE_LOG(LogTcsBuff, Warning, TEXT("状态门面初始化：共享层门面不可得，在飞查询契约未注册（技能侧关系门将走降级路径）"));
+	}
+
 	// **不在这里建快照参数表壳**：它是两域共用设施（绑定是壳上的单例状态），住共享层
 	// `UTcsStateSubsystem`。本门面只在需要时经 `GetParamTableReader()` 转发取用。
 }
@@ -54,6 +65,12 @@ void UTcsBuffSubsystem::Deinitialize()
 
 		return true;
 	});
+
+	// 注销契约（防悬空：共享层门面可能比本域活得久）
+	if (UTcsStateSubsystem* StateSubsystem = GetWorld() ? GetWorld()->GetSubsystem<UTcsStateSubsystem>() : nullptr)
+	{
+		StateSubsystem->SetLiveQuery(nullptr);
+	}
 
 	Registry.Reset();
 	RegisteredDefs.Reset();
@@ -282,4 +299,37 @@ void UTcsBuffSubsystem::TransitionPhase(FTcsBuffInstance* Instance, EBuffPhase N
 	}
 
 	Instance->Phase = NewPhase;
+}
+
+
+// 在飞运行态查询契约实现（R5.5-e1）
+void UTcsBuffSubsystem::ForEachLiveState(
+	FTcsCombatEntityHandle Entity,
+	TFunctionRef<bool(const FTcsLiveStateView&)> Visitor)
+{
+	ForEachState(Entity, [this, &Visitor](const FTcsBuffInstance& Instance)
+	{
+		// 定义已注销 ⇒ 行面不可知，跳过（比「当作空行」更诚实：空行也不命中，但那是巧合而非判据）
+		const FTcsBuffDef* Def = GetRegisteredBuffDef(Instance.DefTag);
+		if (!Def)
+		{
+			return true;
+		}
+
+		// 合成完整视图：**事实半**（类别词集）+ **声明半**（关系行，主体 = 本定义自己）
+		FTcsLiveStateView View;
+		View.CategoryTags = Def->CategoryTags;
+		View.Row.AppliesToTag = Instance.DefTag;
+		View.Row.RequiredTags = FGameplayTagContainer::CreateFromArray(Def->RequiredTags);
+		View.Row.ForbiddenTags = FGameplayTagContainer::CreateFromArray(Def->ForbiddenTags);
+		View.Row.TagsToBlock = FGameplayTagContainer::CreateFromArray(Def->TagsToBlock);
+		View.Row.TagsToCancel = FGameplayTagContainer::CreateFromArray(Def->TagsToCancel);
+
+		return Visitor(View);
+	});
+}
+
+int32 UTcsBuffSubsystem::GetLiveCount(FTcsCombatEntityHandle Entity) const
+{
+	return GetStateCount(Entity);
 }

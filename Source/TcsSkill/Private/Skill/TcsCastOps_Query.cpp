@@ -12,9 +12,9 @@
 namespace
 {
 	/**
-	 * 三档查询分派的**唯一实现**（`IsInterruptibleNow` / `CanMoveNow` 共用）。
+	 * 三档查询分派的**唯一实现**（`CanBeCanceled` / `CanMoveNow` 共用）。
 	 *
-	 * **为什么共用一份而不是各写一遍**：两列的差别**只是读哪个字段**（`bInterruptible` 与
+	 * **为什么共用一份而不是各写一遍**：两列的差别**只是读哪个字段**（`bCancellable` 与
 	 * `bCanMove`）——分派规则、两处具名降级、回退处置**逐字相同**。若各写一遍，改动一处必然漏另一处
 	 * （例如将来给 `Custom` 档补上求值时只改了一条）。⇒ 用**成员指针**把"读哪一列"参数化，
 	 * 分派只有一份。
@@ -81,7 +81,7 @@ namespace
 
 
 // 查询契约
-bool FTcsCastOps::IsInterruptibleNow(UTcsSkillSubsystem& Subsystem, FTcsSkillInstanceHandle RunHandle)
+bool FTcsCastOps::CanBeCanceled(UTcsSkillSubsystem& Subsystem, FTcsSkillInstanceHandle RunHandle)
 {
 	const FTcsSkillInstance* Run = ResolveInstance(Subsystem, RunHandle);
 	if (!Run)
@@ -104,8 +104,8 @@ bool FTcsCastOps::IsInterruptibleNow(UTcsSkillSubsystem& Subsystem, FTcsSkillIns
 
 	return DispatchCastQueryColumn(
 		*Def, *Run, TEXT("可打断"),
-		&FTcsSkillDefData::bInterruptibleDefault,
-		&FTcsPhaseSpan::bInterruptible);
+		&FTcsSkillDefData::bCancellableDefault,
+		&FTcsPhaseSpan::bCancellable);
 }
 
 bool FTcsCastOps::CanMoveNow(UTcsSkillSubsystem& Subsystem, FTcsSkillInstanceHandle RunHandle)
@@ -113,7 +113,7 @@ bool FTcsCastOps::CanMoveNow(UTcsSkillSubsystem& Subsystem, FTcsSkillInstanceHan
 	const FTcsSkillInstance* Run = ResolveInstance(Subsystem, RunHandle);
 	if (!Run)
 	{
-		// 同 `IsInterruptibleNow`：悬空句柄返回"不允许"（保守档），不 ensure
+		// 同 `CanBeCanceled`：悬空句柄返回"不允许"（保守档），不 ensure
 		return false;
 	}
 
@@ -149,7 +149,7 @@ bool FTcsCastOps::CancelCast(UTcsSkillSubsystem& Subsystem, FTcsSkillInstanceHan
 	// ① 先过查询契约（**MUST NOT 无条件打断**）——② 不可打断 ⇒ 拒绝
 	// **拒绝的判据 MUST 是"什么都没变"**：运行态原样继续、零事件、零账本改动。
 	// 故本分支 MUST NOT 有任何写入动作（它下面直接 return）。
-	if (!IsInterruptibleNow(Subsystem, RunHandle))
+	if (!CanBeCanceled(Subsystem, RunHandle))
 	{
 		UE_LOG(LogTcsSkill, Log,
 			TEXT("打断被拒：当前时段不可打断（实体=%lld run=%d/%d）——运行态原样继续、零事件、零账本改动"),
@@ -159,5 +159,5 @@ bool FTcsCastOps::CancelCast(UTcsSkillSubsystem& Subsystem, FTcsSkillInstanceHan
 
 	// ③ 可打断 ⇒ 走**四路共用的终结例程**，记原因为"打断"
 	// （回收动作与事件分岔全在 `FinishSkillInstance` 里——本函数 MUST NOT 自己写一份清理）
-	return FinishSkillInstance(Subsystem, RunHandle, ECastFinishReason::ECFR_Interrupted);
+	return FinishSkillInstance(Subsystem, RunHandle, ECastFinishReason::ECFR_Canceled);
 }

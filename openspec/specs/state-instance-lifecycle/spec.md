@@ -279,6 +279,8 @@
 - **WHEN** 对同一实体以同一 `DefTag` **与同一来源句柄**连续施加两次
 - **THEN** 第二笔广播的是 `TcsEvent.State.Refreshed`（`ApplyState` 返回 `Refreshed`），`Applied` 只收到一笔
 
+**★ 2026-10-16 `R5.5-e1` 补充：`Cancelled` 首次有内建产生者（本需求已现况化）**：`EBuffRemoveCause::EBRC_Cancelled` 自落地起**只有注释自述「由调用方显式传入」，框架从不产生它**。`R5.5-e1` 的关系表检查器落地后，`TagsToCancel` 挂点会在施加成功路径上按它逐条 `RemoveState(handle, EBRC_Cancelled)` ⇒ 该枚举**第一次由框架自身产生**。MUST 记录的边界：本补充**只增一个产生者**，`Removed` / `Expired` 两档的来源与语义**一字不改**；`TagsToCancel` 为空（既有资产的现状）时**零行为变化**。
+
 #### Scenario: 移除广播 Removed 且原因可读
 
 - **WHEN** 以 `Removed` 与 `Cancelled` 两种原因各移除一个实例

@@ -135,7 +135,7 @@ public:
 
 	// 定义开关档的可打断值（宿主可覆盖）。
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Skill Def|Cast Query")
-	bool bInterruptibleDefault = false;
+	bool bCancellableDefault = false;
 
 	// 定义开关档的可移动值（宿主可覆盖）。
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Skill Def|Cast Query")
@@ -192,21 +192,17 @@ public:
 #pragma region Relations
 
 public:
-	// 互斥状态词列表（检查器归 R5.5-e）。
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Skill Def|Relations")
-	TArray<FGameplayTag> Blocks;
+	// **四个关系字段住在基类**（2026-10-17 上移，理由见 `FTcsStateDefBase` 的 `Relations` 区注释）：
+	// 本技能的「前摇/参与规则」与状态侧**逐字同义**，两侧共用同一检查器 `FTcsStateRelation`。
+	// 本类 MUST NOT 重复声明 `RequiredTags` / `ForbiddenTags` / `TagsToBlock` / `TagsToCancel`。
 
-	// 必须存在的状态词列表（检查器归 R5.5-e）。
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Skill Def|Relations")
-	TArray<FGameplayTag> Requires;
-
-	// 顶替优先级，与状态族同形（检查器归 R5.5-e）。
+	// 顶替优先级，与状态族同形（**不属关系字段族**——归槽位竞争表 `R5.5-e4`）。
+	// `R5.5-e1` MUST NOT 触碰本字段（零消费者，检查器不为它做判定）。
+	//
+	// **★ 布局（是否与关系字段同上移基类）同批归 `R5.5-e4`**（2026-10-17 用户裁定）——
+	// 理由与处置见 `FTcsBuffDef::Priority` 的同段注释（两处 MUST 同批动，防只改一处）。
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Skill Def|Relations")
 	int32 Priority = 0;
-
-	// 激活时取消的状态词列表（检查器归 R5.5-e）。
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Skill Def|Relations")
-	TArray<FGameplayTag> Cancels;
 
 #pragma endregion
 

@@ -104,6 +104,24 @@ EDataValidationResult UTcsSkillDef::IsDataValid(
 		Result = EDataValidationResult::Invalid;
 	}
 
+	// 关系表的两条自指错误（2026-10-16 R5.5-e1；与状态侧同款同判据）
+	// 判据与跨资产部分的归属说明见 UTcsBuffDefAsset::IsDataValid 的同段注释。
+	if (DefTag.IsValid() && SkillDef.ForbiddenTags.Contains(DefTag))
+	{
+		Context.AddError(FText::FromString(FString::Printf(
+			TEXT("ForbiddenTags 含自己的 DefTag（%s）：自指的门禁永不可满足，该技能永远无法激活"),
+			*DefTag.ToString())));
+		Result = EDataValidationResult::Invalid;
+	}
+
+	if (DefTag.IsValid() && SkillDef.TagsToCancel.Contains(DefTag))
+	{
+		Context.AddError(FText::FromString(FString::Printf(
+			TEXT("TagsToCancel 含自己的 DefTag（%s）：自取消无意义（激活的瞬间就把自己取消掉）——请删掉这个词"),
+			*DefTag.ToString())));
+		Result = EDataValidationResult::Invalid;
+	}
+
 	// 描述仅校验批准规格中的入口与文本键；视图机制归 R8。
 	for (int32 EntryIndex = 0; EntryIndex < SkillDef.Descriptions.Num(); ++EntryIndex)
 	{

@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Skill/TcsCastFinishReason.h"
 #include "GameplayTagContainer.h"
 #include "NativeGameplayTags.h"
 
@@ -87,6 +88,28 @@ public:
 	// 本次施法运行态冻结的生效等级
 	UPROPERTY(BlueprintReadOnly, Category = "Tcs|Skill|Cast Event")
 	int32 Level = 0;
+
+#pragma endregion
+
+
+// 终结原因
+#pragma region Reason
+
+public:
+	/**
+	 * **本次终结的原因**（2026-10-16 `R5.5-e1` 新增）。
+	 *
+	 * **为什么载荷必须有它**：`Interrupted` 与 `Replaced` **发同一枚事件**
+	 * （`TcsEvent.Cast.Interrupted`），而 `ECastFinishReason` 自己的注释写明其存在理由是
+	 * 「两者对订阅者语义不同」（一个是外部打断、一个是同类技能抢位）。**没有本字段时**，
+	 * 订阅者只能靠「哪枚事件」反推 ⇒ 那个区分**只在枚举注释里成立、在载荷面上不成立**。
+	 *
+	 * **四枚共用同一形状 ⇒ 本字段恒有值**：`Started` / `PhaseChanged` 两枚按「尚未终结」
+	 * 填各自档位（`ECFR_Completed` 是中性默认）。MUST NOT 让它变成「只有终结事件才填」的
+	 * 第二真相——那会逼订阅方记住「每枚事件各自哪些字段有效」。
+	 */
+	UPROPERTY(BlueprintReadOnly, Category = "Tcs|Skill|Cast Event")
+	ECastFinishReason Reason = ECastFinishReason::ECFR_Completed;
 
 #pragma endregion
 };

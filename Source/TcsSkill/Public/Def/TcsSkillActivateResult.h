@@ -28,6 +28,10 @@
  * **两者 MUST 保持可拒绝的结构**（各有独立枚举值），MUST NOT 合并进其它值——
  * 否则宿主面会出现"同一枚举值表示两件不同的事"。
  *
+ * **2026-10-16 `R5.5-e1` 追加门禁⑦**（`SAR_RelationBlocked`）：序号取 `7` 而非 `6`，
+ * 因为**枚举值次序与门禁次序解耦**——门禁⑦ 的**评估点**在 ⑥ 之后，但既有六档的数值
+ * （`0`~`5`）与 `SAR_Success = 6` ** MUST NOT 改动**（它们是宿主 UI 分支的既有读数）。
+ *
  * **枚举值上方 MUST NOT 再放 `//` 行注释**：UHT 会把该注释转成 `ToolTip` 元数据，
  * 与显式 `UMETA(ToolTip=...)` 冲突并**直接编译失败**（实测）。语义一律写进 `UMETA`。
  */
@@ -46,5 +50,7 @@ enum class ESkillActivateResult : uint8
 
 	SAR_DefInvalid = 5			UMETA(DisplayName = "定义无效", ToolTip = "门禁⑥：该 DefTag 的定义在本世界取不到（含未登记与空身份）"),
 
-	SAR_Success = 6				UMETA(DisplayName = "成功", ToolTip = "六道门禁全过，施法运行态已建立")
+	SAR_RelationBlocked = 7		UMETA(DisplayName = "关系门拒绝", ToolTip = "门禁⑦（2026-10-16 R5.5-e1 新增，追加在六道之后）：关系表判定未过——RequiredTags 未全满足 / ForbiddenTags 命中 / 被在跑状态的 TagsToBlock 覆盖"),
+
+	SAR_Success = 6				UMETA(DisplayName = "成功", ToolTip = "门禁全过，施法运行态已建立")
 };

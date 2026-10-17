@@ -95,7 +95,9 @@
   - `CI_InstancePerEntity` + **有在飞实例** + `bRetriggerOnActive = true` ⇒ **顶替**（见下条）；
   - **"在飞实例"的判据 MUST 取该条目的 `RunHandles`**（它按构造就是 per-entity，无需跨桶扫描）；**在飞判据 MUST 按句柄经桶复核**（账本里可能有已归还的陈旧句柄 ⇒ 复核失败即视为无在飞）；
 - **顶替语义（MUST，刻意与 GAS 分歧）**：① 先查旧 run 当前时段的可打断性，**不可打断 ⇒ 驳回 `SAR_AlreadyActive`**（旧 run 原样继续）；② 可打断 ⇒ **终止旧 run**——发 `OnCastInterrupted`、**MUST NOT** 发 `OnCastCompleted`、**不起旧 run 的主链**、归还旧 run 桶槽位、摘除其 `RunHandles` 条目；③ 再建新 run。**顶替 = 打断的一种终止形态**，MUST NOT 新增第三枚终止事件；
-  - **可打断性判据的 Task 3 → Task 5 接缝（MUST 写清）**：本 Task 取 `FTcsSkillDefData::bInterruptibleDefault`（即 `ECastQueryMode::DefSwitches` 档——**它是查询契约的默认档**，Task 1 已交付）。Task 5 落地 `IsInterruptibleNow()` 后改调它，而 **DefSwitches 档读的就是该字段 ⇒ 行为逐字不变、零回归**。本 Task **MUST NOT** 预建三档分派（`PhaseTable` 需时段推进、`Custom` 需 Fragment 求值）。
+  - **可打断性判据的 Task 3 → Task 5 接缝（MUST 写清）**：本 Task 取 `FTcsSkillDefData::bCancellableDefault`（即 `ECastQueryMode::DefSwitches` 档——**它是查询契约的默认档**，Task 1 已交付）。Task 5 落地 `CanBeCanceled()` 后改调它，而 **DefSwitches 档读的就是该字段 ⇒ 行为逐字不变、零回归**。本 Task **MUST NOT** 预建三档分派（`PhaseTable` 需时段推进、`Custom` 需 Fragment 求值）。
+
+**★ 2026-10-16 `R5.5-e1` 改名与门禁扩展（本需求已现况化）**：（a）`bInterruptibleDefault` → **`bCancellableDefault`**、`IsInterruptibleNow()` → **`CanBeCanceled()`**（判据同 `skill-cast-phases` 能力：手段 vs 结果）；（b）门禁在**第 ⑥ 道之后新增一道关系门**（`R5.5-e1`，见 `state-relation-check` 能力）：**`ForbiddenTags` 命中 / `RequiredTags` 未满足 / 被存活实例的 `TagsToBlock` 覆盖** ⇒ 各自返回**具名枚举值**，MUST NOT 与第 ①~⑥ 道混同，且**拒绝路径零副作用**（同本条既有纪律：不建 run、不改账本、不起链、不发事件）。第 ①~⑥ 道的**次序与语义一字不改**；关系门是**追加的一道**，不是对既有道的重排。
 
 #### Scenario: 六道拒绝各自可达且具名
 
@@ -114,7 +116,7 @@
 
 #### Scenario: 不可打断段位的顶替被拒（阴性对照）
 
-- **WHEN** 同上但 `bInterruptibleDefault = false`，第二次激活
+- **WHEN** 同上但 `bCancellableDefault = false`，第二次激活
 - **THEN** 返回 `SAR_AlreadyActive`，且旧 run **原样继续**（旧句柄仍可 `Resolve`、`RunHandles` 不变、`OnCastInterrupted` 未发）
 
 #### Scenario: 定义不可解析时不给后续门禁假读数
@@ -176,7 +178,8 @@
 
 - 事件 Tag MUST 为 `TcsEvent.Cast.Started` / `TcsEvent.Cast.PhaseChanged` / `TcsEvent.Cast.Completed` / `TcsEvent.Cast.Interrupted`——**落在既有的 `TcsEvent` 根下**（域段 = `Cast`），**MUST NOT** 为此新增根；
 - 变量声明 MUST 带**模块导出宏**（`extern TCSSKILL_API FNativeGameplayTag Tag_TcsEvent_Cast_*`）：`UE_DECLARE_GAMEPLAY_TAG_EXTERN` 展开为**裸 `extern`**（无 `__declspec(dllexport)`）⇒ 跨模块引用必 `LNK2001`，而"供宿主订阅"正是本事件词汇的设计意图；
-- 载荷 MUST 为**单一 `USTRUCT`**（`FTcsCastEventPayload`，四枚共用一种形状，同状态侧六枚共用 `FTcsBuffEventPayload` 的先例）：至少含 `FTcsSkillInstanceHandle Run` / `FTcsCombatEntityHandle Entity` / `FGameplayTag DefTag` / `int32 Level` / `FTcsSkillEntryHandle EntryHandle`；
+- 载荷 MUST 为**单一 `USTRUCT`**（`FTcsCastEventPayload`，四枚共用一种形状，同状态侧六枚共用 `FTcsBuffEventPayload` 的先例）：至少含 `FTcsSkillInstanceHandle Run` / `FTcsCombatEntityHandle Entity` / `FGameplayTag DefTag` / `int32 Level` / `FTcsSkillEntryHandle EntryHandle`，以及
+  **`ECastFinishReason Reason`（2026-10-16 `R5.5-e1` 新增）**——载荷 MUST 携带**终结原因**。**判据**：`Interrupted` 与 `Replaced` **发同一枚事件**（`TcsEvent.Cast.Interrupted`），而 `ECastFinishReason` 自己的注释写明其存在理由是「两者对订阅者语义不同」；没有本字段时订阅者**只能靠「哪枚事件」反推**，无法区分「我被打断了」与「我被自己的下一次施法顶掉了」⇒ 该区分只在枚举注释里成立、在载荷面上不成立。四枚**共用同一形状**，故 `Started` / `PhaseChanged` 两枚按「尚未终结」填各自档位、字段**恒有值**——MUST NOT 让它变成「只有终结事件才填」的第二真相；
   - **`Run` 是句柄不是指针**：订阅者若要读运行态细节，在回调内用句柄复核——**"先广播后归还槽位"的纪律**保证那一刻 run 仍在册；
   - **句柄字段的反射性**：`FTcsSkillInstanceHandle` 已是 `USTRUCT(BlueprintType)`（Task 2 落地）⇒ 载荷可反射，无需二次展平；
 - **四枚的产生者现已齐备（本变更落地后，MUST 逐枚写明，缺一即"声明了但不可达"）**：

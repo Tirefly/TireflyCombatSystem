@@ -290,7 +290,8 @@ void FTcsCastOps::AdvancePhase(UTcsSkillSubsystem& Subsystem, FTcsSkillInstanceH
 	{
 		if (const FTcsLearnedSkillEntry* EventEntry = Bucket->Find(EntryHandle))
 		{
-			Broadcast(Subsystem, Tag_TcsEvent_Cast_PhaseChanged, RunHandle, *EventRun, *EventEntry);
+			Broadcast(Subsystem, Tag_TcsEvent_Cast_PhaseChanged, RunHandle, *EventRun, *EventEntry,
+		/*Reason=*/ECastFinishReason::ECFR_Completed);  // 时段变化不是终结，填中性默认
 		}
 	}
 

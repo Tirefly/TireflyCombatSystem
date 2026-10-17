@@ -31,9 +31,9 @@ bool UTcsSkillSubsystem::CancelCast(FTcsSkillInstanceHandle RunHandle)
 	return FTcsCastOps::CancelCast(*this, RunHandle);
 }
 
-bool UTcsSkillSubsystem::IsInterruptibleNow(FTcsSkillInstanceHandle RunHandle)
+bool UTcsSkillSubsystem::CanBeCanceled(FTcsSkillInstanceHandle RunHandle)
 {
-	return FTcsCastOps::IsInterruptibleNow(*this, RunHandle);
+	return FTcsCastOps::CanBeCanceled(*this, RunHandle);
 }
 
 bool UTcsSkillSubsystem::CanMoveNow(FTcsSkillInstanceHandle RunHandle)

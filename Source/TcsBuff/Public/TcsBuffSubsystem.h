@@ -20,6 +20,8 @@
 #include "State/TcsBuffRegistry.h"
 #include "Runtime/TcsEntityBroadcastGuard.h"
 
+#include "State/TcsStateLiveQuery.h"
+
 #include "TcsBuffSubsystem.generated.h"
 
 class UTcsEventBusSubsystem;
@@ -56,7 +58,7 @@ class UTcsBuffSubsystem;
  * 领域代码住 `Public/State/` 与 `Private/State/`。
  */
 UCLASS()
-class TCSBUFF_API UTcsBuffSubsystem : public UWorldSubsystem
+class TCSBUFF_API UTcsBuffSubsystem : public UWorldSubsystem, public ITcsStateLiveQuery
 {
 	GENERATED_BODY()
 
@@ -435,4 +437,24 @@ private:
 	TObjectPtr<UTcsStateParamTableReader> ParamTableReader;
 
 #pragma endregion
+// 在飞运行态查询契约（R5.5-e1：共享层定义、本域向下注册）
+#pragma region LiveQuery
+
+public:
+	/**
+	 * **契约实现**：遍历该实体在册实例，交出各自所属定义的类别词集。
+	 *
+	 * 判据面 = 「该实例的定义上配了哪些类别词」——实例自身不持类别词，它持 `DefTag`，
+	 * 类别词在定义上。定义已注销（登记表里查不到）时**跳过该实例**：它的类别词不可知
+	 * ⇒ 无法参与匹配；这比「当作空词集」更诚实（空集也不命中，但那是巧合而非判据）。
+	 */
+	virtual void ForEachLiveState(
+		FTcsCombatEntityHandle Entity,
+		TFunctionRef<bool(const FTcsLiveStateView&)> Visitor) override;
+
+	// 契约实现：某实体在册实例数（观测与装置读数用）
+	virtual int32 GetLiveCount(FTcsCombatEntityHandle Entity) const override;
+
+#pragma endregion
+
 };

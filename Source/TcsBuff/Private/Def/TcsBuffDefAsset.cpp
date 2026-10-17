@@ -132,6 +132,36 @@ EDataValidationResult UTcsBuffDefAsset::IsDataValid(FDataValidationContext& Cont
 		}
 	}
 
+	// 错误六：关系表的**自指**（2026-10-16 R5.5-e1 新增）
+	// 判据：`ForbiddenTags` 含自己的主体词 ⇒ 自我否定的门禁、**永不可满足**。
+	// 注意主体词 = 本定义的 `DefTag`（平铺数组的语义：主体即本定义自己）。
+	if (DefTag.IsValid() && BuffDef.ForbiddenTags.Contains(DefTag))
+	{
+		Context.AddError(FText::FromString(FString::Printf(
+			TEXT("ForbiddenTags 含自己的 DefTag（%s）：自指的门禁永不可满足，该状态永远无法施加——请删掉这个词"),
+			*DefTag.ToString())));
+		Result = EDataValidationResult::Invalid;
+	}
+
+	// 错误七：关系表的**双向强夺**（互指取消）
+	// 判据：`TagsToCancel` 与对方互相包含 ⇒ 两条声明各自都合法（都是独占策略），
+	// 但同时成立时结果**依赖施加顺序**、作者无法预测 ⇒ 报错。
+	// **本规则 MUST NOT 被推广成「ForbiddenTags 与 TagsToCancel 同命中即错」**——
+	// 那个组合是「在位者赢」的**合法**表达（见 state-relation-check 能力的《填法即策略》需求）。
+	// **单资产内可判的那一半**：自己的 `TagsToCancel` 含自己的 DefTag（自取消）同样无意义。
+	if (DefTag.IsValid() && BuffDef.TagsToCancel.Contains(DefTag))
+	{
+		Context.AddError(FText::FromString(FString::Printf(
+			TEXT("TagsToCancel 含自己的 DefTag（%s）：自取消无意义（施加的瞬间就把自己摘掉）——请删掉这个词"),
+			*DefTag.ToString())));
+		Result = EDataValidationResult::Invalid;
+	}
+
+	// **跨资产的双向强夺**（A 取消 B 且 B 取消 A）在**单资产 IsDataValid 里判不了**：
+	// 该规则需要同时看到两个定义，而本接口的契约是「判这一份资产」。
+	// ⇒ 它归**定义库的发现期**（`UTcsDefinitionSubsystem`，能看到全部已发现定义）——
+	// **本变更如实登记为未落面**（MUST NOT 假装已在作者期拦下）。
+
 	// 错误二：修正器引用行有空引用（空引用在物化期无从解析，且它正是"引用位留了没填"的形态）
 	for (int32 RowIndex = 0; RowIndex < BuffDef.ModifierRows.Num(); ++RowIndex)
 	{

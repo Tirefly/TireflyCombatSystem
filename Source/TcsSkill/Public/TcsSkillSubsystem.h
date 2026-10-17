@@ -372,12 +372,12 @@ public:
 	 * 当前这次施法能不能被打断（D5-1 查询契约）——**打断结算与宿主移动系统询问的唯一合法入口**。
 	 *
 	 * **宿主 MUST NOT 自行读 `FTcsSkillDefData` 的开关字段代判**（那会在三档之间制造第二真相）。
-	 * 三档分派与两处具名降级见 `FTcsCastOps::IsInterruptibleNow`。
+	 * 三档分派与两处具名降级见 `FTcsCastOps::CanBeCanceled`。
 	 *
 	 * @param RunHandle 运行态句柄。
 	 * @return 返回当前是否可打断（悬空句柄 ⇒ false，不 ensure）。
 	 */
-	bool IsInterruptibleNow(FTcsSkillInstanceHandle RunHandle);
+	bool CanBeCanceled(FTcsSkillInstanceHandle RunHandle);
 
 	/**
 	 * 当前是否允许移动（宿主移动系统询问）。
