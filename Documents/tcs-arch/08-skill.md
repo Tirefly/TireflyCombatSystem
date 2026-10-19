@@ -202,7 +202,7 @@ bool DispatchCastQueryColumn(
 | `TcsCastStateQuery.h` | 2 | `ITcsCastStateQuery::CanBeCanceled` / `CanMoveNow`（`BlueprintNativeEvent`） |
 | `TcsCostPolicyHost.h` | 2 | `ITcsSkillCostPolicyHost::CanAfford` / `CommitCost`（`BlueprintNativeEvent`） |
 
-**"门面零反射"这个决定有据可查且**有一处明确的反驳记录**（`TcsSkillSubsystem.h:521-528`）：
+**"门面零反射"这个决定有据可查**，且**有一处明确的反驳记录**（`TcsSkillSubsystem.h:521-528`）：
 
 > `PLN-R6.5-1` §2.4 的签名表在这些口上写了 `UFUNCTION()`，**本轮刻意不加**——判据：本类**今天零 `UFUNCTION`**……且账本与施法面的脚本读写面整体归台账 `SCRIPT-10`。单独给冷却加宏会造出"技能面里只有冷却能脚本调"的**孤岛**。
 
