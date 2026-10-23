@@ -90,8 +90,23 @@ EBuffApplyResult FTcsBuffOps::Apply(
 	{
 		Remove(Subsystem, Decision.ExistingHandle, EBuffRemoveCause::EBRC_Removed);
 
-		// 移除会广播 ⇒ 订阅者可重入状态操作（注销该实体）⇒ MUST 重新取桶。桶对象经 `TUniquePtr` 持有、
-		// 地址稳定，但**对象本身可能已被销毁** ⇒ 必须重取而不是复用旧指针（Task 4 的重入纪律）。
+		// 移除会广播 ⇒ 订阅者可重入状态操作（注销该实体 / 注销该定义）⇒ MUST 重新取桶与定义。
+		// 桶对象经 `TUniquePtr` 持有、地址稳定，但**对象本身可能已被销毁** ⇒ 必须重取而不是复用旧指针。
+		//
+		// **`Def` 同样必须重取**（本条曾被漏掉，= 档案 `ARCH-07` D-1 的崩溃级缺陷）：`Remove` 走完整移除链，
+		// 其中 `StripModifiers` 的批提交与 `Broadcast(Removed)` 共**两次广播**，两者都同步派发
+		// （`PublishImmediate`）⇒ 订阅者可在回调里调 `UnregisterBuffDef(DefTag)`——那是公开 API、无需特权。
+		// 该调用是 `RegisteredDefs.Remove(DefTag)`，`TUniquePtr` 析构、`Def` 指向的对象被释放。
+		// 下面的新建路径会读 `Def->LevelBase` / `Def->Params` / `Def->ModifierRows` ⇒ 释放后使用。
+		// 触发条件是常规组合（`MaxStacks = 1` + `EOP_ReplaceExisting`），不是理论路径。
+		Def = Subsystem.GetRegisteredBuffDef(DefTag);
+		if (!Def)
+		{
+			UE_LOG(LogTcsBuff, Warning, TEXT("状态替换中止：移除阶段期间定义被注销（实体=%lld 定义=%s）"),
+				Target.Id, *DefTag.ToString());
+			return EBuffApplyResult::EBAR_Rejected;
+		}
+
 		Bucket = Subsystem.Registry.FindBucket(Target);
 		if (!Bucket)
 		{

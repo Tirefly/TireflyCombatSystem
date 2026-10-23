@@ -455,7 +455,7 @@ MountModifiers(Subsystem, Def, Instance, true); // ← 物化器读 Instance.Sta
 | **实际** | **Replace 支没有**。`Remove(Subsystem, Decision.ExistingHandle, EBRC_Removed)`（`TcsBuffOps.cpp:91`）会走完整移除链——`StripModifiers`（批提交 + 广播）+ `Broadcast(Removed)`（`PublishImmediate`）**两次广播**——之后代码只重新取了 `Bucket`（`:95`），**`Def` 仍是 `:34` 取的旧指针**，并继续用它 `:135` `NewInstance->Level = Def->LevelBase`、`:143` `BuildSnapshot(..., *Def, ...)`、`:147` `MountModifiers(..., *Def, ...)` |
 | **偏差证据** | ① `:34` 的 `Def` 是 `FTcsBuffDef const*`，指向 `RegisteredDefs` 里 `TUniquePtr` 持有的对象；② `UnregisterBuffDef` 是 `RegisteredDefs.Remove(DefTag)`（`TcsBuffSubsystem_Definition.cpp:36`）⇒ **`TUniquePtr` 析构、对象释放**；③ 订阅者在 `Removed` 回调里调 `UnregisterBuffDef(DefTag)` 是**公开 API、无需特权**；④ `TcsDev` 装置**已经在这么做**（`TcsDevSliceRig.cpp` 里 `UnregisterBuffDef` 有 20+ 处调用） |
 | **影响面** | **Use-after-free**。读 `Def->LevelBase` / `Def->Params` / `Def->ModifierRows` 全是已释放内存——表现可能是错数值、也可能是崩溃，取决于分配器是否已复用。**这是本模块唯一的崩溃级缺陷** |
-| **是否已登记** | ❌ 否 |
+| **是否已登记** | ❌ 否（2026-10-17 审核发现；**同日已修复**，见下方「修复记录」） |
 
 **为什么它比表面上更严重**：
 
@@ -465,6 +465,18 @@ MountModifiers(Subsystem, Def, Instance, true); // ← 物化器读 Instance.Sta
 4. **规格没有任何需求覆盖它**：`state-instance-lifecycle` 的「广播后身份重查」需求（`:270`）只写「广播者 MUST 用值快照，之后按句柄重查，不访问旧指针」——**它讲的是实例指针，没讲 Def 指针**。
 
 **一处诚实说明**：本条与 `ARCH-06` 的 D-1（跨模块载荷生命周期契约缺位）**不同型**。那条是「两边都按自己的契约做对了、契约之间没对上」，本条是**纯粹的单模块内部遗漏**——同一函数内三处做了、一处没做，且理由是同一个。
+
+**修复记录（2026-10-17，审核当天）**：
+
+| 项 | 内容 |
+|---|---|
+| 改动 | `TcsBuffOps.cpp` 的 Replace 支在 `Remove(...)` 之后、取 `Bucket` 之前，插一段 `Def = Subsystem.GetRegisteredBuffDef(DefTag);` + 空判（Warning + `EBAR_Rejected`）——**+17 / −2 行** |
+| 顺序理由 | 定义空判排在桶空判**之前**：`Def` 是后续新建路径的第一需求（`Def->LevelBase` 在 `:135` 就是第一条写入），若定义为空而桶还在，按桶先判会走进一条必然读悬垂指针的路 |
+| 与既有三处的口径 | 逐字同款：`:56`（施动半之后）、`:161`（挂载提交之后）、`TcsBuffOps_Stack.cpp:284`（刷新挂载之后）——都是「可能广播的调用之后必须重取」 |
+| 注释 | 写清了**为什么**（两次同步广播 / `UnregisterBuffDef` 是公开 API / `TUniquePtr` 析构语义 / 读的是哪三个字段），并标注了本条档案编号 |
+| 验证 | `LegendAutoChessEditor Win64 Development` **Succeeded / 0 warning**；`LegendAutoChess Win64 Shipping` **Succeeded / 0 warning** |
+| 未做 | **未跑 PIE 复现**。缺陷的触发需要「订阅者在 `Removed` 回调里注销该定义」，而 `TcsDev` 装置没有这样的订阅者（27 处 `UnregisterBuffDef` 全在命令体里、不在事件回调里）⇒ 今天的装置**打不到这条路径**。故本条是**静态确认 + 编译验证**，行为面置信度为【推断】 |
+| 仍留的账 | 规格侧未补：`state-instance-lifecycle:270` 的「广播后身份重查」只讲**实例**指针、没讲 **Def** 指针。按 `G-32` 这条应单独记一行——**缺陷已修，但让它可被发现的判据仍不存在** |
 
 ### D-2 ★★ `state-param-snapshot:125` 与代码**对 `DurationTime` 的求值口径相反**，且代码里两处注释也互相矛盾【实测】
 
@@ -867,5 +879,6 @@ if (!Def) { /* 同 :161 的处置：Log + 返回 EBAR_Applied/Rejected */ }
 
 | 日期 | 变更 |
 |---|---|
-| 2026-10-17 | 建立。`ARCH-07-buff` 首版（**871 行**）：**47 文件 / 5 839 行**审核完成。审出 **D-1..D-12 / U-1..U-7**。三条结构性发现：① **规格主语第一次全对、符号名全错**（6 组命中 0，且错的方向相反）——与 `ARCH-05` 的「权威层主语错了」正好互补；② **唯一真·代码缺陷是 D-1**（Replace 支未重新解析 `Def` ⇒ use-after-free），而同函数内另外三处都防了；③ 新增缺陷方向 **G-18**（一次改名没有单一规则，每个类型各自落在三种组合之一）。另新增 **G-19**（「测试算不算消费者」判据缺口）/ **G-20**（规格倾向于记录「做了的」，对「决定不做的」没有位置）。**§7.2 首次给出 `SPEC-02-states` 的 14 项差异清单**，判定旧文档族「**§12 收束回写质量高、正文停在设计轮**」——与 `ARCH-06` 对 `SPEC-03-effects` 的判定同型 |
+| 2026-10-17 | 建立。`ARCH-07-buff` 首版（**871 行**，修复记录后 **884 行**）：**47 文件 / 5 839 行**审核完成。审出 **D-1..D-12 / U-1..U-7**。三条结构性发现：① **规格主语第一次全对、符号名全错**（6 组命中 0，且错的方向相反）——与 `ARCH-05` 的「权威层主语错了」正好互补；② **唯一真·代码缺陷是 D-1**（Replace 支未重新解析 `Def` ⇒ use-after-free），而同函数内另外三处都防了；③ 新增缺陷方向 **G-18**（一次改名没有单一规则，每个类型各自落在三种组合之一）。另新增 **G-19**（「测试算不算消费者」判据缺口）/ **G-20**（规格倾向于记录「做了的」，对「决定不做的」没有位置）。**§7.2 首次给出 `SPEC-02-states` 的 14 项差异清单**，判定旧文档族「**§12 收束回写质量高、正文停在设计轮**」——与 `ARCH-06` 对 `SPEC-03-effects` 的判定同型 |
+| 2026-10-17 | **D-1 已修复**（本条为全档案唯一崩溃级缺陷）。`TcsBuffOps.cpp` 的 Replace 支在 `Remove(...)` 之后补 `Def` 重取 + 空判（+17 / −2）。触发路径 = `MaxStacks = 1` + `EOP_ReplaceExisting`（五轴标准组合），`Remove` 的两次同步广播中订阅者可调 `UnregisterBuffDef`（公开 API）⇒ `TUniquePtr` 析构 ⇒ 后续读 `Def->LevelBase` / `Def->Params` / `Def->ModifierRows` 是 use-after-free。**双配置编译 0 error 0 warning**（Editor Development + Shipping）。⚠ 未跑 PIE——装置没有「在 `Removed` 回调里注销定义」的订阅者，今天打不到这条路径，故为静态确认；规格侧「广播后身份重查」仍只讲实例指针、没讲 Def 指针，该缺口按 `G-32` 单列 |
 
