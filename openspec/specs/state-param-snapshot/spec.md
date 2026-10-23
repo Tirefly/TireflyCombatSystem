@@ -122,12 +122,16 @@
 
 ### Requirement: 时值与周期语义（到期堆落点）
 
-施加一个状态时 MUST 按下述规则挂时间条目（`EDurationPolicy` / `Period` / `PeriodRefresh` 的语义）：
+> **枚举名订正（2026-10-17，`ARCH-07` D-3 / `G-18`）**：本条及全篇原用的 `EDurationPolicy` / `EDP_*` / `ETcsPeriodRefresh` / `EPR_*` 四个旧名**在全仓均不存在**。实际是 `EBuffDurationPolicy`（`EBDP_*`）/ `ETcsBuffPeriodRefresh`（`EBPR_*`）——`TcsBuffEnums.h:14` / `:25`。
+> **根因**：`PLN-REFACTOR-1` Task 4 拆出 `TcsBuff` 时，**三个枚举加了 `Buff` 前缀**（`EBuffApplyResult` / `EBuffDurationPolicy` / `ETcsBuffPeriodRefresh`）**而堆叠策略 struct 没加**（`FStateStackPolicy`），`EOverflowPolicy` / `EStackDurationPolicy` 也保持原名 ⇒ **一次改名没有单一规则，每个类型各自落在三种组合之一**（`ARCH-07` §5 D-4）。
+> ⇒ 判断某类型该不该带 `Buff` 前缀，**MUST 看 `Source/TcsBuff/Public/State/TcsBuffEnums.h` 与 `TcsBuffStackPolicy.h`**，MUST NOT 按「看起来该统一」去推断。
+
+施加一个状态时 MUST 按下述规则挂时间条目（`EBuffDurationPolicy` / `Period` / `PeriodRefresh` 的语义）：
 
 - **`Finite`**：`DurationRemaining` MUST 由快照的 `DurationTime` 求值取得，并 MUST 入堆一条到期条目（到期时刻 = 时钟 `Elapsed` + 剩余时长）；堆的驱动归时钟泵，本层 MUST NOT 自建 tick。
 - **`Infinite`**：MUST NOT 入堆（字段不使用）——**"≤0 = 永久"的魔法值语义不成立**。
 - **`Period > 0`**：MUST 走**重复到期条目**——每次周期回调广播 `TcsEvent.State.Periodic`（载荷带当前 `Stacks` 与 `Level`）后**重新入堆**；默认**等首个周期**（"施加即生效"由 apply 响应链表达，本层不额外补一次）。
-- **`PeriodRefresh`**：刷新路径上 `EPR_Keep` = 不动周期计时；`EPR_Reset` = 重建周期条目；`EPR_Immediate` = 立即按周期语义走一次再重置。
+- **`PeriodRefresh`**：刷新路径上 `EBPR_Keep` = 不动周期计时；`EBPR_Reset` = 重建周期条目；`EBPR_Immediate` = 立即按周期语义走一次再重置。
 - **周期条目独立**：时值到期与周期到期 MUST 各持一个条目锚点（`ExpiryEntry` / `PeriodEntry`）——两者是可同时存在的两个语义，MUST NOT 挤在一个锚点里。
 
 #### Scenario: 周期到点广播后继续计时
@@ -142,7 +146,7 @@
 
 #### Scenario: 无限时长不产生到期回调
 
-- **WHEN** 施加一个 `EDP_Infinite` 的状态并让时钟推进任意时长
+- **WHEN** 施加一个 `EBDP_Infinite` 的状态并让时钟推进任意时长
 - **THEN** 不发生到期回调（无到期条目），实例仍在册
 
 #### Scenario: 两种条目互不挤占
@@ -154,7 +158,7 @@
 
 `UTcsBuffSubsystem::ExtendDuration(Handle, Delta)` / `SetRemaining(Handle, Seconds)` MUST 在更新剩余时长的同时**撤销旧条目并按新余量重新入堆**（句柄配对清理）。
 
-- `EDP_Infinite` 上调二者 MUST 留 `Warning` 并**无操作**（无到期条目可调，属配置状态不是错误）；定义未登记时同样 `Warning` + 无操作（不猜策略）。
+- `EBDP_Infinite` 上调二者 MUST 留 `Warning` 并**无操作**（无到期条目可调，属配置状态不是错误）；定义未登记时同样 `Warning` + 无操作（不猜策略）。
 - 剩余时长被置为 0 或负值时 MUST 按 0 处理，并使其在下一个泵点到期。
 - 已到期 / 已移除的句柄 MUST 按脏句柄口径拒绝（不影响同桶其它实例）。
 
@@ -170,7 +174,7 @@
 
 #### Scenario: 无限时长上调用被拒且不改字段
 
-- **WHEN** 对 `EDP_Infinite` 的实例调 `ExtendDuration` / `SetRemaining`
+- **WHEN** 对 `EBDP_Infinite` 的实例调 `ExtendDuration` / `SetRemaining`
 - **THEN** 留 `Warning`，实例的时值字段与在册状态均不变
 
 #### Scenario: 置零后在下一泵点到期

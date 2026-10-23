@@ -4,7 +4,7 @@
 
 定义 M3 状态层的**运行态骨架**：状态实例句柄与池化实例记录、per-entity 桶注册表与代际校验、世界级状态门面（施加 / 查询 / 移除 / 生命周期操作 + 定义登记口）、六枚生命周期事件 tag 与反射载荷，以及阶段迁移与广播点的纪律——让"状态定义"能变成可查、可移除、可被订阅的运行实例。
 
-**边界**：本能力只覆盖"实例在册与生命周期广播"。参数快照与等级源（`PLN-R5` Task 3）、持续修正器物化（Task 4）、五轴堆叠与刷新政策（Task 5）、链原语 `ApplyState` 与行为 Fragment（Task 6）各自另有能力，本能力只保留它们的**接入位**（定义登记口、`ExtendDuration` / `SetRemaining` 签名、`EApplyResult` 的 `Stacked` 档）。
+**边界**：本能力只覆盖"实例在册与生命周期广播"。参数快照与等级源（`PLN-R5` Task 3）、持续修正器物化（Task 4）、五轴堆叠与刷新政策（Task 5）、链原语 `ApplyState` 与行为 Fragment（Task 6）各自另有能力，本能力只保留它们的**接入位**（定义登记口、`ExtendDuration` / `SetRemaining` 签名、`EBuffApplyResult` 的 `EBAR_Stacked` 档）。
 
 ## Requirements
 
@@ -131,13 +131,17 @@
 
 ### Requirement: 状态门面（施加、查询、移除与生命周期操作）
 
+> **枚举名订正（2026-10-17，`ARCH-07` D-3 / `G-18`）**：本条及全篇原用的 `EApplyResult` / `EDP_*` / `EAR_*` 三个旧名**在全仓均不存在**。实际是 `EBuffApplyResult` / `EBuffDurationPolicy`（`EBDP_*`）/ `EBuffApplyResult`（`EBAR_*`）——`TcsBuffEnums.h:70` / `:14` / `:70`。
+> **根因**：`PLN-REFACTOR-1` Task 4 拆出 `TcsBuff` 时，**三个枚举加了 `Buff` 前缀**（`EBuffApplyResult` / `EBuffDurationPolicy` / `ETcsBuffPeriodRefresh`）**而堆叠策略 struct 没加**（`FStateStackPolicy`），`EOverflowPolicy` / `EStackDurationPolicy` 也保持原名 ⇒ **一次改名没有单一规则，每个类型各自落在三种组合之一**（`ARCH-07` §5 D-4）。
+> ⇒ 判断某类型该不该带 `Buff` 前缀，**MUST 看 `Source/TcsBuff/Public/State/TcsBuffEnums.h` 与 `TcsBuffStackPolicy.h`**，MUST NOT 按「看起来该统一」去推断。
+
 `TcsBuff` MUST 提供 `UTcsBuffSubsystem : UWorldSubsystem`，**仅在 Game / PIE / GamePreview 世界实例化**（同族先例）；`Deinitialize` MUST 全量清理（登记表复位 + 全部桶清空 + 待撤销的到期条目撤销）——MUST NOT 留跨世界残影。
 
 **★ 门面拆分（PLN-REFACTOR-1 Task 4，MUST 读）**：施加 / 查询 / 移除 / 等级读口 / 事件与时钟读口**全部住 `TcsBuff`**；而 `TcsState` **另有一个极薄的共享门面** `UTcsStateSubsystem`，它**只持快照参数表反射壳**（`GetParamTableReader()`，两域代码级唯一共用设施）——技能侧求值引用类时长与参数链行时从它取壳。**MUST NOT 把两份门面读成读口重复**：拆分判据 = **该设施是否被两个域在代码级使用**。
 
 操作面：
 
-- **施加**：`ApplyState(Target, DefTag, Source, Instigator, ParamTable, Overrides) -> EApplyResult`——施加方传入的 `Source` 为**可选**（无效则本门面发号）；`Instigator`（发起者实体）与 `ParamTable`（施加方参数表）为**可选**（`Instigator` 无效时取 `Target`、`ParamTable` 为空时引用类源落兜底）；`Overrides` 为施加方参数覆盖，参与快照构建（构造规则见 `state-param-snapshot` 能力）；
+- **施加**：`ApplyState(Target, DefTag, Source, Instigator, ParamTable, Overrides) -> EBuffApplyResult`——施加方传入的 `Source` 为**可选**（无效则本门面发号）；`Instigator`（发起者实体）与 `ParamTable`（施加方参数表）为**可选**（`Instigator` 无效时取 `Target`、`ParamTable` 为空时引用类源落兜底）；`Overrides` 为施加方参数覆盖，参与快照构建（构造规则见 `state-param-snapshot` 能力）；
 - **查询**：`GetState(Handle) -> const FTcsStateInstance*`（脏句柄返回 nullptr 且不 ensure）、`IsStateActive(Handle)`、`ForEachState(Target, TFunctionRef<bool(const FTcsStateInstance&)>)`——**按槽位下标升序稳定遍历**（同输入同输出，可复现验收的前提）；
 - **移除**：`RemoveState(Handle, Cause)` / `ExpireState(Handle)`（= `Cause` 为 `Expired` 的移除）/ `UnregisterEntity(Target)`；
 - **生命周期操作**：`ExtendDuration(Handle, Delta)` / `SetRemaining(Handle, Seconds)`——MUST 同步到期堆（撤销旧条目 + 按新余量重入堆）；**`Infinite` 时值策略**上调二者 MUST 留 `Warning` 并**无操作**（无到期条目可调）；
@@ -145,7 +149,7 @@
 
 `ApplyState` 与 `RemoveState` / `GetState` 一类**本轮 MUST NOT 加 `UFUNCTION`**（句柄与 `TMap` 形参今天不可反射；脚本面整体留 `SCRIPT` 系列，登记台账）。
 
-**返回值语义**：`EApplyResult{ Applied / Refreshed / Stacked / Rejected }`——四档 MUST 全部可达，判据归 `state-stacking-policies` 能力（无同组实例 ⇒ `Applied`；同组**同来源**未满仓 ⇒ `Refreshed`；同组**异来源**未满仓 ⇒ `Stacked`；满仓 ⇒ `Rejected` 或替换后 `Applied`）；**拒绝原因的具名细分**仍归 R5.5-e（今天只有 `Rejected` 一档 + 日志）。
+**返回值语义**：`EBuffApplyResult{ EBAR_Applied / EBAR_Refreshed / EBAR_Stacked / EBAR_Rejected }`——四档 MUST 全部可达，判据归 `state-stacking-policies` 能力（无同组实例 ⇒ `Applied`；同组**同来源**未满仓 ⇒ `Refreshed`；同组**异来源**未满仓 ⇒ `Stacked`；满仓 ⇒ `Rejected` 或替换后 `Applied`）；**拒绝原因的具名细分**仍归 R5.5-e（今天只有 `Rejected` 一档 + 日志）。
 
 #### Scenario: 非游戏世界不创建
 
@@ -159,7 +163,7 @@
 
 #### Scenario: 无限时长上调时长操作被拒
 
-- **WHEN** 对 `EDP_Infinite` 的实例调 `ExtendDuration` / `SetRemaining`
+- **WHEN** 对 `EBDP_Infinite` 的实例调 `ExtendDuration` / `SetRemaining`
 - **THEN** 留 Warning 且实例的时值字段不变（无到期条目可调，属**配置状态**不是错误）
 
 #### Scenario: 遍历稳定且可按谓词提前终止
@@ -170,7 +174,7 @@
 #### Scenario: 未登记定义时施加被拒
 
 - **WHEN** 用一个本世界未登记（或无法解析）的 `DefTag` 调 `ApplyState`
-- **THEN** 返回 `EApplyResult::Rejected` 并留 Warning，实体桶不新增实例（MUST NOT 出现 ensure）
+- **THEN** 返回 `EBuffApplyResult::EBAR_Rejected` 并留 Warning，实体桶不新增实例（MUST NOT 出现 ensure）
 
 #### Scenario: 时长操作同步到期堆
 

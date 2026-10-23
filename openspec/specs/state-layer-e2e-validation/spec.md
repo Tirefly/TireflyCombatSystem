@@ -12,6 +12,10 @@ R5 状态层（重构后的 `TcsBuff`，与共享层 `TcsState`）的**端到端
 
 ### Requirement: 状态层端到端竖切矩阵
 
+> **枚举名订正（2026-10-17，`ARCH-07` D-3 / `G-18`）**：本条及全篇原用的 `EAR_*` / `EDP_*` 两个旧名**在全仓均不存在**。实际是 `EBAR_*` / `EBDP_*`——`TcsBuffEnums.h:70` / `:14`。
+> **根因**：`PLN-REFACTOR-1` Task 4 拆出 `TcsBuff` 时，**三个枚举加了 `Buff` 前缀**（`EBuffApplyResult` / `EBuffDurationPolicy` / `ETcsBuffPeriodRefresh`）**而堆叠策略 struct 没加**（`FStateStackPolicy`），`EOverflowPolicy` / `EStackDurationPolicy` 也保持原名 ⇒ **一次改名没有单一规则，每个类型各自落在三种组合之一**（`ARCH-07` §5 D-4）。
+> ⇒ 判断某类型该不该带 `Buff` 前缀，**MUST 看 `Source/TcsBuff/Public/State/TcsBuffEnums.h` 与 `TcsBuffStackPolicy.h`**，MUST NOT 按「看起来该统一」去推断。
+
 项目 MUST 提供一条可在 PIE 中运行的宿主验收装置命令 `Tcs.Test.State.Run`，在**同一个状态实例**上
 依次穿过 R5 全部六个能力面：内容资产驱动的定义解析、参数快照冻结、真资产修正器物化、内联触发行起行为链、
 周期回调、到期回收与属性复原。该竖切 MUST 由内容资产（buff 资产 + 修正器模板资产 + 链资产）
@@ -21,7 +25,7 @@ R5 状态层（重构后的 `TcsBuff`，与共享层 `TcsState`）的**端到端
 #### Scenario: 内容资产驱动的施加与快照冻结
 
 - **WHEN** 在 PIE 中运行 `Tcs.Test.State.Run`
-- **THEN** 内容 buff 资产的 `DefTag` 经定义库解析成功、`ApplyState` 返回 `EAR_Applied`、
+- **THEN** 内容 buff 资产的 `DefTag` 经定义库解析成功、`ApplyState` 返回 `EBAR_Applied`、
   实例在册且 `CascadeAnchor` 有效，快照按 `Overrides` 与等级源分别取得预期值
 
 #### Scenario: 真资产修正器经 LoadSynchronous 物化
@@ -57,7 +61,7 @@ R5 状态层（重构后的 `TcsBuff`，与共享层 `TcsState`）的**端到端
 #### Scenario: 未登记定义与无效目标
 
 - **WHEN** 以未登记的 `DefTag` 或无效目标句柄调用 `ApplyState`
-- **THEN** 返回 `EAR_Rejected`、不产生实例、不广播状态事件，并留下 Warning 级记录
+- **THEN** 返回 `EBAR_Rejected`、不产生实例、不广播状态事件，并留下 Warning 级记录
 
 #### Scenario: 悬空句柄访问
 
@@ -66,7 +70,7 @@ R5 状态层（重构后的 `TcsBuff`，与共享层 `TcsState`）的**端到端
 
 #### Scenario: 无限时值定义的时长操作被拒
 
-- **WHEN** 对 `EDP_Infinite` 定义上调 `ExtendDuration` 或 `SetRemaining`
+- **WHEN** 对 `EBDP_Infinite` 定义上调 `ExtendDuration` 或 `SetRemaining`
 - **THEN** 操作被拒且实例的时长字段不被修改，拒绝有独立留痕
 
 ### Requirement: 状态层证据的双面读数与边界登记纪律

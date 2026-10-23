@@ -7,6 +7,10 @@
 
 ### Requirement: 状态 Def 数据形状
 
+> **枚举名订正（2026-10-17，`ARCH-07` D-3 / `G-18`）**：本需求里 `FTcsBuffDef` 的字段行原用 `EDurationPolicy` / `EDP_Finite` / `ETcsPeriodRefresh` / `EPR_Keep`——**同一行四个旧名，且四个在全仓均不存在**。实际是 `EBuffDurationPolicy`（`EBDP_*`）/ `ETcsBuffPeriodRefresh`（`EBPR_*`）——`TcsBuffEnums.h:14` / `:25`。
+> **根因**：`PLN-REFACTOR-1` Task 4 拆出 `TcsBuff` 时，**三个枚举加了 `Buff` 前缀**（`EBuffApplyResult` / `EBuffDurationPolicy` / `ETcsBuffPeriodRefresh`）**而堆叠策略 struct 没加**（`FStateStackPolicy`），`EOverflowPolicy` / `EStackDurationPolicy` 也保持原名 ⇒ **一次改名没有单一规则**（`ARCH-07` §5 D-4）。
+> ⇒ 判断某类型该不该带 `Buff` 前缀，**MUST 看 `TcsBuffEnums.h` 与 `TcsBuffStackPolicy.h`**，MUST NOT 按「看起来该统一」去推断。
+
 `TcsBuff` MUST 提供状态定义的**数据形状**（`USTRUCT`，纯反射数据、可作 DataTable 行；字段集只声明一次，资产与表行各自组合持有）：
 
 - `ETcsParamMode{ EPM_Snapshot = 0, EPM_Live = 1 }`——`0` 即默认值；`Snapshot` 在施加时求值一次冻结，`Live` 供技能侧使用；
@@ -14,7 +18,7 @@
   键 MUST 落 `TcsStateParam` 根（具体键由宿主声明，插件 MUST NOT 声明任何键）；
 - `FTcsStateDefBase`（抽象：**中性默认实现 + `meta = (Hidden)`**，MUST NOT 用 `=0` 或 `PURE_VIRTUAL`）：
   `FGameplayTagContainer CategoryTags` / `int32 LevelBase = 1` / `int32 MaxLevel = 0` / `TArray<FTcsNumericParamRow> Params` / `TArray<FTcsDescriptionEntry> Descriptions`（载体见「描述配置载体」需求）/ `TArray<TSoftObjectPtr<UTcsAttrModDef>> ModifierRows`；
-- `FTcsBuffDef : FTcsStateDefBase`：时值 `EDurationPolicy DurationPolicy = EDP_Finite` / `FTcsParamValue DurationTime` / `double Period = 0.0` / `ETcsPeriodRefresh PeriodRefresh = EPR_Keep`；
+- `FTcsBuffDef : FTcsStateDefBase`：时值 `EBuffDurationPolicy DurationPolicy = EBDP_Finite` / `FTcsParamValue DurationTime` / `double Period = 0.0` / `ETcsBuffPeriodRefresh PeriodRefresh = EBPR_Keep`；
   堆叠 `FStateStackPolicy StackPolicy`；行为 `TArray<FTcsEffectTriggerDef> Triggers`（内联触发行位）+ `TArray<FInstancedStruct> Fragments`（行为 Fragment 载荷，选择器经手写 `meta = (BaseStruct = "/Script/TcsBuff.TcsBuffBehaviorFragment")` 收窄——形状与语义见 `state-behavior-fragments` 能力）；
   关系 `TArray<FGameplayTag> RequiredTags` / `TArray<FGameplayTag> ForbiddenTags` / `TArray<FGameplayTag> TagsToBlock` / `TArray<FGameplayTag> TagsToCancel` / `int32 Priority = 0`——**四数组为 2026-10-16 `R5.5-e1` 落地**（检查器见 `state-relation-check` 能力）。**⚠ 这五个字段实际住在基类 `FTcsStateDefBase`**（`TcsStateDefBase.h`，与 `CategoryTags` / `LevelBase` / `MaxLevel` / `Params` / `Descriptions` / `ModifierRows` 同处），不是 `FTcsBuffDef`——见下方订正。
   **改名映射（MUST 逐条照做，防语义反转）**：`Blocks` → **`ForbiddenTags`**（受动·前置：B 在时**我**不可施加）、`Requires` → **`RequiredTags`**（受动·前置：必须已存在）、`Cancels` → **`TagsToCancel`**（施动·终止）；**新增 `TagsToBlock`**（施动·预防：我在跑期间目标不能开始）。
@@ -145,9 +149,9 @@ TcsNotation 只拥有**词汇约定**与视图机制——"描述配置空间（
 ### Requirement: 状态 Def 作者期校验
 
 状态 Def 资产的 `IsDataValid`（`WITH_EDITOR`）MUST 报出以下**错误**（每条错误 MUST 挂在出问题的配置元素上，给出可操作信息）：
-`DefTag` 无效 / `Params` 的 `Key` 重复 / `ModifierRows` 元素为空引用 / `Triggers` 内 `Def.EventTag` 无效 / `Triggers` 内 `Def.EffectChainId` 无效 / `DurationPolicy == EDP_Finite` 而 `DurationTime` 的数值来源为空。
+`DefTag` 无效 / `Params` 的 `Key` 重复 / `ModifierRows` 元素为空引用 / `Triggers` 内 `Def.EventTag` 无效 / `Triggers` 内 `Def.EffectChainId` 无效 / `DurationPolicy == EBDP_Finite` 而 `DurationTime` 的数值来源为空。
 
-MUST 报出以下**警告**（配置无害但不得静默）：`Period < 0`；`PeriodRefresh != EPR_Keep` 而 `Period == 0`。
+MUST 报出以下**警告**（配置无害但不得静默）：`Period < 0`；`PeriodRefresh != EBPR_Keep` 而 `Period == 0`。
 
 `Descriptions` 的三条错误（`DescriptionId` / `TextKey` 为空、同一 Entry 内 `SlotName` 为空或重复）**只在「描述配置载体」需求声明一处**，本需求不重复其判据（同一份规则、单一真相）。
 
@@ -160,7 +164,7 @@ MUST 报出以下**警告**（配置无害但不得静默）：`Period < 0`；`P
 
 #### Scenario: 两条警告不阻断保存
 
-- **WHEN** 资产配 `Period = -1`，或 `PeriodRefresh = EPR_Reset` 而 `Period = 0`
+- **WHEN** 资产配 `Period = -1`，或 `PeriodRefresh = EBPR_Reset` 而 `Period = 0`
 - **THEN** `IsDataValid` 产出一条警告（非错误），资产仍视为合法
 
 #### Scenario: 校验通过时提升为 Valid

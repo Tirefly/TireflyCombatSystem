@@ -75,7 +75,7 @@
 
 | 批次 | 文件 | 日期 | 范围 | 条数 |
 |---|---|---|---|---|
-| **R1** | [`ARCH-FIX-R1`](FIX-R1-spec-batch.md) | 2026-10-17 | **零代码 · 只动 `openspec/specs/`** | **18 条**（8 类） |
+| **R-3** | 见 §8（原独立文档已按用户裁定删除，内容并入 §8） | 2026-10-17 | **零代码 · 只动 `openspec/specs/`** | **20 条**（10 类） |
 
 > **计数基准（MUST 统一，2026-10-17 订正）**：上表「行数」= **仅 `.h` / `.cpp`**，**不含 `*.Build.cs`**。逐模块 `.Build.cs` 行数另计：`TcsCore` 22 / `TcsNotation` 18 / `TcsAssetButler` 29 / `TcsAttribute` 22 / `TcsState` 28 / `TcsEffect` 24 / `TcsBuff` 33 / `TcsSkill` 25 / `TcsTargeting` 22 / `TcsDamage` 23 / `TcsIntegration` 40（合计 286）⇒ 含 `Build.cs` 的全量 = **39 711 行**。
 >
@@ -182,7 +182,7 @@
 >
 > **共 35 条（`G-1`~`G-35`）**——这些是**跨模块判据**，本身不"修"；单模块的债在各自档案 §5，已开始逐条处理，进度见 §8。
 >
-> 其中 **G-4 / G-6 / G-7 / G-9 / G-18** 的**规格半**已由 [`ARCH-FIX-R1`](FIX-R1-spec-batch.md) 消化（2026-10-17）；判据本身仍留在此表（它们是"下次审核要主动找的形态"，不是一次性待办）。
+> 其中 **G-4 / G-6 / G-7 / G-9 / G-18** 的**规格半**已由 §8 的 **R-3** 消化（2026-10-17）；判据本身仍留在此表（它们是"下次审核要主动找的形态"，不是一次性待办）。
 >
 > **分工**：`G-1`~`G-32` 由 11 篇模块档案产生（`ARCH-01`~`ARCH-11`）；`G-33`~`G-35` 由 `ARCH-00` 的跨模块面产生（换载体判据 / 可摘除模块吃掉需求 / 同一件事的两半）。
 
@@ -242,7 +242,7 @@
 | 2026-10-17 | `ARCH-10-damage` 完成（**1 048 行**，本档案**最长**，超过 `ARCH-06` 的 977 与 `ARCH-08` 的 959）。审出 **D-1..D-11 / U-1..U-7**（另加 §6 一条 `ConditionChance` 待重裁）。三条结构性发现：① **规格被一次无关改造掏空**——`damage-step-library` 的十步契约在 2026-09-22 的标识体系 tag 化改造里（`539b14e`，-25/+17）被**整段删除**，而 `Purpose` / Requirement 标题 / 正文首句 / 官方默认模板节**四处**仍宣称「十步」；归档那次（`a1804ed`）十行俱在 ⇒ 台账 `DAMAGE-4` 的归因「归档时规格被裁」**时点错误**。② **规格一空、代码失去对照物**——D-1（`HitRate`/`CritRate` 用 `> 0.0` 当空值哨兵 ⇒ 「命中率 0」不可表达、失败方向是「必中」、无任何日志）是本模块唯一的 ★★★ 纯代码缺陷，而 74 个 Scenario 里**没有任何一个输入能触发它**。③ **`TcsEffect` 与 `TcsDamage` 的步骤注册表是全仓唯一一对逐行同构实现**（`diff` 只剩 70 行注释差异）⇒ D-7 的 `Deinitialize` 撤销全部世界的缺陷**两边逐字相同**。新增 **G-30**（第七类判据：结构在、内容被删空——判据 = 标题承诺 N 项而正文少于 N 项时 MUST 跑 `git log --follow` 区分「从未写过」与「写过被删」）/ **G-31**（同款代码逐字复制 ⇒ 缺陷一起复制、规格只掉一边；推论 = 规格的单方面缺失会传染成代码缺陷，反向不成立）。**其二是本档案首次「纯代码债 ≥ 纯规格债」**（4 / 3），成因与 `ARCH-08`（1 / 8）**正好相反**。**旧文档判定**：`SPEC-08-damage`（135 行）**14 项里 5 项自纠准确 / 3 项旧文档未自纠且非「未落地」（#8 元素字段 / #9 Hit 三态 / #10 「修改器可改」）/ 4 项声称未落地但台账已记**，就地订正率 **5/14 ≈ 36%**，介于 `SPEC-04-skill`（7/14）与 `SPEC-06-targeting`（3/8）之间。**§8.4 新增一条审核方法**（"规格被删空"必须主动查 git 历史）。 |
 | 2026-10-17 | `ARCH-11-integration` 完成（**990 行**）——**11 个模块全部审完**。审出 **D-1..D-9 / U-1..U-7**。三条结构性发现：① **G-30 在第二个模块上再次命中，且凶手是同一个提交**——`539b14e`（标识体系 tag 化）删掉 `damage-step-library` 十步契约的同时，也删掉了 `integration-entity` 的「单出口 `OnDefinitionsReady`」+ **3 个 Scenario**（含**跨世界装配唯一的验证场景**，9 → 6）。判别点 = 现行规格正文首句仍写「就绪**标记**」而「就绪**出口**」没了，代码里也确实是 `bRuntimeReady` 一个 bool；② **首次出现「规格被删空 + 代码本来就干净」的形态** ⇒ **修正 `ARCH-10` 的推论**：规格缺失**不「制造」缺陷，只「让已有的缺陷变得不可发现」**（`TcsDamage` D-4/D-5 沉底 vs 本模块 D-4 能被发现，判据两侧都有样本）⇒ 立 **G-32**（第八类：规格完整度 = 缺陷的*可发现性*而非*发生率*，两者 MUST 分开登记）；③ **全档案第一次出现「判据全过」的模块**——G-25（降级后不可区分）九条路径全过（其中「**分母照打**」值得单独立为判据：`StateSubsystem` 不可得时跳过整批但日志仍写 `状态定义 0/12 条`，零成本的可区分性）、G-31（同构必同缺陷）**三对同款代码全部无缺陷**（否定面）、第五类判据（时态词）**零命中**（因为 `integration-entity` 用「日期 + 改了什么 + 判据」而非「本 Task / 本轮」，**可复制的写作判据**）。**旧文档判定**：`SPEC-05-integration`（**81 行**，全档案最短）**28 项差异 / 5 项准确 / 就地订正率 ~18%——全档案最低**，原因不是「短」而是**它压根没有收束回写节**（`§8` 是修订记录，记「改了什么」不是「现在是什么」）⇒ 补强 `ARCH-09` §8.4 的判据。**§3.2 新增两行**（「规格被删空 × 代码干净」/「判据全过」）。 |
 | 2026-10-17 | `ARCH-00-overview` 完成（**446 行**）——**审核阶段整体收束**。审两篇无代码模块（`SPEC-09-editor` 53 行 / `SPEC-10-presentation` 42 行），给出 **24 项 + 13 项**差异清单（订正率 ~33% / **~15%**，后者全档案第二低）。三条结构性发现：① **两个 `PENDING` 模块的真实形态是「地基全在、门窗全无」**——机制几乎全部落地（帧末队列 / `PeekPending` 三处 / 步骤基类型 + 自注册宏 / 7 个 `IsDataValid`），词汇零命中（`FCueEvent` / `ICuePresenter` / `PlayCue` / `bMergeable`），`TcsEditor` / `TcsCue` 模块不存在；② **`TcsDev`（63 文件 / 16 103 行，可整体摘除）已吃掉编辑器需求的一半**——「往下」读数归零、「往上」没人注意到决定没写，是 `G-20` 的最严重形态；③ **`G-21` 的汇总面 = 6 件事 / 24 处重复登记 / 进台账 0 件**，另有两对「同一件事的两半都没落」（`FlowSource`↔`AttrCapture`、`TriggerSeedSource`↔`FlowSource`）。另完成 `G-20` 清单（7 条不做 + 3 条已撤销 + 1 条从未存在）与八类判据归并。新增 **G-33**（`PENDING` 规格 MUST 先按「换了载体的需求」核）/ **G-34**（编辑器需求被可摘除模块吃掉）/ **G-35**（同一件事的两半各自登记）。**另给出定量表：订正率与行数无关、与「有无收束回写节」强相关**（`SPEC-02-states` 390 行 ~50% vs `SPEC-10-presentation` 42 行 ~15%）。 |
-| 2026-10-17 | **`ARCH-FIX-R1` 执行完毕**（[`FIX-R1-spec-batch.md`](FIX-R1-spec-batch.md)，136 行）——**规格修复第一批，零代码**。按用户裁定「低风险、零代码的规格修复」，只动 `openspec/specs/`，**MUST NOT 触碰 `Source/`**（代码侧交并行分支会话）。**8 类共 18 条**：① 假符号 6 条（`RegisterStateDef` 族 ×2 能力 / `FTcsBuffStackPolicy` ×2 / `EAR_*`→`EBAR_*` 8 处 / `RunSource`+`PhaseExpiryEntry` **31 处**跨 5 份 `skill-*`）；② 悬空引用 2 条（`attribute-moddef` 不存在的能力 / `BaseStruct` 指向不存在类型）；③ 载体归属 3 条（`state-def-asset:71` 载体从 `TcsBuff` 改回 `TcsState` —— **按依赖图原说法物理不可实现** / 行为 Fragment 上下文门面 `UTcsStateSubsystem`→`UTcsBuffSubsystem` / 关系五字段上移基类）；④ 签名缺形参 2 条（`skill-registry` 三读数口共缺 **4 个形参**）；⑤ 物理做不到的形状 1 条（`uint64`→`int64`，UHT 约束）；⑥ 漏收录唯一有真实消费者的设施 3 条（`primary-asset-loading` 新增 `FTcsPrimaryAssetQuery` 需求 / `effect-chain-asset` 新增校验需求 / `integration-entity` 五条发现路径订正为 3+2）；⑦ **被删空的契约恢复** 1 条（`integration-entity` 恢复「就绪单出口」+ **4 个 Scenario**，凶手 = `539b14e`）。**验证**：`openspec validate --all --strict` **45 passed / 0 failed**（改前同值）；Node 脚本把 **244 个 `Tcs*` 族符号逐个在 `Source/` 337 文件里交叉验证**，13 个零命中**全部为正确的历史/否定记录**。**⚠ 关键限制**：validate 只查结构，本批 18 条里**只有 2 条（新增需求）会被它看见**，其余 16 条它一条都发现不了——全部靠人眼对代码找出，这是 `ARCH-00` §8.2 结论的实证。**明确不收**：需代码的 9 条 / 需裁决的 3 条（`ARCH-11` U-2 / `ARCH-09` D-4 / `ARCH-10` D-5）/ `ARCH-10` D-2（十步契约需先裁定是否仍成立）。 |
+| 2026-10-17 | **规格修复第一批执行完毕**（批次号 **R-3**，记录见 §8）——**零代码**。按用户裁定「低风险、零代码的规格修复」，只动 `openspec/specs/`，**MUST NOT 触碰 `Source/`**（代码侧交并行分支会话）。**8 类共 18 条**：① 假符号 6 条（`RegisterStateDef` 族 ×2 能力 / `FTcsBuffStackPolicy` ×2 / `EAR_*`→`EBAR_*` 8 处 / `RunSource`+`PhaseExpiryEntry` **31 处**跨 5 份 `skill-*`）；② 悬空引用 2 条（`attribute-moddef` 不存在的能力 / `BaseStruct` 指向不存在类型）；③ 载体归属 3 条（`state-def-asset:71` 载体从 `TcsBuff` 改回 `TcsState` —— **按依赖图原说法物理不可实现** / 行为 Fragment 上下文门面 `UTcsStateSubsystem`→`UTcsBuffSubsystem` / 关系五字段上移基类）；④ 签名缺形参 2 条（`skill-registry` 三读数口共缺 **4 个形参**）；⑤ 物理做不到的形状 1 条（`uint64`→`int64`，UHT 约束）；⑥ 漏收录唯一有真实消费者的设施 3 条（`primary-asset-loading` 新增 `FTcsPrimaryAssetQuery` 需求 / `effect-chain-asset` 新增校验需求 / `integration-entity` 五条发现路径订正为 3+2）；⑦ **被删空的契约恢复** 1 条（`integration-entity` 恢复「就绪单出口」+ **4 个 Scenario**，凶手 = `539b14e`）。**验证**：`openspec validate --all --strict` **45 passed / 0 failed**（改前同值）；Node 脚本把 **244 个 `Tcs*` 族符号逐个在 `Source/` 337 文件里交叉验证**，13 个零命中**全部为正确的历史/否定记录**。**⚠ 关键限制**：validate 只查结构，本批 18 条里**只有 2 条（新增需求）会被它看见**，其余 16 条它一条都发现不了——全部靠人眼对代码找出，这是 `ARCH-00` §8.2 结论的实证。**明确不收**：需代码的 9 条 / 需裁决的 3 条（`ARCH-11` U-2 / `ARCH-09` D-4 / `ARCH-10` D-5）/ `ARCH-10` D-2（十步契约需先裁定是否仍成立）。 |
 | 2026-10-17 | **进入修复阶段，R-1 完成**（`ARCH-07` D-1 —— 全档案唯一崩溃级缺陷）。`TcsBuffOps.cpp` 的 Replace 支在 `Remove(...)` 之后补 `Def` 重取 + 空判（**+17 / −2**）。新增 **§8 修复进度**小节（四列判据：改动面 / 双配置编译 / PIE 覆盖 / 规格回写），并明确 `G-1`~`G-35` 是**判据不可"修"**、单模块债在各自 §5 处理。**残留两条待裁**：① `state-instance-lifecycle:270` 的「广播后身份重查」只讲实例指针、没讲 `Def` 指针（按 `G-32` 单列）；② PIE 未覆盖——装置 27 处 `UnregisterBuffDef` 全在命令体、不在事件回调，打不到该路径。 |
 | 2026-10-17 | **R-2 完成**（`ARCH-11` U-2 —— 实体注销的跨门面级联）。三点裁决：**A** 编排点 = `UTcsCombatEntityComponent::EndPlay`、顺序「查询映射 → Buff → Skill → 属性账本」；**B** `integration-entity` 补四段顺序表 + Scenario；**C** `state-instance-lifecycle:268` 补「谁 MUST 调用它」（原是一句**孤儿义务**，与 `ARCH-09` G-26 同型）+ Scenario。代码 `TcsCombatEntityComponent.cpp` **+59 / −12**，双配置 0/0，两个能力 `openspec validate` 均 valid。**★ 严重度订正**：审核时写的「到期堆里留着条目等到期」是**低估**——周期回调只查「实例是否在桶里」，桶与实例都还在 ⇒ 每周期广播 `Periodic` 后重新入堆，而实体句柄**无代际段且永不复用** ⇒ **循环永不停止**，且每个泄漏桶永久抬高 `FTcsBuffOps::Find` 的全桶扫描成本。性质 = **运行期资源泄漏 + 事件风暴**。⇒ **方法论收获**：判「未实现」的严重度 MUST 追到**下游循环的终止条件**，不能停在「资源没释放」。 |
 
@@ -257,24 +257,40 @@
 |---|---|---|---|---|---|---|---|
 | **R-1** | `ARCH-07` | **D-1** Replace 支未重取 `Def` ⇒ use-after-free | ★★★ | `TcsBuffOps.cpp` **+17 / −2** | ✅ 双配置 0/0 | ⚠️ **未覆盖** | ❌ 未回写 |
 | **R-2** | `ARCH-11` | **U-2** 实体注销跨门面级联从未写下（Buff/Skill 的 `UnregisterEntity` 零调用） | ★★★ | `TcsCombatEntityComponent.cpp` **+59 / −12** + 2 个 `spec.md` | ✅ 双配置 0/0 | ⚠️ **未覆盖** | ✅ **已回写**（`integration-entity` 四段顺序 + Scenario；`state-instance-lifecycle` 补"谁必须调用"） |
+| **R-3** | 跨篇 10 份 | **规格批次（=原 R1 + 补漏）**：假符号 / 枚举旧名 / 悬空引用 / 载体归属 / 缺形参 / 物理不可行 / 漏收录 / 删空恢复 / 格式 / 措辞 —— **20 条** | — | **20 份 `spec.md`** | ✅ `validate` 45/0 | ⚠️ 无行为面可验 | ✅ **本体即规格** |
 
-**R1 规格批次**（零代码 · 只动 `openspec/specs/`，详见 [`FIX-R1-spec-batch.md`](FIX-R1-spec-batch.md)）：
+**R-3 规格批次（= 原 R1 + 本次补漏）**（零代码 · 只动 `openspec/specs/`；原独立批次文档已按用户裁定删除，内容并入本节）：
 
-| # | 类 | 条目 | 改动面 | 编译 | PIE | 规格回写 |
-|---|---|---|---|---|---|---|
-| **R1** | 假符号 6 | `RegisterStateDef` 族 ×2 能力 / `FTcsBuffStackPolicy` ×2 / `EAR_*`→`EBAR_*` 8 处 / `RunSource`+`PhaseExpiryEntry` **31 处** | 9 份 `spec.md` | 不涉（零代码） | 不涉 | ✅ **本体即规格** |
-| **R1** | 悬空引用 2 | `attribute-moddef`（不存在的能力）/ `BaseStruct` 指向不存在类型 | 2 份 | 不涉 | 不涉 | ✅ |
-| **R1** | 载体归属 3 | `state-def-asset:71` 载体 `TcsBuff`→`TcsState` / Fragment 上下文门面 / 关系五字段上移 | 2 份 | 不涉 | 不涉 | ✅ |
-| **R1** | 签名缺形参 2 | `skill-registry` 三读数口共缺 **4 个形参** | 1 份 | 不涉 | 不涉 | ✅ |
-| **R1** | 物理不可行 1 | `uint64`→`int64`（UHT 约束） | 1 份 | 不涉 | 不涉 | ✅ |
-| **R1** | 漏收录 3 | `primary-asset-loading` 补 `FTcsPrimaryAssetQuery` / `effect-chain-asset` 补校验需求 / 发现路径 5→3+2 | 2 份 | 不涉 | 不涉 | ✅ |
-| **R1** | **删空恢复 1** | `integration-entity` 恢复「就绪单出口」+ **4 个 Scenario** | 1 份 | 不涉 | 不涉 | ✅（凶手 `539b14e`） |
+| # | 类 | 条目 | 改动面 | 依据 |
+|---|---|---|---|---|
+| R-3 | 假符号 6 | `RegisterStateDef` 族 ×2 能力 / `FTcsBuffStackPolicy` ×2 / `EAR_*`→`EBAR_*` / `RunSource`+`PhaseExpiryEntry` **31 处** | 9 份 | `ARCH-02` D-1 / `ARCH-05` D-4·D-6 / `ARCH-07` D-3·D-5 / `ARCH-08` D-5 |
+| R-3 | **枚举旧名 3 族（本次补漏）** | `EBAR_*` 2 处 / `EApplyResult` 5 处 / `EDP_*` 8 处 / `EPR_*` 6 处 | 5 份 | `ARCH-07` D-3（`G-18`） |
+| R-3 | 悬空引用 2 | `attribute-moddef`（不存在的能力）/ `BaseStruct` 指向不存在类型 | 2 份 | `G-9` / `ARCH-05` D-6 |
+| R-3 | 载体归属 3 | 描述载体 `TcsBuff`→`TcsState` / Fragment 上下文门面 / 关系五字段上移 | 2 份 | `ARCH-02` D-1 / `ARCH-05` D-5·D-7 |
+| R-3 | 签名缺形参 2 | `skill-registry` 三读数口共缺 **4 个形参** | 1 份 | `ARCH-08` D-9 |
+| R-3 | 物理不可行 1 | `uint64`→`int64`（UHT 约束） | 1 份 | `ARCH-10` D-10 |
+| R-3 | 漏收录 3 | `primary-asset-loading` 补 `FTcsPrimaryAssetQuery` / `effect-chain-asset` 补校验需求 / 发现路径 5→3+2 | 2 份 | `G-6` / `ARCH-06` D-10 / `G-7` |
+| R-3 | **删空恢复 1** | `integration-entity` 恢复「就绪单出口」+ **4 个 Scenario** | 1 份 | `ARCH-11` D-1·D-3（凶手 `539b14e`） |
+| R-3 | 格式 1 | `integration-entity` Scenario 间补空行（`validate` 不查） | 1 份 | — |
+| R-3 | 措辞 1 | `跨世界装配时序锚点` 的「曾被删」改为「从未收录」（`git log -S` 单命中） | 1 份 | `INDEX` §5.2 **M-2** |
 
-> **R1 的验证与限制**：`openspec validate --all --strict` **45 passed / 0 failed**（改前同值）。Node 脚本把 **244 个 `Tcs*` 族符号**逐个在 `Source/` 337 文件里交叉验证，13 个零命中**全部为正确的历史/否定记录**。⚠ **validate 只查结构**——R1 的 18 条里**只有 2 条（新增需求）会被它看见**，其余 16 条它一条都发现不了。
+**R-3 的验证与限制**：`openspec validate --all --strict` **45 passed / 0 failed**（改前同值）。三个旧枚举族在规格里**零命中**；`EOP_*` / `ESD_*` **保持原名未被误改**。Node 脚本把 **244 个 `Tcs*` 族符号**逐个在 `Source/` 337 文件里交叉验证，13 个零命中**全部为正确的历史/否定记录**。⚠ **validate 只查结构**——本批 20 条里只有 2 条（新增需求）会被它看见。
 
-`**R-2 的严重度订正**（审核时低估，修复前实测发现）：R-2 的后果**不是**「到期堆里留着条目等到期」，而是——周期回调只检查「实例是否还在桶里」，桶与实例都还在 ⇒ `Find` 仍命中 ⇒ **每周期广播一次 `Periodic` 后重新入堆**，而实体句柄**无代际段且永不复用** ⇒ **循环永不停止**；且每个泄漏桶**永久抬高** `FTcsBuffOps::Find` 的全桶扫描成本。⇒ 性质 = **运行期资源泄漏 + 事件风暴**。此订正已回写 `11-integration.md` 的 U-2。
+**R-3 明确不收的 11 条（附理由，避免下一轮误以为漏了）**：
 
-`**R-2 的一条方法论收获**：审核时把「未实现」的后果写成「清理不及时」是**低估**，因为审核只读了「方法没被调用」，没读「不被调用之后那条链会跑向哪里」。⇒ 判「未实现」的严重度 MUST 追到**下游循环/回调的终止条件**，不能停在「资源没释放」。
+| 条 | 为什么不收 |
+|---|---|
+| `ARCH-11` D-6（3 条空转依赖） | 需改 `TcsIntegration.Build.cs` ⇒ **代码** |
+| `ARCH-11` D-7（`Build.cs:35` 注释「五条改走」→「三条」） | 同上（注释在 `Build.cs` 里） |
+| `ARCH-11` D-4（`RemoveAtSwap` 破稳定序） | 需改 `.cpp` ⇒ 代码 |
+| `ARCH-11` D-1 的**实现半**（补 `OnDefinitionsReady`） | 需写代码 + 决定广播形态（原生事件 tag vs 委托）⇒ 一次设计判断 |
+| `ARCH-11` U-2（实体注销编排点） | 需一次裁决 —— **已由 R-2 落地** |
+| `ARCH-09` D-4（上下文默认目标归属） | 需要一次裁决（三处硬编码该由谁统一） |
+| `ARCH-10` D-4 / D-5（`CandidateKey` 零读取 / 多目标语义） | 前者是代码缺失；后者需要**重新设计**（规格从未写过该语义） |
+| `ARCH-07` D-1（Replace 支 use-after-free） | **★★★ 崩溃级**，必须走代码会话 + PIE —— **已由 R-1 落地** |
+| `ARCH-10` D-2（十步契约被删空） | 不是补文本就行——**需先裁定十步是否仍成立**，且恢复会改 `FTcsFlowExecute` 语义 ⇒ 应与代码侧同批 |
+| `ARCH-06` U-1（`Parallel` / `Repeat` / `OnError` 从未存在） | 需先定形状 ⇒ 设计工作 |
+| 台账与档案的同步（`G-11`） | 是流程缺口而非某条规格；需先定同步机制 |
 
 **R-1 的两条残留账**（按 `G-32`「规格完整度 = 可发现性」单列，不并入缺陷本身）：
 

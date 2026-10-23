@@ -15,6 +15,7 @@
 `TcsBuff` MUST 提供 `FStateStackPolicy`（`USTRUCT(BlueprintType)`）——五轴 + 一个附带字段：
 
 > **符号订正（2026-10-17，`ARCH-07` D-3 / `G-18`）**：本条及全篇原写 `FTcsBuffStackPolicy`，该名**在全仓不存在**。实际类型名是 **`FStateStackPolicy`**（`TcsBuffStackPolicy.h:83`，`TCSBUFF_API`；`FTcsBuffDef::StackPolicy` 的字段类型即它）。**同类里两个相反方向并存**：三个枚举**代码加了 `Buff` 前缀**（`EBuffApplyResult` / `EBuffDurationPolicy` / `ETcsBuffPeriodRefresh`）而规格停在无前缀旧名；堆叠策略**代码保持 `State` 无前缀**而规格加了 `Buff` ⇒ 一次拆分后的改名**没有单一规则**，每个类型各自落在三种组合之一（`ARCH-07` §5 D-4）。本条按代码为准订正。
+> **同批订正的另两族（2026-10-17 补齐）**：`EBuffApplyResult`（本文件 `:80` 的 `EApplyResult` 也是旧名）与 **`EBuffDurationPolicy` / `ETcsBuffPeriodRefresh`**（跨 `state-def-asset` / `state-instance-lifecycle` / `state-param-snapshot` / `state-layer-e2e-validation` 四份）。**`EOverflowPolicy` / `EStackDurationPolicy` 保持原名，MUST NOT 给它们加 `Buff` 前缀**——那一对本来就是对的。
 
 - `EGroupByPolicy GroupBy`：`EGB_None = 0`（默认；同实体 + 同 `DefTag` 共处一组）/ `EGB_PerSource = 1`（组键附来源句柄）/ `EGB_PerInstigator = 2`（附发起者实体）/ `EGB_Custom = 1 << 4`（逃逸位：分组判定交给决策 Fragment）。**Custom MUST 走高位置位**，MUST NOT 占用低位的可枚举取值；**值 3 曾预留给"按分组词"档，已裁撤**（理由见「组键解析」需求末段）；
 - `int32 MaxStacks`：组内最大层数，**`<= 0` = 无限**（默认 `0`）；
@@ -77,7 +78,7 @@
 
 ### Requirement: 共存决策与四档回执
 
-施加 MUST 走确定性决策树，结果即 `EApplyResult`：
+施加 MUST 走确定性决策树，结果即 `EBuffApplyResult`：
 
 | 组内 | 来源 | 层数 | 回执 | 事件 |
 |---|---|---|---|---|

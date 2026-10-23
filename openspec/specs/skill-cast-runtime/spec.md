@@ -5,6 +5,8 @@
 > **符号订正（2026-10-17，`ARCH-08` D-5 / `G-12` 空间向）**：本篇原用两个**在全仓不存在的名字**——`RunSource` 与 `PhaseExpiryEntry`（各自 `grep` 工作树 + `git log --all -S` 双零）。实际名是 **`CascadeAnchor`** 与 **`ExpiryEntry`**，两者都住在**共享基类** `FTcsStateInstance`（`TcsStateInstance.h:88` / 同文件）。
 > **为什么不是一个简单的改名**：`CascadeAnchor` **不等于**"谁施加的"——它是**级联撤销锚点**（"按它一次摘净"）。技能域的 `Source` 与它**语义不同**，明文 MUST NOT 当撤销锚点用（同一来源可施加多个定义，按它摘会误摘别条实例）。`PLN-REFACTOR-1` Task 3 的逐一归属表（`TcsSkillInstance.h` 头注释）记着这条裁定的完整理由：**`RunSource` 的三个消费点全是"按它一次摘净"** ⇒ 它本来就该叫 `CascadeAnchor`。
 > ⇒ 本条属 `ARCH-05` 立的 **G-12（代码搬走后引用滞留）**：Task 3/4 把公共字段上提进共享基类并改名，规格停在拆分前的名字上。本次按代码为准订正 **31 处**（跨 5 份 `skill-*` 能力）。
+>
+> **⚠ 一个必须分清的边界（2026-10-17 补）**：**`FTcsEffectContext::RunSource` 是真实字段**（`TcsEffectContext.h:50`），**MUST NOT 改成 `CascadeAnchor`**——两者同名不同物：`Context.RunSource` 是**链运行态**的来源锚点（住 `TcsEffect`），`FTcsStateInstance::CascadeAnchor` 是**实例级**的级联撤销锚点（住共享基类）。铁证在 `TcsSkillInstance.h:53` 原文：「起链时 `Context.RunSource` 取本字段」⇒ 赋值两端一侧叫 `RunSource`、一侧叫 `CascadeAnchor`，**这正是「哪个名字该改」的判据**：改的是**实例字段**，不是**上下文成员**。
 
 
 ## Requirements
@@ -34,9 +36,9 @@
 - **终结 MUST 为「四路汇聚同一个例程」（本变更新增，MUST 记录以免后人"补第五份清理"）**：施法运行态的四个终结点 = ① **完成**（全时段走完，或**瞬发当刻**——其触发条件由 `skill-cast-phases` 能力的「时段推进与到期驱动」需求定义）、② **打断**（`CancelCast`，同上能力）、③ **顶替**（既有路径）、④ 世界拆解（桶 `Reset`，**不逐槽走终结例程、不动账本**——世界正在拆，账本随之消亡）。四路 MUST 收敛到同一个终结例程，**MUST NOT 各写一份清理**——多份清理必然漂移，而漂移的后果是**静默泄漏**（条目留在账本里、属性不回退，且无人报错）。**四路只在一个地方分岔**：发哪一枚终止事件（完成 → `OnCastCompleted`；打断与顶替 → `OnCastInterrupted`）；
 - **统一例程 MUST 做五件事**（缺一即泄漏）：① 取消时段到期锚点（`ExpiryEntry`）；② 按 `CascadeAnchor` 回收**链挂的 M2 属性账本条目**；③ 按 `CascadeAnchor` 回收**本 run 物化的 M5 参数链条目**；④ 摘除账本 `RunHandles` 中的该句柄；⑤ 归还桶槽位。**事件广播 MUST 排在归还槽位之前**（"先广播后归还槽位"的既有纪律 ⇒ 载荷里的运行句柄在回调内仍有效）；
 - **`②` 与 `③` 是两本不同的账、同一个来源句柄（本变更闭合台账 `CHAIN-7`，MUST 写清以免后人只摘一本）**：
-  - `②` 走 `UTcsAttributeSubsystem::RemoveBySource(Entity, CascadeAnchor)`（该口**公开且已有真实使用者** `TcsDamageSubsystem.cpp:226`）——摘的是**链内 `ModifyAttribute`** 挂的条目（`TcsStepModifyAttribute.cpp:80` 挂的正是 `Context.CascadeAnchor`）；
+  - `②` 走 `UTcsAttributeSubsystem::RemoveBySource(Entity, CascadeAnchor)`（该口**公开且已有真实使用者** `TcsDamageSubsystem.cpp:226`）——摘的是**链内 `ModifyAttribute`** 挂的条目（`TcsStepModifyAttribute.cpp:80` 挂的正是 `Context.RunSource`）；
   - `③` 走 `FTcsParamChainOps::RemoveParamModifiersBySource`——摘的是**定义侧 `ParamChainRows` 物化**的条目；
-  - 两者 `Source` **同源**（Task 3 已定 `Context.CascadeAnchor` = `FTcsSkillInstance.CascadeAnchor`）⇒ **一次摘净**。**MUST NOT 只摘其一**——只摘 `③` ⇒ 链改的属性常驻不回退，**正是 `CHAIN-7` 的实测症状"常驻停在 X−5"**（`EVID-2026-10-05-state-layer-pie` §1.2 检查 S15）；
+  - 两者 `Source` **同源**（Task 3 已定 `Context.RunSource` = `FTcsSkillInstance.CascadeAnchor`）⇒ **一次摘净**。**MUST NOT 只摘其一**——只摘 `③` ⇒ 链改的属性常驻不回退，**正是 `CHAIN-7` 的实测症状"常驻停在 X−5"**（`EVID-2026-10-05-state-layer-pie` §1.2 检查 S15）；
   - **`CHAIN-7` 的闭合依据（MUST 记录，MUST NOT 读成"三条死路被修"）**：`CHAIN-7` 的触发条件原文是"出现**链改的属性必须随某生命周期回退**的真实内容需求"，而施法运行态是链运行态的**第一个长生命周期持有者** ⇒ 条件成立。**三条死路今天依然成立**：即时链的运行态在 `ExecuteChain` 返回前已释放（无回收窗口）、按 `CausedBy` 级联**已被明文禁止**（`TcsEffectContext.h:54-55`）、`FTcsStepModifyAttribute` **刻意不提供**回收器。⇒ 本需求落地的正是台账认定的"今天唯一合法用法"（宿主自存 `CascadeAnchor` 再自调 `RemoveBySource`）**所缺的那个触发点**；
 - **只摘自己起的链（MUST NOT 越界）**：`CascadeAnchor` MUST 取**本次施法运行态自己的**。**子链另发新号、不沿用父链的**（`TcsEffectContext.h:49` 原文）⇒ 只摘本 run **直接**挂的条目；**MUST NOT 递归下探**（递归会摘掉不属于自己的东西，且 `CausedBy` 级联已被禁止）。**残留边界如实登记**（**MUST NOT 假装已解**）："技能起链 → 链起子链 → 子链挂属性且子链比施法活得久"这一组合下条目**仍会常驻**；
 - **重入语义 MUST 收口（本变更裁掉 Task 3 留下的边界）**：事件广播是**当场同步派发** ⇒ 订阅者可在回调内**重入终结同一句柄**。MUST 使**递归终结同句柄返回 false 且静默**：MUST NOT 重复广播、MUST NOT 重复归还槽位。体例 MUST 经**共享层的统一重入守卫**（见 `entity-runtime-mechanism` 能力的「统一门面清理口与重入广播守卫」需求——它取代了状态侧 `InRemovalBroadcastHandles` 与技能侧 `InFinishBroadcastHandles` 两份；进出广播窗口成对标记/解除）。**判据 = 订阅者在回调内重入同一句柄一次，`Interrupted` 读数仍为 1**——Task 3 只挡住了"双次归还"这一半，**"打断事件发两次"当时仍然存在**（`TcsCastOps.cpp:420-428` 自认，其归属即本变更）。
@@ -161,7 +163,7 @@
 激活成功后 MUST 按定义的 **`MainChainStart`** 决定何时起主链，且**未实现的档位 MUST 具名报出、MUST NOT 静默不生效**：
 
 - `CastChainId` MUST 经**效果链登记表**解析（`UTcsEffectSubsystem::ExecuteChain` 的既有接口）；**无效 `CastChainId` MUST 在作者期校验拦下**（`skill-def-asset` 的既有校验规则），运行期遇到则**不阻断激活**（技能已放出去，只是没有链）+ `Warning`；
-- 起链 MUST 用 `ExecuteChain(CastChainId, Context)`，且 **`Context.CascadeAnchor` MUST = `FTcsSkillInstance.CascadeAnchor`**——这是台账 `CHAIN-7`（"链挂的账本条目没有框架侧回收触发点"）的**闭合依据**：施法运行态是链运行态的**第一个长生命周期持有者**，故链内 `ModifyAttribute` 挂的条目可按该锚点回收。**回收例程本身归 Task 5 Step 3**（施法终结三路统一回收），本 Task 只落锚点；
+- 起链 MUST 用 `ExecuteChain(CastChainId, Context)`，且 **`Context.RunSource` MUST = `FTcsSkillInstance.CascadeAnchor`**——这是台账 `CHAIN-7`（"链挂的账本条目没有框架侧回收触发点"）的**闭合依据**：施法运行态是链运行态的**第一个长生命周期持有者**，故链内 `ModifyAttribute` 挂的条目可按该锚点回收。**回收例程本身归 Task 5 Step 3**（施法终结三路统一回收），本 Task 只落锚点；
 - `Context.Caster` MUST = 施法实体、`Context.Instigator` MUST = 施法实体（本轮无独立的发起者参数）；
 - **`MainChainStart` 的档位处置（MUST 逐档写明，不得留白）**：本 Task 只实现 **`MCS_OnCastStarted`**；`MCS_OnPhaseEnter` / `MCS_OnCastCompleted` / `MCS_Custom` 三档**命中时 MUST 记 Warning 并明确报出"该档未实现、主链未起"**——**MUST NOT** 静默跳过（那会让配了 `OnCastCompleted` 的技能"不报错也不生效"）；
 - 链跑完与否 MUST NOT 影响激活的返回（链可挂起）；`ChainRunHandle` MUST 存入 run（本轮无读取者，如实登记——Task 5 的终结路径要按它摘链锚）。

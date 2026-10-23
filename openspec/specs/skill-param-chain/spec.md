@@ -145,7 +145,7 @@
 `FTcsSkillDefData` MUST 提供 `TArray<FTcsNumericParamModifier> ParamChainRows`，并在**激活时**物化进该条目的 `NumericParamModInstances`：
 
 - 物化时 `Source` MUST = **本施法运行态来源句柄**（`FTcsSkillInstance.CascadeAnchor`）⇒ 随施法终结**级联摘除**，生命周期语义与基类 `ModifierRows` 同款；
-- **施法终结 MUST 真的执行该摘除**（判据 = 同一 Entry 反复施法后槽位**不累积**）：物化是"每次激活都追加"，而终结例程 MUST 按 `CascadeAnchor` 摘掉本次那一批——漏掉它会让槽位逐次累积，表现为"放两次技能、参数翻倍"（静默错误且远离根因）。**边界（MUST 分清，防张冠李戴）**：本条摘的是**技能自己定义侧物化的行**（落 M5 技能账本）；台账 `CHAIN-7` 的"链挂条目回收"（链步骤经 `Context.CascadeAnchor` 挂到 **M2 属性账本**的修正器）归 `PLN-R6` Task 5 Step 3 的三路统一回收例程——两者来源句柄同源但**账本不同**，互不代劳；
+- **施法终结 MUST 真的执行该摘除**（判据 = 同一 Entry 反复施法后槽位**不累积**）：物化是"每次激活都追加"，而终结例程 MUST 按 `CascadeAnchor` 摘掉本次那一批——漏掉它会让槽位逐次累积，表现为"放两次技能、参数翻倍"（静默错误且远离根因）。**边界（MUST 分清，防张冠李戴）**：本条摘的是**技能自己定义侧物化的行**（落 M5 技能账本）；台账 `CHAIN-7` 的"链挂条目回收"（链步骤经 `Context.RunSource` 挂到 **M2 属性账本**的修正器）归 `PLN-R6` Task 5 Step 3 的三路统一回收例程——两者来源句柄同源但**账本不同**，互不代劳；
 - **声明作用域恒为本条目自身**，**MUST NOT** 接受 `FTcsSkillEntrySelector`（该选择器保持专属"外部施加"场景——同一件事不许两个入口）；
 - **只落内联形态**：**MUST NOT** 引用 `UTcsSkillModDef`（实测该类型在全仓 `Source/` **零命中**）——模板引用形态整体归 `R5.5-f`。
 

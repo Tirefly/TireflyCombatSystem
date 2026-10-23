@@ -137,7 +137,9 @@
 
 - **WHEN** 检查装配路径的挂载方式
 - **THEN** 两条路径 MUST 都在：① `Initialize` 末尾对**当时已存在**的 GameInstance 世界立即装配（PIE 里世界可能先于子系统建好）；② `FWorldDelegates::OnPostWorldInitialization` 对**此后每个新世界**装配。装配 MUST 幂等（同一世界只装配一次）
-- **判据来源**：这两条时序锚点原写在头注释里（`TcsDefinitionSubsystem.cpp` 的 `SeedWorld` 段与 `WorldInitDelegateHandle` 处），**规格曾把它们记成一条 Scenario，后被 `539b14e` 一并删除** ⇒ 今天只在下述代码里存活。恢复它是因为「删了验证、留了结论」会让读者以为跨世界装配无需验证
+- **判据来源（2026-10-17 措辞订正）**：这两条时序锚点此前**只写在代码注释里**（`TcsDefinitionSubsystem.cpp` 的 `SeedWorld` 段与 `WorldInitDelegateHandle` 处），**规格从未收录过这一条**——`git log --all -S "跨世界装配的实现时序锚点"` 只命中写入本次的提交，`539b14e^` 的 9 个 Scenario 里没有它（判据 = `INDEX` §5.2 的 **M-2**：判「曾存在」MUST 跑 `git log --all -S`）。
+- **与「被删空」的关系（MUST 分清）**：跨世界装配**这个需求**曾有一条 Scenario「新世界初始化后链仍可查（跨世界装配）」，它**确实**被 `539b14e` 删掉、已由 `f0fd328` 按原文恢复；而**本条**讲的是那两条**实现时序锚点**（立即装配 + 世界初始化委托），它是**新增覆盖**，不是恢复。⇒ MUST NOT 把本条读成「被误删的东西」。
+
 #### Scenario: 资产被自动发现并装配
 
 - **WHEN** 内容目录存在一个合法链资产，GameInstance 初始化后检查
