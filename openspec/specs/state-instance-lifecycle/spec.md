@@ -267,6 +267,15 @@
 
 `UnregisterEntity` MUST 对该实体每条在册实例逐条广播 `Removed` 后删桶。
 
+**谁 MUST 调用它（2026-10-17 立，`ARCH-11` U-2 裁决落地）**：`UTcsCombatEntityComponent::EndPlay` MUST 在本帧内调用本方法，且该调用 MUST 排在属性门面 `UnregisterEntity` **之前**（状态的移除链需要属性容器还活着才能按来源撤修正器；反过来会**静默跳过**）。
+
+⇒ **本条此前是一句孤儿义务**：方法的行为写得很清楚，但**没有任何一处说谁必须调它**，于是插件内调用点为零（只有 `TcsDev` 装置调）——与 `entity-query-contract` 的"消费方 MUST 核 `IsAlive`"同型（`ARCH-09` G-26：把责任推给一个未指认的第三方）。完整的四段级联顺序见 `integration-entity` 的「战斗实体组件」需求。
+
+#### Scenario: 实体注销的调用方是组件而非装置
+
+- **WHEN** 一个挂状态的 Actor 离开 Play
+- **THEN** 由 `UTcsCombatEntityComponent::EndPlay` 调本方法（不是只有装置调）；该调用排在属性门面注销**之前**，每条在册实例逐条广播 `Removed` 后删桶
+
 **有限重入守卫（STAT-5）**：门面 MUST 仅在真正移除广播窗口将句柄登记到 InRemovalBroadcastHandles；递归 Remove 同句柄 false 静默，不重复广播或释放。MUST NOT 因任意 Expiring 判为正在移除（刷新也暂用此阶段）。既有清理顺序不改变，任意递归修改组合仍未保证。
 
 **广播后身份重查**：Applied/Refreshed 回调可移除自身或注销实体；广播者 MUST 用值快照，之后按句柄重查，不访问旧指针、不恢复已释放实例、不补播失效实例。移除广播返回后同样只释放仍在册且身份一致的槽位。

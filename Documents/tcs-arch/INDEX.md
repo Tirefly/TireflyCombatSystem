@@ -244,6 +244,7 @@
 | 2026-10-17 | `ARCH-00-overview` 完成（**446 行**）——**审核阶段整体收束**。审两篇无代码模块（`SPEC-09-editor` 53 行 / `SPEC-10-presentation` 42 行），给出 **24 项 + 13 项**差异清单（订正率 ~33% / **~15%**，后者全档案第二低）。三条结构性发现：① **两个 `PENDING` 模块的真实形态是「地基全在、门窗全无」**——机制几乎全部落地（帧末队列 / `PeekPending` 三处 / 步骤基类型 + 自注册宏 / 7 个 `IsDataValid`），词汇零命中（`FCueEvent` / `ICuePresenter` / `PlayCue` / `bMergeable`），`TcsEditor` / `TcsCue` 模块不存在；② **`TcsDev`（63 文件 / 16 103 行，可整体摘除）已吃掉编辑器需求的一半**——「往下」读数归零、「往上」没人注意到决定没写，是 `G-20` 的最严重形态；③ **`G-21` 的汇总面 = 6 件事 / 24 处重复登记 / 进台账 0 件**，另有两对「同一件事的两半都没落」（`FlowSource`↔`AttrCapture`、`TriggerSeedSource`↔`FlowSource`）。另完成 `G-20` 清单（7 条不做 + 3 条已撤销 + 1 条从未存在）与八类判据归并。新增 **G-33**（`PENDING` 规格 MUST 先按「换了载体的需求」核）/ **G-34**（编辑器需求被可摘除模块吃掉）/ **G-35**（同一件事的两半各自登记）。**另给出定量表：订正率与行数无关、与「有无收束回写节」强相关**（`SPEC-02-states` 390 行 ~50% vs `SPEC-10-presentation` 42 行 ~15%）。 |
 | 2026-10-17 | **`ARCH-FIX-R1` 执行完毕**（[`FIX-R1-spec-batch.md`](FIX-R1-spec-batch.md)，136 行）——**规格修复第一批，零代码**。按用户裁定「低风险、零代码的规格修复」，只动 `openspec/specs/`，**MUST NOT 触碰 `Source/`**（代码侧交并行分支会话）。**8 类共 18 条**：① 假符号 6 条（`RegisterStateDef` 族 ×2 能力 / `FTcsBuffStackPolicy` ×2 / `EAR_*`→`EBAR_*` 8 处 / `RunSource`+`PhaseExpiryEntry` **31 处**跨 5 份 `skill-*`）；② 悬空引用 2 条（`attribute-moddef` 不存在的能力 / `BaseStruct` 指向不存在类型）；③ 载体归属 3 条（`state-def-asset:71` 载体从 `TcsBuff` 改回 `TcsState` —— **按依赖图原说法物理不可实现** / 行为 Fragment 上下文门面 `UTcsStateSubsystem`→`UTcsBuffSubsystem` / 关系五字段上移基类）；④ 签名缺形参 2 条（`skill-registry` 三读数口共缺 **4 个形参**）；⑤ 物理做不到的形状 1 条（`uint64`→`int64`，UHT 约束）；⑥ 漏收录唯一有真实消费者的设施 3 条（`primary-asset-loading` 新增 `FTcsPrimaryAssetQuery` 需求 / `effect-chain-asset` 新增校验需求 / `integration-entity` 五条发现路径订正为 3+2）；⑦ **被删空的契约恢复** 1 条（`integration-entity` 恢复「就绪单出口」+ **4 个 Scenario**，凶手 = `539b14e`）。**验证**：`openspec validate --all --strict` **45 passed / 0 failed**（改前同值）；Node 脚本把 **244 个 `Tcs*` 族符号逐个在 `Source/` 337 文件里交叉验证**，13 个零命中**全部为正确的历史/否定记录**。**⚠ 关键限制**：validate 只查结构，本批 18 条里**只有 2 条（新增需求）会被它看见**，其余 16 条它一条都发现不了——全部靠人眼对代码找出，这是 `ARCH-00` §8.2 结论的实证。**明确不收**：需代码的 9 条 / 需裁决的 3 条（`ARCH-11` U-2 / `ARCH-09` D-4 / `ARCH-10` D-5）/ `ARCH-10` D-2（十步契约需先裁定是否仍成立）。 |
 | 2026-10-17 | **进入修复阶段，R-1 完成**（`ARCH-07` D-1 —— 全档案唯一崩溃级缺陷）。`TcsBuffOps.cpp` 的 Replace 支在 `Remove(...)` 之后补 `Def` 重取 + 空判（**+17 / −2**）。新增 **§8 修复进度**小节（四列判据：改动面 / 双配置编译 / PIE 覆盖 / 规格回写），并明确 `G-1`~`G-35` 是**判据不可"修"**、单模块债在各自 §5 处理。**残留两条待裁**：① `state-instance-lifecycle:270` 的「广播后身份重查」只讲实例指针、没讲 `Def` 指针（按 `G-32` 单列）；② PIE 未覆盖——装置 27 处 `UnregisterBuffDef` 全在命令体、不在事件回调，打不到该路径。 |
+| 2026-10-17 | **R-2 完成**（`ARCH-11` U-2 —— 实体注销的跨门面级联）。三点裁决：**A** 编排点 = `UTcsCombatEntityComponent::EndPlay`、顺序「查询映射 → Buff → Skill → 属性账本」；**B** `integration-entity` 补四段顺序表 + Scenario；**C** `state-instance-lifecycle:268` 补「谁 MUST 调用它」（原是一句**孤儿义务**，与 `ARCH-09` G-26 同型）+ Scenario。代码 `TcsCombatEntityComponent.cpp` **+59 / −12**，双配置 0/0，两个能力 `openspec validate` 均 valid。**★ 严重度订正**：审核时写的「到期堆里留着条目等到期」是**低估**——周期回调只查「实例是否在桶里」，桶与实例都还在 ⇒ 每周期广播 `Periodic` 后重新入堆，而实体句柄**无代际段且永不复用** ⇒ **循环永不停止**，且每个泄漏桶永久抬高 `FTcsBuffOps::Find` 的全桶扫描成本。性质 = **运行期资源泄漏 + 事件风暴**。⇒ **方法论收获**：判「未实现」的严重度 MUST 追到**下游循环的终止条件**，不能停在「资源没释放」。 |
 
 ---
 
@@ -255,6 +256,7 @@
 | # | 篇 | 条目 | 级 | 改动面 | 编译 | PIE | 规格回写 |
 |---|---|---|---|---|---|---|---|
 | **R-1** | `ARCH-07` | **D-1** Replace 支未重取 `Def` ⇒ use-after-free | ★★★ | `TcsBuffOps.cpp` **+17 / −2** | ✅ 双配置 0/0 | ⚠️ **未覆盖** | ❌ 未回写 |
+| **R-2** | `ARCH-11` | **U-2** 实体注销跨门面级联从未写下（Buff/Skill 的 `UnregisterEntity` 零调用） | ★★★ | `TcsCombatEntityComponent.cpp` **+59 / −12** + 2 个 `spec.md` | ✅ 双配置 0/0 | ⚠️ **未覆盖** | ✅ **已回写**（`integration-entity` 四段顺序 + Scenario；`state-instance-lifecycle` 补"谁必须调用"） |
 
 **R1 规格批次**（零代码 · 只动 `openspec/specs/`，详见 [`FIX-R1-spec-batch.md`](FIX-R1-spec-batch.md)）：
 
@@ -269,6 +271,10 @@
 | **R1** | **删空恢复 1** | `integration-entity` 恢复「就绪单出口」+ **4 个 Scenario** | 1 份 | 不涉 | 不涉 | ✅（凶手 `539b14e`） |
 
 > **R1 的验证与限制**：`openspec validate --all --strict` **45 passed / 0 failed**（改前同值）。Node 脚本把 **244 个 `Tcs*` 族符号**逐个在 `Source/` 337 文件里交叉验证，13 个零命中**全部为正确的历史/否定记录**。⚠ **validate 只查结构**——R1 的 18 条里**只有 2 条（新增需求）会被它看见**，其余 16 条它一条都发现不了。
+
+`**R-2 的严重度订正**（审核时低估，修复前实测发现）：R-2 的后果**不是**「到期堆里留着条目等到期」，而是——周期回调只检查「实例是否还在桶里」，桶与实例都还在 ⇒ `Find` 仍命中 ⇒ **每周期广播一次 `Periodic` 后重新入堆**，而实体句柄**无代际段且永不复用** ⇒ **循环永不停止**；且每个泄漏桶**永久抬高** `FTcsBuffOps::Find` 的全桶扫描成本。⇒ 性质 = **运行期资源泄漏 + 事件风暴**。此订正已回写 `11-integration.md` 的 U-2。
+
+`**R-2 的一条方法论收获**：审核时把「未实现」的后果写成「清理不及时」是**低估**，因为审核只读了「方法没被调用」，没读「不被调用之后那条链会跑向哪里」。⇒ 判「未实现」的严重度 MUST 追到**下游循环/回调的终止条件**，不能停在「资源没释放」。
 
 **R-1 的两条残留账**（按 `G-32`「规格完整度 = 可发现性」单列，不并入缺陷本身）：
 

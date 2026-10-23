@@ -649,12 +649,37 @@ RegistrationOrder = [A, B, C]     反向遍历：Index=2(C) → 1(B) → 0(A)  �
 
 ### U-2 ★★★ 实体注销的**跨门面级联**从未写下——Buff / Skill 的 `UnregisterEntity` 在插件内**零调用**【实测】
 
+> **2026-10-17 已裁决并修复**（R-2）。裁决 = 编排点归 `UTcsCombatEntityComponent::EndPlay`，顺序「查询映射 → Buff → Skill → 属性账本」。修复记录见本条末。
+
 | 项 | 内容 |
 |---|---|
 | **设计是否还成立** | **本身成立，但归属从没定过** |
 | **依据今天是否仍有效** | Buff 与 Skill 两个门面都提供了 `UnregisterEntity`，规格也各自写了它的行为（`state-instance-lifecycle:266`：「逐条广播 `Removed` 后删桶」）。⇒ **接口存在、语义清楚、规格有字——只差"谁调用它"** |
 | **前置条件** | 需要裁「实体注销的**编排点**在哪」。三个候选：① `UTcsCombatEntityComponent::EndPlay`（组件是身份锚，它最清楚"这个 Actor 没了"）；② `UTcsAttributeSubsystem::UnregisterEntity`（发号方，但它**不依赖** Buff/Skill——`TcsAttribute.Build.cs` 只依赖 Core/Notation，加依赖会成环）；③ 未来的中央注册表（U-1）。**① 是唯一不成环的落点**，但组件目前只调属性门面 + 查询映射 |
 | **今天的实际后果** | 见 §4.4 的三步后果链：属性账本先删 → buff 修正器指向不存在的容器 → 到期堆里还留着条目。⇒ **这是本档案里唯一一条"有真实运行期错误状态"的未实现项** |
+
+**严重度订正（2026-10-17 裁决前实测，本条原记载低估了后果）**：
+
+| 原记载 | 实测的真相 |
+|---|---|
+| 「到期堆里还留着条目，到期时才按句柄代际校验丢弃」 | **不止于此**。周期实例的到期回调（`TcsBuffOps_Lifetime.cpp:96-113`）只检查「实例是否还在桶里」——**桶还在、实例还在 ⇒ `Find` 仍命中 ⇒ 广播一次 `Periodic` 后重新入堆**。而实体句柄**无代际段且永不复用**（`TcsCombatEntityHandle.h:17`）⇒ 该循环**永不停止** |
+| （未记载） | 每个泄漏桶**永久抬高** `FTcsBuffOps::Find` 的成本——它按句柄**扫描全部桶**（`TcsBuffOps_Query.cpp:22`），而这是状态移除 / 技能施放 / 周期回调的公共路径 |
+| （未记载） | 依赖图证明**只有组件能承担**：`TcsAttribute.Build.cs` 只依赖 `Core` / `TcsNotation` ⇒ 属性门面**加边即成环**，候选 ② 从一开始就不成立 |
+
+⇒ **本条的真实性质是「运行期资源泄漏 + 事件风暴」，而不是「清理不及时」**。
+
+**裁决与落地（2026-10-17）**：
+
+| 项 | 内容 |
+|---|---|
+| **裁决 A：编排点** | `UTcsCombatEntityComponent::EndPlay`（唯一不成环的落点，依赖图强制而非偏好） |
+| **裁决 A：顺序** | **查询映射 → Buff → Skill → 属性账本**。Buff 必须早于账本：其移除链走 `StripModifiers`，需要属性容器**还活着**才能按来源撤修正器（账本先毁不会崩——有 `IsLedgerReady` 守卫——但会**静默跳过**）；属性账本最后，因为它是"实体存在"的唯一凭证 |
+| **裁决 B：规格** | `integration-entity` 的「战斗实体组件」需求补四段顺序表 + 一条 Scenario「实体注销时四段级联按序执行」 |
+| **裁决 C：规格** | `state-instance-lifecycle:268` 补「**谁 MUST 调用它**」——此前是一句**孤儿义务**（方法行为写得清楚，但没一处说谁必须调），与 `ARCH-09` G-26 同型；并新增 Scenario「实体注销的调用方是组件而非装置」 |
+| 改动面 | `TcsCombatEntityComponent.cpp` **+59 / −12**（含 22 行顺序判据注释）+ 两个 `spec.md` |
+| 编译 | `LegendAutoChessEditor Win64 Development` ✅ 0/0；`LegendAutoChess Win64 Shipping` ✅ 0/0 |
+| 规格校验 | `openspec validate` **两个能力均 valid** |
+| PIE | ⚠️ **未跑**。行为面证据仍为零——装置里没有"带周期状态的 Actor 死亡"这条检查 |
 
 ### U-3 ★★ 复制契约（`ICombatReplicationProxy`）——**旧设计明写"仅契约不实现"，而契约也没落**【实测】
 

@@ -15,6 +15,24 @@
 
 组件 MUST NOT 越出三职责；MUST NOT 自 Tick；MUST NOT 认识具体链/步骤类型。
 
+**`EndPlay` 的跨门面注销级联（2026-10-17 立，`ARCH-11` U-2 裁决落地）**：`EndPlay` MUST 按**四段固定顺序**注销——
+
+| 段 | 动作 | 为什么在这个位置 |
+|---|---|---|
+| **①** | `UTcsPieEntityQuery::UnregisterEntity` | 摘"句柄 ↔ Actor"映射。此后 `EnumerateEntities` 不再吐本句柄，订阅者无法再反查到即将消失的实体 |
+| **②** | `UTcsBuffSubsystem::UnregisterEntity` | 移除链走 `StripModifiers` ⇒ **需要属性容器还活着**才能按来源撤修正器。账本先销毁不会崩（有 `IsLedgerReady` 守卫）但会**静默跳过** |
+| **③** | `UTcsSkillSubsystem::UnregisterEntity` | 与 ② 无顺序耦合（技能账本零外部资源，只有冷却条目），但它同样广播事件 ⇒ 排在属性账本之前 |
+| **④** | `UTcsAttributeSubsystem::UnregisterEntity` | **属性账本是"实体存在"的唯一凭证**，销毁它就是"实体已死"的最终宣告 ⇒ MUST 最后 |
+
+**MUST NOT 由属性门面反向承担此级联**：`TcsAttribute` 只依赖 `Core` / `TcsNotation`，加 `TcsBuff` / `TcsSkill` 依赖边**直接成环**。组件是**身份锚**（`EntityHandle` 的持有者），也是全仓唯一同时看得见四个门面的地方 ⇒ 只有它能编这个排。
+
+**②③ 缺失的后果（MUST 读）**：实例留在桶里 ⇒ 周期回调仍能 `Find` 到它 ⇒ **每次周期广播一次 `Periodic` 并重新入堆**（`TcsBuffOps_Lifetime.cpp`），而实体句柄**无代际段且永不复用**（`TcsCombatEntityHandle.h:17`）⇒ 该循环**永不停止**；且每个泄漏桶**永久抬高** `FTcsBuffOps::Find` 的全桶扫描成本（`TcsBuffOps_Query.cpp`）。⇒ 这不是"泄漏一点内存"，是**运行期资源泄漏 + 事件风暴**。
+
+#### Scenario: 实体注销时四段级联按序执行
+
+- **WHEN** 一个挂着状态（带周期）与已学技能的 Actor 离开 Play，`EndPlay` 被调用
+- **THEN** 四段按 ①→②→③→④ 顺序执行：查询映射先摘、状态桶与技能账本被清空并各广播 `Removed`、属性账本最后释放；MUST NOT 出现"属性账本已销毁但状态仍在桶里"的窗口
+
 #### Scenario: 组件注册后可查询与触发
 
 - **WHEN** 挂载组件的 Actor 进入 Play，随后调用 `GetCurrent` 与 `ExecuteChainById`
