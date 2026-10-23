@@ -142,7 +142,13 @@ namespace
 		const int32 DuplicateCount = PassedTargets.Num() - ResultTargets.Num();
 
 		// 排序（**空 SortItems 时不做任何重排**——既有"保序"行为逐位不变）
-		if (Step->SortItems.Num() > 0 && ResultTargets.Num() > 1)
+		//
+		// **入口门 MUST 只判"配了排序项"这一件事，MUST NOT 顺带判"候选数 > 1"**（本模块 D-1）：
+		// 规格 `targeting-strategy:210` 写的是"任一排序项对某候选返回 NaN ⇒ 该候选 MUST 被排除"，
+		// 而**评分相位并不只为排序服务**——它同时是 NaN 的排除点。原来的 `&& ResultTargets.Num() > 1`
+		// 在多候选时看不出差别，**单候选时却让整段 NaN 排除被整体跳过** ⇒ 一个"无法评分"的候选
+		// 被原样交给下游，且日志里"排序项 N / 取前 N / 目标集 N"与正常路径逐字相同（无法区分）。
+		if (Step->SortItems.Num() > 0)
 		{
 			// 预计算评分矩阵：任一排序项返回 NaN ⇒ 该候选**被排除**（MUST NOT 排到末尾）；
 			// ±Inf 保留参与排序（比较用 `==` 判等，±Inf 与自身相等，故不会误进稳定键分支）

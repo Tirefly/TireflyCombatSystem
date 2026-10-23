@@ -84,8 +84,15 @@ namespace
 
 		// 修改器可在收集事件后改写 `HitRate` 键（宿主挂点）
 		BroadcastFlowRestCollect(Context, Tag_TcsEvent_Damage_Hit);
-		const double Modified = Context.Blackboard.Read(FGameplayTag(Tag_DamageFlowKey_HitRate)) > 0.0
-			? Context.Blackboard.Read(FGameplayTag(Tag_DamageFlowKey_HitRate))
+		// **"有没有提交" MUST 按键存在判、MUST NOT 用值域内的值当哨兵**（本模块 D-1）：
+		// `HitRate` 的合法值域是 [0,1]（`ITcsDamageFlowDelegate::GetBaseHitRate` 的契约）⇒ `0`
+		// 是宿主**能表达且有意义**的值（"这一击必定落空"/ 被致盲压到 0）。用 `> 0.0` 当哨兵会把
+		// "提交了 0" 误判成 "没有人提交"，从而回落到 delegate 的基础率（默认 1.0 = 必中）——
+		// 失败方向恒为"更宽松"，且症状与正常命中逐字相同、无任何日志。
+		// 正确手法同文件的 `ExecuteFlowExecute`：`FindSubmits` 区分"键不存在"与"键存在但折叠为 0"。
+		const FGameplayTag HitRateKey(Tag_DamageFlowKey_HitRate);
+		const double Modified = Context.Blackboard.FindSubmits(HitRateKey) != nullptr
+			? Context.Blackboard.Read(HitRateKey)
 			: HitRate;
 
 		SubmitFlowRestOverride(Context.Blackboard, FGameplayTag(Tag_DamageFlowKey_Hit), Modified >= 1.0 ? 1.0 : 0.0);
@@ -111,8 +118,12 @@ namespace
 		}
 
 		BroadcastFlowRestCollect(Context, Tag_TcsEvent_Damage_Crit);
-		const double Modified = Context.Blackboard.Read(FGameplayTag(Tag_DamageFlowKey_CritRate)) > 0.0
-			? Context.Blackboard.Read(FGameplayTag(Tag_DamageFlowKey_CritRate))
+		// **同 ③ Hit 的判据**（本模块 D-1）：`CritRate` 值域 [0,1]，`0` 是合法值域内的值。
+		// 用 `> 0.0` 当哨兵时，宿主把暴击率压到 0 反而回落到 delegate 的基础率（可能 > 0）——
+		// "越努力压制越会暴击"。改用键存在判。
+		const FGameplayTag CritRateKey(Tag_DamageFlowKey_CritRate);
+		const double Modified = Context.Blackboard.FindSubmits(CritRateKey) != nullptr
+			? Context.Blackboard.Read(CritRateKey)
 			: CritRate;
 
 		SubmitFlowRestOverride(Context.Blackboard, FGameplayTag(Tag_DamageFlowKey_Crit), Modified > 0.0 ? 1.0 : 0.0);

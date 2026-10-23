@@ -2,10 +2,19 @@
 
 #include "Attribute/TcsAttrModDef.h"
 
+#include "Asset/TcsPrimaryAssetEntry.h"
+
 
 
 // 定义主资产类型标识（Def 资产族统一：类型稳定、名取 TemplateTag 的 FName 形态——见头文件说明）
 const FPrimaryAssetType UTcsAttrModDef::PrimaryAssetType = FPrimaryAssetType(TEXT("TcsAttrModDef"));
+
+// 主资产类型自注册（2026-10-17 补，ARCH-04 D-2 / ARCH-03 U-1）——理由与 `TcsAttributeDef.cpp` 同。
+// **为什么这两个域优先于 `UTcsStateDef` / `UTcsSkillDef`**：本域两条 `Discover*` 走的仍是旧口
+// （`GetAssetsByClass`，ARCH-03 U-2），而旧口在"类没搬过家"时正常 ⇒ 注册本身不急；
+// 但 `UTcsAttrModDef` 已经**搬过一次家认知修正**（族内四个 Def 的资产类归属逐轮调整），
+// 一旦再搬就会静默返 0（ARCH-03 U-2 的风险面）⇒ 先注册，让迁移时只需改发现口那一步。
+UE_DEFINE_PRIMARY_ASSET_TYPE(UTcsAttrModDef, { TEXT("/Game") }, ETcsAssetLoadPolicy::OnDemand)
 
 
 

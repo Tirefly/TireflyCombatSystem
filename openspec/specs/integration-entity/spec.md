@@ -69,7 +69,10 @@
 **就绪单出口（M6 双层引导的最小版）**：定义发现 / 加载 / 校验完成时 MUST 经**一个出口**通知外界，**恰好一次**（幂等——重复调用不重复登记），而不是让宿主轮询 `IsRuntimeReady`。义务方是**本类**（它知道定义何时齐备），不是宿主——「时序是宿主责任」只适用于**宿主自己**的接线顺序（见组件门禁那条），**不适用于定义库就该广播的那一次通知**。
 
 > **恢复声明（2026-10-17，`ARCH-11` D-1 / D-3）**：本句与下文两个「就绪」Scenario 由提交 `539b14e`（2026-09-22，标识体系 tag 化）**误删**——同一提交删掉的还有 `damage-step-library` 的十步契约（`ARCH-10` D-2）。判别「写过被删」而非「从未写过」的铁证：被删后正文首句仍残留「就绪**标记**」字样，而「就绪**出口**」没了。
-> **代码现状（如实登记，MUST NOT 读成本条已实现）**：`UTcsDefinitionSubsystem` 今天**没有** `OnDefinitionsReady` 这个函数——`Initialize`（`TcsDefinitionSubsystem.cpp:26-56`）在发现全部完成后只置 `bRuntimeReady = true`（`:40`），**不广播任何信号**；头注释 `:53` / `:312` 与 `Initialize` 内注释都写着"单出口 / 广播一次"，但那是**注释里的承诺，代码里没有实现**。⇒ 本条是**规格要求、代码未做**（`G-10` 形态），不是"规格描述现状"。
+> **落地记录（2026-10-17 起本条已实现）**：`UTcsDefinitionSubsystem` 提供 `OnDefinitionsReady`（`UPROPERTY(BlueprintAssignable)` 的动态多播委托 `FTcsOnDefinitionsReady`），`Initialize` 内**置位 → 广播 → 装配世界**三步固定次序、广播**恰好一次**。
+> **为什么是这个次序（MUST 保留判据）**：① **置位先于广播**——订阅者在回调里 MUST 能查到 `IsRuntimeReady() == true`，否则"收到通知但门禁不放行"，通知等于没发；② **广播先于装配世界**——就绪信号承诺的是「**定义已齐备**」，不是「已装配到某个世界」（后者是 `SeedWorld` 的事、每世界各来一次）；把装配排前面会让订阅者在一个尚未装配的世界里被唤醒。
+> **它与 `IsRuntimeReady` 的分工**：前者是**通知**（"刚刚齐备了"，单次），后者是**轮询**（门禁查询点，"现在能注册吗"）。两者 MUST 并存、MUST NOT 互相替代——只有轮询时，比定义库更早 `BeginPlay` 的实体只能**跳过注册并永久失效**。
+> ⇒ 本条原是 `G-10`（规格更严、代码更松）形态：规格要求了、代码未做，且**注释里那句"单出口"是承诺而非事实**（`ARCH-11` D-1）。
 
 - **发现**：**两条路径并存，按族分配**——`FTcsPrimaryAssetQuery::GetAssetsForDefClass`（加载层统一查询口，`TcsAssetButler`）用于链 / 触发 / 状态三族；`IAssetRegistry::GetAssetsByClass` 用于修正器模板 / 技能两族（**2026-10-17 订正：原写「五条全走 `GetAssetsByClass`」，实为 3 走新口、2 走旧口**）。两条都不依赖 `PrimaryAssetTypesToScan` 注册（该注册属 M6 轮）。**五条按类发现路径**：
   链资产 `UTcsEffectChainDef`（`DiscoverChainDefs`）、触发定义资产 `UTcsEffectTriggerDefAsset`（`DiscoverTriggerDefs`，**2026-10-04 新增**）、
@@ -85,9 +88,12 @@
   与 `ResolveStateDef(FGameplayTag DefTag) -> const FTcsBuffDef*`（**2026-10-04 R5 Task 1 新增**）、
   `ResolveAttrModDef(FGameplayTag TemplateTag) -> const UTcsAttrModDef*`（**2026-10-05 R5 Task 7 新增**）、
   `ResolveSkillDef(FGameplayTag DefTag) -> const FTcsSkillDefData*`（**2026-10-06 R6 Task 1 新增**）——均返回缓存内容的裸指针（修正器模板返回**资产对象本身**，因为消费者要的是它能被直接物化；技能定义返回**数据视图**，因为消费者要的是 `FTcsSkillDefData`），未命中返回 nullptr（正常查询路径，不 ensure）；
-- **装配到世界**：`OnPostWorldInitialization` 时把缓存定义登记进该世界的消费方子系统（幂等——同一世界只装配一次）。**2026-10-04 扩展**：链装配之后，MUST 把每条触发定义登记为该世界的**触发行**
+- **装配到世界**：`OnPostWorldInitialization` 时把缓存定义登记进该世界的消费方子系统（幂等——同一世界只装配一次）。
+  **幂等判据 MUST 是"已装配世界集合"而非单一槽位（2026-10-17 `ARCH-11` D-2 订正）**：单槽的 `SeededWorld.Get() == World` 只在「世界**严格串行**更替」时成立——同一进程内一旦**同时**存在两个世界（PIE 多客户端 / 编辑器预览世界 + 游戏世界），单槽会让**第二个世界**重复装配，并让**第一个世界**的幂等判据失效。而本类同时需要「我装配过哪些世界」这份凭据（反初始化要按它逐世界撤销触发行）⇒ 两个用途都要求集合。集合元素 MUST 为**弱引用**（不强持有世界；世界先死 = 条目自动失效，下次装配时顺手剔除）。**2026-10-04 扩展**：链装配之后，MUST 把每条触发定义登记为该世界的**触发行**
   （`UTcsEffectSubsystem::RegisterTriggerRow`），`Source` = 定义库自持的来源句柄（`FTcsSourceHandleRegistry::Allocate` 在 `Initialize` 时发放一次）。
-  这是 `effect-trigger` 规格"**定义加载期登记**（全局常驻规则）→ `Source` = 系统/DefLibrary 来源句柄"那条的实现落点——**只发现不登记即等于资产零消费者**（策划填了不生效）。装配结果 MUST 进日志（就绪行含触发定义条数，世界装配行含已装配行数；**2026-10-08 补：世界装配行 MUST 另含技能定义已装配条数**）；
+  这是 `effect-trigger` 规格"**定义加载期登记**（全局常驻规则）→ `Source` = 系统/DefLibrary 来源句柄"那条的实现落点——**只发现不登记即等于资产零消费者**（策划填了不生效）。
+  **该来源句柄 MUST 有撤销点（2026-10-17 `ARCH-11` D-2 订正）**：本类反初始化（GameInstance 销毁）时 MUST 对**每个仍存活且已装配的世界**调 `UTcsEffectSubsystem::UnregisterTriggerRowsBySource(TriggerSeedSource)`，逐世界撤销本类登记的触发行。
+  **判据（为什么不能只靠世界侧清理兜底）**：世界级容器的 `TriggerRegistry.Reset(...)` 确实会在**世界先死**时清干净，但它的前提是"世界会被销毁"；而本类**可能在世界仍存活时**被反初始化（编辑器换 GameInstance、或世界比 GameInstance 活得久）⇒ 那时行还在册、来源句柄却已无主（`FTcsSourceHandle` 是**纯编号、无存活性登记**）⇒ 「定义库来源」与「永不过期」等价，这个句柄白发。**两件事都要做，不能互相替代**。装配结果 MUST 进日志（就绪行含触发定义条数，世界装配行含已装配行数；**2026-10-08 补：世界装配行 MUST 另含技能定义已装配条数**）；
 - **引用链预检（2026-10-04 新增）**：装配一条触发定义前 MUST 检查其 `Def.EffectChainId` 在该世界是否已登记（`UTcsEffectSubsystem::IsChainRegistered`）。不可解析时 MUST 留一条 **Warning**（含 `TriggerTag` 与链 id）并**仍登记该行**——
   MUST NOT 跳过登记（宿主可在世界运行期自行 `RegisterChain`，"先起世界后登记链"是合法时序，跳过会让该规则永久静默失效），MUST NOT 用 Error（内容缺口不是契约违规，且 `ExecuteChain` 已有自己的拒绝面）。**求值器 MUST NOT 重复该校验**（起链被拒的面归 `ExecuteChain`）；
 - **触发定义的失败清单条目（2026-10-04 新增）**：资产加载失败或类型不符 / `TriggerTag` 无效 / `Def.EventTag` 无效 / `Def.EffectChainId` 无效 / `TriggerTag` 与另一资产重复——
@@ -121,6 +127,22 @@
 
 - **WHEN** 定义发现 / 加载 / 校验完成，单出口被调用（且宿主已在此时挂好组件）
 - **THEN** `IsRuntimeReady()` 为真，此后 `BeginPlay` 的组件注册通过门禁；**MUST NOT** 出现"先挂组件后定义齐备 ⇒ 该实体永久未注册且无补救"的窗口
+
+#### Scenario: 就绪广播时门禁已放行
+
+- **WHEN** 订阅者收到 `OnDefinitionsReady`，在回调内立即查 `IsRuntimeReady()`
+- **THEN** 返回 `true`——**置位 MUST 先于广播**。若顺序反过来（先广播后置位），订阅者会"收到通知但门禁不放行"，等于通知没发
+
+#### Scenario: 就绪广播恰好一次且早于世界装配
+
+- **WHEN** GameInstance 初始化完成，且同一进程内又有第二个世界完成初始化
+- **THEN** `OnDefinitionsReady` **只广播一次**（不是每世界一次，也不是每次装配一次）；且**第一次**广播发生在任何 `SeedWorld` 装配之前——就绪信号承诺的是「定义已齐备」，不是「已装配到某个世界」
+
+#### Scenario: 未就绪时先订阅而不是放弃
+
+- **WHEN** 组件的 `BeginPlay` 早于定义库就绪，门禁 `IsRuntimeReady()` 返回 `false`
+- **THEN** 组件今天的行为是 `Warning` + 跳过注册（**如实登记，MUST NOT 读成本条已实现**）；本条要求的是：需要"晚注册补救"的宿主 MUST 订阅 `OnDefinitionsReady`，在回调里补做注册并在回调后退订——**框架不替宿主承担接线顺序**，但**必须提供那个通知点**
+  > ⚠ **残留账（`G-32`：规格完整度 = 可发现性）**：组件自身**尚未**改成"未就绪则订阅、就绪后补注册"，仍是"跳过即永久失效"。通知点已提供（本需求），**消费方未接**——这是下一条待办的准确边界。
 
 #### Scenario: 链资产自动登记
 
@@ -169,6 +191,23 @@
 
 - **WHEN** 同一世界发生多次装配触发路径（世界初始化回调与立即装配）
 - **THEN** 触发定义行只登记一次（行数不翻倍）
+
+#### Scenario: 两个世界并存时各自只装配一次
+
+- **WHEN** 同一进程内**同时**存在两个世界（PIE 多客户端 / 编辑器预览世界 + 游戏世界），两者都完成初始化
+- **THEN** **两个世界各自**装配一次，且二者互不干扰——第一个世界的幂等判据不因第二个世界装配而失效
+- **判据**：幂等判据是「已装配世界**集合**」而非单一槽位；单槽会让第二个世界重复装配、并让第一个世界的判据失效
+
+#### Scenario: 反初始化时按来源撤销触发行
+
+- **WHEN** 定义库反初始化（GameInstance 销毁），而**某个已装配的世界仍然存活**
+- **THEN** 该世界内经本类登记的触发行 MUST 被 `UnregisterTriggerRowsBySource(TriggerSeedSource)` 全部撤销（日志报撤销条数）；仍然存活的世界 MUST NOT 留着带一个「无主来源句柄」的行
+- **判据**：世界级容器 `TriggerRegistry.Reset(...)` 只在**世界先死**时兜底，它成立的前提是"世界会被销毁"；本类可能在**世界仍存活**时被反初始化 ⇒ 两件事都要做，不能互相替代
+
+#### Scenario: 世界先死时不重复撤销
+
+- **WHEN** 某已装配的世界在定义库反初始化**之前**已被销毁
+- **THEN** 该世界被跳过（`TWeakObjectPtr` 已失效、其门面随之销毁，行随世界走），MUST NOT 因此报 Error 或崩；其余仍存活的世界照常撤销
 
 #### Scenario: 缓存内容的对象引用对 GC 可见
 

@@ -88,6 +88,9 @@ MUST NOT 用该模块承载"定义缓存 / 解析"职责——那是上层定义
 
 `ETcsAssetLoadPolicy` 只表达**各域对自身类型的预载归属声明**，MUST NOT 被实现成加载路径开关（三个策略共用同一条加载路径）。
 
+> **落地状态（2026-10-17，`ARCH-03` D-4 / `G-8`，如实登记 MUST NOT 读成"能力已具备"）**：以上三件是**API 面**，不是**能力面**。实测——`FTcsAssetLoader` / `FTcsAssetLoadHandle` 在 `TcsAssetButler` 之外的引用 **0**；`ETcsAssetLoadPolicy` 的**读取点 0**（3 处出现全是注册宏的字面参数，无任何一处按策略分支）；三个已注册类型**全部 `OnDemand`**，而 `OnDemand` 的语义（"首次按 `FPrimaryAssetId` 解析时加载"）**没有任何代码兑现**——真实加载走的是 `GetPrimaryAssetData` 与 `TSoftObjectPtr::LoadSynchronous`。⇒ 台账 `INTEG-3` 写的「加载三策略 ✅ 已落」**作 API 语义成立、作能力语义不成立**，本条据此订正为「**枚举与句柄类型已落、策略语义与消费面未落**」。
+> **顺序错误（比缺失更值得记）**：同一份计划里，「零消费者不预建」这条判据被用出了**两个相反结论**——Task 8 以它为由**推迟**了 `Discover*` 迁移，却**同期预建**了消费面更空的这三件（Step 6 先于迁移落地）。⇒ 判据：**同一计划内对同一条纪律的两个相反结论，MUST 在计划里显式写明谁优先**，否则先落的那件会被当成"已完成"而不再回头。
+
 #### Scenario: 同一资产只加载一次
 
 - **WHEN** 对同一 `FPrimaryAssetId` 连续两次 `LoadAsync`

@@ -36,8 +36,19 @@ void UTcsDefinitionSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	// 触发行来源句柄：本类在世界装配期登记触发行时作 `Source`（"定义库来源"这一级联退订锚点，发放一次）
 	TriggerSeedSource = TriggerSourceRegistry.Allocate();
 
-	// 就绪单出口：发现/校验完成即派发（幂等——只在此处置位并广播一次；06 §4 硬规则①）
+	// ── 就绪单出口（06 §4 硬规则① / M6 双层引导的最小版） ──
+	//
+	// **次序是契约，MUST NOT 调换**：置位 → 广播 → 装配世界。三条理由：
+	// ① **置位先于广播**：订阅者在本委托回调里 MUST 能查到 `IsRuntimeReady() == true`——否则它只能
+	//    "收到通知但门禁仍不放行"，通知就等于没发。
+	// ② **广播先于装配世界**：装配会逐世界登记链/触发行/状态定义并可能报 Warning，那些是**装配面**
+	//    的读数；就绪信号承诺的是"**定义已齐备**"，不是"**已装配到某个世界**"（后者是 `SeedWorld` 的事，
+	//    且每个世界各来一次）。把装配排在广播前会让订阅者在一个尚未装配的世界里被唤醒。
+	// ③ **幂等**：本函数只在 `Initialize` 里跑一次，`Deinitialize` 置回 false ⇒ 无需防重入判据。
 	bRuntimeReady = true;
+
+	// 广播**恰好一次**（这是"单出口"的全部含义：一个信号点，不是每处调用点各广播一份）
+	OnDefinitionsReady.Broadcast();
 
 	// 世界可能已存在（PIE 里 GameInstance 与世界创建顺序、或宿主先手动 LoadMap）——立即装配
 	SeedWorld(GetGameInstance() ? GetGameInstance()->GetWorld() : nullptr);
@@ -63,7 +74,39 @@ void UTcsDefinitionSubsystem::Deinitialize()
 		WorldInitDelegateHandle.Reset();
 	}
 
-	SeededWorld.Reset();
+	// ── 触发行来源的**级联撤销**（`ARCH-11` D-2：这是 `TriggerSeedSource` 唯一的撤销点） ──
+	//
+	// **为什么必须在这里做**：本类分配了 `TriggerSeedSource` 并在**每个世界**用它登记该世界的全部触发行
+	// （"定义库来源"= 全局常驻规则）。本类反初始化时（GameInstance 销毁），那些世界**可能还活着**
+	// （编辑器换 GameInstance、或世界比 GameInstance 活得久）——此时行还在册、来源句柄却已无主
+	// （`FTcsSourceHandle` 是**纯编号、无存活性登记**，`TcsSourceHandle.h:42` 明写"只发号，不做注销登记"）
+	// ⇒ 不给撤销点，"定义库来源"与"永不过期"就等价，这个句柄白发。
+	//
+	// **世界级容器的兜底不替代本步**：`UTcsEffectSubsystem::Deinitialize` 会 `TriggerRegistry.Reset(...)`
+	// 全清 ⇒ **世界先死**的情况下确实不会泄漏。但那是**世界侧**的清理，成立的条件是"世界会被销毁"；
+	// 而本函数可能在**世界仍存活**时被调用 ⇒ 两件事都要做，不能互相替代。
+	for (const TWeakObjectPtr<UWorld>& SeededWorld : SeededWorlds)
+	{
+		UWorld* LiveWorld = SeededWorld.Get();
+		if (!LiveWorld)
+		{
+			// 世界已销毁 ⇒ 它的门面也随之销毁，行随世界走，无需撤销
+			continue;
+		}
+
+		UTcsEffectSubsystem* EffectSubsystem = LiveWorld->GetSubsystem<UTcsEffectSubsystem>();
+		if (!EffectSubsystem)
+		{
+			continue;
+		}
+
+		const int32 RemovedRows = EffectSubsystem->UnregisterTriggerRowsBySource(TriggerSeedSource);
+		UE_LOG(LogTcsIntegration, Log,
+			TEXT("UTcsDefinitionSubsystem: 反初始化——世界 %s 按来源撤销触发行 %d 条"),
+			*LiveWorld->GetName(), RemovedRows);
+	}
+
+	SeededWorlds.Empty();
 	ChainDefs.Empty();
 	ChainDefAssets.Empty();
 	TriggerDefs.Empty();
@@ -156,10 +199,21 @@ void UTcsDefinitionSubsystem::SeedWorld(UWorld* World)
 		return;
 	}
 
-	// 幂等：同一世界不重复装配（世界初始化可能触发多次回调路径）
-	if (SeededWorld.Get() == World)
+	// 幂等：同一世界不重复装配（世界初始化可能触发多次回调路径）。
+	// 顺手剔除已销毁世界（`TWeakObjectPtr` 悬空 ⇒ 留存只会让集合单调增长）。
+	for (int32 Index = SeededWorlds.Num() - 1; Index >= 0; --Index)
 	{
-		return;
+		UWorld* Recorded = SeededWorlds[Index].Get();
+		if (!Recorded)
+		{
+			SeededWorlds.RemoveAtSwap(Index);
+			continue;
+		}
+
+		if (Recorded == World)
+		{
+			return;
+		}
 	}
 
 	UTcsEffectSubsystem* EffectSubsystem = World->GetSubsystem<UTcsEffectSubsystem>();
@@ -251,7 +305,7 @@ void UTcsDefinitionSubsystem::SeedWorld(UWorld* World)
 		}
 	}
 
-	SeededWorld = World;
+	SeededWorlds.AddUnique(World);
 
 	UE_LOG(LogTcsIntegration, Log,
 		TEXT("UTcsDefinitionSubsystem: 已装配到世界 %s——链定义 %d/%d 条，触发行 %d/%d 条，状态定义 %d/%d 条，技能定义 %d/%d 条"),

@@ -11,6 +11,32 @@
 
 `TcsDamage` MUST 提供十阶段标准步骤库（09 §2.2；D7-5"流程 = 数据模板 + 标准件"），全部为**数据 struct**（无公共基类，D4-16），MUST 经 `UE_DEFINE_FLOW_STEP_EXECUTOR` 自注册。
 
+**十步逐条契约（2026-10-17 恢复，见下方「恢复声明」）**——十步同住 `Public/Flow/Steps/TcsFlowSteps.h`（核心四步执行器在 `TcsFlowStepsCore.cpp`，其余六步与两个数据步骤在 `TcsFlowStepsRest.cpp`）：
+
+| # | 步骤 struct | 做什么 | 写哪个键 / 事件 |
+|---|---|---|---|
+| ① | `FTcsFlowCollectStart` | 重置收集 → 发流程开始事件 | `Blackboard.Reset()`；`TcsEvent.Damage.FlowStarted` |
+| ② | `FTcsFlowPreHit` | 发收集事件（宿主挂点：改命中率 / 注册免疫候选） | `TcsEvent.Damage.PreHit` |
+| ③ | `FTcsFlowHit` | 基础命中率（delegate `GetBaseHitRate`）→ 发收集事件（宿主可改写 `DamageFlowKey.HitRate`）→ 读回折算 | `DamageFlowKey.Hit`（1/0）；`TcsEvent.Damage.Hit` |
+| ④ | `FTcsFlowCrit` | 基础暴击率（delegate `GetBaseCritRate`）→ 同上 | `DamageFlowKey.Crit`（1/0）；`TcsEvent.Damage.Crit` |
+| ⑤ | `FTcsFlowElement` | delegate `ResolveElement` 解析元素 → 写入分类集 → 发收集事件 | `Context.ClassificationTags`（`DamageCategory` 根）；`TcsEvent.Damage.Element` |
+| ⑥ | `FTcsFlowBaseDamage` | **接收输入值**（`Context.BaseDamageInput`）→ 可经 delegate 逃生口 → **以 `Add` 提交** | `Step->OutputKey`（默认 `DamageFlowKey.BaseDamage`） |
+| ⑦ | `FTcsFlowAfterDamage` | 发收集事件（宿主挂点："伤害 +50"） | `TcsEvent.Damage.AfterDamage` |
+| ⑧ | `FTcsFlowPreExecute` | 发收集事件 → **只收集**免疫/减伤候选（收集 ≠ 消费） | `Step->CandidateKey`（默认 `DamageFlowKey.ExecuteCandidates`）；`TcsEvent.Damage.PreExecute` |
+| ⑨ | `FTcsFlowExecute` | 裁决 → 护盾 hook → 吸收映射 → M2 事务扣血 → 致死记账 → **成功才消费** | `Executed` / `Absorbed` / `Kill`（均 `Override`） |
+| ⑩ | `FTcsFlowCompleted` | 发完成收集事件 + **每目标一条**记录 | `TcsEvent.Damage.Completed`；`FTcsDamageRecord`（`AppendRecord` 内发 `Recorded`） |
+
+**逐步补充纪律（MUST 逐条可判）**：
+
+- **⑥ `BaseDamage`**：输入值是**请求字段**（`Context.BaseDamageInput`），**不随 `CollectStart` 的收集重置清除**（PV-7 / D7-2：基础值来源 = 链步骤配置，流程 MUST NOT 自行推导）。它以 **`Add`** 提交——**MUST NOT 用覆盖带写基值**（覆盖带盖掉一切，会抹掉收集到的修正）。
+- **⑨ `Execute` 的五段次序**（`TcsFlowStepsCore.cpp:121-241`）：① **裁决**——按 `Consume.SortKey` 从 `CandidateKey` 的提交里选一（收集 ≠ 消费，未被选中者完全不动）；② **护盾 hook**——逐目标 `Execute_ModifyShield` 求和得 `Absorbed`；③ **吸收映射**——`Execute_ResolveExecutedDamage` 取 `Executed`（中性默认 `Max(0, 候选 − 吸收)`）；④ **M2 事务扣血**——逐目标 `BeginBatch` → `EvaluateCurrent` → `SetBaseValue(当前 − Executed)` → `Commit`，属性键 = **步骤级 `AttrKey` 优先、否则 `Context.TargetAttrKey`**（插件组装的官方默认模板不可能知道项目词表，`Health` 是项目侧的）；**两者皆空 ⇒ 不扣血 + `Warning`**（不静默）；⑤ **致死记账**——逐目标 `Execute_IsLethal`（中性默认 `<= 0.0`），框架**只记账**、MUST NOT 杀实体。
+- **⑨ 的「成功才消费」是契约的一环**：裁决选出的那一条候选 MUST 在**扣血成功之后**才被消费，MUST NOT 在裁决当刻消费（那会让"没扣成血"也扣掉次数）。消费**动作**（扣 `MaxUses` / 起 `Cooldown` / 标记已消费 / 发 `TcsEvent.Damage.ModifierConsumed`）归台账 `DAMAGE-4`。
+- **⑩ 逐目标一条记录**：`bHit` / `bCrit` / `bKill` MUST 从契约键读回（`Read(...) > 0.0`），MUST NOT 硬编码；`Base` = `Context.BaseDamageInput`（原始输入），`Final` = `BaseDamage` 键**折叠后**的值（基值 + 收集到的修正），两者 MUST 分开。元素**不进记录**（由 ⑤ 写进分类集）。
+- **十步与默认模板的关系**：十步 struct 与执行器**同批全部提供并自注册**，但默认模板只组装 `CollectStart → BaseDamage → Execute → Completed` 四步（见「官方默认模板」需求）——**"提供了十步"与"默认跑四步"是两件事，MUST NOT 互相推断**。
+
+> **恢复声明（2026-10-17，`ARCH-10` D-2 / `G-30`）**：上述十步逐条契约**曾经存在**（`git show a1804ed:openspec/specs/damage-step-library/spec.md` 十行俱在），在 **`539b14e`（2026-09-22，标识体系 tag 化改造，本文件 −25 / +17）** 里被**整段删除**，而 `Purpose` / 本需求标题 / 正文首句 / 「官方默认模板」需求**四处仍宣称"十步/十阶段"**。成因：那次改造里本文件**每一行都提到键名**，于是整段被当作"待改写内容"重写，重写后只留下与 tag 相关的部分，**步骤行为本身没落回来**。`openspec validate --strict` 只校验 Requirement / Scenario 结构——**它看不见"正文变短了"**。
+> ⚠ **恢复 ≠ 代码已达标**：本次恢复的是**当初定下的契约**，不是照今天的代码补写。恢复后**立刻可判**的两处代码偏离是：**⑨ 的「成功才消费」在代码里完全没落**（裁决算出的 `BestIndex` 从未被使用，`TcsFlowStepsCore.cpp:135-147` 之后无任何消费者），以及**多目标语义从未写下**（`Executed` 是流程级一次取值而非逐目标）。⇒ 这两条实证 `G-32`：**规格缺失不"制造"缺陷，只"让已有的缺陷变得不可发现"**——正文一恢复，它们当场变成可对照的债务。
+
 **执行期行为契约**：正路共用的黑板键名（`BaseDamage` / `Executed` / `Absorbed` / `Kill` / `Hit` / `Crit` / `ExecuteCandidates`）属**标准步骤库的契约**（M8 校验与 Explain 认识）——**2026-09-22 改造：这些契约键从"自由 FName"改为"插件原生声明的 GameplayTag"**；**2026-10-01 换根：根 = `DamageFlowKey`**，形态 `DamageFlowKey.<键>`，常量名逐点换下划线（如 `DamageFlowKey.BaseDamage` → `Tag_DamageFlowKey_BaseDamage`）；**项目自定义键仍自由**，但类型同为 `FGameplayTag`、由**宿主 ini** 声明，且与契约键**同根**（`DamageFlowKey` 是共享根——根段注册表与归属规则见 `gameplay-tag-governance` 能力）。步骤 MUST NOT 自行推导基础伤害（零公式纪律）。
 
 **契约键原生声明的理由**（与事件 tag 同款判据"谁拥有那个词，谁声明"）：契约键是**步骤之间的接口**，属**框架词汇**——若让宿主声明，宿主漏配即导致上下游步骤对不上（**静默读到 0**），框架契约被宿主配置破坏。故 MUST 插件原生声明（随模块加载生效、零宿主配置依赖）。
@@ -28,6 +54,11 @@
 **致死判定纪律（`FTcsFlowExecute`，MUST）**：致死线 **MUST NOT 硬编码在步骤内**，MUST 经 `ITcsDamageFlowDelegate::IsLethal` 取（中性默认 = 当前值 `<= 0.0`）；框架只据此**记账** `Kill`，MUST NOT 杀实体。
 
 **命中结果纪律（`FTcsFlowCompleted`，MUST）**：填充记录的 `bHit` **MUST** 从契约键 `DamageFlowKey.Hit` 读回（与 `bCrit` / `Absorbed` 同款写法），**MUST NOT** 硬编码为 `true`。框架不替宿主断言命中。
+
+#### Scenario: 十步均可被解释器分派
+
+- **WHEN** 查询流程步骤注册表（`FTcsFlowStepExecutorRegistry`）
+- **THEN** 十步的执行器全部可查（模块加载即自注册，零启动代码）——`TcsFlowStepsCore.cpp:296-299` 注册核心四步、`TcsFlowStepsRest.cpp:234-241` 注册其余六步与两个数据步骤
 
 #### Scenario: 契约键跨文件一致
 

@@ -815,7 +815,7 @@ bool FTcsCastOps::FinishSkillInstance(
 	// ⇒ 之前拿到的 `Def` 指针可能已悬空（登记表是 `TUniquePtr` 持有，注销即析构
 	// ——`FTcsSkillInstance` 顶替分支的既有注释已就"任何可能广播的调用之后，手里的指针都可能失效"
 	// 立过同款纪律）。本处按句柄重新解析一次，**MUST NOT 沿用更早的 `Def`**。
-	const FTcsSkillDefData* Def = Entry ? Subsystem.GetRegisteredSkillDef(Run->DefTag) : nullptr;
+	const FTcsSkillDefData* Def = Entry ? Subsystem.GetRegisteredSkillDef(RunCopy.DefTag) : nullptr;
 
 	if (Entry)
 	{
@@ -855,7 +855,7 @@ bool FTcsCastOps::FinishSkillInstance(
 		// ——本处是该纪律在新触发点上的落点，**MUST NOT 省略**。
 		Bucket = Subsystem.Registry.FindBucket(Entity);
 		Entry = Bucket ? Bucket->Find(EntryHandle) : nullptr;
-		Def = Entry ? Subsystem.GetRegisteredSkillDef(Run->DefTag) : nullptr;
+		Def = Entry ? Subsystem.GetRegisteredSkillDef(RunCopy.DefTag) : nullptr;
 	}
 	else if (Entry)
 	{

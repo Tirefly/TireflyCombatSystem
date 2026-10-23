@@ -11,6 +11,21 @@
 
 
 
+/**
+ * 定义库就绪信号（**单出口**，`06 §4` 硬规则① / M6 双层引导的最小版）。
+ *
+ * **为什么必须有它、以及它和 `IsRuntimeReady` 的分工**：`IsRuntimeReady` 是**轮询**（门禁查询点，
+ * "现在能注册吗"），本委托是**通知**（"刚刚齐备了"）。只有轮询时，比定义库更早 `BeginPlay` 的
+ * 实体就只能**跳过注册**并永久失效（组件今天正是这么做的：未就绪 → `Warning` + 返回，没有补救）；
+ * 有了通知，订阅者可以在就绪那一刻补做。两者**MUST 并存**、MUST NOT 互相替代。
+ *
+ * **动态多播（`DECLARE_DYNAMIC_MULTICAST_DELEGATE`）的理由**：宿主脚本层（C#/蓝图）要能订阅
+ * ⇒ 必须反射可达；`UPROPERTY(BlueprintAssignable)` 挂在子系统上即可 `Bind Event to ...`。
+ */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FTcsOnDefinitionsReady);
+
+
+
 class FReferenceCollector;
 class UTcsAttrModDef;
 class UTcsBuffDefAsset;
@@ -50,7 +65,7 @@ struct FTcsSkillDefData;
  * - **按名解析**：链定义按 `ChainId` 缓存（`ResolveChain`）、触发定义按 `TriggerTag` 缓存
  *   （`ResolveTriggerDef`）、状态定义按 `DefTag` 缓存（`ResolveStateDef`）、修正器模板按 `TemplateTag`
  *   缓存（`ResolveAttrModDef`）、技能定义按 `DefTag` 缓存（`ResolveSkillDef`）；
- * - **就绪状态机**：`OnDefinitionsReady` **单出口**（幂等）——M6 双层引导的最小版（06 §4 硬规则①）；
+ * - **就绪状态机**：`OnDefinitionsReady` **单出口**（幂等，`Initialize` 内置位后广播恰好一次）——M6 双层引导的最小版（06 §4 硬规则①）；与 `IsRuntimeReady` 分工 = **通知 vs 轮询**，两者 MUST 并存；
  * - **装配到世界**：见下条。
  *
  * **装配到世界（跨级方向纪律，2026-09-21）**：本子系统是 GameInstance 级（跨世界存活），而定义**消费方**
@@ -143,6 +158,19 @@ public:
 #pragma region Readiness
 
 public:
+	/**
+	 * 定义库就绪**单出口**（幂等——`Initialize` 内置位后广播**恰好一次**）。
+	 *
+	 * **义务方是本类**（它知道定义何时齐备），不是宿主——「时序是宿主责任」只适用于**宿主自己**的
+	 * 接线顺序，不适用于「定义库就该广播的那一次通知」。
+	 *
+	 * **订阅者的用法**：在 `BeginPlay` 里先查 `IsRuntimeReady()`，已就绪则直接做；未就绪则订阅本委托、
+	 * 在回调里补做，**并在回调后立即退订**（单次信号，不是每帧事件）。回调在**游戏线程、`Initialize` 内**
+	 * 同步触发 ⇒ 回调里 MUST NOT 假设世界已装配完成（`SeedWorld` 排在本委托广播**之后**）。
+	 */
+	UPROPERTY(BlueprintAssignable, Category = "Tcs|Definition")
+	FTcsOnDefinitionsReady OnDefinitionsReady;
+
 	/**
 	 * 定义是否已就绪（**门禁查询点**：实体组件注册前查它）。
 	 * 就绪 = 发现与校验已完成（失败清单非空不影响就绪——失败项被跳过、其余可用；
@@ -261,8 +289,15 @@ private:
 	// 世界初始化回调（新世界装配入口）
 	void HandlePostWorldInitialization(UWorld* World, const UWorld::InitializationValues IVS);
 
-	// 已装配的世界（幂等判据——同一世界不重复装配）
-	TWeakObjectPtr<UWorld> SeededWorld;
+	// 已装配的世界集合（幂等判据——同一世界不重复装配）。
+	//
+	// **为什么是集合而不是单槽（2026-10-17 改，`ARCH-11` D-2 / §3.4）**：单槽判据 `SeededWorld.Get() == World`
+	// 只在「世界严格串行更替」时成立——一旦同一进程内**同时**存在两个世界（PIE 多客户端 / 编辑器预览世界 +
+	// 游戏世界），单槽会让**第二个世界**重复装配、并让**第一个世界**的幂等判据失效。
+	// 而 `SeededWorld` 同时是本类唯一能枚举「我装配过哪些世界」的凭据 ⇒ 反初始化时要按它逐世界撤销
+	// 触发行（见 `Deinitialize`），单槽天然做不到。⇒ 两个用途都要求集合。
+	// `TWeakObjectPtr` 的语义是**不强持有世界**（世界先死 = 条目自动失效，下次装配时顺手剔除）。
+	TArray<TWeakObjectPtr<UWorld>> SeededWorlds;
 
 	// 链定义缓存（Const 内容；键 = ChainId）——`TUniquePtr` 持有使解析返回的指针地址稳定
 	TMap<FGameplayTag, TUniquePtr<FTcsEffectChain>> ChainDefs;

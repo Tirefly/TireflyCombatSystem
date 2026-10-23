@@ -2,10 +2,21 @@
 
 #include "Attribute/TcsAttributeDef.h"
 
+#include "Asset/TcsPrimaryAssetEntry.h"
+
 
 
 // 定义主资产类型标识（Def 资产族统一：类型稳定、名取 tag 的 FName 形态——见头文件说明）
 const FPrimaryAssetType UTcsAttributeDef::PrimaryAssetType = FPrimaryAssetType(TEXT("TcsAttributeDef"));
+
+// 主资产类型自注册（2026-10-17 补，ARCH-04 D-2 / ARCH-03 U-1）：
+// 类型名由 `StaticClass()` 反射派生（零字符串面，类改名无需同步改本处）。
+// **策略用 OnDemand**：属性定义今天是"宿主/定义库需要时才拿"，不是"启动期全量预热"——
+// 与已注册的三个 Def 族（`TcsBuffDefAsset` / `TcsEffectChainDef` / `TcsEffectTriggerDefAsset`）同档。
+// ⚠ 本注册**只是发现路径的前置**：`UTcsAttributeDef` 的插件侧 `DiscoverAttributeDefs` 仍未建
+// （ARCH-04 U-1），今天仍只有宿主 `TcsDev` 在扫。注册在这里的意义是**把"未登记"这个失败面关掉**
+// ——`FTcsPrimaryAssetQuery::GetAssetsForDefClass` 对未登记类型直接返回失败且报 Warning。
+UE_DEFINE_PRIMARY_ASSET_TYPE(UTcsAttributeDef, { TEXT("/Game") }, ETcsAssetLoadPolicy::OnDemand)
 
 
 

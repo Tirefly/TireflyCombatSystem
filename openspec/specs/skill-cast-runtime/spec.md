@@ -165,7 +165,11 @@
 - `CastChainId` MUST 经**效果链登记表**解析（`UTcsEffectSubsystem::ExecuteChain` 的既有接口）；**无效 `CastChainId` MUST 在作者期校验拦下**（`skill-def-asset` 的既有校验规则），运行期遇到则**不阻断激活**（技能已放出去，只是没有链）+ `Warning`；
 - 起链 MUST 用 `ExecuteChain(CastChainId, Context)`，且 **`Context.RunSource` MUST = `FTcsSkillInstance.CascadeAnchor`**——这是台账 `CHAIN-7`（"链挂的账本条目没有框架侧回收触发点"）的**闭合依据**：施法运行态是链运行态的**第一个长生命周期持有者**，故链内 `ModifyAttribute` 挂的条目可按该锚点回收。**回收例程本身归 Task 5 Step 3**（施法终结三路统一回收），本 Task 只落锚点；
 - `Context.Caster` MUST = 施法实体、`Context.Instigator` MUST = 施法实体（本轮无独立的发起者参数）；
-- **`MainChainStart` 的档位处置（MUST 逐档写明，不得留白）**：本 Task 只实现 **`MCS_OnCastStarted`**；`MCS_OnPhaseEnter` / `MCS_OnCastCompleted` / `MCS_Custom` 三档**命中时 MUST 记 Warning 并明确报出"该档未实现、主链未起"**——**MUST NOT** 静默跳过（那会让配了 `OnCastCompleted` 的技能"不报错也不生效"）；
+- **`MainChainStart` 的档位处置（MUST 逐档写明，不得留白）**：四档的落地状态是 **3 已实现 + 1 未实现**——
+  - `MCS_OnCastStarted` / `MCS_OnPhaseEnter` / `MCS_OnCastCompleted` **三档均已实现**：档位判定**单点**在 `FTcsCastOps::StartMainChain`（`TcsCastOps_Chain.cpp:140-191` 的 `switch`），三个调用点只报"我是哪个触发点"（`TcsCastOps.cpp:590` 报 `ECT_OnCastStarted`、`TcsCastOps_Phase.cpp:301` 报 `ECT_OnPhaseEnter`、`TcsCastOps.cpp:737` 报 `ECT_OnCastCompleted`）；`MCS_OnPhaseEnter` 的匹配判据是「**当前时段**的 `Tag` == 激活时冻结的 `MainChainStartPhaseTag`」（`AdvancePhase` 先 `++PhaseIndex` 再调），**不是**"记忆中的上一次是哪段"；
+  - `MCS_Custom` **未实现**，命中时 MUST 记 `Warning` 并明确报出"该档未实现、主链未起"——**MUST NOT** 静默跳过（那会让配了该档的技能"不报错也不生效"）；该档与触发点无关（框架不决定它的时点）⇒ 在档位判定处即报出并返回；
+  - **档位与触发点不匹配属正常路径，MUST 静默返回**（配 `OnCastCompleted` 的技能在激活时本就不该起链）——MUST NOT 为此报日志，否则常规命令会被正常路径刷满。
+  > **订正（2026-10-17，`ARCH-08` D-2 / `G-22` 时态词）**：本段原文写「本 Task 只实现 `MCS_OnCastStarted`；其余三档命中时 MUST 记 Warning」——「本 Task」指 Task 3，而 `PLN-R6.5-1` 的 **Task 5 已把 `OnPhaseEnter` 与 `OnCastCompleted` 两档补齐**（`TcsCastOps_Phase.cpp` / `TcsCastOps.cpp` 的挂点即那次落的）⇒ 该相对时态所指的那一轮**已经过去**，原文已成为一个**不存在的中间状态**。判据：`G-22` 的实测枚举里 `本 Task` 在 8 份 `skill-*` 里出现 12 次、**2 次已被「取代」注记覆盖、1 次没有**，本条即那一处。⚠ `openspec validate` 只查结构，**永远不会**发现这类错误。
 - 链跑完与否 MUST NOT 影响激活的返回（链可挂起）；`ChainRunHandle` MUST 存入 run（本轮无读取者，如实登记——Task 5 的终结路径要按它摘链锚）。
 
 #### Scenario: 主链在施法开始起且继承来源锚点
@@ -175,8 +179,20 @@
 
 #### Scenario: 未实现的启动档位具名报出
 
-- **WHEN** 配 `MCS_OnCastCompleted`（本轮未实现）的技能激活成功
+- **WHEN** 配 `MCS_Custom`（未实现档）的技能激活成功
 - **THEN** 激活**仍然成功**（返回 `SAR_Success`），但留下一条具名 `Warning` 指明该档未实现且主链未起——**MUST NOT** 静默通过
+
+#### Scenario: 已实现的两档各自在对应触发点起链
+
+- **WHEN** 技能配 `MCS_OnPhaseEnter` 且 `MainChainStartPhaseTag` 等于某一中间时段的 `Tag`，随后推进到该时段
+- **THEN** 主链在该时段**进入时**起一次（`ECT_OnPhaseEnter` 路径），且**激活当刻不起链**（激活报的是 `ECT_OnCastStarted`，档位不匹配 ⇒ 静默返回）
+
+#### Scenario: 档位与触发点不匹配时静默返回
+
+- **WHEN** 技能配 `MCS_OnCastCompleted` 并被激活（此时触发点是 `ECT_OnCastStarted`）
+- **THEN** **不报任何日志**、不起链，激活正常完成；直到该次施法以 `ECFR_Completed` 终结时才起链
+
+> **为什么原来那个 Scenario 必须改而不是删**：它原本是「`MCS_OnCastCompleted` 命中时应当报 Warning」——但代码今天**真的会起链**，照原文跑**必然失败**（不是漏测，是**假失败**）。保留它的形态、把主语换成**唯一真的未实现的那一档** `MCS_Custom`，才是这条 Scenario 当初想证的东西。
 
 ### Requirement: 施法事件四枚
 

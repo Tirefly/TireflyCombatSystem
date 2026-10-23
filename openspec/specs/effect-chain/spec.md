@@ -64,6 +64,11 @@
 
 - **参与者一律为实体身份句柄**（`FTcsCombatEntityHandle`）——`Caster`（施法者）/ `Instigator`（发起者）为单句柄，`Targets` 为句柄数组；**MUST NOT 使用 `AActor*` / `TWeakObjectPtr<AActor>`**（D3-1 Actor 无关性；06 §33"Mass 适配核心零改动"的前提）；
 - `EventPayload`（`FInstancedStruct`——触发事件载荷，无事件触发时为默认构造）；
+  - **载荷必须值语义可跨帧存活（MUST，2026-10-17 `ARCH-06` D-1 补）**：`FTcsEffectContext` 随 `FTcsChainRun` **住在池里、链挂起期间一直存活**（`WaitDelay` / `WaitEvent` / `RunSubChain bWait` 任一都会让它跨帧）。而 `EventPayload` 是**一整条链后续步骤共用的中立通道**——故写进它的东西 MUST 满足下列之一：
+    ① **全值语义**（无裸指针 / 无外部对象裸引用 / 无指向栈帧的句柄）；或
+    ② 载荷**自己**声明了跨帧有效（即其属主模块明文承诺了寿命，而不是反过来要求"MUST NOT 跨帧持有"）。
+  - **反例（今天真实存在的一处，MUST NOT 当成合法）**：`FTcsDamageFlowCollectEvent::Context` 是**裸指针**，且其属主模块明文写「指针为**进程内瞬态**……消费方 MUST NOT 跨帧持有」（`TcsDamageFlowCollectEvent.h:58-60`）。而 `UTcsTriggerEvaluator::HandleEvent_Implementation` 把它按值拷进 `ChainContext.EventPayload`、`FTcsStepModifyFlow` 在**任意时刻**解引用 `Event->Context` ⇒ 「伤害收集事件 → 起链 → 链内先挂起 → 后跑 `ModifyFlow`」这条路径上，`FlowContext` 是一个**已返回的栈帧指针**，症状是**静默的错误提交**（写到已归还的栈内存），不是崩溃。
+  - **判据（可作为审核项）**：`EventPayload` 的写入点 MUST 只有一处（触发求值器）；而**每一个**能被写进去的载荷类型，其属主 MUST 在黑板侧或载荷侧**至少一处**写下寿命契约。今天的状态是「**约束只写在载荷侧、没写在黑板侧**」——即本条要补的那一半。
 - `Variables`（`TMap<FGameplayTag, double>`——链内变量，SetVar/Branch 类步骤的载体；**2026-09-22 改造：键类型 `FName` → `FGameplayTag`**）——**键的根 = `EffectChainRunVar`**；该根的定义（消费角色 / 声明方 / 形态）与命名契约住 `effect-interpreter` 的门面 API 需求（消费者 `SetRunVariable` / `TryGetRunVariable` 的定义处）与 `gameplay-tag-governance` 的根段注册表，本需求不重复规则；
 - `RunSource`（`FTcsSourceHandle`——**链运行态来源锚点**，2026-10-05 新增）：本次运行的"施加方身份"载体，供**由本次运行产生的东西**（`ApplyState` / `ModifyAttribute` 步骤）作来源句柄——发放与继承规则住 `effect-interpreter` 的「链运行态来源锚点与因果边」需求，本需求只声明它是黑板字段；它 MUST NOT 被解读为"谁触发的"（那是下一条字段的事）；
 - `CausedBy`（`FTcsSourceHandle`——**链运行态的因果边**，2026-10-05 新增）：**启动本次运行的那个来源句柄**（触发行起链 = 该行的 `Source`；子链起链 = 父链的 `RunSource`；宿主直调可无），写入规则同住 `effect-interpreter` 的「链运行态来源锚点与因果边」需求。**它只是溯源读数**：MUST NOT 参与撤销、MUST NOT 参与共存（续杯 / 叠层）判定——"每条对象自带指向成因的边、查询从已知起点沿对象逐级走"是 Remake 对因果链的既定立场（`SPEC-01` §2），本字段是该立场在链运行态上的第一段落点；
@@ -76,6 +81,17 @@
 
 - **WHEN** 检查 `FTcsEffectContext` 的参与者字段类型
 - **THEN** 全部为 `FTcsCombatEntityHandle`，无任何 Actor 指针形态
+
+#### Scenario: 含裸指针的载荷不得跨挂起存活
+
+- **WHEN** 一条链在 `WaitDelay` / `WaitEvent` / `RunSubChain(bWait=true)` 上挂起，而 `EventPayload` 里装的是自带裸指针的载荷（如 `FTcsDamageFlowCollectEvent`，其属主明写「MUST NOT 跨帧持有」）
+- **THEN** 该组合 **MUST NOT 出现**——要么载荷改为值语义，要么链 MUST NOT 在消费它之前挂起。MUST NOT 依赖「挂起后再解引用」仍然对（那条路径上裸指针指向的已是一个返回过的栈帧）
+
+#### Scenario: 载荷寿命契约至少有一处成文
+
+- **WHEN** 审查某个会被写进 `EventPayload` 的载荷类型
+- **THEN** 它的寿命契约 MUST 在**黑板侧**（本条需求）或**载荷侧**（其属主头注释）**至少一处**成文；两处都没有即为缺陷
+- **判据**：本条的缺口形态正是「**只写在载荷侧、没写在黑板侧**」——载荷作者写了「MUST NOT 跨帧持有」，而黑板作者不知道这件事，于是把"能不能跨帧"这件事留给了**偶然**
 
 ### Requirement: 链运行态句柄的反射性
 
