@@ -134,7 +134,9 @@
 
 `TcsDamage` MUST 以扁平记录承载伤害结果（09 §2.4）：
 
-- `FTcsDamageRecord`（USTRUCT）：`uint64 FlowId` / `FTcsCombatEntityHandle Source` / `FTcsCombatEntityHandle Target` / `bool bHit` / `bool bCrit` / `double Base` / `double Final` / `double Executed` / `double Absorbed` / `bool bKill` / `uint64 Sequence` / `double Timestamp`；
+- `FTcsDamageRecord`（USTRUCT）：`int64 FlowId` / `FTcsCombatEntityHandle Source` / `FTcsCombatEntityHandle Target` / `bool bHit` / `bool bCrit` / `double Base` / `double Final` / `double Executed` / `double Absorbed` / `bool bKill` / `int64 Sequence` / `double Timestamp`；
+
+> **字段类型订正（2026-10-17，`ARCH-10` D-10）**：`FlowId` / `Sequence` 原写 `uint64`，**代码是 `int64`**（`TcsDamageRecord.h:44` / `:108`），且代码注释 `:42` 写明理由：「**UHT 不支持 `uint64` 作属性类型**——句柄 Id 恒为正，无符号性差异无实际影响」。⇒ 代码是对的（有理由），规格写了一个**物理上做不到的形状**——按规格写代码会**编译不过**。与 `ARCH-04` 以来多次出现的「规格写了一个物理上做不到的形状」同族。
 - **参与者用实体句柄**（**MUST NOT 用 `AActor*`**——承接句柄化）；**字段全扁平**（无 `TMap`/`TFunction`——符合过网结构纪律，将来可直接上 FastArray）；
 - **`FGameplayTag Element` 字段已删除（2026-10-01，**BREAKING**——记录形状变更）**，元素改由 **`DamageCategory` 词表 + `ClassificationTags` 承载**：全库对 `Element` 的操作只有一处且是**置空**（`TcsFlowStepsCore.cpp` 的 `Record.Element = FGameplayTag();`），**零消费者**；元素的实际承载早已是分类集（`FTcsFlowElement` 步骤 → 宿主 `ResolveElement` → `ClassificationTags.AddUnique(Element)`）。**MUST NOT 在记录形状里复活"元素"这个玩法名词**——它违反主判据 *"凡是需要宿主词汇的内置策略，插件一律不提供"*（判据体系与 32 项"不许删名单"见 `Documents/combat-system-design/research/boundary-audit.md`）：框架记录形状里烘进一个由宿主词表决定的玩法名词，正是该规则要拦的形态；元素语义的正确落点是**宿主词汇（`DamageCategory`）+ 通用载体（`ClassificationTags`）**。**记录里要判元素，经事件载荷/触发条件侧的分类匹配表达**（`FTcsTriggerPayloadInfo::ClassificationTags` 已直通）；
 - **`bHit` / `bCrit` 的取值 MUST 从契约键读回**（`DamageFlowKey.Hit` / `DamageFlowKey.Crit`）：框架 **MUST NOT** 在记录里硬编码命中结果——"本次是否命中"是宿主判定（`HitRate` 键由宿主响应方改写、`FTcsFlowHit` 步按 `>= 1.0` 折算），框架只搬运。将 `bHit` 写死为 `true` 属**硬编码常量字段**（取值恒定、零信息量，且替宿主断言"本次一定命中"）；

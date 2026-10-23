@@ -194,13 +194,15 @@
 
 ### Requirement: 状态定义到运行态的登记口
 
-`UTcsStateSubsystem` MUST 提供**定义登记口**：`RegisterStateDef(FGameplayTag DefTag, const FTcsBuffDef& Def)` / `UnregisterStateDef(FGameplayTag)` / `GetRegisteredStateDef(FGameplayTag) -> const FTcsBuffDef*`。
+`UTcsBuffSubsystem` MUST 提供**定义登记口**：`RegisterBuffDef(FGameplayTag DefTag, const FTcsBuffDef& Def)` / `UnregisterBuffDef(FGameplayTag)` / `GetRegisteredBuffDef(FGameplayTag) -> const FTcsBuffDef*`。
+
+> **符号订正（2026-10-17，`ARCH-05` D-4 / `ARCH-07` D-5 / `ARCH-00` §3.1 X-2）**：本条原写 `UTcsStateSubsystem::RegisterStateDef` 一族。三个符号**在全仓从未存在**——`PLN-REFACTOR-1` Task 4 拆出 `TcsBuff` 后，登记口随 Buff 专属语义搬去 `TcsBuff`，而本条停在了拆分前的名字上。**实际实现** = `UTcsBuffSubsystem::RegisterBuffDef` / `UnregisterBuffDef` / `GetRegisteredBuffDef`（`TcsBuffSubsystem.h:141/152/163`）。`UTcsStateSubsystem` **仍然存在**，但只持快照参数表反射壳（`GetParamTableReader()`，见本章「★ 门面拆分」那条）——**它不是登记口的宿主**。三篇模块档案各自独立记过同一处（`G-21` 型），本条按 `G-12`（代码搬走、引用滞留）订正。
 
 **为什么是登记口而不是反向依赖**：定义库（`UTcsDefinitionSubsystem`）住 `TcsIntegration`，而 `TcsIntegration` **依赖** `TcsBuff`——若状态门面去 include `TcsIntegration` 反查定义库即成环。故依赖方向 MUST 保持单向：**定义库把定义写进门的登记口**（同款先例 = 定义库把触发行写进 `UTcsEffectSubsystem::RegisterTriggerRow`）。
 
 **为什么身份是形参**：身份归**资产**声明（`UTcsStateDef::DefTag`——资产身份、`GetPrimaryAssetId()` 的取值来源、作者期校验对象），`FTcsBuffDef` 是**定义内容**；若为"从内容里读身份"再往数据 struct 加一份 `DefTag`，策划就得在同一个资产里把同一个 tag 手填两遍 = **双真相**。故运行期的身份由登记口一次对齐（调用方 = 定义库，其缓存键本就是 `DefTag`）。
 
-登记表 MUST **自持定义副本**（`TUniquePtr` 持有使 `GetRegisteredStateDef` 返回的指针地址稳定），且 `DefTag` 无效 / 重复登记 MUST 被拒绝并留 Error（不静默覆写）。
+登记表 MUST **自持定义副本**（`TUniquePtr` 持有使 `GetRegisteredBuffDef` 返回的指针地址稳定），且 `DefTag` 无效 / 重复登记 MUST 被拒绝并留 Error（不静默覆写）。
 
 #### Scenario: 定义登记后可被施加
 
@@ -214,7 +216,7 @@
 
 #### Scenario: 未登记的定义解析为 nullptr
 
-- **WHEN** 以未登记过的 `DefTag` 调 `GetRegisteredStateDef`
+- **WHEN** 以未登记过的 `DefTag` 调 `GetRegisteredBuffDef`
 - **THEN** 返回 nullptr（正常查询路径，不 ensure）
 
 ### Requirement: 状态生命周期事件

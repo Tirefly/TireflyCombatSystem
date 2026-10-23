@@ -2,6 +2,10 @@
 
 ## Purpose
 定义技能冷却的**数据形状与运行态**：策略族 `ETcsSkillCooldownTiming` / `FTcsCooldownTrack` / `FTcsCooldownPolicy`（形状），`FTcsCooldownOps` 的多轨计时线（自身轨 + **实体级共享组轨 = 真公共冷却**）、CDR 契约键与起冷时刻快照、到期驱动与改轨/清轨、门禁③「冷却中」的**唯一判据实现**，以及终结路径上的时机分派与三枚事件——让「技能放不出来」的第二层理由（冷却）成为**可表达、可查询、可驱动**的运行事实，而不是一个恒过的占位分支。
+> **符号订正（2026-10-17，`ARCH-08` D-5 / `G-12` 空间向）**：本篇原用两个**在全仓不存在的名字**——`RunSource` 与 `PhaseExpiryEntry`（各自 `grep` 工作树 + `git log --all -S` 双零）。实际名是 **`CascadeAnchor`** 与 **`ExpiryEntry`**，两者都住在**共享基类** `FTcsStateInstance`（`TcsStateInstance.h:88` / 同文件）。
+> **为什么不是一个简单的改名**：`CascadeAnchor` **不等于**"谁施加的"——它是**级联撤销锚点**（"按它一次摘净"）。技能域的 `Source` 与它**语义不同**，明文 MUST NOT 当撤销锚点用（同一来源可施加多个定义，按它摘会误摘别条实例）。`PLN-REFACTOR-1` Task 3 的逐一归属表（`TcsSkillInstance.h` 头注释）记着这条裁定的完整理由：**`RunSource` 的三个消费点全是"按它一次摘净"** ⇒ 它本来就该叫 `CascadeAnchor`。
+> ⇒ 本条属 `ARCH-05` 立的 **G-12（代码搬走后引用滞留）**：Task 3/4 把公共字段上提进共享基类并改名，规格停在拆分前的名字上。本次按代码为准订正 **31 处**（跨 5 份 `skill-*` 能力）。
+
 
 ## Requirements
 
@@ -169,7 +173,7 @@
     ① **防 `ensure` 红字**：`CancelExpiry` 对**悬空**句柄是 `ensureMsgf`，而"到期回调正在跑"那一刻
     它自己的条目**仍然有效**（`FireDueItem` 在回调**返回之后**才释放）⇒ 回调内若再撤本句柄就是
     "取消一个正在跑的条目"；复位后 `IsValid()` 为假，后续清理路径天然跳过
-    （**同款先例** = `FTcsSkillInstance::PhaseExpiryEntry` 的既有注释、`FTcsCastOps::AdvancePhase` 的首条语句）；
+    （**同款先例** = `FTcsSkillInstance::ExpiryEntry` 的既有注释、`FTcsCastOps::AdvancePhase` 的首条语句）；
     ② **池槽复用纪律**："整体重置而非逐字段赋值"——将来给该结构加字段时自动是干净的；
   - 组轨到期 = **整槽移除**（不需要逐条目遍历——这正是"组槽住实体"的收益）；
   - **无需额外的"允许再次激活"状态**：门禁③ 每次现算，不存在缓存态要清。
@@ -233,7 +237,7 @@
 
 - **`ECT_Manual` 在终结路径 MUST 零动作**（含日志）：它的定义就是"宿主自己调 `StartCooldown`"，
   框架做任何事都违背它；
-- **触发点次序 MUST 排在"按 `RunSource` 回收"之后、归还池槽位之前**：
+- **触发点次序 MUST 排在"按 `CascadeAnchor` 回收"之后、归还池槽位之前**：
   - **之后**：回收会**广播属性变更事件**（M2 批提交重算 + 广播），排在回收之前会让
     回收尚未完成就可能触发新动作、且新条目与回收交错；**同族对照** = ⓪ 段（完成档起链）
     必须排在回收**之前**（否则新起的链挂的条目**当场被自己的终结例程摘掉**）

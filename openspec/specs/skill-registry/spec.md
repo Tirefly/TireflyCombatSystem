@@ -62,11 +62,15 @@
 
 技能门面 MUST 提供**账本层参数读取面**——它是参数链轮（`STAT-1` 的 M5 半）的物质基础，且**级别语义 MUST 与设计一致**：
 
-- MUST 提供 `GetLevel(FTcsSkillEntryHandle) -> int32`：返回**生效等级** `EffectiveLevel`，语义为 `clamp(0, LevelBase + Σ参数账本 Level 键修正)`（`LevelBase` 取自该条目 `DefTag` 对应的定义内容；`Σ` 为 `Level` 键上的修正器折叠结果）；
-- MUST 提供 `GetNumericParam(FTcsSkillEntryHandle, FGameplayTag Key, double& OutValue) -> bool` 与 `IsSwitchSet(FTcsSkillEntryHandle, FGameplayTag Key, bool& OutValue) -> bool`：分别读数值参数表与布尔开关表，**未命中 MUST 落 miss**（返回 false，MUST NOT 静默返回 0 或 `false` 当命中）；
+- MUST 提供 `GetLevel(FTcsCombatEntityHandle, FTcsSkillEntryHandle, const TArray<double>& LevelModifiers) -> int32`：返回**生效等级** `EffectiveLevel`，语义为 `clamp(0, LevelBase + Σ参数账本 Level 键修正)`（`LevelBase` 取自该条目 `DefTag` 对应的定义内容；`Σ` 为 `Level` 键上的修正器折叠结果）；
+- MUST 提供 `GetNumericParam(FTcsCombatEntityHandle, FTcsSkillEntryHandle, FGameplayTag Key, double& OutValue) -> bool` 与 `IsSwitchSet(FTcsCombatEntityHandle, FTcsSkillEntryHandle, FGameplayTag Key, bool& OutValue) -> bool`：分别读数值参数表与布尔开关表，**未命中 MUST 落 miss**（返回 false，MUST NOT 静默返回 0 或 `false` 当命中）；
 - **参数键的归属**：MUST 落 `TcsStateParam` 根（该根的 `State` 取**广义**——含技能激活运行态；`gameplay-tag-governance` 明文参数表角色横跨两域运行态）⇒ **MUST NOT 因"技能不住 `TcsState` 模块"另立根**；
 - **本轮的分工边界**：`Level` 修正键的**写入面**由参数链轮提供 ⇒ 本能力先落**求值函数**（形参接收"带 `Level` 键的修正器列表"），接入点在参数链轮；**MUST NOT** 依赖条目记录自持修正链字段（该字段在本能力落地时尚不存在，见上一条需求）；
 - 数值读取 MUST 走**规范值**（账本内永远规范值，值约定转换发生在写入点）。
+
+> **签名订正（2026-10-17，`ARCH-08` D-9）**：上列三个口原写为 `GetLevel(FTcsSkillEntryHandle)` / `GetNumericParam(FTcsSkillEntryHandle, ...)` / `IsSwitchSet(FTcsSkillEntryHandle, ...)`——**都少了首个形参 `FTcsCombatEntityHandle Entity`**。实际签名在 `TcsSkillSubsystem.h:466` / `:~490` / `:~505`，三者的第一形参都是实体句柄（账本按实体分桶，只给条目句柄无法定位桶）。
+> **`GetLevel` 另少一个形参**：`const TArray<double>& LevelModifiers`（`TcsSkillSubsystem.h:468`）——本能力正文自己写「MUST NOT 依赖条目记录自持修正链字段，接入点在参数链轮」，而**修正器列表正是那个必须由调用方传入的东西**，形参漏写让它看起来像"能从条目里自己读"，与正文直接矛盾。
+> ⇒ 按规格签名写代码会**编译不过**（少形参）。本订正同时补齐两处的形参。
 
 #### Scenario: 等级按 Level 键修正求和并钳下界
 

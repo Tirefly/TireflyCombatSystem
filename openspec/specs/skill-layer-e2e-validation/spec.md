@@ -2,11 +2,15 @@
 
 ## Purpose
 
-M5 技能层的**端到端竖切验收面**：把六个已各自取证的能力（`skill-def-asset` / `skill-registry` / `skill-cast-runtime` / `skill-param-chain` / `skill-cast-phases` 与属性账本）串成**一条真正跨到底的链**——真定义 → 授予 → 激活（六道具名门禁）→ 参数链折叠 → 起主链 → **链真改属性账本** → 四枚 `TcsEvent.Cast.*` → **三路终结（完成 / 打断 / 顶替）各按 `RunSource` 摘净**。
+M5 技能层的**端到端竖切验收面**：把六个已各自取证的能力（`skill-def-asset` / `skill-registry` / `skill-cast-runtime` / `skill-param-chain` / `skill-cast-phases` 与属性账本）串成**一条真正跨到底的链**——真定义 → 授予 → 激活（六道具名门禁）→ 参数链折叠 → 起主链 → **链真改属性账本** → 四枚 `TcsEvent.Cast.*` → **三路终结（完成 / 打断 / 顶替）各按 `CascadeAnchor` 摘净**。
 
 **为什么需要它**：六个能力各有独立证据，却**没有任何一条证据跨过它们的耦合点**——尤其是施法终结时的属性回收（台账 `CHAIN-7`）：它在单元面只能验到"回收函数被调了"，而真正要证的是"**该摘的摘净、不该摘的常驻**"。本能力把这条链固定成可复算的验收矩阵，并规定**读数取"属性现值 + 账本条目数"成对**、以及**同一次施法内的阴性对照**（另挂一条非本次来源的条目，验"没摘过头"）。
 
 **边界**：本能力管**验收面本身**（命令形状与屏显段、三路读数的取法、跨帧时轴纪律、复现性摘要的不变量口径、两条执行路线的分工与边界登记义务），**不管**技能层各能力的实现语义——那些由各自的 `skill-*` 能力承载。装置住宿主仓（LAC `Source/TcsDev/`），属**宿主验收装置**而非插件运行时；跨帧等待骨架亦住宿主私有面，**未提升为插件契约**。
+> **符号订正（2026-10-17，`ARCH-08` D-5 / `G-12` 空间向）**：本篇原用两个**在全仓不存在的名字**——`RunSource` 与 `PhaseExpiryEntry`（各自 `grep` 工作树 + `git log --all -S` 双零）。实际名是 **`CascadeAnchor`** 与 **`ExpiryEntry`**，两者都住在**共享基类** `FTcsStateInstance`（`TcsStateInstance.h:88` / 同文件）。
+> **为什么不是一个简单的改名**：`CascadeAnchor` **不等于**"谁施加的"——它是**级联撤销锚点**（"按它一次摘净"）。技能域的 `Source` 与它**语义不同**，明文 MUST NOT 当撤销锚点用（同一来源可施加多个定义，按它摘会误摘别条实例）。`PLN-REFACTOR-1` Task 3 的逐一归属表（`TcsSkillInstance.h` 头注释）记着这条裁定的完整理由：**`RunSource` 的三个消费点全是"按它一次摘净"** ⇒ 它本来就该叫 `CascadeAnchor`。
+> ⇒ 本条属 `ARCH-05` 立的 **G-12（代码搬走后引用滞留）**：Task 3/4 把公共字段上提进共享基类并改名，规格停在拆分前的名字上。本次按代码为准订正 **31 处**（跨 5 份 `skill-*` 能力）。
+
 
 ## Requirements
 
@@ -33,7 +37,7 @@ MUST NOT 以运行期手搓定义充当唯一路径；装置 MUST 为每个环�
 
 - **WHEN** 装置以真内容资产的身份词调用 `GrantSkill` 后调用 `TryActivate`
 - **THEN** 账本条目数由 0 增至 1、激活返回成功、`TcsEvent.Cast.Started` 恰一次，
-  且该次激活的 `FTcsSkillInstance.RunSource` 有效
+  且该次激活的 `FTcsSkillInstance.CascadeAnchor` 有效
 
 #### Scenario: 参数链折叠的结果真的进了本次施法的快照
 

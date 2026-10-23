@@ -7,6 +7,10 @@ M5 技能层的**施法时段面**：让"施法是一个有过程的事件"成�
 **为什么需要它**：`skill-cast-runtime` 交付的是"技能放得出来且当刻就有运行态"，但**施法没有过程**——没有时段就没有"打到一半"，没有中断点就没有打断的语义落点，也就无法表达"前摇 / 后摇 / 引导"这类宿主内容词汇（本能力刻意**不内置**这些词，只提供宿主可声明的时段标识）。
 
 **边界**：本能力管**时段的推进与终结**（到期驱动 / 逐段事件序 / 三档查询 / 打断与顶替的门禁 / 重定向挂摘），不管**恢复与冷却**（归 `R6.5`），也不管段内表演（表现层归 R8）。四条终结路径（全时段走完 / 瞬发当刻完成 / 打断 / 顶替）**汇聚同一个终结例程**，本能力规定其**只在"发哪一枚终止事件"处分岔**。
+> **符号订正（2026-10-17，`ARCH-08` D-5 / `G-12` 空间向）**：本篇原用两个**在全仓不存在的名字**——`RunSource` 与 `PhaseExpiryEntry`（各自 `grep` 工作树 + `git log --all -S` 双零）。实际名是 **`CascadeAnchor`** 与 **`ExpiryEntry`**，两者都住在**共享基类** `FTcsStateInstance`（`TcsStateInstance.h:88` / 同文件）。
+> **为什么不是一个简单的改名**：`CascadeAnchor` **不等于**"谁施加的"——它是**级联撤销锚点**（"按它一次摘净"）。技能域的 `Source` 与它**语义不同**，明文 MUST NOT 当撤销锚点用（同一来源可施加多个定义，按它摘会误摘别条实例）。`PLN-REFACTOR-1` Task 3 的逐一归属表（`TcsSkillInstance.h` 头注释）记着这条裁定的完整理由：**`RunSource` 的三个消费点全是"按它一次摘净"** ⇒ 它本来就该叫 `CascadeAnchor`。
+> ⇒ 本条属 `ARCH-05` 立的 **G-12（代码搬走后引用滞留）**：Task 3/4 把公共字段上提进共享基类并改名，规格停在拆分前的名字上。本次按代码为准订正 **31 处**（跨 5 份 `skill-*` 能力）。
+
 
 ## Requirements
 
@@ -16,7 +20,7 @@ M5 技能层的**施法时段面**：让"施法是一个有过程的事件"成�
 
 - 时段时长的求值 MUST 取**本次施法运行态的激活期参数快照**：进入时段时求值该段 `Duration`（`FTcsParamValue`），求值上下文的 `ParamTable` MUST 绑定本 run 的 `FTcsSkillInstance.ParamSnapshot`（经 `UTcsStateParamTableReader` + `FTcsStateSnapshotScope`，与 `ParamChainRows` 物化**同一套绑定手法**）。⇒ 引用类时长（`Param()`）取的是**激活时刻冻结的值** ⇒ "被修正器改变时段时长 ⇒ 下一次激活生效"**语义天然成立**；
 - 入堆 MUST 经 `UTcsClockSubsystem::PushExpiry(DueTime, OwnerId, OnDue)`，到期时刻 = `Clock->GetClock().Elapsed + Duration`（**Elapsed 时轴上的绝对时刻**）。**`FTcsExpiryHeap` 是泵私有，MUST NOT 直接触达**（`AdvanceTo` 保持泵私有——时间推进唯一驱动）；
-- 到期条目句柄 MUST 存入 `FTcsSkillInstance::PhaseExpiryEntry`**作为取消锚点**——施法终结（四路任一）MUST 经 `UTcsClockSubsystem::CancelExpiry` 取消它，**MUST NOT** 让作废的到期回调在池槽位复用后命中下一个 run（句柄代际校验是第二道防线，取消是第一道）；
+- 到期条目句柄 MUST 存入 `FTcsSkillInstance::ExpiryEntry`**作为取消锚点**——施法终结（四路任一）MUST 经 `UTcsClockSubsystem::CancelExpiry` 取消它，**MUST NOT** 让作废的到期回调在池槽位复用后命中下一个 run（句柄代际校验是第二道防线，取消是第一道）；
 - 到期推进 MUST 依次：`++PhaseIndex` → 发 `TcsEvent.Cast.PhaseChanged` → 若仍有待推进时段则注册下一段，否则走**完成终结**（终结例程与四路汇聚语义住 `skill-cast-runtime` 能力的「施法运行态与实例池」需求——**本能力只定义"何时该完成"，不重复定义"完成后做什么"**）；
 - **"还有没有待推进时段"的判据 MUST 取 `PhaseIndex < Phases.Num()`**，**MUST NOT** 写成 `Phases.IsEmpty()` 这类空表判定——那会让"配了时段但已走到末尾"与"空时段表"走两条不同的路（同一件事两个入口）。**瞬发（空时段表）因此不需要分支**：它天然产生"零个待推进时段"这一状态；
 - **瞬发（空 `Phases`）= 激活当刻完成**：激活流程末尾直接走完成终结，**MUST NOT** 留下一个永不终结的在册运行态（那会让唯一的关闭口是打断 ⇒ 一次成功施法被报成"被打断"，且池槽位与账本 `RunHandles` 永久占用）；

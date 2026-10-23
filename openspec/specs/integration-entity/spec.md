@@ -48,11 +48,20 @@
 
 `TcsIntegration` MUST 提供 `UTcsDefinitionSubsystem`（GameInstance 级），职责：按类发现定义资产 → 校验 → 缓存 → 就绪标记 → 装配到每个世界。
 
-- **发现**：`IAssetRegistry::GetAssetsByClass`（不依赖 `PrimaryAssetTypesToScan` 注册——属 M6 轮）；**五条按类发现路径**：
+**就绪单出口（M6 双层引导的最小版）**：定义发现 / 加载 / 校验完成时 MUST 经**一个出口**通知外界，**恰好一次**（幂等——重复调用不重复登记），而不是让宿主轮询 `IsRuntimeReady`。义务方是**本类**（它知道定义何时齐备），不是宿主——「时序是宿主责任」只适用于**宿主自己**的接线顺序（见组件门禁那条），**不适用于定义库就该广播的那一次通知**。
+
+> **恢复声明（2026-10-17，`ARCH-11` D-1 / D-3）**：本句与下文两个「就绪」Scenario 由提交 `539b14e`（2026-09-22，标识体系 tag 化）**误删**——同一提交删掉的还有 `damage-step-library` 的十步契约（`ARCH-10` D-2）。判别「写过被删」而非「从未写过」的铁证：被删后正文首句仍残留「就绪**标记**」字样，而「就绪**出口**」没了。
+> **代码现状（如实登记，MUST NOT 读成本条已实现）**：`UTcsDefinitionSubsystem` 今天**没有** `OnDefinitionsReady` 这个函数——`Initialize`（`TcsDefinitionSubsystem.cpp:26-56`）在发现全部完成后只置 `bRuntimeReady = true`（`:40`），**不广播任何信号**；头注释 `:53` / `:312` 与 `Initialize` 内注释都写着"单出口 / 广播一次"，但那是**注释里的承诺，代码里没有实现**。⇒ 本条是**规格要求、代码未做**（`G-10` 形态），不是"规格描述现状"。
+
+- **发现**：**两条路径并存，按族分配**——`FTcsPrimaryAssetQuery::GetAssetsForDefClass`（加载层统一查询口，`TcsAssetButler`）用于链 / 触发 / 状态三族；`IAssetRegistry::GetAssetsByClass` 用于修正器模板 / 技能两族（**2026-10-17 订正：原写「五条全走 `GetAssetsByClass`」，实为 3 走新口、2 走旧口**）。两条都不依赖 `PrimaryAssetTypesToScan` 注册（该注册属 M6 轮）。**五条按类发现路径**：
   链资产 `UTcsEffectChainDef`（`DiscoverChainDefs`）、触发定义资产 `UTcsEffectTriggerDefAsset`（`DiscoverTriggerDefs`，**2026-10-04 新增**）、
   状态定义资产 `UTcsBuffDefAsset`（`DiscoverStateDefs`，**2026-10-04 R5 Task 1 新增**）、
   修正器模板资产 `UTcsAttrModDef`（`DiscoverAttrModDefs`，**2026-10-05 R5 Task 7 新增**——该资产族此前**全库零发现路径**，其身份词 `TemplateTag` 因此零解析消费者，即台账 `ATTR-1`）；
   技能定义资产 `UTcsSkillDef`（`DiscoverSkillDefs`，**2026-10-06 R6 Task 1 新增**）；
+
+> **发现路径订正（2026-10-17，`ARCH-03` G-7 / `ARCH-11` D-7）**：本条原写「`IAssetRegistry::GetAssetsByClass`…**五条**按类发现路径」，该说法**已假**——`PLN-REFACTOR-1` Task 6（2026-10-15）把**三条**（`DiscoverChainDefs` / `DiscoverTriggerDefs` / `DiscoverStateDefs`）改走 `FTcsPrimaryAssetQuery::GetAssetsForDefClass`，只剩 **两条**（`DiscoverAttrModDefs` / `DiscoverSkillDefs`）仍走旧口。改动理由见 `Asset/TcsPrimaryAssetQuery.h` 头注释：类换过模块后 `GetAssetsByClass` 按**当前类路径**查索引会**静默返 0**（实测两个真实回归：`Slice.Run` 2/4→65/0、`State.Run` 6/9→15/0）。
+> ⚠ **两条旧口的形态差异（`ARCH-11` D-7 新发现，MUST 记）**：新旧两口的**异步就绪门禁不同**——旧口用 `IAssetRegistry::IsLoadingAssets()`（`_Skill.cpp:25` / `_AttrModDef.cpp:24`），新口用 `HasInitialScanCompleted`（`TcsPrimaryAssetQuery` 内）；且这两条旧路径**各自重复了 13 行相同的 `IsLoadingAssets` + `WaitForCompletion` 骨架**。⇒ 「该改的只改了三条、且没写为什么留两条」——`TcsIntegration.Build.cs:35` 的注释仍写「五条 `Discover*` 由 `GetAssetsByClass` 改走」，与实际不符。
+> **未改的两条不是遗漏（如实登记现状）**：它们**没有**改的理由，代码里也没有注释说明为什么——这正是 `ARCH-11` D-7 登记的债（**规格侧只管事实，理由缺失归代码债**）。
 - **校验**：空身份 / 双真相 / 重复登记 → 计入失败清单 + Error，不静默跳过。**2026-09-22 改造：空身份判定从 `ChainId.IsNone()` 改为 `!ChainId.IsValid()`**；
 - **按 tag 解析**：`ResolveChain(FGameplayTag ChainId)`（**2026-09-22 改造：参数类型改 tag**）、`ResolveTriggerDef(FGameplayTag TriggerTag)`（**2026-10-04 新增**）
   与 `ResolveStateDef(FGameplayTag DefTag) -> const FTcsBuffDef*`（**2026-10-04 R5 Task 1 新增**）、
@@ -71,7 +80,7 @@
   同款边界：内容级规则 MUST NOT 在此重复（`Def.Target` 无效 / 数值来源为空 / `OPK_AttributeScaled` 而属性 tag 无效 / 约定列白名单 全归 `UTcsAttrModDef::IsDataValid`，见 `attribute-types` 能力）；
 - **修正器模板不参与世界装配（2026-10-05 新增）**：`AttrModDef` 的缓存 MUST NOT 触发任何每世界登记——它的消费形态是**资产直引用**（`FTcsBuffDef::ModifierRows` 持 `TSoftObjectPtr<UTcsAttrModDef>`，物化时 `Get()` / `LoadSynchronous()`），
   故既无"装配进子系统"这一步、也无"登记进状态门面"那一步。**如实记入边界**：`ResolveAttrModDef` 的运行期调用者本轮为**零**，本路径交付的是**身份解析与索引**（资产身份 `[PrimaryAssetType, TemplateTag]` 可寻址、重复身份在发现期被拦），不是运行期取用；
-- **状态定义逐世界登记（2026-10-04 R5 Task 2 新增；Task 1 只做到缓存）**：状态定义 MUST 在装配到世界时**登记进该世界的状态门面**（`UTcsStateSubsystem::RegisterStateDef`），与本类缓存**同一份内容**——
+- **状态定义逐世界登记（2026-10-04 R5 Task 2 新增；Task 1 只做到缓存）**：状态定义 MUST 在装配到世界时**登记进该世界的状态门面**（`UTcsBuffSubsystem::RegisterBuffDef`——**2026-10-17 符号订正**：原写 `UTcsStateSubsystem::RegisterStateDef`，三个符号在全仓从未存在，`PLN-REFACTOR-1` Task 4 拆出 `TcsBuff` 时登记口随 Buff 专属语义搬走，而本条停在拆分前的名字上；详见 `state-instance-lifecycle` 同条订正与 `ARCH-05` D-4 / `ARCH-07` D-5），与本类缓存**同一份内容**——
   只发现不登记 = 资产零消费者（同触发定义那条的理由；Task 1 只做缓存是因为当时还没有消费方）。装配顺序 MUST 排在链与触发行**之后**（状态门面的存在性由世界子系统机制保证，无需额外门禁）；
   `DefTag` 无效或重复登记（**正常路径下不可达**——发现期已去重）MUST 留 **Warning** 并继续处理其余定义，MUST NOT 中断装配、MUST NOT 用 Error；
 - **"不被装配到世界"那条场景的今日读法（2026-10-04 R5 Task 2 澄清）**：本条描述的是**本类的缓存步骤**——`StateDefs` 缓存本身 MUST NOT 建任何每世界结构（与链 / 触发行"装配即登记"不同）；
@@ -90,6 +99,27 @@
   故本函数**无需**为它补引用。**这正是"判据 = 容器是否 GC 可见"的应用**：同一类里两种容器、两种处理，不是因为类型不同，而是因为可见性不同。
   定义资产对象本身仍 MUST 以 `UPROPERTY` 锚定（`TUniquePtr` 持内容使 `Resolve*` 返回的指针地址稳定，但重载后资产被回收会让内容失主）。
 
+#### Scenario: 就绪后组件可注册
+
+- **WHEN** 定义发现 / 加载 / 校验完成，单出口被调用（且宿主已在此时挂好组件）
+- **THEN** `IsRuntimeReady()` 为真，此后 `BeginPlay` 的组件注册通过门禁；**MUST NOT** 出现"先挂组件后定义齐备 ⇒ 该实体永久未注册且无补救"的窗口
+
+#### Scenario: 链资产自动登记
+
+- **WHEN** 内容目录存在一个合法链资产（`ChainId` 有效），GameInstance 初始化完成
+- **THEN** 该世界的 `UTcsEffectSubsystem::FindChain(ChainId)` 可查到该链（发现 → 缓存 → 装配三段连通，**MUST NOT** 停在"缓存里有、世界查不到"）
+
+#### Scenario: 新世界初始化后链仍可查（跨世界装配）
+
+- **WHEN** 定义库已就绪（链已缓存），此后**一个新世界**完成初始化
+- **THEN** 该世界的 `UTcsEffectSubsystem::FindChain(...)` 能查到**全部**已缓存链——无需重新扫描、无需重新就绪
+- **判据**：定义库住 GameInstance（跨世界存活）而 `UTcsEffectSubsystem` 每世界重建 ⇒ 装配 MUST 发生在**每个世界的初始化时**，MUST NOT 只在就绪时对当时的 World 登记一次（那会在关卡切换后丢失全部链）
+
+#### Scenario: 跨世界装配的实现时序锚点
+
+- **WHEN** 检查装配路径的挂载方式
+- **THEN** 两条路径 MUST 都在：① `Initialize` 末尾对**当时已存在**的 GameInstance 世界立即装配（PIE 里世界可能先于子系统建好）；② `FWorldDelegates::OnPostWorldInitialization` 对**此后每个新世界**装配。装配 MUST 幂等（同一世界只装配一次）
+- **判据来源**：这两条时序锚点原写在头注释里（`TcsDefinitionSubsystem.cpp` 的 `SeedWorld` 段与 `WorldInitDelegateHandle` 处），**规格曾把它们记成一条 Scenario，后被 `539b14e` 一并删除** ⇒ 今天只在下述代码里存活。恢复它是因为「删了验证、留了结论」会让读者以为跨世界装配无需验证
 #### Scenario: 资产被自动发现并装配
 
 - **WHEN** 内容目录存在一个合法链资产，GameInstance 初始化后检查
@@ -133,7 +163,7 @@
 #### Scenario: 状态定义被逐世界登记进状态门面
 
 - **WHEN** 世界初始化完成后检查该世界的状态门面
-- **THEN** 缓存里的每个合法 `DefTag` 都已登记进 `UTcsStateSubsystem`（`GetRegisteredStateDef` 命中且内容与定义库缓存一致）——
+- **THEN** 缓存里的每个合法 `DefTag` 都已登记进 `UTcsBuffSubsystem`（`GetRegisteredBuffDef` 命中且内容与定义库缓存一致）——
   **"只进缓存"（本条）与"登记进门面"（上一条）是同一资产的两步**，缺第二步即资产零消费者；全流程 MUST NOT 出现 Error / ensure
 
 #### Scenario: 修正器模板按身份被发现与解析

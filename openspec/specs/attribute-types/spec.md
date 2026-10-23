@@ -161,8 +161,10 @@ checked cast 失败或 Provider 为空 MUST 落 `Fallback`（不崩溃、不 ens
 
 MUST NOT 提供自定义策略（无 Custom 逃逸位）：这是热路径上的比较函数，必须全域且确定（赢家与遍历顺序无关）；开放自定义会把"谁说了算"重新变成不可静态推演的东西（与 `AVD_Custom` 区别：后者是值域语义、另有按 Clamp 的确定性回落）。
 **框架 MUST NOT 定义任何其它"谁盖谁"的规则**（无来源分层约定、无按值域方向的隐含调整）——"到底以哪个为准"只能有一个答案，二次规则对使用者是纯负担。
-`OverridePriority` MUST 只对 `TAO_Override` 生效（其余带忽略，编辑器侧给警告见 `attribute-moddef` 一节）；强弱裁决 MUST NOT 依赖遍历顺序——`Entries` 的任意排列 MUST 得到同一条赢家。
+`OverridePriority` MUST 只对 `TAO_Override` 生效（其余带忽略，编辑器侧给警告见 `attribute-types` 本能力的「修正器模板资产与约定列白名单」一节）；强弱裁决 MUST NOT 依赖遍历顺序——`Entries` 的任意排列 MUST 得到同一条赢家。
 默认值 MUST 保持历史行为：全部优先级为 0 且策略为默认 `OTB_Max` 时，结果与"引入本机制之前取组内最大值"逐位一致。
+
+> **悬空引用订正（2026-10-17，`G-9`）**：本段原写「编辑器侧给警告见 `attribute-moddef` 一节」，而 `openspec/specs/` 下**没有**这个能力（实测只有 `attribute-pipeline` / `-store` / `-transaction` / `-types` 四个）⇒ 该引用指向**不存在的目录**。自归档变更 `2026-09-18-add-tcsattribute-pipeline-and-transaction` 起就存在，下一轮 delta **逐字复制**，两轮归档都没修。`openspec validate --strict` **不校验跨能力引用**（只校验 Requirement / Scenario 结构）⇒ 这类错误永远不会被工具发现。该警告的实现落点是本能力自己的「覆盖优先级的适用范围 MUST 给警告（非错误）」那条（上文 `FTcsAttrModDef::IsDataValid` 段），故改为指向本能力。
 
 #### Scenario: 优先级压过数值大小
 

@@ -13,6 +13,10 @@
 
 边界：`AttributeScaled` 参数源因全仓无 `ITcsAttributeProvider` 实现者而本轮不可用；
 `ESS_Custom` 片段契约与 `UTcsSkillModDef` 模板引用分别归 `R6.5-g` / `R5.5-f`。
+> **符号订正（2026-10-17，`ARCH-08` D-5 / `G-12` 空间向）**：本篇原用两个**在全仓不存在的名字**——`RunSource` 与 `PhaseExpiryEntry`（各自 `grep` 工作树 + `git log --all -S` 双零）。实际名是 **`CascadeAnchor`** 与 **`ExpiryEntry`**，两者都住在**共享基类** `FTcsStateInstance`（`TcsStateInstance.h:88` / 同文件）。
+> **为什么不是一个简单的改名**：`CascadeAnchor` **不等于**"谁施加的"——它是**级联撤销锚点**（"按它一次摘净"）。技能域的 `Source` 与它**语义不同**，明文 MUST NOT 当撤销锚点用（同一来源可施加多个定义，按它摘会误摘别条实例）。`PLN-REFACTOR-1` Task 3 的逐一归属表（`TcsSkillInstance.h` 头注释）记着这条裁定的完整理由：**`RunSource` 的三个消费点全是"按它一次摘净"** ⇒ 它本来就该叫 `CascadeAnchor`。
+> ⇒ 本条属 `ARCH-05` 立的 **G-12（代码搬走后引用滞留）**：Task 3/4 把公共字段上提进共享基类并改名，规格停在拆分前的名字上。本次按代码为准订正 **31 处**（跨 5 份 `skill-*` 能力）。
+
 
 ## Requirements
 
@@ -21,7 +25,7 @@
 `TcsSkill` MUST 提供**技能参数修正器**，且 MUST 照 M2 属性侧的**双形状**（设计裁定 D2-13「Operand 双形状，B 方案」）分成两套类型——**MUST NOT 用单一形状同时充当定义侧行与账本侧条目**：
 
 - **定义侧** MUST 为 `USTRUCT(BlueprintType) FTcsNumericParamModifier`，字段 = `{FGameplayTag ParamKey, ETcsAttributeOp Op, FTcsParamValue Operand, int32 SortKey, int32 OverridePriority, FGameplayTag CompeteGroup, ETcsValueConventionFlag ValueConvention}`——`Operand` 是可配参数源的多态载体（`Literal` / `ParamRef` / `AttributeScaled` 等），故它**可以**持有对象引用；
-- **定义侧 MUST NOT 携带 `Source`**（2026-10-09 用户质疑后订正，**MUST NOT 加回**）：**来源因实例而异**——同一个 `ParamChainRows[0]`，甲玩家靠装备给、乙玩家靠天赋给 ⇒ 它属**实例**而非 Def。**三条判据**：① `FTcsSourceHandle` 是**非反射纯 C++ struct**（无 `USTRUCT`）⇒ **不能作 `UPROPERTY`** ⇒ 一个 Def 类型上的 `Source` **既进不了细节面板、也不会被资产序列化**（UHT 产物可证：本类型反射属性恰为上述七项）；② 定义侧物化路径**根本不读它**（盖的是 `FTcsSkillInstance.RunSource`）；③ M2 的既有形状即此——`FTcsAttrModDefTableRow`（定义侧行）**没有 `Source` 字段**，它是 `MakeFromDef(Row, Operand, InSource)` 的**形参**。⇒ **`Source` 只住账本侧**，由**施加方**给出；
+- **定义侧 MUST NOT 携带 `Source`**（2026-10-09 用户质疑后订正，**MUST NOT 加回**）：**来源因实例而异**——同一个 `ParamChainRows[0]`，甲玩家靠装备给、乙玩家靠天赋给 ⇒ 它属**实例**而非 Def。**三条判据**：① `FTcsSourceHandle` 是**非反射纯 C++ struct**（无 `USTRUCT`）⇒ **不能作 `UPROPERTY`** ⇒ 一个 Def 类型上的 `Source` **既进不了细节面板、也不会被资产序列化**（UHT 产物可证：本类型反射属性恰为上述七项）；② 定义侧物化路径**根本不读它**（盖的是 `FTcsSkillInstance.CascadeAnchor`）；③ M2 的既有形状即此——`FTcsAttrModDefTableRow`（定义侧行）**没有 `Source` 字段**，它是 `MakeFromDef(Row, Operand, InSource)` 的**形参**。⇒ **`Source` 只住账本侧**，由**施加方**给出；
 - **账本侧** MUST 为**纯 C++ struct `FTcsNumericParamModInstance`（无 `USTRUCT`）**，字段 = `{FGameplayTag ParamKey, ETcsAttributeOp Op, double ResolvedValue, FTcsSourceHandle Source, int32 SortKey, int32 OverridePriority, FGameplayTag CompeteGroup}`——`ResolvedValue` 是**物化边界求值并转规范值后的结果**，故账本条目**不含任何对象引用**；
 - **为什么必须双形状（判据，不是偏好）**：`FTcsLearnedSkillEntry` 住 `TArray`（非 `UPROPERTY` 容器、元素为非反射 struct）⇒ GC 看不见它。若账本侧持 `FTcsParamValue`（可持 `TScriptInterface`），那些对象会被**静默回收**（症状 = 参数链里的源变成空引用，**不崩溃**）。M2 的账本侧注释即此义：「账本只为聚合热路径服务，不进反射面」「Literal 恒为已解析规范值（物化器单点转换保证，账本不做二次猜测——零膨胀）」。
 - `Op` MUST 复用 M2 的 `ETcsAttributeOp`（五带 `TAO_Add/Override/PercentAdd/Mul/FlatAdd`），**MUST NOT 另立同义枚举**——M2 属性聚合、TcsDamage 流程属性与 M5 参数链**三处共用同一套带序**；
@@ -71,7 +75,7 @@
 #### Scenario: 定义侧行不含 Source，来源只由施加方给出
 
 - **WHEN** 检查 `FTcsNumericParamModifier` 的字段表与它的反射属性清单，并检查两个施加路径各自盖的来源
-- **THEN** 该类型**没有** `Source` 字段（反射属性不含它）；定义侧物化的条目标来源 = 本次 `FTcsSkillInstance.RunSource`，外部施加的条目标来源 = `ApplyParamModifiers` 的 `Source` 形参——**两条路径的来源都不来自定义侧行**
+- **THEN** 该类型**没有** `Source` 字段（反射属性不含它）；定义侧物化的条目标来源 = 本次 `FTcsSkillInstance.CascadeAnchor`，外部施加的条目标来源 = `ApplyParamModifiers` 的 `Source` 形参——**两条路径的来源都不来自定义侧行**
 
 #### Scenario: Source 无效时拒绝施加且零写入
 
@@ -140,8 +144,8 @@
 
 `FTcsSkillDefData` MUST 提供 `TArray<FTcsNumericParamModifier> ParamChainRows`，并在**激活时**物化进该条目的 `NumericParamModInstances`：
 
-- 物化时 `Source` MUST = **本施法运行态来源句柄**（`FTcsSkillInstance.RunSource`）⇒ 随施法终结**级联摘除**，生命周期语义与基类 `ModifierRows` 同款；
-- **施法终结 MUST 真的执行该摘除**（判据 = 同一 Entry 反复施法后槽位**不累积**）：物化是"每次激活都追加"，而终结例程 MUST 按 `RunSource` 摘掉本次那一批——漏掉它会让槽位逐次累积，表现为"放两次技能、参数翻倍"（静默错误且远离根因）。**边界（MUST 分清，防张冠李戴）**：本条摘的是**技能自己定义侧物化的行**（落 M5 技能账本）；台账 `CHAIN-7` 的"链挂条目回收"（链步骤经 `Context.RunSource` 挂到 **M2 属性账本**的修正器）归 `PLN-R6` Task 5 Step 3 的三路统一回收例程——两者来源句柄同源但**账本不同**，互不代劳；
+- 物化时 `Source` MUST = **本施法运行态来源句柄**（`FTcsSkillInstance.CascadeAnchor`）⇒ 随施法终结**级联摘除**，生命周期语义与基类 `ModifierRows` 同款；
+- **施法终结 MUST 真的执行该摘除**（判据 = 同一 Entry 反复施法后槽位**不累积**）：物化是"每次激活都追加"，而终结例程 MUST 按 `CascadeAnchor` 摘掉本次那一批——漏掉它会让槽位逐次累积，表现为"放两次技能、参数翻倍"（静默错误且远离根因）。**边界（MUST 分清，防张冠李戴）**：本条摘的是**技能自己定义侧物化的行**（落 M5 技能账本）；台账 `CHAIN-7` 的"链挂条目回收"（链步骤经 `Context.CascadeAnchor` 挂到 **M2 属性账本**的修正器）归 `PLN-R6` Task 5 Step 3 的三路统一回收例程——两者来源句柄同源但**账本不同**，互不代劳；
 - **声明作用域恒为本条目自身**，**MUST NOT** 接受 `FTcsSkillEntrySelector`（该选择器保持专属"外部施加"场景——同一件事不许两个入口）；
 - **只落内联形态**：**MUST NOT** 引用 `UTcsSkillModDef`（实测该类型在全仓 `Source/` **零命中**）——模板引用形态整体归 `R5.5-f`。
 
@@ -153,7 +157,7 @@
 #### Scenario: 施法终结按来源摘除物化行且槽位不累积
 
 - **WHEN** 同一技能定义**连续激活两次**（各自终结），每次读该条目 `NumericParamModInstances` 的条数
-- **THEN** 两次读数**相同**（每次终结都按各自的 `RunSource` 摘净本次物化行）——若终结不摘，第二次读数会翻倍
+- **THEN** 两次读数**相同**（每次终结都按各自的 `CascadeAnchor` 摘净本次物化行）——若终结不摘，第二次读数会翻倍
 
 #### Scenario: 落内联形态、无模板引用
 

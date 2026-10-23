@@ -106,3 +106,23 @@ MUST NOT 用该模块承载"定义缓存 / 解析"职责——那是上层定义
 
 - **WHEN** 检查 `UTcsAssetButlerSettings` 的全部 `UPROPERTY`
 - **THEN** 每项的消费点都在资产发现/加载路径上，无一项被模拟执行路径读取
+
+### Requirement: Def 类按类查询口（`FTcsPrimaryAssetQuery`）
+
+插件 MUST 提供 `FTcsPrimaryAssetQuery::GetAssetsForDefClass`，供**上层定义库**按"Def 类"发现资产——它与 `GetAssetsByClass` 的差别是**先经 `UAssetManager` 解析主资产扫描结果、再按类过滤**，而不是直接按当前类路径查 `IAssetRegistry` 索引。
+
+**为什么必须有它**：类**换过模块**后（本仓实测：`UTcsEffectTriggerDefAsset` 从 `TcsIntegration` 搬入 `TcsEffect`、`UTcsStateDef` 家族拆出 `TcsBuff`），`IAssetRegistry::GetAssetsByClass` 按**当前类路径**查索引会**静默返 0**——不报错、不警告，表现为"内容资产全部消失"。该口修复了两处真实回归（`Slice.Run` 2/4→65/0、`State.Run` 6/9→15/0）。
+
+- 异步就绪门禁 MUST 用 `UAssetManager::HasInitialScanCompleted()`（**MUST NOT** 用 `IAssetRegistry::IsLoadingAssets`）——与主资产扫描的收束点在同一个批次上；
+- 类路径 MUST 由 `Class->GetClassPathName()` 反射派生（零字符串面），与「类型名由反射派生」同一条纪律；
+- 未登记的主资产类型 MUST 可区分于"已登记但零资产"：前者是**退化**（该 Def 类少了 `UE_DEFINE_PRIMARY_ASSET_TYPE`），MUST 留 `Warning` 并进失败清单；后者是**正常的空内容**，MUST NOT 报错。
+
+#### Scenario: 类换模块后仍能发现
+- **WHEN** 某 Def 类从模块 A 搬到模块 B，而 `IAssetRegistry` 索引里该资产仍记着旧类路径
+- **THEN** `GetAssetsForDefClass` 仍发现到该资产（不会静默返 0）；同一场景下 `GetAssetsByClass` 会返 0
+
+#### Scenario: 未登记类型与零资产可区分
+- **WHEN** 某 Def 类没有 `UE_DEFINE_PRIMARY_ASSET_TYPE` 自注册，而另一个已注册的类在当前扫描路径下确实零资产
+- **THEN** 前者留 `Warning` 并进失败清单（退化），后者静默通过（正常空内容）——两者 MUST NOT 落同一条日志
+
+> **收录订正（2026-10-17，`ARCH-03` D-1 / `G-6`）**：本能力 6 条需求 / 12 个场景**原本零提及** `FTcsPrimaryAssetQuery`，而它是本模块**唯一有真实消费者的设施**（4 处调用点：定义库的三条 `Discover*`），且修复了两处真实回归。根因 = **执行序**：Task 8（开规格 + 归档）排在 Task 6（建查询口）之前，Task 5（回写）夹在中间 ⇒ 无一轮覆盖。⇒ 与 `G-4`（`state-def-asset` 载体归属假事实）同类：**最高权威层漏写/写错**。

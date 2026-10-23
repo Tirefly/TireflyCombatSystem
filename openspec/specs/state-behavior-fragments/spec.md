@@ -20,7 +20,9 @@
   `virtual void OnStateEvent(const FGameplayTag& EventTag, const FInstancedStruct& Payload, const FTcsBuffBehaviorContext& Ctx) const;`
 - **中性默认实现 + `meta = (Hidden)`；MUST NOT 用 `= 0` 或 `PURE_VIRTUAL`**（全仓 USTRUCT 抽象手法；`PURE_VIRTUAL` 在 Development / Shipping 行为不同）；
 - **回调 MUST 为 `const`**：片段是**配置**（住 Def 资产，解析出来是 `const FTcsBuffDef*`），MUST NOT 借回调改自身状态——"同一个 Def 被多个实例共享"时可变片段会让实例串味；要产生副作用一律经 `Ctx` 里的门面；
-- `FTcsBuffBehaviorContext`（**纯 C++ 值语义 struct，不反射**）：`UTcsStateSubsystem* Subsystem` / `FTcsBuffInstanceHandle Handle` / `FTcsCombatEntityHandle Entity` / `FGameplayTag DefTag` / `int32 Stacks` / `int32 Level`——**MUST NOT** 内嵌实例指针或引用（实例会因桶内扩容搬移，跨回调持指针即悬空）；
+- `FTcsBuffBehaviorContext`（**纯 C++ 值语义 struct，不反射**）：`UTcsBuffSubsystem* Subsystem` / `FTcsBuffInstanceHandle Handle` / `FTcsCombatEntityHandle Entity` / `FGameplayTag DefTag` / `int32 Stacks` / `int32 Level`——**MUST NOT** 内嵌实例指针或引用（实例会因桶内扩容搬移，跨回调持指针即悬空）；
+
+> **上下文门面订正（2026-10-17，`ARCH-05` D-5 / `ARCH-07` D-10）**：本行原写 `UTcsStateSubsystem* Subsystem`——**写错了模块**。实际字段是 `UTcsBuffSubsystem*`（`TcsBuffBehaviorFragment.h:29`）。根因同 `G-12`：`PLN-REFACTOR-1` Task 4 拆出 `TcsBuff` 后，行为 Fragment 整族（含它与它的上下文）随 Buff 专属语义搬走，而规格停在 `TcsState`。⇒ 按规格写代码会**编译不过**（`UTcsStateSubsystem` 确实存在，但不持该字段的类型对应的门面能力——这是**更隐蔽**的一类：名字存在、类型也对、只是**用错了门面**）。
 - `Interests` 里的词 MUST 是**事件 Tag**（落既有 `TcsEvent` 根，如 `TcsEvent.State.Applied` / `TcsEvent.Damage.Pre`）；**MUST NOT** 为行为兴趣另开词根（`gameplay-tag-governance` 的「一角色一根」）；
 - **框架 MUST NOT 提供任何具体行为 Fragment**（零内置策略）——宿主样本住宿主仓（与决策 Fragment 同口径）。
 

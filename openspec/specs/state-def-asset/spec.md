@@ -15,11 +15,15 @@
 - `FTcsStateDefBase`（抽象：**中性默认实现 + `meta = (Hidden)`**，MUST NOT 用 `=0` 或 `PURE_VIRTUAL`）：
   `FGameplayTagContainer CategoryTags` / `int32 LevelBase = 1` / `int32 MaxLevel = 0` / `TArray<FTcsNumericParamRow> Params` / `TArray<FTcsDescriptionEntry> Descriptions`（载体见「描述配置载体」需求）/ `TArray<TSoftObjectPtr<UTcsAttrModDef>> ModifierRows`；
 - `FTcsBuffDef : FTcsStateDefBase`：时值 `EDurationPolicy DurationPolicy = EDP_Finite` / `FTcsParamValue DurationTime` / `double Period = 0.0` / `ETcsPeriodRefresh PeriodRefresh = EPR_Keep`；
-  堆叠 `FTcsBuffStackPolicy StackPolicy`；行为 `TArray<FTcsEffectTriggerDef> Triggers`（内联触发行位）+ `TArray<FInstancedStruct> Fragments`（行为 Fragment 载荷，选择器经手写 `meta = (BaseStruct = "/Script/TcsState.TcsStateBehaviorFragment")` 收窄——形状与语义见 `state-behavior-fragments` 能力）；
-  关系 `TArray<FGameplayTag> RequiredTags` / `TArray<FGameplayTag> ForbiddenTags` / `TArray<FGameplayTag> TagsToBlock` / `TArray<FGameplayTag> TagsToCancel` / `int32 Priority = 0`——**四数组为 2026-10-16 `R5.5-e1` 落地**（检查器见 `state-relation-check` 能力）。
+  堆叠 `FStateStackPolicy StackPolicy`；行为 `TArray<FTcsEffectTriggerDef> Triggers`（内联触发行位）+ `TArray<FInstancedStruct> Fragments`（行为 Fragment 载荷，选择器经手写 `meta = (BaseStruct = "/Script/TcsBuff.TcsBuffBehaviorFragment")` 收窄——形状与语义见 `state-behavior-fragments` 能力）；
+  关系 `TArray<FGameplayTag> RequiredTags` / `TArray<FGameplayTag> ForbiddenTags` / `TArray<FGameplayTag> TagsToBlock` / `TArray<FGameplayTag> TagsToCancel` / `int32 Priority = 0`——**四数组为 2026-10-16 `R5.5-e1` 落地**（检查器见 `state-relation-check` 能力）。**⚠ 这五个字段实际住在基类 `FTcsStateDefBase`**（`TcsStateDefBase.h`，与 `CategoryTags` / `LevelBase` / `MaxLevel` / `Params` / `Descriptions` / `ModifierRows` 同处），不是 `FTcsBuffDef`——见下方订正。
   **改名映射（MUST 逐条照做，防语义反转）**：`Blocks` → **`ForbiddenTags`**（受动·前置：B 在时**我**不可施加）、`Requires` → **`RequiredTags`**（受动·前置：必须已存在）、`Cancels` → **`TagsToCancel`**（施动·终止）；**新增 `TagsToBlock`**（施动·预防：我在跑期间目标不能开始）。
   **⚠ `Blocks` MUST 映射到 `ForbiddenTags`、MUST NOT 映射到 `TagsToBlock`**——两格词形极近而**方向相反**（前者约束**自己**、后者约束**目标**），且该字段族当时零消费者 ⇒ 错映射**编译器不报错**，是静默的语义反转。**受动**（我自己的门禁）与**施动**（我对外的影响）两个方向 MUST 分开。
   **`Priority` 不属关系字段族**（它归槽位竞争表 `R5.5-e4`）：本变更 MUST NOT 触碰它，其物理去留亦然。
+
+  > **字段归属订正（2026-10-17，`ARCH-05` D-7）**：关系四字段 + `Priority` **已上移基类 `FTcsStateDefBase`**，而本条把它们平铺写在 `FTcsBuffDef` 之下 ⇒ 读者会以为只有 Buff 域有关系语义。实际形状同上一条判据：`FTcsSkillDefData : FTcsStateDefBase` **也要白拿关系四字段**（技能侧的关系门禁 `TcsSkillOps_Relation.cpp` 就在读它们）。⇒ 本行应理解为「`FTcsBuffDef` **继承**到这些字段」，MUST NOT 读成「这些字段声明在 `FTcsBuffDef` 里」。
+
+  > **`BaseStruct` 订正（2026-10-17，`ARCH-05` D-6）**：本行原写 `/Script/TcsState.TcsStateBehaviorFragment`——该类型**在全仓不存在**（`grep` 工作树与 `git log --all -S` 双零）。实际类型是 **`FTcsBuffBehaviorFragment`**（`USTRUCT`，`F` 前缀），住 `TcsBuff`（`State/TcsBuffBehaviorFragment.h:55`，`TCSBUFF_API`），故路径为 `/Script/TcsBuff.TcsBuffBehaviorFragment`（`TcsBuffDef.h:90` 实测）。根因同 `ARCH-05` 的 `G-12`（代码搬走、引用滞留）：Task 4 拆出 `TcsBuff` 时该 Fragment 基类随 Buff 专属语义一起搬走，而本条停在旧模块名上。⚠ **本条尤其危险**：`BaseStruct` 是**字符串元数据**，而 `openspec validate` **不校验字符串内容**（只校验 Requirement / Scenario 结构）⇒ 指向不存在类型的 metadata **永远不会被工具发现**，编辑器里表现为 picker 列不出任何类型。
   **数组去留不属本变更**：`DEC-2026-10-13-relation-row-shape` §4.4 已裁「Def 上三数组的去留归 `R5.5-e4`」⇒ 本变更**只改名 + 新增一格**，MUST NOT 把它们收拢成行结构体（那等于提前替 `e4` 决定去留）。
 
 **`CategoryTags` 的语义与约束（2026-10-15 由 `StatusTag` 合并而来，MUST 读）**：它是**定义级类别容器**，声明"**我是什么**"（语义分类），**不是**"我要匹配谁"（那是消费者侧的查询）。
@@ -68,8 +72,10 @@
 
 ### Requirement: 描述配置载体（本轮最小集）
 
-`TcsBuff` MUST 提供描述配置的两个**纯数据**载体（**住 `TcsBuff`**：`DEC-02-fold-display` 的 v3 命名批表明写"描述视图槽位 / 配置条目 → TcsState（Def 形状所在）"——该句是**当时**的模块名，自 Task 4 起 Def 形状住 `TcsBuff`；
+`TcsState` MUST 提供描述配置的两个**纯数据**载体（**住 `TcsState`**：`Source/TcsState/Public/Def/TcsDescriptionEntry.h`，导出宏 `TCSSTATE_API`；`DEC-02-fold-display` 的 v3 命名批表明写"描述视图槽位 / 配置条目 → TcsState（Def 形状所在）"——**该句原文就是对的**，`PLN-REFACTOR-1` Task 4 只把 **Buff 专属字段**搬去 `TcsBuff`，**共用 Def 基类留在 `TcsState`**；
 TcsNotation 只拥有**词汇约定**与视图机制——"描述配置空间（字段归各 Def；词汇约定归本模块）"）：
+
+> **载体订正（2026-10-17，`ARCH-02` D-1 / `ARCH-00` §3.1 同类）**：本条原写「`TcsBuff` MUST 提供…（**住 `TcsBuff`**）…自 Task 4 起 Def 形状住 `TcsBuff`」——**这个外推是错的**。`Descriptions` 字段挂在 `FTcsStateDefBase`（`TcsStateDefBase.h:177`，`TCSSTATE_API`），而 `FTcsSkillDefData : FTcsStateDefBase` 也要白拿描述；若载体真住 `TcsBuff`，则 `TcsSkill` 必须依赖 `TcsBuff`——但 `TcsSkill.Build.cs` **明确只依赖 Core / Notation / Attribute / Effect / State**，不含 `TcsBuff`。⇒ 原说法**在物理上不可实现**。根因是把「Buff 专属 Def」与「共用 Def 基类」混为一谈，于是把「Def 形状住 `TcsBuff`」错误外推到基类载体上。
 
 - `FTcsDescriptionEntry{ FName DescriptionId, FName TextKey, TArray<FTcsDescriptionViewSlot> Views }`——`DescriptionId` = 多描述入口的展示侧命名标签（`"Tip"` / `"Codex"` / `"LevelUpPreview"`…）；
   `TextKey` = StringTable 键（`FText::FromStringTable` 的引擎约束是 `FName`）；三个 `FName` 是 2026-09-22 tag 化改造的**明确例外**（展示侧标签与 StringTable 键，不参与任何内容引用与解析）；

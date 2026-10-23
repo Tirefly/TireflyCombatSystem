@@ -2,7 +2,7 @@
 
 ## Purpose
 
-定义 **Buff 域**的**重复施加语义**：同一 buff 再次施加时会发生什么——按什么分组、层数上限多少、满仓怎么处置、数值随不随层数走、刷新对剩余时长做什么。承载三个形状：`FTcsBuffStackPolicy`（五轴策略，`FTcsBuffDef` 的字段）、组键解析与共存决策树（`EBAR_Applied / Refreshed / Stacked / Rejected` 四档回执全可达）、以及 `FTcsBuffStackDecisionFragment`（宿主自定义分组/决策的逃逸位）。**本能力自 `PLN-REFACTOR-1` Task 4 起整域住 `TcsBuff` 模块**。
+定义 **Buff 域**的**重复施加语义**：同一 buff 再次施加时会发生什么——按什么分组、层数上限多少、满仓怎么处置、数值随不随层数走、刷新对剩余时长做什么。承载三个形状：`FStateStackPolicy`（五轴策略，`FTcsBuffDef` 的字段）、组键解析与共存决策树（`EBAR_Applied / Refreshed / Stacked / Rejected` 四档回执全可达）、以及 `FTcsBuffStackDecisionFragment`（宿主自定义分组/决策的逃逸位）。**本能力自 `PLN-REFACTOR-1` Task 4 起整域住 `TcsBuff` 模块**。
 
 **边界**：本能力只覆盖"重复施加之下的确定性决策与更新流水"。实例在册与生命周期广播（`state-instance-lifecycle`）、参数快照（`state-param-snapshot`）、修正器物化与级联摘除（`state-modifier-materialization`）各自另有能力——本能力只负责**决定**该新建/刷新/叠层/替换/拒绝，并把结果交给那些既有流水；它不新增事件词（`StackChanged` 是既有声明，本能力让它**首次有产生者**）。
 
@@ -12,7 +12,9 @@
 
 ### Requirement: 五轴堆叠政策的形状与默认
 
-`TcsBuff` MUST 提供 `FTcsBuffStackPolicy`（`USTRUCT(BlueprintType)`）——五轴 + 一个附带字段：
+`TcsBuff` MUST 提供 `FStateStackPolicy`（`USTRUCT(BlueprintType)`）——五轴 + 一个附带字段：
+
+> **符号订正（2026-10-17，`ARCH-07` D-3 / `G-18`）**：本条及全篇原写 `FTcsBuffStackPolicy`，该名**在全仓不存在**。实际类型名是 **`FStateStackPolicy`**（`TcsBuffStackPolicy.h:83`，`TCSBUFF_API`；`FTcsBuffDef::StackPolicy` 的字段类型即它）。**同类里两个相反方向并存**：三个枚举**代码加了 `Buff` 前缀**（`EBuffApplyResult` / `EBuffDurationPolicy` / `ETcsBuffPeriodRefresh`）而规格停在无前缀旧名；堆叠策略**代码保持 `State` 无前缀**而规格加了 `Buff` ⇒ 一次拆分后的改名**没有单一规则**，每个类型各自落在三种组合之一（`ARCH-07` §5 D-4）。本条按代码为准订正。
 
 - `EGroupByPolicy GroupBy`：`EGB_None = 0`（默认；同实体 + 同 `DefTag` 共处一组）/ `EGB_PerSource = 1`（组键附来源句柄）/ `EGB_PerInstigator = 2`（附发起者实体）/ `EGB_Custom = 1 << 4`（逃逸位：分组判定交给决策 Fragment）。**Custom MUST 走高位置位**，MUST NOT 占用低位的可枚举取值；**值 3 曾预留给"按分组词"档，已裁撤**（理由见「组键解析」需求末段）；
 - `int32 MaxStacks`：组内最大层数，**`<= 0` = 无限**（默认 `0`）；
@@ -27,7 +29,7 @@
 
 #### Scenario: 全默认策略的语义可枚举
 
-- **WHEN** 检查默认构造的 `FTcsBuffStackPolicy`
+- **WHEN** 检查默认构造的 `FStateStackPolicy`
 - **THEN** `GroupBy == None` / `MaxStacks == 0`（无限）/ `Overflow == RejectNew` / `ValueStack == KeepMax` / `StackDurationPolicy == None`，且 `CustomDecision` 为空
 
 #### Scenario: Custom 位不占用低位
@@ -70,7 +72,7 @@
 
 #### Scenario: 按分组词档已裁撤
 
-- **WHEN** 检查 `EGroupByPolicy` 与 `FTcsBuffStackPolicy`
+- **WHEN** 检查 `EGroupByPolicy` 与 `FStateStackPolicy`
 - **THEN** 既无"按分组词"档、也无分组词字段（该档与 `None` 同义；其唯一有意义的读法需"组内多条实例"，已登记台账）
 
 ### Requirement: 共存决策与四档回执
@@ -79,11 +81,11 @@
 
 | 组内 | 来源 | 层数 | 回执 | 事件 |
 |---|---|---|---|---|
-| 无实例 | — | — | `EAR_Applied`（新建，`Stacks = 1`） | `Applied` |
-| 有实例 | **同来源** | 未满仓 | `EAR_Refreshed`（**层数不变**，按刷新语义更新） | `Refreshed` |
-| 有实例 | **异来源** | 未满仓 | `EAR_Stacked`（层数 +1） | `StackChanged` → `Refreshed` |
-| 有实例 | 任意 | 已满仓 + `RejectNew` | `EAR_Rejected`（实例不动，**无广播**） | — |
-| 有实例 | 任意 | 已满仓 + `ReplaceExisting` | `EAR_Applied`（移除旧 + 建新，层数回到 1） | `Removed`（旧）→ `Applied`（新） |
+| 无实例 | — | — | `EBAR_Applied`（新建，`Stacks = 1`） | `Applied` |
+| 有实例 | **同来源** | 未满仓 | `EBAR_Refreshed`（**层数不变**，按刷新语义更新） | `Refreshed` |
+| 有实例 | **异来源** | 未满仓 | `EBAR_Stacked`（层数 +1） | `StackChanged` → `Refreshed` |
+| 有实例 | 任意 | 已满仓 + `RejectNew` | `EBAR_Rejected`（实例不动，**无广播**） | — |
+| 有实例 | 任意 | 已满仓 + `ReplaceExisting` | `EBAR_Applied`（移除旧 + 建新，层数回到 1） | `Removed`（旧）→ `Applied`（新） |
 
 **"层"的判据 = 施加方换没换**：同一来源重复施加是"续杯"（层数不变），**声明了另一个来源**的施加才叠一层——这是唯一让"未满仓则层数 +1"与"同组同来源的重新施加 = 刷新"两条口径同时成立的读法，也使四档回执全部可达（否则 `Refreshed` 或 `Stacked` 必有一档成为死档）。
 
@@ -94,17 +96,17 @@
 #### Scenario: 同来源重复施加不叠层
 
 - **WHEN** 以同一来源句柄连续施加两次（`MaxStacks <= 0`）
-- **THEN** 第二次返回 `EAR_Refreshed`、实例层数仍为 1、`Applied` 只到达一笔
+- **THEN** 第二次返回 `EBAR_Refreshed`、实例层数仍为 1、`Applied` 只到达一笔
 
 #### Scenario: 异来源加入叠一层
 
 - **WHEN** 以来源 A 施加后再以来源 B 施加（`MaxStacks <= 0`）
-- **THEN** 第二次返回 `EAR_Stacked`、实例层数为 2，且 `StackChanged` 与 `Refreshed` 各到达一笔
+- **THEN** 第二次返回 `EBAR_Stacked`、实例层数为 2，且 `StackChanged` 与 `Refreshed` 各到达一笔
 
 #### Scenario: 满仓拒绝不改动实例
 
 - **WHEN** `MaxStacks = 1` + `RejectNew` 时第二次施加
-- **THEN** 返回 `EAR_Rejected`、实例的层数与剩余时长均不变、无任何状态事件广播、无红字
+- **THEN** 返回 `EBAR_Rejected`、实例的层数与剩余时长均不变、无任何状态事件广播、无红字
 
 #### Scenario: 满仓替换换句柄
 

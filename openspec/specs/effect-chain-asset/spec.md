@@ -31,6 +31,22 @@
 - **WHEN** 资产登记后按 `ChainId` 查询链定义
 - **THEN** 取回的 `FTcsEffectChain` 与资产内 `Chain` 字段逐字段一致
 
+### Requirement: 链资产的作者期校验
+
+`UTcsEffectChainDef` MUST 在 `#if WITH_EDITOR` 下提供 `IsDataValid` 派生段，判两条**身份级**规则，且**无错时把基类的 `NotValidated` 提升为 `Valid`**：
+
+- `ChainId` 无效 → `Invalid`（空身份让 `[PrimaryAssetType, ChainId]` 失去意义，且登记必被拒）；
+- `Chain.ChainId` 有效且与 `ChainId` 不一致 → `Invalid`（双真相，读者无从判断以哪个为准）。
+
+**「提升为 `Valid`」不是可选礼节**：`UObject::IsDataValid` 基类默认返回 `NotValidated`，不提升会让**已校验通过**的资产在编辑器里显示为「未验证」——那正是「校验面存在但不生效」的静默形态。
+
+#### Scenario: 干净资产显示为已校验通过
+- **WHEN** 对一份 `ChainId` 有效且与 `Chain.ChainId` 一致的链资产执行 `IsDataValid`
+- **THEN** 返回 `Valid`（**MUST NOT** 是基类默认的 `NotValidated`）
+
+> **补写声明（2026-10-17，`ARCH-06` D-10）**：本能力原本**不含任何校验需求**，而代码里 `UTcsEffectChainDef::IsDataValid` **有真实规则**（两条身份级判据）——那是「代码做了、规格没写」（`INDEX` §1.3 三类差异之一）。
+> **同时登记一个已知缺口（代码债，不在本会话修）**：该实现**缺「提升为 `Valid`」段**（`TcsEffectChainDef.cpp` 的 `IsDataValid` 末尾没有那个 `if (Result == NotValidated) Result = Valid;`）。**同族的其余六个类都有**——`UTcsAttributeDef` / `UTcsAttrModDef` / `UTcsBuffDefAsset` / `UTcsEffectTriggerDefAsset` / `UTcsSkillDef` / `UTcsStateDef` 逐类实测确认（本轮复核）。⇒ 本条要求**代码尚未满足**，它同时是 `ARCH-06` D-10 与台账 `TOOLS-2` 的落点。规格先写对，代码缺口留给代码会话。
+
 #### Scenario: 搬迁后已落资产仍可打开（2026-10-15 新增）
 
 - **WHEN** 搬迁后打开任一原引用 `/Script/TcsIntegration.TcsEffectChainDef` 的已落链资产
