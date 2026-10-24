@@ -137,7 +137,7 @@
 
 `TcsBuff` MUST 提供 `UTcsBuffSubsystem : UWorldSubsystem`，**仅在 Game / PIE / GamePreview 世界实例化**（同族先例）；`Deinitialize` MUST 全量清理（登记表复位 + 全部桶清空 + 待撤销的到期条目撤销）——MUST NOT 留跨世界残影。
 
-**★ 门面拆分（PLN-REFACTOR-1 Task 4，MUST 读）**：施加 / 查询 / 移除 / 等级读口 / 事件与时钟读口**全部住 `TcsBuff`**；而 `TcsState` **另有一个极薄的共享门面** `UTcsStateSubsystem`，它**只持快照参数表反射壳**（`GetParamTableReader()`，两域代码级唯一共用设施）——技能侧求值引用类时长与参数链行时从它取壳。**MUST NOT 把两份门面读成读口重复**：拆分判据 = **该设施是否被两个域在代码级使用**。
+**★ 门面拆分（PLN-REFACTOR-1 Task 4，MUST 读）**：施加 / 查询 / 移除 / 等级读口 / 事件与时钟读口**全部住 `TcsBuff`**；而 `TcsState` **另有一个极薄的共享门面** `UTcsStateSubsystem`，它持**两件**两域共用的设施：(a) 快照参数表反射壳（`GetParamTableReader()`——技能侧求值引用类时长与参数链行时从它取壳）；(b) **跨域在飞运行态查询契约**（`GetLiveQuery()` / `SetLiveQuery()`——状态域向下注册实现，技能侧经它读在跑状态，见 `entity-runtime-mechanism` 的「跨域在飞运行态查询契约」需求）。**2026-10-24 订正**：原文写「**只**持快照参数表反射壳……两域代码级**唯一**共用设施」——该断言在 `f626582`（`R5.5-e1`）之后就**已假**，因为本门面同时是 `ITcsStateLiveQuery` 的注册与取用点。**MUST NOT 把两份门面读成读口重复**：拆分判据 = **该设施是否被两个域在代码级使用**。
 
 操作面：
 
@@ -200,7 +200,7 @@
 
 `UTcsBuffSubsystem` MUST 提供**定义登记口**：`RegisterBuffDef(FGameplayTag DefTag, const FTcsBuffDef& Def)` / `UnregisterBuffDef(FGameplayTag)` / `GetRegisteredBuffDef(FGameplayTag) -> const FTcsBuffDef*`。
 
-> **符号订正（2026-10-17，`ARCH-05` D-4 / `ARCH-07` D-5 / `ARCH-00` §3.1 X-2）**：本条原写 `UTcsStateSubsystem::RegisterStateDef` 一族。三个符号**在全仓从未存在**——`PLN-REFACTOR-1` Task 4 拆出 `TcsBuff` 后，登记口随 Buff 专属语义搬去 `TcsBuff`，而本条停在了拆分前的名字上。**实际实现** = `UTcsBuffSubsystem::RegisterBuffDef` / `UnregisterBuffDef` / `GetRegisteredBuffDef`（`TcsBuffSubsystem.h:141/152/163`）。`UTcsStateSubsystem` **仍然存在**，但只持快照参数表反射壳（`GetParamTableReader()`，见本章「★ 门面拆分」那条）——**它不是登记口的宿主**。三篇模块档案各自独立记过同一处（`G-21` 型），本条按 `G-12`（代码搬走、引用滞留）订正。
+> **符号订正（2026-10-17，`ARCH-05` D-4 / `ARCH-07` D-5 / `ARCH-00` §3.1 X-2）**：本条原写 `UTcsStateSubsystem::RegisterStateDef` 一族。三个符号**在全仓从未存在**——`PLN-REFACTOR-1` Task 4 拆出 `TcsBuff` 后，登记口随 Buff 专属语义搬去 `TcsBuff`，而本条停在了拆分前的名字上。**实际实现** = `UTcsBuffSubsystem::RegisterBuffDef` / `UnregisterBuffDef` / `GetRegisteredBuffDef`（`TcsBuffSubsystem.h:141/152/163`）。`UTcsStateSubsystem` **仍然存在**，持快照参数表反射壳与跨域在飞查询契约两件共用设施（`GetParamTableReader()` / `GetLiveQuery()`，见本章「★ 门面拆分」那条）——**但它不是登记口的宿主**。三篇模块档案各自独立记过同一处（`G-21` 型），本条按 `G-12`（代码搬走、引用滞留）订正。
 
 **为什么是登记口而不是反向依赖**：定义库（`UTcsDefinitionSubsystem`）住 `TcsIntegration`，而 `TcsIntegration` **依赖** `TcsBuff`——若状态门面去 include `TcsIntegration` 反查定义库即成环。故依赖方向 MUST 保持单向：**定义库把定义写进门的登记口**（同款先例 = 定义库把触发行写进 `UTcsEffectSubsystem::RegisterTriggerRow`）。
 
