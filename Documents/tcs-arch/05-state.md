@@ -44,26 +44,43 @@
 | **门面** | `TcsStateSubsystem.h/.cpp` | 120 + 55 | `UTcsStateSubsystem : UWorldSubsystem`——**只有 3 个方法**，见 §2.1 |
 | 契约键 | `Param/TcsStateParamKeys.h/.cpp` | 42 + 10 | `Tag_TcsStateParam_Level` = `TcsStateParam.Level`（**插件原生声明**） |
 
-### 1.2 本模块最反常的一点：**10 份「state」规格里，只有 3 份在讲本模块的代码**
+### 1.2 规格的模块归属：**审核时 10 份里只有 3 份在讲本模块，2026-10-24 已重切**
 
-`openspec/specs/` 有 10 个名字带 `state` 的能力。逐份核对它们的主语：
+> **★ 本节已按 2026-10-24 的「按模块重切」就地改述（提交 `c4511e9`）**。原文记录的是**审核当日（2026-10-17）的现场**，保留在下表「审核时」一列以便追溯；「今天」一列是重切后的实测。
 
-| 能力 | 行 / 需求 / 场景 | 主语实际是 | 是否描述本模块代码 |
+审核时 `openspec/specs/` 有 10 个名字带 `state` 的能力，逐份核对主语后发现：**7 份整篇在讲 `TcsBuff`、2 份半讲共用件、1 份讲宿主装置**——**没有一个能力回答「`TcsState` 这个模块今天还剩什么」**。根因是 `PLN-REFACTOR-1` Task 4 拆模块时**只改了代码与注释、没有重切规格**：规格的**文件名**沿用 `state-*`，而主语已经搬走。
+
+重切按**需求级主语**逐条核（不是按目录名），把 10 份分成四类，分别处理：
+
+| 类 | 审核时的能力 | 处理 | 今天的能力 |
 |---|---|---|---|
-| `entity-runtime-mechanism` | 155 / 5 / 17 | 桶 / 注册表 / 守卫 / 决策接口 | ✅ **是**（但把「载荷住 `TcsBuff`」写成注记） |
-| `state-relation-check` | 117 / 5 / 12 | `FTcsRelationRow` / `FTcsStateRelation` | ✅ **是** |
-| `state-param-snapshot` | 201 / 6 / 25 | 快照类型 + **等级读口 + 四个等级源** | 🟡 **一半**（快照是、等级源全在 `TcsBuff`） |
-| `state-def-asset` | 186 / 6 / 19 | `FTcsStateDefBase` + **`FTcsBuffDef` + `UTcsBuffDefAsset`** | 🟡 **一半**（基类与本模块 191 行，派生类全在 `TcsBuff`） |
-| `state-instance-lifecycle` | 332 / 7 / 41 | **`FTcsBuffInstance` / `FTcsBuffRegistry` / `UTcsBuffSubsystem`** | ❌ **否**——整篇是 `TcsBuff` 的门面与生命周期 |
-| `state-stacking-policies` | 221 / 6 / 26 | `FTcsBuffStackPolicy` | ❌ **否** |
-| `state-modifier-materialization` | 160 / 7 / 18 | `FTcsBuffModifierMaterializer` | ❌ **否** |
-| `state-behavior-fragments` | 108 / 4 / 12 | `FTcsBuffBehaviorFragment` | ❌ **否** |
-| `state-layer-e2e-validation` | 112 / 4 / 13 | 宿主装置 `Tcs.Test.State.Run` | ❌ **否**（装置住 `TcsDev`） |
-| `state-step-library` | 36 / 1 / 4 | `FTcsStepApplyState` | ❌ **否** |
+| **① 纯 Buff 篇**（25/25 需求全是 `TcsBuff`） | `state-instance-lifecycle` / `state-stacking-policies` / `state-modifier-materialization` / `state-behavior-fragments` / `state-step-library` | **改名**（正文一字未动） | `buff-*` 同名五份 |
+| **② 宿主装置篇**（4/4 宿主装置） | `state-layer-e2e-validation` | **改名** | `buff-layer-e2e-validation` |
+| **③ 混合篇**（各 4 Buff + 2 共享层） | `state-def-asset` / `state-param-snapshot` | **拆分** | 各拆成 `state-*`（共享层）+ `buff-*`（Buff 域） |
+| **④ 真共享层篇** | `state-relation-check` / `entity-runtime-mechanism` | **不动**，补门面与基底契约 | 同名，各增需求 |
 
-**⇒ 结论：`openspec` 里没有一个能力回答「`TcsState` 这个模块今天还剩什么」。** 七份整篇在讲 `TcsBuff`，两份半讲共用件，剩下半份讲宿主装置。这是 `PLN-REFACTOR-1` Task 4 拆模块时**只改了代码与注释、没有重切规格**的直接后果——规格的**文件名**沿用 `state-*`，而主语已经搬走。
+**⇒ 一个关键发现（③ 只拆不改名）**：拆完 Buff 部分后，`state-def-asset` 只剩 `FTcsStateDefBase` / `FTcsDescriptionEntry` / `UTcsStateDef`，`state-param-snapshot` 只剩 `FTcsParamSnapshot` / `UTcsStateParamTableReader`——**全是 `TcsState` 的东西**。⇒ 这两份是「**名字对、内容混了一半**」，不是「名字谎报主语」。**① 只能改名（名字错、内容也对），③ 只能拆（名字对、内容混）**，两者对症不同。
 
-> **这条不是「文档过期」，而是「权威层没有覆盖对象」**。按 `openspec` 是最高权威层的既定分工（`ARCH-INDEX` §2），今天读者若问「共享层的契约是什么」，规格里**无处可查**——只能读 `TcsStateSubsystem.h` 的头注释。**该缺口登记为 §5 D-1，它决定了本模块后面所有债的读法。**
+重切后的实测（2026-10-24）：
+
+| 能力 | 行 / 需求 / 场景 | 主语 | 是否描述本模块代码 |
+|---|---|---|---|
+| `entity-runtime-mechanism` | 261 / **8** / 28 | 桶 / 注册表 / 守卫 / 决策接口 **+ 共享层门面与其存在判据 + 运行态基底** | ✅ **是**（基底与门面契约已并入） |
+| `state-relation-check` | 118 / 5 / 12 | `FTcsRelationRow` / `FTcsStateRelation` | ✅ **是** |
+| `state-def-asset` | 89 / **3** / 8 | `FTcsStateDefBase` / `FTcsDescriptionEntry` / `UTcsStateDef` | ✅ **是**（Buff 半已拆出） |
+| `state-param-snapshot` | 58 / **2** / 6 | `FTcsParamSnapshot` / `UTcsStateParamTableReader` | ✅ **是**（Buff 半已拆出） |
+| `buff-def-asset` | 154 / 5 / 16 | `FTcsBuffDef` / `UTcsBuffDefAsset` / 表行 / 作者期校验 | ❌ 否（`TcsBuff`） |
+| `buff-param-snapshot` | 172 / 5 / 21 | 快照构建规则 / 等级源 / 时值周期 / 时长同步 | ❌ 否（`TcsBuff`） |
+| `buff-instance-lifecycle` | 350 / 7 / 42 | `FTcsBuffInstance` / `UTcsBuffSubsystem` | ❌ 否（`TcsBuff`） |
+| `buff-stacking-policies` | 225 / 6 / 26 | `FTcsBuffStackPolicy` | ❌ 否（`TcsBuff`） |
+| `buff-modifier-materialization` | 161 / 7 / 18 | `FTcsBuffModifierMaterializer` | ❌ 否（`TcsBuff`） |
+| `buff-behavior-fragments` | 111 / 4 / 12 | `FTcsBuffBehaviorFragment` | ❌ 否（`TcsBuff`） |
+| `buff-step-library` | 37 / 1 / 4 | `FTcsStepApplyState` | ❌ 否（`TcsBuff`） |
+| `buff-layer-e2e-validation` | 117 / 4 / 13 | 宿主装置 `Tcs.Test.State.Run`（住 `TcsDev`） | ❌ 否（装置住宿主） |
+
+**⇒ 结论（重切后）**：回答「`TcsState` 今天剩什么」的能力有 **4 份 / 18 需求 / 54 场景**——`entity-runtime-mechanism`(8) + `state-relation-check`(5) + `state-def-asset`(3) + `state-param-snapshot`(2)。而挂 `state-*` 名字的**全部指向本模块**，不再有一份谎报主语。
+
+> **原文的判词保留（仅作历史）**：「这条不是文档过期，而是权威层没有覆盖对象……只能读 `TcsStateSubsystem.h` 的头注释」。⇒ **该判断在 2026-10-24 之后已不成立**：门面三方法与其存在判据、运行态基底 6 字段判据都已进 `entity-runtime-mechanism`。**§5 D-1 已闭合**。
 
 ---
 ## §2 已落地
@@ -336,9 +353,9 @@ TcsBuff  ──► SetLiveQuery(this) ──────────────
 
 ## §5 技术债（期望 vs 实际，逐条带证据）
 
-> **本模块的债有极强的同质性**：几乎全部来自 **`PLN-REFACTOR-1` Task 4 把 `TcsBuff` 拆出去时，代码搬了、规格与注释没搬**。所以下面 9 条里 5 条（D-1 / D-4 / D-5 / D-6 / D-8）本质是**同一个根因的 5 个面**。这与 `ARCH-04` 的「规格更严、代码更松」方向相反——**这里是「代码搬走了，指向它的东西全留在原地」**。
+> **本模块的债有极强的同质性**：几乎全部来自 **`PLN-REFACTOR-1` Task 4 把 `TcsBuff` 拆出去时，代码搬了、规格与注释没搬**。所以下面 9 条里 5 条（D-1 / D-4 / D-5 / D-6 / D-8）本质是**同一个根因的 5 个面**——**其中 D-1 已于 2026-10-24 闭合（提交 `c4511e9`），其余 4 条仍待裁**。这与 `ARCH-04` 的「规格更严、代码更松」方向相反——**这里是「代码搬走了，指向它的东西全留在原地」**。
 
-### D-1 ★★★ `openspec` 里**没有**描述 `TcsState` 本体的能力——7 份「state」规格整篇在讲 `TcsBuff`
+### D-1 ★★★ ✅ **已闭合（2026-10-24，提交 `c4511e9`）** `openspec` 里**没有**描述 `TcsState` 本体的能力——7 份「state」规格整篇在讲 `TcsBuff`
 
 | 项 | 内容 |
 |---|---|
@@ -348,7 +365,9 @@ TcsBuff  ──► SetLiveQuery(this) ──────────────
 | **根因** | `PLN-REFACTOR-1` Task 4 只改了**代码与注释**，**没有重切规格**——规格的**文件名**沿用 `state-*`，而主语已经搬进 `TcsBuff` |
 | **影响面** | 这是**结构性的**：它决定了本模块后面所有债的读法。今天想知道「共享层的契约」只能读 `TcsStateSubsystem.h` 的头注释（而头注释**不是**权威层） |
 | **是否已登记** | ❌ 否（`ARCH-INDEX` 的 G-11 是「台账与档案不同步」，本条是「权威层缺对象」，不同类） |
-| **建议处置** | 新建一个 `tcs-shared-layer` 能力（或把 7 份里的共用部分抽出来），主语明确是 `TcsState`。**这不是本档案能做的决定**，需要用户裁 |
+| **建议处置** | 原建议：新建一个 `tcs-shared-layer` 能力（或把 7 份里的共用部分抽出来），主语明确是 `TcsState`。**这不是本档案能做的决定**，需要用户裁 |
+| **实际处置** | **用户 2026-10-24 裁定：三刀都做，且不新建能力**。① 改名 6 份 `state-*` → `buff-*`（正文一字未动，逐字节往返比对验证）；② 拆 2 份混合篇（`state-def-asset` → 3+5 需求、`state-param-snapshot` → 2+5 需求，原始 44 个场景全保留）；③ 门面与基底契约**并入 `entity-runtime-mechanism`**（新增「共享层门面与其存在判据」「共享层运行态基底 `FTcsStateInstance`」两条需求）。**未新建能力**——核实后两条缺口都是「内容已经在、位置错了」的搬家问题 |
+| **闭合证据** | 能力数 45 → **47**；`openspec validate --all --strict` **48 passed / 0 failed**；回答「`TcsState` 今天剩什么」的能力 = **4 份 / 18 需求 / 54 场景**（`entity-runtime-mechanism`(8) + `state-relation-check`(5) + `state-def-asset`(3) + `state-param-snapshot`(2)）；挂 `state-*` 名字的**全部指向本模块**，不再有一份谎报主语。详见 §1.2 的改述与 `openspec/changes/refactor-split-state-specs-by-module/` |
 
 ### D-2 ★★ `SetLiveQuery` 是**单槽位且无冲突检测**，而 2026-10-17 的裁定要求两域都注册
 
@@ -474,7 +493,7 @@ TcsBuff  ──► SetLiveQuery(this) ──────────────
 
 | # | 债务 | 严重度 | 性质 | 修法 |
 |---|---|---|---|---|
-| D-1 | 规格无对象（7 份讲 `TcsBuff`） | ★★★ | **权威层缺覆盖** | 需用户裁（新建能力或重切） |
+| D-1 | 规格无对象（7 份讲 `TcsBuff`） | ★★★ | **权威层缺覆盖** | ✅ **已闭合 2026-10-24**（改名 6 份 + 拆 2 份 + 契约并入 `entity-runtime-mechanism`，提交 `c4511e9`） |
 | D-2 | `SetLiveQuery` 单槽位无检测 | ★★ | **活缺陷** | 改多槽位 + 冲突报错（裁定已给形状） |
 | D-3 | 客体面窄化为单域 | ★★ | **活缺陷**（功能缺失） | 补技能侧「按实体枚举 run」口 + 两域注册 |
 | D-4 | `RegisterStateDef` 符号已不存在 | ★★ | 规格说错 | 改规格 2 处（含 `integration-entity` 2 处） |
@@ -487,14 +506,14 @@ TcsBuff  ──► SetLiveQuery(this) ──────────────
 | D-11 | 决策结果类型两份同构、共享层那份零消费者 | ☆ | 零消费者预建 | 或上提、或承认住域侧并改述规格 |
 | D-12 | 三个零消费者的桶 API | ☆ | 零消费者预建 | 删，或随 D-10 一并处理 |
 
-**分布**：★★★ 1 条 / ★★ 5 条 / ★ 4 条 / ☆ 2 条。**性质分布**：
+**分布**：★★★ 1 条 / ★★ 5 条 / ★ 4 条 / ☆ 2 条。**已闭合 1 条（D-1，2026-10-24）**，其余 11 条仍待裁。**性质分布**：
 
 | 性质 | 条数 | 编号 |
 |---|---|---|
 | **规格说错（代码搬走、引用滞留）** | **4** | D-4 / D-5 / D-6 / D-8 |
 | **规格滞后（代码做了、规格没写）** | 1 | D-7 |
 | **纯代码缺陷** | 1 | **D-10** |
-| **权威层缺覆盖** | 1 | D-1 |
+| **权威层缺覆盖** | 1 | D-1 ✅ **已闭合** |
 | **功能缺失（活缺陷）** | 2 | D-2 / D-3 |
 | 零消费者预建 | 2 | D-11 / D-12 |
 | 注释过时 | 1 | D-9 |
@@ -580,18 +599,21 @@ TcsBuff  ──► SetLiveQuery(this) ──────────────
 
 | 层 | 载体 | 行数 | 与本模块的关系 |
 |---|---|---|---|
-| **可执行需求** | `openspec/specs/` 10 个 `state-*` 能力 | 1 628 | **7 份主语是 `TcsBuff`**（§1.2）；2 份是共用件；1 份是宿主装置 |
+| **可执行需求** | 重切前：`openspec/specs/` 10 个 `state-*` 能力<br>**重切后（2026-10-24）**：本模块 **4 份**（`entity-runtime-mechanism` 261 行 / `state-relation-check` 118 / `state-def-asset` 89 / `state-param-snapshot` 58）+ `TcsBuff` **7 份** `buff-*` | 1 628<br>→ 本模块 **526** / Buff **1 225** | 重切前 **7 份主语是 `TcsBuff`**（§1.2）；**重切后挂 `state-*` 名字的全部指向本模块**，无一份谎报主语。详见 §1.2 与 `openspec/changes/refactor-split-state-specs-by-module/` |
 | **历史理由** | `Documents/combat-system-design/spec/03-module-states.md`（`SPEC-02-states`） | **390** | **质量意外地好**：§3.1 与 §6 都有 2026-10-15 的 `PLN-REFACTOR-1` **就地改述**（不是重写，是「原文保留 + 追注现行读法」），§12.13 有完整的收束回写。**这份旧规格比 `openspec` 更准确地描述了今天的模块归属** |
 | 历史理由 | `decisions/dec-2026-10-13-state-module-positioning.md` | — | 拆分 `TcsBuff` 的裁决 |
 | 历史理由 | `decisions/dec-2026-10-17-tag-relationship-ownership.md` | 203 | **当前 TagRelationship 的权威**，明写「实现状态 = 部分落地」 |
 | 证据 | `evidence/2026-10-17-relation-checker.md` | — | §7「如实登记的偏差与未落面」、§8「契约部分将被推翻」 |
 | 计划 | `plans/plan-r5.5-relation-table.md` | — | `e1`~`e4` 批次表；**状态行仍写 `ACTIVE` 且「实施未开工」**（`e1` 已完成，该行过期——见 `ARCH-INDEX` 已登记的同类问题） |
 
-**⇒ 一条反常的结论**：**旧文档族对 `TcsState` 的描述比 `openspec` 更准确**。
+**⇒ 一条反常的结论（审计当日的状态，2026-10-24 已部分反转）**：**当时旧文档族对 `TcsState` 的描述比 `openspec` 更准确**。
 
 `SPEC-02-states` §12.13（「`PLN-REFACTOR-1` 收束回写」）逐项列了「模块归属 / 依赖方向 / 主线读数 / 本节不覆盖的」，且 §3.1 / §6 的追注用的是**「原文保留 + 就地改述」**——即它既保住了历史现场、又给出了现行读法。而 `openspec` 侧**没有任何一次等价的重切**。
 
-**⇒ 这推翻了 `ARCH-INDEX` §1.2 的一条隐含假设**：那里说「旧文档族含大量已过期内容、新档案描述现状、`openspec` 是最高权威」。但对本模块而言，**权威顺序是反的**：`openspec` 最不准（7/10 份主语错了）、旧 `SPEC-02` 最准（有收束回写）、代码注释最准（`TcsStateDefBase.h` 的上移论证规格里根本没有）。
+**⇒ 这推翻了 `ARCH-INDEX` §1.2 的一条隐含假设**：那里说「旧文档族含大量已过期内容、新档案描述现状、`openspec` 是最高权威」。但对本模块而言，**审计当日的权威顺序是反的**：`openspec` 最不准（7/10 份主语错了）、旧 `SPEC-02` 最准（有收束回写）、代码注释最准（`TcsStateDefBase.h` 的上移论证规格里根本没有）。
+
+> **★ 2026-10-24 反转（MUST 读）**：`openspec` 已在 `c4511e9` 按模块重切，**上述反转不再成立**——最高权威层现在如实描述本模块（4 份 / 18 需求 / 54 场景）。**但这次重切暴露了「反转」真正的原因**：不是 `openspec` 天生不可靠，而是**它缺少「模块拆分时同步重切」这一步**。旧 `SPEC-02` 之所以更准，恰恰因为它做了「原文保留 + 就地改述」的收束回写——**那正是 `openspec` 缺的那件事**。
+> ⇒ **可复用判据**：判断一份规格是否可靠，看的不是它属于哪一层，而是**它的最后一次结构性代码变更之后，是否有过等价的规格重切**。
 
 ---
 
@@ -626,7 +648,7 @@ TcsBuff  ──► SetLiveQuery(this) ──────────────
 ### 9.1 三句话
 
 1. **代码质量高，且有一处是全仓最好的设计**：门面被削到只剩 3 个方法（判据「两域都在代码级用它」可执行、且有自我纠正记录），桶模板的进程级发号器判据有实测缺陷支撑，句柄单点连「被否决的绕过方案」都留了引擎源码证据。
-2. **规格侧是本仓最差的一处**：10 份 `state-*` 能力里 **7 份整篇在讲 `TcsBuff`**，`openspec` 里**没有一个能力回答「`TcsState` 今天剩什么」**。旧 `SPEC-02-states` 反而更准（有收束回写）。
+2. **规格侧曾是本仓最差的一处，已于 2026-10-24 重切**：审核当时 10 份 `state-*` 能力里 **7 份整篇在讲 `TcsBuff`**，`openspec` 里**没有一个能力回答「`TcsState` 今天剩什么」**。重切后挂 `state-*` 名字的**全部指向本模块**，回答本模块契约的能力共 **4 份 / 18 需求 / 54 场景**（D-1 已闭合，提交 `c4511e9`）。
 3. **唯一的活缺陷是 `SetLiveQuery` 单槽位**（D-2）——它今天不显形只因为只有一个域注册，而 2026-10-17 的裁定要求两域都注册。**其余 11 条债全部在文档/注释/契约面。**
 
 ### 9.2 一句值得记住的话
@@ -634,12 +656,15 @@ TcsBuff  ──► SetLiveQuery(this) ──────────────
 > **本模块的债几乎全部来自「模块被拆小了，而指向它的名字没有跟着变小」**——门面从 431 行削到 120 行是**做对了**，但 `openspec` 的 7 份规格、`RegisterStateDef` 的符号名、`BaseStruct` 的模块路径、`TcsIntegration` 的依赖声明，**全部还停在拆分前**。
 >
 > **代码是新的，地图是旧的，而地图比代码更难改——因为它有四份副本（openspec / 旧 SPEC / 注释 / Build.cs）。**
+>
+> **★ 2026-10-24 追记（四份副本里最大的一份已换新）**：`openspec` 这一份已按模块重切——**但换地图的代价远高于预期**。改名 6 份需处理 18 处交叉引用与 1 处「不可随改名的引用」（`EVID-<date>-state-*` 证据文档路径指向冻结层）；拆 2 份混合篇要逐条判主语、切原文、补场景、再回改 6 处引用指向；**而归档器本身有解析限制**（需求正文含表格的能力无法被 `retire_capabilities` 退休，6 份里 2 份失败）⇒ 最终**手工改名、不走 `archive`**。
+> **⇒ 可执行的教训**：**模块拆分与规格重切 MUST 同一批次完成**。当时省下的那一步，今天要花三刀、47 份能力全量核对、外加一次工具限制的绕行来还。
 
 ### 9.3 与 `ARCH-04` 的对照
 
 | 维度 | `ARCH-04`（`TcsAttribute`） | `ARCH-05`（`TcsState`） |
 |---|---|---|
-| 规格质量 | **全仓最好**（752 行 / 27 需求 / 86 场景） | **全仓最差**（主语错了 7/10） |
+| 规格质量 | **全仓最好**（752 行 / 27 需求 / 86 场景） | 审核时**全仓最差**（主语错了 7/10）→ **2026-10-24 重切后本模块契约已完整**（4 份 / 18 需求 / 54 场景） |
 | 债的主要方向 | ① 规格更严、代码更松（4 条） | ③ 代码搬走、引用滞留（4 条） |
 | 代码质量 | 高（折叠核单份、`CachedCurrent` 单写者） | 高（门面 3 方法、桶判据有实测支撑） |
 | 唯一活缺陷 | 无（4 条都是规格未兑现，调用方都不依赖） | **`SetLiveQuery` 单槽位**（会在下一批实施时真的出错） |
