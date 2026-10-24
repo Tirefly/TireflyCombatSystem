@@ -1,9 +1,4 @@
-# state-step-library Specification
-
-## Purpose
-定义 **Buff 领域**（`TcsBuff`）**链步骤**的最小能力面（D4-14 注册制分派下"领域模块自持步骤与执行器"的落点）：状态层在效果链里的**施加入口**——取值来源（黑板 `RunSource` / `Instigator`）、目标缺省（黑板目标集首个）、失败两档（软失败不断链）与四档回执的日志口径。它让"链能施加状态"成为可配置的事实，并划清一条边界：**链侧的参数表载体不存在**（引用类参数源落兜底），步骤只负责"何时施加"，施加语义全归 `state-instance-lifecycle` 与 `state-stacking-policies`。
-
-## Requirements
+## ADDED Requirements
 
 ### Requirement: 状态施加步骤（ApplyState）
 
@@ -12,7 +7,7 @@
 - 字段：`Target: FTcsCombatEntityHandle`（无效则取黑板 `Targets[0]`，仍无效 ⇒ 软失败）/ `DefTag: FGameplayTag` / `Overrides: TMap<FGameplayTag, double>`（施加方参数覆盖，参与快照构建）；
 - 执行体 MUST 经黑板 `Owner`（链运行态门面弱引用）取世界 → 状态门面 → `ApplyState(...)`：`Source` MUST = 黑板 `RunSource`（链运行态来源锚点）、`Instigator` MUST = 黑板 `Instigator`（无效时由门面退化为目标）、参数表 = **空**（链侧参数表载体不存在 ⇒ 引用类参数源落兜底；如实边界）；
 - 步骤为**即时步骤**：恒 `TSR_Completed`，不挂起；失败面 MUST 分两档——定义未在本世界登记 / 目标无效 ⇒ `Warning`（门面已留痕，步骤不重复报错），`DefTag` 无效（未配置）⇒ `Error`；**两档都 MUST NOT 断链**（`ETcsStepResult` 只有 `Completed` / `Running`，步骤无法中断链；软失败接管归 `OnError`，R5.5-a）；
-- 四档回执（`Applied` / `Refreshed` / `Stacked` / `Rejected`）MUST 以 `Log` 级日志如实记录且**MUST NOT** 因"被拒绝"产生红字（业务结果不是错误——与 `state-stacking-policies` 同口径）；
+- 四档回执（`Applied` / `Refreshed` / `Stacked` / `Rejected`）MUST 以 `Log` 级日志如实记录且**MUST NOT** 因"被拒绝"产生红字（业务结果不是错误——与 `buff-stacking-policies` 同口径）；
 - 自注册 MUST 走 `effect-step-dispatch` 的静态自注册宏（键 = 步骤 struct 的 `const UScriptStruct*`；**不存在步骤 tag 词表**，不得为此新开 tag 根）。
 
 #### Scenario: 链里施加成功

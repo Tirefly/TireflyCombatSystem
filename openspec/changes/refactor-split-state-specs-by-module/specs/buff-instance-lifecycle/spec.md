@@ -1,12 +1,4 @@
-# state-instance-lifecycle Specification
-
-## Purpose
-
-定义 M3 状态层的**运行态骨架**：状态实例句柄与池化实例记录、per-entity 桶注册表与代际校验、世界级状态门面（施加 / 查询 / 移除 / 生命周期操作 + 定义登记口）、六枚生命周期事件 tag 与反射载荷，以及阶段迁移与广播点的纪律——让"状态定义"能变成可查、可移除、可被订阅的运行实例。
-
-**边界**：本能力只覆盖"实例在册与生命周期广播"。参数快照与等级源（`PLN-R5` Task 3）、持续修正器物化（Task 4）、五轴堆叠与刷新政策（Task 5）、链原语 `ApplyState` 与行为 Fragment（Task 6）各自另有能力，本能力只保留它们的**接入位**（定义登记口、`ExtendDuration` / `SetRemaining` 签名、`EBuffApplyResult` 的 `EBAR_Stacked` 档）。
-
-## Requirements
+## ADDED Requirements
 
 ### Requirement: 状态实例句柄
 
@@ -65,8 +57,8 @@
 
 **两个句柄的分工 MUST 守死（2026-10-05 解耦，判据见下）**：
 
-- `CascadeAnchor` MUST 在**建出实例**时经 `FTcsSourceHandleRegistry::Allocate()` 取新值（进程内唯一、永不复用）；**刷新 / 叠层 MUST NOT 更换它**，替换路径是新实例 ⇒ 新锚点。它就是"撤销只摘本实例"的精确锚点——属性修正器条目与状态施加期登记的触发行都按它挂、按它一次摘净（`state-modifier-materialization` 与 `effect-trigger`）；
-- `Source` MUST 是**施加方来源句柄**：调用方声明时沿用（同一施加方多次施加 ⇒ 同值），未声明时由门面发号（每次一枚新号）。它承担两件事——共存决策的"续杯 / 叠层"判据（`state-stacking-policies`）与生命周期事件载荷的归属读数；**MUST NOT 被当作撤销锚点**（一个来源可施加多个不同定义，按它撤销会互相误摘——这正是解耦的判据）。
+- `CascadeAnchor` MUST 在**建出实例**时经 `FTcsSourceHandleRegistry::Allocate()` 取新值（进程内唯一、永不复用）；**刷新 / 叠层 MUST NOT 更换它**，替换路径是新实例 ⇒ 新锚点。它就是"撤销只摘本实例"的精确锚点——属性修正器条目与状态施加期登记的触发行都按它挂、按它一次摘净（`buff-modifier-materialization` 与 `effect-trigger`）；
+- `Source` MUST 是**施加方来源句柄**：调用方声明时沿用（同一施加方多次施加 ⇒ 同值），未声明时由门面发号（每次一枚新号）。它承担两件事——共存决策的"续杯 / 叠层"判据（`buff-stacking-policies`）与生命周期事件载荷的归属读数；**MUST NOT 被当作撤销锚点**（一个来源可施加多个不同定义，按它撤销会互相误摘——这正是解耦的判据）。
 
 **时值到期与周期到期 MUST 各持一个条目锚点**（`ExpiryEntry` / `PeriodEntry`）：`Finite` 与 `Period > 0` 是可同时成立的两个语义，挤在一个锚点里会让"撤销旧条目"分不清撤的是哪一条。
 
@@ -149,7 +141,7 @@
 
 `ApplyState` 与 `RemoveState` / `GetState` 一类**本轮 MUST NOT 加 `UFUNCTION`**（句柄与 `TMap` 形参今天不可反射；脚本面整体留 `SCRIPT` 系列，登记台账）。
 
-**返回值语义**：`EBuffApplyResult{ EBAR_Applied / EBAR_Refreshed / EBAR_Stacked / EBAR_Rejected }`——四档 MUST 全部可达，判据归 `state-stacking-policies` 能力（无同组实例 ⇒ `Applied`；同组**同来源**未满仓 ⇒ `Refreshed`；同组**异来源**未满仓 ⇒ `Stacked`；满仓 ⇒ `Rejected` 或替换后 `Applied`）；**拒绝原因的具名细分**仍归 R5.5-e（今天只有 `Rejected` 一档 + 日志）。
+**返回值语义**：`EBuffApplyResult{ EBAR_Applied / EBAR_Refreshed / EBAR_Stacked / EBAR_Rejected }`——四档 MUST 全部可达，判据归 `buff-stacking-policies` 能力（无同组实例 ⇒ `Applied`；同组**同来源**未满仓 ⇒ `Refreshed`；同组**异来源**未满仓 ⇒ `Stacked`；满仓 ⇒ `Rejected` 或替换后 `Applied`）；**拒绝原因的具名细分**仍归 R5.5-e（今天只有 `Rejected` 一档 + 日志）。
 
 #### Scenario: 非游戏世界不创建
 
@@ -261,11 +253,11 @@
 
 **施加的共存结果 MUST 恰好广播一枚生命周期事件**（`Applied` / `Refreshed` 二者之一；替换路径是"旧实例被移除 + 新实例被建出"两笔，不属于"同一条实例的共存结果"）：无同组实例 ⇒ `TcsEvent.State.Applied`；命中同组 ⇒ `TcsEvent.State.Refreshed`，层数变化时另有 `TcsEvent.State.StackChanged`。`ExpireState` ⇒ `Expired`（`Cause = Expired`）、`RemoveState` ⇒ `Removed`（`Cause` 由调用方给）。**周期到点**另有 `TcsEvent.State.Periodic`（周期条目的重复回调，载荷带当前 `Stacks` 与 `Level`）——它是**追加**语义，不替代任一生命周期事件。
 
-**"同组"判据归 `state-stacking-policies` 能力**（组键 = `实体 + DefTag` + 轴附加项）——本能力只保证**共存结果与广播的对应关系**：新建 ⇒ `Applied`；同来源刷新 ⇒ `Refreshed`；异来源叠层 ⇒ `StackChanged` + `Refreshed`（前者先到）；替换 ⇒ `Removed`（旧）+ `Applied`（新）；满仓拒绝 ⇒ 无广播。事件面 MUST NOT 因策略不同而增减（除上述对应关系外）。
+**"同组"判据归 `buff-stacking-policies` 能力**（组键 = `实体 + DefTag` + 轴附加项）——本能力只保证**共存结果与广播的对应关系**：新建 ⇒ `Applied`；同来源刷新 ⇒ `Refreshed`；异来源叠层 ⇒ `StackChanged` + `Refreshed`（前者先到）；替换 ⇒ `Removed`（旧）+ `Applied`（新）；满仓拒绝 ⇒ 无广播。事件面 MUST NOT 因策略不同而增减（除上述对应关系外）。
 
 **阶段机**：`EBuffPhase{ Inactive / Active / Expiring }`，合法迁移 `Inactive → Active`（施加成功）、`Active → Expiring`（进入移除流程）、`Expiring → Inactive`（槽位释放）、`Expiring → Active`（仍在册实例的刷新过渡态归位）；**非法迁移 = `ensure`**（配置错误语义，与脏句柄的竞态口径分开）。
 
-**撤销顺序**：MUST 先广播后释放槽位——订阅者在回调里仍能 `GetState` 读到该实例（否则"收到移除事件却查不到实例"）。**该顺序的前置两步**（2026-10-05 由"一步"扩为"两步"）：进入撤销流程时 MUST 先（①）按实例的级联锚点摘除属性修正器**并退订该实例的施加期登记物**（内联触发行；行为 Fragment 的订阅退订与①同处，见 `state-behavior-fragments` 的「行为订阅的生命周期接线」），再（②）撤销该实例的到期与周期条目。①排在广播之前的意义 = **该实例自己的触发行 MUST NOT 看见自己的 `Removed` / `Expired`**（"状态在，行为就在"的对偶：状态走了，行为先走）；②的意义 = 条目持句柄，槽位复用后回调仍会到达——先撤条目才不产生无谓回调。
+**撤销顺序**：MUST 先广播后释放槽位——订阅者在回调里仍能 `GetState` 读到该实例（否则"收到移除事件却查不到实例"）。**该顺序的前置两步**（2026-10-05 由"一步"扩为"两步"）：进入撤销流程时 MUST 先（①）按实例的级联锚点摘除属性修正器**并退订该实例的施加期登记物**（内联触发行；行为 Fragment 的订阅退订与①同处，见 `buff-behavior-fragments` 的「行为订阅的生命周期接线」），再（②）撤销该实例的到期与周期条目。①排在广播之前的意义 = **该实例自己的触发行 MUST NOT 看见自己的 `Removed` / `Expired`**（"状态在，行为就在"的对偶：状态走了，行为先走）；②的意义 = 条目持句柄，槽位复用后回调仍会到达——先撤条目才不产生无谓回调。
 
 **接线顺序（施加侧的对偶）**：`Applied` 广播**之前** MUST 已完成修正器挂载、内联触发行登记与（若该 Def 配了行为 Fragment）行为订阅——订阅者在 `Applied` 回调里读到的属性已是挂载后的数值，且新登记的触发行**能看见自己的 `Applied`**。
 

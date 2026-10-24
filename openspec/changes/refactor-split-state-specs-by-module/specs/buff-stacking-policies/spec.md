@@ -1,21 +1,11 @@
-# state-stacking-policies Specification
-
-## Purpose
-
-定义 **Buff 域**的**重复施加语义**：同一 buff 再次施加时会发生什么——按什么分组、层数上限多少、满仓怎么处置、数值随不随层数走、刷新对剩余时长做什么。承载三个形状：`FStateStackPolicy`（五轴策略，`FTcsBuffDef` 的字段）、组键解析与共存决策树（`EBAR_Applied / Refreshed / Stacked / Rejected` 四档回执全可达）、以及 `FTcsBuffStackDecisionFragment`（宿主自定义分组/决策的逃逸位）。**本能力自 `PLN-REFACTOR-1` Task 4 起整域住 `TcsBuff` 模块**。
-
-**边界**：本能力只覆盖"重复施加之下的确定性决策与更新流水"。实例在册与生命周期广播（`state-instance-lifecycle`）、参数快照（`state-param-snapshot`）、修正器物化与级联摘除（`state-modifier-materialization`）各自另有能力——本能力只负责**决定**该新建/刷新/叠层/替换/拒绝，并把结果交给那些既有流水；它不新增事件词（`StackChanged` 是既有声明，本能力让它**首次有产生者**）。
-
-**层模型（本能力的核心口径）**：**层数记在一条实例内**（`FTcsBuffInstance.Stacks`——该字段住 Buff 派生的专属组，**基底不含层数**），组内至多一条实例；"续杯 / 叠层"的判据 = **施加方换没换**（同来源 ⇒ 刷新、异来源 ⇒ 叠一层，未声明来源按同来源处理）。三条如实边界：legacy `NoMerge`（"每次施加独立成实例"）只能**近似**或改用 Custom 决策 Fragment 表达；"按分组词分组"档因基座含 `DefTag` 而不可表达（已裁撤）；"跨定义共享层数"与"逐层来源归属"登记台账。
-
-## Requirements
+## ADDED Requirements
 
 ### Requirement: 五轴堆叠政策的形状与默认
 
 `TcsBuff` MUST 提供 `FStateStackPolicy`（`USTRUCT(BlueprintType)`）——五轴 + 一个附带字段：
 
 > **符号订正（2026-10-17，`ARCH-07` D-3 / `G-18`）**：本条及全篇原写 `FTcsBuffStackPolicy`，该名**在全仓不存在**。实际类型名是 **`FStateStackPolicy`**（`TcsBuffStackPolicy.h:83`，`TCSBUFF_API`；`FTcsBuffDef::StackPolicy` 的字段类型即它）。**同类里两个相反方向并存**：三个枚举**代码加了 `Buff` 前缀**（`EBuffApplyResult` / `EBuffDurationPolicy` / `ETcsBuffPeriodRefresh`）而规格停在无前缀旧名；堆叠策略**代码保持 `State` 无前缀**而规格加了 `Buff` ⇒ 一次拆分后的改名**没有单一规则**，每个类型各自落在三种组合之一（`ARCH-07` §5 D-4）。本条按代码为准订正。
-> **同批订正的另两族（2026-10-17 补齐）**：`EBuffApplyResult`（本文件 `:80` 的 `EApplyResult` 也是旧名）与 **`EBuffDurationPolicy` / `ETcsBuffPeriodRefresh`**（跨 `state-def-asset` / `state-instance-lifecycle` / `state-param-snapshot` / `state-layer-e2e-validation` 四份）。**`EOverflowPolicy` / `EStackDurationPolicy` 保持原名，MUST NOT 给它们加 `Buff` 前缀**——那一对本来就是对的。
+> **同批订正的另两族（2026-10-17 补齐）**：`EBuffApplyResult`（本文件 `:80` 的 `EApplyResult` 也是旧名）与 **`EBuffDurationPolicy` / `ETcsBuffPeriodRefresh`**（跨 `state-def-asset` / `buff-instance-lifecycle` / `state-param-snapshot` / `buff-layer-e2e-validation` 四份）。**`EOverflowPolicy` / `EStackDurationPolicy` 保持原名，MUST NOT 给它们加 `Buff` 前缀**——那一对本来就是对的。
 
 - `EGroupByPolicy GroupBy`：`EGB_None = 0`（默认；同实体 + 同 `DefTag` 共处一组）/ `EGB_PerSource = 1`（组键附来源句柄）/ `EGB_PerInstigator = 2`（附发起者实体）/ `EGB_Custom = 1 << 4`（逃逸位：分组判定交给决策 Fragment）。**Custom MUST 走高位置位**，MUST NOT 占用低位的可枚举取值；**值 3 曾预留给"按分组词"档，已裁撤**（理由见「组键解析」需求末段）；
 - `int32 MaxStacks`：组内最大层数，**`<= 0` = 无限**（默认 `0`）；

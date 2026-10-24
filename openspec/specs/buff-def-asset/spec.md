@@ -1,0 +1,153 @@
+# buff-def-asset Specification
+
+## Purpose
+
+定义 **Buff 域 Def 家族**的专属形状：`FTcsBuffDef` 的时值 / 堆叠 / 行为片段 / 关系继承面、`UTcsBuffDefAsset` 资产类、`FTcsBuffDefTableRow` 编辑期表行，以及 Buff Def 资产的两类作者期校验（六类错误与警告、值约定白名单）。
+**范围澄清**：族基类 `FTcsStateDefBase` / `UTcsStateDef`、描述配置载体、关系四字段的**形状**均住共享层，归 `state-def-asset` 能力——本能力只覆盖 Buff **专属**的那一层。
+
+## Requirements
+
+### Requirement: Buff Def 数据形状
+
+`TcsBuff` MUST 提供 Buff 定义的**派生数据形状**（`FTcsBuffDef : FTcsStateDefBase`，纯反射数据、可作 DataTable 行）：
+
+- `FTcsBuffDef : FTcsStateDefBase`：时值 `EBuffDurationPolicy DurationPolicy = EBDP_Finite` / `FTcsParamValue DurationTime` / `double Period = 0.0` / `ETcsBuffPeriodRefresh PeriodRefresh = EBPR_Keep`；
+  堆叠 `FStateStackPolicy StackPolicy`；行为 `TArray<FTcsEffectTriggerDef> Triggers`（内联触发行位）+ `TArray<FInstancedStruct> Fragments`（行为 Fragment 载荷，选择器经手写 `meta = (BaseStruct = "/Script/TcsBuff.TcsBuffBehaviorFragment")` 收窄——形状与语义见 `buff-behavior-fragments` 能力）；
+  关系 `TArray<FGameplayTag> RequiredTags` / `TArray<FGameplayTag> ForbiddenTags` / `TArray<FGameplayTag> TagsToBlock` / `TArray<FGameplayTag> TagsToCancel` / `int32 Priority = 0`——**四数组为 2026-10-16 `R5.5-e1` 落地**（检查器见 `state-relation-check` 能力）。**⚠ 这五个字段实际住在基类 `FTcsStateDefBase`**（`TcsStateDefBase.h`，与 `CategoryTags` / `LevelBase` / `MaxLevel` / `Params` / `Descriptions` / `ModifierRows` 同处），不是 `FTcsBuffDef`——见下方订正。
+  **改名映射（MUST 逐条照做，防语义反转）**：`Blocks` → **`ForbiddenTags`**（受动·前置：B 在时**我**不可施加）、`Requires` → **`RequiredTags`**（受动·前置：必须已存在）、`Cancels` → **`TagsToCancel`**（施动·终止）；**新增 `TagsToBlock`**（施动·预防：我在跑期间目标不能开始）。
+  **⚠ `Blocks` MUST 映射到 `ForbiddenTags`、MUST NOT 映射到 `TagsToBlock`**——两格词形极近而**方向相反**（前者约束**自己**、后者约束**目标**），且该字段族当时零消费者 ⇒ 错映射**编译器不报错**，是静默的语义反转。**受动**（我自己的门禁）与**施动**（我对外的影响）两个方向 MUST 分开。
+  **`Priority` 不属关系字段族**（它归槽位竞争表 `R5.5-e4`）：本变更 MUST NOT 触碰它，其物理去留亦然。
+
+  > **字段归属订正（2026-10-17，`ARCH-05` D-7）**：关系四字段 + `Priority` **已上移基类 `FTcsStateDefBase`**，而本条把它们平铺写在 `FTcsBuffDef` 之下 ⇒ 读者会以为只有 Buff 域有关系语义。实际形状同上一条判据：`FTcsSkillDefData : FTcsStateDefBase` **也要白拿关系四字段**（技能侧的关系门禁 `TcsSkillOps_Relation.cpp` 就在读它们）。⇒ 本行应理解为「`FTcsBuffDef` **继承**到这些字段」，MUST NOT 读成「这些字段声明在 `FTcsBuffDef` 里」。
+
+  > **`BaseStruct` 订正（2026-10-17，`ARCH-05` D-6）**：本行原写 `/Script/TcsState.TcsStateBehaviorFragment`——该类型**在全仓不存在**（`grep` 工作树与 `git log --all -S` 双零）。实际类型是 **`FTcsBuffBehaviorFragment`**（`USTRUCT`，`F` 前缀），住 `TcsBuff`（`State/TcsBuffBehaviorFragment.h:55`，`TCSBUFF_API`），故路径为 `/Script/TcsBuff.TcsBuffBehaviorFragment`（`TcsBuffDef.h:90` 实测）。根因同 `ARCH-05` 的 `G-12`（代码搬走、引用滞留）：Task 4 拆出 `TcsBuff` 时该 Fragment 基类随 Buff 专属语义一起搬走，而本条停在旧模块名上。⚠ **本条尤其危险**：`BaseStruct` 是**字符串元数据**，而 `openspec validate` **不校验字符串内容**（只校验 Requirement / Scenario 结构）⇒ 指向不存在类型的 metadata **永远不会被工具发现**，编辑器里表现为 picker 列不出任何类型。
+  **数组去留不属本变更**：`DEC-2026-10-13-relation-row-shape` §4.4 已裁「Def 上三数组的去留归 `R5.5-e4`」⇒ 本变更**只改名 + 新增一格**，MUST NOT 把它们收拢成行结构体（那等于提前替 `e4` 决定去留）。
+
+**`CategoryTags` 的语义与约束（2026-10-15 由 `StatusTag` 合并而来，MUST 读）**：它是**定义级类别容器**，声明"**我是什么**"（语义分类），**不是**"我要匹配谁"（那是消费者侧的查询）。
+
+- **MUST NOT 必填**：容器为空是合法配置（有消费者按它筛选时，空容器自然不命中任何查询——这是明确结果，不是缺省故障）。**原 `StatusTag` 的"非空"硬约束随本合并取消**；
+- **每词一义**：单个 `FGameplayTag` 能表达的一切（具体词 = 只作用于它自己），容器用**单元素**表达；容器额外支持多元素（如一个 buff 同具"火属性 + 异常状态"）与**层级匹配**（填父词覆盖一族）。⇒ 它是 `StatusTag` 的**超集**，不是另一个概念；
+- **`DefTag` 与它分工**：`DefTag` = **唯一键**（定义库的解析键与去重键，重复即报错），答"这是哪份资产"；`CategoryTags` = **语义词**（不参与去重，多个资产可共享同值），答"这在语义上属于什么"。**两个查询通道各自独立、MUST NOT 混为一个并集匹配**——`DefTag` 表达不了"一类"，把它并进类别匹配会把"一族"退化成"一个资产"。
+
+**字段划分 MUST 守死"无时值 / 无堆叠 = 基类、有时值 / 有堆叠 = 派生"**——R6 的 `FSkillDef` 要按继承白拿参数行与描述，而它无时值、无堆叠。
+
+**基类 MUST NOT 预建的字段**：基类的"生命周期事件词汇"字段（消费者是**行为 Fragment 的兴趣 Tag**，而兴趣 Tag 直接住 `FTcsBuffDef::Fragments` 的片段里 ⇒ 基类那一层仍零消费者）；`Descriptions` 只落字段与作者期校验，**渲染归 R8**。
+
+#### Scenario: 时值与堆叠只在派生结构体
+
+- **WHEN** 检查 `FTcsStateDefBase` 的成员
+- **THEN** 不含 `DurationPolicy` / `DurationTime` / `Period` / `PeriodRefresh` / `StackPolicy` / `Fragments`（它们均住 `FTcsBuffDef`）——R6 的 `FSkillDef` 因此能只继承"参数行 + 描述 + 修正器行"
+
+#### Scenario: 类别容器为空是合法配置
+
+- **WHEN** 某状态定义资产的 `CategoryTags` 为空容器
+- **THEN** 该资产仍视为合法（`IsDataValid` 不报错、定义库发现期不拦）——容器是**筛选依据**，不是身份；空容器在有消费者筛选时自然不命中任何查询
+
+#### Scenario: 类别容器支持多元素与层级匹配
+
+- **WHEN** 一个 buff 的 `CategoryTags` 配 `[Category.Burn.Fire, Category.Debuff]` 两个词
+- **THEN** 该字段可容纳并往返保真；以父词（如 `Category.Burn`）作层级匹配时**命中该资产**（父词命中子词，与 `DefTag` 的既有匹配语义一致）
+
+#### Scenario: 内联触发行可配置
+
+- **WHEN** 在 `FTcsBuffDef.Triggers` 填一条 `FTcsEffectTriggerDef`
+- **THEN** 该字段可容纳并往返保真（本能力只落**配置位**；登记与退订时机归 `effect-trigger` 能力）
+
+#### Scenario: 行为片段可配置
+
+- **WHEN** 在 `FTcsBuffDef.Fragments` 填一条行为 Fragment
+- **THEN** 该字段可容纳并往返保真（本能力只落**配置位**；订阅与退订时机归 `buff-behavior-fragments` 能力）
+
+#### Scenario: 关系字段只落形状
+
+> 场景标题里的「只落形状」是**建立时的轮次标签**（本仓裁定：`#### Scenario:` 标题在 MODIFIED
+> 语义下**不可改名**，先例 = `openspec/changes/archive/2026-10-04-add-tcs-state-module/specs/plugin-descriptor/spec.md`）
+> ——本场景的**判据已随 `R5.5-e1` 现况化**：关系字段**已有消费者**（`state-relation-check` 能力的检查器）。
+
+- **WHEN** 检查关系四数组的消费者
+- **THEN** `RequiredTags` / `ForbiddenTags` / `TagsToBlock` / `TagsToCancel` 四者**均有检查器读取点**（apply 门禁 / 取消挂点 / 预防挂点）；**唯一仍零消费者的是 `Priority`**（不属关系字段族，归 `R5.5-e4` 槽位竞争表）——该事实 MUST 如实保留，MUST NOT 因「检查器已落地」而误读成「`Priority` 也已有消费者」
+
+### Requirement: Buff Def 资产身份
+
+`TcsBuff` MUST 提供 Buff Def 资产类 `UTcsBuffDefAsset : UTcsStateDef`——持 `BuffDef: FTcsBuffDef` 与自身的主资产类型（取值 `"TcsBuffDefAsset"`）。
+
+**资产类名 MUST 带 `Asset` 后缀**：UHT 按"去 `U/A/F/E/I/T` 前缀后的引擎名"判重，资产类与同族数据 struct 同名（`UTcsBuffDef` vs `FTcsBuffDef`）在 **UHT 阶段**即失败；补救方向 MUST 是给资产类改名，MUST NOT 反过来改已定名的数据类型（先例 `UTcsEffectTriggerDefAsset`）。**族级命名判据住 `state-def-asset`，本需求只记录 Buff 族的落地形态。**
+
+资产 MUST NOT 复制数据字段集——身份（`DefTag`）与数据（`BuffDef`）分工，字段形状只在数据 struct 声明一次。
+
+#### Scenario: 主资产身份按 tag 解析
+
+- **WHEN** 读取某 `UTcsBuffDefAsset` 的 `DefTag` 与 `GetPrimaryAssetId()`
+- **THEN** 主资产身份 = `[PrimaryAssetType, DefTag.GetTagName()]`，与资产文件叫什么名字、住哪个目录无关（资产可改名/挪目录而不失联）
+
+#### Scenario: 资产只组合持有数据
+
+- **WHEN** 检查 `UTcsBuffDefAsset` 的成员
+- **THEN** 它持 `BuffDef: FTcsBuffDef` 与主资产类型声明，**MUST NOT** 复制 `FTcsBuffDef` 的任何字段（字段形状只在数据 struct 声明一次）
+
+### Requirement: 状态 Def 表行（编辑期载体）
+
+`TcsBuff` MUST 提供 `FTcsBuffDefTableRow : FTableRowBase`（`DefTag: FGameplayTag` + `BuffDef: FTcsBuffDef`），与资产构成**双轨制**：**表 = 编辑期载体、资产 = 运行期载体**——
+运行期 MUST 零 DataTable 加载路径，一律按 `DefTag` 走定义库解析资产。
+
+行身份 = `RowName`（引擎硬约束的 `FName`）是**编辑期定位**，行内 `DefTag` 是**内容身份**：二者是分工而非双真相，MUST NOT 被要求同名。
+两轨一致性由编辑器侧同步器维护（R8 `TOOLS-3`，不在本能力内）。
+
+#### Scenario: 表行字段往返保真
+
+- **WHEN** 以 `FTcsBuffDefTableRow` 作 `UDataTable::RowStruct` 写入一行（RowName 与 `DefTag` 不同名）
+- **THEN** 该行可被读出且字段往返保真（含 `Params` 参数行与 `Triggers` 内联触发定义）
+
+#### Scenario: 运行期不读 DataTable
+
+- **WHEN** 检查状态定义的运行期加载路径
+- **THEN** 只有"定义库按 `DefTag` 解析资产"这一条；不存在任何 `UDataTable` 加载或行查找（双轨制的运行期半边）
+
+### Requirement: 状态 Def 作者期校验
+
+状态 Def 资产的 `IsDataValid`（`WITH_EDITOR`）MUST 报出以下**错误**（每条错误 MUST 挂在出问题的配置元素上，给出可操作信息）：
+`DefTag` 无效 / `Params` 的 `Key` 重复 / `ModifierRows` 元素为空引用 / `Triggers` 内 `Def.EventTag` 无效 / `Triggers` 内 `Def.EffectChainId` 无效 / `DurationPolicy == EBDP_Finite` 而 `DurationTime` 的数值来源为空。
+
+MUST 报出以下**警告**（配置无害但不得静默）：`Period < 0`；`PeriodRefresh != EBPR_Keep` 而 `Period == 0`。
+
+`Descriptions` 的三条错误（`DescriptionId` / `TextKey` 为空、同一 Entry 内 `SlotName` 为空或重复）**只在「描述配置载体」需求声明一处**，本需求不重复其判据（同一份规则、单一真相）。
+
+无错无警时 MUST 把基类返回的 `NotValidated` **提升为 `Valid`**——否则编辑器显示"未验证"、装置侧 `IsDataValid == Valid` 的断言失效。
+
+#### Scenario: 六类错误各自报出
+
+- **WHEN** 资产分别配成 `DefTag` 无效、`Params` 键重复、`ModifierRows` 含空引用、`Triggers` 内 `EventTag` 无效、`Triggers` 内 `EffectChainId` 无效、`Finite` 而 `DurationTime` 未配
+- **THEN** `IsDataValid` 逐个报错（资产保存期即见，策划即配即报），且每条错误挂对应配置元素
+
+#### Scenario: 两条警告不阻断保存
+
+- **WHEN** 资产配 `Period = -1`，或 `PeriodRefresh = EBPR_Reset` 而 `Period = 0`
+- **THEN** `IsDataValid` 产出一条警告（非错误），资产仍视为合法
+
+#### Scenario: 校验通过时提升为 Valid
+
+- **WHEN** 资产无错无警
+- **THEN** 返回 `Valid`（不是基类返回的 `NotValidated`）——装置侧据此断言"资产可用"
+
+### Requirement: 状态 Def 值约定白名单校验
+
+状态 Def 资产的 `IsDataValid`（`WITH_EDITOR`）MUST 追加一条**错误**：`Params` 的某行配了**非 `VCF_None`** 的 `ValueConvention`，而该行数值来源 `Base.Source` 的 `AllowsValueConvention()` 为假（引用类源与域侧换算源的书写值不是结果，约定作用其上无定义）——每条错误 MUST 挂在出问题的配置元素上。
+
+**判据 MUST 走虚分派**（读该行数值来源的能力位），MUST NOT 建立"源类型 × 可配约定"的中心名单或 `switch`——宿主自定义源自行声明能力，校验面零公共代码改动。
+
+**运行期不拦**：快照构建对不允许约定的行只按"不转换"处理（该行的书写值即规范值），不 ensure、不拒绝施加——静默错配在**作者期**被报出。
+
+#### Scenario: 引用类源配了约定列被报错
+
+- **WHEN** 某行数值来源为引用类源（能力位为假）而行上配 `ValueConvention = VCF_Percent`
+- **THEN** `IsDataValid` 报出一条错误并挂在该行上
+
+#### Scenario: 允许约定的源配约定列合法
+
+- **WHEN** 某行数值来源为字面量源而行上配 `ValueConvention = VCF_Percent`
+- **THEN** 不报错（能力位为真，约定在快照写入点生效）
+
+#### Scenario: 未覆写能力位的宿主源自带缺省真值
+
+- **WHEN** 某行使用一个未覆写 `AllowsValueConvention` 的源（默认返回真）并配了约定列
+- **THEN** 不报错——能力位缺省即可配，宿主源无需任何公共代码改动

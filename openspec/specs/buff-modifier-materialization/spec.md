@@ -1,4 +1,4 @@
-# state-modifier-materialization Specification
+# buff-modifier-materialization Specification
 
 ## Purpose
 定义 M3 状态层**改数值**的那条腿（D3-19 落地）：施加状态时把定义里的修正器模板引用行**物化**成 M2 属性账本条目——模板解析与操作数求值（引用类操作数经**该实例自己的参数快照**取值、值约定在物化边界转规范值一次）、施加与刷新两个挂点（同批内完成、排在生命周期广播之前）、移除与到期的**按来源级联摘除**，以及"取属性门面"这一个可替换的解析点。它让"施加态"第一次真正改得动属性数值，并为行为面（触发行、行为 Fragment）钉死"同一个状态实例 = 同一个来源句柄"这条级联锚点。
@@ -97,7 +97,7 @@ MUST NOT 为同一次求值再开一条并行的数值表通道（同一个问�
 
 ### Requirement: 移除与到期时按来源级联摘除
 
-`RemoveState` / 到期路径 MUST 在进入 `Expiring` 迁移**之前**按该实例的**级联锚点**（基底的 `CascadeAnchor`——撤销语境下的"来源"自 2026-10-05 起特指该锚点，口径见 `state-instance-lifecycle` 的「池化状态实例记录」）做级联摘除（`RemoveBySource`），并 MUST 在同一个属性变更批内提交——`TcsEvent.State.Expired` / `TcsEvent.State.Removed` 的订阅者在回调里读该属性能读到**已归位**的数值。`UnregisterEntity` MUST 复用同一条移除链。
+`RemoveState` / 到期路径 MUST 在进入 `Expiring` 迁移**之前**按该实例的**级联锚点**（基底的 `CascadeAnchor`——撤销语境下的"来源"自 2026-10-05 起特指该锚点，口径见 `buff-instance-lifecycle` 的「池化状态实例记录」）做级联摘除（`RemoveBySource`），并 MUST 在同一个属性变更批内提交——`TcsEvent.State.Expired` / `TcsEvent.State.Removed` 的订阅者在回调里读该属性能读到**已归位**的数值。`UnregisterEntity` MUST 复用同一条移除链。
 
 撤销顺序 MUST 为：**按锚点摘除修正器（批内提交）→ 退订该实例的内联触发行 → 撤时间条目 → `Expiring` → 广播 → 归还槽位**。
 

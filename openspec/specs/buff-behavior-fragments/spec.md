@@ -1,4 +1,4 @@
-# state-behavior-fragments Specification
+# buff-behavior-fragments Specification
 
 ## Purpose
 
@@ -14,7 +14,7 @@
 
 ### Requirement: 行为 Fragment 契约
 
-`TcsBuff` MUST 提供状态行为的作者面——**行为 Fragment**（D3-7 v2/v4 的两种 Fragment 之一；另一半"决策 Fragment"归 `state-stacking-policies`）：
+`TcsBuff` MUST 提供状态行为的作者面——**行为 Fragment**（D3-7 v2/v4 的两种 Fragment 之一；另一半"决策 Fragment"归 `buff-stacking-policies`）：
 
 - `FTcsBuffBehaviorFragment`（`USTRUCT(meta = (Hidden))`）：字段 `Interests: TArray<FGameplayTag>`（订阅哪些事件）+ 单一泛化虚回调
   `virtual void OnStateEvent(const FGameplayTag& EventTag, const FInstancedStruct& Payload, const FTcsBuffBehaviorContext& Ctx) const;`
@@ -85,7 +85,7 @@
 
 ### Requirement: 状态实例事件过滤与外部事件扇出
 
-行为派发 MUST 用单参数 Payload.GetPtr<FTcsBuffEventPayload>() 识别状态载荷。识别成功时仅载荷 Handle 与候选 Handle 相等才投递；身份遵守 state-instance-lifecycle 的进程唯一代际规则，不能只比桶内 Index。非状态载荷（包括空载荷、自定义载荷）MUST 按精确兴趣 Tag 向全部存活候选实例扇出，即使其自定义读取器提供 Subject 也不泛化 Fragment 过滤。
+行为派发 MUST 用单参数 Payload.GetPtr<FTcsBuffEventPayload>() 识别状态载荷。识别成功时仅载荷 Handle 与候选 Handle 相等才投递；身份遵守 buff-instance-lifecycle 的进程唯一代际规则，不能只比桶内 Index。非状态载荷（包括空载荷、自定义载荷）MUST 按精确兴趣 Tag 向全部存活候选实例扇出，即使其自定义读取器提供 Subject 也不泛化 Fragment 过滤。
 
 触发行的泛型 Subject 匹配独立归 effect-trigger。MUST NOT 引入 `TcsEffect` 对 `TcsBuff` 的反向依赖；状态读取器的 Caster 取有效 Instigator、否则取新增 Entity，Subject 装 FTcsBuffInstanceHandle。既有 Damage 读取器保持在册。
 

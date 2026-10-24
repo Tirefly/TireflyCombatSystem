@@ -6,7 +6,7 @@
 
 **本能力的边界（MUST 读）**：
 
-- **它只定机制，定字段归基底化那一轮**——本能力定的是**机制**（句柄语义 / 桶 / GC 口 / 清理口 / 守卫 / 决策接口）；而**记录字段的基底化与派生形状**由 `PLN-REFACTOR-1` Task 2/3 落地（**已完成**）：基底 `FTcsStateInstance`（6 公共字段）+ 两个派生 `FTcsBuffInstance` / `FTcsSkillInstance`；`FTcsLearnedSkillEntry` 仍是**独立记录**（账本条目，不参与基底化）。**三者仍各自完整**，本能力不对其字段作规定。
+- **它只定机制，定字段归基底化那一轮**——本能力定的是**机制**（句柄语义 / 桶 / GC 口 / 清理口 / 守卫 / 决策接口）；而**记录字段的基底化与派生形状**由 `PLN-REFACTOR-1` Task 2/3 落地（**已完成**）：基底 `FTcsStateInstance`（6 公共字段）+ 两个派生 `FTcsBuffInstance` / `FTcsSkillInstance`；`FTcsLearnedSkillEntry` 仍是**独立记录**（账本条目，不参与基底化）。**三者仍各自完整**。**2026-10-24 订正**：原文写"本能力**不对其字段作规定**"——该边界在基底被搬入本能力后**已不再成立**：基底的 6 字段契约由本能力的「共享层运行态基底 `FTcsStateInstance`」需求规定，派生结构的**域内**字段仍归各域能力（`buff-instance-lifecycle` / `skill-cast-runtime`）。
 - **它是"共享层"定位的落地**：`TcsState` 不再只承担状态域运行态，同时承担两域共用的定义族与运行机制（该定位裁决见 `DEC-2026-10-13-state-module-positioning`）。**自 Task 4 起 Buff 专属语义已拆入 `TcsBuff`**，故本能力所称的"状态侧"在机制面上指**共享层 + Buff 域**的整体（句柄 / 桶 / 守卫的实现住共享层，载荷类型住 `TcsBuff`）。
 - **三个句柄类型 MUST 保持独立**（本能力含一条**否定式要求**）——合并会移除"跨桶误传编译期失败"这道现存护栏；收敛的是**逻辑**，不是**声明**。
 - **载体是 `TTcsInstancePool`**，且 per-entity 桶 MUST 注入**进程级**代际发号器（各桶各自从代际 1 起发，会让跨桶扫描**命中错实体**——本仓 2026-10-05 实测过的缺陷）。
@@ -154,6 +154,72 @@
 - **WHEN** 检查决策接口的返回值如何生效
 - **THEN** 接口**只算不写**（返回目标层数与档位），由调用方写入实例——同物化器纪律"算与写分开，读一处即全貌"
 
+### Requirement: 共享层运行态基底 `FTcsStateInstance`
+
+`TcsState`（共享层）MUST 提供运行态**基底** `FTcsStateInstance`，持**两域公共的 6 个字段**：
+
+| 字段 | 为什么在基底（**唯一判据 = 两域是否同角色，MUST NOT 按名字相似判定**） |
+|---|---|
+| `DefTag` | 两域皆有定义身份 |
+| `Entity` | 两侧现状逐字相同，注释都自述"必须自持，O(1) 定位" |
+| `CascadeAnchor` | 两域同角色——"按它一次摘净"的**级联撤销锚点**（状态侧修正器与内联触发行按它挂；技能侧链挂的账本条目按它回收） |
+| `ParamSnapshot` | 两侧现状逐字相同 |
+| `Level` | 两侧现状逐字相同（生效瞬间冻结、运行中不追溯） |
+| `ExpiryEntry` | 两侧各有一枚"当前计时项的取消锚"（状态侧 = 时值到期；技能侧 = 当前时段到期） |
+
+**两域公共字段 MUST 住基底、MUST NOT 在派生结构重复声明**。派生结构只声明**自己的**域内字段：`FTcsBuffInstance` 的 `Handle` / `Source` / `Instigator` / `Phase` / `Stacks` / `DurationRemaining` / `PeriodRemaining` / `PeriodEntry`，施法侧 `FTcsSkillInstance` 的 `EntryHandle` / `PhaseIndex` / `ChainRunHandle` 等——**MUST NOT 进本基底**（进了就重犯本基底要修的病）。
+
+**命名判据 MUST 写进头注释**（`TcsStateInstance.h:17`）：`State` 在本仓是**共享层**的词根，不是"Buff 专属"——它与 Def 层**完全同构**：`FTcsStateDefBase` ← `FTcsBuffDef` / `FTcsSkillDefData`，对应运行态就是 `FTcsStateInstance` ← `FTcsBuffInstance` / `FTcsSkillInstance`。**MUST NOT 取 `FTcsEntityRuntime` 一类含 `Entity` 的名字**：`Entity` 在本仓**专指**承载 State/Buff/Skill/Attribute 的**战斗实体**，而本结构装的是**实体身上的运行态**，不是实体本身——用 `Entity` 命名它属**词汇二义性**（`DEC-2026-10-14-entity-vocabulary` 所禁）。
+
+**★ 三处"看起来像、实际不是"的邻词 MUST NOT 按名字合并**（逐条实测，2026-10-14）：
+- **`CascadeAnchor` ≠ 域内的 `Source`**：后者是"**谁施加的**"，明文 **MUST NOT 当撤销锚点**（同一来源可施加多个不同定义 ⇒ 按它摘会误摘别条实例的条目）。`Source` **不住本基底**；
+- **`ExpiryEntry` ≠ 技能侧的"时段游标"**：`FTcsSkillInstance::PhaseIndex` 是**时段推进的下标**，与本字段（计时项的取消锚）**同词根不同义**，MUST NOT 混为一谈。
+
+#### Scenario: 基底只有两域公共字段
+
+- **WHEN** 检查 `FTcsStateInstance` 的字段集合
+- **THEN** 恰为 `DefTag` / `Entity` / `CascadeAnchor` / `ParamSnapshot` / `Level` / `ExpiryEntry` 六个；**不含** `Handle` / `Source` / `Instigator` / `Phase` / `Stacks` / `DurationRemaining` / `PeriodRemaining` / `PeriodEntry`（Buff 域内）与 `EntryHandle` / `PhaseIndex` / `ChainRunHandle`（施法侧）
+
+#### Scenario: 派生结构不重复声明公共字段
+
+- **WHEN** 检查 `FTcsBuffInstance` 与 `FTcsSkillInstance` 的字段声明
+- **THEN** 两者都**不**重复声明基底 6 字段（各自只声明域内字段），且都能直接读到基底字段（继承而非复制）
+
+#### Scenario: 来源不作撤销锚点
+
+- **WHEN** 检查撤销路径按什么摘除条目
+- **THEN** 按 `CascadeAnchor` 摘（MUST NOT 按 `Source`）——同一来源可施加多个不同定义，按 `Source` 摘会误摘别条实例的条目
+
+### Requirement: 共享层门面与其存在判据
+
+`TcsState` MUST 提供**极薄的共享门面** `UTcsStateSubsystem : UWorldSubsystem`，它**只持两件被两域在代码级共用的设施**（MUST NOT 成为"什么都往里塞"的共享层）：
+
+- **快照参数表反射壳** `GetParamTableReader()`——技能侧求值引用类时长与参数链行时从它取壳（类型与绑定纪律归 `state-param-snapshot`）；
+- **跨域在飞运行态查询契约的注册与取用点** `GetLiveQuery()` / `SetLiveQuery()`——语义归本能力的「跨域在飞运行态查询契约」需求。
+
+**存在判据 MUST 写进头注释且可执行**：`TcsStateSubsystem.h:28` 的「**本类的存在判据 = "这个设施是否被两个域在代码级使用"**」。**不满足判据的设施 MUST NOT 进本门面**——门面被削到只剩两件，正是该判据仍在生效的证据。
+
+**该判据曾两度失效，两份真相 MUST 留痕**：
+1. **判据本身曾写错**（`PLN-REFACTOR-1` Task 4《开工前置》的《一处判据自我纠正》）——当时把"三组读口"写成本门面职责，而按代码级消费者实测，等级读口 / 事件与时钟读口的消费者**全部在 Buff 域**，故它们随 `UTcsBuffSubsystem` 走。
+2. **"唯一共用设施"的排他性断言曾失效**（2026-10-24 订正）——原文写「**只**持快照参数表反射壳……两域代码级**唯一**共用设施」，该断言在 `f626582`（`R5.5-e1` 落地 `ITcsStateLiveQuery`）之后就**已假**：本门面同时是跨域查询契约的注册与取用点。⇒ **判据 MUST 写成"这个设施是否被两个域在代码级使用"这类增量安全的形式，MUST NOT 写成"唯一的共用设施是 X"**（排他性断言在每次新增共用设施时都会变成假话，而结论往往仍成立）。
+
+**MUST NOT 把两份门面读成读口重复**：`UTcsStateSubsystem` 与 `UTcsBuffSubsystem` 的分工判据就是上面那条——施加 / 查询 / 移除 / 等级读口 / 事件与时钟读口全部住 `TcsBuff`，只有"两域都用"的才留在本门面。
+
+#### Scenario: 门面只持两域共用设施
+
+- **WHEN** 检查 `UTcsStateSubsystem` 的公开方法集
+- **THEN** 恰为 `GetParamTableReader()` / `GetLiveQuery()` / `SetLiveQuery()` 三项；**不含**任何施加 / 移除 / 等级读口 / 事件与时钟读口（那些住 `UTcsBuffSubsystem`）
+
+#### Scenario: 单域设施的消费者都在同一域
+
+- **WHEN** 取证某设施是否该进共享门面
+- **THEN** 按**代码级消费者**实测：若消费者全部落在同一域（如等级读口只在 Buff 侧物化路径与四个等级源被读），则该设施 MUST NOT 进本门面——"看起来通用"不构成判据
+
+#### Scenario: 新增共用设施不使判据失效
+
+- **WHEN** 未来新增第三件被两域共用的设施
+- **THEN** 本条判据（"是否被两个域在代码级使用"）**仍然成立**，只需把该设施列入清单；MUST NOT 因"原文写了唯一"而认为需要推翻结论
+
 ### Requirement: 跨域在飞运行态查询契约（`ITcsStateLiveQuery`）
 
 「A 域要读 B 域的在跑运行态」MUST 经**共享层定义的单一契约**中转，**MUST NOT** 让任一域认识另一域：
@@ -166,7 +232,7 @@
 - **它与 `ITcsEntityQuery` 的分工**：那个读**世界**（遍历 / 定位 / 存活——宿主本体论，框架不认识「世界有哪些实体」）；本契约读的是**框架自己的运行态**（哪些运行态在跑），故实现方是域而非宿主。
 
 > **收录订正（2026-10-24）**：本契约于 `f626582`（`R5.5-e1` 关系表族检查）已落地并被**真实消费者**使用（`FTcsSkillOps_Relation::CheckRelationGate` 的第 ③ 向判定），但**本能力自 `R5.5-e1` 起从未收录它**——`ITcsStateLiveQuery` / `FTcsLiveStateView` / `GetLiveQuery` / `SetLiveQuery` / `ForEachLiveState` / `GetLiveCount` 六个符号在 `openspec/specs/` 全库**零命中**。性质同 `G-6`（`FTcsPrimaryAssetQuery` 有唯一真实消费者却零收录）/ `G-17`（`IsChainRegistered` 同款）：**有实现者、有消费者，而最高权威层查不到**。
-> **连带订正两处错误的排他性断言**：`plugin-descriptor:29` 与 `state-instance-lifecycle:140` 都写「技能侧对状态侧的**唯一**代码级依赖是 `GetParamTableReader()`」——该断言 **已假**（真实依赖共 7 类：`FTcsStateInstance` 基底 / `FTcsParamSnapshot` / `UTcsStateParamTableReader` / `FTcsStateRelation` / `FTcsRelationRow` / `ITcsStateLiveQuery` / `FTcsLiveStateView`）。两句都成文于 `PLN-REFACTOR-1` Task 4/5（`948e98d` / `c0bbeae`），而本契约晚至 `f626582` 才进代码 ⇒ **不是写错，是「写下排他性断言之后世界变了、没人回头改」**。⚠ **结论仍成立**（`TcsSkill.Build.cs` 确无 `TcsBuff`），但**论证依据已失效**：照原文判断「新增一个跨域读口会不会破坏这条边界」会得到错误答案。
+> **连带订正两处错误的排他性断言**：`plugin-descriptor:29` 与 `buff-instance-lifecycle:140` 都写「技能侧对状态侧的**唯一**代码级依赖是 `GetParamTableReader()`」——该断言 **已假**（真实依赖共 7 类：`FTcsStateInstance` 基底 / `FTcsParamSnapshot` / `UTcsStateParamTableReader` / `FTcsStateRelation` / `FTcsRelationRow` / `ITcsStateLiveQuery` / `FTcsLiveStateView`）。两句都成文于 `PLN-REFACTOR-1` Task 4/5（`948e98d` / `c0bbeae`），而本契约晚至 `f626582` 才进代码 ⇒ **不是写错，是「写下排他性断言之后世界变了、没人回头改」**。⚠ **结论仍成立**（`TcsSkill.Build.cs` 确无 `TcsBuff`），但**论证依据已失效**：照原文判断「新增一个跨域读口会不会破坏这条边界」会得到错误答案。
 
 #### Scenario: 跨域接口不依赖任一域
 
