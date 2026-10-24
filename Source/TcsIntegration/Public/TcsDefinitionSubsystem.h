@@ -27,11 +27,13 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE(FTcsOnDefinitionsReady);
 
 
 class FReferenceCollector;
+class UTcsAttributeDef;
 class UTcsAttrModDef;
 class UTcsBuffDefAsset;
 class UTcsEffectChainDef;
 class UTcsEffectTriggerDefAsset;
 class UTcsSkillDef;
+struct FTcsAttributeDefData;
 struct FTcsBuffDef;
 struct FTcsEffectChain;
 struct FTcsEffectTriggerDef;
@@ -45,13 +47,17 @@ struct FTcsSkillDefData;
  * 先枚举消费场景含无世界者，再定级别）。
  *
  * 职责边界（**只做资产发现与注册，不做执行**——执行归各领域门面）：
- * - **发现**（**五条按类路径**）：链资产 `UTcsEffectChainDef`（`DiscoverChainDefs`）、触发定义资产
+ * - **发现**（**六条按类路径**）：链资产 `UTcsEffectChainDef`（`DiscoverChainDefs`）、触发定义资产
  *   `UTcsEffectTriggerDefAsset`（`DiscoverTriggerDefs`）、状态定义资产 `UTcsBuffDefAsset`
  *   （`DiscoverStateDefs`，**2026-10-04 R5 Task 1**）、修正器模板资产 `UTcsAttrModDef`
  *   （`DiscoverAttrModDefs`，**2026-10-05 R5 Task 7**）、技能定义资产 `UTcsSkillDef`
- *   （`DiscoverSkillDefs`，**2026-10-06 R6 Task 1**）——均走 `IAssetRegistry::GetAssetsByClass`
- *   （**不依赖 `PrimaryAssetTypesToScan` 注册**——该注册属 M6 轮，且未注册时 AssetManager 按类型
- *   查询会**静默返回空**，排障成本高，见台账 INTEG-3）；
+ *   （`DiscoverSkillDefs`，**2026-10-06 R6 Task 1**）、属性定义资产 `UTcsAttributeDef`
+ *   （`DiscoverAttributeDefs`，**2026-10-17 `ARCH-04` U-1**）——**前三条**走加载层统一查询口
+ *   `FTcsPrimaryAssetQuery::GetAssetsForDefClass`（类换过模块后 `IAssetRegistry::GetAssetsByClass`
+ *   按**当前类路径**查索引会**静默返 0**，实测见 `DiscoverChainDefs` 头注释：链资产 12 → 0），
+ *   **后三条**仍走 `IAssetRegistry::GetAssetsByClass`（类未搬迁，实测命中正常）；
+ *   二者**都不依赖 `PrimaryAssetTypesToScan` 注册**——该 ini 清单已被 `DEC-2026-10-13-asset-butler`
+ *   裁定②否决，替代品是代码自注册宏 `UE_DEFINE_PRIMARY_ASSET_TYPE`（台账 INTEG-3 逐项结账）；
  * - **校验**：双真相（`Chain.ChainId != ChainId`）/ 空 id / 重复登记 → 计入失败清单 + Error，不静默跳过；
  *   触发定义侧另有四条（空 `TriggerTag` / 空 `Def.EventTag` / 空 `Def.EffectChainId` / 身份重复）；
  *   **状态定义侧的三条是身份级**（加载失败或类型不符 / 空 `DefTag` / `DefTag` 重复；
@@ -62,9 +68,14 @@ struct FTcsSkillDefData;
  *   空 `TemplateTag` / `TemplateTag` 重复——`Def.Target`、操作数、值约定的内容规则归资产 `IsDataValid`）；
  *   **技能定义侧同为身份级三条**（加载失败或类型不符 / 空 `DefTag` / `DefTag` 重复——
  *   参数、施法时段、主链、内联触发行与描述的内容规则归资产 `IsDataValid`）；
+ *   **属性定义侧同为身份级三条**（加载失败或类型不符 / 空 `DefTag` / `DefTag` 重复——
+ *   `Def.BaseValue` / 边界 / 值域模式的内容规则归资产 `IsDataValid`）；
  * - **按名解析**：链定义按 `ChainId` 缓存（`ResolveChain`）、触发定义按 `TriggerTag` 缓存
  *   （`ResolveTriggerDef`）、状态定义按 `DefTag` 缓存（`ResolveStateDef`）、修正器模板按 `TemplateTag`
  *   缓存（`ResolveAttrModDef`）、技能定义按 `DefTag` 缓存（`ResolveSkillDef`）；
+ *   **属性定义例外——本类不给公开解析口**（`ARCH-04` U-1 的边界）：它的运行期读口在世界门面
+ *   （`UTcsAttributeSubsystem::FindAttributeDef`，`AddAttribute` 的解析源），本类的缓存只是
+ *   "发现 → 装配"之间的中转。加一个 GI 侧读口只会成为零消费者设施（本仓"零消费者不预建"）；
  * - **就绪状态机**：`OnDefinitionsReady` **单出口**（幂等，`Initialize` 内置位后广播恰好一次）——M6 双层引导的最小版（06 §4 硬规则①）；与 `IsRuntimeReady` 分工 = **通知 vs 轮询**，两者 MUST 并存；
  * - **装配到世界**：见下条。
  *
@@ -88,6 +99,19 @@ struct FTcsSkillDefData;
  *
  * **技能定义不装配到世界（2026-10-06 R6 Task 1）**：只缓存内容、由消费方按需 `ResolveSkillDef`
  * 解析，不建任何每世界结构；本轮运行期消费者为零，账本与门禁归后续 Task 2。
+ *
+ * **属性定义装配到世界（2026-10-17 `ARCH-04` U-1）**：与状态定义同款——装配世界时逐条登记进该世界的
+ * **属性门面**（`UTcsAttributeSubsystem::RegisterAttributeDef`）。判据与"状态定义要装配"逐字同源：
+ * 属性定义的消费面是 World 级门面（`AddAttribute` 从它的 `DefTable` 解析），而本类是 GameInstance 级
+ * ⇒ **只发现不登记 = 资产零消费者**。
+ * - **与状态定义的唯一差别是幂等守卫**：`RegisterAttributeDef` 对重复身份是 `ensureMsgf`（**会红字**，
+ *   见 `TcsAttributeSubsystem.cpp:88`），而 `RegisterBuffDef` 具名返回。⇒ 本类必须在调用前先查
+ *   `FindAttributeDef`——否则宿主（如 `TcsDevBootstrap` 的 `LoadAttributeDefs`）若先登记过，
+ *   插件装配就会刷 ensure。**这不是防御性编程，是对既有宿主用法的兼容义务**：宿主自行扫描登记
+ *   属性定义是本类补齐之前唯一的合法用法，MUST NOT 因本类补齐而变成错误。
+ * - **就绪语义随之变宽**：`IsRuntimeReady() == true` 现在也意味着"属性定义已登记进该世界"。
+ *   这是加强不是破坏（此前它**不覆盖**属性定义，见 `ARCH-04` D-5 的第 ② 影响面）——
+ *   组件的 `BeginPlay` 门禁因此第一次真的覆盖了属性定义。
  *
  * **MUST NOT 持可变运行态**（Const 面：缓存的是定义，不是运行态；触发行本身住世界级子系统）。
  *
@@ -142,6 +166,12 @@ public:
 	 *
 	 * @param InThis 本对象（引擎静态 ARO 签名约定，须自行 Cast）。
 	 * @param Collector GC 引用收集器。
+	 *
+	 * **属性定义缓存（`AttributeDefs`，2026-10-17 `ARCH-04` U-1）同样不进本函数**——判据同上，且理由更硬：
+	 * `FTcsAttributeDefData` 是**纯值 struct**（`double BaseValue` / `FTcsAttributeBounds`（含 `FGameplayTag`）/
+	 * `ETcsAttributeValueDomain` / `ETcsAttrOverrideTieBreak`），**没有任何 UObject 字段** ⇒ 没有"包在
+	 * `FInstancedStruct` 里的内层对象引用"可漏。资产对象本身由 `AttributeDefAssets`（`UPROPERTY`）保活。
+	 * ⇒ 这是**五份内容缓存里唯一不需要本函数的那一份**；把它加进来只会是空转。
 	 *
 	 * **修正器模板缓存（`AttrModDefs` / `AttrModDefAssets`，2026-10-05 R5 Task 7）不进本函数**——
 	 * 同一条判据"容器是否 GC 可见"给出的结论是**不需要**：`AttrModDefs` 虽也是非 `UPROPERTY` 的 `TMap`，
@@ -283,7 +313,12 @@ private:
 	// 发现并加载全部技能定义资产（加载或类型 / 身份有效 / 身份去重三项校验 → 入缓存；失败项进清单）
 	void DiscoverSkillDefs();
 
-	// 装配已缓存定义进指定世界（幂等：同一世界不重复登记；链在前、触发行在后；状态定义不参与）
+	// 发现并加载全部属性定义资产（加载或类型 / 身份有效 / 身份去重三项校验 → 入缓存；失败项进清单）。
+	// 与上面四条的唯一差别：内容的读口在**世界门面**（`FindAttributeDef`），本类不提供公开解析口。
+	void DiscoverAttributeDefs();
+
+	// 装配已缓存定义进指定世界（幂等：同一世界不重复登记；链在前、触发行在后；状态 / 技能 / 属性定义按序登记）。
+	// 判据：**凡消费面是 World 级门面的定义族都必须装配**——只发现不登记 = 资产零消费者。
 	void SeedWorld(UWorld* World);
 
 	// 世界初始化回调（新世界装配入口）
@@ -311,6 +346,16 @@ private:
 	// 技能定义缓存（Const 内容副本；键 = DefTag）——持有形态与失效判据同上，不参与世界装配
 	TMap<FGameplayTag, TUniquePtr<FTcsSkillDefData>> SkillDefs;
 
+	// 属性定义缓存（Const 内容副本；键 = DefTag）。**唯一不给公开解析口的定义缓存**——读口在世界门面
+	// （`UTcsAttributeSubsystem::FindAttributeDef`），本容器只是"发现 → 装配"的中转；加 GI 侧读口
+	// 就是零消费者预建（`ARCH-04` U-1 的边界）。
+	// `FTcsAttributeDefData` 是**纯值 struct**（`double` / `FTcsAttributeBounds` / 两个枚举，零 UObject）
+	// ⇒ **不需要** `AddReferencedObjects` 补引用——这是五份内容缓存里唯一不需要的那一份。
+	// 持有形态与其余四份一致（`TUniquePtr`）：公开头只前向声明 `FTcsAttributeDefData`，
+	// 而 `TMap` 的值类型若按值置入则要求完整类型（析构在头里隐式生成）⇒ 用 `TUniquePtr` 既保住
+	// 「公开头不拉领域类型」这条纪律，又与既有四份同形。
+	TMap<FGameplayTag, TUniquePtr<FTcsAttributeDefData>> AttributeDefs;
+
 	// 修正器模板缓存（键 = TemplateTag）。**持有资产对象本身而非内容副本**——模板的"内容"就是资产
 	// （`Def` 行 + 身份），没有可分离的 const 值类型可拷；故本容器是索引，GC 可见性由下面的资产数组承担。
 	TMap<FGameplayTag, TObjectPtr<UTcsAttrModDef>> AttrModDefs;
@@ -334,6 +379,10 @@ private:
 	// 技能定义资产缓存（GC 锚定；内容副本的内层对象引用另由 AddReferencedObjects 收集）
 	UPROPERTY()
 	TArray<TObjectPtr<UTcsSkillDef>> SkillDefAssets;
+
+	// 属性定义资产缓存（GC 锚定，理由同上）。内容副本本身无对象引用（见上），故本数组是**唯一**保活点。
+	UPROPERTY()
+	TArray<TObjectPtr<UTcsAttributeDef>> AttributeDefAssets;
 
 	// 来源句柄分配器（进程内原子发号；本类只在自己 `Initialize` 时用一次）
 	FTcsSourceHandleRegistry TriggerSourceRegistry;

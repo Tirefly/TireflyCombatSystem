@@ -40,6 +40,7 @@
 **键类型（2026-09-22 改造）**：定义表键与全部 API 的属性参数从 `FTcsAttributeName` 改为 **`FGameplayTag`**（`FTcsAttributeName` 整体移除，见 `attribute-types` 能力的"属性身份 = GameplayTag"需求）。空值判定从 `IsNone()` 改为 `!Tag.IsValid()`。**键的归属（2026-10-01 换根）**：属性 tag 住宿主侧登记的 `Attribute` 根（形态 `Attribute.<名>`，宿主 ini 声明；见 `attribute-types` 能力与宿主仓的根段注册表）——本插件 MUST NOT 声明任何属性名，也 MUST NOT 在插件侧根段注册表里登记该根。
 
 - `RegisterAttributeDef(const FGameplayTag& Attribute, const FTcsAttributeDefData& DefData)`：宿主 / DefLibrary 加载定义资产后登记（`UTcsAttributeDef::Def` 即定义数据、`DefTag` 即属性身份）；属性 tag 由调用方显式给出。拒绝面（ensure + false）：属性 tag 无效、同 tag 重复登记（D2-1：词表重名 = 加载期错误，不得静默覆写）。
+  **两条调用路径（2026-10-17 `ARCH-04` U-1 起并存，MUST NOT 读成二选一）**：① **插件自动装配**——`UTcsDefinitionSubsystem`（GameInstance 级）发现 `UTcsAttributeDef` 资产后，在**每个世界装配**时把每条定义登记进该世界的本门面；② **宿主自行登记**——宿主导入自己的扫描逻辑后直接调本方法。两条路径 MUST 都能独立走通（本门面 MUST NOT 依赖哪一条先发生）。**因此本门面的重复身份拒绝面 MUST NOT 被调用方当成"调用错误"来理解**：插件装配段在调用前 MUST 先查 `FindAttributeDef` 并跳过，宿主侧同样 MUST 查；`ensure` 的语义是"同一份内容被登记了两次"，那是内容或装配逻辑的错误，不是合法的并发路径。
 - `FindAttributeDef(FGameplayTag)`：查回已登记定义（未登记返回 nullptr，**正常查询路径不 ensure**）。
 - `AddAttribute(Entity, FGameplayTag)`：**解冻优先**——若暂存区已有同一 tag 实例则整条搬回（基础值/边界/值域模式/修正器条目集原样保留，MUST 输出解冻日志）；否则按定义数据新建实例（初值 `BaseValue`、`CachedCurrent = BaseValue`（占位：结算前的缓存值不对外承诺）、**`bDirty = true`（新建即脏：值域收口/既有修正器/动态边界都由管线在结算时生效）**、`AttrModInstances` 空，MUST 输出新建日志）。拒绝面（ensure + false）：实体未注册、属性 tag 无效、该实体已持有同 tag 属性、**定义未登记**（仅新建路径需要定义）、定义数据的动态边界自引用（D2-4）。
 - `RemoveAttribute(Entity, FGameplayTag)`：**冻结**——把整条实例（含基础值/边界/值域模式/修正器条目集）从 `Attributes` 搬入暂存区 `FrozenAttributes`，MUST **不销毁、不丢弃修正器条目**，MUST 输出冻结日志（含属性 tag 与修正器条目数）。拒绝面（ensure + false）：实体未注册、属性 tag 无效、该实体未持有此属性。
@@ -70,6 +71,17 @@
 
 - **WHEN** 同 `DefTag` 再次 `RegisterAttributeDef`，或对同一实体已持有的属性再次 `AddAttribute`
 - **THEN** 各自 ensure 命中且返回 false（不覆写既有定义／实例）
+
+#### Scenario: 插件自动装配与宿主自行登记两条路径都可走通
+
+- **WHEN** 一种装配下由插件的定义库在每个世界装配时登记属性定义；另一种装配下由宿主自行扫描并登记（插件侧零资产或宿主先于装配登记）
+- **THEN** 两种装配下 `FindAttributeDef` 都命中、`AddAttribute` 都成功——
+  **判据**：本门面 MUST NOT 依赖"谁先登记"；而插件装配段 MUST 在调用前查 `FindAttributeDef` 跳过，否则宿主先登记时会被重复身份的 `ensure` 误报
+
+#### Scenario: 未登记定义的属性仍然拦截
+
+- **WHEN** 一条属性定义既未被插件装配进本世界、也未被宿主登记，此时对该 tag 调用 `AddAttribute`
+- **THEN** ensure 命中且返回 false（不建实例）——**"有插件自动装配"不改变"定义必须在本世界登记过"这条前提**
 
 #### Scenario: 动态边界自引用被拦截
 

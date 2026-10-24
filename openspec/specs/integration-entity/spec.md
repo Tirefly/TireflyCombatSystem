@@ -74,11 +74,12 @@
 > **它与 `IsRuntimeReady` 的分工**：前者是**通知**（"刚刚齐备了"，单次），后者是**轮询**（门禁查询点，"现在能注册吗"）。两者 MUST 并存、MUST NOT 互相替代——只有轮询时，比定义库更早 `BeginPlay` 的实体只能**跳过注册并永久失效**。
 > ⇒ 本条原是 `G-10`（规格更严、代码更松）形态：规格要求了、代码未做，且**注释里那句"单出口"是承诺而非事实**（`ARCH-11` D-1）。
 
-- **发现**：**两条路径并存，按族分配**——`FTcsPrimaryAssetQuery::GetAssetsForDefClass`（加载层统一查询口，`TcsAssetButler`）用于链 / 触发 / 状态三族；`IAssetRegistry::GetAssetsByClass` 用于修正器模板 / 技能两族（**2026-10-17 订正：原写「五条全走 `GetAssetsByClass`」，实为 3 走新口、2 走旧口**）。两条都不依赖 `PrimaryAssetTypesToScan` 注册（该注册属 M6 轮）。**五条按类发现路径**：
+- **发现**：**两条路径并存，按族分配**——`FTcsPrimaryAssetQuery::GetAssetsForDefClass`（加载层统一查询口，`TcsAssetButler`）用于链 / 触发 / 状态 / **属性**四族；`IAssetRegistry::GetAssetsByClass` 用于修正器模板 / 技能两族（**2026-10-17 订正：原写「五条全走 `GetAssetsByClass`」，实为 3 走新口、2 走旧口；同日 `ARCH-04` U-1 新增属性定义走新口，两半之比变为 4:2**）。两条路径**都不依赖 `PrimaryAssetTypesToScan` 注册**（该 ini 清单已被 `DEC-2026-10-13-asset-butler` 裁定②否决；替代品是代码自注册宏 `UE_DEFINE_PRIMARY_ASSET_TYPE`，台账 `INTEG-3` 逐项结账）。**六条按类发现路径**：
   链资产 `UTcsEffectChainDef`（`DiscoverChainDefs`）、触发定义资产 `UTcsEffectTriggerDefAsset`（`DiscoverTriggerDefs`，**2026-10-04 新增**）、
   状态定义资产 `UTcsBuffDefAsset`（`DiscoverStateDefs`，**2026-10-04 R5 Task 1 新增**）、
   修正器模板资产 `UTcsAttrModDef`（`DiscoverAttrModDefs`，**2026-10-05 R5 Task 7 新增**——该资产族此前**全库零发现路径**，其身份词 `TemplateTag` 因此零解析消费者，即台账 `ATTR-1`）；
   技能定义资产 `UTcsSkillDef`（`DiscoverSkillDefs`，**2026-10-06 R6 Task 1 新增**）；
+  属性定义资产 `UTcsAttributeDef`（`DiscoverAttributeDefs`，**2026-10-17 `ARCH-04` U-1 新增**——该资产族此前同样**全库零插件侧发现路径**，只有宿主装置在扫）；
 
 > **发现路径订正（2026-10-17，`ARCH-03` G-7 / `ARCH-11` D-7）**：本条原写「`IAssetRegistry::GetAssetsByClass`…**五条**按类发现路径」，该说法**已假**——`PLN-REFACTOR-1` Task 6（2026-10-15）把**三条**（`DiscoverChainDefs` / `DiscoverTriggerDefs` / `DiscoverStateDefs`）改走 `FTcsPrimaryAssetQuery::GetAssetsForDefClass`，只剩 **两条**（`DiscoverAttrModDefs` / `DiscoverSkillDefs`）仍走旧口。改动理由见 `Asset/TcsPrimaryAssetQuery.h` 头注释：类换过模块后 `GetAssetsByClass` 按**当前类路径**查索引会**静默返 0**（实测两个真实回归：`Slice.Run` 2/4→65/0、`State.Run` 6/9→15/0）。
 > ⚠ **两条旧口的形态差异（`ARCH-11` D-7 新发现，MUST 记）**：新旧两口的**异步就绪门禁不同**——旧口用 `IAssetRegistry::IsLoadingAssets()`（`_Skill.cpp:25` / `_AttrModDef.cpp:24`），新口用 `HasInitialScanCompleted`（`TcsPrimaryAssetQuery` 内）；且这两条旧路径**各自重复了 13 行相同的 `IsLoadingAssets` + `WaitForCompletion` 骨架**。⇒ 「该改的只改了三条、且没写为什么留两条」——`TcsIntegration.Build.cs:35` 的注释仍写「五条 `Discover*` 由 `GetAssetsByClass` 改走」，与实际不符。
@@ -94,6 +95,11 @@
   这是 `effect-trigger` 规格"**定义加载期登记**（全局常驻规则）→ `Source` = 系统/DefLibrary 来源句柄"那条的实现落点——**只发现不登记即等于资产零消费者**（策划填了不生效）。
   **该来源句柄 MUST 有撤销点（2026-10-17 `ARCH-11` D-2 订正）**：本类反初始化（GameInstance 销毁）时 MUST 对**每个仍存活且已装配的世界**调 `UTcsEffectSubsystem::UnregisterTriggerRowsBySource(TriggerSeedSource)`，逐世界撤销本类登记的触发行。
   **判据（为什么不能只靠世界侧清理兜底）**：世界级容器的 `TriggerRegistry.Reset(...)` 确实会在**世界先死**时清干净，但它的前提是"世界会被销毁"；而本类**可能在世界仍存活时**被反初始化（编辑器换 GameInstance、或世界比 GameInstance 活得久）⇒ 那时行还在册、来源句柄却已无主（`FTcsSourceHandle` 是**纯编号、无存活性登记**）⇒ 「定义库来源」与「永不过期」等价，这个句柄白发。**两件事都要做，不能互相替代**。装配结果 MUST 进日志（就绪行含触发定义条数，世界装配行含已装配行数；**2026-10-08 补：世界装配行 MUST 另含技能定义已装配条数**）；
+  **属性定义装配（2026-10-17 `ARCH-04` U-1 新增）**：装配世界时 MUST 把每条属性定义登记进该世界的属性门面（`UTcsAttributeSubsystem::RegisterAttributeDef`），判据与状态定义逐字同源——消费面是 World 级门面（`AddAttribute` 从它的 `DefTable` 解析），而本类是 GameInstance 级 ⇒ **只发现不登记 = 资产零消费者**。三条补充纪律：
+  ① **该段 MUST 先查 `FindAttributeDef` 再登记**——`RegisterAttributeDef` 对重复身份走 `ensureMsgf`（**会刷红字**），而本类补齐之前「宿主自己扫定义并登记」是**唯一合法用法**（`UTcsDevBootstrap::LoadAttributeDefs` 即它）⇒ 宿主先登记过时本段 MUST 跳过，MUST NOT 让 ensure 响；
+  ② **`SeedWorld` 的「无内容即返回」判据 MUST 与「可装配定义族」的增删同步**——属性定义加入装配面时若不同步扩这条判据，则「世界里只有属性定义」的工程会**整场不装配**，且失败面是**静默的**（该函数直接 return、连日志都没有）；
+  ③ **世界装配日志 MUST 含属性定义已装配条数**（与其余第五档并列——分母照打，零条也打）；
+  **就绪语义随之变宽（MUST 如实登记）**：`IsRuntimeReady() == true` 现在也意味着"属性定义已登记进该世界"。这是**加强不是破坏**——此前它不覆盖属性定义（`ARCH-04` D-5 的第 ② 影响面：组件以为"定义库就绪 = 属性定义也在了"，实际不是）⇒ 组件的 `BeginPlay` 门禁自此第一次真的覆盖属性定义；
 - **引用链预检（2026-10-04 新增）**：装配一条触发定义前 MUST 检查其 `Def.EffectChainId` 在该世界是否已登记（`UTcsEffectSubsystem::IsChainRegistered`）。不可解析时 MUST 留一条 **Warning**（含 `TriggerTag` 与链 id）并**仍登记该行**——
   MUST NOT 跳过登记（宿主可在世界运行期自行 `RegisterChain`，"先起世界后登记链"是合法时序，跳过会让该规则永久静默失效），MUST NOT 用 Error（内容缺口不是契约违规，且 `ExecuteChain` 已有自己的拒绝面）。**求值器 MUST NOT 重复该校验**（起链被拒的面归 `ExecuteChain`）；
 - **触发定义的失败清单条目（2026-10-04 新增）**：资产加载失败或类型不符 / `TriggerTag` 无效 / `Def.EventTag` 无效 / `Def.EffectChainId` 无效 / `TriggerTag` 与另一资产重复——
@@ -262,3 +268,26 @@
 - **WHEN** 对某个 `DefTag` **未登记进本世界技能门面**的技能调用 `GrantSkill`
 - **THEN** 授予被拒绝（留 **Warning**、不 ensure），且该实体的**账本条目数不变**——
   MUST NOT 建出一个取不到定义内容的条目（那会让参数读取面全部落空，而失败面表现为「读数为 0」而非「没学到」，属静默错误）
+
+#### Scenario: 属性定义按身份被发现与装配到世界
+
+- **WHEN** 内容目录首次出现一个 `UTcsAttributeDef` 资产（`DefTag` 有效），GameInstance 初始化且世界初始化完成后检查
+- **THEN** 发现路径扫到它（就绪日志含属性定义计数）、世界装配日志含属性定义已装配条数，且该世界的属性门面 `FindAttributeDef(DefTag)` 命中、内容与定义库缓存一致——
+  **「宿主自己扫定义并登记」不是唯一合法用法了**，但那条路径 MUST 仍然成立（见下条）
+
+#### Scenario: 宿主先登记过时插件装配不刷 ensure
+
+- **WHEN** 宿主（如 `UTcsDevBootstrap::LoadAttributeDefs`）在世界装配**之前**已经把一个属性定义资产登记进该世界的属性门面
+- **THEN** 插件装配该定义时**跳过登记**（`FindAttributeDef` 命中即视为已就位），`RegisterAttributeDef` 的重复身份 `ensure` **零触发**、日志不出现红字；且该属性定义在该世界仍然可用（`AddAttribute` 成功）——
+  **判据**：本类补齐之前宿主自行扫描登记是**唯一合法用法**，补齐 MUST NOT 让它变成错误
+
+#### Scenario: 世界里只有属性定义时仍然装配
+
+- **WHEN** 内容目录里只有属性定义资产（无链 / 无触发 / 无状态 / 无技能定义）
+- **THEN** 世界装配**仍然发生**（属性定义被登记进门面、装配日志打出该行）——
+  **判据**：`SeedWorld` 的「无内容即返回」判据 MUST 与「可装配定义族」同步增删；漏改的失败面是**静默的**（该函数直接 return、连日志都没有）
+
+#### Scenario: 属性定义的重复身份被拦在发现期
+
+- **WHEN** 两个 `UTcsAttributeDef` 资产使用同一个 `DefTag`
+- **THEN** 后一个被跳过并计入失败清单（含路径与原因）、先一个仍可被装配、其余资产仍可用；MUST NOT 静默覆写

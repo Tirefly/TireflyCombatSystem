@@ -7,6 +7,7 @@
 #include "AssetRegistry/IAssetRegistry.h"
 #include "Asset/TcsPrimaryAssetQuery.h"
 #include "Attribute/TcsAttrModDef.h"
+#include "Attribute/TcsAttributeDef.h"
 #include "Chain/TcsEffectChain.h"
 #include "Chain/TcsEffectChainDef.h"
 #include "Def/TcsBuffDef.h"
@@ -16,6 +17,7 @@
 #include "Trigger/TcsEffectTriggerDefAsset.h"
 #include "Trigger/TcsEffectTriggerInstance.h"
 
+#include "TcsAttributeSubsystem.h"
 #include "TcsBuffSubsystem.h"
 #include "TcsEffectSubsystem.h"
 #include "TcsIntegrationLogChannel.h"
@@ -32,6 +34,7 @@ void UTcsDefinitionSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	DiscoverStateDefs();
 	DiscoverAttrModDefs();
 	DiscoverSkillDefs();
+	DiscoverAttributeDefs();
 
 	// 触发行来源句柄：本类在世界装配期登记触发行时作 `Source`（"定义库来源"这一级联退订锚点，发放一次）
 	TriggerSeedSource = TriggerSourceRegistry.Allocate();
@@ -57,8 +60,8 @@ void UTcsDefinitionSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	WorldInitDelegateHandle = FWorldDelegates::OnPostWorldInitialization.AddUObject(
 		this, &UTcsDefinitionSubsystem::HandlePostWorldInitialization);
 
-	UE_LOG(LogTcsIntegration, Log, TEXT("UTcsDefinitionSubsystem: 定义库就绪——链定义 %d 条，触发定义 %d 条，状态定义 %d 条，修正器模板 %d 条，技能定义 %d 条，失败 %d 条"),
-		ChainDefs.Num(), TriggerDefs.Num(), StateDefs.Num(), AttrModDefs.Num(), SkillDefs.Num(), FailureList.Num());
+	UE_LOG(LogTcsIntegration, Log, TEXT("UTcsDefinitionSubsystem: 定义库就绪——链定义 %d 条，触发定义 %d 条，状态定义 %d 条，修正器模板 %d 条，技能定义 %d 条，属性定义 %d 条，失败 %d 条"),
+		ChainDefs.Num(), TriggerDefs.Num(), StateDefs.Num(), AttrModDefs.Num(), SkillDefs.Num(), AttributeDefs.Num(), FailureList.Num());
 
 	for (const FString& Failure : FailureList)
 	{
@@ -117,6 +120,8 @@ void UTcsDefinitionSubsystem::Deinitialize()
 	AttrModDefAssets.Empty();
 	SkillDefs.Empty();
 	SkillDefAssets.Empty();
+	AttributeDefs.Empty();
+	AttributeDefAssets.Empty();
 	TriggerSeedSource = FTcsSourceHandle();
 	FailureList.Empty();
 	bRuntimeReady = false;
@@ -193,8 +198,14 @@ void UTcsDefinitionSubsystem::DiscoverChainDefs()
 
 void UTcsDefinitionSubsystem::SeedWorld(UWorld* World)
 {
-	// 无内容即返回的判据 = 四类定义**全空**（状态/技能定义也算内容——只装它们的世界同样要装配）
-	if (!World || (ChainDefs.Num() == 0 && TriggerDefs.Num() == 0 && StateDefs.Num() == 0 && SkillDefs.Num() == 0))
+	// 无内容即返回的判据 = 五类**可装配**定义全空。
+	//
+	// **判据 MUST 与「哪些定义族要装配」同步增删**：若新增一个装配族却忘了扩这一行，则
+	// 「世界里只有该族定义」的工程会**整场不装配**，而失败面是静默的——本函数直接 return、
+	// 连日志都没有（对照：四段登记各自都有分子/分母日志）。⇒ 新增装配族 MUST 同批改这一行。
+	// 修正器模板不在其中：它的消费面是**资产直引用**（`TSoftObjectPtr<UTcsAttrModDef>`），不建每世界结构。
+	if (!World || (ChainDefs.Num() == 0 && TriggerDefs.Num() == 0 && StateDefs.Num() == 0
+		&& SkillDefs.Num() == 0 && AttributeDefs.Num() == 0))
 	{
 		return;
 	}
@@ -231,6 +242,9 @@ void UTcsDefinitionSubsystem::SeedWorld(UWorld* World)
 	// 运行期消费者为零，而账本正是那个消费者：它的读取面全都要定义内容，且 TcsSkill 不能反向
 	// 依赖本类（成环）⇒ 定义 MUST 经登记口单向写进门面）
 	UTcsSkillSubsystem* SkillSubsystem = World->GetSubsystem<UTcsSkillSubsystem>();
+
+	// 属性门面（2026-10-17 `ARCH-04` U-1）：属性定义逐世界登记进它。缺它就跳过该批（非游戏世界）
+	UTcsAttributeSubsystem* AttributeSubsystem = World->GetSubsystem<UTcsAttributeSubsystem>();
 
 	int32 Registered = 0;
 	for (const TPair<FGameplayTag, TUniquePtr<FTcsEffectChain>>& Pair : ChainDefs)
@@ -305,12 +319,45 @@ void UTcsDefinitionSubsystem::SeedWorld(UWorld* World)
 		}
 	}
 
+	// 属性定义 → 该世界的属性门面（**排在最后**：与其他定义族之间无引用关系，位置只为次序一致）。
+	//
+	// **幂等守卫是硬要求，不是防御性编程**：`RegisterAttributeDef` 对重复身份走 `ensureMsgf`
+	// （`TcsAttributeSubsystem.cpp:88`，**会刷红字**），而本类补齐之前，"宿主自己扫定义并登记"是
+	// **唯一合法用法**（`TcsDevBootstrap::LoadAttributeDefs` 就是它）。⇒ 宿主若先登记过，本段 MUST
+	// 跳过而不是让 ensure 响——否则本类的补齐会**把原本正确的宿主用法变成错误**。
+	// 这与 `RegisterBuffDef` / `RegisterSkillDef` 的差别是**对方的口语义不同**（那两个返回具名失败），
+	// 不是本类可以省的一层。
+	int32 RegisteredAttributeDefs = 0;
+	if (AttributeSubsystem)
+	{
+		for (const TPair<FGameplayTag, TUniquePtr<FTcsAttributeDefData>>& Pair : AttributeDefs)
+		{
+			if (!Pair.Value.IsValid())
+			{
+				continue;
+			}
+
+			// 已登记 ⇒ 视为已就位（不重复登记、不刷 ensure）
+			if (AttributeSubsystem->FindAttributeDef(Pair.Key))
+			{
+				++RegisteredAttributeDefs;
+				continue;
+			}
+
+			if (AttributeSubsystem->RegisterAttributeDef(Pair.Key, *Pair.Value))
+			{
+				++RegisteredAttributeDefs;
+			}
+		}
+	}
+
 	SeededWorlds.AddUnique(World);
 
 	UE_LOG(LogTcsIntegration, Log,
-		TEXT("UTcsDefinitionSubsystem: 已装配到世界 %s——链定义 %d/%d 条，触发行 %d/%d 条，状态定义 %d/%d 条，技能定义 %d/%d 条"),
+		TEXT("UTcsDefinitionSubsystem: 已装配到世界 %s——链定义 %d/%d 条，触发行 %d/%d 条，状态定义 %d/%d 条，技能定义 %d/%d 条，属性定义 %d/%d 条"),
 		*World->GetName(), Registered, ChainDefs.Num(), RegisteredRows, TriggerDefs.Num(),
-		RegisteredStateDefs, StateDefs.Num(), RegisteredSkillDefs, SkillDefs.Num());
+		RegisteredStateDefs, StateDefs.Num(), RegisteredSkillDefs, SkillDefs.Num(),
+		RegisteredAttributeDefs, AttributeDefs.Num());
 }
 
 void UTcsDefinitionSubsystem::HandlePostWorldInitialization(UWorld* World, const UWorld::InitializationValues IVS)
