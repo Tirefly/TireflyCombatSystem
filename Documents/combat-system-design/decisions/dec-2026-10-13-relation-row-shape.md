@@ -28,12 +28,15 @@
 >
 > **一处误推 MUST 纠正以免重犯**：上方 ② 写「`DefTag` 表达不了『一类』，把它并进类别匹配会把『一族』退化成『一个资产』」——**这是错的**。并集**不会**退化：父词仍在 `CategoryTags` 里照常覆盖一族，`DefTag` 只是**额外**多给了「精确到这一个资产」的能力。**真正的风险从来不是并集，而是「两条寻址路径」**（先按 `DefTag` 查一遍、再按 `CategoryTags` 查一遍）——那才产生不明确。
 >
-> **★ 真实的缺陷在实施，不在文档**：同日实施的 `f626582`（`R5.5-e1`）**按上述被取代的过渡口径落了代码**——两域的主体面都只填 `CategoryTags`，`DefTag` 从未进入匹配面；并把旧判词抄进了三处代码注释。⇒ **裁定为真、落地为假**，已登记待实施批次修复。
+> **★ 真实的缺陷在实施，不在文档**：同日实施的 `f626582`（`R5.5-e1`）**按上述被取代的过渡口径落了代码**——两域的主体面都只填 `CategoryTags`，`DefTag` 从未进入匹配面；并把旧判词抄进了三处代码注释。⇒ **裁定为真、落地为假**。
 >
-> **落地面（本轮已改，仅文档与注释）**：`openspec/specs/state-relation-check`（补并集判据 + 2 Scenario）/ `buff-def-asset`（订正「两个通道各自独立」）/ `TcsStateDefBase.h` / `TcsStateRelation.h` / `TcsBuffOps_Relation.cpp`。
+> **✅ 已修复完毕（2026-10-24，提交 `2297357`）**，三层同时对齐：① **实现**——`CollectLiveCategoryTags` / `CollectBlocks` / `CollectCancels` 的客体侧、`MakeSelfRelationRow` 的主体侧、技能侧 `CheckRelationGate` 的主体面与客体面、`UTcsBuffSubsystem::ForEachLiveState` 的视图装配，**全部**改为 `CategoryTags` ∪ `{DefTag}`；② **规格**——`state-relation-check` 补并集判据 + 3 条 Scenario（含客体面 Scenario），`buff-def-asset` 订正原「两个通道各自独立」；③ **验证**——PIE `Tcs.Test.State.Relation` **25/25 PASS**，`R8`（精确点名 `DefTag` 生效）与 `R9`（点名**别的** `DefTag` 不拦）构成**正反双向判据**。
 >
-> **⚠ 一条必须在实施时守住的边界**：本裁定只改**主体侧**（`AppliesToTag` 拿谁去匹配）。**客体侧**（`CheckRequired` / `CheckForbidden` / `CollectBlocks` / `CollectCancels` 拿到的"在跑实例词面"）是否也并 `DefTag`，**本文未裁**——两域现状都是**只并 `CategoryTags`**（`CollectLiveCategoryTags` / `LiveQuery->ForEachLiveState`），改动它会改变业务语义，须另行拍板。
-
+> **⚠ 一条自造的假边界，已删除（2026-10-24 订正）**：本注记原写「本裁定只改**主体侧**；**客体侧**是否也并 `DefTag`，本文未裁」——**该边界由实施者发明，不是本文的留白**。
+>
+> **判据**：本文 §4.6 的标题是「主体侧匹配面」，而取代它的 `DEC-2026-10-17` §4 标题是「匹配面 = `DefTag` + `CategoryTags`」——**后者通篇不分主体侧与客体侧**，其判据「两者合起来才是这个资产的全部可寻址词（与 GAS `AssetTags` 同构）」是**全称**的：一个资产**拥有的词**，不会因为它被拿去匹配的哪一侧而改变。⇒ **主体面与客体面同口径**，`state-relation-check` 规格已按此写死（「主体面与客体面同口径」+ 客体面 Scenario）。
+>
+> **同时纠正原句的一个事实错误**：它说「两域现状都是只并 `CategoryTags`」——写这句时客体系**已经并了**（`CollectLiveCategoryTags` / `CollectBlocks` / `CollectCancels` 的客体系、技能侧反向查找、`FTcsLiveStateView` 装配，全部 `AddTag(DefTag)`）。**「如实登记现状」写成了与代码相反的内容**，是比边界臆造更严重的一处。
 
 > **本文是取代裁决**：它取代 [`DEC-2026-10-13-relation-semantics`](dec-2026-10-13-relation-semantics.md) 的**裁决② 与 裁决③**，并**撤销**该文在两处写下的一条 `IsDataValid` 规则（见 §3）。**裁决①（`Priority` 移出关系字段族）与裁决④⑤⑥ 未被取代、继续有效**。
 >

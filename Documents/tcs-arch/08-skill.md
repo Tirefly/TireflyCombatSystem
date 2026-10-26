@@ -758,7 +758,9 @@ for (const FTcsBoolSwitchRow& Row : Def->BoolSwitches)
 
 > **技能↔技能的阻断判定本批未落**（如实登记）：那需要遍历同实体全部在跑 run 的类别词，而技能在跑实例的词面今天没有读口 ⇒ MUST NOT 读成本条已覆盖两个方向。
 
-**判据是准的**：`FTcsSkillInstance` 确实没有"类别词"这一面——类别词住 Def 的 `CategoryTags`，而运行态只持 `DefTag`。要判"另一个在跑的技能是否用它的 `TagsToBlock` 覆盖我"，就得**遍历同实体全部在跑 run → 各自查 Def → 取 `CategoryTags`**。
+**判据是准的**：`FTcsSkillInstance` 确实没有"类别词"这一面——类别词住 Def 的 `CategoryTags`，而运行态只持 `DefTag`。要判"另一个在跑的技能是否用它的 `TagsToBlock` 覆盖我"，就得**遍历同实体全部在跑 run → 各自查 Def → 取它的可寻址词集**。
+
+**★ 一处随 2026-10-24 并集裁定变化的细节（MUST 读，否则会照旧口径实现）**：要取的那个词集**不是 `CategoryTags`，而是 `CategoryTags` ∪ `{DefTag}`**——与状态域同口径（`state-relation-check` 的「主体面与客体面同口径」需求）。判断依据 = 一个资产**拥有的全部词**，与它被拿去匹配的哪一侧无关。⇒ 本条的**结论不变**（仍缺读口、仍卡在枚举面），但**实现时的取词口径已定**，不必再问。
 
 **设计是否还成立**：**成立，且代价很低**——遍历的原材料全都现成（`Registry` 的桶 + `RunHandles` + 定义登记表）。缺的只是一个"技能域自己的 `ITcsStateLiveQuery` 等价物"。
 
