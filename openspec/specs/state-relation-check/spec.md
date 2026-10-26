@@ -20,7 +20,29 @@
 - 检查器形参 MUST **全是值**（主体词集 `FGameplayTagContainer` + 客体词集 + 行视图），**MUST NOT** 出现任一域的 Def 类型或运行态记录类型——`TcsState` 是共享层，认识域类型即制造包含环（同 `FTcsEntityAdmission` 的既有处置：共享层定义它认得的**最小公共字段集**，域侧负责填）；
 - 判定 MUST 只走 `FGameplayTag::MatchesTag`（**层级匹配**：父词命中子词，反向不成立）与 `FGameplayTagContainer::HasAny`；**MUST NOT 引入 `FGameplayTagQuery`**（Lyra 以同一需求证明「容器 + 层级匹配」已足够）；
 - `AppliesToTag` MUST 同时承载「具体定义」与「类别」两层含义，靠**层级匹配**统一（填具体词只作用它自己、填父词覆盖一族）——MUST NOT 为此发明通配语法；
+- **★ 主体侧匹配面的词集 MUST 是 `CategoryTags` ∪ `{DefTag}`**（2026-10-24 用户裁定；推翻此前「两个通道各自独立、MUST NOT 混为并集」的说法）。判据 = 「查询的核心不是查一类还是查一个，而是要**查询有明确结果**」：
+  - `DefTag` 作匹配词时**只命中它自己**（具体词语义）——即「一行只作用于某个资产」是**合法且必要**的声明；
+  - `CategoryTags` 承载「一族」（填父词覆盖一族）；
+  - 两者在**同一次 `HasTag` 层级匹配**里统一，**MUST NOT 引入第二条寻址路径、MUST NOT 引入通配语法**；
+  - **「唯一键」与「匹配词」是两个用途**（前者 = 定义库解析与去重，后者 = 关系表主体面），同一字段的两个用途 **MUST NOT 互相排斥**；
+  - **主体面与客体面同口径**：本裁定**不分**「`AppliesToTag` 拿去匹配的一侧」与「四个容器比对用的在跑实例词面」——两侧的词集**都 MUST 是并集**。判据是「该资产**拥有的全部词**」（与 GAS 的 `AssetTags` 集合同构），与该词用在匹配的哪一侧无关；
+  - **存储层 MUST NOT 合并**：并集是**匹配面**的并集，**不是存储的合并**——`FTcsStateDefBase` 的 `DefTag` 与 `CategoryTags` MUST 保持为两个独立字段，MUST NOT 合成一个容器；
 - **两个方向 MUST 分开**：`RequiredTags` / `ForbiddenTags` 约束**自己**（受动·前置），`TagsToBlock` / `TagsToCancel` 约束**目标**（施动）。两者可从相反一侧表达同一互斥，**两条声明路径都合法**（选哪侧 = 作者声明权的选择，不是冗余）。
+
+#### Scenario: 主体面并集——DefTag 与类别词各按其语义命中
+
+- **WHEN** 某定义的 `CategoryTags` = `[Category.Burn]`、`DefTag` = `Buff.Fire.Ignite`；一条关系行的 `AppliesToTag` 分别填 `Buff.Fire.Ignite`（具体词）与 `Category.Burn`（父类词）
+- **THEN** 两者**都命中**——前者经并集里的 `DefTag` 命中（只作用这一个资产），后者经 `CategoryTags` 命中（覆盖一族）。**MUST NOT 因为「`DefTag` 是唯一键」就把 `DefTag` 排除在匹配面之外**
+
+#### Scenario: 客体面同口径（在跑实例的词集也是并集）
+
+- **WHEN** 实体上有一个在跑的实例，其定义 `DefTag` = `Buff.Fire.Ignite`、`CategoryTags` = `[Category.Burn]`；另一个定义的 `ForbiddenTags` 分别配 `Buff.Fire.Ignite`（精确点名）与 `Category.Burn`（点名一族）
+- **THEN** 两者**都命中**（`ForbiddenTags` 与客体词集的层级匹配）——客体词集 MUST 同时含该实例的 `DefTag` 与其定义的 `CategoryTags`
+
+#### Scenario: 并集不产生第二条寻址路径
+
+- **WHEN** 检查主体侧的匹配实现
+- **THEN** 只有**一次** `HasTag(Row.AppliesToTag)` 层级匹配，作用于并集词集；**MUST NOT** 存在"先按 `DefTag` 查一遍、再按 `CategoryTags` 查一遍"的两条路径（那才会让结果不明确——这正是此前误判的根源）
 
 #### Scenario: 父词覆盖一族（层级匹配）
 

@@ -52,11 +52,21 @@ public:
 	 * （`FGameplayTag::MatchesTag`：父词命中子词、反向不成立）——
 	 * 填**具体词**只作用于它自己，填**父词**覆盖一族。**MUST NOT** 为此发明通配语法。
 	 *
-	 * **匹配面 = 候选实例所属定义的 `CategoryTags`**（一条通道，不做并集）：
-	 * `DefTag` 与 `CategoryTags` 是**两个各自独立**的查询通道
-	 * （前者是唯一键、后者是语义词），MUST NOT 混为一个并集匹配——
-	 * `DefTag` 表达不了「一类」，并进来会把「一族」退化成「一个资产」
-	 * （2026-10-15 裁定，见变更 `merge-status-tag-into-category-tags` D3）。
+	 * **★ 匹配面 = `CategoryTags` ∪ `{DefTag}`**（2026-10-24 用户裁定，**推翻**原「不做并集」口径）：
+	 * 判据 = 「查询的核心不是查一类还是查一个，而是要**查询有明确结果**」——
+	 * 达成「明确结果」的手段**不是**把 `DefTag` 排除出去，而是**一次 `HasTag` 层级匹配
+	 * 作用于并集**：`DefTag` 命中它自己（精确到一个资产）、`CategoryTags` 的父词覆盖一族，
+	 * 两者**在同一路径上各得其果**。
+	 *
+	 * **原文的误推 MUST 记录以免重犯**：本条曾写「`DefTag` 表达不了『一类』，并进来会把
+	 * 『一族』退化成『一个资产』」——**这是错的**：并集**不会**退化，因为父词仍在
+	 * `CategoryTags` 里照常覆盖一族，`DefTag` 只是**额外**多给了「精确到这一个资产」的能力。
+	 * **真正的风险是「两条寻址路径」**（先按 `DefTag` 查一遍、再按 `CategoryTags` 查一遍），
+	 * 那才产生不明确——**MUST NOT 实现成两条路径**。
+	 *
+	 * **客体面同口径**：四个容器**比对用的客体词面**（在跑实例贡献的词集）同样是
+	 * `CategoryTags` ∪ `{DefTag}`——本裁定不分主体面/客体面，因为判据是「该资产**拥有的
+	 * 全部词**」（与 GAS 的 `AssetTags` 集合同构），与该词用在匹配的哪一侧无关。
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Relation Row|Subject")
 	FGameplayTag AppliesToTag;

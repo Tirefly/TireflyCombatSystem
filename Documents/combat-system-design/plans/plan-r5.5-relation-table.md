@@ -41,7 +41,7 @@
 | Q-5 | `PriorityOnly` / `PreemptionPolicy` | **不作为既有设计照搬**（依据库外不可复核）；`PreemptionPolicy` **不建字段** | Task 4 重新推导 |
 | Q-6 | 批次重切 | `e` 拆 **Task 1~4**（`e1`~`e4`），判据见 §0.4 | 原 `e` 行 |
 | **Q-7** | **字段命名**（2026-10-13 第二次拍板） | **`AppliesToTag`**（主体词，单 tag）/ **`RequiredTags`** / **`ForbiddenTags`** / **`TagsToBlock`** / **`TagsToCancel`**。**`Blocks` → `ForbiddenTags`（受动/前置），MUST NOT 映射到 `TagsToBlock`（施动/对外）**——两格词形极近而语义方向相反，是**静默语义反转**陷阱 | Task 1 / Task 2；两个 Def 头（改名归 Task 1） |
-| **Q-8** | **主体侧匹配面**（2026-10-13） | **`{StatusTag} ∪ CategoryTags`**（甲案）；**不含 `DefTag`**（避免同一语义两条寻址路径）；主体侧 `HasTag(Row.AppliesToTag)` 层级匹配、客体侧 `HasAny(SubjectTags)` | Task 2 |
+| **Q-8** | **主体侧匹配面**（2026-10-13） | **`{StatusTag} ∪ CategoryTags`**（甲案）；**不含 `DefTag`**（避免同一语义两条寻址路径）；主体侧 `HasTag(Row.AppliesToTag)` 层级匹配、客体侧 `HasAny(SubjectTags)` | Task 2 |<br>**★ 2026-10-24 订正**：用户裁定 **`DefTag` 与 `CategoryTags` MUST 为并集** ⇒ 最终式 = `CategoryTags` ∪ `{DefTag}`（`StatusTag` 已随 `e0` 删除）。「不含 `DefTag`」与「避免同一语义两条寻址路径」**均作废**——真正的风险是**两条路径**而非并集。见 `DEC-2026-10-13-relation-row-shape` 实施注记。
 | **Q-9** | **`TagsToBlock`（预防）是新增能力** | 与 `TagsToCancel`（终止）的分工 = "目标还没起"vs"目标已在跑"；TCS 今天表达不了。**归 Task 1**（它属检查器的特例层能力） | Task 1 Step 5 |
 
 ### 0.3 现状证据（2026-10-13 全仓实测，逐条已核）
@@ -152,7 +152,7 @@
 | **A14** | **抢占策略的表达** | **"填哪几个字段"即策略**：`TagsToCancel` 单独 ⇒ 后到者赢；`ForbiddenTags` + `TagsToCancel` ⇒ 在位者赢 | 两者同真**合法**（撤销原 Error 规则）；**不需要 `Priority` 数字** | Task 1 Step 6 的检查时机 + 验收 ⑥ |
 | **A15** | **`TagsToBlock`（预防）** | **新增能力**：我在跑期间目标无法开始且保持不能开始 | 与 `TagsToCancel`（终止）的分工 = "目标还没起"vs"目标已在跑" | Task 1 Step 5 |
 | **A16** | **字段命名** | `AppliesToTag` / `RequiredTags` / `ForbiddenTags` / `TagsToBlock` / `TagsToCancel` | **`Blocks` → `ForbiddenTags`（受动/前置），MUST NOT → `TagsToBlock`（施动/对外）** | Task 1 Step 1 |
-| **A17** | **主体侧匹配面** | `{StatusTag} ∪ CategoryTags`（甲案），不含 `DefTag` | 关系表约束语义、不管资产打包；避免同一语义两条寻址路径 | Task 2 |
+| **A17** | **主体侧匹配面** | `{StatusTag} ∪ CategoryTags`（甲案），不含 `DefTag` | 关系表约束语义、不管资产打包；避免同一语义两条寻址路径 | Task 2 |<br>**★ 2026-10-24 订正**：用户裁定 **`DefTag` 与 `CategoryTags` MUST 为并集** ⇒ 最终式 = `CategoryTags` ∪ `{DefTag}`（`StatusTag` 已随 `e0` 删除）。「不含 `DefTag`」与「避免同一语义两条寻址路径」**均作废**——真正的风险是**两条路径**而非并集。见 `DEC-2026-10-13-relation-row-shape` 实施注记。
 | **A9** | `TcsGameplayTag` 模块 | **不另立** | 零消费者（今天只有一处筛选需求） | 触发条件 = 出现"第二个域也要按类目筛选" |
 | **A10** | `State.Control.*` / `Action.*` | **不建** | 受"一角色一根 + 零消费者不预建根"约束；Q-3 已绕开 | `DEC-2026-08-31` §4 举例作废（原文保留 + 注记） |
 | **A11** | `PreemptionPolicy` | **不建字段** | 零消费者，且其唯一依据库外不可复核 | Task 4 重新推导 |

@@ -32,7 +32,9 @@ bool FTcsSkillOps_Relation::CheckRelationGate(
 		return true;
 	}
 
-	// 主体行视图：平铺数组的主体即**本定义自己**（`AppliesToTag` = 自己的 `DefTag`）
+	// 主体行视图：平铺数组的主体词 = 本定义的 `DefTag`（在并集语义下它**恰好命中自己**）
+	// **主体词仍只填 `DefTag`**——因为"本定义的主体是哪个资产"就是它自己；
+	// 而"我拿什么词去撞别人的容器"那一侧（候选面）才是并集，见下方 `MyTags`。
 	FTcsRelationRow SelfRow;
 	SelfRow.AppliesToTag = DefTag;
 	SelfRow.RequiredTags = FGameplayTagContainer::CreateFromArray(Def.RequiredTags);
@@ -49,15 +51,23 @@ bool FTcsSkillOps_Relation::CheckRelationGate(
 	FGameplayTagContainer LiveTags;
 	bool bBlocked = false;
 	FGameplayTag BlockerTag;
-	LiveQuery->ForEachLiveState(Entity, [&SelfRow, &Def, &LiveTags, &bBlocked, &BlockerTag](
+
+	// **我的可寻址词集 = `CategoryTags` ∪ `{DefTag}`**（2026-10-24 裁定：判据是「该资产拥有的
+	// 全部词」，与 GAS 的 `AssetTags` 集合同构）。**在遍历外只算一次**——它在循环里不变。
+	FGameplayTagContainer MyTags = Def.CategoryTags;
+	MyTags.AddTag(DefTag);
+
+	LiveQuery->ForEachLiveState(Entity, [&SelfRow, &Def, &MyTags, &LiveTags, &bBlocked, &BlockerTag](
 		const FTcsLiveStateView& View)
 	{
-		// 事实半累积（供 ① 的全量判定）
+		// 事实半累积（供 ① 的全量判定）——**可寻址词集 = CategoryTags ∪ {DefTag}**
+		// （2026-10-24 裁定，判据「相当于 GAS 里 GA 和 GE 都有的 AssetTags 集合」）
 		LiveTags.AppendTags(View.CategoryTags);
+		LiveTags.AddTag(View.Row.AppliesToTag);
 
-		// ③ 施动侧反向查找：它的 `TagsToBlock` 是否覆盖**我的类别词**
-		// 判据 = 用我的类别词作候选面、拿它的行去判（与状态域内那处同款）
-		if (!bBlocked && FTcsStateRelation::CollectBlocks(Def.CategoryTags, View.Row))
+		// ③ 施动侧反向查找：它的 `TagsToBlock` 是否覆盖**我的可寻址词集**
+		// 判据 = 用我的并集词作候选面、拿它的行去判（与状态域内那处同款）
+		if (!bBlocked && FTcsStateRelation::CollectBlocks(MyTags, View.Row))
 		{
 			bBlocked = true;
 			BlockerTag = View.Row.AppliesToTag;

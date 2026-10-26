@@ -35,11 +35,20 @@ namespace
 	}
 
 	/**
-	 * 收集某实体在册实例的**类别词集**（判定用的客体词面）。
+	 * 收集某实体在册实例的**可寻址词集**（判定用的客体词面）。
 	 *
 	 * 判据 = 共享层认得的**最小公共字段集**（同 `FTcsEntityAdmissionExisting` 的手法）：
-	 * 每个实例贡献「其定义的全部 `CategoryTags`」。实例自身的 `DefTag` 不并进来
-	 * （`DefTag` 与 `CategoryTags` 是两个独立通道，MUST NOT 混为并集）。
+	 * 每个实例贡献「其定义的全部 **`CategoryTags` ∪ `{DefTag}`**」。
+	 *
+	 * **★ 为什么并 `DefTag`（2026-10-24 用户裁定）**：判据原话是「这两个合起来，相当于 GAS 里
+	 * GA 和 GE 都有的 `AssetTags` 集合」——`AssetTags` 就是**该资产拥有的全部词**，
+	 * 不分「身份词」与「类别词」⇒ **凡"拿一个定义的词去匹配"的地方，词集 MUST 是并集**。
+	 * `DefTag` 作匹配词时**只命中它自己**（具体词语义）、`CategoryTags` 的父词覆盖一族，
+	 * 两者在**同一次 `HasTag` 层级匹配**里各得其果。
+	 *
+	 * **原文的误推 MUST 记录以免重犯**：本条曾写「`DefTag` 与 `CategoryTags` 是两个独立通道，
+	 * MUST NOT 混为并集」——**该口径已于 2026-10-17 被 `DEC-2026-10-17` §4 取代**，
+	 * 而本文件当时按旧口径实施（裁定为真、落地为假）。
 	 */
 	void CollectLiveCategoryTags(
 		UTcsBuffSubsystem& Subsystem,
@@ -50,7 +59,9 @@ namespace
 		{
 			if (const FTcsBuffDef* Def = Subsystem.GetRegisteredBuffDef(Instance.DefTag))
 			{
+				// **并集：类别词 + 定义身份词**（见上方注释的裁定与理由）
 				OutTags.AppendTags(Def->CategoryTags);
+				OutTags.AddTag(Instance.DefTag);
 			}
 			return true;
 		});
@@ -122,7 +133,9 @@ bool FTcsBuffOps::CheckApplyGate(
 		}
 
 		const FTcsRelationRow BlockerRow = MakeSelfRelationRow(*LiveDef, Instance.DefTag);
+		// 候选面 = 我的可寻址词集（类别词 ∪ 我的 DefTag）——与判定客体面同口径
 		FGameplayTagContainer CandidateTags = Def.CategoryTags;
+		CandidateTags.AddTag(DefTag);
 		if (FTcsStateRelation::CollectBlocks(CandidateTags, BlockerRow))
 		{
 			bBlocked = true;
@@ -178,7 +191,9 @@ void FTcsBuffOps::ApplyCancelAndBlock(
 		}
 
 		// 客体词面 = 该在册实例所属定义的类别词集
-		if (FTcsStateRelation::CollectCancels(LiveDef->CategoryTags, SelfRow))
+		FGameplayTagContainer LiveTags = LiveDef->CategoryTags;
+		LiveTags.AddTag(Instance.DefTag);
+		if (FTcsStateRelation::CollectCancels(LiveTags, SelfRow))
 		{
 			ToCancel.Add(Instance.Handle);
 		}
@@ -216,7 +231,9 @@ void FTcsBuffOps::ApplyCancelAndBlock(
 			return true;
 		}
 
-		if (FTcsStateRelation::CollectBlocks(LiveDef->CategoryTags, SelfRow))
+		FGameplayTagContainer LiveTags = LiveDef->CategoryTags;
+		LiveTags.AddTag(Instance.DefTag);
+		if (FTcsStateRelation::CollectBlocks(LiveTags, SelfRow))
 		{
 			ToBlock.Add(Instance.Handle);
 		}

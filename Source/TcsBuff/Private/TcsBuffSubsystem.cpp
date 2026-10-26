@@ -318,7 +318,11 @@ void UTcsBuffSubsystem::ForEachLiveState(
 
 		// 合成完整视图：**事实半**（类别词集）+ **声明半**（关系行，主体 = 本定义自己）
 		FTcsLiveStateView View;
+		// **事实半 = 可寻址词集 `CategoryTags` ∪ `{DefTag}`**（2026-10-24 裁定：判据是
+		// 「相当于 GAS 里 GA 和 GE 都有的 `AssetTags` 集合」⇒ 该资产拥有的**全部**词，
+		// 不分身份词与类别词）。读它的一方（技能的客体判定）因此能同时命中「精确点名」与「一族」。
 		View.CategoryTags = Def->CategoryTags;
+		View.CategoryTags.AddTag(Instance.DefTag);
 		View.Row.AppliesToTag = Instance.DefTag;
 		View.Row.RequiredTags = FGameplayTagContainer::CreateFromArray(Def->RequiredTags);
 		View.Row.ForbiddenTags = FGameplayTagContainer::CreateFromArray(Def->ForbiddenTags);
