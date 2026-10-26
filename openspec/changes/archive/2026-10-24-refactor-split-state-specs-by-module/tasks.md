@@ -1,8 +1,12 @@
 # Tasks — 按模块重切 `state-*` 规格族
 
 > **执行方式已变更（2026-10-24）**：原计划走 `openspec archive`，实测遇**工具解析限制**（见 proposal「执行记录」），
-> 按用户裁定改为**手工改名 + 保留 change 记录**。第一刀已**手工落地**；第二三刀未开工。
-> **本 change 不执行 `openspec archive`**——由用户手工删除。
+> 按用户裁定改为**手工改名 + 保留 change 记录**。三刀均已手工落地。
+>
+> **✅ 已归档（2026-10-26）**：本目录已移到 `openspec/changes/archive/2026-10-24-refactor-split-state-specs-by-module/`。
+> 归档方式是**手工 `git mv`**，**未执行 `openspec archive` 命令**——原因是归档器无法退休含表格的能力
+> （见 0.7），且本 change 的 delta **不完整、不可重放**（见文末「delta 完整性说明」）。
+> ⇒ 归档后的目录**只作提案与执行记录**，MUST NOT 当作可用 delta 重放。
 
 ## 0. 前置（已完成）
 
@@ -70,7 +74,7 @@
 - [x] 2.3.10 `openspec validate --all --strict --no-interactive` → **48 passed / 0 failed**
 - [x] 2.3.11 四份文件完整性：标题 / Purpose 无 TBD / 需求>0 / 场景>0 / LF / 末尾换行 / 零 U+FFFD **全通过**
 - [x] 2.3.12 能力数：45 → **47**（+2）
-- [ ] 2.3.13 编译验证（本变更零代码，见第 4 节）
+- [x] 2.3.13 编译验证（本变更零代码，见第 4 节）——✅ **双配置 Succeeded 0/0**
 
 ## 3. 第三刀：补共享层契约 —— ✅ **已落地（2026-10-24），但形态与计划不同**
 
@@ -123,17 +127,51 @@
 
 **这三份本轮从未被写过**（`git status` 起初无它们），属**既有问题**。之所以 `git status` 也看不到，是因为 `.gitattributes` 的 `eol=lf` 会在 `git add` 时归一化 ⇒ **工作区 CRLF 对 git 不可见**。已统一转 LF，47 份现全部 LF。
 
-## 4. 收束 —— ⬜ **待第二三刀完成后**
+## 4. 收束 —— ✅ **已全部落地（2026-10-24，提交 `c4511e9`）**
 
-- [ ] 4.1 `Documents/tcs-arch/05-state.md` §1.2 分布表就地改述为新的按模块归属
-- [ ] 4.2 `Documents/tcs-arch/05-state.md` §5 D-1 标记闭合（附提交 hash）
-- [ ] 4.3 `Documents/tcs-arch/INDEX.md` §8 修复表加 R-17 行
-- [ ] 4.4 编译验证（本变更零代码，应无变化）
+- [x] 4.1 `Documents/tcs-arch/05-state.md` §1.2 分布表就地改述为新的按模块归属（"审核时 / 今天"双列）
+- [x] 4.2 `Documents/tcs-arch/05-state.md` §5 D-1 标记闭合（附提交 hash `c4511e9`）
+- [x] 4.3 `Documents/tcs-arch/INDEX.md` §8 修复表加 R-17 行
+- [x] 4.4 编译验证（本变更零代码，双配置 Succeeded 0/0）
+
+> **补勾说明（2026-10-26 核对时补齐）**：以上 5 项（含 2.3.13）当时**已实际完成**，只是未勾选框。
+> 核对依据：`05-state.md:49` / `:358` / `:602` / `:651`、`INDEX.md:282`（R-17 行）、`INDEX.md:255`（修订记录）。
 
 ---
 
 ## 备注：本 change 的处置
 
-**不执行 `openspec archive`**——工具限制使其无法退休含表格的能力。归档器不会记录本变更。
-第一刀的落地事实**已写进 `openspec/specs/` 本身**（目录名、标题、正文互引均为最终态），
-本 change 目录仅作**提案与执行记录**，由用户手工删除。
+**不执行 `openspec archive` 命令**——工具限制使其无法退休含表格的能力（0.7）。归档器不会记录本变更。
+落地事实**已写进 `openspec/specs/` 本身**（目录名、标题、正文互引均为最终态），
+本 change 目录仅作**提案与执行记录**。
+
+**✅ 已手工归档（2026-10-26）**：`git mv` 到 `archive/2026-10-24-refactor-split-state-specs-by-module/`。
+用户裁定不删除——**本目录的价值在 `proposal.md` 里那套「按需求级主语实测分类」的判据表**
+（10 份 `state-*` 分四类的实测方法、以及"改名 vs 拆分"的判据），那是**方法论而非操作记录**；
+`INDEX.md` R-17 那行只是摘要，装不下全貌。
+
+---
+
+## delta 完整性说明（2026-10-26 核对，MUST 读）
+
+**本 change 的 delta 不完整，MUST NOT 当作可用 delta 重放。** 逐份实测的差异：
+
+| delta 文件 | delta 需求数 | 实际 spec 需求数 | 状态 |
+|---|---|---|---|
+| 六对改名（`state-*` REMOVED → `buff-*` ADDED） | 4~7 | 4~7 | ✅ **成对完整**（`retire_capabilities: true` 的标准形态） |
+| `entity-runtime-mechanism` | **1** | **8** | ⚠️ **只收了 1 条**——「共享层运行态基底 `FTcsStateInstance`」与「共享层门面与其存在判据」**在 delta 里零命中**（`grep` 实证） |
+| `integration-entity` | **1** | **3** | ⚠️ 只收了 1 条 |
+| `state-def-asset` | **1** | **3** | ⚠️ 只收了 1 条 |
+| `buff-def-asset` | — | 5 | ⚠️ **delta 目录根本不存在**（拆分产物没有 delta） |
+
+**为什么只收 1 条**：第三刀（补共享层契约）是**手工改 `openspec/specs/` 正文**落地的，
+delta 只顺手写了当时正在讨论的那一条 → **它不是这次执行的完整差异**。
+
+**后果与约束**：
+- ✅ 不影响 `openspec validate --all --strict`（归档目录不被校验，0.3 已实测）；
+- ✅ 不影响归档后的规格本体（`specs/` 是最终态，delta 不参与）；
+- ❌ **不能用它重建规格**——若将来有人试图按此 delta 重放，会得到「少了 2 条需求 + 缺 `buff-def-asset` 整份」的错误结果。
+
+**这条缺口暴露的流程问题**：「手工落地 + 事后补 delta」组合下，delta 与实际落地**必然脱节**。
+⇒ 判据：**若一次变更选择手工执行，MUST 在收束时用脚本核对 delta 与实际 `specs/` 的需求数差集**，
+而不是只勾"收束文档已写"。

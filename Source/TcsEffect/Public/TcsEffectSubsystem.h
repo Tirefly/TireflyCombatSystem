@@ -12,6 +12,7 @@
 #include "Chain/TcsEffectContext.h"
 #include "Chain/TcsEffectStep.h"
 #include "Chain/TcsStepExecutor.h"
+// 契约本体住 `TcsCore/Public/Host/`（2026-10-26 提升；消费者 LCA = TcsCore，零新依赖边）
 #include "Host/TcsEntityQuery.h"
 #include "Pool/TcsInstancePool.h"
 #include "Trigger/TcsEffectTriggerInstance.h"
@@ -576,6 +577,17 @@ public:
 	/**
 	 * 注入实体查询实现（宿主/上层提供，D4-14；R3 无消费者——默认策略 Self/EventTarget 不需遍历）。
 	 * 传默认构造的 `TScriptInterface` 即撤下注入；GC 安全（`UPROPERTY` 持有）。
+	 *
+	 * **★ 本对方法是全仓唯一的实体查询注入面**（2026-10-26，MUST 读，防再加第二处）：
+	 * `UTcsSkillSubsystem` 此前持有自己的 `EntityQuery` 槽位，与这里**互不感知**，造成两个
+	 * 静默失效形态（台账 `WAIT-12`）——① 宿主只注入其一 ⇒ 技能门禁**恒为假**、施法一律被拒；
+	 * ② 分别注入两个不同实例 ⇒ 组件登记走这里、门禁走技能那份 ⇒ 映射查不到句柄。
+	 * 两者读数是同一句话："实体明明好好的却报实体未就绪"。
+	 * ⇒ **宿主只 MUST 注入这一处**；任何读该能力的模块（技能门禁 / 距离打分 / 组件登记）
+	 * MUST 经 `GetEntityQuery()` 取，MUST NOT 自持槽位（`entity-query-contract` 的「注入面唯一」需求）。
+	 *
+	 * **槽位为什么仍住本门面**（已知语义债）：契约已搬到 `TcsCore`，故"槽位住 `TcsEffect`"
+	 * 不再有契约归属上的理由，只剩历史与改动成本的理由。本轮只约束**数量为一**，不改归属。
 	 *
 	 * @param InEntityQuery 实体查询实现（通常为宿主组件或宿主侧 UObject）。
 	 */

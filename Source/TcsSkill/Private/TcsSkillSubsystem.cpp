@@ -79,7 +79,9 @@ void UTcsSkillSubsystem::Deinitialize()
 	FinishBroadcastGuard.Reset();
 	CooldownGroups.Reset();
 
-	EntityQuery = TScriptInterface<ITcsEntityQuery>();
+	// **实体查询槽位不在本门面**（2026-10-26 删除）：全仓唯一注入面 = `UTcsEffectSubsystem`，
+	// 故这里无可清。此前本行会误清**本类私有的那份**，而它与效果门面那份互不感知——
+	// 正是台账 `WAIT-12` 那个静默错配的源头之一。
 	ChainRedirectResolver = TScriptInterface<ITcsChainRedirectResolver>();
 
 	UE_LOG(LogTcsSkill, Log,

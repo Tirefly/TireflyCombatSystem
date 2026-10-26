@@ -367,7 +367,7 @@ TcsBuff  ──► SetLiveQuery(this) ──────────────
 | **是否已登记** | ❌ 否（`ARCH-INDEX` 的 G-11 是「台账与档案不同步」，本条是「权威层缺对象」，不同类） |
 | **建议处置** | 原建议：新建一个 `tcs-shared-layer` 能力（或把 7 份里的共用部分抽出来），主语明确是 `TcsState`。**这不是本档案能做的决定**，需要用户裁 |
 | **实际处置** | **用户 2026-10-24 裁定：三刀都做，且不新建能力**。① 改名 6 份 `state-*` → `buff-*`（正文一字未动，逐字节往返比对验证）；② 拆 2 份混合篇（`state-def-asset` → 3+5 需求、`state-param-snapshot` → 2+5 需求，原始 44 个场景全保留）；③ 门面与基底契约**并入 `entity-runtime-mechanism`**（新增「共享层门面与其存在判据」「共享层运行态基底 `FTcsStateInstance`」两条需求）。**未新建能力**——核实后两条缺口都是「内容已经在、位置错了」的搬家问题 |
-| **闭合证据** | 能力数 45 → **47**；`openspec validate --all --strict` **48 passed / 0 failed**；回答「`TcsState` 今天剩什么」的能力 = **4 份 / 18 需求 / 54 场景**（`entity-runtime-mechanism`(8) + `state-relation-check`(5) + `state-def-asset`(3) + `state-param-snapshot`(2)）；挂 `state-*` 名字的**全部指向本模块**，不再有一份谎报主语。详见 §1.2 的改述与 `openspec/changes/refactor-split-state-specs-by-module/` |
+| **闭合证据** | 能力数 45 → **47**；`openspec validate --all --strict` **48 passed / 0 failed**；回答「`TcsState` 今天剩什么」的能力 = **4 份 / 18 需求 / 54 场景**（`entity-runtime-mechanism`(8) + `state-relation-check`(5) + `state-def-asset`(3) + `state-param-snapshot`(2)）；挂 `state-*` 名字的**全部指向本模块**，不再有一份谎报主语。详见 §1.2 的改述与 `openspec/changes/archive/2026-10-24-refactor-split-state-specs-by-module/`（**已归档**；该目录的 delta 不完整、**不可重放**，只作提案与执行记录——见其 `tasks.md` 的「delta 完整性说明」） |
 
 ### D-2 ★★ `SetLiveQuery` 是**单槽位且无冲突检测**，而 2026-10-17 的裁定要求两域都注册
 
@@ -599,7 +599,7 @@ TcsBuff  ──► SetLiveQuery(this) ──────────────
 
 | 层 | 载体 | 行数 | 与本模块的关系 |
 |---|---|---|---|
-| **可执行需求** | 重切前：`openspec/specs/` 10 个 `state-*` 能力<br>**重切后（2026-10-24）**：本模块 **4 份**（`entity-runtime-mechanism` 261 行 / `state-relation-check` 118 / `state-def-asset` 89 / `state-param-snapshot` 58）+ `TcsBuff` **7 份** `buff-*` | 1 628<br>→ 本模块 **526** / Buff **1 225** | 重切前 **7 份主语是 `TcsBuff`**（§1.2）；**重切后挂 `state-*` 名字的全部指向本模块**，无一份谎报主语。详见 §1.2 与 `openspec/changes/refactor-split-state-specs-by-module/` |
+| **可执行需求** | 重切前：`openspec/specs/` 10 个 `state-*` 能力<br>**重切后（2026-10-24）**：本模块 **4 份**（`entity-runtime-mechanism` 261 行 / `state-relation-check` 118 / `state-def-asset` 89 / `state-param-snapshot` 58）+ `TcsBuff` **7 份** `buff-*` | 1 628<br>→ 本模块 **526** / Buff **1 225** | 重切前 **7 份主语是 `TcsBuff`**（§1.2）；**重切后挂 `state-*` 名字的全部指向本模块**，无一份谎报主语。详见 §1.2 与 `openspec/changes/archive/2026-10-24-refactor-split-state-specs-by-module/` |
 | **历史理由** | `Documents/combat-system-design/spec/03-module-states.md`（`SPEC-02-states`） | **390** | **质量意外地好**：§3.1 与 §6 都有 2026-10-15 的 `PLN-REFACTOR-1` **就地改述**（不是重写，是「原文保留 + 追注现行读法」），§12.13 有完整的收束回写。**这份旧规格比 `openspec` 更准确地描述了今天的模块归属** |
 | 历史理由 | `decisions/dec-2026-10-13-state-module-positioning.md` | — | 拆分 `TcsBuff` 的裁决 |
 | 历史理由 | `decisions/dec-2026-10-17-tag-relationship-ownership.md` | 203 | **当前 TagRelationship 的权威**，明写「实现状态 = 部分落地」 |

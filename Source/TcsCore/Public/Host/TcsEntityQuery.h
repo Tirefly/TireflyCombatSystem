@@ -19,8 +19,16 @@ class UTcsEntityQuery : public UInterface
 };
 
 /**
- * 实体查询契约（机制层定义、宿主实现，D4-14 / 04 §2.1 / 10 §2.3）：TcsEffect 不持任何"世界有哪些
+ * 实体查询契约（机制层定义、宿主实现，D4-14 / 04 §2.1 / 10 §2.3）：框架不持任何"世界有哪些
  * 战斗实体"的知识——遍历、定位、存活都是宿主本体论，由宿主/上层经本接口注入。
+ *
+ * **为什么住 `TcsCore` 而不是某个域模块**（2026-10-26）：归属判据是**消费者的最近公共祖先**，
+ * 不是"哪个模块名字听起来更底层"。四个消费者的 LCA = `TcsCore`——
+ * `TcsEffect`（持注入槽位）/ `TcsSkill`（`IsEntityReady` 门禁）/ `TcsTargeting`（`GetLocation` 打分）/
+ * `TcsIntegration`（实现）。且 `TcsCore` 本来就持有本契约**唯一**依赖的类型
+ * `FTcsCombatEntityHandle`（`Handle/TcsCombatEntityHandle.h`）⇒ 四个消费者的 `Build.cs` 零改动。
+ * 此前声明在 `TcsEffect` 下时，`TcsEffect` 被误解成"契约的主人"，而它的真实角色只是
+ * **恰好持有注入槽位的门面**（槽位归属本身是另一件事，见 `entity-query-contract` 的「注入面唯一」需求）。
  *
  * **一切以实体身份句柄（`FTcsCombatEntityHandle`）为准**（四支能力见下）：链与流程只流动句柄，
  * **MUST NOT 依赖 Actor**——无 Actor 的实体（未来 Mass）因此天然可被表达（06 §33"Mass 适配核心零改动"

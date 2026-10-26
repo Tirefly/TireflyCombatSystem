@@ -418,7 +418,7 @@ public:
 	/**
 	 * 注入链重定向 Custom 契约（注入点**形状**；其求值归 `R6.5-g`）。
 	 *
-	 * **`nullptr` 是配置状态不是错误**（同 `SetEntityQuery` 的口径）：未注入时解析路径
+	 * **`nullptr` 是配置状态不是错误**（同 `UTcsEffectSubsystem::SetEntityQuery` 的口径）：未注入时解析路径
 	 * **不报**"未实现"——没有东西被拒绝求值。已注入 ⇒ 具名 `Warning` 报未实现并跳过
 	 * （MUST NOT 静默忽略，那会让宿主以为它生效了）。
 	 *
@@ -651,27 +651,24 @@ public:
 
 public:
 	/**
-	 * 注入实体查询实现（门禁第一道的判据来源）。
+	 * **本门面 MUST NOT 持有实体查询槽位**（2026-10-26 删除，MUST 读，防再加回来）。
 	 *
-	 * **未注入 = `nullptr` 是配置状态不是错误**（同 `ITcsParamTableReader` 可空的口径）：
-	 * 门禁据此**降级为"只判句柄有效"**，且**放行**——MUST NOT 因"能力未注入"把一切施法拦死、
-	 * MUST NOT ensure、MUST NOT 留红字。
+	 * 实体查询的注入面**全仓只有一处** = `UTcsEffectSubsystem::SetEntityQuery`
+	 * （见 `entity-query-contract` 的「注入面唯一」需求）。本门禁 MUST 经
+	 * `UTcsEffectSubsystem::GetEntityQuery()` 取查询，MUST NOT 自持槽位。
 	 *
-	 * **为什么住门面而不是全局单例**：实体是**世界内**的存在（同一份数据在 PIE 与 Game 世界各自独立），
-	 * 注入物按世界持有；跨世界不共享是特性不是缺陷（同 `SetEntityLevelProvider` 的理由）。
+	 * **为什么删**：此前本类持有一份独立的 `EntityQuery`，与效果门面那份**互不感知**，
+	 * 造成两个静默失效形态——① 宿主只注入其一 ⇒ 门禁**恒为假**、施法一律被拒；
+	 * ② 分别注入两个不同实例 ⇒ 组件登记走效果那份、门禁走本类那份 ⇒ 映射查不到句柄。
+	 * 两者读数是同一句话（"实体明明好好的却报实体未就绪"），且**靠文档约束不住**
+	 * （台账 `WAIT-12`）。⇒ 处置是把槽位数从 N 减到 1，让分歧结构上不可能。
 	 *
-	 * 注入物以 `UPROPERTY` 持有（`TScriptInterface` 的 GC 纪律：非 `UPROPERTY` 的接口指针
-	 * 会被 GC 静默回收，表现为"读口突然变空"）。
+	 * **降级语义随之改判**：门禁降级的条件从「技能侧未注入」变成「**宿主整个未注入**」——
+	 * 降级的理由是"宿主没有提供实体查询能力"，而不是"技能模块忘了接线"；
+	 * 后者恰恰是缺陷，把它当合法降级会掩盖它。
 	 *
-	 * @param InEntityQuery 实体查询实现（宿主组件或宿主侧 UObject；可传空以撤销注入）。
+	 * 经 `UTcsEffectSubsystem` 取查询**不构成新依赖边**：本模块已依赖 `TcsEffect`（起链在用）。
 	 */
-	void SetEntityQuery(TScriptInterface<ITcsEntityQuery> InEntityQuery);
-
-	// 取当前注入的实体查询（未注入返回空接口）
-	TScriptInterface<ITcsEntityQuery> GetEntityQuery() const
-	{
-		return EntityQuery;
-	}
 
 	/**
 	 * 取事件总线（施法事件广播用；世界拆解期返回 `nullptr`——**非确保**，调用方按丢弃处理）。
@@ -705,9 +702,13 @@ public:
 	 * "映射里还有这个句柄"而非"活着"（`TcsPieEntityQuery.cpp:71`，其类注释自认"框架不认识死亡"）⇒
 	 * 拿它当门禁会**双向误判**。
 	 *
-	 * **降级纪律**：未注入实现时只判"句柄有效"并放行（见 `SetEntityQuery`）。
+	 * **降级纪律（2026-10-26 改判）**：判据是「**宿主整个未注入**」——即共享槽位
+	 * `UTcsEffectSubsystem::GetEntityQuery()` 为空——而不是「技能侧未注入」（本类已无私有槽位）。
+	 * 此时只判"句柄有效"并放行。⚠ **MUST NOT** 把"技能侧没接线"当合法降级：那个形态是
+	 * `WAIT-12` 登记的静默错配，把它当降级会掩盖缺陷。
 	 *
 	 * **MUST NOT 反查 `TcsIntegration`**（依赖方向单向——`TcsIntegration` 是终端模块，反查会成环）。
+	 * 经 `UTcsEffectSubsystem` 取查询**不构成新依赖边**：本模块已依赖 `TcsEffect`（起链在用）。
 	 *
 	 * @param Entity 实体实体句柄。
 	 * @return 返回该实体当前是否可操作。
@@ -803,10 +804,6 @@ private:
 	// 宿主链重定向 Custom 契约（未注入 = 空接口；`UPROPERTY` 持有以满足 TScriptInterface 的 GC 纪律）
 	UPROPERTY()
 	TScriptInterface<ITcsChainRedirectResolver> ChainRedirectResolver;
-
-	// 宿主实体查询读口（未注入 = 空接口；`UPROPERTY` 持有以满足 TScriptInterface 的 GC 纪律）
-	UPROPERTY()
-	TScriptInterface<ITcsEntityQuery> EntityQuery;
 
 #pragma endregion
 };
