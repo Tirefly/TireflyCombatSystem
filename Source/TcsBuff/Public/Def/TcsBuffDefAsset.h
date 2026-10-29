@@ -20,9 +20,13 @@
  * 标准条文见 `openspec/project.md` 的 `Asset` 后缀补救条款。**补救方向 MUST 是给资产类改名**，
  * MUST NOT 反过来改已定名的数据类型。
  *
- * **发现与解析**：`UTcsDefinitionSubsystem::DiscoverStateDefs` 按类扫描本类并缓存 `BuffDef`，
- * 运行期按 `DefTag` 经 `ResolveStateDef` 取用；**不做世界装配**（状态定义按需解析，
- * 无"每世界登记一次"的语义——与链 / 触发定义两条路径不同）。
+ * **发现、加载与解析（2026-10-26 改写）**：`UTcsDefinitionSubsystem` 先按类型**发现**本类资产
+ * （只取 `FAssetData`、不加载），再按本类的**生效策略**加载，加载完成后经
+ * `AssembleStateDef` 校验身份并缓存 `BuffDef`；运行期按 `DefTag` 经 `ResolveStateDef` 取用。
+ *
+ * **本类是「装配型」**：`SeedWorld` 会把缓存逐世界登记进 `UTcsBuffSubsystem::RegisterBuffDef`
+ * （"每世界一份运行期副本"）。⇒ 策略 MUST NOT 是 `OnDemand`——零加载会让装配为空，
+ * 而门面查询恒返 `nullptr` 却启动期零 Error。注册宏因此声明为 `PreloadAll`。
  */
 UCLASS(BlueprintType)
 class TCSBUFF_API UTcsBuffDefAsset : public UTcsStateDef

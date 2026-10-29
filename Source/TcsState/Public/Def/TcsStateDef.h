@@ -27,7 +27,17 @@
  * **基类取 `UPrimaryDataAsset`**（Def 资产族统一约定，2026-09-17）：Def 引用语义本是"身份 tag + 定义库解析"，
  * 主资产身份让"tag ↔ 资产"解析与按类型发现/加载归引擎。
  */
-UCLASS(BlueprintType)
+/*
+ * **`abstract`（2026-10-26 用户裁定第 6 条）**：本类是**形状层基类**，不是主资产类型——
+ * 它自己的 `PrimaryAssetType`（`"TcsStateDef"`）**不登记**给资产加载层，因为没有任何资产
+ * 是"裸的状态定义"：真实资产必然是它的某个派生（`UTcsBuffDefAsset` / `UTcsSkillDef`），
+ * 各自有独立的 `FPrimaryAssetType`。
+ *
+ * 加 `abstract` 让"直接实例化本类"在**编译期**被拒，而不是等到运行期才发现"这个资产没有类型"。
+ * 若将来真出现裸状态定义资产，去掉本关键字并补一条注册即可——但那时它必须有独立类型名，
+ * MUST NOT 复用 `"TcsStateDef"`（会与派生族遮蔽的类型名冲突）。
+ */
+UCLASS(BlueprintType, abstract)
 class TCSSTATE_API UTcsStateDef : public UPrimaryDataAsset
 {
 	GENERATED_BODY()

@@ -19,7 +19,11 @@ public class TcsSkill : ModuleRules
 			"TcsNotation",
 			"TcsAttribute",
 			"TcsEffect",
-			"TcsState"
+			"TcsState",
+			// 主资产类型自注册（2026-10-26）：UTcsSkillDef 在自己的 .cpp 里
+			// UE_DEFINE_PRIMARY_ASSET_TYPE，需要该宏与 FTcsPrimaryAssetEntry 的定义。
+			// 依赖方向合法（AssetButler 住在所有域之下、零 Tcs 业务依赖），不成环。
+			"TcsAssetButler"
 		});
 	}
 }

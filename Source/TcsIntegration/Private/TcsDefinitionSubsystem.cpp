@@ -5,12 +5,18 @@
 #include "AssetRegistry/ARFilter.h"
 #include "AssetRegistry/AssetData.h"
 #include "AssetRegistry/IAssetRegistry.h"
+#include "Asset/TcsAssetButlerSettings.h"
 #include "Asset/TcsPrimaryAssetQuery.h"
+#include "Asset/TcsPrimaryAssetRegistry.h"
+#include "Engine/AssetManager.h"
+#include "Engine/StreamableManager.h"
 #include "Attribute/TcsAttrModDef.h"
 #include "Attribute/TcsAttributeDef.h"
 #include "Chain/TcsEffectChain.h"
 #include "Chain/TcsEffectChainDef.h"
 #include "Def/TcsBuffDef.h"
+#include "Def/TcsBuffDefAsset.h"
+#include "Def/TcsSkillDef.h"
 #include "Def/TcsSkillDefData.h"
 #include "Engine/World.h"
 #include "Engine/GameInstance.h"
@@ -29,44 +35,31 @@ void UTcsDefinitionSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);
 
-	DiscoverChainDefs();
-	DiscoverTriggerDefs();
-	DiscoverStateDefs();
-	DiscoverAttrModDefs();
-	DiscoverSkillDefs();
-	DiscoverAttributeDefs();
-
 	// 触发行来源句柄：本类在世界装配期登记触发行时作 `Source`（"定义库来源"这一级联退订锚点，发放一次）
 	TriggerSeedSource = TriggerSourceRegistry.Allocate();
 
-	// ── 就绪单出口（06 §4 硬规则① / M6 双层引导的最小版） ──
-	//
-	// **次序是契约，MUST NOT 调换**：置位 → 广播 → 装配世界。三条理由：
-	// ① **置位先于广播**：订阅者在本委托回调里 MUST 能查到 `IsRuntimeReady() == true`——否则它只能
-	//    "收到通知但门禁仍不放行"，通知就等于没发。
-	// ② **广播先于装配世界**：装配会逐世界登记链/触发行/状态定义并可能报 Warning，那些是**装配面**
-	//    的读数；就绪信号承诺的是"**定义已齐备**"，不是"**已装配到某个世界**"（后者是 `SeedWorld` 的事，
-	//    且每个世界各来一次）。把装配排在广播前会让订阅者在一个尚未装配的世界里被唤醒。
-	// ③ **幂等**：本函数只在 `Initialize` 里跑一次，`Deinitialize` 置回 false ⇒ 无需防重入判据。
-	bRuntimeReady = true;
-
-	// 广播**恰好一次**（这是"单出口"的全部含义：一个信号点，不是每处调用点各广播一份）
-	OnDefinitionsReady.Broadcast();
-
-	// 世界可能已存在（PIE 里 GameInstance 与世界创建顺序、或宿主先手动 LoadMap）——立即装配
-	SeedWorld(GetGameInstance() ? GetGameInstance()->GetWorld() : nullptr);
-
-	// 未来世界：订阅世界初始化（跨级方向：GameInstance 级持有 World 级引用，长寿→短寿合法）
+	// 未来世界：订阅世界初始化（跨级方向：GameInstance 级持有 World 级引用，长寿→短寿合法）。
+	// **订阅必须早于加载**：异步预载期间世界可能初始化，那些世界要走"待装配集合"而不是错过装配。
 	WorldInitDelegateHandle = FWorldDelegates::OnPostWorldInitialization.AddUObject(
 		this, &UTcsDefinitionSubsystem::HandlePostWorldInitialization);
 
-	UE_LOG(LogTcsIntegration, Log, TEXT("UTcsDefinitionSubsystem: 定义库就绪——链定义 %d 条，触发定义 %d 条，状态定义 %d 条，修正器模板 %d 条，技能定义 %d 条，属性定义 %d 条，失败 %d 条"),
-		ChainDefs.Num(), TriggerDefs.Num(), StateDefs.Num(), AttrModDefs.Num(), SkillDefs.Num(), AttributeDefs.Num(), FailureList.Num());
+	// ── 发现与加载彻底分离（2026-10-26） ──
+	//
+	// 发现阶段只收 `FAssetData`（**不加载**），加载阶段按生效策略统一决定。
+	// 旧实现把 `AssetData.GetAsset()` 写在发现里 ⇒ "发现"隐含全量同步加载 ⇒ 任何策略都无法生效。
+	TArray<FDiscoverResult> Results;
+	Results.SetNum(6);
 
-	for (const FString& Failure : FailureList)
-	{
-		UE_LOG(LogTcsIntegration, Error, TEXT("UTcsDefinitionSubsystem: 登记失败——%s"), *Failure);
-	}
+	DiscoverDefs(UTcsEffectChainDef::StaticClass(), Results[0]);
+	DiscoverDefs(UTcsEffectTriggerDefAsset::StaticClass(), Results[1]);
+	DiscoverDefs(UTcsBuffDefAsset::StaticClass(), Results[2]);
+	DiscoverDefs(UTcsAttrModDef::StaticClass(), Results[3]);
+	DiscoverDefs(UTcsSkillDef::StaticClass(), Results[4]);
+	DiscoverDefs(UTcsAttributeDef::StaticClass(), Results[5]);
+
+	LoadDefinitions(Results);
+
+	// **专供调试**：就绪日志在 `OnPreloadFinished` 里打——那里才知道最终读数。
 }
 
 void UTcsDefinitionSubsystem::Deinitialize()
@@ -109,7 +102,13 @@ void UTcsDefinitionSubsystem::Deinitialize()
 			*LiveWorld->GetName(), RemovedRows);
 	}
 
+	// 预载句柄的释放**先于**清缓存：句柄释放即触发卸载，若反过来先清缓存，
+	// 中间那一刻缓存已空但资产仍驻留（无害，但读数会短暂说谎）。
+	PreloadHandles.Empty();
+
 	SeededWorlds.Empty();
+	PendingWorlds.Empty();
+	OnDemandCatalog.Empty();
 	ChainDefs.Empty();
 	ChainDefAssets.Empty();
 	TriggerDefs.Empty();
@@ -124,6 +123,8 @@ void UTcsDefinitionSubsystem::Deinitialize()
 	AttributeDefAssets.Empty();
 	TriggerSeedSource = FTcsSourceHandle();
 	FailureList.Empty();
+	PendingPreloadBatches = 0;
+	bLoadFailed = false;
 	bRuntimeReady = false;
 
 	Super::Deinitialize();
@@ -131,66 +132,178 @@ void UTcsDefinitionSubsystem::Deinitialize()
 
 
 
-void UTcsDefinitionSubsystem::DiscoverChainDefs()
+void UTcsDefinitionSubsystem::DiscoverDefs(UClass* DefClass, FDiscoverResult& OutResult)
 {
-	// **发现手段（2026-10-15 Task 6 改）**：走加载层统一查询口，不再直接 `GetAssetsByClass`。
+	// **发现手段（2026-10-15 Task 6 起）**：走加载层统一查询口，不再直接 `GetAssetsByClass`。
 	// 判据与实测见 `Asset/TcsPrimaryAssetQuery.h` 的头注释：类换过模块后 `GetAssetsByClass`
-	// 按**当前类路径**查索引会**静默返回 0**（本类的 `UTcsEffectChainDef` 于 Task 8 自
-	// `TcsIntegration` 搬入 `TcsEffect` ⇒ 实测链资产发现由 12 个退为 0 个）。
-	TArray<FAssetData> FoundAssets;
+	// 按**当前类路径**查索引会**静默返回 0**（`UTcsEffectChainDef` 于 Task 8 自 `TcsIntegration`
+	// 搬入 `TcsEffect` ⇒ 实测链资产发现由 12 个退为 0 个）。
+	//
+	// **本函数 MUST NOT 加载资产**：只收 `FAssetData`。加载归 `LoadDefinitions` 按策略决定——
+	// 一旦发现里带 `GetAsset()`，策略就永远是死的。
+	if (!DefClass)
+	{
+		return;
+	}
+
+	// 类型名与 `FTcsPrimaryAssetRegistry::ResolveEntry` 同口径（反射名派生，零字符串面）
+	OutResult.Type = FPrimaryAssetType(DefClass->GetFName());
+
+	// 声明值来自注册项（配置未覆盖时的回落值）。取不到注册项时留 OnDemand 兜底，
+	// 但此时 `GetAssetsForDefClass` 会给出"未登记"的具名诊断并进失败清单。
+	if (const FTcsPrimaryAssetEntry* Entry = FTcsPrimaryAssetRegistry::Get().Find(OutResult.Type))
+	{
+		OutResult.DeclaredPolicy = Entry->Policy;
+	}
+
 	FString Diagnostic;
-	if (!FTcsPrimaryAssetQuery::GetAssetsForDefClass(
-			UTcsEffectChainDef::StaticClass(), FoundAssets, &Diagnostic))
+	if (!FTcsPrimaryAssetQuery::GetAssetsForDefClass(DefClass, OutResult.Assets, &Diagnostic))
 	{
 		// "未登记"是**退化**（需补 UE_DEFINE_PRIMARY_ASSET_TYPE），进失败清单；
 		// "已登记但零资产"是正常状态，只留日志。
 		if (!Diagnostic.IsEmpty())
 		{
-			FailureList.Add(FString::Printf(TEXT("链资产: %s"), *Diagnostic));
+			FailureList.Add(FString::Printf(TEXT("%s: %s"), *OutResult.Type.ToString(), *Diagnostic));
 		}
 
-		UE_LOG(LogTcsIntegration, Log, TEXT("UTcsDefinitionSubsystem: 未发现任何链资产（正常状态——尚无内容）"));
+		UE_LOG(LogTcsIntegration, Log,
+			TEXT("UTcsDefinitionSubsystem: 主资产类型 %s 未发现任何资产（正常状态——尚无内容）"),
+			*OutResult.Type.ToString());
 		return;
 	}
 
-	UE_LOG(LogTcsIntegration, Log, TEXT("UTcsDefinitionSubsystem: 发现链资产 %d 个"), FoundAssets.Num());
+	UE_LOG(LogTcsIntegration, Log,
+		TEXT("UTcsDefinitionSubsystem: 主资产类型 %s 发现资产 %d 个（尚未加载）"),
+		*OutResult.Type.ToString(), OutResult.Assets.Num());
+}
 
-	for (const FAssetData& AssetData : FoundAssets)
+
+
+void UTcsDefinitionSubsystem::LoadDefinitions(TArray<FDiscoverResult>& InResults)
+{
+	UAssetManager* AssetManager = UAssetManager::GetIfInitialized();
+	if (!AssetManager)
 	{
-		const FString AssetPath = AssetData.GetSoftObjectPath().ToString();
+		FailureList.Add(TEXT("<AssetManager>: 不可得——定义库无法按策略加载"));
+		OnPreloadFinished(/*bInSucceeded=*/false);
+		return;
+	}
 
-		UTcsEffectChainDef* ChainDef = Cast<UTcsEffectChainDef>(AssetData.GetAsset());
-		if (!ChainDef)
+	const UTcsAssetButlerSettings& Settings = *GetDefault<UTcsAssetButlerSettings>();
+
+	int32 AsyncBatchCount = 0;
+
+	for (FDiscoverResult& Result : InResults)
+	{
+		// 零资产：不产生加载批次（也无需策略判定）
+		if (Result.Assets.IsEmpty())
 		{
-			FailureList.Add(FString::Printf(TEXT("%s: 加载失败或类型不符"), *AssetPath));
 			continue;
 		}
 
-		// 校验一：身份非空（空 id 无法按 [PrimaryAssetType, ChainId] 解析，且登记必被拒）
-		if (!ChainDef->ChainId.IsValid())
+		const ETcsAssetLoadPolicy Policy = Settings.ResolveLoadPolicy(Result.Type, Result.DeclaredPolicy);
+
+		// ── 装配型禁令（用户 2026-10-26 裁定：硬拒） ──
+		//
+		// 装配型类型在世界初始化时要逐世界登记它的定义（SeedWorld）。OnDemand 承诺"零加载"
+		// ⇒ 缓存为空 ⇒ 装配 0 条 ⇒ 该门面的每一次查询都返回 nullptr，而启动期**零 Error**——
+		// 症状是"buff 全加不上 / 技能链全不执行"，日志只刷"定义未在本世界登记"，排障方向是错的。
+		// 这条配置在任何情况下都不是宿主的本意（配了 OnDemand 等于要求"装配 0 条"），故硬拒。
+		if (Policy == ETcsAssetLoadPolicy::OnDemand && IsSeedingType(Result.Type))
 		{
-			FailureList.Add(FString::Printf(TEXT("%s: ChainId 为空"), *AssetPath));
+			FailureList.Add(FString::Printf(
+				TEXT("主资产类型 %s: 生效策略为 OnDemand，但它是装配型类型（SeedWorld 会逐世界登记其定义）"
+					 "——OnDemand 会让装配为空，MUST 改为 PreloadAll 或 PreloadSelected"),
+				*Result.Type.ToString()));
 			continue;
 		}
 
-		// 校验二：双真相禁令（Chain.ChainId 与 ChainId 必须一致——不静默取其一）
-		if (ChainDef->Chain.ChainId != ChainDef->ChainId)
+		switch (Policy)
 		{
-			FailureList.Add(FString::Printf(TEXT("%s: 双真相——资产 ChainId(%s) 与 Chain.ChainId(%s) 不一致"),
-				*AssetPath, *ChainDef->ChainId.ToString(), *ChainDef->Chain.ChainId.ToString()));
-			continue;
+		case ETcsAssetLoadPolicy::PreloadAll:
+		{
+			// 兼查重：同名（同 PrimaryAssetName = 同 DefTag）而路径不同 ⇒ 拒绝登记，不静默选一个。
+			if (!CheckDuplicates(Result))
+			{
+				continue;
+			}
+
+			TArray<FPrimaryAssetId> Ids;
+			Ids.Reserve(Result.Assets.Num());
+			for (const FAssetData& AssetData : Result.Assets)
+			{
+				Ids.Add(AssetData.GetPrimaryAssetId());
+			}
+
+			PendingPreloadBatches++;
+			AsyncBatchCount++;
+
+			FString LoadError;
+			if (!PreloadPrimaryAssetIds(AssetManager, Ids, Result, LoadError))
+			{
+				PendingPreloadBatches--;
+				AsyncBatchCount--;
+				FailureList.Add(FString::Printf(TEXT("主资产类型 %s: %s"), *Result.Type.ToString(), *LoadError));
+			}
+			break;
 		}
 
-		// 校验三：重复登记（同 id 两个资产 = 内容冲突，不得静默覆写）
-		if (ChainDefs.Contains(ChainDef->ChainId))
+		case ETcsAssetLoadPolicy::PreloadSelected:
 		{
-			FailureList.Add(FString::Printf(TEXT("%s: 链 id %s 已被另一个资产占用（重复定义）"),
-				*AssetPath, *ChainDef->ChainId.ToString()));
-			continue;
+			const FTcsAssetIdList* Selected = Settings.SelectedAssetsByType.Find(Result.Type);
+			if (!Selected || Selected->AssetIds.IsEmpty())
+			{
+				// 不静默：缺清单必须爆出来，也不许退化为 PreloadAll（那是"我配的清单没生效"）
+				FailureList.Add(FString::Printf(
+					TEXT("主资产类型 %s: 生效策略 PreloadSelected 但 SelectedAssetsByType 缺清单或为空"
+						 "——按零资产预载处理（配置缺口，不是加载失败）"),
+					*Result.Type.ToString()));
+				continue;
+			}
+
+			TArray<FPrimaryAssetId> Ids(Selected->AssetIds);
+
+			PendingPreloadBatches++;
+			AsyncBatchCount++;
+
+			FString LoadError;
+			if (!PreloadPrimaryAssetIds(AssetManager, Ids, Result, LoadError))
+			{
+				PendingPreloadBatches--;
+				AsyncBatchCount--;
+				FailureList.Add(FString::Printf(TEXT("主资产类型 %s: %s"), *Result.Type.ToString(), *LoadError));
+			}
+			break;
 		}
 
-		ChainDefs.Add(ChainDef->ChainId, MakeUnique<FTcsEffectChain>(ChainDef->Chain));
-		ChainDefAssets.Add(ChainDef);
+		case ETcsAssetLoadPolicy::OnDemand:
+		{
+			// 零加载：只记目录（身份），不加载任何资产对象。
+			TArray<FPrimaryAssetId>& Catalog = OnDemandCatalog.FindOrAdd(Result.Type);
+			Catalog.Reset();
+			Catalog.Reserve(Result.Assets.Num());
+
+			for (const FAssetData& AssetData : Result.Assets)
+			{
+				Catalog.Add(AssetData.GetPrimaryAssetId());
+			}
+
+			UE_LOG(LogTcsIntegration, Log,
+				TEXT("UTcsDefinitionSubsystem: 主资产类型 %s 生效策略 OnDemand——零预载，仅记目录 %d 项"),
+				*Result.Type.ToString(), Catalog.Num());
+			break;
+		}
+		}
+	}
+
+	UE_LOG(LogTcsIntegration, Log,
+		TEXT("UTcsDefinitionSubsystem: 按策略发起异步预载批次 %d 个（累计失败 %d 条）"),
+		AsyncBatchCount, FailureList.Num());
+
+	// 无异步批次（全 OnDemand / 零资产 / 全部失败于策略判定）⇒ 立即走单出口
+	if (PendingPreloadBatches == 0)
+	{
+		OnPreloadFinished(FailureList.IsEmpty());
 	}
 }
 
@@ -231,6 +344,16 @@ void UTcsDefinitionSubsystem::SeedWorld(UWorld* World)
 	if (!EffectSubsystem)
 	{
 		// 非游戏型世界（编辑器预览等）——该子系统自身按 DoesSupportWorldType 过滤，此处静默跳过
+		return;
+	}
+
+	// **装配前置：必须已就绪**。未就绪时装配出去的是半套定义（OnDemand 类型的缓存还是空的），
+	// 而装配进世界门面后**不会回填**——后补进来的定义对已装配的世界无效。
+	// 这条守卫与 HandlePostWorldInitialization 的待装配集合是同一件事的两面：那里拦新世界，
+	// 这里拦"任何路径直接调 SeedWorld"。删掉它就是让"半套定义永久生效"重新变成可能。
+	if (!bRuntimeReady)
+	{
+		PendingWorlds.AddUnique(TWeakObjectPtr<UWorld>(World));
 		return;
 	}
 
@@ -362,13 +485,92 @@ void UTcsDefinitionSubsystem::SeedWorld(UWorld* World)
 
 void UTcsDefinitionSubsystem::HandlePostWorldInitialization(UWorld* World, const UWorld::InitializationValues IVS)
 {
+	// **世界可能早于就绪**（异步预载把这条从"几乎不可能"变成常态，裁定第 8/15 条）：
+	// 未就绪时拒绝装配，把世界登记进待装配集合，等就绪回调里补装。
+	if (!World)
+	{
+		return;
+	}
+
+	if (!bRuntimeReady)
+	{
+		if (bLoadFailed)
+		{
+			// 失败已定：永远不会就绪 ⇒ 别再往待装配集合里堆（堆了也不会被消费）
+			UE_LOG(LogTcsIntegration, Error,
+				TEXT("UTcsDefinitionSubsystem: 世界 %s 初始化时定义库已判定失败——该世界不会被装配"),
+				*World->GetName());
+			return;
+		}
+
+		PendingWorlds.AddUnique(TWeakObjectPtr<UWorld>(World));
+		UE_LOG(LogTcsIntegration, Log,
+			TEXT("UTcsDefinitionSubsystem: 世界 %s 早于定义库就绪——已登记进待装配集合（当前 %d 个）"),
+			*World->GetName(), PendingWorlds.Num());
+		return;
+	}
+
 	SeedWorld(World);
 }
 
 
 
-const FTcsEffectChain* UTcsDefinitionSubsystem::ResolveChain(FGameplayTag ChainId) const
+void UTcsDefinitionSubsystem::AssembleChainDef(UObject* InAsset, const FString& InAssetPath)
 {
-	const TUniquePtr<FTcsEffectChain>* Found = ChainDefs.Find(ChainId);
-	return (Found && Found->IsValid()) ? Found->Get() : nullptr;
+	UTcsEffectChainDef* ChainDef = Cast<UTcsEffectChainDef>(InAsset);
+	if (!ChainDef)
+	{
+		FailureList.Add(FString::Printf(TEXT("%s: 加载失败或类型不符"), *InAssetPath));
+		return;
+	}
+
+	// 校验一：身份非空（空 id 无法按 [PrimaryAssetType, ChainId] 解析，且登记必被拒）
+	if (!ChainDef->ChainId.IsValid())
+	{
+		FailureList.Add(FString::Printf(TEXT("%s: ChainId 为空"), *InAssetPath));
+		return;
+	}
+
+	// 校验二：双真相禁令（Chain.ChainId 与 ChainId 必须一致——不静默取其一）
+	if (ChainDef->Chain.ChainId != ChainDef->ChainId)
+	{
+		FailureList.Add(FString::Printf(TEXT("%s: 双真相——资产 ChainId(%s) 与 Chain.ChainId(%s) 不一致"),
+			*InAssetPath, *ChainDef->ChainId.ToString(), *ChainDef->Chain.ChainId.ToString()));
+		return;
+	}
+
+	// 校验三：重复登记（同 id 两个资产 = 内容冲突，不得静默覆写）
+	if (ChainDefs.Contains(ChainDef->ChainId))
+	{
+		FailureList.Add(FString::Printf(TEXT("%s: 链 id %s 已被另一个资产占用（重复定义）"),
+			*InAssetPath, *ChainDef->ChainId.ToString()));
+		return;
+	}
+
+	ChainDefs.Add(ChainDef->ChainId, MakeUnique<FTcsEffectChain>(ChainDef->Chain));
+	ChainDefAssets.Add(ChainDef);
+}
+
+
+
+const FTcsEffectChain* UTcsDefinitionSubsystem::ResolveChain(
+	FGameplayTag ChainId, ETcsResolveMode Mode, FStreamableDelegate OnLoaded)
+{
+	// 快路径：已在缓存 ⇒ 直接返回并同步触发代理（MUST NOT 制造无谓的一帧延迟）
+	if (const TUniquePtr<FTcsEffectChain>* Found = ChainDefs.Find(ChainId))
+	{
+		if (Found->IsValid())
+		{
+			if (OnLoaded.IsBound())
+			{
+				OnLoaded.Execute();
+			}
+			return Found->Get();
+		}
+	}
+
+	const_cast<UTcsDefinitionSubsystem*>(this)->EnsureDefinitionLoaded(
+		FPrimaryAssetType(UTcsEffectChainDef::StaticClass()->GetFName()), ChainId, Mode, OnLoaded);
+
+	return nullptr;
 }

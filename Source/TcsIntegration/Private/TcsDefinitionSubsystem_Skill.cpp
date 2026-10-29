@@ -2,8 +2,6 @@
 
 #include "TcsDefinitionSubsystem.h"
 
-#include "AssetRegistry/AssetData.h"
-#include "AssetRegistry/IAssetRegistry.h"
 #include "Def/TcsSkillDef.h"
 #include "Def/TcsSkillDefData.h"
 
@@ -11,68 +9,54 @@
 
 
 
-void UTcsDefinitionSubsystem::DiscoverSkillDefs()
+void UTcsDefinitionSubsystem::AssembleSkillDef(UObject* InAsset, const FString& InAssetPath)
 {
-	IAssetRegistry* AssetRegistry = IAssetRegistry::Get();
-	if (!AssetRegistry)
+	UTcsSkillDef* SkillDefAsset = Cast<UTcsSkillDef>(InAsset);
+	if (!SkillDefAsset)
 	{
-		FailureList.Add(TEXT("<AssetRegistry>: 不可得——技能定义资产发现被跳过"));
-		UE_LOG(LogTcsIntegration, Error, TEXT("UTcsDefinitionSubsystem: AssetRegistry 不可得——技能定义资产发现被跳过"));
+		FailureList.Add(FString::Printf(TEXT("%s: 加载失败或类型不符"), *InAssetPath));
 		return;
 	}
 
-	// 异步扫描就绪门（编辑器初始扫描未完成时，按类查询会静默返回不完整结果）
-	if (AssetRegistry->IsLoadingAssets())
+	// 校验一：身份有效（无效身份无法按 DefTag 寻址；内容级规则归资产 IsDataValid）
+	if (!SkillDefAsset->DefTag.IsValid())
 	{
-		AssetRegistry->WaitForCompletion();
-	}
-
-	TArray<FAssetData> FoundAssets;
-	const FTopLevelAssetPath ClassPath = UTcsSkillDef::StaticClass()->GetClassPathName();
-	if (!AssetRegistry->GetAssetsByClass(ClassPath, FoundAssets, /*bSearchSubClasses=*/false))
-	{
-		// 未发现资产是正常状态，不计入失败清单。
-		UE_LOG(LogTcsIntegration, Log, TEXT("UTcsDefinitionSubsystem: 未发现任何技能定义资产（正常状态——尚无内容）"));
+		FailureList.Add(FString::Printf(TEXT("%s: DefTag 为空"), *InAssetPath));
 		return;
 	}
 
-	UE_LOG(LogTcsIntegration, Log, TEXT("UTcsDefinitionSubsystem: 发现技能定义资产 %d 个"), FoundAssets.Num());
-
-	for (const FAssetData& AssetData : FoundAssets)
+	// 校验二：身份重复（同身份两个技能定义资产 = 内容冲突，不得静默覆写）
+	if (SkillDefs.Contains(SkillDefAsset->DefTag))
 	{
-		const FString AssetPath = AssetData.GetSoftObjectPath().ToString();
-
-		UTcsSkillDef* SkillDefAsset = Cast<UTcsSkillDef>(AssetData.GetAsset());
-		if (!SkillDefAsset)
-		{
-			FailureList.Add(FString::Printf(TEXT("%s: 加载失败或类型不符"), *AssetPath));
-			continue;
-		}
-
-		// 校验一：身份有效（无效身份无法按 DefTag 寻址；内容级规则归资产 IsDataValid）
-		if (!SkillDefAsset->DefTag.IsValid())
-		{
-			FailureList.Add(FString::Printf(TEXT("%s: DefTag 为空"), *AssetPath));
-			continue;
-		}
-
-		// 校验二：身份重复（同身份两个技能定义资产 = 内容冲突，不得静默覆写）
-		if (SkillDefs.Contains(SkillDefAsset->DefTag))
-		{
-			FailureList.Add(FString::Printf(TEXT("%s: 技能定义身份 %s 已被另一个资产占用（重复定义）"),
-				*AssetPath, *SkillDefAsset->DefTag.ToString()));
-			continue;
-		}
-
-		SkillDefs.Add(SkillDefAsset->DefTag, MakeUnique<FTcsSkillDefData>(SkillDefAsset->SkillDef));
-		SkillDefAssets.Add(SkillDefAsset);
+		FailureList.Add(FString::Printf(TEXT("%s: 技能定义身份 %s 已被另一个资产占用（重复定义）"),
+			*InAssetPath, *SkillDefAsset->DefTag.ToString()));
+		return;
 	}
+
+	SkillDefs.Add(SkillDefAsset->DefTag, MakeUnique<FTcsSkillDefData>(SkillDefAsset->SkillDef));
+	SkillDefAssets.Add(SkillDefAsset);
 }
 
 
 
-const FTcsSkillDefData* UTcsDefinitionSubsystem::ResolveSkillDef(FGameplayTag DefTag) const
+const FTcsSkillDefData* UTcsDefinitionSubsystem::ResolveSkillDef(
+	FGameplayTag DefTag, ETcsResolveMode Mode, FStreamableDelegate OnLoaded)
 {
-	const TUniquePtr<FTcsSkillDefData>* Found = SkillDefs.Find(DefTag);
-	return (Found && Found->IsValid()) ? Found->Get() : nullptr;
+	// 快路径：已在缓存 ⇒ 直接返回并同步触发代理
+	if (const TUniquePtr<FTcsSkillDefData>* Found = SkillDefs.Find(DefTag))
+	{
+		if (Found->IsValid())
+		{
+			if (OnLoaded.IsBound())
+			{
+				OnLoaded.Execute();
+			}
+			return Found->Get();
+		}
+	}
+
+	const_cast<UTcsDefinitionSubsystem*>(this)->EnsureDefinitionLoaded(
+		FPrimaryAssetType(UTcsSkillDef::StaticClass()->GetFName()), DefTag, Mode, OnLoaded);
+
+	return nullptr;
 }

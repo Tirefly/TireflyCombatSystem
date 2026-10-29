@@ -285,7 +285,11 @@ LoadStartupModules()（Default 阶段，TcsAssetButler 在此加载）
 
 **性质**：**实现超文档的镜像**——代码改了，注释/批注没跟上。**影响面**：注释是开发者的一等信息源，此处会误导"新增 Def 族该用哪个口"。**已登记**：否。
 
-### D-4 ★★★ 加载三件的规格要求已兑现，但**消费面从未存在**
+### D-4 ★★★ 加载三件的规格要求已兑现，但**消费面从未存在** —— **✅ 2026-10-26 闭合（R-21）**
+
+> **闭合证据**：`refactor-asset-load-policy-as-contract` 落地。三策略各自兑现为可观察的加载行为差异（`LoadDefinitions` 的三档分流），配置面由 `UTcsAssetButlerSettings::LoadPolicyByType` + `ResolveLoadPolicy` 提供，消费点 = 定义库按类型分支加载。`ETcsAssetLoadPolicy` 读取点从 **0** 变为 `TcsDefinitionSubsystem.cpp` 的双分支 + `ResolveLoadPolicy`。**D-7 的 RAII 隐患随之失效**：定义库改为直接持 `TSharedPtr<FStreamableHandle>`（`PreloadHandles`），不再经过 `FTcsAssetLoadHandle` 的 `RefCount` 手工计数。
+>
+> **顺序问题本身仍然成立**（"同一份计划里同一条判据用出两个相反结论"）——那是过程教训，不随代码闭合而消失。
 
 | 项 | 内容 |
 |---|---|
@@ -329,7 +333,9 @@ LoadStartupModules()（Default 阶段，TcsAssetButler 在此加载）
 
 ## §6 未实现（设计是否还成立 + 前置条件）
 
-### U-1 ★ 4 个 Def 类的自注册未落（3/7 → 7/7）
+### U-1 ★ 4 个 Def 类的自注册未落（3/7 → 7/7） —— **✅ 2026-10-26 闭合（R-21）**
+
+> **闭合结果**：`UTcsAttributeDef`（2026-10-17 已补）、`UTcsAttrModDef`（原有）、`UTcsSkillDef`（本次补）均已在册 ⇒ **7 个 Def 类里 6 个注册**，唯一不注册的是 `UTcsStateDef`——用户 2026-10-26 裁定第 6 条明确「形状层基类，**不注册**」并给它加了 `abstract`。⇒ 本条目标从「7/7」订正为「**6 个实体类型 + 1 个基类明确不注册**」。
 
 | Def 类 | 域 | 现状 |
 |---|---|---|
@@ -342,7 +348,9 @@ LoadStartupModules()（Default 阶段，TcsAssetButler 在此加载）
 - **前置条件**：补注册与迁移那两条 `Discover*` MUST **同批**做，顺序 = 注册 → 迁移。**MUST NOT** 只做迁移。
 - **已登记**：✅ 台账 `INTEG-3` 逐项在册。
 
-### U-2 ★ 发现面 2/5 未迁（`DiscoverAttrModDefs` / `DiscoverSkillDefs`）
+### U-2 ★ 发现面 2/5 未迁（`DiscoverAttrModDefs` / `DiscoverSkillDefs`） —— **✅ 2026-10-26 闭合（R-21）**
+
+> **闭合结果**：六族发现统一走 `FTcsPrimaryAssetQuery::GetAssetsForDefClass`，六条 `Discover*` 收口为一条 `DiscoverDefs`（只取 `FAssetData`、零加载）。反查 `GetAssetsByClass` 在 `TcsIntegration` 下**零命中**（仅注释提及）。
 
 `TcsDefinitionSubsystem_AttrModDef.cpp:31` 与 `_Skill.cpp:32` 仍走 `AssetRegistry->GetAssetsByClass`【实测】。
 
@@ -365,7 +373,11 @@ LoadStartupModules()（Default 阶段，TcsAssetButler 在此加载）
 - **性质**：**不是遗漏**，是纪律性留白。
 - **已登记**：✅ `EVID-…task6` 与 Task 8 实施记录均如实登记"未构造"。
 
-### U-5 `PreloadAll` / `PreloadSelected` 两个策略值无任何语义
+### U-5 `PreloadAll` / `PreloadSelected` 两个策略值无任何语义 —— **✅ 2026-10-26 闭合（R-21）**
+
+> **闭合结果**：三档全部有语义。`PreloadAll` = 定义库按类型异步全量预载（今天 5 个装配型类型的默认值）；`PreloadSelected` = 只装 `SelectedAssetsByType` 清单；`OnDemand` = 零预载 + 目录可查 + 解析口按需加载。**判据**（规格已写死）：「改变一个类型的策略值，该类型在启动期的加载行为 MUST 随之改变」。
+>
+> **新增一条硬禁令（本次裁定的直接产物）**：**装配型类型 MUST NOT 用 `OnDemand`**，且该禁令 MUST 硬拒（计入失败清单 + 不就绪），不是警告后自动退化。理由：装配型类型在世界初始化时会被逐世界登记，`OnDemand` 的零加载会让装配为空，而**启动期零 Error**——症状是「buff 全加不上」，日志却只刷「定义未在本世界登记」，排障方向被引向错误的地方。
 
 3 处注册全为 `OnDemand`；另两个值**从未被任何代码读过**（见 D-4）。
 

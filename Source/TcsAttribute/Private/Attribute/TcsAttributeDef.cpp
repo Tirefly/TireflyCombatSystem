@@ -11,12 +11,16 @@ const FPrimaryAssetType UTcsAttributeDef::PrimaryAssetType = FPrimaryAssetType(T
 
 // 主资产类型自注册（2026-10-17 补，ARCH-04 D-2 / ARCH-03 U-1）：
 // 类型名由 `StaticClass()` 反射派生（零字符串面，类改名无需同步改本处）。
-// **策略用 OnDemand**：属性定义今天是"宿主/定义库需要时才拿"，不是"启动期全量预热"——
-// 与已注册的三个 Def 族（`TcsBuffDefAsset` / `TcsEffectChainDef` / `TcsEffectTriggerDefAsset`）同档。
-// ⚠ 本注册**只是发现路径的前置**：`UTcsAttributeDef` 的插件侧 `DiscoverAttributeDefs` 仍未建
-// （ARCH-04 U-1），今天仍只有宿主 `TcsDev` 在扫。注册在这里的意义是**把"未登记"这个失败面关掉**
-// ——`FTcsPrimaryAssetQuery::GetAssetsForDefClass` 对未登记类型直接返回失败且报 Warning。
-UE_DEFINE_PRIMARY_ASSET_TYPE(UTcsAttributeDef, { TEXT("/Game") }, ETcsAssetLoadPolicy::OnDemand)
+//
+// **策略已由 OnDemand 改为 `PreloadAll`（2026-10-26 用户裁定）**：本类是**装配型**——
+// `UTcsDefinitionSubsystem::SeedWorld` 逐世界把它登记进 `UTcsAttributeSubsystem`，而 `OnDemand`
+// 承诺"零加载"⇒ 缓存为空 ⇒ 装配 0 条 ⇒ `FindAttributeDef` 恒空 ⇒ `AddAttribute` 零定义 ⇒
+// **实体零属性**（伤害系数、修正器全无落点），而启动期**零 Error**。
+// 装配型类型 MUST NOT 用 `OnDemand`；定义库对它硬拒（计入失败清单 + 不就绪）。
+//
+// 原注释说「属性定义是宿主/定义库需要时才拿，不是启动期全量预热」——那句话描述的是**开发期观察**，
+// 不是**可接受的运行语义**：装配型定义一进入世界就被门面全量持有，等价于"全程必需"。
+UE_DEFINE_PRIMARY_ASSET_TYPE(UTcsAttributeDef, { TEXT("/Game") }, ETcsAssetLoadPolicy::PreloadAll)
 
 
 

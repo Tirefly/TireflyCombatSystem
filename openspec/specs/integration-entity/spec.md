@@ -79,21 +79,22 @@
 > **它与 `IsRuntimeReady` 的分工**：前者是**通知**（"刚刚齐备了"，单次），后者是**轮询**（门禁查询点，"现在能注册吗"）。两者 MUST 并存、MUST NOT 互相替代——只有轮询时，比定义库更早 `BeginPlay` 的实体只能**跳过注册并永久失效**。
 > ⇒ 本条原是 `G-10`（规格更严、代码更松）形态：规格要求了、代码未做，且**注释里那句"单出口"是承诺而非事实**（`ARCH-11` D-1）。
 
-- **发现**：**两条路径并存，按族分配**——`FTcsPrimaryAssetQuery::GetAssetsForDefClass`（加载层统一查询口，`TcsAssetButler`）用于链 / 触发 / 状态 / **属性**四族；`IAssetRegistry::GetAssetsByClass` 用于修正器模板 / 技能两族（**2026-10-17 订正：原写「五条全走 `GetAssetsByClass`」，实为 3 走新口、2 走旧口；同日 `ARCH-04` U-1 新增属性定义走新口，两半之比变为 4:2**）。两条路径**都不依赖 `PrimaryAssetTypesToScan` 注册**（该 ini 清单已被 `DEC-2026-10-13-asset-butler` 裁定②否决；替代品是代码自注册宏 `UE_DEFINE_PRIMARY_ASSET_TYPE`，台账 `INTEG-3` 逐项结账）。**六条按类发现路径**：
-  链资产 `UTcsEffectChainDef`（`DiscoverChainDefs`）、触发定义资产 `UTcsEffectTriggerDefAsset`（`DiscoverTriggerDefs`，**2026-10-04 新增**）、
-  状态定义资产 `UTcsBuffDefAsset`（`DiscoverStateDefs`，**2026-10-04 R5 Task 1 新增**）、
-  修正器模板资产 `UTcsAttrModDef`（`DiscoverAttrModDefs`，**2026-10-05 R5 Task 7 新增**——该资产族此前**全库零发现路径**，其身份词 `TemplateTag` 因此零解析消费者，即台账 `ATTR-1`）；
-  技能定义资产 `UTcsSkillDef`（`DiscoverSkillDefs`，**2026-10-06 R6 Task 1 新增**）；
-  属性定义资产 `UTcsAttributeDef`（`DiscoverAttributeDefs`，**2026-10-17 `ARCH-04` U-1 新增**——该资产族此前同样**全库零插件侧发现路径**，只有宿主装置在扫）；
+- **发现与加载彻底分离（2026-10-26 重写）**：`DiscoverDefs` **只收 `FAssetData`、不加载任何资产**；加载由 `LoadDefinitions` 按**生效策略**统一决定。判据 = **只要发现里带加载（`AssetData.GetAsset()`），策略就永远是死的**——策略管加载，而加载被写死在发现里时没有任何分支点。
+- **发现路径统一**：**六族全部**走 `FTcsPrimaryAssetQuery::GetAssetsForDefClass`（加载层统一查询口，`TcsAssetButler`）——2026-10-26 起修正器模板与技能两族也迁入。**原「两条路径并存，按族分配」的写法已废弃**（2026-10-17 曾记「4 走新口、2 走旧口」）：`GetAssetsByClass` 按**当前类路径**查索引，类一搬家就**静默返 0**，而搬家的类只会越来越多，留着旧口就是留着一个随搬迁才爆的雷（实测两个真实回归：`Slice.Run` 2/4→65/0、`State.Run` 6/9→15/0）。六族**都不依赖 `PrimaryAssetTypesToScan` 注册**（该 ini 清单已被 `DEC-2026-10-13-asset-butler` 裁定②否决；替代品是代码自注册宏 `UE_DEFINE_PRIMARY_ASSET_TYPE`，台账 `INTEG-3` 逐项结账）：
+  链资产 `UTcsEffectChainDef`、触发定义资产 `UTcsEffectTriggerDefAsset`（2026-10-04）、状态定义资产 `UTcsBuffDefAsset`（2026-10-04 R5 Task 1）、修正器模板资产 `UTcsAttrModDef`（2026-10-05 R5 Task 7——该族此前**全库零发现路径**，其身份词 `TemplateTag` 因此零解析消费者，即台账 `ATTR-1`）、技能定义资产 `UTcsSkillDef`（2026-10-06 R6 Task 1）、属性定义资产 `UTcsAttributeDef`（2026-10-17 `ARCH-04` U-1——此前同样**全库零插件侧发现路径**）。
 
 > **发现路径订正（2026-10-17，`ARCH-03` G-7 / `ARCH-11` D-7）**：本条原写「`IAssetRegistry::GetAssetsByClass`…**五条**按类发现路径」，该说法**已假**——`PLN-REFACTOR-1` Task 6（2026-10-15）把**三条**（`DiscoverChainDefs` / `DiscoverTriggerDefs` / `DiscoverStateDefs`）改走 `FTcsPrimaryAssetQuery::GetAssetsForDefClass`，只剩 **两条**（`DiscoverAttrModDefs` / `DiscoverSkillDefs`）仍走旧口。改动理由见 `Asset/TcsPrimaryAssetQuery.h` 头注释：类换过模块后 `GetAssetsByClass` 按**当前类路径**查索引会**静默返 0**（实测两个真实回归：`Slice.Run` 2/4→65/0、`State.Run` 6/9→15/0）。
 > ⚠ **两条旧口的形态差异（`ARCH-11` D-7 新发现，MUST 记）**：新旧两口的**异步就绪门禁不同**——旧口用 `IAssetRegistry::IsLoadingAssets()`（`_Skill.cpp:25` / `_AttrModDef.cpp:24`），新口用 `HasInitialScanCompleted`（`TcsPrimaryAssetQuery` 内）；且这两条旧路径**各自重复了 13 行相同的 `IsLoadingAssets` + `WaitForCompletion` 骨架**。⇒ 「该改的只改了三条、且没写为什么留两条」——`TcsIntegration.Build.cs:35` 的注释仍写「五条 `Discover*` 由 `GetAssetsByClass` 改走」，与实际不符。
 > **未改的两条不是遗漏（如实登记现状）**：它们**没有**改的理由，代码里也没有注释说明为什么——这正是 `ARCH-11` D-7 登记的债（**规格侧只管事实，理由缺失归代码债**）。
 - **校验**：空身份 / 双真相 / 重复登记 → 计入失败清单 + Error，不静默跳过。**2026-09-22 改造：空身份判定从 `ChainId.IsNone()` 改为 `!ChainId.IsValid()`**；
-- **按 tag 解析**：`ResolveChain(FGameplayTag ChainId)`（**2026-09-22 改造：参数类型改 tag**）、`ResolveTriggerDef(FGameplayTag TriggerTag)`（**2026-10-04 新增**）
-  与 `ResolveStateDef(FGameplayTag DefTag) -> const FTcsBuffDef*`（**2026-10-04 R5 Task 1 新增**）、
-  `ResolveAttrModDef(FGameplayTag TemplateTag) -> const UTcsAttrModDef*`（**2026-10-05 R5 Task 7 新增**）、
-  `ResolveSkillDef(FGameplayTag DefTag) -> const FTcsSkillDefData*`（**2026-10-06 R6 Task 1 新增**）——均返回缓存内容的裸指针（修正器模板返回**资产对象本身**，因为消费者要的是它能被直接物化；技能定义返回**数据视图**，因为消费者要的是 `FTcsSkillDefData`），未命中返回 nullptr（正常查询路径，不 ensure）；
+- **按 tag 解析（2026-10-26 起支持异步）**：`ResolveChain` / `ResolveTriggerDef` / `ResolveStateDef` / `ResolveAttrModDef` / `ResolveSkillDef` 五个解析口 MUST 增加两个参数——**加载模式**（`ETcsResolveMode{Async, Sync}`，默认 `Async`）与**监听代理**（`FStreamableDelegate`，按值传）。返回缓存内容的裸指针（修正器模板返回**资产对象本身**，技能定义返回**数据视图** `FTcsSkillDefData`）。
+  - **`Async` 恒返回 `nullptr`** 并登记一次性加载，加载完成后装配进缓存并触发代理；**`Sync` 是逃生口**，阻塞当帧后返回指针；
+  - **「已在内存」快路径**：缓存命中时 MUST 直接返回指针并**同步**触发代理——MUST NOT 制造无谓的一帧延迟；
+  - **五个解析口 MUST NOT 是 `const`**：异步解析要在加载完成时写缓存，写缓存就不能 const（这是「按需加载」的直接后果，不是顺手去 const）；
+  - 未命中目录返回 `nullptr`（正常查询路径，不 ensure）；
+  - **属性定义不在其中**（`ARCH-04` U-1 的边界）：它的运行期读口在世界门面 `UTcsAttributeSubsystem::FindAttributeDef`，本类不给 GI 侧读口；
+- **就绪前初始化的世界 MUST 进待装配集合（2026-10-26 新增）**：异步预载把「世界早于就绪」从「几乎不可能」变成**常态**。`OnPostWorldInitialization` 时若 `IsRuntimeReady() == false`，MUST **拒绝装配**并把该世界登记进 `TArray<TWeakObjectPtr<UWorld>>`；就绪回调里 MUST 遍历该集合逐个装配后清空（失效条目跳过）。**弱引用的理由**：本类是 GameInstance 级，世界可能在等待期间被销毁 ⇒ 强引用会拖住世界。`SeedWorld` 内部 MUST 另有一道同样的就绪守卫（非就绪时登记并返回）——两道守卫是同一件事的两面，删任一道都会让「半套定义永久生效」重新变成可能；
+- **加载失败 MUST 阻断就绪（2026-10-26 反转既有明文）**：任一步失败 ⇒ `IsRuntimeReady()` 恒为 false 且**永不置位**，MUST 经 `OnDefinitionsFailed` 单出口广播一次（与 `OnDefinitionsReady` 对称），并打**一次性 Error 级**日志含完整失败清单。**待装配集合在失败后 MUST NOT 被装配**，且 MUST 在日志中指明「这些世界仍在等待」。
 - **装配到世界**：`OnPostWorldInitialization` 时把缓存定义登记进该世界的消费方子系统（幂等——同一世界只装配一次）。
   **幂等判据 MUST 是"已装配世界集合"而非单一槽位（2026-10-17 `ARCH-11` D-2 订正）**：单槽的 `SeededWorld.Get() == World` 只在「世界**严格串行**更替」时成立——同一进程内一旦**同时**存在两个世界（PIE 多客户端 / 编辑器预览世界 + 游戏世界），单槽会让**第二个世界**重复装配，并让**第一个世界**的幂等判据失效。而本类同时需要「我装配过哪些世界」这份凭据（反初始化要按它逐世界撤销触发行）⇒ 两个用途都要求集合。集合元素 MUST 为**弱引用**（不强持有世界；世界先死 = 条目自动失效，下次装配时顺手剔除）。**2026-10-04 扩展**：链装配之后，MUST 把每条触发定义登记为该世界的**触发行**
   （`UTcsEffectSubsystem::RegisterTriggerRow`），`Source` = 定义库自持的来源句柄（`FTcsSourceHandleRegistry::Allocate` 在 `Initialize` 时发放一次）。
@@ -296,3 +297,38 @@
 
 - **WHEN** 两个 `UTcsAttributeDef` 资产使用同一个 `DefTag`
 - **THEN** 后一个被跳过并计入失败清单（含路径与原因）、先一个仍可被装配、其余资产仍可用；MUST NOT 静默覆写
+
+#### Scenario: OnDemand 类型就绪时零加载但可索引
+
+- **WHEN** 某非装配型类型生效策略为 `OnDemand`，定义库报告 `IsRuntimeReady() == true`
+- **THEN** 该类型的资产对象数 MUST 为 0；且该类型的 `FPrimaryAssetId` 目录与资产总数 MUST 可查
+
+#### Scenario: PreloadAll 类型就绪时全量在内存
+
+- **WHEN** 某类型生效策略为 `PreloadAll`，定义库报告就绪
+- **THEN** 该类型下的全部主资产 MUST 已加载进内存
+
+#### Scenario: PreloadSelected 只装清单内
+
+- **WHEN** 某类型生效策略为 `PreloadSelected` 且清单列出 A、B 两个资产（该类型共 5 个）
+- **THEN** 就绪时 A、B 已加载，其余 3 个 MUST NOT 已加载
+
+#### Scenario: 就绪不在 Initialize 返回时假定
+
+- **WHEN** `Initialize` 已返回而某类型的异步预载尚未完成
+- **THEN** `IsRuntimeReady()` MUST 仍为 false，`OnDefinitionsReady` MUST NOT 已广播
+
+#### Scenario: 世界在就绪前初始化则进入待装配集合
+
+- **WHEN** 世界 `OnPostWorldInitialization` 触发时 `IsRuntimeReady() == false`
+- **THEN** 该世界 MUST **不被立即装配**，并被登记进待装配集合；就绪回调到来后 MUST 被装配
+
+#### Scenario: 待装配集合中的世界被销毁则跳过
+
+- **WHEN** 待装配集合里的某个世界在就绪前被销毁（弱引用失效）
+- **THEN** 就绪回调遍历时 MUST 跳过该条目，MUST NOT 崩溃、MUST NOT 装配到失效世界
+
+#### Scenario: 加载失败时待装配世界保持等待
+
+- **WHEN** 某类型加载失败导致定义库永不就绪，而此前已有世界进入待装配集合
+- **THEN** 该世界 MUST 保持「未装配」状态，且 MUST 有日志指明它在等待；MUST NOT 以部分定义装配出去

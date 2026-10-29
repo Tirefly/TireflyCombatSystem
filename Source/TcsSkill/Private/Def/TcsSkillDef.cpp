@@ -2,6 +2,8 @@
 
 #include "Def/TcsSkillDef.h"
 
+#include "Asset/TcsPrimaryAssetEntry.h"
+
 #if WITH_EDITOR
 #include "Misc/DataValidation.h"
 #endif
@@ -10,6 +12,17 @@
 
 // 主资产类型取类名，派生资产必须同时覆写身份函数。
 const FPrimaryAssetType UTcsSkillDef::PrimaryAssetType(TEXT("TcsSkillDef"));
+
+// 主资产类型自注册（2026-10-26 用户裁定第 7 条）。
+//
+// **为什么补登记**：`GetPrimaryAssetId()` 早已覆写，只差注册。不登记的后果是
+// `FTcsPrimaryAssetQuery::GetAssetsForDefClass` 直接判"未登记"并返回失败 ⇒
+// `DiscoverDefs` 把它记进失败清单 ⇒ 按「失败即永不就绪」口径**整个 TCS 停摆**。
+// 登记后它才是一个可被发现、可按策略加载的独立 `FPrimaryAssetType`（与 `UTcsBuffDefAsset` 同层）。
+//
+// **策略 = `PreloadAll`**：本类是**装配型**（`SeedWorld` 逐世界 `RegisterSkillDef`），
+// 同 `UTcsBuffDefAsset` / `UTcsAttributeDef` 的理由——装配型 MUST NOT 用 `OnDemand`。
+UE_DEFINE_PRIMARY_ASSET_TYPE(UTcsSkillDef, { TEXT("/Game") }, ETcsAssetLoadPolicy::PreloadAll)
 
 
 

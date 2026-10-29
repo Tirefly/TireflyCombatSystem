@@ -3,9 +3,13 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Engine/StreamableManager.h"
 #include "Subsystems/GameInstanceSubsystem.h"
+#include "UObject/PrimaryAssetId.h"
 
+#include "Asset/TcsAssetLoadPolicy.h"
 #include "Handle/TcsSourceHandle.h"
+#include "TcsResolveMode.h"
 
 #include "TcsDefinitionSubsystem.generated.h"
 
@@ -21,8 +25,25 @@
  *
  * **动态多播（`DECLARE_DYNAMIC_MULTICAST_DELEGATE`）的理由**：宿主脚本层（C#/蓝图）要能订阅
  * ⇒ 必须反射可达；`UPROPERTY(BlueprintAssignable)` 挂在子系统上即可 `Bind Event to ...`。
+ *
+ * **触发时机（2026-10-26 起变更为异步）**：预载改为异步后，本委托**不再**在 `Initialize` 内触发，
+ * 而在**最后一个异步预载完成的那一帧**触发（预载全为 `OnDemand` 或零资产时仍在 `Initialize` 内）。
+ * 订阅者 MUST NOT 假设"订阅时已经错过"——先查 `IsRuntimeReady()` 再决定是否订阅，这是唯一正确用法。
  */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FTcsOnDefinitionsReady);
+
+
+
+/**
+ * 定义库**失败**信号（与 `OnDefinitionsReady` 对称的**单出口**，用户 2026-10-26 裁定第 10 条）。
+ *
+ * **为什么必须有它**：就绪语义已反转为"**任一步失败即永不就绪**"（见 `IsRuntimeReady` 注释）。
+ * 没有失败信号时，宿主的处境是「既收不到就绪、也收不到任何东西」——只能靠轮询超时猜，
+ * 而那与「TCS 还没加载完」无法区分。本委托把「不会好了」这件事变成可观测事件。
+ *
+ * **与 `OnDefinitionsReady` 互斥且各自最多一次**：同一次生命周期内二者**只会有一个**被广播。
+ */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FTcsOnDefinitionsFailed);
 
 
 
@@ -46,16 +67,19 @@ struct FTcsSkillDefData;
  * Const 定义内容跨 PIE 世界共享，图鉴/UI 等**无世界**场景要能查（`MEM-20260902-05` 生命周期分层判据：
  * 先枚举消费场景含无世界者，再定级别）。
  *
- * 职责边界（**只做资产发现与注册，不做执行**——执行归各领域门面）：
- * - **发现**（**六条按类路径**）：链资产 `UTcsEffectChainDef`（`DiscoverChainDefs`）、触发定义资产
- *   `UTcsEffectTriggerDefAsset`（`DiscoverTriggerDefs`）、状态定义资产 `UTcsBuffDefAsset`
- *   （`DiscoverStateDefs`，**2026-10-04 R5 Task 1**）、修正器模板资产 `UTcsAttrModDef`
- *   （`DiscoverAttrModDefs`，**2026-10-05 R5 Task 7**）、技能定义资产 `UTcsSkillDef`
- *   （`DiscoverSkillDefs`，**2026-10-06 R6 Task 1**）、属性定义资产 `UTcsAttributeDef`
- *   （`DiscoverAttributeDefs`，**2026-10-17 `ARCH-04` U-1**）——**前三条**走加载层统一查询口
- *   `FTcsPrimaryAssetQuery::GetAssetsForDefClass`（类换过模块后 `IAssetRegistry::GetAssetsByClass`
- *   按**当前类路径**查索引会**静默返 0**，实测见 `DiscoverChainDefs` 头注释：链资产 12 → 0），
- *   **后三条**仍走 `IAssetRegistry::GetAssetsByClass`（类未搬迁，实测命中正常）；
+ * 职责边界（**只做资产发现、加载与注册，不做执行**——执行归各领域门面）：
+ * - **发现与加载彻底分离（2026-10-26 重写）**：`DiscoverDefs` 只收 `FAssetData`（**不加载**），
+ *   `LoadDefinitions` 按**生效策略**决定加载什么、怎么加载。旧实现把 `AssetData.GetAsset()`
+ *   写在发现里 ⇒ 「发现」这个动作隐含**全量同步加载** ⇒ 任何策略都无法生效
+ *   （**只要发现里带加载，策略就永远是死的**）。
+ * - **六类 Def 资产**：链 `UTcsEffectChainDef`、触发定义 `UTcsEffectTriggerDefAsset`、
+ *   状态定义 `UTcsBuffDefAsset`（2026-10-04 R5 Task 1）、修正器模板 `UTcsAttrModDef`
+ *   （2026-10-05 R5 Task 7）、技能定义 `UTcsSkillDef`（2026-10-06 R6 Task 1）、
+ *   属性定义 `UTcsAttributeDef`（2026-10-17 `ARCH-04` U-1）——
+ *   **六条全部**走加载层统一查询口 `FTcsPrimaryAssetQuery::GetAssetsForDefClass`
+ *   （类换过模块后 `IAssetRegistry::GetAssetsByClass` 按**当前类路径**查索引会**静默返 0**，
+ *   实测：链资产 12 → 0）。旧注释说"后三条仍走 `GetAssetsByClass`"——那是迁移期的中间状态，
+ *   2026-10-26 起**统一走新口**（搬过家的类只会越来越多，两套发现路径没有存在理由）；
  *   二者**都不依赖 `PrimaryAssetTypesToScan` 注册**——该 ini 清单已被 `DEC-2026-10-13-asset-butler`
  *   裁定②否决，替代品是代码自注册宏 `UE_DEFINE_PRIMARY_ASSET_TYPE`（台账 INTEG-3 逐项结账）；
  * - **校验**：双真相（`Chain.ChainId != ChainId`）/ 空 id / 重复登记 → 计入失败清单 + Error，不静默跳过；
@@ -202,9 +226,31 @@ public:
 	FTcsOnDefinitionsReady OnDefinitionsReady;
 
 	/**
+	 * 定义库**失败**单出口（与 `OnDefinitionsReady` 对称；两者在一次生命周期内只会有一个被广播）。
+	 *
+	 * 触发条件 = 任一步失败（资产损坏 / 路径错 / 类型未注册 / 重复登记 / 需要的装配型类型被配成
+	 * `OnDemand`）。触发后 `IsRuntimeReady()` **恒为 false 且不再置位**。
+	 */
+	UPROPERTY(BlueprintAssignable, Category = "Tcs|Definition")
+	FTcsOnDefinitionsFailed OnDefinitionsFailed;
+
+	/**
 	 * 定义是否已就绪（**门禁查询点**：实体组件注册前查它）。
-	 * 就绪 = 发现与校验已完成（失败清单非空不影响就绪——失败项被跳过、其余可用；
-	 * 宿主可经 `GetFailureList` 决定是否放行）。
+	 *
+	 * **就绪 = 按生效策略该加载的都加载完了 + 全部校验通过 + 装配所需定义已入缓存。**
+	 *
+	 * **★ 语义已于 2026-10-26 反转（用户裁定第 10 条）**：旧口径是「失败清单非空不影响就绪——
+	 * 失败项被跳过、其余可用」；**新口径是「任一步失败即永不就绪」**。
+	 *
+	 * **为什么反转**：异步预载之后，"部分加载完"不再是瞬时状态而是可长达数秒的窗口。若按旧口径
+	 * 在部分可用时就就绪，宿主会在**定义半套**的世界里开始注册实体——随后补进来的定义不会回填，
+	 * 表现为"有的 buff 生效、有的不生效"，且随资产加载快慢在不同机器上不同。
+	 * 这与「假策略」是同一种病：症状可观测，真因不可定位。
+	 *
+	 * **⚠ 排障成本随之转移（MUST 读）**：一个拼错的资产路径会让**整个 TCS 停摆**，
+	 * 症状是「组件全部不注册」——看起来是 TCS 没工作，实际是内容里有一个坏文件。
+	 * 缓解措施是**必需配套**而非装饰：失败时打**一次性、Error 级、含完整失败清单**的日志，
+	 * 并广播 `OnDefinitionsFailed`（宿主可主动响应而不是干等）。
 	 *
 	 * @return 返回是否已就绪。
 	 */
@@ -229,6 +275,30 @@ public:
 		return SkillDefs.Num();
 	}
 
+	/**
+	 * 取某类型在 `OnDemand` 档下的**目录**（该类型的全部 `FPrimaryAssetId`）。
+	 *
+	 * **为什么是指南针而不是缓存**：`OnDemand` 承诺"就绪时零加载"，故本类**不能**持有这些资产对象
+	 * （硬引用 = 已加载）。目录让宿主与诊断工具仍能回答"这个类型下有哪些定义、共几个"，
+	 * 而资产本体等到真正解析时才进内存。
+	 *
+	 * **MUST NOT 建 `DefTag → FPrimaryAssetId` 映射**（裁定第 12 条）：全部 7 个 Def 类的
+	 * `GetPrimaryAssetId()` 都是**纯函数**（`return FPrimaryAssetId(PrimaryAssetType, DefTag.GetTagName());`
+	 * 无一处读资产内容）⇒ 映射是可被纯函数替代的冗余。
+	 *
+	 * @param Type 主资产类型。
+	 * @return 返回该类型的目录；未登记该类型返回空数组。
+	 */
+	const TArray<FPrimaryAssetId>& GetOnDemandCatalog(FPrimaryAssetType Type) const;
+
+	/**
+	 * 取某类型在 `OnDemand` 档下的**资产总数**（诊断"发现 12 个 / 预载 3 个"与未来 Debug 工具用）。
+	 *
+	 * @param Type 主资产类型。
+	 * @return 返回资产总数；未登记返回 0。
+	 */
+	int32 GetOnDemandCatalogCount(FPrimaryAssetType Type) const;
+
 #pragma endregion
 
 
@@ -237,12 +307,24 @@ public:
 
 public:
 	/**
-	 * 按 id 解析已缓存的链定义（未登记返回 nullptr——正常查询路径，不 ensure）。
+	 * 按 id 解析链定义。
+	 *
+	 * **本组 5 个解析口自 2026-10-26 起支持异步**（用户裁定第 13/14 条）：`OnDemand` 与
+	 * 「`PreloadSelected` 未选中的资产」在就绪时**零加载**，它们只能靠解析口按需加载。
+	 *
+	 * **MUST NOT 是 `const`**：`Async` 解析要在加载完成时把内容写进缓存，写缓存就不能 const。
+	 * 这不是"顺手去掉 const"，而是「按需加载」这条能力的直接后果——只读的缓存口无法兑现 `OnDemand`。
 	 *
 	 * @param ChainId 链 id。
-	 * @return 返回链定义；未缓存返回 nullptr。
+	 * @param Mode 加载模式（默认 `Async`）。
+	 * @param OnLoaded 加载完成回调（**按值传**——非 const 引用不能带默认值绑临时量；
+	 *        语义是"加载完成时调用它"，已在内存时**同步**触发）。
+	 * @return `Sync` 模式或已在内存时返回链定义；`Async` 且不在内存时返回 nullptr。
 	 */
-	const FTcsEffectChain* ResolveChain(FGameplayTag ChainId) const;
+	const FTcsEffectChain* ResolveChain(
+		FGameplayTag ChainId,
+		ETcsResolveMode Mode = ETcsResolveMode::Async,
+		FStreamableDelegate OnLoaded = FStreamableDelegate());
 
 	/**
 	 * 按身份解析已缓存的触发定义（未登记返回 nullptr——正常查询路径，不 ensure）。
@@ -254,7 +336,10 @@ public:
 	 * @param TriggerTag 触发身份（`EffectTriggerDef` 根）。
 	 * @return 返回触发定义；未缓存返回 nullptr。
 	 */
-	const FTcsEffectTriggerDef* ResolveTriggerDef(FGameplayTag TriggerTag) const;
+	const FTcsEffectTriggerDef* ResolveTriggerDef(
+		FGameplayTag TriggerTag,
+		ETcsResolveMode Mode = ETcsResolveMode::Async,
+		FStreamableDelegate OnLoaded = FStreamableDelegate());
 
 	/**
 	 * 按身份解析已缓存的状态定义（未登记返回 nullptr——正常查询路径，不 ensure）。
@@ -265,7 +350,10 @@ public:
 	 * @param DefTag 定义身份（状态词表根）。
 	 * @return 返回 buff 定义；未缓存返回 nullptr。
 	 */
-	const FTcsBuffDef* ResolveStateDef(FGameplayTag DefTag) const;
+	const FTcsBuffDef* ResolveStateDef(
+		FGameplayTag DefTag,
+		ETcsResolveMode Mode = ETcsResolveMode::Async,
+		FStreamableDelegate OnLoaded = FStreamableDelegate());
 
 	/**
 	 * 按身份解析已缓存的修正器模板（未登记返回 nullptr——正常查询路径，不 ensure）。
@@ -278,7 +366,10 @@ public:
 	 * @param TemplateTag 模板身份（`AttrModDef` 根）。
 	 * @return 返回修正器模板资产；未缓存返回 nullptr。
 	 */
-	const UTcsAttrModDef* ResolveAttrModDef(FGameplayTag TemplateTag) const;
+	const UTcsAttrModDef* ResolveAttrModDef(
+		FGameplayTag TemplateTag,
+		ETcsResolveMode Mode = ETcsResolveMode::Async,
+		FStreamableDelegate OnLoaded = FStreamableDelegate());
 
 	/**
 	 * 按身份解析已缓存的技能定义（未登记返回 nullptr——正常查询路径，不 ensure）。
@@ -289,7 +380,10 @@ public:
 	 * @param DefTag 技能定义身份（`SkillDef` 根）。
 	 * @return 返回技能定义数据；未缓存返回 nullptr。
 	 */
-	const FTcsSkillDefData* ResolveSkillDef(FGameplayTag DefTag) const;
+	const FTcsSkillDefData* ResolveSkillDef(
+		FGameplayTag DefTag,
+		ETcsResolveMode Mode = ETcsResolveMode::Async,
+		FStreamableDelegate OnLoaded = FStreamableDelegate());
 
 #pragma endregion
 
@@ -298,24 +392,98 @@ public:
 #pragma region Core
 
 private:
-	// 发现并加载全部链资产（扫描 → 逐资产校验 → 入缓存；失败项进清单）
-	void DiscoverChainDefs();
+	/**
+	 * 一个 Def 类型的**发现结果**（发现与加载分离的载体，2026-10-26）。
+	 *
+	 * **为什么要分离**：今天 `Discover*` 里直接 `AssetData.GetAsset()`——「发现」这个动作隐含了
+	 * **全量同步加载**，任何策略都无法生效（策略管加载，而加载被写死在发现里）。
+	 * **只要发现里带加载，策略就永远是死的。** ⇒ 发现阶段只收 `FAssetData` 与策略，
+	 * 由 `LoadDefinitions` 统一按策略决定"加载哪些、怎么加载"。
+	 */
+	struct FDiscoverResult
+	{
+		// 主资产类型（策略查询键）
+		FPrimaryAssetType Type;
 
-	// 发现并加载全部触发定义资产（扫描 → 逐资产四校验 → 按身份去重 → 入缓存；失败项进清单）
-	void DiscoverTriggerDefs();
+		// 该类型在 UE_DEFINE_PRIMARY_ASSET_TYPE 里的声明值（配置未覆盖时的回落值）
+		ETcsAssetLoadPolicy DeclaredPolicy = ETcsAssetLoadPolicy::OnDemand;
 
-	// 发现并加载全部状态定义资产（扫描 → 逐资产四校验 → 按身份去重 → 入缓存；失败项进清单）
-	void DiscoverStateDefs();
+		// 发现到的全部资产数据（**未加载**——只有 AssetRegistry 的元数据）
+		TArray<FAssetData> Assets;
+	};
 
-	// 发现并加载全部修正器模板资产（扫描 → 逐资产三校验（加载失败或类型不符 / 身份非空 / 身份重复）→ 入缓存；失败项进清单）
-	void DiscoverAttrModDefs();
+	// 收集一个 Def 类型的发现结果（只取 FAssetData，MUST NOT 加载资产）
+	void DiscoverDefs(UClass* DefClass, FDiscoverResult& OutResult);
 
-	// 发现并加载全部技能定义资产（加载或类型 / 身份有效 / 身份去重三项校验 → 入缓存；失败项进清单）
-	void DiscoverSkillDefs();
+	// 按生效策略加载全部发现结果并装配缓存（全部异步；失败项进清单）
+	void LoadDefinitions(TArray<FDiscoverResult>& InResults);
 
-	// 发现并加载全部属性定义资产（加载或类型 / 身份有效 / 身份去重三项校验 → 入缓存；失败项进清单）。
-	// 与上面四条的唯一差别：内容的读口在**世界门面**（`FindAttributeDef`），本类不提供公开解析口。
-	void DiscoverAttributeDefs();
+	// 异步预载完成/失败的总出口（置就绪或置失败，二者只发其一）
+	void OnPreloadFinished(bool bInSucceeded);
+
+	/**
+	 * 发起一批异步预载（**唯一的批量加载点**）。
+	 *
+	 * **必须在这里做未注册自查**：实测（R-2）未注册类型会让 `LoadPrimaryAssetsWithType` 拿到空数组
+	 * ⇒ `CreateCombinedHandle` 对空子句柄**同步执行 `OnComplete`** 并返回 `nullptr` ⇒
+	 * 「代理立刻被调用」+「句柄 nullptr」+「零 Error 零 Warning」。只挂 `OnComplete` 的调用方会读成
+	 * 「加载完成、共 0 个资产」⇒ 计入成功 ⇒ 一路走到就绪。
+	 *
+	 * @param InAssetManager 资产管理器（调用方已取，非空）。
+	 * @param InIds 要加载的主资产身份。
+	 * @param InResult 该类型的发现结果（装配与诊断用）。
+	 * @param OutError 发起失败的原因（空表示已发起）。
+	 * @return 是否成功发起（不代表加载成功）。
+	 */
+	bool PreloadPrimaryAssetIds(
+		UAssetManager* InAssetManager,
+		const TArray<FPrimaryAssetId>& InIds,
+		const FDiscoverResult& InResult,
+		FString& OutError);
+
+	/**
+	 * 查重：同类型下 `PrimaryAssetName`（即 `DefTag`）重复而路径不同 ⇒ 计入失败清单并拒绝登记。
+	 *
+	 * **为什么是"拒绝登记"而不是"打 Warning"**：引擎已在 `TryUpdateCachedAssetData`
+	 * （`AssetManager.cpp:1656-1690`）打过 Warning + 编辑器通知 + `ensureMsgf` 三件套 ⇒ 我们再做
+	 * 一次是重复劳动，且分不清是谁打的。**引擎没说、而我们必须说的是**：引擎的 `FindOrAddAsset`
+	 * 对同名是**覆盖**，而扫描顺序**无保证**（引擎源码自注 `// Temporary performance fix…`）
+	 * ⇒ 同一个 `DefTag` 在不同次启动可能解析到不同资产。
+	 * **"随机生效一个"比"全部失败"更糟**——后者能查出来，前者表现为"我改的资产没生效"的间歇性谜题。
+	 *
+	 * @param InResult 该类型的发现结果。
+	 * @return 无重复返回 true；发现重复返回 false（已写入 FailureList）。
+	 */
+	bool CheckDuplicates(const FDiscoverResult& InResult);
+
+	// 判定某类型是否是「装配型」（SeedWorld 会逐世界登记它的定义 ⇒ MUST NOT 走 OnDemand）
+	bool IsSeedingType(FPrimaryAssetType Type) const;
+
+	// 逐类型装配器（**输入是已加载的资产对象**，做身份校验与入缓存；失败项进 FailureList）。
+	// 与发现分离：这里不做发现、不做批量加载，只看"这一个对象能不能按身份入缓存"。
+	void AssembleChainDef(UObject* InAsset, const FString& InAssetPath);
+	void AssembleTriggerDef(UObject* InAsset, const FString& InAssetPath);
+	void AssembleStateDef(UObject* InAsset, const FString& InAssetPath);
+	void AssembleAttrModDef(UObject* InAsset, const FString& InAssetPath);
+	void AssembleSkillDef(UObject* InAsset, const FString& InAssetPath);
+	void AssembleAttributeDef(UObject* InAsset, const FString& InAssetPath);
+
+	// 把某类型的一批已加载资产逐个装配（PreloadAll / PreloadSelected 的异步完成路径用）
+	void AssembleLoadedType(const FDiscoverResult& InResult);
+
+	// 按类型分发到一个装配器（键 = 主资产类型）
+	void AssembleAsset(FPrimaryAssetType Type, UObject* InAsset, const FString& InAssetPath);
+
+	// 按 tag 在目录里找身份并按需加载资产（`OnDemand` 与"未被选中的资产"的唯一加载入口）。
+	// @return `Sync` 或已在内存时返回资产对象；否则返回 nullptr 并登记一次加载。
+	UObject* EnsureDefinitionLoaded(
+		FPrimaryAssetType Type,
+		FGameplayTag Tag,
+		ETcsResolveMode Mode,
+		FStreamableDelegate OnLoaded);
+
+	// 目录查找：按 `PrimaryAssetName`（= `DefTag.GetTagName()`）在该类型的目录里找身份
+	bool FindCatalogId(FPrimaryAssetType Type, FGameplayTag Tag, FPrimaryAssetId& OutId) const;
 
 	// 装配已缓存定义进指定世界（幂等：同一世界不重复登记；链在前、触发行在后；状态 / 技能 / 属性定义按序登记）。
 	// 判据：**凡消费面是 World 级门面的定义族都必须装配**——只发现不登记 = 资产零消费者。
@@ -389,6 +557,25 @@ private:
 
 	// 触发行来源句柄（装配期登记触发行时的 `Source`——"定义库来源"这一级联退订锚点）
 	FTcsSourceHandle TriggerSeedSource;
+
+	// `OnDemand` 档的**目录**（键 = 主资产类型；值 = 该类型的全部 FPrimaryAssetId）。
+	// **只存身份，不存资产对象**——硬引用意味着已加载，与「不预载」矛盾。
+	// 不建 DefTag → Id 映射：GetPrimaryAssetId() 是纯函数，映射是可被替代的冗余（裁定第 12 条）。
+	TMap<FPrimaryAssetType, TArray<FPrimaryAssetId>> OnDemandCatalog;
+
+	// 异步预载句柄（**本类必须持有至反初始化**，裁定第 9 条）：
+	// 句柄释放即触发卸载，已"预载"的资产会变回未加载。
+	TArray<TSharedPtr<FStreamableHandle>> PreloadHandles;
+
+	// 尚未完成的异步预载批次数（归零 ⇒ 走到就绪/失败的单出口）
+	int32 PendingPreloadBatches = 0;
+
+	// 本次生命周期内已出现过失败（失败即永不就绪；也不再广播就绪）
+	bool bLoadFailed = false;
+
+	// **就绪前**已完成初始化的世界（待装配集合，裁定第 8/15 条）。
+	// **弱引用的理由**：本类是 GameInstance 级，世界可能在等待期间被销毁 ⇒ 强引用会拖住世界。
+	TArray<TWeakObjectPtr<UWorld>> PendingWorlds;
 
 	// 失败清单（资产路径 + 原因）
 	TArray<FString> FailureList;

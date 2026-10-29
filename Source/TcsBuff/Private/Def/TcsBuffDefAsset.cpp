@@ -21,7 +21,13 @@ const FPrimaryAssetType UTcsBuffDefAsset::PrimaryAssetType(TEXT("TcsBuffDefAsset
 // 及其下游 S5~S12 连锁 FAIL）。⇒ 改走按 `FPrimaryAssetType` 匹配的官方口，故本处 MUST 登记。
 //
 // 扫描路径 = 宿主内容根；类型名由 `StaticClass()` 反射派生（零字符串面）。
-UE_DEFINE_PRIMARY_ASSET_TYPE(UTcsBuffDefAsset, { TEXT("/Game") }, ETcsAssetLoadPolicy::OnDemand)
+//
+// **策略 = `PreloadAll`（2026-10-26 用户裁定）**：本类是**装配型**——`UTcsDefinitionSubsystem::SeedWorld`
+// 在世界初始化时逐条把它登记进该世界的门面，而 `OnDemand` 承诺"零加载"⇒ 缓存为空 ⇒ 装配 0 条 ⇒
+// 门面每一次查询都返回 nullptr，而启动期**零 Error**（症状是"功能全失效"，日志却只刷"定义未在本世界登记"，
+// 排障方向是错的）。⇒ 装配型类型 MUST NOT 用 `OnDemand`；定义库对它做硬拒（计入失败清单 + 不就绪）。
+// 宿主若要按需加载，可用 `UTcsAssetButlerSettings::LoadPolicyByType` 覆盖为 `PreloadSelected`，但**不得**为 OnDemand。
+UE_DEFINE_PRIMARY_ASSET_TYPE(UTcsBuffDefAsset, { TEXT("/Game") }, ETcsAssetLoadPolicy::PreloadAll)
 
 
 
