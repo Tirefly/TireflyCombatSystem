@@ -115,30 +115,92 @@ struct FTcsAttributeInstance
 > **`Def` 与 `DefTag` 并存不是冗余**：`Def` 让热路径读字段不必再查表；`DefTag` 是快照/复制时的唯一身份（指针不可序列化）。
 > **`bRemovable` / `ValueDomain` / `Bounds` / `Strategy` 不拷贝到实例**：直接读 `Def->`。它们对同一份定义恒定，拷贝只会制造两份真相。
 
-### 1.3 容器：`FTcsAttributeStore`
+### 1.3 依赖图：节点是「求值单元」，不是属性
+
+**这是本域最关键的结构决定。** 若图的节点是属性（槽位），「额外生命 ↔ 法术强度」这类互相引用就是环（GAS 到此为止：跑 10 层掐断、值可能错）。
+
+**把节点降到修正器级，环就消失**——因为真实的值依赖链是无环的：
+
+```text
+HP 的 Extra 段 = 折叠(HP.ExtraValue, M1装备+100, M2符文+50, M3由AP转化)
+AP 的 Extra 段 = 折叠(AP.ExtraValue, M4由HP的Extra段转化)
+
+M4 读的是「HP 的 Extra 段**排除 M3 后**」的值 ⇒ M4 不依赖 M3。
+图：M1,M2 ─→ M4 ─→ AP.ExtraSeg ─→ M3 ─→ HP.ExtraSeg   （无环）
+对照：M4 若读「HP 总值」⇒ 依赖 M3 ⇒ 有环（这正是必须按标签排除的原因）
+```
+
+#### 节点种类
 
 ```cpp
-struct FTcsAttributeStore
+UENUM()
+enum class ETcsEvalNodeKind : uint8
 {
-	// 槽位 = 下标。只增不减（bActive=false 不删槽位）⇒ 下标在实体存活期内稳定
-	TArray<FTcsAttributeInstance> Instances;
+	SegmentBase,    // 一个属性某一段的基值（无输入；它本身就是权威状态）
+	Modifier,       // 一条修正器的求值（输入 = 它的 Operand 读到的值）
+	Segment,        // 一个属性的某一段的折叠结果（输入 = 段基值节点 + 该段全部修正器）
+	Total,          // 一个属性的总值（输入 = 两段结果 + 全局层修正器 + 值域边界）
+};
 
-	// tag → 槽位。运行期唯一查找入口
-	TMap<FGameplayTag, int32> TagToSlot;
-
-	// 反向依赖：下标对齐 Instances。Dependents[i] = 依赖槽位 i 的那些槽位
-	TArray<TArray<int32>> Dependents;
-
-	// 拓扑序：谁该先算（重建依赖图时生成，MUST 稳定）
-	TArray<int32> EvalOrder;
-
-	// 批：嵌套计数 + 待结算槽位（§2.2）。批内只登记，CommitBatch 归零时一次结算
-	int32         BatchDepth = 0;
-	TArray<int32> BatchWritten;
+struct FTcsEvalNode
+{
+	ETcsEvalNodeKind Kind   = ETcsEvalNodeKind::Modifier;
+	int32            Slot   = INDEX_NONE;                // 所属属性槽位
+	ETcsAttrSegment  Segment = ETcsAttrSegment::Basic;   // Kind == Segment 时有效
+	int32            ModIndex = INDEX_NONE;              // Kind == Modifier 时：Inst.Mods 的下标
 };
 ```
 
-> **Why Not 用 `TMap<FGameplayTag, FTcsAttributeInstance>`**：`TMap` 没有「槽位」概念，`Bounds.Dynamic` 只能存 tag（每次用都要再哈希）或指针（扩容会搬移元素地址）。`TArray` 的下标不受扩容影响，配合「槽位只增不减」即可当稳定句柄用。
+#### 容器的三层职责保持不变
+
+```cpp
+struct FTcsAttributeGraph
+{
+	// 节点表：Nodes[i] 是第 i 个求值单元。**图自己排序、自己找边，调用方只给边列表**
+	TArray<FTcsEvalNode> Nodes;
+
+	// 反向边：Dependents[i] = 依赖节点 i 的那些节点下标
+	TArray<TArray<int32>> Dependents;
+
+	// 拓扑序（节点下标序）。MUST 稳定（§5.4）
+	TArray<int32> EvalOrder;
+
+	bool bDirty = false;
+
+	bool Rebuild(TConstArrayView<FTcsEvalNode>  InNodes,
+	             TConstArrayView<FTcsEvalEdge> InEdges);
+};
+
+// 一条依赖边：From 变化 ⇒ To 要重算。节点用下标标识
+struct FTcsEvalEdge
+{
+	int32 FromNode = INDEX_NONE;
+	int32 ToNode   = INDEX_NONE;
+};
+
+struct FTcsAttributeStore
+{
+	// 内容层
+	TArray<FTcsAttributeInstance> Instances;   // 下标 = 槽位（见下注）
+	TMap<FGameplayTag, int32>     TagToSlot;
+
+	// 结构层
+	FTcsAttributeGraph Graph;
+
+	// 时序层
+	int32         BatchDepth = 0;
+	TArray<int32> BatchWrittenNodes;    // 待重算的**节点**下标（不是槽位）
+
+	// 缓存：按节点存结果
+	TArray<double> NodeValues;          // 与 Graph.Nodes 对齐
+};
+```
+
+> **`Instances` 的下标就是槽位**：`Slot` 是寻址层的概念（数组位置），`Instance` 是内容层的概念。**代码落地时 MUST 在 `Instances` 的声明处写明这条对应关系。**
+
+> **Why 节点表与边表分开**：`Rebuild` 只做拓扑排序与环检测，不认识属性、标签、值。**建图逻辑（谁依赖谁）归属性域，排序归图**——两者可以各自验证。
+
+> **Why 缓存按节点存**：段值、总值、每条修正器的值都是图上的节点，各自有结果。按槽位存不够——同一个属性的 Basic 段与 Extra 段是两个不同的量。
 
 ---
 
@@ -161,7 +223,7 @@ struct FTcsAttributeStore
 | 当前是否在批内 | 行为 |
 |---|---|
 | **批外**（`BatchDepth == 0`） | **立即结算**：重算该属性 + 沿 `Dependents` 按拓扑序传播（§5.3），返回时值已是最新 |
-| **批内**（`BatchDepth > 0`） | 只把槽位登进 `BatchWritten`，**不算**；等 `CommitBatch` 归零时一次结算 |
+| **批内**（`BatchDepth > 0`） | 只把**节点**登进 `BatchWrittenNodes`，**不算**；等 `CommitBatch` 归零时一次结算 |
 
 **读路径（§8）**：直接返回 `CachedCurrent`，**不重算、不发事件、零副作用**。批内读到的就是批开始前的值。
 
@@ -172,7 +234,7 @@ struct FTcsAttributeStore
 ```cpp
 // 批：嵌套计数。真实消费者 = 等级成长这类宿主升级事务（§7.6）
 void BeginBatch(FTcsCombatEntityHandle Entity);   // BatchDepth++
-void CommitBatch(FTcsCombatEntityHandle Entity);  // BatchDepth--；归零时才 SettleWrites(全部 BatchWritten)
+void CommitBatch(FTcsCombatEntityHandle Entity);  // BatchDepth--；归零时才 SettleWrites(全部 BatchWrittenNodes)
 ```
 
 > **Why Not 批内也立即算**：一次升级改 5 个属性的基础值，逐条立即结算 = 5 次全图重算 + 5 次广播；批内只算一次、每属性最多广播一次。
@@ -234,44 +296,109 @@ enum class ETcsAttrLayer : uint8
 
 ### 3.4 收集与求值
 
-```cpp
-void CollectEntries(const FTcsAttributeInstance& Inst,
-	TArray<FTcsAggregateEntry>& OutBasic,
-	TArray<FTcsAggregateEntry>& OutExtra,
-	TArray<FTcsAggregateEntry>& OutGlobal)
-{
-	for (const FTcsAttrModInstance& Mod : Inst.Mods)
-	{
-		const double V = EvalModValue(Inst, Mod);   // §7.2：Literal 直取 / AttributeScaled 现场读
-		const FTcsAggregateEntry Entry{ Mod.Def->Op, V, Mod.Def->Priority, Mod.Source };
+**本节只讲「怎么把修正器交给聚合器」，不讲「什么时候算」。** 求值时机与逐节点调度在 §5.3——**那里是唯一实现**，本节不重复给第二套代码。
 
-		switch (Mod.Def->Layer)
-		{
-		case ETcsAttrLayer::Basic:  OutBasic.Add(Entry);  break;
-		case ETcsAttrLayer::Extra:  OutExtra.Add(Entry);  break;
-		case ETcsAttrLayer::Global: OutGlobal.Add(Entry); break;
-		}
+#### 收集：按层分组
+
+```cpp
+// 收集某一层的聚合条目。Global 层单独一组
+void CollectLayerEntries(const FTcsAttributeStore& Store, int32 Slot, ETcsAttrLayer Layer,
+	TArray<FTcsAggregateEntry>& OutEntries)
+{
+	const FTcsAttributeInstance& Inst = Store.Instances[Slot];
+
+	for (int32 ModIndex = 0; ModIndex < Inst.Mods.Num(); ++ModIndex)
+	{
+		const FTcsAttrModInstance& Mod = Inst.Mods[ModIndex];
+		if (Mod.Def->Layer != Layer) { continue; }
+
+		// 值已由 §5.3 的修正器节点算好，这里只取，不重算
+		// 节点下标由「槽位 + 该条在 Mods 里的下标」定位（§5.2 BuildNodes 的编号规则）
+		const double V = Store.NodeValues[FindNode(Store, Slot, ETcsEvalNodeKind::Modifier,
+			ETcsAttrSegment::Basic, ModIndex)];
+		OutEntries.Add({ Mod.Def->Op, V, Mod.Def->Priority, Mod.Source });
 	}
 }
+```
 
-double Evaluate(const FTcsAttributeInstance& Inst, /* edges */)
+> **收集阶段只读节点值**：修正器的值本身是一个图节点（§1.3），由 `EvaluateNode` 在拓扑序里先行算完。收集阶段 MUST NOT 再调一次 `Eval`——否则同一条修正器在一次结算里会被算两遍，而 `AttributeScaled` 的读取不是免费的。
+
+#### 折叠：两段 + 全局层
+
+```cpp
+// 段内折叠：段基值 + 该段全部条目（《数值聚合器》§3.1 的 N 段折叠）
+double FoldSegment(const FTcsAttributeStore& Store, int32 Slot, ETcsAttrSegment Seg)
 {
-	TArray<FTcsAggregateEntry> Bands[3];   // Basic / Extra / Global
-	CollectEntries(Inst, Bands[0], Bands[1], Bands[2]);
+	TArray<FTcsAggregateEntry> Entries;
+	CollectLayerEntries(Store, Slot, SegmentToLayer(Seg), Entries);
 
+	const double Base = Store.NodeValues[FindSegmentBaseNode(Store, Slot, Seg)];
+
+	// 只喂一段、全局层给空 ⇒ 全局层乘积为 1、平坦加为 0，
+	// 返回值即该段值（含段级 OverrideBase / OverrideSegment，不含全局层、不含值域收口）
+	const FTcsAggregateSegment One[1] = { { Base, Entries } };
+	return EvaluateAggregatedValue(One, /* GlobalEntries = */ {}, Store.Instances[Slot].Def->Strategy);
+}
+
+// 总值：两段结果 → 全局层 → 值域收口
+double EvaluateTotal(const FTcsAttributeStore& Store, int32 Slot)
+{
+	const FTcsAttributeInstance& Inst = Store.Instances[Slot];
+
+	// 两段的值直接从 Segment 节点取——它们在拓扑序里已算完，**不重折叠**
+	// Entries 留空：段值已是折叠结果，再传条目会被折叠第二遍（《数值聚合器》§3 的段基值语义）
 	const FTcsAggregateSegment Segs[2] = {
-		{ Inst.BasicValue, Bands[0] },
-		{ Inst.ExtraValue, Bands[1] },
+		{ Store.NodeValues[FindNode(Store, Slot, ETcsEvalNodeKind::Segment, ETcsAttrSegment::Basic)], {} },
+		{ Store.NodeValues[FindNode(Store, Slot, ETcsEvalNodeKind::Segment, ETcsAttrSegment::Extra)], {} },
 	};
 
-	// 段值单独留一份（§8.2 的读口要用）
+	TArray<FTcsAggregateEntry> GlobalEntries;
+	CollectLayerEntries(Store, Slot, ETcsAttrLayer::Global, GlobalEntries);
+
 	// 值入口与明细入口共用同一个实现体，见《数值聚合器》§3
-	const double Folded = EvaluateAggregatedValue(Segs, Bands[2], Inst.Def->Strategy);
+	const double Folded = EvaluateAggregatedValue(Segs, GlobalEntries, Inst.Def->Strategy);
 	return ApplyValueDomain(Folded, Inst);   // §4
 }
 ```
 
-> **`CachedSegment[]` 在求值时一并填**：段内公式结果本来就是折叠的中间量，顺手存下来，让 §8.2 的段值读口变成 O(1)。
+> **段值 MUST 从 `Segment` 节点取，不能现算**：现算会让同一次结算里 `Segment` 被算两遍（节点一次、总值一次），而且两处若用了不同的条目筛选，缓存与总值就会不一致。
+
+> **为什么 `FoldSegment` 用分段入口而不新增一个「段内折叠」函数**：聚合器没有单独的段内入口——段级覆盖（`OverrideBase` / `OverrideSegment`）与全局层在**同一个实现体**里处理（《数值聚合器》§3「分段求值：唯一实现体」）。喂一段 + 空全局层，全局层的 `ΠMul = 1`、`ΣFlatAdd = 0`，结果**恰好**就是段值。**新增一个 `FoldSegmentEntries` 会让段级覆盖有两套实现，早晚分叉。**
+
+#### 缓存与节点值的关系
+
+| 字段 | 与 `NodeValues` 的关系 |
+|---|---|
+| `CachedSegment[0]` / `[1]` | = `Segment` 节点（`Basic` / `Extra`）的值 |
+| `CachedCurrent` | = `Total` 节点的值 |
+| `NodeValues[i]` | **唯一存放处**——所有节点值都在这 |
+
+> **`CachedSegment` / `CachedCurrent` 是读口的具名视图，不是第二份缓存**：它们由节点值同步而来（或直接写成按下标取的 inline 访问器），存在的唯一理由是「读口不该把节点下标这种实现细节暴露出去」。**MUST NOT 出现「节点值变了、Cached 没变」**——要么同批写，要么前者是后者的访问器。
+
+### 3.5 三种读取粒度
+
+`AttributeScaled` 可以只读某个属性的一部分。这不是可选的优化——**「每 40 额外生命 +1 法强」读的必须是 Extra 段**，读总值会算进基础生命。
+
+```cpp
+UENUM()
+enum class ETcsAttrReadPart : uint8
+{
+	Total,   // 总值：两段之和 → 全局层折叠 → 值域收口后的 CachedCurrent
+	Basic,   // Basic 段值：CachedSegment[0]，不含全局层、不含值域收口
+	Extra,   // Extra 段值：CachedSegment[1]，同上
+};
+```
+
+| 粒度 | 值 = | 用在哪 |
+|---|---|---|
+| `Total` | `CachedCurrent` | 绝大多数引用（「攻击力的 120%」） |
+| `Basic` / `Extra` | `CachedSegment[i]` | 「每 40 **额外**生命」「60% **bonus** AD」这类分基值引用 |
+
+> **两种粒度的值不同，且都正确**：`(Basic段值 + Extra段值) × 全局系数 + 全局平坦加 ≠ Extra段值`。挑哪个由配置的语义决定，聚合器 MUST NOT 代为推断。
+
+> **段值不含值域收口**：`CachedSegment[i]` 是段内公式结果，`Clamp` / `Wrap` 只作用于总值（§4.3）。所以段值读口可能给出**超出边界**的数——这是设计，不是缺陷（§8.2 的「60% bonus AD」不该被总边界钳住）。
+
+> **落地时 MUST 在 `CachedSegment` 的声明处写明这一点**：它存的是段内公式结果，**未经值域收口**，与 `CachedCurrent` 不是同一层的量。少了这条注释，读代码的人会以为「总值被钳过、段值也一定在界内」，从而在「额外生命算出来是负数」这类情形下无从解释。
 
 ---
 
@@ -332,121 +459,409 @@ enum class ETcsValueDomainMode : uint8
 
 > **派生属性不构成第三种来源**：`DeriveExpression` 会被展开成一条内置修正器（§7.4），它的每条 `AttributeScaled` 都属于第二种。
 
-### 5.2 建立时机
+**依赖图是「单实体」的**：`FTcsAttributeStore` 属于一个实体，图也只描述该实体内部属性之间的关系。
 
-**只在 `ApplyAttributeSet` / `RemoveAttributeSet` 之后全量重建**，不在求值路径、也不在每个 `AttachMod` 之后。
+| 读法 | 进图吗 | 为什么 |
+|---|---|---|
+| `Side == Target` | ✅ 进 | 被读的是**本实体**的属性 ⇒ 是同一次结算内部的节点依赖 |
+| `Side == Instigator` | ❌ **不进** | 跨实体。施法者的属性变化不会、也不该触发被施加者重算（§5.2 的 `BuildModifierOutEdges` 直接 `return`） |
+
+**因此「施法者属性变化 ⇒ 本实体跟随更新」必须走事件订阅**（D15），不是依赖图。两条路径的分工是：
+
+| 需求 | 路径 |
+|---|---|
+| 同实体内部 A 变 ⇒ B 变 | **依赖图**（§5.3 的拓扑序） |
+| 施法者 A 变 ⇒ 我的修正器要改 | **订阅变更事件**，在自己的回调里 `DetachMod` + `AttachMod` |
+
+> **Why Not 把跨实体也建成边**：那会让一次属性写入连锁唤醒**另一个实体**的结算，而对方可能又在回调里写回本实体——递归深度不可控（§2.2 已就「读时惰性重算」否决过同一个风险）。依赖图 MUST 停在实体边界内。
+
+### 5.2 建图：先建节点，再连边
+
+**不变式**：依赖图 MUST 在每次「槽位集合或修正器集合发生变化」之后重建，且 MUST 在下次求值前完成。
+
+**触发条件**（凡改这两样之一的入口，都必须置 `Graph.bDirty`）：
+
+| 入口 | 改了什么 |
+|---|---|
+| `ApplyAttributeSet` / `RemoveAttributeSet` | **槽位集合** + 修正器集合（挂/摘内置派生条目） |
+| `AttachMod` / `DetachMod` | **修正器集合**（不动槽位） |
+
+> **Why 用不变式表述而不是列举触发点**：列举式每加一个写入口就漏一次。V1 形态下 `AttachMod` 就漏了——运行时挂的 `AttributeScaled` 修正器**静默不建边**，属性变化后不重算、不报错。
+
+**落点 = 批归零点**（`CommitBatch`）。写入口一律不直接重建，只置脏位：
 
 ```cpp
-void RebuildGraph(FTcsAttributeStore& Store)
+void UTcsAttributeSubsystem::CommitBatch(FTcsCombatEntityHandle Entity)
 {
-	for (TArray<int32>& Deps : Store.Dependents) { Deps.Reset(); }
+	FTcsAttributeStore& Store = Stores[Entity];
+	if (--Store.BatchDepth > 0) { return; }
+
+	// ① 结构变了 ⇒ 重建。**重建会换掉整张节点表**（数量与顺序都变）
+	if (Store.Graph.bDirty)
+	{
+		RebuildGraph(Entity, Store);
+		Store.Graph.bDirty = false;
+
+		// ⇒ 批内登记的节点下标**全部失效**，MUST 丢弃
+		//    换成「全量重算」：结构变了本来就意味着很多节点要变，且正确性无需证明
+		Store.BatchWrittenNodes.Reset();
+		SettleWrites(Entity, AllNodeIndices(Store.Graph));
+		return;
+	}
+
+	// ② 结构没变 ⇒ 按登记的节点结算
+	if (Store.BatchWrittenNodes.Num() > 0)
+	{
+		SettleWrites(Entity, Store.BatchWrittenNodes);
+		Store.BatchWrittenNodes.Reset();
+	}
+}
+```
+
+> **顺序 MUST 是先建图、后结算**：反过来 `SettleWrites` 会用旧图，新建的边这一轮不生效。
+
+> **`AllNodeIndices(Graph)` 是「按 `EvalOrder` 生成 0..N-1 的全集视图」**：它不需要真实数组，`SettleWrites` 收到的是一份「全部节点都要算」的意图，实现上可直接走一个 `bAll = true` 的快路径。
+
+> **Why 重建后必须丢弃 `BatchWrittenNodes`**：`FTcsEvalNode` 带 `ModIndex`，而重建会按 `Inst.Mods` 的**当前顺序**重新编号。批内先摘一条早期修正器、再挂一条新的，旧下标就指向了别的节点——**用旧下标索引新节点表 = 算错对象**，且没有任何报错。
+
+> **Why Not 批内改用「槽位 + 层」记录**：那是粗粒度，会把与本批无关的节点也拽进重算，而结构变化后全量重算本来就是 O(节点数)，省不下来。
+
+#### 第一段：建节点
+
+```cpp
+void BuildNodes(const FTcsAttributeStore& Store, TArray<FTcsEvalNode>& OutNodes)
+{
+	OutNodes.Reset();
 
 	for (int32 Slot = 0; Slot < Store.Instances.Num(); ++Slot)
 	{
 		const FTcsAttributeInstance& Inst = Store.Instances[Slot];
 		if (!Inst.bActive) { continue; }
 
-		// ① 边界依赖
-		ResolveBoundEdge(Store, Slot, Inst.Def->Bounds.Min);
-		ResolveBoundEdge(Store, Slot, Inst.Def->Bounds.Max);
+		// 两个段：各一个基值节点 + 一个折叠节点
+		OutNodes.Add({ ETcsEvalNodeKind::SegmentBase, Slot, ETcsAttrSegment::Basic, INDEX_NONE });
+		OutNodes.Add({ ETcsEvalNodeKind::SegmentBase, Slot, ETcsAttrSegment::Extra, INDEX_NONE });
+		OutNodes.Add({ ETcsEvalNodeKind::Segment,     Slot, ETcsAttrSegment::Basic, INDEX_NONE });
+		OutNodes.Add({ ETcsEvalNodeKind::Segment,     Slot, ETcsAttrSegment::Extra, INDEX_NONE });
 
-		// ② 值依赖：递归遍历每条修正器的取值子树
-		for (const FTcsAttrModInstance& Mod : Inst.Mods)
+		// 总值节点
+		OutNodes.Add({ ETcsEvalNodeKind::Total, Slot, ETcsAttrSegment::Basic, INDEX_NONE });
+
+		// 每条修正器各一个节点
+		for (int32 ModIndex = 0; ModIndex < Inst.Mods.Num(); ++ModIndex)
 		{
-			ForEachAttributeRead(Mod.Operand, [&](FGameplayTag SrcTag, ETcsAttrReadSide Side)
-			{
-				if (Side != ETcsAttrReadSide::Target) { return; }   // Instigator 侧不是本实体的依赖
-				if (const int32* SrcSlot = Store.TagToSlot.Find(SrcTag))
-				{ Store.Dependents[*SrcSlot].AddUnique(Slot); }
-				else { /* 目标不存在：配置错误，见 §5.4 */ }
-			});
+			OutNodes.Add({ ETcsEvalNodeKind::Modifier, Slot, ETcsAttrSegment::Basic, ModIndex });
 		}
 	}
-
-	// ③ 拓扑序 + 环检测
-	BuildEvalOrder(Store);
 }
 ```
 
-> **`ForEachAttributeRead` 要递归**：`Composite` 可以嵌套 `AttributeScaled`，只看顶层字段会漏边。
+#### 第二段：连边
+
+四条规则，缺一不可：
+
+| # | 边 | 说明 |
+|---|---|---|
+| ① | **段基值节点 → 段节点** | `BasicValue` 变 ⇒ `Basic` 段重算；`ExtraValue` 同理 |
+| ② | 修正器节点 → 它所在层的段节点 | `Basic` / `Extra` 层的修正器进对应段；`Global` 层的修正器进总值 |
+| ③ | 两个段节点 → 总值节点 | 段变了总值必变 |
+| ④ | 边界属性 → 总值节点 | `Bounds.Dynamic` 只影响值域收口（只作用于总值） |
+
+**基值也必须是节点，不能只是「段节点的一个输入参数」**：过滤读要绕开段节点直连它的组成部分，就必须有一个**可被单独连边的基值节点**。若基值只是段节点内部读的字段，过滤读就只能连段节点——环就又回来了。
+
+**修正器的出边由它的 Operand 决定**——这是标签筛选生效的地方：
+
+```cpp
+// 一条修正器节点往外连：它读了什么，就连到什么
+void BuildModifierOutEdges(
+	const FTcsAttributeStore& Store,
+	int32 ModNode, const FTcsAttrModInstance& Mod,
+	TArray<FTcsEvalEdge>& OutEdges)
+{
+	ForEachAttributeRead(Mod.Operand, [&](FGameplayTag SrcTag, ETcsAttrReadSide Side,
+		ETcsAttrReadPart Part, const FTcsTagRequirements& Filter)
+	{
+		if (Side != ETcsAttrReadSide::Target) { return; }   // 跨实体不入本实体的图（§5.1）
+
+		const int32* FromSlot = Store.TagToSlot.Find(SrcTag);
+		if (!FromSlot) { /* 目标不存在：报错（§5.4 ③） */ return; }
+
+		// ── 关键：按 Part 与 Filter 决定连到哪个节点 ──
+		if (Part == ETcsAttrReadPart::Total)
+		{
+			// 读总值：连 Total 节点（过滤不适用——总值是聚合结果，无法按修正器拆）
+			OutEdges.Add({ FindNode(Store, *FromSlot, ETcsEvalNodeKind::Total), ModNode });
+		}
+		else
+		{
+			const ETcsAttrSegment Seg = (Part == ETcsAttrReadPart::Basic)
+				? ETcsAttrSegment::Basic : ETcsAttrSegment::Extra;
+
+			if (Filter.IsEmpty())
+			{
+				// 不过滤：连该段的折叠节点
+				OutEdges.Add({ FindNode(Store, *FromSlot, ETcsEvalNodeKind::Segment, Seg), ModNode });
+			}
+			else
+			{
+				// 过滤读：**跳过段节点，直连「被计入的」修正器节点与段基值**
+				// ⇒ 被排除的修正器不在依赖链上 ⇒ 环消失（§1.3）
+				OutEdges.Add({ FindSegmentBaseNode(Store, *FromSlot, Seg), ModNode });
+
+				for (int32 OtherIdx = 0; OtherIdx < Store.Instances[*FromSlot].Mods.Num(); ++OtherIdx)
+				{
+					const FTcsAttrModInstance& Other = Store.Instances[*FromSlot].Mods[OtherIdx];
+					if (Other.Def->Layer != SegmentToLayer(Seg)) { continue; }        // 别的层不参与本段
+					if (!Filter.RequirementsMet(Other.Tags)) { continue; }              // 被排除 ⇒ 不连
+					OutEdges.Add({ FindNode(Store, *FromSlot, ETcsEvalNodeKind::Modifier, Seg, OtherIdx), ModNode });
+				}
+			}
+		}
+	});
+}
+```
+
+**四条规则的主循环**（规则 ②③④ 在此，规则 ② 的修正器出边另由 `BuildModifierOutEdges` 处理）：
+
+```cpp
+void BuildEdges(const FTcsAttributeStore& Store,
+	TConstArrayView<FTcsEvalNode> Nodes,
+	TArray<FTcsEvalEdge>& OutEdges,
+	TArray<FGameplayTag>& OutMissingTags)
+{
+	OutEdges.Reset();
+
+	for (int32 Slot = 0; Slot < Store.Instances.Num(); ++Slot)
+	{
+		const FTcsAttributeInstance& Inst = Store.Instances[Slot];
+		if (!Inst.bActive) { continue; }
+
+		const int32 SegBasic = FindNode(Store, Slot, ETcsEvalNodeKind::Segment, ETcsAttrSegment::Basic);
+		const int32 SegExtra = FindNode(Store, Slot, ETcsEvalNodeKind::Segment, ETcsAttrSegment::Extra);
+		const int32 Total    = FindNode(Store, Slot, ETcsEvalNodeKind::Total);
+
+		// ① 段基值 → 段节点
+		OutEdges.Add({ FindSegmentBaseNode(Store, Slot, ETcsAttrSegment::Basic), SegBasic });
+		OutEdges.Add({ FindSegmentBaseNode(Store, Slot, ETcsAttrSegment::Extra), SegExtra });
+
+		// ② 修正器 → 它所在层的段节点（Global 层直接进总值）
+		for (int32 ModIndex = 0; ModIndex < Inst.Mods.Num(); ++ModIndex)
+		{
+			const FTcsAttrModInstance& Mod = Inst.Mods[ModIndex];
+			const int32 ModNode = FindNode(Store, Slot, ETcsEvalNodeKind::Modifier,
+				ETcsAttrSegment::Basic, ModIndex);   // Modifier 节点的 Segment 字段不参与定位
+
+			switch (Mod.Def->Layer)
+			{
+			case ETcsAttrLayer::Basic:  OutEdges.Add({ ModNode, SegBasic }); break;
+			case ETcsAttrLayer::Extra:  OutEdges.Add({ ModNode, SegExtra }); break;
+			case ETcsAttrLayer::Global: OutEdges.Add({ ModNode, Total });    break;
+			}
+
+			// 它读了什么，就连到什么（含标签筛选，见下一段）
+			BuildModifierOutEdges(Store, ModNode, Mod, OutEdges);
+		}
+
+		// ③ 两个段 → 总值
+		OutEdges.Add({ SegBasic, Total });
+		OutEdges.Add({ SegExtra, Total });
+
+		// ④ 边界属性 → 总值（Bounds.Dynamic 只影响值域收口，只作用于总值）
+		if (Inst.Def->Bounds.Mode == ETcsBoundMode::Dynamic)
+		{
+			const int32* BoundSlot = Store.TagToSlot.Find(Inst.Def->Bounds.TargetAttribute);
+			if (BoundSlot)
+			{
+				OutEdges.Add({ FindNode(Store, *BoundSlot, ETcsEvalNodeKind::Total), Total });
+			}
+			else
+			{
+				OutMissingTags.Add(Inst.Def->Bounds.TargetAttribute);   // 交给 §5.4 ③ 报错
+			}
+		}
+	}
+}
+```
+
+> **`Modifier` 节点的 `Segment` 字段不参与定位**：它的身份是 `(Slot, ModIndex)`，层信息在 `Mod.Def->Layer` 里。`FindNode` 收 `Segment` 只是为了让四种节点共用签名（见下）。
+> **过滤读 MUST NOT 连段节点**：段节点是「该段全部修正器」的折叠结果，连上它等于把被排除的修正器也拽进依赖链——环就回来了。**直连被计入的每个修正器节点**，才是真正的「只依赖我读到的那部分」。
+
+> **这一条的代价是边数变多**：不过滤读是 1 条边，过滤读是 `1 + 该段被计入的修正器数` 条。过滤读本身稀少（转换类配置），可接受。
+
+#### `RebuildGraph` = 建节点 + 连边 + 交给图
+
+```cpp
+void UTcsAttributeSubsystem::RebuildGraph(FTcsCombatEntityHandle Entity, FTcsAttributeStore& Store)
+{
+	TArray<FTcsEvalNode> Nodes;
+	TArray<FTcsEvalEdge> Edges;
+	TArray<FGameplayTag> MissingTags;
+
+	BuildNodes(Store, Nodes);
+	BuildEdges(Store, Nodes, Edges, MissingTags);
+
+	// 交图：只排序 + 检环，不认识属性
+	Store.Graph.Rebuild(Nodes, Edges);
+
+	// 缓存数组与节点表对齐（值在结算时填）
+	Store.NodeValues.SetNumZeroed(Nodes.Num());
+
+	for (const FGameplayTag& Miss : MissingTags)
+	{ /* Error 日志，具名 tag */ }
+}
+```
+
+**两个查节点下标的辅助函数**（节点表由 `BuildNodes` 生成，查法是纯扫，不进热路径）：
+
+```cpp
+// 一个属性槽位的某类节点。Segment / SegmentBase 还要指定是哪一段；Modifier 还要指定 ModIndex
+int32 FindNode(const FTcsAttributeStore& Store, int32 Slot, ETcsEvalNodeKind Kind,
+	ETcsAttrSegment Segment = ETcsAttrSegment::Basic, int32 ModIndex = INDEX_NONE);
+
+// 段基值节点（连边规则 ① 与过滤读都要用它）——它是 FindNode(..., SegmentBase, Seg) 的简写
+int32 FindSegmentBaseNode(const FTcsAttributeStore& Store, int32 Slot, ETcsAttrSegment Segment);
+```
+
+> **基值节点存在的唯一理由是「可被单独连边」**——见上表 ① 的注。它在 `BuildNodes` 里与段节点同批创建，数量固定为「活跃属性数 × 2」。
+
+---
 
 ### 5.3 结算：沿反向边扩散，按拓扑序重算
 
 ```cpp
-// 结算：收集受影响槽位，按拓扑序重算。
-// 调用点只有两个：MarkWritten（批外，单槽位）/ CommitBatch（批归零，整批）——见本节末
-void SettleWrites(FTcsCombatEntityHandle Entity, TConstArrayView<int32> WrittenSlots)
+// 结算：收集受影响**节点**，按拓扑序重算。
+// 调用点只有两个：MarkWrittenNodes（批外）/ CommitBatch（批归零）
+void SettleWrites(FTcsCombatEntityHandle Entity, TConstArrayView<int32> WrittenNodes)
 {
 	FTcsAttributeStore& Store = Stores[Entity];
+	const FTcsAttributeGraph& Graph = Store.Graph;
 
-	// ① 扩散：收集所有受影响的槽位（含被写的那些自己）
+	// ① 扩散：沿反向边收集全部受影响节点
 	ScratchAffected.Reset();
-	for (int32 Slot : WrittenSlots) { ScratchAffected.AddUnique(Slot); }
+	for (int32 Node : WrittenNodes) { ScratchAffected.AddUnique(Node); }
 	for (int32 i = 0; i < ScratchAffected.Num(); ++i)
 	{
-		for (int32 Dep : Store.Dependents[ScratchAffected[i]])
+		for (int32 Dep : Graph.Dependents[ScratchAffected[i]])
 		{ ScratchAffected.AddUnique(Dep); }
 	}
 
 	// ② 按拓扑序重算，顺序 MUST 稳定
-	for (int32 Slot : Store.EvalOrder)
+	for (int32 Node : Graph.EvalOrder)
 	{
-		if (!ScratchAffected.Contains(Slot)) { continue; }
-		RecomputeAndRecordDelta(Entity, Slot);
+		if (!ScratchAffected.Contains(Node)) { continue; }
+		Store.NodeValues[Node] = EvaluateNode(Entity, Store, Graph.Nodes[Node]);
 	}
+
+	// ③ 总值节点变了才记变更（事件按属性合并，§6.4）
+	RecordDeltasForTotalNodes(Entity, Store, ScratchAffected);
 }
 ```
 
-> **必须按拓扑序，不能深度优先递归**：菱形依赖（`Strength → {Attack, Defense} → PowerScore`）下，深度优先会把 `PowerScore` 算两次，且第一次算时 `Defense` 尚未更新。
-> **`AddUnique` 去重**是菱形依赖正确的前提。
-
-> **每个槽位只算一次**：`ScratchAffected` 用 `AddUnique` 保证集合内唯一，② 又只遍历一次 `EvalOrder` ⇒「A 依赖 B，A 和 B 同批被写」时 A **只算一次**，且在 B 之后算。
-
-> **批量入口靠批，不靠「传全」**：`ApplyAttributeSet` / `RemoveAttributeSet` 内部自己开一个批（`BeginBatch` … `CommitBatch`），逐槽位 `MarkWritten` ⇒ 批外时整批只结算一次、外层已有批时并入外层。**不需要**另造一个「批量 `MarkWritten`」的 API。单属性写（`SetBaseValue` / `AttachMod` / `DetachMod`）走 `MarkWritten` 的单槽位路径。
-
-> **跨操作不去重**：先 `SetBaseValue(B)`、再 `SetBaseValue(A)` 是两次写，A 算两次——这是对的，两次写各自都改变了 A 的输入，每次返回时值都必须已是最新（§2.2）。去重只发生在**同一次结算内部**。跨调用要去重，用批（§2.2 `BeginBatch`）。
-**`SettleWrites` 的调用点只有两类**：
-
-| 调用者 | 何时 | 传什么 |
-|---|---|---|
-| `MarkWritten`（写入口内部） | **批外**，每次写之后立刻一次 | 刚被写的那一个槽位 |
-| `CommitBatch` | 批计数归零时 | **整批** `BatchWritten` |
-
-**五个写入口（§7）都 MUST NOT 直接调 `SettleWrites`**——它们只调 `MarkWritten`，由批机制决定是立刻结算还是攒着。这样「批」只有一个开关注入口，不会出现某个写入口绕过批的情况。
+**三段求值各自只看自己的输入**：
 
 ```cpp
-void MarkWritten(FTcsCombatEntityHandle Entity, int32 Slot)
+double EvaluateNode(Entity, Store, const FTcsEvalNode& Node)
 {
-	FTcsAttributeStore& Store = Stores[Entity];
+	const FTcsAttributeInstance& Inst = Store.Instances[Node.Slot];
 
-	if (Store.BatchDepth > 0)
+	switch (Node.Kind)
 	{
-		Store.BatchWritten.AddUnique(Slot);   // 批内：只登记
-		return;
+	case ETcsEvalNodeKind::SegmentBase:
+	{
+		// 段基值：无输入，直接就是实例上的权威状态
+		return (Node.Segment == ETcsAttrSegment::Basic) ? Inst.BasicValue : Inst.ExtraValue;
 	}
 
-	SettleWrites(Entity, MakeArrayView(&Slot, 1));   // 批外：隐式批，立即结算
+	case ETcsEvalNodeKind::Modifier:
+	{
+		const FTcsAttrModInstance& Mod = Inst.Mods[Node.ModIndex];
+		return EvalModValue(Entity, Store, Mod);   // §7.2；过滤读在此按 Tag 排除（§5.2 的边已保证无环）
+	}
+
+	case ETcsEvalNodeKind::Segment:
+	{
+		// 折叠：段基值节点 + 该段全部修正器节点（全局层**不属于本段**）
+		return FoldSegment(Store, Node.Slot, Node.Segment);   // §3.4
+	}
+
+	case ETcsEvalNodeKind::Total:
+	{
+		// 两段之和 → 全局层 → 值域收口
+		return EvaluateTotal(Store, Node.Slot);   // §3.4
+	}
 }
 
-void CommitBatch(FTcsCombatEntityHandle Entity)
-{
-	FTcsAttributeStore& Store = Stores[Entity];
-	if (--Store.BatchDepth > 0) { return; }   // 还有外层批，不结算
-
-	if (Store.BatchWritten.Num() > 0)
-	{
-		SettleWrites(Entity, Store.BatchWritten);
-		Store.BatchWritten.Reset();
-	}
+	return 0.0;
 }
 ```
 
+> **拓扑序保证「读到的依赖已是新值」**：每条边 `From → To` 在 `EvalOrder` 里 `From` 必在 `To` 之前。这是修正器级粒度的直接收益——弗拉米尔的 `M1,M2 → M4 → AP段 → M3 → HP段 → HP总值` 会自动排出正确顺序。
+
+> **每个节点只算一次**：`ScratchAffected` 用 `AddUnique` 保证唯一，② 又只遍历一次 `EvalOrder` ⇒ 菱形依赖下下游节点只算一次，且在它的全部输入之后。
+
+> **同一节点被多处依赖不会重复求值**：`NodeValues` 按节点下标存，谁读都是从数组里取。
+
+#### 写入口登记的是**节点**，不是槽位
+
+```cpp
+// 按「哪个属性的哪个节点」登记
+void MarkWrittenSegment(Entity, int32 Slot, ETcsAttrSegment Segment);   // 段基值被改：登记该段的**基值节点**（下游经反向边覆盖段节点与总值）
+void MarkWrittenModifier(Entity, int32 Slot, int32 ModIndex);            // 单条修正器增删
+void MarkWrittenTotal(Entity, int32 Slot);                               // 边界变更（值域收口）
+```
+
+> **改成节点级后，`ETcsAttrWritePart` 可以删掉**：它原本是「槽位 + 层」的粗粒度替代品，现在直接点名是哪个节点，精度更高且没有近似。
+
+> **批内合并**：`BatchWrittenNodes` 用 `AddUnique(int32)` 即可——节点下标天然唯一，不需要再合成「最宽层」。
 ### 5.4 环检测与拓扑序
 
-- **环 MUST 在 `ApplyAttributeSet` / `RemoveAttributeSet` 时报出**：检测到环 ⇒ 整次操作失败，不做部分应用。
-- **`EvalOrder` MUST 稳定**：Kahn 算法在候选集里取槽位下标最小者，不依赖哈希遍历顺序。否则浮点求值顺序会变、事件顺序会漂、回放会分叉。
-- **编辑器期已有一道更早的关卡**（`UTcsDefValidationSubsystem`）：属性定义是全项目静态集合，全局无环 ⇒ 任何实体的子集都无环。运行期这次是**兜底**（应对热重载、运行时注册、脚本生成资产）。
-- **`AttributeScaled` 的目标不存在**：报错。这不是兜底——该属性确实算不出值。
+**环的判定不在运行期**——它由编辑期校验承担，运行期只按不变式断言。
+
+| # | 规则 |
+|---|---|
+| ① | **环 MUST 由 `UTcsDefValidationSubsystem`（editor-only）在定义期检出**，配置保存即报 `Error` |
+| ② | **`EvalOrder` MUST 稳定**：Kahn 算法在候选集里取节点下标最小者，不依赖哈希遍历顺序。否则浮点求值顺序会变、事件顺序会漂、回放会分叉 |
+| ③ | **`AttributeScaled` 的目标不存在**：报错。这不是兜底——该属性确实算不出值 |
+| ④ | **运行期图不可能有环**：属性定义是全项目静态集合，全局无环 ⇒ 任何实体的子集都是它的子图 ⇒ 子图无环 |
+
+> **「环即失败」在 `ApplyAttributeSet` 里不成立**——那时槽位已建、`RefCount` 已加，检出环也回滚不了。**所以环检测在整个运行期都不做**：它被前置到编辑期，见 ①。
+
+> **修正器级粒度下，弗拉米尔这类配置本就无环**（§1.3 的图）——`M4` 过滤读 HP 的 Extra 段时只连 `M1`/`M2`/段基值，不连 `M3`。**编辑期确实会报的环，是「过滤读写成读总值」那种真错配**（`Part = Total` 或 `ModifierTagRequirements` 为空）。
+
+**编辑期环检测的判据与运行期建图 MUST 一致**：都用 §5.2 的 `BuildEdges`（含标签过滤）产出边，再跑拓扑排序。两处判据若分叉，就会出现「编辑期放行、运行期报环」或反之。
+
+#### 运行期兜底：断言 + 补齐，不阻塞
+
+运行期唯一可能遇到环的路径是**未经编辑期校验的定义**（热重载、脚本生成、调试代码直接注册）。图仍要给出一条不静默错值的行为：
+
+```cpp
+bool FTcsAttributeGraph::Rebuild(TConstArrayView<FTcsEvalNode> InNodes, TConstArrayView<FTcsEvalEdge> InEdges)
+{
+	Nodes = InNodes;
+	// …建 Dependents + Kahn 拓扑排序…
+
+	if (EvalOrder.Num() < Nodes.Num())
+	{
+		// 有节点排不进拓扑序 ⇒ 存在环（未经编辑期校验的定义）
+		ensureMsgf(false, TEXT("属性依赖图检出环：%d / %d 个节点无法排序"),
+			Nodes.Num() - EvalOrder.Num(), Nodes.Num());
+
+		// 兜底：未排序的节点按升序追加到末尾
+		// ⇒ 每个节点每轮仍被求值（不变式），有环部分结果不确定但**不静默漏算**
+		for (int32 Node = 0; Node < Nodes.Num(); ++Node)
+		{
+			if (!EvalOrder.Contains(Node)) { EvalOrder.Add(Node); }
+		}
+		return false;
+	}
+
+	return true;
+}
+```
+
+> **Why 补齐而不是丢弃**：`SettleWrites` 只遍历 `EvalOrder`（§5.3）。若某槽位不在里面，它**永远不被求值**——读到的是上一次的缓存值，无日志、不断错、只让数值悄悄错。补齐保证「每个槽位每轮都被求值」这条不变式。
+
+> **`Rebuild` 的 `bool` 返回值只服务这一个兜底分支**：调用方（`CommitBatch`）不因它中止。
 
 ---
 
@@ -471,7 +886,11 @@ bool  bActive  = false;   // RefCount > 0
 `UTcsAttributeDef::bRemovable == false` ⇒ 该属性**永远不能被减到 0**：
 
 - 可以 `ApplyAttributeSet` 多次（`RefCount` 正常累加）
-- `RemoveAttributeSet` 若会让它归零 ⇒ **整次操作失败**（全校验通过后才改）
+- `RemoveAttributeSet` 若会让它归零 ⇒ **整次操作失败**（前置校验③，见 §7.1）
+
+**判定口径（实现必读）**：逐个检查本 Set 里「`!bRemovable` 且当前 `RefCount == 1`」的属性——它们这次会被减到 0 ⇒ **整次拒绝**，不做任何改动。
+
+> **MUST NOT 部分应用**：不能「能减的减掉、不能减的留着」。半应用会让实体的属性集合停在一个配置者没有声明过的状态，而且没有任何地方能查出它处于这个状态。
 
 **用途**：被 `Bounds.Dynamic` 引用或被 `AttributeScaled` 读取的属性必须是常驻的，否则依赖它的属性会悬空。
 
@@ -554,19 +973,38 @@ bool RemoveAttributeSet(FTcsCombatEntityHandle Entity, const UTcsAttributeSetAss
 
 **`MUST NOT` 提供单个属性的 `AddAttribute` / `RemoveAttribute`**：属性集是一次形态切换的完整语义，逐个加会引入「先加谁后加谁」的顺序问题。
 
-**两条都原子**：全校验通过后才改，失败整次不应用。
+**两条都原子，且没有回滚路径**：校验**全部前置**，通过即全量应用，中途不设任何可能失败的步骤。
+
+**前置校验（四类，缺一不可）**：
+
+| # | 校验 | 失败返回 |
+|---|---|---|
+| ① | 实体已注册 | `false` |
+| ② | 资产有效（`Set` 非空、每个 `Def` 非空、tag 有效） | `false` |
+| ③ | **`bRemovable == false` 的属性不会归零**（§6.2） | `false` |
+| ④ | 环（由编辑期承担，§5.4 ①） | — 不在此校验 |
 
 **`ApplyAttributeSet` 流程**：
 
 ```text
-① 逐 tag：表里没有 → 建槽位、从 Def 拷基值、挂派生内置条目（**不在此求值**）
-② 逐 tag：RefCount++
-③ 重建依赖图 + 拓扑序 + 环检测
-④ 内部开一个批：逐 tag `MarkWritten`，然后 `CommitBatch`（§2.2）
-   —— 批外时 = 整批一次结算；外层已开批时，嵌套计数并入外层，不提前算
+① 前置校验 ①②③ —— 任一失败即返回 false，一个字节都不写
+② 内部开批 BeginBatch
+③ 逐 tag：表里没有 → 建槽位、从 Def 拷基值、挂派生内置条目（**不在此求值**）
+④ 逐 tag：RefCount++
+⑤ 置 `Graph.bDirty = true`（不在此重建）
+⑥ 逐 tag `MarkWrittenSegment`，然后 `CommitBatch`（§2.2、§5.2）
+   —— 归零点先重建依赖图，再整批结算一次；外层已开批时并入外层，不提前算
 ```
 
-> **Why Not 在步骤 ① 里就求值**：两个原因。① **依赖图还没建**（步骤 ③ 才建），若 A 依赖 B 而 B 排在后面的 tag，A 求值时 B 的槽位还不存在；② 步骤 ④ 反正要整体结算一遍，步骤 ① 那次是白算——同一批里新建的槽位会被算两次。
+**返回值的含义（MUST 读）**：返回 `true` = **本次的属性集改动已完整应用、值已结算**。
+
+> **它不含「图无环」的保证**：环检测在编辑期（§5.4 ①），运行期遇到未经校验的定义时只 `ensure` + 补齐 `EvalOrder`，**不失败、不回滚**。那是有环部分值不确定的已知降级，不是应用失败。
+
+> **`AttributeScaled` 的目标属性不存在也不失败**：那属于配置错误（§5.4 ③），运行期只报 `Error`，MUST 由编辑期资产校验拦截。**让它失败就得回滚已建的槽位——而回滚逻辑只为一条本可在作者期拦住的错误存在，不值得。**
+
+> **环检测不在本流程里**：由编辑期校验承担（§5.4 ①）。
+
+> **Why Not 在步骤 ③ 里就求值**：两个原因。① **依赖图还没建**（批归零点才建），若 A 依赖 B 而 B 排在后面的 tag，A 求值时 B 的槽位还不存在；② 步骤 ⑥ 反正要整体结算一遍，步骤 ③ 那次是白算——同一批里新建的槽位会被算两次。
 
 > **Why Not 在步骤 ④ 逐个槽位直接结算**：那样「A 和其依赖 B 同批被写」时，A 会按调用次数重算，而且每次都要重扫一遍 `Dependents`。**用批而不是另造一个「批量 `MarkWritten`」的 API**——批已经能表达「这一段算一次」，再开第二条批量通道就是同一件事的两份实现。
 
@@ -591,6 +1029,9 @@ struct FTcsAttrModInstance
 	FTcsParamValue             Operand;    // 运算数（施加时定）
 	FTcsSourceHandle           Source;     // 归属来源
 
+	// 本条携带的标签（供读取方按标签筛选；空 = 无标签，永不被 IgnoreTags 排除）
+	FGameplayTagContainer      Tags;
+
 	// 冻结位（仅 Mode == Snapshot 时有效；何时冻结归参数域，冻在哪归本域）
 	double SnapshotValue = 0.0;
 	bool   bHasSnapshot  = false;
@@ -599,18 +1040,26 @@ struct FTcsAttrModInstance
 
 > **`FTcsAttrModDef` MUST NOT 持有 `FTcsParamValue`**：它被状态域、技能域、装备、纯 C++ 代码共同使用，绑死参数域会锁死泛用性。值由施加方填。
 
+> **`Tags` 只由施加方在挂的当场写入**（`AttachMod` 的形参，§7.5），之后不再改。它不参与聚合运算，只被读取方按 `FTcsTagRequirements` 筛（§5.2）。**空标签的修正器永不被 `IgnoreTags` 排除**——这正是「派生属性 / 普通装备 / 符文」这些无标签修正器不被转换类读取误伤的原因。
+
+> **`Source` 是本域持有的句柄，不交给聚合器**：收集条目时只填 `Entry.OrderSeq = Source.Id`（《数值聚合器》§3.2 已裁「聚合器只接 `.Id`」）。本域仍完整持有 `FTcsSourceHandle`，因为 `DetachMod` 要按它撤销、UI 要按它归因。
+
 > **为什么成员叫 `Operand` 而不是 `Value`**：`FTcsParamValue` 自身有个 `Source` 成员（值从哪来，装 `FTcsParamSource_*` 族的实例），而本结构另有一个 `Source`（谁施加的，`FTcsSourceHandle`）。若成员叫 `Value`，同一结构体里就会出现 `Value.Source` 与 `Source` 并排、一词两义。`Operand` 与 `Op` 是本域的既有配对（运算带 + 运算数）。至于 `FTcsParamValue` 这个名字本身是否合适，归参数域裁决。
 
 **求值**：
 
 ```cpp
-double EvalModValue(const FTcsAttributeInstance& Inst, const FTcsAttrModInstance& Mod)
+// 求值一条修正器。
+//   Entity / Store 只供 FTcsParamSource_AttributeScaled 读同实体的其它属性；
+//   纯 Literal 源不碰它们（传 nullptr 亦可）。
+double EvalModValue(FTcsCombatEntityHandle Entity, const FTcsAttributeStore& Store,
+	const FTcsAttrModInstance& Mod)
 {
 	if (Mod.Def->Mode == ETcsParamMode::Snapshot && Mod.bHasSnapshot)
 	{ return Mod.SnapshotValue; }
 
-	FTcsParamEvalContext Ctx = MakeEvalContext(Inst.DefTag, /* bSnapshot = */ false);
-	return Mod.Operand.Eval(Ctx);    // AttributeScaled 在此登记依赖边
+	FTcsParamEvalContext Ctx = MakeEvalContext(Entity, Store, Mod.Def->Mode);
+	return Mod.Operand.Eval(Ctx);    // AttributeScaled 在此按 §5.2 的过滤规则读
 }
 ```
 
@@ -651,16 +1100,29 @@ if (Def->bDerived && Def->DeriveExpression.IsValid())
 	FTcsAttrModInstance Derived;
 	Derived.Def     = GetBuiltinDerivedModDef();   // Layer=Extra, Op=Add, Priority=0, Mode=Live
 	Derived.Operand = Def->DeriveExpression;
-	Derived.Source  = FTcsSourceHandle::MakeBuiltin();
+	Derived.Source  = SourceRegistry.Allocate();   // **正常发号**，`运行时实例.md` §1.3.3
 	Inst.Mods.Add(MoveTemp(Derived));
 }
 ```
 
 | 属性 | 值 |
 |---|---|
-| `Source` | `MakeBuiltin()`（保留值，`运行时实例.md` §1.3.1） |
-| 可否被 `RemoveAttributeSet` 摘除 | **否**——它随实例生死 |
-| UI 列出修正器时 | **跳过**（`Source.IsBuiltin()`） |
+| `Source` | **正常发号**（`Allocate()`）。这条修正器不响应外部撤销，**因为调用方拿不到这个号**——不是因为它有一个特殊值 |
+| 可否被 `RemoveAttributeSet` 摘除 | **否**——它随实例生死（实例释放时一并清） |
+| UI 列出修正器时 | **跳过**——判据是「这条用的是内置派生 Def」（`Def->bDerived`），**不是查 `Source`** |
+
+> **为什么不用保留值**（2026-11-11 订正）：原设计用 `FTcsSourceHandle::MakeBuiltin()`（`Id = UINT64_MAX`）表达「框架自己挂的」。**该保留值已从 `运行时实例.md` 删除**，理由：
+>
+> | # | 理由 |
+> |---|---|
+> | ① | **「没有外部施加者」不是句柄该表达的事**——号只是一个号，「谁发的」由持有者决定 |
+> | ② | **V1 就是正常发号的**（`TcsBuffOps.cpp:143`），全仓 0 处 `MakeBuiltin` |
+> | ③ | **`UINT64_MAX` 会污染 `OrderSeq`**——`LatestApplied` 下派生修正器恒赢、`EarliestApplied` 下恒输，一个本该中性的值变成极端值 |
+> | ④ | **UI 过滤不需要它**——查 `Def->bDerived` 比查 `Source` 更直接 |
+
+> **派生修正器的 `OrderSeq` 是真实号**：它在 `ApplyAttributeSet` 那一刻发出，所以「比之前挂的修正器更晚」这个判定**是真的**，不是靠哨兵值伪造的。
+
+> **发号时机只在「真正新建槽位」那一次**：`ApplyAttributeSet` 步骤 ③ 是「表里没有 → 建槽位」（§7.1）。`bActive == false` 但槽位还在的实例**不重建**（§6.1 表：修正器保留在实例上，重新激活后原样生效）⇒ **不会重复发号、不会挂第二条派生修正器**。`RefCount` 归零只把 `bActive` 置 false，不动 `Mods`。
 
 **多源派生**直接用 `Composite`：
 
@@ -680,16 +1142,30 @@ DeriveExpression = {
 ### 7.5 单条修正器：`AttachMod` / `DetachMod`
 
 ```cpp
+// 施加一条修正器。返回是否成功（实体未注册 / 目标属性缺失 ⇒ false）
 bool AttachMod(FTcsCombatEntityHandle Entity, const FTcsAttrModDef& Def,
-	const FTcsParamValue& Value, FTcsSourceHandle Source);
+	const FTcsParamValue& Value, FTcsSourceHandle Source,
+	const FGameplayTagContainer& Tags = {});        // 本条携带的标签（供读取方筛选，§7.2）
 
 // 按撤销锚点级联摘除。一个来源可施加多个定义 ⇒ **可能触及多个属性**，故返回条数而非布尔
 int32 DetachMod(FTcsCombatEntityHandle Entity, FTcsSourceHandle Source);
 ```
 
-**两条都只调 `MarkWritten`（§5.3）**，不直接调 `SettleWrites`。`AttachMod` 登记目标槽位；`DetachMod` 把该 `Source` 触及的**每一个**槽位逐个登记——一次 `DetachMod` 可能跨多个属性，但结算仍由批机制统一触发一次。
+> **`Tags` 是形参、不是返回值**：它是**这条修正器自己的属性**（「我是转换产物」），由施加方在挂的当场声明。若让 `AttachMod` 返回句柄再补标签，就多出一个「已挂上但还没贴标签」的中间态——那段窗口里若有读取发生，读到的是**不含该标签**的修正器，消环随之失效。
 
-> **连续给同一属性挂多条，就要重算多次**：`AttachMod` 一次只结算一个槽位，挂 5 条就重算 5 次。这是「属性集是唯一增删入口」（§7.1）的又一个理由——批量施加走 `ApplyAttributeSet`，整批只结算一遍。
+**两条都改三样东西**（顺序固定）：
+
+| # | 动作 | 为什么 |
+|---|---|---|
+| ① | 改 `Inst.Mods`（增/删条目） | 这是**结构变化**——修正器集合变了 |
+| ② | 置 `Graph.bDirty = true` | 结构变了 ⇒ 依赖图必须重建（§5.2 的不变式） |
+| ③ | 调 `MarkWrittenModifier(Entity, 槽位, 该条在 Mods 里的下标)`（§5.3） | 登记待重算**节点** |
+
+**两条都 MUST NOT 直接调 `SettleWrites`，也 MUST NOT 直接调 `RebuildGraph`**——两者都只在批机制的落点触发。`AttachMod` 登记目标槽位；`DetachMod` 把该 `Source` 触及的**每一个**槽位逐个登记——一次 `DetachMod` 可能跨多个属性，但重建与结算各由批机制统一触发一次。
+
+> **② 是 §5.2 补上的**：原稿写「依赖图只在 `ApplyAttributeSet` 之后重建」，`AttachMod` 漏了置脏。后果是**运行时挂的 `AttributeScaled` 修正器不建边**——属性变化后不重算、不报错、无日志。
+
+> **连续给同一属性挂多条，仍会重算多次**：虽然重建在批归零点只做一次，但批外连挂 5 条仍是 5 次结算。这是「属性集是唯一增删入口」（§7.1）的理由——批量施加走 `ApplyAttributeSet`，整批重建与结算各一遍。
 
 `DetachMod` 按 `Source` 摘除该锚点下的全部条目（一个来源可施加多个定义，见 `运行时实例.md` §1.3.3）。
 
@@ -712,6 +1188,8 @@ bool SetBaseValue(FTcsCombatEntityHandle Entity, FGameplayTag AttrTag,
 | **伤害 / 治疗的落点** | 伤害流程算完直接写当前生命，不产生修正器条目（§9.1） |
 
 > **它与 `AttachMod` 的分工**：`SetBaseValue` 改的是「属性自己的状态」，`AttachMod` 改的是「外部对它的影响」。两者都进权威面（§2.1），但前者直接、不可撤销，后者可按住 `Source` 撤销。
+
+> **写入的节点由 `Segment` 直接决定**：`Basic` ⇒ `MarkWrittenSegment(…, ETcsAttrSegment::Basic)`；`Extra` ⇒ `Extra`。**只影响该段节点及其下游**——改 Extra 基值不会唤醒依赖 Basic 段节点的修正器。
 
 > **MUST NOT 用它写「某个 Buff 加的值」**：那是修正器，写成基值会让它无法被移除，且 `RemoveAttributeSet` 之后依然残留。
 
@@ -741,9 +1219,9 @@ bool TryGetValue(FTcsCombatEntityHandle Entity, FGameplayTag Attribute, double& 
 ### 8.2 段值（供技能系数引用）
 
 ```cpp
-// 返回某段的段内公式结果（不含全局层）。Layer MUST 为 Basic 或 Extra
+// 返回某段的段内公式结果（不含全局层）。Part MUST 为 Basic 或 Extra
 bool TryGetSegmentValue(FTcsCombatEntityHandle Entity, FGameplayTag Attribute,
-	ETcsAttrLayer Layer, double& OutValue) const;
+	ETcsAttrReadPart Part, double& OutValue) const;
 ```
 
 **用途**：LoL 的「造成 60% bonus AD 伤害」。段值 = `(Base + ΣAdd) × (1 + ΣPercentAdd)`，不含 `ΠMul` / `ΣFlatAdd` / 全局覆盖。
@@ -754,7 +1232,7 @@ bool TryGetSegmentValue(FTcsCombatEntityHandle Entity, FGameplayTag Attribute,
 
 直接调《数值聚合器》§3.3 的 `EvaluateAggregatedDetail`。属性域的义务是：
 
-> **MUST 提供「按当前状态重新摊平 + 调明细入口」的路径，且与缓存值走同一条 `CollectEntries`**，否则面板显示的和实际算的是两个数。
+> **MUST 提供「按当前状态重新摊平 + 调明细入口」的路径，且与缓存值走同一条 `CollectLayerEntries`**（§3.4），否则面板显示的和实际算的是两个数。
 
 明细 **MUST NOT** 进热路径、**MUST NOT** 进网络复制，只用于本地展示与调试。
 
