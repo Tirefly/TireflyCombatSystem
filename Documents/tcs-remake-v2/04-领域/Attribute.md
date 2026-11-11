@@ -1236,6 +1236,8 @@ bool TryGetSegmentValue(FTcsCombatEntityHandle Entity, FGameplayTag Attribute,
 
 明细 **MUST NOT** 进热路径、**MUST NOT** 进网络复制，只用于本地展示与调试。
 
+> **本域只给数据，不提供面板**：明细的消费者是宿主自己的 UI（属性面板 / tooltip / 调试显示）。插件不附带任何 Explain 或调试面板——见 [01-定位与判据](../01-定位与判据.md) §1.2 非目标清单 ②。
+
 ---
 
 ## 9. 边界清单 ✅
