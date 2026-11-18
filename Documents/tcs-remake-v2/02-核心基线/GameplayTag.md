@@ -102,7 +102,7 @@ public:
 
 GAS 的 `FGameplayTagRequirements` 还有第三个字段 `TagQuery`（`GameplayEffectTypes.h:1543`）。**本基线不建它**，理由两条：
 
-1. **本仓既有裁决对它有明确保留**：`TcsStateRelation.h:18` 原文「故本仓 **MUST NOT 引入 `FGameplayTagQuery`**」，理由是**容器 + 层级匹配**（`HasAny` 对父词天然覆盖一族）已经能表达类目筛选，多引入一层查询文法只会多一个不可静态校验的配置面；
+1. **本仓既有裁决对它有明确保留**：原文「故本仓 **MUST NOT 引入 `FGameplayTagQuery`**」（见族外 [证据快照 — V1 引用出处](../tcs-remake-v2-drafts/证据快照-V1引用出处.md) §2.5），理由是**容器 + 层级匹配**（`HasAny` 对父词天然覆盖一族）已经能表达类目筛选，多引入一层查询文法只会多一个不可静态校验的配置面；
 2. **零消费者**：`RequireTags` + `IgnoreTags` 已够表达今天全部真实需求，`TagQuery` 能表达而它们不能表达的形态，今天没有任何一处需要。
 
 > **重开条件 = 出现一个 `RequireTags` / `IgnoreTags` 表达不了、且真实存在的需求**（例如「A 与 B 至少一个」这种或语义）。到那时按铁律 ① 补，不是现在。

@@ -76,7 +76,7 @@ public:
        DeriveExpression → AttributeScaled{ Target, Attr.Strength, 2.0 }
 
 多源   Attack = Strength × 2 + Agility × 0.5
-       DeriveExpression → Composite{ Op = Add, Terms = { AttributeScaled(…×2.0), AttributeScaled(…×0.5) } }
+       DeriveExpression → Composite{ CombineOp = Add, Terms = { AttributeScaled(…×2.0), AttributeScaled(…×0.5) } }
 ```
 
 > **Why Not 属性域自己展开成 `TArray<FTcsParamValue> DeriveTerms` + `Op`**：那会让属性域拥有一套与参数域 `Composite` 同义的组合语义——技能域、状态域将来遇到「多值组合」时又得各造一份。**组合能力归参数域，属性域只声明「这里有一个表达式」**。完整写法见 §7.4。
@@ -1065,7 +1065,7 @@ double EvalModValue(FTcsCombatEntityHandle Entity, const FTcsAttributeStore& Sto
 
 ### 7.3 求值时机：模式归参数域，冻结位归本域
 
-`Live` / `Snapshot` 这对语义**归参数域**（`ETcsParamMode`），属性域只是消费者。判据来自 V1 自己的定性——`FTcsParamSnapshot` 的注释原文写着「它是**参数域**的概念（修正器物化、技能侧参数行都要读它），不是状态模块专属」（`TcsStateSnapshot.h:60-61`）。
+`Live` / `Snapshot` 这对语义**归参数域**（`ETcsParamMode`），属性域只是消费者。判据来自 V1 自己的定性——`FTcsParamSnapshot` 的注释原文写着「它是**参数域**的概念（修正器物化、技能侧参数行都要读它），不是状态模块专属」（原文见族外 [证据快照 — V1 引用出处](../tcs-remake-v2-drafts/证据快照-V1引用出处.md) §2.1）。
 
 | 模式 | 求值时机 | 是否跟随源变化 | 依赖边 |
 |---|---|---|---|
@@ -1082,7 +1082,7 @@ double EvalModValue(FTcsCombatEntityHandle Entity, const FTcsAttributeStore& Sto
 | 「此刻该不该求值、求完要不要冻」的判定 | 参数域 |
 | **冻结值存在哪、存多久** | **本域**（`FTcsAttrModInstance::SnapshotValue`） |
 
-> **默认值**：属性域默认 `Live`（`FTcsAttrModDef::Mode = ETcsParamMode::Live`），**与参数行的默认 `Snapshot` 相反**。依据是 V1 的实测口径——修正器路径上两者本来就同解（`TcsCastOps_Snapshot.cpp` 注释原话：「`EPM_Live` / `EPM_Snapshot` 在本路径上同解：两者都走实时折叠」），属性修正器从一开始就是实时折叠的。
+> **默认值**：属性域默认 `Live`（`FTcsAttrModDef::Mode = ETcsParamMode::Live`），**与参数行的默认 `Snapshot` 相反**。依据是 V1 的实测口径——修正器路径上两者本来就同解（「`EPM_Live` / `EPM_Snapshot` 在本路径上同解：两者都走实时折叠」，原文见族外 [证据快照 — V1 引用出处](../tcs-remake-v2-drafts/证据快照-V1引用出处.md) §2.2；⚠️ 该节记了一处出处订正：这句原话出自**公共读口**而非快照构建器，两者说的不是同一件事），属性修正器从一开始就是实时折叠的。
 
 > **Why Not 本域自建枚举**：同一对语义若在属性域另立一个 `ETcsValueMode`，属性域就从「消费者」变成了「并列的语义拥有者」——技能域、状态域将来各立一个，同一件事就有三份定义。V1 的参数行已经有 `ETcsParamMode`，那是唯一的一份。
 
@@ -1116,7 +1116,7 @@ if (Def->bDerived && Def->DeriveExpression.IsValid())
 > | # | 理由 |
 > |---|---|
 > | ① | **「没有外部施加者」不是句柄该表达的事**——号只是一个号，「谁发的」由持有者决定 |
-> | ② | **V1 就是正常发号的**（`TcsBuffOps.cpp:143`），全仓 0 处 `MakeBuiltin` |
+> | ② | **V1 就是正常发号的**（原文见族外 [证据快照 — V1 引用出处](../tcs-remake-v2-drafts/证据快照-V1引用出处.md) §2.3），全仓 0 处 `MakeBuiltin` |
 > | ③ | **`UINT64_MAX` 会污染 `OrderSeq`**——`LatestApplied` 下派生修正器恒赢、`EarliestApplied` 下恒输，一个本该中性的值变成极端值 |
 > | ④ | **UI 过滤不需要它**——查 `Def->bDerived` 比查 `Source` 更直接 |
 
@@ -1130,7 +1130,7 @@ if (Def->bDerived && Def->DeriveExpression.IsValid())
 // Attack = Strength × 2 + Agility × 0.5
 DeriveExpression = {
 	Source = FTcsParamSource_Composite{
-		Op = Add,
+		CombineOp = Add,
 		Terms = {
 			{ Source = FTcsParamSource_AttributeScaled{ Target, Attr.Strength, 2.0 } },
 			{ Source = FTcsParamSource_AttributeScaled{ Target, Attr.Agility,  0.5 } },
