@@ -3,7 +3,7 @@
 > **定位**：V2 核心基线之一。**本文只承载「标签的判定工具」这一个内容。**
 > **回答什么问题**：**一组标签，是否满足某个要求**。
 
-**审核状态图例**：✅ 已裁决并批准 ｜ ⚠️ 待审 ｜ ❓ 待调研
+**审核状态图例**：✅ 已裁决并批准 ｜ ⚠️ 未定 ｜ ❓ 待调研
 
 > **本文件的写法**：只写最终设计与已裁决的架构，不复述历史实现。
 
@@ -102,7 +102,7 @@ public:
 
 GAS 的 `FGameplayTagRequirements` 还有第三个字段 `TagQuery`（`GameplayEffectTypes.h:1543`）。**本基线不建它**，理由两条：
 
-1. **本仓既有裁决对它有明确保留**：原文「故本仓 **MUST NOT 引入 `FGameplayTagQuery`**」（见族外 [证据快照 — V1 引用出处](../tcs-remake-v2-drafts/证据快照-V1引用出处.md) §2.5），理由是**容器 + 层级匹配**（`HasAny` 对父词天然覆盖一族）已经能表达类目筛选，多引入一层查询文法只会多一个不可静态校验的配置面；
+1. **容器 + 层级匹配已经够用**：`HasAny` 对父词天然覆盖一族，已经能表达类目筛选，多引入一层查询文法只会多一个不可静态校验的配置面 ⇒ **MUST NOT 引入 `FGameplayTagQuery`**；
 2. **零消费者**：`RequireTags` + `IgnoreTags` 已够表达今天全部真实需求，`TagQuery` 能表达而它们不能表达的形态，今天没有任何一处需要。
 
 > **重开条件 = 出现一个 `RequireTags` / `IgnoreTags` 表达不了、且真实存在的需求**（例如「A 与 B 至少一个」这种或语义）。到那时按铁律 ① 补，不是现在。
@@ -116,7 +116,7 @@ GAS 的 `FGameplayTagRequirements` 还有第三个字段 `TagQuery`（`GameplayE
 | **Attribute 域**的 `FTcsParamSource_AttributeScaled::ModifierTagRequirements` | 读某属性时按标签筛掉部分修正器（弗拉米尔类转换需求） | ✅ **已落地依据** |
 | **State / Buff / Skill 三域的类目筛选** | `CategoryTags` 匹配（关系表族规则 / 条目选择器） | ✅ **需求已确定**，机制待那三域裁决时细化 |
 
-**「≥2 个域依赖」已成立**：Attribute 已是第一个，State / Buff / Skill 的类目筛选是既定的第二、三、四个消费者——三域都已有 `CategoryTags` 字段或选择器需求（V1 实证：`FTcsStateDefBase.CategoryTags`、`FTcsSkillEntrySelector.ByCategoryTags`、关系表族规则），它们要做「按类目筛选」就必须有本类型的判定能力。
+**「≥2 个域依赖」已成立**：Attribute 已是第一个，State / Buff / Skill 的类目筛选是既定的第二、三、四个消费者——三域都已有 `CategoryTags` 字段或选择器需求（见上表两行），它们要做「按类目筛选」就必须有本类型的判定能力。
 
 > **为什么现在不写它们的具体规则**：那三域各自裁定 `CategoryTags` 的匹配语义（层级？精确？）时才有定论。本文件只提供判定外壳，规则随域落。**这不是「预建插槽」——是「消费者已确定、形态由第一个消费者（Attribute）定下」。**
 

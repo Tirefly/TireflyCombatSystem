@@ -65,7 +65,7 @@ public:
 };
 ```
 
-> **不含 `FTcsAttributeDefData` 中间结构**：V1 抽出它是为了让 DataTable 行与资产共享字段声明；V2 取消 DataTable 后这个理由消失，字段直接住在资产上。
+> **不含 `FTcsAttributeDefData` 中间结构**：**V2 的配置载体里没有 DataTable 这一形态**，字段直接住在资产上，不需要中间结构。
 
 > **`DeriveExpression` 是 `FTcsParamValue`，它是多源的**：`FTcsParamValue` 装的是一个 `FInstancedStruct` 源，源可以是单条 `AttributeScaled`，也可以是 `Composite`（`Terms: TArray<FTcsParamValue>`，可嵌套）。
 
@@ -436,7 +436,7 @@ enum class ETcsValueDomainMode : uint8
 };
 ```
 
-> **Why Not 保留 `Custom`**：V1 的 `AVD_Custom` 从来没实现过——`IValueDomainPolicy` 全仓零实现者，命中时 `ensure` + 降级 Clamp。而「特殊映射」（非线性曲线、条件映射）的正确位置是**产生这个数的地方**（`FTcsParamValue` 的源），不是**收口的地方**。值域层开插点，等于让框架在求值路径上回调宿主代码。
+> **Why Not 保留 `Custom`**：「特殊映射」（非线性曲线、条件映射）的正确位置是**产生这个数的地方**（`FTcsParamValue` 的源），不是**收口的地方**。值域层开插点，等于让框架在求值路径上回调宿主代码。
 
 ### 4.3 钳制时机：写时收口
 
@@ -486,7 +486,7 @@ enum class ETcsValueDomainMode : uint8
 | `ApplyAttributeSet` / `RemoveAttributeSet` | **槽位集合** + 修正器集合（挂/摘内置派生条目） |
 | `AttachMod` / `DetachMod` | **修正器集合**（不动槽位） |
 
-> **Why 用不变式表述而不是列举触发点**：列举式每加一个写入口就漏一次。V1 形态下 `AttachMod` 就漏了——运行时挂的 `AttributeScaled` 修正器**静默不建边**，属性变化后不重算、不报错。
+> **Why 用不变式表述而不是列举触发点**：写入口本身是**会长的**（今天有 `AttachMod` / `DetachMod` / `SetBaseValue` / 属性集增删 / 批处理，明天还会加），列举式要求每加一个都记得「这里也该建边」。**漏了不报错**——只是依赖边缺失、属性变化后静默不重算，而且症状离原因很远。不变式把「漏」变成「不可能」。
 
 **落点 = 批归零点**（`CommitBatch`）。写入口一律不直接重建，只置脏位：
 
@@ -874,7 +874,7 @@ int32 RefCount = 0;      // 有多少活跃的 ApplyAttributeSet 需要它
 bool  bActive  = false;   // RefCount > 0
 ```
 
-**为什么需要计数**：两件装备都提供「暴击率」属性，卸下其中一件时它不该消失。V1 靠冻结缓解这个问题的后果，V2 直接解决。
+**为什么需要计数**：两件装备都提供「暴击率」属性，卸下其中一件时它不该消失。**用引用计数表达「还有几处在用」**：归零只置 `bActive = false`，槽位与修正器都保留（见下表）。
 
 | `bActive` | 聚合 | 读口 | 修正器 | `BasicValue` / 缓存 |
 |---|---|---|---|---|
@@ -1116,9 +1116,8 @@ if (Def->bDerived && Def->DeriveExpression.IsValid())
 > | # | 理由 |
 > |---|---|
 > | ① | **「没有外部施加者」不是句柄该表达的事**——号只是一个号，「谁发的」由持有者决定 |
-> | ② | **V1 就是正常发号的**（原文见族外 [证据快照 — V1 引用出处](../tcs-remake-v2-drafts/证据快照-V1引用出处.md) §2.3），全仓 0 处 `MakeBuiltin` |
-> | ③ | **`UINT64_MAX` 会污染 `OrderSeq`**——`LatestApplied` 下派生修正器恒赢、`EarliestApplied` 下恒输，一个本该中性的值变成极端值 |
-> | ④ | **UI 过滤不需要它**——查 `Def->bDerived` 比查 `Source` 更直接 |
+> | ② | **`UINT64_MAX` 会污染 `OrderSeq`**——`LatestApplied` 下派生修正器恒赢、`EarliestApplied` 下恒输，一个本该中性的值变成极端值 |
+> | ③ | **UI 过滤不需要它**——查 `Def->bDerived` 比查 `Source` 更直接 |
 
 > **派生修正器的 `OrderSeq` 是真实号**：它在 `ApplyAttributeSet` 那一刻发出，所以「比之前挂的修正器更晚」这个判定**是真的**，不是靠哨兵值伪造的。
 
@@ -1269,7 +1268,7 @@ bool TryGetSegmentValue(FTcsCombatEntityHandle Entity, FGameplayTag Attribute,
 
 > **属性域 MUST NOT 引入不可重放的输入**（随机数、本地时间、客户端特有状态）。
 
-这条不是为今天——是为将来加复制时留路。V1 的姿态是「操作复制 + 客户端重算」，它成立的前提就是这条。
+这条不是为今天——是为将来加复制时留路。「操作复制 + 客户端重算」这个形态，成立的前提就是这条。
 
 ---
 
