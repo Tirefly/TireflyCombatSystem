@@ -1,0 +1,8604 @@
+{
+  "corpus": "lol",
+  "kind": "item",
+  "version": "16.22",
+  "items": [
+    {
+      "id": "lol.item.0",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 0,
+      "name": "无鞋子",
+      "icon": "assets/item/no-boots-03c39c232a5a.webp",
+      "priceTotal": 0,
+      "sellPrice": 0,
+      "purchasable": false,
+      "isFinal": null,
+      "maxStacks": 1,
+      "requirements": null,
+      "from": null,
+      "to": null,
+      "categories": [],
+      "acquisition": "synthetic",
+      "tooltipText": [],
+      "semantics": [],
+      "source": {
+        "text": "aramkit/items.json#0"
+      }
+    },
+    {
+      "id": "lol.item.1001",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 1001,
+      "name": "鞋子",
+      "icon": "assets/item/1001-c103156e7c35.webp",
+      "priceTotal": 300,
+      "sellPrice": 210,
+      "purchasable": true,
+      "isFinal": false,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": null,
+      "to": [
+        "3006",
+        "3008",
+        "3009",
+        "3020",
+        "3047",
+        "3111",
+        "3158"
+      ],
+      "categories": [
+        "Boots"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "移动速度25移动速度"
+      ],
+      "semantics": [
+        "stat"
+      ],
+      "source": {
+        "text": "aramkit/items.json#1001"
+      }
+    },
+    {
+      "id": "lol.item.1004",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 1004,
+      "name": "仙女护符",
+      "icon": "assets/item/1004-8e41fadfe42b.webp",
+      "priceTotal": 200,
+      "sellPrice": 140,
+      "purchasable": true,
+      "isFinal": false,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": null,
+      "to": [
+        "3114",
+        "4642"
+      ],
+      "categories": [
+        "ManaRegen"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "基础法力回复50%基础法力回复"
+      ],
+      "semantics": [
+        "stat"
+      ],
+      "source": {
+        "text": "aramkit/items.json#1004"
+      }
+    },
+    {
+      "id": "lol.item.1006",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 1006,
+      "name": "治疗宝珠",
+      "icon": "assets/item/1006-802c6ac1192c.webp",
+      "priceTotal": 300,
+      "sellPrice": 120,
+      "purchasable": true,
+      "isFinal": false,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": null,
+      "to": [
+        "3109",
+        "3211",
+        "3801"
+      ],
+      "categories": [
+        "HealthRegen"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "基础生命回复100%基础生命回复"
+      ],
+      "semantics": [
+        "stat"
+      ],
+      "source": {
+        "text": "aramkit/items.json#1006"
+      }
+    },
+    {
+      "id": "lol.item.1011",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 1011,
+      "name": "巨人腰带",
+      "icon": "assets/item/1011-5061af0cd6c2.webp",
+      "priceTotal": 900,
+      "sellPrice": 630,
+      "purchasable": true,
+      "isFinal": false,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "1028"
+      ],
+      "to": [
+        "2525",
+        "3039",
+        "3083",
+        "3084",
+        "3116",
+        "3119",
+        "3143",
+        "3748",
+        "6609",
+        "6665"
+      ],
+      "categories": [
+        "Health"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "生命值350生命值"
+      ],
+      "semantics": [
+        "stat"
+      ],
+      "source": {
+        "text": "aramkit/items.json#1011"
+      }
+    },
+    {
+      "id": "lol.item.1018",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 1018,
+      "name": "灵巧披风",
+      "icon": "assets/item/1018-92b7410f86ee.webp",
+      "priceTotal": 600,
+      "sellPrice": 420,
+      "purchasable": true,
+      "isFinal": false,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": null,
+      "to": [
+        "3031",
+        "3033",
+        "3039",
+        "3086",
+        "3095",
+        "3508",
+        "6670",
+        "6676",
+        "123430"
+      ],
+      "categories": [
+        "CriticalStrike"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "暴击几率15%暴击几率"
+      ],
+      "semantics": [
+        "stat"
+      ],
+      "source": {
+        "text": "aramkit/items.json#1018"
+      }
+    },
+    {
+      "id": "lol.item.1026",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 1026,
+      "name": "爆裂魔杖",
+      "icon": "assets/item/1026-8b5758d7fd81.webp",
+      "priceTotal": 850,
+      "sellPrice": 595,
+      "purchasable": true,
+      "isFinal": false,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": null,
+      "to": [
+        "2510",
+        "2522",
+        "3100",
+        "3115",
+        "3116",
+        "3118",
+        "3135",
+        "3165",
+        "6621",
+        "6657"
+      ],
+      "categories": [
+        "SpellDamage"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "法术强度45法术强度"
+      ],
+      "semantics": [
+        "stat"
+      ],
+      "source": {
+        "text": "aramkit/items.json#1026"
+      }
+    },
+    {
+      "id": "lol.item.1027",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 1027,
+      "name": "蓝水晶",
+      "icon": "assets/item/1027-2d8d12c6625c.webp",
+      "priceTotal": 300,
+      "sellPrice": 210,
+      "purchasable": true,
+      "isFinal": false,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": null,
+      "to": [
+        "3024",
+        "3802",
+        "3803"
+      ],
+      "categories": [
+        "Mana"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "最大法力值300法力"
+      ],
+      "semantics": [
+        "stat"
+      ],
+      "source": {
+        "text": "aramkit/items.json#1027"
+      }
+    },
+    {
+      "id": "lol.item.1028",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 1028,
+      "name": "红水晶",
+      "icon": "assets/item/1028-43d3141e7ae0.webp",
+      "priceTotal": 400,
+      "sellPrice": 280,
+      "purchasable": true,
+      "isFinal": false,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": null,
+      "to": [
+        "1011",
+        "2021",
+        "2502",
+        "2526",
+        "3044",
+        "3053",
+        "3066",
+        "3067",
+        "3068",
+        "3075",
+        "3147",
+        "3152",
+        "3161",
+        "3211",
+        "3742",
+        "3801",
+        "3803",
+        "4401",
+        "6660",
+        "6662"
+      ],
+      "categories": [
+        "Health"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "生命值150生命值"
+      ],
+      "semantics": [
+        "stat"
+      ],
+      "source": {
+        "text": "aramkit/items.json#1028"
+      }
+    },
+    {
+      "id": "lol.item.1029",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 1029,
+      "name": "布甲",
+      "icon": "assets/item/1029-6ea6fae3e5f8.webp",
+      "priceTotal": 300,
+      "sellPrice": 210,
+      "purchasable": true,
+      "isFinal": false,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": null,
+      "to": [
+        "1031",
+        "2019",
+        "2420",
+        "2524",
+        "3024",
+        "3047",
+        "3050",
+        "3076",
+        "3082",
+        "3190"
+      ],
+      "categories": [
+        "Armor"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "护甲15护甲"
+      ],
+      "semantics": [
+        "stat"
+      ],
+      "source": {
+        "text": "aramkit/items.json#1029"
+      }
+    },
+    {
+      "id": "lol.item.1031",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 1031,
+      "name": "锁子甲",
+      "icon": "assets/item/1031-f298f5b254ab.webp",
+      "priceTotal": 800,
+      "sellPrice": 560,
+      "purchasable": true,
+      "isFinal": false,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "1029"
+      ],
+      "to": [
+        "2502",
+        "3068",
+        "3075",
+        "3109",
+        "3742",
+        "6662",
+        "6665"
+      ],
+      "categories": [
+        "Armor"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "护甲40护甲"
+      ],
+      "semantics": [
+        "stat"
+      ],
+      "source": {
+        "text": "aramkit/items.json#1031"
+      }
+    },
+    {
+      "id": "lol.item.1033",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 1033,
+      "name": "抗魔斗篷",
+      "icon": "assets/item/1033-1c34f84a205a.webp",
+      "priceTotal": 400,
+      "sellPrice": 280,
+      "purchasable": true,
+      "isFinal": false,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": null,
+      "to": [
+        "1057",
+        "2524",
+        "3050",
+        "3111",
+        "3140",
+        "3155",
+        "3190",
+        "3211",
+        "4632"
+      ],
+      "categories": [
+        "SpellBlock"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "魔法抗性20魔法抗性"
+      ],
+      "semantics": [
+        "stat"
+      ],
+      "source": {
+        "text": "aramkit/items.json#1033"
+      }
+    },
+    {
+      "id": "lol.item.1036",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 1036,
+      "name": "长剑",
+      "icon": "assets/item/1036-6eabea8be9b9.webp",
+      "priceTotal": 350,
+      "sellPrice": 245,
+      "purchasable": true,
+      "isFinal": false,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": null,
+      "to": [
+        "1053",
+        "2019",
+        "2021",
+        "2517",
+        "2523",
+        "3004",
+        "3032",
+        "3035",
+        "3044",
+        "3051",
+        "3077",
+        "3123",
+        "3133",
+        "3134",
+        "3142",
+        "3155",
+        "4003",
+        "6670",
+        "6690",
+        "6692",
+        "6699"
+      ],
+      "categories": [
+        "Damage",
+        "Lane"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "攻击力10攻击力"
+      ],
+      "semantics": [
+        "stat"
+      ],
+      "source": {
+        "text": "aramkit/items.json#1036"
+      }
+    },
+    {
+      "id": "lol.item.1037",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 1037,
+      "name": "十字镐",
+      "icon": "assets/item/1037-54297e56d10e.webp",
+      "priceTotal": 875,
+      "sellPrice": 613,
+      "purchasable": true,
+      "isFinal": false,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": null,
+      "to": [
+        "2020",
+        "2517",
+        "2523",
+        "3031",
+        "3053",
+        "3071",
+        "3072",
+        "3087",
+        "3124",
+        "3139",
+        "3153",
+        "3161",
+        "3181",
+        "6333",
+        "6673",
+        "6676",
+        "6692",
+        "6695"
+      ],
+      "categories": [
+        "Damage"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "攻击力25攻击力"
+      ],
+      "semantics": [
+        "stat"
+      ],
+      "source": {
+        "text": "aramkit/items.json#1037"
+      }
+    },
+    {
+      "id": "lol.item.1038",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 1038,
+      "name": "暴风之剑",
+      "icon": "assets/item/1038-8b861c0941b1.webp",
+      "priceTotal": 1300,
+      "sellPrice": 910,
+      "purchasable": true,
+      "isFinal": false,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": null,
+      "to": [
+        "3031",
+        "3032",
+        "3072",
+        "3095"
+      ],
+      "categories": [
+        "Damage"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "攻击力40攻击力"
+      ],
+      "semantics": [
+        "stat"
+      ],
+      "source": {
+        "text": "aramkit/items.json#1038"
+      }
+    },
+    {
+      "id": "lol.item.1042",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 1042,
+      "name": "短剑",
+      "icon": "assets/item/1042-7ddfde36adc5.webp",
+      "priceTotal": 250,
+      "sellPrice": 175,
+      "purchasable": true,
+      "isFinal": false,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": null,
+      "to": [
+        "1043",
+        "2510",
+        "3006",
+        "3046",
+        "3051",
+        "3073",
+        "3086",
+        "3144",
+        "6631",
+        "6675"
+      ],
+      "categories": [
+        "AttackSpeed"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "攻击速度10%攻击速度"
+      ],
+      "semantics": [
+        "stat"
+      ],
+      "source": {
+        "text": "aramkit/items.json#1042"
+      }
+    },
+    {
+      "id": "lol.item.1043",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 1043,
+      "name": "反曲之弓",
+      "icon": "assets/item/1043-f551619b579d.webp",
+      "priceTotal": 700,
+      "sellPrice": 490,
+      "purchasable": true,
+      "isFinal": false,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "1042"
+      ],
+      "to": [
+        "3091",
+        "3115",
+        "3124",
+        "3153",
+        "3302",
+        "6672"
+      ],
+      "categories": [
+        "AttackSpeed",
+        "OnHit"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "攻击速度15%攻击速度",
+        "叮刺",
+        "攻击附带15额外物理伤害攻击特效攻击特效。"
+      ],
+      "semantics": [
+        "stat",
+        "passive",
+        "physicalDamage",
+        "onHit"
+      ],
+      "source": {
+        "text": "aramkit/items.json#1043"
+      }
+    },
+    {
+      "id": "lol.item.1052",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 1052,
+      "name": "增幅典籍",
+      "icon": "assets/item/1052-1e1d2dfc7338.webp",
+      "priceTotal": 400,
+      "sellPrice": 280,
+      "purchasable": true,
+      "isFinal": false,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": null,
+      "to": [
+        "2420",
+        "2508",
+        "3108",
+        "3113",
+        "3116",
+        "3124",
+        "3145",
+        "3146",
+        "3147",
+        "3802",
+        "3916",
+        "4005",
+        "4628",
+        "4630",
+        "4632",
+        "4642",
+        "124011"
+      ],
+      "categories": [
+        "SpellDamage"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "法术强度20法术强度"
+      ],
+      "semantics": [
+        "stat"
+      ],
+      "source": {
+        "text": "aramkit/items.json#1052"
+      }
+    },
+    {
+      "id": "lol.item.1053",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 1053,
+      "name": "吸血鬼节杖",
+      "icon": "assets/item/1053-03ee3bcd41b5.webp",
+      "priceTotal": 900,
+      "sellPrice": 630,
+      "purchasable": true,
+      "isFinal": false,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "1036"
+      ],
+      "to": [
+        "3072",
+        "3074",
+        "3139",
+        "3146",
+        "3153"
+      ],
+      "categories": [
+        "Damage",
+        "LifeSteal"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "攻击力15攻击力",
+        "生命偷取7%生命偷取"
+      ],
+      "semantics": [
+        "stat"
+      ],
+      "source": {
+        "text": "aramkit/items.json#1053"
+      }
+    },
+    {
+      "id": "lol.item.1057",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 1057,
+      "name": "负极斗篷",
+      "icon": "assets/item/1057-e242210eb122.webp",
+      "priceTotal": 850,
+      "sellPrice": 595,
+      "purchasable": true,
+      "isFinal": false,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "1033"
+      ],
+      "to": [
+        "2504",
+        "3091",
+        "4401",
+        "6665",
+        "8020"
+      ],
+      "categories": [
+        "SpellBlock"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "魔法抗性45魔法抗性"
+      ],
+      "semantics": [
+        "stat"
+      ],
+      "source": {
+        "text": "aramkit/items.json#1057"
+      }
+    },
+    {
+      "id": "lol.item.1058",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 1058,
+      "name": "无用大棒",
+      "icon": "assets/item/1058-75a4aac82639.webp",
+      "priceTotal": 1200,
+      "sellPrice": 840,
+      "purchasable": true,
+      "isFinal": false,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": null,
+      "to": [
+        "3089",
+        "3102",
+        "3157",
+        "4645"
+      ],
+      "categories": [
+        "SpellDamage"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "法术强度65法术强度"
+      ],
+      "semantics": [
+        "stat"
+      ],
+      "source": {
+        "text": "aramkit/items.json#1058"
+      }
+    },
+    {
+      "id": "lol.item.1111",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 1111,
+      "name": "嘉文一世之靴",
+      "icon": "assets/item/1111-14bfe2cc2e77.webp",
+      "priceTotal": 300,
+      "sellPrice": 210,
+      "purchasable": true,
+      "isFinal": true,
+      "maxStacks": 1,
+      "requirements": {
+        "spell": "CanPurchase"
+      },
+      "from": null,
+      "to": null,
+      "categories": [
+        "Armor",
+        "AttackSpeed",
+        "Boots",
+        "Tenacity",
+        "MagicPenetration",
+        "MagicResist",
+        "AbilityHaste"
+      ],
+      "acquisition": "conditional",
+      "tooltipText": [
+        "攻击速度25%攻击速度",
+        "移动速度100移动速度",
+        "技能急速10技能急速",
+        "法术穿透12法术穿透",
+        "护甲25护甲",
+        "魔法抗性20魔法抗性",
+        "韧性30%韧性",
+        "嘉文一世",
+        "为你提供了所有靴子的属性和被动。",
+        "所需强化符文：任务：王中王，靴中靴",
+        "最顶级的鞋履，据称是嘉文一世国王在去世时所穿的靴子。"
+      ],
+      "semantics": [
+        "stat",
+        "passive",
+        "rarityPrismatic",
+        "flavorText"
+      ],
+      "source": {
+        "text": "aramkit/items.json#1111"
+      }
+    },
+    {
+      "id": "lol.item.2003",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 2003,
+      "name": "生命药水",
+      "icon": "assets/item/2003-fbb3ae33dd8b.webp",
+      "priceTotal": 50,
+      "sellPrice": 20,
+      "purchasable": true,
+      "isFinal": false,
+      "maxStacks": 5,
+      "requirements": {},
+      "from": null,
+      "to": null,
+      "categories": [
+        "HealthRegen",
+        "Consumable",
+        "Lane",
+        "Jungle"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "主动消耗",
+        "在15秒里持续回复共120生命值。"
+      ],
+      "semantics": [
+        "active",
+        "heal"
+      ],
+      "source": {
+        "text": "aramkit/items.json#2003"
+      }
+    },
+    {
+      "id": "lol.item.2019",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 2019,
+      "name": "钢铁印章",
+      "icon": "assets/item/2019-c0cae4aba383.webp",
+      "priceTotal": 1100,
+      "sellPrice": 770,
+      "purchasable": true,
+      "isFinal": false,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "1029",
+        "1036",
+        "1029"
+      ],
+      "to": [
+        "6333"
+      ],
+      "categories": [
+        "Armor",
+        "Damage"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "攻击力15攻击力",
+        "护甲30护甲",
+        "'收集得够多，那些名字就都会开始糊到一起去。'——莎弥拉"
+      ],
+      "semantics": [
+        "stat",
+        "flavorText"
+      ],
+      "source": {
+        "text": "aramkit/items.json#2019"
+      }
+    },
+    {
+      "id": "lol.item.2020",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 2020,
+      "name": "残暴之力",
+      "icon": "assets/item/2020-485274ef36b8.webp",
+      "priceTotal": 1337,
+      "sellPrice": 936,
+      "purchasable": true,
+      "isFinal": false,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "2022",
+        "1037"
+      ],
+      "to": [
+        "6696",
+        "6698",
+        "6699"
+      ],
+      "categories": [
+        "Damage",
+        "CooldownReduction",
+        "ArmorPenetration"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "攻击力25攻击力",
+        "技能急速10技能急速",
+        "穿甲5穿甲"
+      ],
+      "semantics": [
+        "stat"
+      ],
+      "source": {
+        "text": "aramkit/items.json#2020"
+      }
+    },
+    {
+      "id": "lol.item.2021",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 2021,
+      "name": "掘道钻头",
+      "icon": "assets/item/2021-82208689f390.webp",
+      "priceTotal": 1150,
+      "sellPrice": 805,
+      "purchasable": true,
+      "isFinal": false,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "1036",
+        "1028"
+      ],
+      "to": [
+        "2501",
+        "3053",
+        "3073",
+        "3161",
+        "3181",
+        "3748",
+        "3814",
+        "6610"
+      ],
+      "categories": [
+        "Health",
+        "Damage"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "攻击力15攻击力",
+        "生命值250生命值",
+        "任何工具都能成为一件武器，只要在合适之人的手中。"
+      ],
+      "semantics": [
+        "stat",
+        "flavorText"
+      ],
+      "source": {
+        "text": "aramkit/items.json#2021"
+      }
+    },
+    {
+      "id": "lol.item.2022",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 2022,
+      "name": "荧尘",
+      "icon": "assets/item/2022-79fed0156777.webp",
+      "priceTotal": 250,
+      "sellPrice": 175,
+      "purchasable": true,
+      "isFinal": false,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": null,
+      "to": [
+        "2020",
+        "3024",
+        "3057",
+        "3067",
+        "3108",
+        "3133",
+        "3158",
+        "3802",
+        "4642",
+        "6660"
+      ],
+      "categories": [
+        "CooldownReduction"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "技能急速5技能急速"
+      ],
+      "semantics": [
+        "stat"
+      ],
+      "source": {
+        "text": "aramkit/items.json#2022"
+      }
+    },
+    {
+      "id": "lol.item.2031",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 2031,
+      "name": "复用型药水",
+      "icon": "assets/item/2031-f1f12eceb63a.webp",
+      "priceTotal": 150,
+      "sellPrice": 60,
+      "purchasable": true,
+      "isFinal": false,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": null,
+      "to": null,
+      "categories": [
+        "HealthRegen",
+        "Consumable",
+        "Active",
+        "Lane",
+        "Jungle"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "主动主动 (2层)",
+        "在12秒里持续回复共100生命值。",
+        "在访问商店时重新补满层数。"
+      ],
+      "semantics": [
+        "active",
+        "heal"
+      ],
+      "source": {
+        "text": "aramkit/items.json#2031"
+      }
+    },
+    {
+      "id": "lol.item.2051",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 2051,
+      "name": "守护者号角",
+      "icon": "assets/item/2051-342c78f86bc9.webp",
+      "priceTotal": 950,
+      "sellPrice": 665,
+      "purchasable": true,
+      "isFinal": false,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": null,
+      "to": null,
+      "categories": [
+        "Health",
+        "HealthRegen",
+        "Lane"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "生命值150生命值",
+        "复原力：每5秒回复20生命值。",
+        "不屈不挠：格挡来自英雄的攻击和技能的15伤害(对抗持续伤害技能时的效能为25%)。"
+      ],
+      "semantics": [
+        "stat",
+        "passive",
+        "heal"
+      ],
+      "source": {
+        "text": "aramkit/items.json#2051"
+      }
+    },
+    {
+      "id": "lol.item.2065",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 2065,
+      "name": "舒瑞娅的战歌",
+      "icon": "assets/item/2065-d7e48063af03.webp",
+      "priceTotal": 2200,
+      "sellPrice": 1540,
+      "purchasable": true,
+      "isFinal": true,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "3113",
+        "4642"
+      ],
+      "to": null,
+      "categories": [
+        "SpellDamage",
+        "ManaRegen",
+        "Active",
+        "CooldownReduction",
+        "NonbootsMovement",
+        "AbilityHaste"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "法术强度50法术强度",
+        "技能急速15技能急速",
+        "移动速度4%移动速度",
+        "基础法力回复125%基础法力回复",
+        "主动鼓舞演讲冷却时间(75秒)",
+        "为附近友军们提供持续4秒的30%移动速度。"
+      ],
+      "semantics": [
+        "stat",
+        "active",
+        "movementSpeed"
+      ],
+      "source": {
+        "text": "aramkit/items.json#2065"
+      }
+    },
+    {
+      "id": "lol.item.2138",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 2138,
+      "name": "钢铁合剂",
+      "icon": "assets/item/2138-84e8aaf2a189.webp",
+      "priceTotal": 500,
+      "sellPrice": 200,
+      "purchasable": true,
+      "isFinal": false,
+      "maxStacks": 1,
+      "requirements": {
+        "level": 9
+      },
+      "from": null,
+      "to": null,
+      "categories": [
+        "Health",
+        "Consumable",
+        "NonbootsMovement",
+        "Tenacity"
+      ],
+      "acquisition": "conditional",
+      "tooltipText": [
+        "需要达到等级9",
+        "主动消耗",
+        "获得300生命值，25%韧性，并提升体型，持续3分钟。在合剂生效期间，你会在身后留下一条道路，友方英雄在这条道路上会提升15%移动速度。"
+      ],
+      "semantics": [
+        "active",
+        "health",
+        "movementSpeed"
+      ],
+      "source": {
+        "text": "aramkit/items.json#2138"
+      }
+    },
+    {
+      "id": "lol.item.2139",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 2139,
+      "name": "巫术合剂",
+      "icon": "assets/item/2139-336c11c84ade.webp",
+      "priceTotal": 500,
+      "sellPrice": 200,
+      "purchasable": true,
+      "isFinal": false,
+      "maxStacks": 1,
+      "requirements": {
+        "level": 9
+      },
+      "from": null,
+      "to": null,
+      "categories": [
+        "Consumable",
+        "ManaRegen",
+        "SpellDamage"
+      ],
+      "acquisition": "conditional",
+      "tooltipText": [
+        "需要达到等级9",
+        "主动消耗",
+        "获得50法术强度和15%法力回复，持续3分钟。在合剂生效期间，对英雄或防御塔造成伤害时会造成25额外真实伤害 (对英雄的冷却为冷却时间5秒)。"
+      ],
+      "semantics": [
+        "active",
+        "abilityPower",
+        "mana",
+        "trueDamage"
+      ],
+      "source": {
+        "text": "aramkit/items.json#2139"
+      }
+    },
+    {
+      "id": "lol.item.2140",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 2140,
+      "name": "愤怒合剂",
+      "icon": "assets/item/2140-f670ebd7ee15.webp",
+      "priceTotal": 500,
+      "sellPrice": 200,
+      "purchasable": true,
+      "isFinal": false,
+      "maxStacks": 1,
+      "requirements": {
+        "level": 9
+      },
+      "from": null,
+      "to": null,
+      "categories": [
+        "Consumable",
+        "Damage",
+        "LifeSteal",
+        "SpellVamp"
+      ],
+      "acquisition": "conditional",
+      "tooltipText": [
+        "需要达到等级9",
+        "主动消耗",
+        "获得30攻击力和12%物理吸血(对英雄)，持续3分钟。"
+      ],
+      "semantics": [
+        "active",
+        "attackDamage",
+        "lifeSteal"
+      ],
+      "source": {
+        "text": "aramkit/items.json#2140"
+      }
+    },
+    {
+      "id": "lol.item.2141",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 2141,
+      "name": "帽子饮品",
+      "icon": "assets/item/2141-5c716657740f.webp",
+      "priceTotal": 300,
+      "sellPrice": 300,
+      "purchasable": true,
+      "isFinal": false,
+      "maxStacks": 40,
+      "requirements": {
+        "level": 9
+      },
+      "from": null,
+      "to": null,
+      "categories": [
+        "Damage",
+        "Consumable"
+      ],
+      "acquisition": "conditional",
+      "tooltipText": [
+        "需要达到等级9",
+        "帮助你出人头地。",
+        "主动主动 - 消耗：这个饮品什么也不做。",
+        "为了纪念亚伯船长"
+      ],
+      "semantics": [
+        "active",
+        "flavorText"
+      ],
+      "source": {
+        "text": "aramkit/items.json#2141"
+      }
+    },
+    {
+      "id": "lol.item.2420",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 2420,
+      "name": "探索者的护臂",
+      "icon": "assets/item/2420-d1c644cf02ca.webp",
+      "priceTotal": 1600,
+      "sellPrice": 640,
+      "purchasable": true,
+      "isFinal": false,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "1052",
+        "1029",
+        "1052"
+      ],
+      "to": [
+        "3157"
+      ],
+      "categories": [
+        "Armor",
+        "SpellDamage",
+        "Active"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "法术强度40法术强度",
+        "护甲25护甲",
+        "主动时间停止(单次使用)",
+        "进入凝滞状态2.5秒。"
+      ],
+      "semantics": [
+        "stat",
+        "active",
+        "keyword"
+      ],
+      "source": {
+        "text": "aramkit/items.json#2420"
+      }
+    },
+    {
+      "id": "lol.item.2501",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 2501,
+      "name": "霸王血铠",
+      "icon": "assets/item/2501-0fa69e92afb5.webp",
+      "priceTotal": 3300,
+      "sellPrice": 2310,
+      "purchasable": true,
+      "isFinal": true,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "2021",
+        "2021"
+      ],
+      "to": null,
+      "categories": [
+        "Health",
+        "Damage"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "攻击力40攻击力",
+        "生命值550生命值",
+        "专横",
+        "获得相当于你2.5%额外生命值的攻击力。",
+        "报复",
+        "获得基于你的百分比已损失生命值的10%攻击力提升。",
+        "只有在生死之间，他才找到了找回场子的办法。",
+        "报复的最大加成会在低于30%生命值时达到。"
+      ],
+      "semantics": [
+        "stat",
+        "passive",
+        "heal",
+        "attackDamage",
+        "flavorText"
+      ],
+      "source": {
+        "text": "aramkit/items.json#2501"
+      }
+    },
+    {
+      "id": "lol.item.2502",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 2502,
+      "name": "无终恨意",
+      "icon": "assets/item/2502-23fe5a53b6a3.webp",
+      "priceTotal": 2800,
+      "sellPrice": 1960,
+      "purchasable": true,
+      "isFinal": true,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "1031",
+        "3067",
+        "1028"
+      ],
+      "to": null,
+      "categories": [
+        "Health",
+        "Armor",
+        "CooldownReduction",
+        "AbilityHaste"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "生命值400生命值",
+        "护甲50护甲",
+        "技能急速15技能急速",
+        "苦楚",
+        "在与英雄的战斗状态下，每4秒对附近的敌方英雄们造成(3%额外生命值额外生命值)魔法伤害，并治疗自身相当于250%已造成伤害的生命值。"
+      ],
+      "semantics": [
+        "stat",
+        "passive",
+        "magicDamage",
+        "health",
+        "heal"
+      ],
+      "source": {
+        "text": "aramkit/items.json#2502"
+      }
+    },
+    {
+      "id": "lol.item.2503",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 2503,
+      "name": "黯炎火炬",
+      "icon": "assets/item/2503-6658486608b4.webp",
+      "priceTotal": 2800,
+      "sellPrice": 1960,
+      "purchasable": true,
+      "isFinal": true,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "3802",
+        "2508"
+      ],
+      "to": null,
+      "categories": [
+        "SpellDamage",
+        "Mana",
+        "CooldownReduction",
+        "AbilityHaste"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "法术强度80法术强度",
+        "最大法力值600法力",
+        "技能急速20技能急速",
+        "邪焰",
+        "伤害型技能造成每秒(20+2%法术强度)额外魔法伤害，持续3秒。",
+        "黯炎",
+        "被你的邪焰影响的每个敌方英雄、史诗级野怪和大型野怪都会为你提供4%法术强度。",
+        "'黑雾需要一团程度与之相配的火焰。'",
+        "邪焰对小兵造成每秒(20+2%法术强度)魔法伤害，并对野怪造成每秒(40+2%法术强度)魔法伤害。"
+      ],
+      "semantics": [
+        "stat",
+        "passive",
+        "magicDamage",
+        "totalValue",
+        "abilityPower",
+        "flavorText"
+      ],
+      "source": {
+        "text": "aramkit/items.json#2503"
+      }
+    },
+    {
+      "id": "lol.item.2504",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 2504,
+      "name": "败魔",
+      "icon": "assets/item/2504-e61cc384d586.webp",
+      "priceTotal": 2900,
+      "sellPrice": 2030,
+      "purchasable": true,
+      "isFinal": true,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "3211",
+        "1057"
+      ],
+      "to": null,
+      "categories": [
+        "Health",
+        "SpellBlock",
+        "HealthRegen"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "生命值400生命值",
+        "魔法抗性80魔法抗性",
+        "基础生命回复100%基础生命回复",
+        "法师之祸",
+        "如果连续15秒没有受到魔法伤害，获得(15%最大生命值最大生命值)魔法护盾。",
+        "\"命运将凭借诡诈、汗水与钢铁来塑造。魔法再也不能违背这个准则了。”"
+      ],
+      "semantics": [
+        "stat",
+        "passive",
+        "shield",
+        "health",
+        "flavorText"
+      ],
+      "source": {
+        "text": "aramkit/items.json#2504"
+      }
+    },
+    {
+      "id": "lol.item.2508",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 2508,
+      "name": "命定灰烬",
+      "icon": "assets/item/2508-c89a0cb1730d.webp",
+      "priceTotal": 900,
+      "sellPrice": 630,
+      "purchasable": true,
+      "isFinal": false,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "1052"
+      ],
+      "to": [
+        "2503",
+        "6653"
+      ],
+      "categories": [
+        "SpellDamage"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "法术强度30法术强度",
+        "激燃",
+        "伤害型技能在3秒里持续造成15额外魔法伤害。",
+        "对野怪造成额外的45魔法伤害。"
+      ],
+      "semantics": [
+        "stat",
+        "passive",
+        "magicDamage"
+      ],
+      "source": {
+        "text": "aramkit/items.json#2508"
+      }
+    },
+    {
+      "id": "lol.item.2510",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 2510,
+      "name": "黄昏与黎明",
+      "icon": "assets/item/2510-b9dd5a9e2606.webp",
+      "priceTotal": 3100,
+      "sellPrice": 2170,
+      "purchasable": true,
+      "isFinal": true,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "3057",
+        "1026",
+        "3067",
+        "1042"
+      ],
+      "to": null,
+      "categories": [
+        "Health",
+        "AttackSpeed",
+        "SpellDamage",
+        "OnHit",
+        "AbilityHaste"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "生命值300生命值",
+        "法术强度60法术强度",
+        "技能急速20技能急速",
+        "攻击速度20%攻击速度",
+        "咒刃",
+        "施放技能后，你的下一次攻击会造成(75%基础攻击力基础攻击力+10%法术强度)额外魔法伤害并治疗你自身(10%法术强度+3%额外生命值额外生命值)攻击特效攻击特效然后将攻击特效攻击特效施加额外的一次。"
+      ],
+      "semantics": [
+        "stat",
+        "passive",
+        "magicDamage",
+        "attackDamage",
+        "abilityPower",
+        "heal",
+        "health",
+        "onHit"
+      ],
+      "source": {
+        "text": "aramkit/items.json#2510"
+      }
+    },
+    {
+      "id": "lol.item.2512",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 2512,
+      "name": "猎魔人弩箭",
+      "icon": "assets/item/2512-ad2068807d31.webp",
+      "priceTotal": 2650,
+      "sellPrice": 1855,
+      "purchasable": true,
+      "isFinal": true,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "3086",
+        "3144"
+      ],
+      "to": null,
+      "categories": [
+        "CriticalStrike",
+        "AttackSpeed",
+        "NonbootsMovement",
+        "AbilityHaste"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "攻击速度45%攻击速度",
+        "暴击几率25%暴击几率",
+        "移动速度4%移动速度",
+        "守夜",
+        "获得30终极技能急速。",
+        "开战弹幕冷却时间(45秒)",
+        "在施放你的终极技能后，你在8秒内的下3次攻击获得50%攻击速度并且必定产生暴击，造成你的80%常规暴击伤害。如果一次攻击本应暴击，则此攻击造成常规暴击伤害并且还会造成15%额外真实伤害。"
+      ],
+      "semantics": [
+        "stat",
+        "passive",
+        "attackSpeed",
+        "trueDamage"
+      ],
+      "source": {
+        "text": "aramkit/items.json#2512"
+      }
+    },
+    {
+      "id": "lol.item.2517",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 2517,
+      "name": "无穷饥渴",
+      "icon": "assets/item/2517-6c9db9bae883.webp",
+      "priceTotal": 3100,
+      "sellPrice": 2170,
+      "purchasable": true,
+      "isFinal": true,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "3133",
+        "1037",
+        "1036"
+      ],
+      "to": null,
+      "categories": [
+        "Damage",
+        "LifeSteal",
+        "SpellVamp",
+        "Tenacity",
+        "AbilityHaste"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "攻击力65攻击力",
+        "全能吸血5%全能吸血",
+        "韧性20%韧性",
+        "饥馑",
+        "获得近战(5+13%额外攻击力额外攻击力) /远程(5+10%额外攻击力额外攻击力)技能急速。",
+        "盛宴",
+        "如果一名在过去3秒内曾被你造成过伤害的英雄阵亡，则获得持续8秒的15%全能吸血。"
+      ],
+      "semantics": [
+        "stat",
+        "passive",
+        "totalValue",
+        "attackDamage",
+        "omnivamp"
+      ],
+      "source": {
+        "text": "aramkit/items.json#2517"
+      }
+    },
+    {
+      "id": "lol.item.2522",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 2522,
+      "name": "实现器",
+      "icon": "assets/item/2522-de7a48d18001.webp",
+      "priceTotal": 2800,
+      "sellPrice": 1960,
+      "purchasable": true,
+      "isFinal": true,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "3802",
+        "1026"
+      ],
+      "to": null,
+      "categories": [
+        "SpellDamage",
+        "Mana",
+        "AbilityHaste"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "法术强度90法术强度",
+        "最大法力值300法力",
+        "技能急速10技能急速",
+        "主动法力成真冷却时间(60秒)",
+        "在8秒的持续期间里，你的法力值获得强化。在强化状态下，你的技能花费100%额外法力值，你获得额外的(15%+0.5%最大法力值最大法力值)技能伤害、护盾值、治疗效果，并且你的基础技能的冷却时间转速加快30%。"
+      ],
+      "semantics": [
+        "stat",
+        "active",
+        "totalValue",
+        "mana"
+      ],
+      "source": {
+        "text": "aramkit/items.json#2522"
+      }
+    },
+    {
+      "id": "lol.item.2523",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 2523,
+      "name": "海克斯镜片 C44",
+      "icon": "assets/item/2523-4000d64c0a4c.webp",
+      "priceTotal": 2800,
+      "sellPrice": 1960,
+      "purchasable": true,
+      "isFinal": true,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "1037",
+        "6670",
+        "1036"
+      ],
+      "to": null,
+      "categories": [
+        "Damage",
+        "CriticalStrike"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "攻击力55攻击力",
+        "暴击几率25%暴击几率",
+        "高倍望远镜",
+        "攻击造成至多10%额外伤害，基于敌人离你有多远 (在500码时达到最大伤害)。",
+        "奥术瞄准",
+        "当一个你在3秒内造成过伤害的英雄阵亡时，你获得持续8秒的100额外攻击距离。"
+      ],
+      "semantics": [
+        "stat",
+        "passive"
+      ],
+      "source": {
+        "text": "aramkit/items.json#2523"
+      }
+    },
+    {
+      "id": "lol.item.2524",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 2524,
+      "name": "班德尔音管",
+      "icon": "assets/item/2524-f47cbfc7da71.webp",
+      "priceTotal": 2300,
+      "sellPrice": 1610,
+      "purchasable": true,
+      "isFinal": true,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "3067",
+        "1029",
+        "1033"
+      ],
+      "to": null,
+      "categories": [
+        "Health",
+        "SpellBlock",
+        "Armor",
+        "AttackSpeed",
+        "NonbootsMovement",
+        "AbilityHaste"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "生命值200生命值",
+        "技能急速15技能急速",
+        "护甲20护甲",
+        "魔法抗性20魔法抗性",
+        "嘹亮旋律",
+        "减速或定身一个敌方英雄时会提供一个持续近战8 /远程4秒的【嘹亮旋律】。【嘹亮旋律】会为你提供20移动速度。当你拥有【嘹亮旋律】时，附近的友军，包括你自己，获得近战30% /远程20%攻击速度。"
+      ],
+      "semantics": [
+        "stat",
+        "passive",
+        "keyword",
+        "movementSpeed",
+        "attackSpeed"
+      ],
+      "source": {
+        "text": "aramkit/items.json#2524"
+      }
+    },
+    {
+      "id": "lol.item.2525",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 2525,
+      "name": "原生质护带",
+      "icon": "assets/item/2525-988e9b81162a.webp",
+      "priceTotal": 2600,
+      "sellPrice": 1820,
+      "purchasable": true,
+      "isFinal": true,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "3067",
+        "1011"
+      ],
+      "to": null,
+      "categories": [
+        "Health",
+        "NonbootsMovement",
+        "Tenacity",
+        "AbilityHaste"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "生命值600生命值",
+        "技能急速20技能急速",
+        "救主灵刃冷却时间(75秒)",
+        "在受到将使你的生命值跌到30%以下的伤害时，获得持续5秒的100–300等级最大生命值，然后在此期间持续治疗(100–400等级+175%额外护甲额外护甲+175%额外魔法抗性额外魔法抗性)生命值。在回复生命值状态下，你获得15%体型增长、10%移动速度、以及25%韧性。"
+      ],
+      "semantics": [
+        "stat",
+        "passive",
+        "health",
+        "armor",
+        "magicResist"
+      ],
+      "source": {
+        "text": "aramkit/items.json#2525"
+      }
+    },
+    {
+      "id": "lol.item.2526",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 2526,
+      "name": "耳语头环",
+      "icon": "assets/item/2526-9d0302bc9bf2.webp",
+      "priceTotal": 2250,
+      "sellPrice": 1575,
+      "purchasable": true,
+      "isFinal": true,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "3114",
+        "1028",
+        "3070"
+      ],
+      "to": [
+        "2530"
+      ],
+      "categories": [
+        "Health",
+        "Mana",
+        "ManaRegen"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "生命值200生命值",
+        "治疗与护盾强度8%治疗和护盾强度",
+        "基础法力回复75%基础法力回复",
+        "最大法力值300法力",
+        "和谐",
+        "获得(0.5%最大法力值最大法力值)治疗和护盾强度。",
+        "法力流冷却时间(8秒，最大5层)",
+        "技能在命中时会提供4最大法力值(对英雄时翻倍)。",
+        "在360最大法力值时转变为歌之权冠。"
+      ],
+      "semantics": [
+        "stat",
+        "passive",
+        "mana",
+        "rarityLegendary"
+      ],
+      "source": {
+        "text": "aramkit/items.json#2526"
+      }
+    },
+    {
+      "id": "lol.item.2530",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 2530,
+      "name": "歌之权冠",
+      "icon": "assets/item/2530-91ebc62695ed.webp",
+      "priceTotal": 2250,
+      "sellPrice": 1575,
+      "purchasable": false,
+      "isFinal": true,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "2526"
+      ],
+      "to": null,
+      "categories": [
+        "Health",
+        "Mana",
+        "ManaRegen",
+        "AbilityHaste"
+      ],
+      "acquisition": "transform",
+      "tooltipText": [
+        "生命值200生命值",
+        "治疗与护盾强度8%治疗和护盾强度",
+        "最大法力值1000法力",
+        "基础法力回复100%基础法力回复",
+        "和谐",
+        "获得(0.5%最大法力值最大法力值)治疗和护盾强度。",
+        "和音",
+        "当你或你在前3秒提供过治疗或护盾的任一友军处在与英雄的战斗状态时，每秒治疗附近生命值最低的那个友军(0.8%最大法力值最大法力值)生命值。"
+      ],
+      "semantics": [
+        "stat",
+        "passive",
+        "mana"
+      ],
+      "source": {
+        "text": "aramkit/items.json#2530"
+      }
+    },
+    {
+      "id": "lol.item.3003",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 3003,
+      "name": "大天使之杖",
+      "icon": "assets/item/3003-fd314496773c.webp",
+      "priceTotal": 2900,
+      "sellPrice": 2030,
+      "purchasable": true,
+      "isFinal": true,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "3070",
+        "3802",
+        "3108"
+      ],
+      "to": [
+        "3040"
+      ],
+      "categories": [
+        "SpellDamage",
+        "Mana",
+        "AbilityHaste"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "法术强度70法术强度",
+        "最大法力值600法力",
+        "技能急速25技能急速",
+        "敬畏",
+        "获得相当于1%额外法力值的法术强度。",
+        "法力流冷却时间(8秒，最大5层充能)",
+        "技能在命中时提供7.5最大法力值(对英雄时翻倍)。",
+        "在360最大法力值时转变为炽天使之拥。"
+      ],
+      "semantics": [
+        "stat",
+        "passive",
+        "mana",
+        "rarityLegendary"
+      ],
+      "source": {
+        "text": "aramkit/items.json#3003"
+      }
+    },
+    {
+      "id": "lol.item.3004",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 3004,
+      "name": "魔宗",
+      "icon": "assets/item/3004-c058d01b469d.webp",
+      "priceTotal": 2900,
+      "sellPrice": 2030,
+      "purchasable": true,
+      "isFinal": true,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "3070",
+        "3133",
+        "1036"
+      ],
+      "to": [
+        "3042"
+      ],
+      "categories": [
+        "Damage",
+        "Mana",
+        "CooldownReduction",
+        "OnHit",
+        "AbilityHaste"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "攻击力35攻击力",
+        "最大法力值500法力",
+        "技能急速15技能急速",
+        "敬畏",
+        "获得(2%最大法力值最大法力值)额外攻击力。",
+        "法力流冷却时间(8秒，最大4层)",
+        "普攻和技能在命中时会提供4.5最大法力值(对英雄时翻倍)。",
+        "在360最大法力值时转变为魔切。"
+      ],
+      "semantics": [
+        "stat",
+        "passive",
+        "attackDamage",
+        "mana",
+        "rarityLegendary"
+      ],
+      "source": {
+        "text": "aramkit/items.json#3004"
+      }
+    },
+    {
+      "id": "lol.item.3006",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 3006,
+      "name": "狂战士胫甲",
+      "icon": "assets/item/3006-d954ceac7771.webp",
+      "priceTotal": 1100,
+      "sellPrice": 770,
+      "purchasable": true,
+      "isFinal": true,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "1001",
+        "1042",
+        "1042"
+      ],
+      "to": null,
+      "categories": [
+        "AttackSpeed",
+        "Boots"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "攻击速度30%攻击速度",
+        "移动速度45移动速度"
+      ],
+      "semantics": [
+        "stat"
+      ],
+      "source": {
+        "text": "aramkit/items.json#3006"
+      }
+    },
+    {
+      "id": "lol.item.3008",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 3008,
+      "name": "暴食胫甲",
+      "icon": "assets/item/3008-7ac06b7b0793.webp",
+      "priceTotal": 1100,
+      "sellPrice": 770,
+      "purchasable": true,
+      "isFinal": true,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "1001"
+      ],
+      "to": null,
+      "categories": [
+        "LifeSteal",
+        "SpellVamp",
+        "Boots"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "移动速度45移动速度",
+        "全能吸血4%全能吸血",
+        "杀戮",
+        "参与击杀英雄后获得0.6%全能吸血，可叠加至多10次。",
+        "“我将用鲜血的海洋淹没他们。” - 暗裔剑魔 亚托克斯"
+      ],
+      "semantics": [
+        "stat",
+        "passive",
+        "flavorText"
+      ],
+      "source": {
+        "text": "aramkit/items.json#3008"
+      }
+    },
+    {
+      "id": "lol.item.3009",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 3009,
+      "name": "轻灵之靴",
+      "icon": "assets/item/3009-bce237321d45.webp",
+      "priceTotal": 1000,
+      "sellPrice": 700,
+      "purchasable": true,
+      "isFinal": true,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "1001"
+      ],
+      "to": null,
+      "categories": [
+        "Boots"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "移动速度55移动速度",
+        "迅捷步",
+        "将减速效果的效能降低25%。"
+      ],
+      "semantics": [
+        "stat",
+        "passive",
+        "keyword"
+      ],
+      "source": {
+        "text": "aramkit/items.json#3009"
+      }
+    },
+    {
+      "id": "lol.item.3020",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 3020,
+      "name": "法师之靴",
+      "icon": "assets/item/3020-7a3b9e95e0d7.webp",
+      "priceTotal": 1100,
+      "sellPrice": 770,
+      "purchasable": true,
+      "isFinal": true,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "1001"
+      ],
+      "to": null,
+      "categories": [
+        "Boots",
+        "MagicPenetration"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "法术穿透12法术穿透",
+        "移动速度45移动速度"
+      ],
+      "semantics": [
+        "stat"
+      ],
+      "source": {
+        "text": "aramkit/items.json#3020"
+      }
+    },
+    {
+      "id": "lol.item.3024",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 3024,
+      "name": "冰川圆盾",
+      "icon": "assets/item/3024-89bba67a273b.webp",
+      "priceTotal": 900,
+      "sellPrice": 630,
+      "purchasable": true,
+      "isFinal": false,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "1029",
+        "1027",
+        "2022"
+      ],
+      "to": [
+        "3110"
+      ],
+      "categories": [
+        "Armor",
+        "Mana",
+        "CooldownReduction",
+        "AbilityHaste"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "护甲25护甲",
+        "最大法力值300法力",
+        "技能急速10技能急速"
+      ],
+      "semantics": [
+        "stat"
+      ],
+      "source": {
+        "text": "aramkit/items.json#3024"
+      }
+    },
+    {
+      "id": "lol.item.3031",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 3031,
+      "name": "无尽之刃",
+      "icon": "assets/item/3031-1dd45a28b705.webp",
+      "priceTotal": 3500,
+      "sellPrice": 2450,
+      "purchasable": true,
+      "isFinal": true,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "1038",
+        "1037",
+        "1018"
+      ],
+      "to": null,
+      "categories": [
+        "CriticalStrike",
+        "Damage"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "攻击力75攻击力",
+        "暴击几率25%暴击几率",
+        "暴击伤害30%暴击伤害"
+      ],
+      "semantics": [
+        "stat"
+      ],
+      "source": {
+        "text": "aramkit/items.json#3031"
+      }
+    },
+    {
+      "id": "lol.item.3032",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 3032,
+      "name": "育恩塔尔荒野箭",
+      "icon": "assets/item/3032-967dee8ea4ca.webp",
+      "priceTotal": 3000,
+      "sellPrice": 2100,
+      "purchasable": true,
+      "isFinal": true,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "1038",
+        "3144",
+        "1036"
+      ],
+      "to": null,
+      "categories": [
+        "Damage",
+        "CriticalStrike",
+        "AttackSpeed"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "攻击力50攻击力",
+        "攻击速度45%攻击速度",
+        "暴击几率0%暴击几率",
+        "熟能生巧",
+        "攻击时，永久获得+暴击几率近战1 /远程0.5%暴击几率，至多至25%。",
+        "疾风骤雨冷却时间(30秒)",
+        "攻击一个敌方英雄时，获得持续6秒的30%攻击速度。",
+        "攻击可使这个冷却时间缩短1秒，这个缩减值会在暴击时提升至2秒。",
+        "传承给一个又一个女猎手，打败了一个又一个敌人。"
+      ],
+      "semantics": [
+        "stat",
+        "passive",
+        "attackSpeed",
+        "flavorText"
+      ],
+      "source": {
+        "text": "aramkit/items.json#3032"
+      }
+    },
+    {
+      "id": "lol.item.3033",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 3033,
+      "name": "凡性的提醒",
+      "icon": "assets/item/3033-04d3807eb71e.webp",
+      "priceTotal": 3000,
+      "sellPrice": 2100,
+      "purchasable": true,
+      "isFinal": true,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "3123",
+        "3035",
+        "1018"
+      ],
+      "to": null,
+      "categories": [
+        "Damage",
+        "CriticalStrike",
+        "ArmorPenetration"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "攻击力35攻击力",
+        "穿甲30%护甲穿透",
+        "暴击几率25%暴击几率",
+        "重伤",
+        "对敌方英雄造成物理伤害时会施加40%重伤效果，持续3秒。"
+      ],
+      "semantics": [
+        "stat",
+        "passive",
+        "keyword"
+      ],
+      "source": {
+        "text": "aramkit/items.json#3033"
+      }
+    },
+    {
+      "id": "lol.item.3035",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 3035,
+      "name": "最后的轻语",
+      "icon": "assets/item/3035-efa9d5030727.webp",
+      "priceTotal": 1450,
+      "sellPrice": 1015,
+      "purchasable": true,
+      "isFinal": false,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "1036",
+        "1036"
+      ],
+      "to": [
+        "3033",
+        "3036",
+        "6694"
+      ],
+      "categories": [
+        "ArmorPenetration",
+        "Damage"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "攻击力20攻击力",
+        "穿甲18%护甲穿透"
+      ],
+      "semantics": [
+        "stat"
+      ],
+      "source": {
+        "text": "aramkit/items.json#3035"
+      }
+    },
+    {
+      "id": "lol.item.3036",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 3036,
+      "name": "多米尼克领主的致意",
+      "icon": "assets/item/3036-247cb1b39834.webp",
+      "priceTotal": 3300,
+      "sellPrice": 2310,
+      "purchasable": true,
+      "isFinal": true,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "3035",
+        "6670"
+      ],
+      "to": null,
+      "categories": [
+        "Damage",
+        "CriticalStrike",
+        "ArmorPenetration"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "攻击力35攻击力",
+        "穿甲35%护甲穿透",
+        "暴击几率25%暴击几率",
+        "巨人杀手",
+        "基于敌方英雄的额外生命值，对其至多造成15%额外伤害。最大伤害加成在1500额外生命值时达成。"
+      ],
+      "semantics": [
+        "stat",
+        "passive"
+      ],
+      "source": {
+        "text": "aramkit/items.json#3036"
+      }
+    },
+    {
+      "id": "lol.item.3039",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 3039,
+      "name": "阿塔玛的清算",
+      "icon": "assets/item/3039-35257363d144.webp",
+      "priceTotal": 2900,
+      "sellPrice": 2030,
+      "purchasable": true,
+      "isFinal": true,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "1011",
+        "1018",
+        "1011"
+      ],
+      "to": null,
+      "categories": [
+        "Health",
+        "CriticalStrike"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "生命值700生命值",
+        "暴击几率20%暴击几率",
+        "技能急速10技能急速",
+        "大手",
+        "每100额外生命值获得暴击几率1%暴击几率，至多至暴击几率30%。"
+      ],
+      "semantics": [
+        "stat",
+        "passive",
+        "health"
+      ],
+      "source": {
+        "text": "aramkit/items.json#3039"
+      }
+    },
+    {
+      "id": "lol.item.3040",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 3040,
+      "name": "炽天使之拥",
+      "icon": "assets/item/3040-fd6ba6aaa039.webp",
+      "priceTotal": 2900,
+      "sellPrice": 2030,
+      "purchasable": false,
+      "isFinal": true,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "3003"
+      ],
+      "to": null,
+      "categories": [
+        "SpellDamage",
+        "Mana",
+        "AbilityHaste"
+      ],
+      "acquisition": "transform",
+      "tooltipText": [
+        "法术强度70法术强度",
+        "最大法力值1000法力",
+        "技能急速25技能急速",
+        "敬畏",
+        "获得(2%最大法力值最大法力值)法术强度。",
+        "救主灵刃冷却时间(75秒)",
+        "在受到将使你的生命值跌到30%以下的伤害时，提供持续3秒的(18%最大法力值最大法力值)护盾值。"
+      ],
+      "semantics": [
+        "stat",
+        "passive",
+        "abilityPower",
+        "mana",
+        "shield"
+      ],
+      "source": {
+        "text": "aramkit/items.json#3040"
+      }
+    },
+    {
+      "id": "lol.item.3042",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 3042,
+      "name": "魔切",
+      "icon": "assets/item/3042-1907f26b6ecc.webp",
+      "priceTotal": 2900,
+      "sellPrice": 2030,
+      "purchasable": false,
+      "isFinal": true,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "3004"
+      ],
+      "to": null,
+      "categories": [
+        "Damage",
+        "Mana",
+        "CooldownReduction",
+        "OnHit",
+        "ArmorPenetration"
+      ],
+      "acquisition": "transform",
+      "tooltipText": [
+        "攻击力35攻击力",
+        "最大法力值1000法力",
+        "技能急速15技能急速",
+        "敬畏",
+        "获得(2%最大法力值最大法力值)额外攻击力。",
+        "冲击",
+        "攻击会对英雄造成额外的(1.2%最大法力值最大法力值)物理伤害攻击特效攻击特效。",
+        "伤害型技能会对英雄造成(近战(4%最大法力值最大法力值) |远程(3%最大法力值最大法力值))额外物理伤害。"
+      ],
+      "semantics": [
+        "stat",
+        "passive",
+        "attackDamage",
+        "mana",
+        "physicalDamage",
+        "onHit"
+      ],
+      "source": {
+        "text": "aramkit/items.json#3042"
+      }
+    },
+    {
+      "id": "lol.item.3044",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 3044,
+      "name": "净蚀",
+      "icon": "assets/item/3044-b9a509b811fe.webp",
+      "priceTotal": 1100,
+      "sellPrice": 770,
+      "purchasable": true,
+      "isFinal": false,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "1028",
+        "1036"
+      ],
+      "to": [
+        "3071",
+        "3073",
+        "3078",
+        "6631"
+      ],
+      "categories": [
+        "Health",
+        "Damage",
+        "NonbootsMovement"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "攻击力15攻击力",
+        "生命值200生命值",
+        "狂怒",
+        "攻击会提供持续2秒的近战20 /远程10移动速度。"
+      ],
+      "semantics": [
+        "stat",
+        "passive",
+        "movementSpeed"
+      ],
+      "source": {
+        "text": "aramkit/items.json#3044"
+      }
+    },
+    {
+      "id": "lol.item.3046",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 3046,
+      "name": "幻影之舞",
+      "icon": "assets/item/3046-f2ae91b9527d.webp",
+      "priceTotal": 2650,
+      "sellPrice": 1855,
+      "purchasable": true,
+      "isFinal": true,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "1042",
+        "3086",
+        "1042"
+      ],
+      "to": null,
+      "categories": [
+        "CriticalStrike",
+        "AttackSpeed",
+        "NonbootsMovement"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "攻击速度65%攻击速度",
+        "暴击几率25%暴击几率",
+        "移动速度10%移动速度",
+        "幽影华尔兹变为幽灵状态。"
+      ],
+      "semantics": [
+        "stat",
+        "passive",
+        "keyword"
+      ],
+      "source": {
+        "text": "aramkit/items.json#3046"
+      }
+    },
+    {
+      "id": "lol.item.3047",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 3047,
+      "name": "铁板靴",
+      "icon": "assets/item/3047-34324b748334.webp",
+      "priceTotal": 1200,
+      "sellPrice": 840,
+      "purchasable": true,
+      "isFinal": true,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "1001",
+        "1029"
+      ],
+      "to": null,
+      "categories": [
+        "Armor",
+        "Boots"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "护甲25护甲",
+        "移动速度45移动速度",
+        "镀板",
+        "使即将到来的攻击伤害降低10%。"
+      ],
+      "semantics": [
+        "stat",
+        "passive"
+      ],
+      "source": {
+        "text": "aramkit/items.json#3047"
+      }
+    },
+    {
+      "id": "lol.item.3050",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 3050,
+      "name": "基克的聚合",
+      "icon": "assets/item/3050-8c4623f89430.webp",
+      "priceTotal": 2200,
+      "sellPrice": 1540,
+      "purchasable": true,
+      "isFinal": true,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "3067",
+        "1029",
+        "1033"
+      ],
+      "to": null,
+      "categories": [
+        "Health",
+        "SpellBlock",
+        "Armor",
+        "AbilityHaste"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "生命值300生命值",
+        "护甲25护甲",
+        "魔法抗性25魔法抗性",
+        "技能急速10技能急速",
+        "冰晶燃烧",
+        "获得15终极技能急速。",
+        "霜火风暴冷却时间(45秒)",
+        "施放你的终极技能时会使一个风暴处于就绪状态，持续5秒。",
+        "在你处在一个敌方英雄附近时，召唤该风暴环绕于你5秒，造成每秒30魔法伤害和30%减速效果。"
+      ],
+      "semantics": [
+        "stat",
+        "passive",
+        "magicDamage",
+        "keyword"
+      ],
+      "source": {
+        "text": "aramkit/items.json#3050"
+      }
+    },
+    {
+      "id": "lol.item.3051",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 3051,
+      "name": "缚炉之斧",
+      "icon": "assets/item/3051-dbe6bced8e77.webp",
+      "priceTotal": 1200,
+      "sellPrice": 840,
+      "purchasable": true,
+      "isFinal": false,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "1036",
+        "1042",
+        "1036"
+      ],
+      "to": [
+        "3078",
+        "3302",
+        "6672"
+      ],
+      "categories": [
+        "Damage",
+        "AttackSpeed"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "攻击力20攻击力",
+        "攻击速度20%攻击速度"
+      ],
+      "semantics": [
+        "stat"
+      ],
+      "source": {
+        "text": "aramkit/items.json#3051"
+      }
+    },
+    {
+      "id": "lol.item.3053",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 3053,
+      "name": "斯特拉克的挑战护手",
+      "icon": "assets/item/3053-872826b2536f.webp",
+      "priceTotal": 3200,
+      "sellPrice": 2240,
+      "purchasable": true,
+      "isFinal": true,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "1037",
+        "2021",
+        "1028"
+      ],
+      "to": null,
+      "categories": [
+        "Health",
+        "Damage",
+        "Tenacity"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "生命值400生命值",
+        "韧性20%韧性",
+        "抓人双爪",
+        "获得(50%基础攻击力基础攻击力)额外攻击力。",
+        "救主灵刃冷却时间(75秒)",
+        "在受到将使你的生命值跌到30%以下的伤害时，提供持续4.5秒的不断衰减的(70%额外生命值额外生命值)护盾值。"
+      ],
+      "semantics": [
+        "stat",
+        "passive",
+        "attackDamage",
+        "shield",
+        "health"
+      ],
+      "source": {
+        "text": "aramkit/items.json#3053"
+      }
+    },
+    {
+      "id": "lol.item.3057",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 3057,
+      "name": "耀光",
+      "icon": "assets/item/3057-86435a6b75f5.webp",
+      "priceTotal": 900,
+      "sellPrice": 630,
+      "purchasable": true,
+      "isFinal": false,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "2022"
+      ],
+      "to": [
+        "2510",
+        "3078",
+        "3100",
+        "3508",
+        "6662"
+      ],
+      "categories": [
+        "OnHit",
+        "AbilityHaste"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "技能急速10技能急速",
+        "咒刃冷却时间(1.5秒)",
+        "施放技能后，你的下一次普通攻击会造成(100%基础攻击力基础攻击力)额外物理伤害攻击特效攻击特效。"
+      ],
+      "semantics": [
+        "stat",
+        "passive",
+        "physicalDamage",
+        "attackDamage",
+        "onHit"
+      ],
+      "source": {
+        "text": "aramkit/items.json#3057"
+      }
+    },
+    {
+      "id": "lol.item.3065",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 3065,
+      "name": "振奋盔甲",
+      "icon": "assets/item/3065-de4552fbe0bf.webp",
+      "priceTotal": 2700,
+      "sellPrice": 1890,
+      "purchasable": true,
+      "isFinal": true,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "3211",
+        "3067"
+      ],
+      "to": null,
+      "categories": [
+        "Health",
+        "SpellBlock",
+        "HealthRegen",
+        "CooldownReduction",
+        "AbilityHaste"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "生命值400生命值",
+        "魔法抗性50魔法抗性",
+        "技能急速10技能急速",
+        "基础生命回复100%基础生命回复",
+        "无拘活力",
+        "你身上的治疗和护盾效果提升25%。"
+      ],
+      "semantics": [
+        "stat",
+        "passive"
+      ],
+      "source": {
+        "text": "aramkit/items.json#3065"
+      }
+    },
+    {
+      "id": "lol.item.3066",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 3066,
+      "name": "带翼的月板甲",
+      "icon": "assets/item/3066-aa7ba012e11f.webp",
+      "priceTotal": 800,
+      "sellPrice": 560,
+      "purchasable": true,
+      "isFinal": false,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "1028"
+      ],
+      "to": [
+        "3181",
+        "3742",
+        "4401"
+      ],
+      "categories": [
+        "Health",
+        "NonbootsMovement"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "生命值200生命值",
+        "移动速度4%移动速度"
+      ],
+      "semantics": [
+        "stat"
+      ],
+      "source": {
+        "text": "aramkit/items.json#3066"
+      }
+    },
+    {
+      "id": "lol.item.3067",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 3067,
+      "name": "燃烧宝石",
+      "icon": "assets/item/3067-1a2edba726e9.webp",
+      "priceTotal": 800,
+      "sellPrice": 560,
+      "purchasable": true,
+      "isFinal": false,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "1028",
+        "2022"
+      ],
+      "to": [
+        "2502",
+        "2510",
+        "2524",
+        "2525",
+        "3050",
+        "3065",
+        "3071",
+        "3109",
+        "3119",
+        "3152",
+        "3165",
+        "3190",
+        "3222",
+        "4629",
+        "6617",
+        "6620",
+        "8020",
+        "124011"
+      ],
+      "categories": [
+        "Health",
+        "CooldownReduction",
+        "AbilityHaste"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "生命值200生命值",
+        "技能急速10技能急速"
+      ],
+      "semantics": [
+        "stat"
+      ],
+      "source": {
+        "text": "aramkit/items.json#3067"
+      }
+    },
+    {
+      "id": "lol.item.3068",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 3068,
+      "name": "日炎圣盾",
+      "icon": "assets/item/3068-401facd3b955.webp",
+      "priceTotal": 2800,
+      "sellPrice": 1960,
+      "purchasable": true,
+      "isFinal": true,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "6660",
+        "1031",
+        "1028"
+      ],
+      "to": null,
+      "categories": [
+        "Health",
+        "Armor",
+        "Aura",
+        "AbilityHaste"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "生命值350生命值",
+        "护甲50护甲",
+        "技能急速10技能急速",
+        "献祭",
+        "承受或造成伤害后，每秒对附近敌人造成(20+1.5%额外生命值额外生命值)魔法伤害，持续3秒。",
+        "献祭对小兵造成的伤害提升50%并且对野怪造成的伤害提升80%。"
+      ],
+      "semantics": [
+        "stat",
+        "passive",
+        "magicDamage",
+        "totalValue",
+        "health"
+      ],
+      "source": {
+        "text": "aramkit/items.json#3068"
+      }
+    },
+    {
+      "id": "lol.item.3070",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 3070,
+      "name": "女神之泪",
+      "icon": "assets/item/3070-2acc902331a1.webp",
+      "priceTotal": 400,
+      "sellPrice": 280,
+      "purchasable": true,
+      "isFinal": false,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": null,
+      "to": [
+        "2526",
+        "3003",
+        "3004",
+        "3119"
+      ],
+      "categories": [
+        "Mana",
+        "ManaRegen"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "最大法力值240法力",
+        "法力流冷却时间(8秒，最大4层)",
+        "技能在命中时会提供4.5最大法力值(对英雄时翻倍)，至多至360。",
+        "帮助之手",
+        "攻击会对小兵造成额外的5物理伤害。"
+      ],
+      "semantics": [
+        "stat",
+        "passive",
+        "mana",
+        "physicalDamage"
+      ],
+      "source": {
+        "text": "aramkit/items.json#3070"
+      }
+    },
+    {
+      "id": "lol.item.3071",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 3071,
+      "name": "黑色切割者",
+      "icon": "assets/item/3071-217696cc16e7.webp",
+      "priceTotal": 3000,
+      "sellPrice": 2100,
+      "purchasable": true,
+      "isFinal": true,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "3044",
+        "3067",
+        "1037"
+      ],
+      "to": null,
+      "categories": [
+        "Health",
+        "Damage",
+        "CooldownReduction",
+        "OnHit",
+        "NonbootsMovement",
+        "ArmorPenetration",
+        "AbilityHaste"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "攻击力45攻击力",
+        "生命值400生命值",
+        "技能急速20技能急速",
+        "切割",
+        "对英雄造成物理伤害时会将该目标的护甲降低6%，持续6秒(可叠加5次)。",
+        "热烈",
+        "造成物理伤害时会提供持续2秒的近战20 /远程10移动速度。"
+      ],
+      "semantics": [
+        "stat",
+        "passive",
+        "physicalDamage",
+        "armor",
+        "movementSpeed"
+      ],
+      "source": {
+        "text": "aramkit/items.json#3071"
+      }
+    },
+    {
+      "id": "lol.item.3072",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 3072,
+      "name": "饮血剑",
+      "icon": "assets/item/3072-3fb1a08e47e0.webp",
+      "priceTotal": 3400,
+      "sellPrice": 2380,
+      "purchasable": true,
+      "isFinal": true,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "1038",
+        "1037",
+        "1053"
+      ],
+      "to": null,
+      "categories": [
+        "Damage",
+        "LifeSteal"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "攻击力80攻击力",
+        "生命偷取15%生命偷取",
+        "灵液护盾",
+        "将来自你的生命偷取的溢出治疗效果转化为护盾值，至多至165–315等级。"
+      ],
+      "semantics": [
+        "stat",
+        "passive",
+        "shield"
+      ],
+      "source": {
+        "text": "aramkit/items.json#3072"
+      }
+    },
+    {
+      "id": "lol.item.3073",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 3073,
+      "name": "海克斯注力刚壁",
+      "icon": "assets/item/3073-092960c27886.webp",
+      "priceTotal": 3000,
+      "sellPrice": 2100,
+      "purchasable": true,
+      "isFinal": true,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "2021",
+        "1042",
+        "3044"
+      ],
+      "to": null,
+      "categories": [
+        "Health",
+        "Damage",
+        "AttackSpeed",
+        "CooldownReduction",
+        "NonbootsMovement",
+        "AbilityHaste"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "攻击力40攻击力",
+        "攻击速度20%攻击速度",
+        "生命值450生命值",
+        "海克斯充能",
+        "获得30终极技能急速。",
+        "过载冷却时间(30秒)",
+        "在施放你的终极技能后，获得持续8秒的近战50 /远程25%攻击速度和近战20 /远程10%移动速度。",
+        "控场可能是一件棘手的工作。"
+      ],
+      "semantics": [
+        "stat",
+        "passive",
+        "attackSpeed",
+        "movementSpeed",
+        "flavorText"
+      ],
+      "source": {
+        "text": "aramkit/items.json#3073"
+      }
+    },
+    {
+      "id": "lol.item.3074",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 3074,
+      "name": "贪欲九头蛇",
+      "icon": "assets/item/3074-f23d80f8200e.webp",
+      "priceTotal": 3300,
+      "sellPrice": 2310,
+      "purchasable": true,
+      "isFinal": true,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "3077",
+        "1053",
+        "3133"
+      ],
+      "to": null,
+      "categories": [
+        "Damage",
+        "LifeSteal",
+        "CooldownReduction",
+        "OnHit",
+        "AbilityHaste"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "攻击力65攻击力",
+        "技能急速15技能急速",
+        "生命偷取12%生命偷取",
+        "顺劈",
+        "攻击会对附近的敌人们造成近战(40%攻击力) /远程(20%攻击力)物理伤害。",
+        "主动血斩冷却时间(10秒)",
+        "对你周围的敌人们造成(100%攻击力)物理伤害。",
+        "你的生命偷取会作用于此伤害。",
+        "顺劈会受益于生命偷取。",
+        "顺劈不会在建筑物上触发。"
+      ],
+      "semantics": [
+        "stat",
+        "passive",
+        "physicalDamage",
+        "attackDamage",
+        "active"
+      ],
+      "source": {
+        "text": "aramkit/items.json#3074"
+      }
+    },
+    {
+      "id": "lol.item.3075",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 3075,
+      "name": "荆棘之甲",
+      "icon": "assets/item/3075-f9dba12e546e.webp",
+      "priceTotal": 2450,
+      "sellPrice": 1715,
+      "purchasable": true,
+      "isFinal": true,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "3076",
+        "1031",
+        "1028"
+      ],
+      "to": null,
+      "categories": [
+        "Health",
+        "Armor"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "生命值150生命值",
+        "护甲75护甲",
+        "荆棘",
+        "在被一次攻击命中后，对攻击者造成(20+10%额外护甲额外护甲)魔法伤害，并且如果目标是英雄，还会施加持续3秒的40%重伤效果。"
+      ],
+      "semantics": [
+        "stat",
+        "passive",
+        "magicDamage",
+        "totalValue",
+        "armor",
+        "keyword"
+      ],
+      "source": {
+        "text": "aramkit/items.json#3075"
+      }
+    },
+    {
+      "id": "lol.item.3076",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 3076,
+      "name": "棘刺背心",
+      "icon": "assets/item/3076-04a63303ccd1.webp",
+      "priceTotal": 800,
+      "sellPrice": 560,
+      "purchasable": true,
+      "isFinal": false,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "1029",
+        "1029"
+      ],
+      "to": [
+        "3075"
+      ],
+      "categories": [
+        "Armor"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "护甲30护甲",
+        "荆棘",
+        "在被一次攻击命中后，对攻击者造成10魔法伤害并且如果目标是英雄，还会对其施加持续3秒的40%重伤效果。"
+      ],
+      "semantics": [
+        "stat",
+        "passive",
+        "magicDamage",
+        "keyword"
+      ],
+      "source": {
+        "text": "aramkit/items.json#3076"
+      }
+    },
+    {
+      "id": "lol.item.3077",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 3077,
+      "name": "提亚马特",
+      "icon": "assets/item/3077-fdd7862d2df7.webp",
+      "priceTotal": 1200,
+      "sellPrice": 840,
+      "purchasable": true,
+      "isFinal": false,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "1036",
+        "1036"
+      ],
+      "to": [
+        "3074",
+        "3748",
+        "6631",
+        "6698"
+      ],
+      "categories": [
+        "Damage",
+        "OnHit"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "攻击力25攻击力",
+        "顺劈",
+        "攻击会对附近的敌人们造成近战(40%攻击力) /远程(20%攻击力)物理伤害。",
+        "主动新月冷却时间(10秒)",
+        "对你周围的敌人们造成(75%攻击力)物理伤害。",
+        "顺劈不会在建筑物上触发。"
+      ],
+      "semantics": [
+        "stat",
+        "passive",
+        "physicalDamage",
+        "attackDamage",
+        "active"
+      ],
+      "source": {
+        "text": "aramkit/items.json#3077"
+      }
+    },
+    {
+      "id": "lol.item.3078",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 3078,
+      "name": "三相之力",
+      "icon": "assets/item/3078-cd0979ddc547.webp",
+      "priceTotal": 3333,
+      "sellPrice": 2333,
+      "purchasable": true,
+      "isFinal": true,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "3057",
+        "3044",
+        "3051"
+      ],
+      "to": null,
+      "categories": [
+        "Health",
+        "Damage",
+        "AttackSpeed",
+        "CooldownReduction",
+        "OnHit",
+        "NonbootsMovement",
+        "AbilityHaste"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "攻击力36攻击力",
+        "攻击速度30%攻击速度",
+        "生命值333生命值",
+        "技能急速15技能急速",
+        "咒刃冷却时间(1.5秒)",
+        "施放技能后，你的下一次普通攻击会造成(200%基础攻击力基础攻击力)额外物理伤害攻击特效攻击特效。",
+        "加快",
+        "攻击一个单位时会提供持续2秒的20移动速度。"
+      ],
+      "semantics": [
+        "stat",
+        "passive",
+        "physicalDamage",
+        "attackDamage",
+        "onHit",
+        "movementSpeed"
+      ],
+      "source": {
+        "text": "aramkit/items.json#3078"
+      }
+    },
+    {
+      "id": "lol.item.3082",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 3082,
+      "name": "守望者铠甲",
+      "icon": "assets/item/3082-a2d42b23eec8.webp",
+      "priceTotal": 1000,
+      "sellPrice": 700,
+      "purchasable": true,
+      "isFinal": false,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "1029",
+        "1029"
+      ],
+      "to": [
+        "3110",
+        "3143"
+      ],
+      "categories": [
+        "Armor"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "护甲40护甲",
+        "坚如磐石",
+        "使所受的来自英雄攻击的伤害降低15。"
+      ],
+      "semantics": [
+        "stat",
+        "passive"
+      ],
+      "source": {
+        "text": "aramkit/items.json#3082"
+      }
+    },
+    {
+      "id": "lol.item.3083",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 3083,
+      "name": "狂徒铠甲",
+      "icon": "assets/item/3083-fdcae10af89d.webp",
+      "priceTotal": 3100,
+      "sellPrice": 2170,
+      "purchasable": true,
+      "isFinal": true,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "1011",
+        "1011",
+        "3801"
+      ],
+      "to": null,
+      "categories": [
+        "Health",
+        "HealthRegen"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "生命值1000生命值",
+        "基础生命回复100%基础生命回复",
+        "狂徒之心",
+        "如果你拥有2000额外生命值，并且在8秒内没有受到伤害，则每秒回复(3%最大生命值最大生命值)生命值。",
+        "狂徒之活力",
+        "获得额外生命值，相当于你12%的装备生命值(当前对局数值)。",
+        "非英雄单位的伤害会使狂徒之心失能4秒。"
+      ],
+      "semantics": [
+        "stat",
+        "passive",
+        "heal",
+        "health"
+      ],
+      "source": {
+        "text": "aramkit/items.json#3083"
+      }
+    },
+    {
+      "id": "lol.item.3084",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 3084,
+      "name": "心之钢",
+      "icon": "assets/item/3084-ceb2eacf8e92.webp",
+      "priceTotal": 3000,
+      "sellPrice": 2100,
+      "purchasable": true,
+      "isFinal": true,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "1011",
+        "3801",
+        "1011"
+      ],
+      "to": null,
+      "categories": [
+        "Health",
+        "HealthRegen"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "生命值900生命值",
+        "基础生命回复100%基础生命回复",
+        "庞然吞食每个目标冷却时间(30秒)",
+        "如果一个敌方英雄在附近度过了3秒，那么你的下一次对其打出的攻击会造成70外加6%你的最大生命值的额外物理伤害，并提供相当于5%该伤害值的最大生命值。",
+        "歌利亚巨人",
+        "每有1000最大生命值，获得3%体型提升，至多至30%。"
+      ],
+      "semantics": [
+        "stat",
+        "passive",
+        "physicalDamage",
+        "health"
+      ],
+      "source": {
+        "text": "aramkit/items.json#3084"
+      }
+    },
+    {
+      "id": "lol.item.3085",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 3085,
+      "name": "卢安娜的飓风",
+      "icon": "assets/item/3085-03fd570c615c.webp",
+      "priceTotal": 2650,
+      "sellPrice": 1855,
+      "purchasable": true,
+      "isFinal": true,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "3086",
+        "3144"
+      ],
+      "to": null,
+      "categories": [
+        "CriticalStrike",
+        "AttackSpeed",
+        "OnHit",
+        "NonbootsMovement"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "必须是远程远程英雄",
+        "攻击速度40%攻击速度",
+        "暴击几率25%暴击几率",
+        "移动速度5%移动速度",
+        "风怒",
+        "攻击对目标附近的2个额外敌人发射弩箭。",
+        "每根弩箭造成(60%攻击力)物理伤害并施加攻击特效攻击特效。",
+        "风怒可以暴击。"
+      ],
+      "semantics": [
+        "stat",
+        "passive",
+        "physicalDamage",
+        "attackDamage",
+        "onHit"
+      ],
+      "source": {
+        "text": "aramkit/items.json#3085"
+      }
+    },
+    {
+      "id": "lol.item.3086",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 3086,
+      "name": "狂热",
+      "icon": "assets/item/3086-55fc5d77f938.webp",
+      "priceTotal": 1200,
+      "sellPrice": 840,
+      "purchasable": true,
+      "isFinal": false,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "1018",
+        "1042"
+      ],
+      "to": [
+        "2512",
+        "3046",
+        "3085",
+        "3094",
+        "6675"
+      ],
+      "categories": [
+        "CriticalStrike",
+        "AttackSpeed",
+        "NonbootsMovement"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "攻击速度15%攻击速度",
+        "暴击几率15%暴击几率",
+        "移动速度4%移动速度"
+      ],
+      "semantics": [
+        "stat"
+      ],
+      "source": {
+        "text": "aramkit/items.json#3086"
+      }
+    },
+    {
+      "id": "lol.item.3087",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 3087,
+      "name": "斯塔缇克电刃",
+      "icon": "assets/item/3087-15854b8b753d.webp",
+      "priceTotal": 3000,
+      "sellPrice": 2100,
+      "purchasable": true,
+      "isFinal": true,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "3144",
+        "3113",
+        "1037"
+      ],
+      "to": null,
+      "categories": [
+        "Damage",
+        "AttackSpeed",
+        "SpellDamage",
+        "OnHit",
+        "NonbootsMovement"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "攻击力45攻击力",
+        "法术强度45法术强度",
+        "攻击速度30%攻击速度",
+        "移动速度4%移动速度",
+        "电火花",
+        "你的盈能攻击会发射连锁闪电，对最多4–7等级个目标造成70魔法伤害，攻击小兵和野怪时提升至90魔法伤害。附带攻击特效攻击特效至次级弹射目标们。",
+        "电疗",
+        "普通攻击提供9额外盈能层数。"
+      ],
+      "semantics": [
+        "stat",
+        "passive",
+        "keyword",
+        "magicDamage",
+        "onHit"
+      ],
+      "source": {
+        "text": "aramkit/items.json#3087"
+      }
+    },
+    {
+      "id": "lol.item.3089",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 3089,
+      "name": "灭世者的死亡之帽",
+      "icon": "assets/item/3089-cfad6d330ebd.webp",
+      "priceTotal": 3500,
+      "sellPrice": 2450,
+      "purchasable": true,
+      "isFinal": true,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "1058",
+        "1058"
+      ],
+      "to": null,
+      "categories": [
+        "SpellDamage"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "法术强度130法术强度",
+        "魔法乐章",
+        "使你的总法术强度提升30%。"
+      ],
+      "semantics": [
+        "stat",
+        "passive",
+        "abilityPower"
+      ],
+      "source": {
+        "text": "aramkit/items.json#3089"
+      }
+    },
+    {
+      "id": "lol.item.3091",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 3091,
+      "name": "智慧末刃",
+      "icon": "assets/item/3091-2abbef2f4828.webp",
+      "priceTotal": 2800,
+      "sellPrice": 1960,
+      "purchasable": true,
+      "isFinal": true,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "1043",
+        "1057",
+        "1043"
+      ],
+      "to": null,
+      "categories": [
+        "SpellBlock",
+        "AttackSpeed",
+        "OnHit",
+        "Tenacity"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "攻击速度50%攻击速度",
+        "魔法抗性45魔法抗性",
+        "韧性20%韧性",
+        "喧争",
+        "普攻造成45额外魔法伤害攻击特效攻击特效。"
+      ],
+      "semantics": [
+        "stat",
+        "passive",
+        "magicDamage",
+        "onHit"
+      ],
+      "source": {
+        "text": "aramkit/items.json#3091"
+      }
+    },
+    {
+      "id": "lol.item.3094",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 3094,
+      "name": "疾射火炮",
+      "icon": "assets/item/3094-fe7a00ebbc01.webp",
+      "priceTotal": 2650,
+      "sellPrice": 1855,
+      "purchasable": true,
+      "isFinal": true,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "3086",
+        "3144"
+      ],
+      "to": null,
+      "categories": [
+        "CriticalStrike",
+        "AttackSpeed",
+        "NonbootsMovement"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "攻击速度35%攻击速度",
+        "暴击几率25%暴击几率",
+        "移动速度4%移动速度",
+        "神射手",
+        "你的盈能攻击造成40额外魔法伤害并获得35%额外攻击距离。"
+      ],
+      "semantics": [
+        "stat",
+        "passive",
+        "keyword",
+        "magicDamage"
+      ],
+      "source": {
+        "text": "aramkit/items.json#3094"
+      }
+    },
+    {
+      "id": "lol.item.3095",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 3095,
+      "name": "岚切",
+      "icon": "assets/item/3095-9c94bad18964.webp",
+      "priceTotal": 3200,
+      "sellPrice": 2240,
+      "purchasable": true,
+      "isFinal": true,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "1038",
+        "1018",
+        "3144"
+      ],
+      "to": null,
+      "categories": [
+        "Damage",
+        "CriticalStrike",
+        "AttackSpeed",
+        "NonbootsMovement"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "攻击力50攻击力",
+        "攻击速度25%攻击速度",
+        "暴击几率25%暴击几率",
+        "盈能",
+        "移动和攻击会生成一次盈能攻击。",
+        "弩箭",
+        "你的盈能攻击附带100额外魔法伤害并提供持续1.5秒的45%移动速度。"
+      ],
+      "semantics": [
+        "stat",
+        "passive",
+        "keyword",
+        "magicDamage",
+        "movementSpeed"
+      ],
+      "source": {
+        "text": "aramkit/items.json#3095"
+      }
+    },
+    {
+      "id": "lol.item.3100",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 3100,
+      "name": "巫妖之祸",
+      "icon": "assets/item/3100-3a213ec43770.webp",
+      "priceTotal": 2900,
+      "sellPrice": 2030,
+      "purchasable": true,
+      "isFinal": true,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "3057",
+        "3113",
+        "1026"
+      ],
+      "to": null,
+      "categories": [
+        "SpellDamage",
+        "OnHit",
+        "NonbootsMovement",
+        "AbilityHaste"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "法术强度100法术强度",
+        "移动速度6%移动速度",
+        "技能急速10技能急速",
+        "咒刃冷却时间(1.5秒)",
+        "施放技能后，你在10秒内的下一次攻击会获得50%攻击速度并造成(75%基础攻击力基础攻击力+45%法术强度)额外魔法伤害攻击特效攻击特效。"
+      ],
+      "semantics": [
+        "stat",
+        "passive",
+        "attackSpeed",
+        "magicDamage",
+        "attackDamage",
+        "abilityPower",
+        "onHit"
+      ],
+      "source": {
+        "text": "aramkit/items.json#3100"
+      }
+    },
+    {
+      "id": "lol.item.3102",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 3102,
+      "name": "女妖面纱",
+      "icon": "assets/item/3102-6656e2cab1e6.webp",
+      "priceTotal": 3000,
+      "sellPrice": 2100,
+      "purchasable": true,
+      "isFinal": true,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "1058",
+        "4632"
+      ],
+      "to": null,
+      "categories": [
+        "SpellBlock",
+        "SpellDamage"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "法术强度105法术强度",
+        "魔法抗性40魔法抗性",
+        "废除冷却时间(40秒)",
+        "提供一层法术护盾来格挡下一个敌方技能。"
+      ],
+      "semantics": [
+        "stat",
+        "passive"
+      ],
+      "source": {
+        "text": "aramkit/items.json#3102"
+      }
+    },
+    {
+      "id": "lol.item.3107",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 3107,
+      "name": "救赎",
+      "icon": "assets/item/3107-12c4d61c2935.webp",
+      "priceTotal": 2300,
+      "sellPrice": 1610,
+      "purchasable": true,
+      "isFinal": true,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "3108",
+        "3114"
+      ],
+      "to": null,
+      "categories": [
+        "SpellDamage",
+        "ManaRegen",
+        "CooldownReduction",
+        "AbilityHaste"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "法术强度30法术强度",
+        "技能急速15技能急速",
+        "基础法力回复100%基础法力回复",
+        "治疗与护盾强度10%治疗和护盾强度",
+        "主动干涉冷却时间(90秒)",
+        "在2.5秒后，为友方单位们回复150 - 350 (友军等级)生命值，并对敌方英雄们造成10%最大生命值的真实伤害。",
+        "可以在死亡时主动使用。",
+        "对相同目标的后续干涉效果降低50%。"
+      ],
+      "semantics": [
+        "stat",
+        "active",
+        "heal",
+        "trueDamage"
+      ],
+      "source": {
+        "text": "aramkit/items.json#3107"
+      }
+    },
+    {
+      "id": "lol.item.3108",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 3108,
+      "name": "恶魔法典",
+      "icon": "assets/item/3108-91cf93d89474.webp",
+      "priceTotal": 850,
+      "sellPrice": 595,
+      "purchasable": true,
+      "isFinal": false,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "1052",
+        "2022"
+      ],
+      "to": [
+        "3003",
+        "3107",
+        "3115",
+        "3137",
+        "4628",
+        "4629",
+        "4633",
+        "6616",
+        "8010",
+        "123430"
+      ],
+      "categories": [
+        "SpellDamage",
+        "CooldownReduction",
+        "AbilityHaste"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "法术强度25法术强度",
+        "技能急速10技能急速"
+      ],
+      "semantics": [
+        "stat"
+      ],
+      "source": {
+        "text": "aramkit/items.json#3108"
+      }
+    },
+    {
+      "id": "lol.item.3109",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 3109,
+      "name": "骑士之誓",
+      "icon": "assets/item/3109-1744dafd394d.webp",
+      "priceTotal": 2300,
+      "sellPrice": 1610,
+      "purchasable": true,
+      "isFinal": true,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "3067",
+        "1031",
+        "1006"
+      ],
+      "to": null,
+      "categories": [
+        "Health",
+        "HealthRegen",
+        "Armor",
+        "Aura",
+        "Active",
+        "CooldownReduction",
+        "AbilityHaste"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "生命值200生命值",
+        "护甲40护甲",
+        "技能急速10技能急速",
+        "基础生命回复100%基础生命回复",
+        "牺牲",
+        "当你的誓约者在附近时，将其所受的14%伤害转移到你身上，并为你提供相当于其对英雄的12%已造成伤害值的治疗效果。",
+        "主动立誓冷却时间(60秒)",
+        "指定一名友方英雄作为你的誓约者。"
+      ],
+      "semantics": [
+        "stat",
+        "passive",
+        "heal",
+        "active"
+      ],
+      "source": {
+        "text": "aramkit/items.json#3109"
+      }
+    },
+    {
+      "id": "lol.item.3110",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 3110,
+      "name": "冰霜之心",
+      "icon": "assets/item/3110-567d079143c8.webp",
+      "priceTotal": 2500,
+      "sellPrice": 1750,
+      "purchasable": true,
+      "isFinal": true,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "3082",
+        "3024"
+      ],
+      "to": null,
+      "categories": [
+        "Armor",
+        "Mana",
+        "Aura",
+        "CooldownReduction",
+        "AbilityHaste"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "护甲75护甲",
+        "最大法力值400法力",
+        "技能急速20技能急速",
+        "凛冬之抚",
+        "使附近敌方英雄的攻击速度降低20%。"
+      ],
+      "semantics": [
+        "stat",
+        "passive",
+        "attackSpeed"
+      ],
+      "source": {
+        "text": "aramkit/items.json#3110"
+      }
+    },
+    {
+      "id": "lol.item.3111",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 3111,
+      "name": "水银之靴",
+      "icon": "assets/item/3111-26d7b45b4e3d.webp",
+      "priceTotal": 1250,
+      "sellPrice": 875,
+      "purchasable": true,
+      "isFinal": true,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "1001",
+        "1033"
+      ],
+      "to": null,
+      "categories": [
+        "Boots",
+        "SpellBlock",
+        "Tenacity"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "魔法抗性20魔法抗性",
+        "移动速度45移动速度",
+        "韧性30%韧性"
+      ],
+      "semantics": [
+        "stat"
+      ],
+      "source": {
+        "text": "aramkit/items.json#3111"
+      }
+    },
+    {
+      "id": "lol.item.3112",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 3112,
+      "name": "守护者法球",
+      "icon": "assets/item/3112-6f74ca40fb65.webp",
+      "priceTotal": 950,
+      "sellPrice": 665,
+      "purchasable": true,
+      "isFinal": false,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": null,
+      "to": null,
+      "categories": [
+        "Health",
+        "SpellDamage",
+        "ManaRegen",
+        "Lane"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "法术强度50法术强度",
+        "生命值150生命值",
+        "复原力：每5秒回复10法力值。如果你不能获得法力值，则转而回复15生命值。"
+      ],
+      "semantics": [
+        "stat",
+        "passive",
+        "mana",
+        "heal"
+      ],
+      "source": {
+        "text": "aramkit/items.json#3112"
+      }
+    },
+    {
+      "id": "lol.item.3113",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 3113,
+      "name": "以太精魂",
+      "icon": "assets/item/3113-4fe97dfc3843.webp",
+      "priceTotal": 900,
+      "sellPrice": 630,
+      "purchasable": true,
+      "isFinal": false,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "1052"
+      ],
+      "to": [
+        "2065",
+        "3087",
+        "3100",
+        "3504",
+        "4629",
+        "4646",
+        "123430"
+      ],
+      "categories": [
+        "NonbootsMovement",
+        "SpellDamage"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "法术强度30法术强度",
+        "移动速度4%移动速度"
+      ],
+      "semantics": [
+        "stat"
+      ],
+      "source": {
+        "text": "aramkit/items.json#3113"
+      }
+    },
+    {
+      "id": "lol.item.3114",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 3114,
+      "name": "禁忌雕像",
+      "icon": "assets/item/3114-522f89709b63.webp",
+      "priceTotal": 600,
+      "sellPrice": 420,
+      "purchasable": true,
+      "isFinal": false,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "1004"
+      ],
+      "to": [
+        "2526",
+        "3107",
+        "3222",
+        "3504",
+        "6616",
+        "6621",
+        "124011"
+      ],
+      "categories": [
+        "ManaRegen"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "基础法力回复50%基础法力回复",
+        "治疗与护盾强度8%治疗和护盾强度"
+      ],
+      "semantics": [
+        "stat"
+      ],
+      "source": {
+        "text": "aramkit/items.json#3114"
+      }
+    },
+    {
+      "id": "lol.item.3115",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 3115,
+      "name": "纳什之牙",
+      "icon": "assets/item/3115-897b9646a9de.webp",
+      "priceTotal": 2900,
+      "sellPrice": 2030,
+      "purchasable": true,
+      "isFinal": true,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "1043",
+        "1026",
+        "3108"
+      ],
+      "to": null,
+      "categories": [
+        "AttackSpeed",
+        "SpellDamage",
+        "OnHit",
+        "AbilityHaste"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "法术强度80法术强度",
+        "攻击速度50%攻击速度",
+        "技能急速15技能急速",
+        "艾卡西亚之咬",
+        "普攻造成(15+15%法术强度)额外魔法伤害攻击特效攻击特效。"
+      ],
+      "semantics": [
+        "stat",
+        "passive",
+        "magicDamage",
+        "totalValue",
+        "abilityPower",
+        "onHit"
+      ],
+      "source": {
+        "text": "aramkit/items.json#3115"
+      }
+    },
+    {
+      "id": "lol.item.3116",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 3116,
+      "name": "瑞莱的冰晶节杖",
+      "icon": "assets/item/3116-711943e2d25e.webp",
+      "priceTotal": 2600,
+      "sellPrice": 1820,
+      "purchasable": true,
+      "isFinal": true,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "1026",
+        "1011",
+        "1052"
+      ],
+      "to": null,
+      "categories": [
+        "Health",
+        "SpellDamage",
+        "Slow"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "法术强度65法术强度",
+        "生命值400生命值",
+        "凝霜",
+        "伤害型技能会使敌人减速30%，持续1秒。"
+      ],
+      "semantics": [
+        "stat",
+        "passive",
+        "keyword"
+      ],
+      "source": {
+        "text": "aramkit/items.json#3116"
+      }
+    },
+    {
+      "id": "lol.item.3118",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 3118,
+      "name": "残疫",
+      "icon": "assets/item/3118-11ae60f8b9f6.webp",
+      "priceTotal": 2700,
+      "sellPrice": 1890,
+      "purchasable": true,
+      "isFinal": true,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "3802",
+        "1026"
+      ],
+      "to": null,
+      "categories": [
+        "SpellDamage",
+        "Mana",
+        "AbilityHaste"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "法术强度90法术强度",
+        "最大法力值600法力",
+        "技能急速15技能急速",
+        "蔑视",
+        "获得20终极技能急速。",
+        "憎恨之雾",
+        "在用你的终极技能对一个英雄造成伤害时，灼烧其脚下的地面3秒，每秒造成(40+2.8%法术强度)魔法伤害并削减其10魔法抗性。",
+        "半径会基于造成的伤害值来提升。",
+        "普攻不能触发憎恨之雾。"
+      ],
+      "semantics": [
+        "stat",
+        "passive",
+        "magicDamage",
+        "totalValue",
+        "abilityPower",
+        "magicResist"
+      ],
+      "source": {
+        "text": "aramkit/items.json#3118"
+      }
+    },
+    {
+      "id": "lol.item.3119",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 3119,
+      "name": "凛冬之临",
+      "icon": "assets/item/3119-7cd0abca995e.webp",
+      "priceTotal": 2400,
+      "sellPrice": 1680,
+      "purchasable": true,
+      "isFinal": true,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "3070",
+        "1011",
+        "3067"
+      ],
+      "to": [
+        "3121"
+      ],
+      "categories": [
+        "Health",
+        "Mana",
+        "AbilityHaste"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "生命值550生命值",
+        "最大法力值500法力",
+        "技能急速15技能急速",
+        "敬畏",
+        "获得(15%最大法力值最大法力值)生命值。",
+        "法力流冷却时间(8秒，最大4层)",
+        "普攻和技能在命中时会提供4.5最大法力值(对英雄时翻倍)。",
+        "在360最大法力值时转变为末日寒冬。"
+      ],
+      "semantics": [
+        "stat",
+        "passive",
+        "health",
+        "mana",
+        "rarityLegendary"
+      ],
+      "source": {
+        "text": "aramkit/items.json#3119"
+      }
+    },
+    {
+      "id": "lol.item.3121",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 3121,
+      "name": "末日寒冬",
+      "icon": "assets/item/3121-c591f3edde72.webp",
+      "priceTotal": 2400,
+      "sellPrice": 1680,
+      "purchasable": false,
+      "isFinal": true,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "3119"
+      ],
+      "to": null,
+      "categories": [
+        "Health",
+        "Mana",
+        "AbilityHaste"
+      ],
+      "acquisition": "transform",
+      "tooltipText": [
+        "生命值550生命值",
+        "最大法力值1000法力",
+        "技能急速15技能急速",
+        "敬畏",
+        "获得(15%最大法力值最大法力值)生命值。",
+        "永续冷却时间(8秒)",
+        "定身或减速 (仅限近战近战)一名敌方英雄时会提供一个持续3秒的护盾，护盾值为100外加4.5%当前法力值。",
+        "如果附近有1名以上的敌人，则护盾值会提升80%。"
+      ],
+      "semantics": [
+        "stat",
+        "passive",
+        "health",
+        "mana",
+        "keyword",
+        "shield"
+      ],
+      "source": {
+        "text": "aramkit/items.json#3121"
+      }
+    },
+    {
+      "id": "lol.item.3123",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 3123,
+      "name": "死刑宣告",
+      "icon": "assets/item/3123-7da30899561e.webp",
+      "priceTotal": 800,
+      "sellPrice": 560,
+      "purchasable": true,
+      "isFinal": false,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "1036"
+      ],
+      "to": [
+        "3033",
+        "6609"
+      ],
+      "categories": [
+        "Damage"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "攻击力15攻击力",
+        "重伤",
+        "对敌方英雄造成物理伤害时会施加持续3秒的40%重伤效果。"
+      ],
+      "semantics": [
+        "stat",
+        "passive",
+        "keyword"
+      ],
+      "source": {
+        "text": "aramkit/items.json#3123"
+      }
+    },
+    {
+      "id": "lol.item.3124",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 3124,
+      "name": "鬼索的狂暴之刃",
+      "icon": "assets/item/3124-9e2a3f907afe.webp",
+      "priceTotal": 3000,
+      "sellPrice": 2100,
+      "purchasable": true,
+      "isFinal": true,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "1052",
+        "1043",
+        "1037"
+      ],
+      "to": null,
+      "categories": [
+        "Damage",
+        "AttackSpeed",
+        "SpellDamage",
+        "OnHit"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "攻击力30攻击力",
+        "法术强度30法术强度",
+        "攻击速度25%攻击速度",
+        "怨怒",
+        "攻击造成30额外魔法伤害攻击特效攻击特效。",
+        "沸腾打击",
+        "攻击会提供8%攻击速度，持续4秒(可叠加4次)。",
+        "在满层状态下，每第三次攻击会附带2次攻击特效攻击特效。"
+      ],
+      "semantics": [
+        "stat",
+        "passive",
+        "magicDamage",
+        "onHit",
+        "attackSpeed"
+      ],
+      "source": {
+        "text": "aramkit/items.json#3124"
+      }
+    },
+    {
+      "id": "lol.item.3133",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 3133,
+      "name": "考尔菲德的战锤",
+      "icon": "assets/item/3133-876f5b89a326.webp",
+      "priceTotal": 1050,
+      "sellPrice": 735,
+      "purchasable": true,
+      "isFinal": false,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "1036",
+        "2022",
+        "1036"
+      ],
+      "to": [
+        "2517",
+        "3004",
+        "3074",
+        "3156",
+        "3179",
+        "3508",
+        "6333",
+        "6609",
+        "6610",
+        "6692",
+        "6694",
+        "6696",
+        "126697"
+      ],
+      "categories": [
+        "Damage",
+        "CooldownReduction",
+        "AbilityHaste"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "攻击力20攻击力",
+        "技能急速10技能急速"
+      ],
+      "semantics": [
+        "stat"
+      ],
+      "source": {
+        "text": "aramkit/items.json#3133"
+      }
+    },
+    {
+      "id": "lol.item.3134",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 3134,
+      "name": "锯齿短匕",
+      "icon": "assets/item/3134-e26ddc02190a.webp",
+      "priceTotal": 1000,
+      "sellPrice": 700,
+      "purchasable": true,
+      "isFinal": false,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "1036",
+        "1036"
+      ],
+      "to": [
+        "3142",
+        "3179",
+        "3814",
+        "4004",
+        "6676",
+        "6695",
+        "126697"
+      ],
+      "categories": [
+        "Damage",
+        "ArmorPenetration"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "攻击力20攻击力",
+        "穿甲10穿甲"
+      ],
+      "semantics": [
+        "stat"
+      ],
+      "source": {
+        "text": "aramkit/items.json#3134"
+      }
+    },
+    {
+      "id": "lol.item.3135",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 3135,
+      "name": "虚空之杖",
+      "icon": "assets/item/3135-275fc4594aea.webp",
+      "priceTotal": 3000,
+      "sellPrice": 2100,
+      "purchasable": true,
+      "isFinal": true,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "4630",
+        "1026"
+      ],
+      "to": null,
+      "categories": [
+        "MagicPenetration",
+        "SpellDamage"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "法术强度95法术强度",
+        "法术穿透40%法术穿透"
+      ],
+      "semantics": [
+        "stat"
+      ],
+      "source": {
+        "text": "aramkit/items.json#3135"
+      }
+    },
+    {
+      "id": "lol.item.3137",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 3137,
+      "name": "蜕生",
+      "icon": "assets/item/3137-21a8d7db2541.webp",
+      "priceTotal": 3000,
+      "sellPrice": 2100,
+      "purchasable": true,
+      "isFinal": true,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "4630",
+        "3108",
+        "3108"
+      ],
+      "to": null,
+      "categories": [
+        "SpellDamage",
+        "MagicPenetration",
+        "AbilityHaste"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "法术强度75法术强度",
+        "法术穿透30%法术穿透",
+        "技能急速20技能急速",
+        "死中焕生冷却时间(60秒)",
+        "每当一个敌方英雄在被你造成伤害后的3秒内阵亡时，在其所在位置生成一个新星，来为友军们治疗(100+20%法术强度)生命值。",
+        "来自死亡的，是生命。",
+        "死中焕生不能在你阵亡期间触发。"
+      ],
+      "semantics": [
+        "stat",
+        "passive",
+        "heal",
+        "totalValue",
+        "abilityPower",
+        "flavorText"
+      ],
+      "source": {
+        "text": "aramkit/items.json#3137"
+      }
+    },
+    {
+      "id": "lol.item.3139",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 3139,
+      "name": "水银弯刀",
+      "icon": "assets/item/3139-b49756667d9b.webp",
+      "priceTotal": 3200,
+      "sellPrice": 2240,
+      "purchasable": true,
+      "isFinal": true,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "3140",
+        "1037",
+        "1053"
+      ],
+      "to": null,
+      "categories": [
+        "SpellBlock",
+        "Damage",
+        "LifeSteal",
+        "Active",
+        "NonbootsMovement",
+        "Tenacity"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "攻击力50攻击力",
+        "魔法抗性35魔法抗性",
+        "生命偷取10%生命偷取",
+        "主动水银冷却时间(90秒)",
+        "主动使用以移除所有控制类减益效果(浮空除外)，并提供持续2秒的50%移动速度。"
+      ],
+      "semantics": [
+        "stat",
+        "active",
+        "keyword",
+        "movementSpeed"
+      ],
+      "source": {
+        "text": "aramkit/items.json#3139"
+      }
+    },
+    {
+      "id": "lol.item.3140",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 3140,
+      "name": "水银饰带",
+      "icon": "assets/item/3140-75c72218888e.webp",
+      "priceTotal": 1300,
+      "sellPrice": 910,
+      "purchasable": true,
+      "isFinal": false,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "1033"
+      ],
+      "to": [
+        "3139"
+      ],
+      "categories": [
+        "Active",
+        "SpellBlock"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "魔法抗性30魔法抗性",
+        "主动水银冷却时间(90秒)",
+        "移除所有控制类减益效果(滞空除外)。"
+      ],
+      "semantics": [
+        "stat",
+        "active",
+        "keyword"
+      ],
+      "source": {
+        "text": "aramkit/items.json#3140"
+      }
+    },
+    {
+      "id": "lol.item.3142",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 3142,
+      "name": "幽梦之灵",
+      "icon": "assets/item/3142-44a46adb2f7e.webp",
+      "priceTotal": 2800,
+      "sellPrice": 1960,
+      "purchasable": true,
+      "isFinal": true,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "3134",
+        "6690",
+        "1036"
+      ],
+      "to": null,
+      "categories": [
+        "Damage",
+        "Active",
+        "NonbootsMovement",
+        "ArmorPenetration"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "攻击力55攻击力",
+        "穿甲18穿甲",
+        "移动速度4%移动速度",
+        "鬼影萦绕",
+        "提供非战斗状态下的30 / 15移动速度。",
+        "主动鬼魂步伐冷却时间(45秒)",
+        "提供近战45 /远程30%移动速度和幽灵状态，持续6 / 4秒。"
+      ],
+      "semantics": [
+        "stat",
+        "passive",
+        "movementSpeed",
+        "active",
+        "keyword"
+      ],
+      "source": {
+        "text": "aramkit/items.json#3142"
+      }
+    },
+    {
+      "id": "lol.item.3143",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 3143,
+      "name": "兰顿之兆",
+      "icon": "assets/item/3143-358c2fb7904f.webp",
+      "priceTotal": 2700,
+      "sellPrice": 1890,
+      "purchasable": true,
+      "isFinal": true,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "3082",
+        "1011"
+      ],
+      "to": null,
+      "categories": [
+        "Health",
+        "Armor",
+        "Active",
+        "Slow"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "生命值350生命值",
+        "护甲75护甲",
+        "复原力",
+        "所受的来自暴击的伤害降低30%。",
+        "主动谦卑冷却时间(75秒)",
+        "对附近敌人造成持续2秒的70%减速。"
+      ],
+      "semantics": [
+        "stat",
+        "passive",
+        "active",
+        "keyword"
+      ],
+      "source": {
+        "text": "aramkit/items.json#3143"
+      }
+    },
+    {
+      "id": "lol.item.3144",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 3144,
+      "name": "斥候弹弓",
+      "icon": "assets/item/3144-2dabfb2a8f14.webp",
+      "priceTotal": 600,
+      "sellPrice": 420,
+      "purchasable": true,
+      "isFinal": false,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "1042",
+        "1042"
+      ],
+      "to": [
+        "2512",
+        "3032",
+        "3085",
+        "3087",
+        "3094",
+        "3095"
+      ],
+      "categories": [
+        "AttackSpeed"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "攻击速度20%攻击速度",
+        "靶心冷却时间(40秒)",
+        "对一名敌方英雄造成伤害时会造成40额外魔法伤害。",
+        "攻击可使这个冷却时间缩减1秒。"
+      ],
+      "semantics": [
+        "stat",
+        "passive",
+        "magicDamage"
+      ],
+      "source": {
+        "text": "aramkit/items.json#3144"
+      }
+    },
+    {
+      "id": "lol.item.3145",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 3145,
+      "name": "海克斯科技发电机",
+      "icon": "assets/item/3145-cf02c9700d9d.webp",
+      "priceTotal": 1100,
+      "sellPrice": 770,
+      "purchasable": true,
+      "isFinal": false,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "1052",
+        "1052"
+      ],
+      "to": [
+        "3146",
+        "3152",
+        "4645",
+        "4646",
+        "6655"
+      ],
+      "categories": [
+        "SpellDamage"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "法术强度45法术强度",
+        "转速加快冷却时间(40秒)",
+        "对一名敌方英雄造成伤害时会造成65额外魔法伤害。"
+      ],
+      "semantics": [
+        "stat",
+        "passive",
+        "magicDamage"
+      ],
+      "source": {
+        "text": "aramkit/items.json#3145"
+      }
+    },
+    {
+      "id": "lol.item.3146",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 3146,
+      "name": "海克斯科技枪刃",
+      "icon": "assets/item/3146-be74a9c8208d.webp",
+      "priceTotal": 3000,
+      "sellPrice": 2100,
+      "purchasable": true,
+      "isFinal": true,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "1053",
+        "3145",
+        "1052"
+      ],
+      "to": null,
+      "categories": [
+        "Damage",
+        "LifeSteal",
+        "SpellDamage",
+        "Active",
+        "SpellVamp"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "法术强度80法术强度",
+        "攻击力40攻击力",
+        "全能吸血10%全能吸血",
+        "主动主动冷却时间(60秒)",
+        "闪电弹",
+        "震击目标敌方英雄，造成(175–253等级+30%法术强度)魔法伤害和持续1.5秒的25%减速。"
+      ],
+      "semantics": [
+        "stat",
+        "active",
+        "abilityPower"
+      ],
+      "source": {
+        "text": "aramkit/items.json#3146"
+      }
+    },
+    {
+      "id": "lol.item.3147",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 3147,
+      "name": "幽魂面具",
+      "icon": "assets/item/3147-ce01d1d8ce3f.webp",
+      "priceTotal": 1300,
+      "sellPrice": 910,
+      "purchasable": true,
+      "isFinal": false,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "1052",
+        "1028"
+      ],
+      "to": [
+        "4633",
+        "6653",
+        "8010"
+      ],
+      "categories": [
+        "Health",
+        "SpellDamage"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "法术强度30法术强度",
+        "生命值200生命值",
+        "癫狂",
+        "在与敌方英雄作战时，每过1秒，就会造成2%额外伤害，至多至6%。"
+      ],
+      "semantics": [
+        "stat",
+        "passive"
+      ],
+      "source": {
+        "text": "aramkit/items.json#3147"
+      }
+    },
+    {
+      "id": "lol.item.3152",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 3152,
+      "name": "海克斯科技火箭腰带",
+      "icon": "assets/item/3152-6df38dd64817.webp",
+      "priceTotal": 2650,
+      "sellPrice": 1855,
+      "purchasable": true,
+      "isFinal": true,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "3145",
+        "3067",
+        "1028"
+      ],
+      "to": null,
+      "categories": [
+        "Health",
+        "SpellDamage",
+        "Active",
+        "CooldownReduction",
+        "NonbootsMovement",
+        "AbilityHaste"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "法术强度60法术强度",
+        "生命值350生命值",
+        "技能急速10技能急速",
+        "主动超音速冷却时间(50秒)",
+        "朝着目标方向冲刺，释放多颗魔法弹，魔法弹造成(135+15%法术强度)魔法伤害。",
+        "超音速的冲刺无法穿过地形。"
+      ],
+      "semantics": [
+        "stat",
+        "active",
+        "magicDamage",
+        "totalValue",
+        "abilityPower"
+      ],
+      "source": {
+        "text": "aramkit/items.json#3152"
+      }
+    },
+    {
+      "id": "lol.item.3153",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 3153,
+      "name": "破败王者之刃",
+      "icon": "assets/item/3153-36d7d980d54c.webp",
+      "priceTotal": 3200,
+      "sellPrice": 2240,
+      "purchasable": true,
+      "isFinal": true,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "1053",
+        "1043",
+        "1037"
+      ],
+      "to": null,
+      "categories": [
+        "Damage",
+        "AttackSpeed",
+        "LifeSteal",
+        "Slow",
+        "OnHit"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "攻击力40攻击力",
+        "攻击速度25%攻击速度",
+        "生命偷取10%生命偷取",
+        "雾之锋",
+        "攻击造成近战12% /远程10%敌人当前生命值的额外物理伤害攻击特效攻击特效。",
+        "抓挠之影冷却时间(15秒)",
+        "攻击一位英雄3次会对其造成持续1秒的30%减速。"
+      ],
+      "semantics": [
+        "stat",
+        "passive",
+        "physicalDamage",
+        "onHit",
+        "status"
+      ],
+      "source": {
+        "text": "aramkit/items.json#3153"
+      }
+    },
+    {
+      "id": "lol.item.3155",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 3155,
+      "name": "海克斯饮魔刀",
+      "icon": "assets/item/3155-2ec9877f089a.webp",
+      "priceTotal": 1300,
+      "sellPrice": 910,
+      "purchasable": true,
+      "isFinal": false,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "1036",
+        "1033",
+        "1036"
+      ],
+      "to": [
+        "3156"
+      ],
+      "categories": [
+        "Damage",
+        "SpellBlock"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "攻击力25攻击力",
+        "魔法抗性25魔法抗性",
+        "救主灵刃冷却时间(75秒)",
+        "在受到将使你的生命值跌到30%以下的魔法伤害时，提供持续2.5秒的近战110–280等级/远程82.5–210等级魔法伤害护盾。"
+      ],
+      "semantics": [
+        "stat",
+        "passive",
+        "shield"
+      ],
+      "source": {
+        "text": "aramkit/items.json#3155"
+      }
+    },
+    {
+      "id": "lol.item.3156",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 3156,
+      "name": "玛莫提乌斯之噬",
+      "icon": "assets/item/3156-2e954011d20a.webp",
+      "priceTotal": 3100,
+      "sellPrice": 2170,
+      "purchasable": true,
+      "isFinal": true,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "3155",
+        "3133"
+      ],
+      "to": null,
+      "categories": [
+        "SpellBlock",
+        "Damage",
+        "LifeSteal",
+        "SpellVamp",
+        "AbilityHaste"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "攻击力60攻击力",
+        "技能急速15技能急速",
+        "魔法抗性40魔法抗性",
+        "救主灵刃冷却时间(75秒)",
+        "在受到将使你的生命值跌到30%以下的魔法伤害时，提供持续3秒的近战(200+150%额外攻击力额外攻击力) /远程(150+112.5%额外攻击力额外攻击力)魔法伤害护盾和持续到战斗状态结束的10%全能吸血。"
+      ],
+      "semantics": [
+        "stat",
+        "passive",
+        "shield",
+        "totalValue",
+        "attackDamage",
+        "lifeSteal"
+      ],
+      "source": {
+        "text": "aramkit/items.json#3156"
+      }
+    },
+    {
+      "id": "lol.item.3157",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 3157,
+      "name": "中娅沙漏",
+      "icon": "assets/item/3157-633022d1ef8a.webp",
+      "priceTotal": 3250,
+      "sellPrice": 2275,
+      "purchasable": true,
+      "isFinal": true,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "1058",
+        "2420"
+      ],
+      "to": null,
+      "categories": [
+        "Armor",
+        "SpellDamage",
+        "Active"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "法术强度105法术强度",
+        "护甲50护甲",
+        "主动时间停止冷却时间(120秒)",
+        "进入凝滞状态2.5秒。"
+      ],
+      "semantics": [
+        "stat",
+        "active",
+        "keyword"
+      ],
+      "source": {
+        "text": "aramkit/items.json#3157"
+      }
+    },
+    {
+      "id": "lol.item.3158",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 3158,
+      "name": "明朗之靴",
+      "icon": "assets/item/3158-f42e32f01a4f.webp",
+      "priceTotal": 900,
+      "sellPrice": 630,
+      "purchasable": true,
+      "isFinal": true,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "1001",
+        "2022"
+      ],
+      "to": null,
+      "categories": [
+        "Boots",
+        "CooldownReduction"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "技能急速10技能急速",
+        "移动速度45移动速度",
+        "艾欧尼亚的洞悉",
+        "获得10召唤师技能急速。",
+        "“这个物品是为了庆祝在联盟历20年12月10日艾欧尼亚和诺克萨斯的重赛中，艾欧尼亚取得胜利。”"
+      ],
+      "semantics": [
+        "stat",
+        "passive",
+        "flavorText"
+      ],
+      "source": {
+        "text": "aramkit/items.json#3158"
+      }
+    },
+    {
+      "id": "lol.item.3161",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 3161,
+      "name": "朔极之矛",
+      "icon": "assets/item/3161-b34787023998.webp",
+      "priceTotal": 3100,
+      "sellPrice": 2170,
+      "purchasable": true,
+      "isFinal": true,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "1037",
+        "2021",
+        "1028"
+      ],
+      "to": null,
+      "categories": [
+        "Health",
+        "Damage",
+        "AbilityHaste"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "攻击力45攻击力",
+        "生命值450生命值",
+        "龙之力量",
+        "获得25基础技能急速。",
+        "专注意志",
+        "使用技能造成伤害会使你的英雄技能和被动伤害提升3%，持续6秒。（叠加4次）。",
+        "【专注意志】已对英雄造成的额外伤害：当前对局数值",
+        "【专注意志】的叠层在每段技能施放都有1秒停摆时间。"
+      ],
+      "semantics": [
+        "stat",
+        "passive"
+      ],
+      "source": {
+        "text": "aramkit/items.json#3161"
+      }
+    },
+    {
+      "id": "lol.item.3165",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 3165,
+      "name": "莫雷洛秘典",
+      "icon": "assets/item/3165-a71e995057c5.webp",
+      "priceTotal": 2850,
+      "sellPrice": 1995,
+      "purchasable": true,
+      "isFinal": true,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "3916",
+        "1026",
+        "3067"
+      ],
+      "to": null,
+      "categories": [
+        "Health",
+        "SpellDamage",
+        "CooldownReduction",
+        "AbilityHaste"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "法术强度75法术强度",
+        "生命值350生命值",
+        "技能急速15技能急速",
+        "重伤",
+        "对敌方英雄造成魔法伤害时会施加持续3秒的40%重伤效果。"
+      ],
+      "semantics": [
+        "stat",
+        "passive",
+        "magicDamage",
+        "keyword"
+      ],
+      "source": {
+        "text": "aramkit/items.json#3165"
+      }
+    },
+    {
+      "id": "lol.item.3177",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 3177,
+      "name": "守护者之刃",
+      "icon": "assets/item/3177-b0b616280c0f.webp",
+      "priceTotal": 950,
+      "sellPrice": 665,
+      "purchasable": true,
+      "isFinal": false,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": null,
+      "to": null,
+      "categories": [
+        "Health",
+        "Damage",
+        "Lane",
+        "AbilityHaste"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "攻击力30攻击力",
+        "生命值150生命值",
+        "技能急速15技能急速"
+      ],
+      "semantics": [
+        "stat"
+      ],
+      "source": {
+        "text": "aramkit/items.json#3177"
+      }
+    },
+    {
+      "id": "lol.item.3179",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 3179,
+      "name": "黯影阔剑",
+      "icon": "assets/item/3179-a3318c1bd1df.webp",
+      "priceTotal": 2800,
+      "sellPrice": 1960,
+      "purchasable": true,
+      "isFinal": false,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "3134",
+        "3133"
+      ],
+      "to": null,
+      "categories": [
+        "Damage",
+        "Vision",
+        "CooldownReduction",
+        "ArmorPenetration",
+        "AbilityHaste"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "攻击力60攻击力",
+        "穿甲18穿甲",
+        "技能急速15技能急速",
+        "夜行者",
+        "未被敌人看见达1秒后，你对英雄的下一次攻击造成额外(50+150%穿甲)真实伤害。",
+        "封锁冷却时间(90秒)",
+        "在你处在敌方侦察守卫和陷阱附近时，将其显形8秒。在显形守卫状态下，你的攻击对其造成近战3 /远程2伤害。",
+        "被显形的侦察守卫会在显形期间失效。"
+      ],
+      "semantics": [
+        "stat",
+        "passive",
+        "trueDamage",
+        "totalValue",
+        "armorPenetration"
+      ],
+      "source": {
+        "text": "aramkit/items.json#3179"
+      }
+    },
+    {
+      "id": "lol.item.3181",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 3181,
+      "name": "破舰者",
+      "icon": "assets/item/3181-dd6fd0e47ca5.webp",
+      "priceTotal": 3000,
+      "sellPrice": 2100,
+      "purchasable": true,
+      "isFinal": true,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "2021",
+        "3066",
+        "1037"
+      ],
+      "to": null,
+      "categories": [
+        "Health",
+        "Damage",
+        "NonbootsMovement"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "攻击力40攻击力",
+        "生命值500生命值",
+        "移动速度4%移动速度",
+        "船长",
+        "对英雄和史诗级野怪的每第五次攻击造成近战(120%基础攻击力基础攻击力+5%最大生命值最大生命值) /远程(84%基础攻击力基础攻击力+3.5%最大生命值最大生命值)额外物理伤害，对建筑物提升至近战(300%基础攻击力基础攻击力+10%最大生命值最大生命值) /远程(210%基础攻击力基础攻击力+7%最大生命值最大生命值)。",
+        "登舰小组",
+        "附近的友军攻城兵和超级士兵获得近战70–130等级/远程35–65等级护甲和魔法抗性。"
+      ],
+      "semantics": [
+        "stat",
+        "passive",
+        "physicalDamage",
+        "attackDamage",
+        "health",
+        "armor",
+        "magicResist"
+      ],
+      "source": {
+        "text": "aramkit/items.json#3181"
+      }
+    },
+    {
+      "id": "lol.item.3184",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 3184,
+      "name": "守护者战锤",
+      "icon": "assets/item/3184-0690dabb7344.webp",
+      "priceTotal": 950,
+      "sellPrice": 665,
+      "purchasable": true,
+      "isFinal": false,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": null,
+      "to": null,
+      "categories": [
+        "Health",
+        "Damage",
+        "LifeSteal",
+        "Lane"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "攻击力25攻击力",
+        "生命值150生命值",
+        "生命偷取5%生命偷取"
+      ],
+      "semantics": [
+        "stat"
+      ],
+      "source": {
+        "text": "aramkit/items.json#3184"
+      }
+    },
+    {
+      "id": "lol.item.3190",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 3190,
+      "name": "钢铁烈阳之匣",
+      "icon": "assets/item/3190-a1977eb19e0e.webp",
+      "priceTotal": 2200,
+      "sellPrice": 1540,
+      "purchasable": true,
+      "isFinal": true,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "3067",
+        "1029",
+        "1033"
+      ],
+      "to": null,
+      "categories": [
+        "Health",
+        "SpellBlock",
+        "Armor",
+        "Aura",
+        "Active",
+        "MagicResist",
+        "AbilityHaste"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "生命值200生命值",
+        "护甲30护甲",
+        "魔法抗性30魔法抗性",
+        "技能急速10技能急速",
+        "主动虔诚冷却时间(75秒)",
+        "为附近友军提供290 - 360(友军等级)护盾值，在2.5秒里持续衰减。",
+        "20秒内的后续虔诚护盾拥有25%效果。"
+      ],
+      "semantics": [
+        "stat",
+        "active",
+        "shield"
+      ],
+      "source": {
+        "text": "aramkit/items.json#3190"
+      }
+    },
+    {
+      "id": "lol.item.3211",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 3211,
+      "name": "幽魂斗篷",
+      "icon": "assets/item/3211-cdd08f35bec1.webp",
+      "priceTotal": 1250,
+      "sellPrice": 875,
+      "purchasable": true,
+      "isFinal": false,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "1028",
+        "1033",
+        "1006"
+      ],
+      "to": [
+        "2504",
+        "3065",
+        "6664"
+      ],
+      "categories": [
+        "Health",
+        "HealthRegen",
+        "SpellBlock"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "生命值200生命值",
+        "魔法抗性35魔法抗性",
+        "基础生命回复100%基础生命回复"
+      ],
+      "semantics": [
+        "stat"
+      ],
+      "source": {
+        "text": "aramkit/items.json#3211"
+      }
+    },
+    {
+      "id": "lol.item.3222",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 3222,
+      "name": "米凯尔的祝福",
+      "icon": "assets/item/3222-b06ad45e8471.webp",
+      "priceTotal": 2300,
+      "sellPrice": 1610,
+      "purchasable": true,
+      "isFinal": true,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "3067",
+        "3114"
+      ],
+      "to": null,
+      "categories": [
+        "Health",
+        "ManaRegen",
+        "Active",
+        "CooldownReduction",
+        "Tenacity",
+        "AbilityHaste"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "生命值250生命值",
+        "基础法力回复100%基础法力回复",
+        "治疗与护盾强度12%治疗和护盾强度",
+        "技能急速15技能急速",
+        "主动纯化冷却时间(120秒)",
+        "移除一名友方英雄身上的所有控制类减益效果(滞空和压制除外)并为其回复100 - 250(友军等级)生命值。"
+      ],
+      "semantics": [
+        "stat",
+        "active",
+        "keyword",
+        "heal"
+      ],
+      "source": {
+        "text": "aramkit/items.json#3222"
+      }
+    },
+    {
+      "id": "lol.item.3302",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 3302,
+      "name": "界弓",
+      "icon": "assets/item/3302-2f89dd2521e9.webp",
+      "priceTotal": 3000,
+      "sellPrice": 2100,
+      "purchasable": true,
+      "isFinal": true,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "3051",
+        "1043"
+      ],
+      "to": null,
+      "categories": [
+        "Damage",
+        "AttackSpeed",
+        "OnHit",
+        "MagicPenetration",
+        "ArmorPenetration"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "攻击力30攻击力",
+        "攻击速度35%攻击速度",
+        "晦影",
+        "攻击造成(30+10%额外攻击力额外攻击力+10%法术强度)额外魔法伤害攻击特效攻击特效。",
+        "交相",
+        "对抗英雄时，在光明特效和黑暗特效之间轮换：",
+        "附带光明特效的攻击提供持续5秒的6–8等级护甲和魔抗(至多至18–24等级)。",
+        "附带黑暗特效的攻击提供持续5秒的10%护甲穿透和法术穿透(至多至30%)。"
+      ],
+      "semantics": [
+        "stat",
+        "passive",
+        "magicDamage",
+        "totalValue",
+        "attackDamage",
+        "abilityPower",
+        "onHit",
+        "keywordMajor",
+        "armor",
+        "magicResist"
+      ],
+      "source": {
+        "text": "aramkit/items.json#3302"
+      }
+    },
+    {
+      "id": "lol.item.3504",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 3504,
+      "name": "炽热香炉",
+      "icon": "assets/item/3504-2dde283cc84a.webp",
+      "priceTotal": 2200,
+      "sellPrice": 1540,
+      "purchasable": true,
+      "isFinal": true,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "3113",
+        "3114"
+      ],
+      "to": null,
+      "categories": [
+        "AttackSpeed",
+        "SpellDamage",
+        "ManaRegen",
+        "NonbootsMovement"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "法术强度45法术强度",
+        "治疗与护盾强度10%治疗和护盾强度",
+        "基础法力回复125%基础法力回复",
+        "移动速度4%移动速度",
+        "圣洁化",
+        "对一名友方英雄施加治疗或护盾时，会使你们两个都获得持续6秒的强化，提供25%攻击速度和20魔法伤害攻击特效攻击特效。"
+      ],
+      "semantics": [
+        "stat",
+        "passive",
+        "attackSpeed",
+        "magicDamage",
+        "onHit"
+      ],
+      "source": {
+        "text": "aramkit/items.json#3504"
+      }
+    },
+    {
+      "id": "lol.item.3508",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 3508,
+      "name": "夺萃之镰",
+      "icon": "assets/item/3508-f854e033c388.webp",
+      "priceTotal": 3050,
+      "sellPrice": 2135,
+      "purchasable": true,
+      "isFinal": true,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "3057",
+        "3133",
+        "1018"
+      ],
+      "to": null,
+      "categories": [
+        "Damage",
+        "CriticalStrike",
+        "ManaRegen",
+        "CooldownReduction",
+        "OnHit",
+        "AbilityHaste"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "攻击力50攻击力",
+        "技能急速20技能急速",
+        "暴击几率25%暴击几率",
+        "咒刃冷却时间(1.5秒)",
+        "施放技能后，你的下一次普通攻击会造成(125%基础攻击力基础攻击力+50%暴击几率)额外物理伤害并提供(62.5%基础攻击力基础攻击力+25%暴击几率)法力值攻击特效攻击特效。"
+      ],
+      "semantics": [
+        "stat",
+        "passive",
+        "physicalDamage",
+        "attackDamage",
+        "criticalStrike",
+        "mana",
+        "onHit"
+      ],
+      "source": {
+        "text": "aramkit/items.json#3508"
+      }
+    },
+    {
+      "id": "lol.item.3742",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 3742,
+      "name": "亡者的板甲",
+      "icon": "assets/item/3742-7038d0fb8b12.webp",
+      "priceTotal": 2900,
+      "sellPrice": 2030,
+      "purchasable": true,
+      "isFinal": true,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "3066",
+        "1028",
+        "1031"
+      ],
+      "to": null,
+      "categories": [
+        "Health",
+        "Armor",
+        "Slow",
+        "NonbootsMovement"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "生命值350生命值",
+        "护甲55护甲",
+        "移动速度4%移动速度",
+        "沉船者",
+        "在移动时，积攒至多20额外移动速度。你的下一次攻击会释放掉已积攒的移动速度来造成至多(40+100%基础攻击力基础攻击力)额外物理伤害。",
+        "永不沉没",
+        "使所受的减速效果的效能降低15%。",
+        "“只有一种方法能让你从我这里拿到这件盔甲……” - 被遗忘的名字"
+      ],
+      "semantics": [
+        "stat",
+        "passive",
+        "movementSpeed",
+        "physicalDamage",
+        "totalValue",
+        "attackDamage",
+        "keyword",
+        "flavorText"
+      ],
+      "source": {
+        "text": "aramkit/items.json#3742"
+      }
+    },
+    {
+      "id": "lol.item.3748",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 3748,
+      "name": "巨型九头蛇",
+      "icon": "assets/item/3748-e40737cae03a.webp",
+      "priceTotal": 3300,
+      "sellPrice": 2310,
+      "purchasable": true,
+      "isFinal": true,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "3077",
+        "2021",
+        "1011"
+      ],
+      "to": null,
+      "categories": [
+        "Health",
+        "HealthRegen",
+        "Damage",
+        "OnHit"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "攻击力40攻击力",
+        "生命值600生命值",
+        "顺劈",
+        "攻击附带近战(1%最大生命值最大生命值) /远程(0.5%最大生命值最大生命值)物理伤害并对目标身后的敌人们造成近战(3%最大生命值最大生命值) /远程(1.5%最大生命值最大生命值)物理伤害。",
+        "主动刚斩冷却时间(10秒)",
+        "强化你的下一次顺劈，使其造成近战(4%最大生命值最大生命值) /远程(2%最大生命值最大生命值)额外物理伤害攻击特效攻击特效并对目标身后的敌人们造成近战(9%最大生命值最大生命值) /远程(4.5%最大生命值最大生命值)额外物理伤害。",
+        "顺劈的冲击波不会在建筑物上触发。"
+      ],
+      "semantics": [
+        "stat",
+        "passive",
+        "physicalDamage",
+        "health",
+        "active",
+        "onHit"
+      ],
+      "source": {
+        "text": "aramkit/items.json#3748"
+      }
+    },
+    {
+      "id": "lol.item.3801",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 3801,
+      "name": "晶体护腕",
+      "icon": "assets/item/3801-ed1b00d86efc.webp",
+      "priceTotal": 800,
+      "sellPrice": 560,
+      "purchasable": true,
+      "isFinal": false,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "1028",
+        "1006"
+      ],
+      "to": [
+        "3083",
+        "3084"
+      ],
+      "categories": [
+        "Health",
+        "HealthRegen"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "生命值200生命值",
+        "基础生命回复100%基础生命回复"
+      ],
+      "semantics": [
+        "stat"
+      ],
+      "source": {
+        "text": "aramkit/items.json#3801"
+      }
+    },
+    {
+      "id": "lol.item.3802",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 3802,
+      "name": "遗失的章节",
+      "icon": "assets/item/3802-13645a4a320b.webp",
+      "priceTotal": 1200,
+      "sellPrice": 840,
+      "purchasable": true,
+      "isFinal": false,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "1052",
+        "1027",
+        "2022"
+      ],
+      "to": [
+        "2503",
+        "2522",
+        "3003",
+        "3118",
+        "6655"
+      ],
+      "categories": [
+        "SpellDamage",
+        "Mana",
+        "ManaRegen",
+        "CooldownReduction",
+        "AbilityHaste"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "法术强度40法术强度",
+        "最大法力值300法力",
+        "技能急速10技能急速",
+        "启蒙",
+        "升级时会在3秒里持续回复共20%最大法力值。"
+      ],
+      "semantics": [
+        "stat",
+        "passive",
+        "mana"
+      ],
+      "source": {
+        "text": "aramkit/items.json#3802"
+      }
+    },
+    {
+      "id": "lol.item.3803",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 3803,
+      "name": "万世催化石",
+      "icon": "assets/item/3803-09a12479a6bb.webp",
+      "priceTotal": 1300,
+      "sellPrice": 910,
+      "purchasable": true,
+      "isFinal": false,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "1028",
+        "1028",
+        "1027"
+      ],
+      "to": [
+        "6657"
+      ],
+      "categories": [
+        "Health",
+        "HealthRegen",
+        "Mana",
+        "ManaRegen"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "生命值300生命值",
+        "最大法力值375法力",
+        "永恒",
+        "将来自英雄的10%所受伤害回复为法力值。",
+        "施放一个技能时，治疗自身相当于25%法力消耗的生命值。"
+      ],
+      "semantics": [
+        "stat",
+        "passive",
+        "mana",
+        "heal"
+      ],
+      "source": {
+        "text": "aramkit/items.json#3803"
+      }
+    },
+    {
+      "id": "lol.item.3814",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 3814,
+      "name": "夜之锋刃",
+      "icon": "assets/item/3814-014734a6fec5.webp",
+      "priceTotal": 3000,
+      "sellPrice": 2100,
+      "purchasable": true,
+      "isFinal": true,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "3134",
+        "2021"
+      ],
+      "to": null,
+      "categories": [
+        "Health",
+        "Damage",
+        "ArmorPenetration"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "攻击力50攻击力",
+        "穿甲15穿甲",
+        "生命值250生命值",
+        "废除冷却时间(30秒)",
+        "提供一层法术护盾来格挡下一个敌方技能。"
+      ],
+      "semantics": [
+        "stat",
+        "passive"
+      ],
+      "source": {
+        "text": "aramkit/items.json#3814"
+      }
+    },
+    {
+      "id": "lol.item.3916",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 3916,
+      "name": "湮灭宝珠",
+      "icon": "assets/item/3916-53aca8a65631.webp",
+      "priceTotal": 800,
+      "sellPrice": 560,
+      "purchasable": true,
+      "isFinal": false,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "1052"
+      ],
+      "to": [
+        "3165"
+      ],
+      "categories": [
+        "SpellDamage"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "法术强度25法术强度",
+        "重伤",
+        "对敌方英雄造成魔法伤害时会施加持续3秒的40%重伤效果。"
+      ],
+      "semantics": [
+        "stat",
+        "passive",
+        "magicDamage",
+        "keyword"
+      ],
+      "source": {
+        "text": "aramkit/items.json#3916"
+      }
+    },
+    {
+      "id": "lol.item.4003",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 4003,
+      "name": "救生索",
+      "icon": "assets/item/4003-cc92866c9f11.webp",
+      "priceTotal": 1600,
+      "sellPrice": 1120,
+      "purchasable": true,
+      "isFinal": false,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "6690",
+        "1036"
+      ],
+      "to": [
+        "4004"
+      ],
+      "categories": [
+        "Damage",
+        "NonbootsMovement",
+        "ArmorPenetration"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "攻击力25攻击力",
+        "穿甲5穿甲",
+        "移动速度4%移动速度",
+        "主动主动 - 灵魂之锚冷却时间(45秒)",
+        "标记你的当前位置。在4秒后，回到被标记的位置。 你可以在灵魂之锚期间的任一时间点进行重新施放以提前回到你标记的位置。"
+      ],
+      "semantics": [
+        "stat",
+        "active"
+      ],
+      "source": {
+        "text": "aramkit/items.json#4003"
+      }
+    },
+    {
+      "id": "lol.item.4004",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 4004,
+      "name": "幽魂弯刀",
+      "icon": "assets/item/4004-bc539a404a1b.webp",
+      "priceTotal": 2800,
+      "sellPrice": 1960,
+      "purchasable": true,
+      "isFinal": true,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "4003",
+        "3134"
+      ],
+      "to": null,
+      "categories": [
+        "Damage",
+        "NonbootsMovement",
+        "ArmorPenetration"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "攻击力50攻击力",
+        "穿甲15穿甲",
+        "移动速度4%移动速度",
+        "主动主动 - 灵魂之锚冷却时间(45秒)",
+        "标记你的当前位置。在4秒后，回到被标记的位置。 你可以在灵魂之锚期间的任一时间点进行重新施放以提前回到你标记的位置。"
+      ],
+      "semantics": [
+        "stat",
+        "active"
+      ],
+      "source": {
+        "text": "aramkit/items.json#4004"
+      }
+    },
+    {
+      "id": "lol.item.4005",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 4005,
+      "name": "帝国指令",
+      "icon": "assets/item/4005-bdc339570ed3.webp",
+      "priceTotal": 2400,
+      "sellPrice": 1680,
+      "purchasable": true,
+      "isFinal": true,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "1052",
+        "4642",
+        "1052"
+      ],
+      "to": null,
+      "categories": [
+        "SpellDamage",
+        "ManaRegen",
+        "CooldownReduction",
+        "AbilityHaste"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "法术强度60法术强度",
+        "技能急速15技能急速",
+        "基础法力回复150%基础法力回复",
+        "控制",
+        "你的带有定身效果的那些技能获得技能急速20技能急速。",
+        "命令",
+        "在定身一个敌方英雄时，为其打上标记，施加持续4秒的7%易损。",
+        "在对那些你已用【命令】标记过的敌人造成定身时，将会使该效果延长，而非叠加该增幅"
+      ],
+      "semantics": [
+        "stat",
+        "passive",
+        "keyword"
+      ],
+      "source": {
+        "text": "aramkit/items.json#4005"
+      }
+    },
+    {
+      "id": "lol.item.4401",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 4401,
+      "name": "自然之力",
+      "icon": "assets/item/4401-4dfd1ccdcc41.webp",
+      "priceTotal": 2800,
+      "sellPrice": 1960,
+      "purchasable": true,
+      "isFinal": true,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "1057",
+        "1028",
+        "3066"
+      ],
+      "to": null,
+      "categories": [
+        "Health",
+        "SpellBlock",
+        "NonbootsMovement"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "生命值400生命值",
+        "魔法抗性55魔法抗性",
+        "移动速度4%移动速度",
+        "坚定",
+        "受到8次来自英雄的魔法伤害后，获得70魔法抗性和6%额外移动速度。"
+      ],
+      "semantics": [
+        "stat",
+        "passive",
+        "magicResist",
+        "movementSpeed"
+      ],
+      "source": {
+        "text": "aramkit/items.json#4401"
+      }
+    },
+    {
+      "id": "lol.item.4628",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 4628,
+      "name": "视界专注",
+      "icon": "assets/item/4628-47d2d47fb8b1.webp",
+      "priceTotal": 2700,
+      "sellPrice": 1890,
+      "purchasable": true,
+      "isFinal": true,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "3108",
+        "3108",
+        "1052"
+      ],
+      "to": null,
+      "categories": [
+        "SpellDamage",
+        "AbilityHaste"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "法术强度75法术强度",
+        "技能急速25技能急速",
+        "高能射击",
+        "在对600码或更远的英雄造成技能伤害时，将其显形6秒。对被高能射击显形的敌人们造成10%提升伤害。",
+        "专注冷却时间(30秒)",
+        "在高能射击触发时，显形目标1400码内的所有其它敌方英雄3秒。",
+        "来自宠物和陷阱的伤害不会触发高能射击。",
+        "领域类技能只有在初始放置时会触发高能射击。",
+        "距离是从技能施放位置处开始算的。"
+      ],
+      "semantics": [
+        "stat",
+        "passive",
+        "keyword"
+      ],
+      "source": {
+        "text": "aramkit/items.json#4628"
+      }
+    },
+    {
+      "id": "lol.item.4629",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 4629,
+      "name": "星界驱驰",
+      "icon": "assets/item/4629-5816a8750868.webp",
+      "priceTotal": 3000,
+      "sellPrice": 2100,
+      "purchasable": true,
+      "isFinal": true,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "3067",
+        "3113",
+        "3108"
+      ],
+      "to": null,
+      "categories": [
+        "Health",
+        "SpellDamage",
+        "NonbootsMovement",
+        "AbilityHaste"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "法术强度70法术强度",
+        "生命值350生命值",
+        "技能急速25技能急速",
+        "移动速度4%移动速度",
+        "咒舞",
+        "对英雄造成魔法伤害或真实伤害时会提供20移动速度，持续4秒。"
+      ],
+      "semantics": [
+        "stat",
+        "passive",
+        "magicDamage",
+        "trueDamage",
+        "movementSpeed"
+      ],
+      "source": {
+        "text": "aramkit/items.json#4629"
+      }
+    },
+    {
+      "id": "lol.item.4630",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 4630,
+      "name": "枯萎珠宝",
+      "icon": "assets/item/4630-4e7f2de8b88d.webp",
+      "priceTotal": 1100,
+      "sellPrice": 770,
+      "purchasable": true,
+      "isFinal": false,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "1052"
+      ],
+      "to": [
+        "3135",
+        "3137"
+      ],
+      "categories": [
+        "MagicPenetration",
+        "SpellDamage"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "法术强度25法术强度",
+        "法术穿透13%法术穿透"
+      ],
+      "semantics": [
+        "stat"
+      ],
+      "source": {
+        "text": "aramkit/items.json#4630"
+      }
+    },
+    {
+      "id": "lol.item.4632",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 4632,
+      "name": "翠绿屏障",
+      "icon": "assets/item/4632-5c2ed0d7f332.webp",
+      "priceTotal": 1600,
+      "sellPrice": 1120,
+      "purchasable": true,
+      "isFinal": false,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "1052",
+        "1033",
+        "1052"
+      ],
+      "to": [
+        "3102"
+      ],
+      "categories": [
+        "SpellBlock",
+        "SpellDamage"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "法术强度40法术强度",
+        "魔法抗性25魔法抗性",
+        "废除冷却时间(60秒)",
+        "提供一层法术护盾来格挡下一个敌方技能。"
+      ],
+      "semantics": [
+        "stat",
+        "passive"
+      ],
+      "source": {
+        "text": "aramkit/items.json#4632"
+      }
+    },
+    {
+      "id": "lol.item.4633",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 4633,
+      "name": "裂隙制造者",
+      "icon": "assets/item/4633-a1f4ae0da73b.webp",
+      "priceTotal": 3100,
+      "sellPrice": 2170,
+      "purchasable": true,
+      "isFinal": true,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "3147",
+        "3108"
+      ],
+      "to": null,
+      "categories": [
+        "Health",
+        "SpellDamage",
+        "CooldownReduction",
+        "SpellVamp"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "法术强度70法术强度",
+        "生命值350生命值",
+        "技能急速15技能急速",
+        "虚空腐蚀",
+        "在与敌方英雄作战时，每过1秒，就会造成2%额外伤害，至多至8%。在最大强度时，获得近战10% /远程6%全能吸血。",
+        "虚空灌注",
+        "获得相当于你2%额外生命值的法术强度。"
+      ],
+      "semantics": [
+        "stat",
+        "passive",
+        "omnivamp",
+        "health",
+        "abilityPower"
+      ],
+      "source": {
+        "text": "aramkit/items.json#4633"
+      }
+    },
+    {
+      "id": "lol.item.4642",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 4642,
+      "name": "班德尔玻璃镜",
+      "icon": "assets/item/4642-de1275ea0b16.webp",
+      "priceTotal": 900,
+      "sellPrice": 630,
+      "purchasable": true,
+      "isFinal": false,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "1004",
+        "1052",
+        "2022"
+      ],
+      "to": [
+        "2065",
+        "4005",
+        "6617",
+        "6620"
+      ],
+      "categories": [
+        "SpellDamage",
+        "ManaRegen",
+        "CooldownReduction",
+        "AbilityHaste"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "法术强度20法术强度",
+        "基础法力回复100%基础法力回复",
+        "技能急速10技能急速"
+      ],
+      "semantics": [
+        "stat"
+      ],
+      "source": {
+        "text": "aramkit/items.json#4642"
+      }
+    },
+    {
+      "id": "lol.item.4645",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 4645,
+      "name": "影焰",
+      "icon": "assets/item/4645-bfa1e0e882f5.webp",
+      "priceTotal": 3200,
+      "sellPrice": 2240,
+      "purchasable": true,
+      "isFinal": true,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "3145",
+        "1058"
+      ],
+      "to": null,
+      "categories": [
+        "SpellDamage",
+        "MagicPenetration"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "法术强度110法术强度",
+        "法术穿透15法术穿透",
+        "余烬绽放",
+        "魔法伤害和真实伤害会暴击低于40%生命值的敌人，造成20%提升伤害。",
+        "暴击伤害修正因素仅影响余烬绽放的额外伤害。"
+      ],
+      "semantics": [
+        "stat",
+        "passive",
+        "magicDamage",
+        "trueDamage"
+      ],
+      "source": {
+        "text": "aramkit/items.json#4645"
+      }
+    },
+    {
+      "id": "lol.item.4646",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 4646,
+      "name": "风暴狂涌",
+      "icon": "assets/item/4646-06260172c4d9.webp",
+      "priceTotal": 2800,
+      "sellPrice": 1960,
+      "purchasable": true,
+      "isFinal": true,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "3145",
+        "3113"
+      ],
+      "to": null,
+      "categories": [
+        "SpellDamage",
+        "GoldPer",
+        "NonbootsMovement",
+        "MagicPenetration"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "法术强度90法术强度",
+        "法术穿透15法术穿透",
+        "移动速度6%移动速度",
+        "风暴掠袭冷却时间(30秒)",
+        "在2.5秒内对一个英雄造成相当于其25%最大生命值的伤害时，对其施加风啸。",
+        "风啸",
+        "在2秒后，造成(125+10%法术强度)魔法伤害。如果目标在风啸触发前阵亡，那么它会对附近的敌人们造成伤害。"
+      ],
+      "semantics": [
+        "stat",
+        "passive",
+        "magicDamage",
+        "totalValue",
+        "abilityPower"
+      ],
+      "source": {
+        "text": "aramkit/items.json#4646"
+      }
+    },
+    {
+      "id": "lol.item.6032",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 6032,
+      "name": "属性加成",
+      "icon": "assets/item/6032-97f4a96c1bb2.webp",
+      "priceTotal": 750,
+      "sellPrice": 375,
+      "purchasable": true,
+      "isFinal": false,
+      "maxStacks": 1,
+      "requirements": {
+        "level": 9
+      },
+      "from": null,
+      "to": null,
+      "categories": [
+        "Health",
+        "SpellBlock",
+        "Armor",
+        "Damage",
+        "CriticalStrike",
+        "AttackSpeed",
+        "SpellDamage",
+        "Mana",
+        "Consumable",
+        "CooldownReduction",
+        "SpellVamp",
+        "NonbootsMovement",
+        "Tenacity",
+        "MagicPenetration",
+        "ArmorPenetration",
+        "MagicResist",
+        "AbilityHaste"
+      ],
+      "acquisition": "conditional",
+      "tooltipText": [
+        "需要达到等级9",
+        "主动主动 - 消耗：自动开启一次半随机的选择，用来获得一个永久属性加成。以及一顶帽子！"
+      ],
+      "semantics": [
+        "active"
+      ],
+      "source": {
+        "text": "aramkit/items.json#6032"
+      }
+    },
+    {
+      "id": "lol.item.6333",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 6333,
+      "name": "死亡之舞",
+      "icon": "assets/item/6333-2647b492690e.webp",
+      "priceTotal": 3300,
+      "sellPrice": 2310,
+      "purchasable": true,
+      "isFinal": true,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "2019",
+        "1037",
+        "3133"
+      ],
+      "to": null,
+      "categories": [
+        "Armor",
+        "Damage",
+        "AbilityHaste"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "攻击力60攻击力",
+        "护甲50护甲",
+        "技能急速15技能急速",
+        "无视痛苦",
+        "所受的近战30% /远程10%伤害会以流血形式在3秒里持续扣除。",
+        "蔑视",
+        "如果一名在过去3秒内曾被你造成过伤害的英雄阵亡，会净化无视痛苦的剩余伤害，并在2秒里持续为你回复共(100%额外攻击力额外攻击力)生命值。"
+      ],
+      "semantics": [
+        "stat",
+        "passive",
+        "heal",
+        "attackDamage"
+      ],
+      "source": {
+        "text": "aramkit/items.json#6333"
+      }
+    },
+    {
+      "id": "lol.item.6609",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 6609,
+      "name": "炼金朋克链锯剑",
+      "icon": "assets/item/6609-4ac9726a7b7e.webp",
+      "priceTotal": 3000,
+      "sellPrice": 2100,
+      "purchasable": true,
+      "isFinal": true,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "3123",
+        "1011",
+        "3133"
+      ],
+      "to": null,
+      "categories": [
+        "Health",
+        "Damage",
+        "CooldownReduction",
+        "AbilityHaste"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "攻击力45攻击力",
+        "生命值450生命值",
+        "技能急速15技能急速",
+        "劈削",
+        "对敌方英雄造成物理伤害时会施加40%重伤效果，持续3秒。"
+      ],
+      "semantics": [
+        "stat",
+        "passive",
+        "keyword"
+      ],
+      "source": {
+        "text": "aramkit/items.json#6609"
+      }
+    },
+    {
+      "id": "lol.item.6610",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 6610,
+      "name": "焚天",
+      "icon": "assets/item/6610-6b76d79e679a.webp",
+      "priceTotal": 3100,
+      "sellPrice": 2170,
+      "purchasable": true,
+      "isFinal": true,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "2021",
+        "3133"
+      ],
+      "to": null,
+      "categories": [
+        "Health",
+        "Damage",
+        "CooldownReduction",
+        "AbilityHaste"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "攻击力40攻击力",
+        "生命值400生命值",
+        "技能急速10技能急速",
+        "光盾打击每个目标冷却时间(10秒)",
+        "你对一个英雄打出的第一次攻击会暴击以造成你的80%常规暴击伤害，并回复自身近战(90%基础攻击力基础攻击力) /远程(45%基础攻击力基础攻击力)外加4%已损失生命值。",
+        "溢出的治疗效果会被提供为一个临时的额外生命值。"
+      ],
+      "semantics": [
+        "stat",
+        "passive",
+        "heal",
+        "attackDamage"
+      ],
+      "source": {
+        "text": "aramkit/items.json#6610"
+      }
+    },
+    {
+      "id": "lol.item.6616",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 6616,
+      "name": "流水法杖",
+      "icon": "assets/item/6616-66a47a2d3a9d.webp",
+      "priceTotal": 2250,
+      "sellPrice": 1575,
+      "purchasable": true,
+      "isFinal": true,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "3108",
+        "3114"
+      ],
+      "to": null,
+      "categories": [
+        "SpellDamage",
+        "ManaRegen",
+        "CooldownReduction",
+        "AbilityHaste"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "法术强度35法术强度",
+        "治疗与护盾强度10%治疗和护盾强度",
+        "基础法力回复125%基础法力回复",
+        "技能急速10技能急速",
+        "湍流",
+        "当你为一名友军提供治疗或护盾效果时，你和你的目标都会获得持续6秒的法术强度40法术强度和技能急速15技能急速。"
+      ],
+      "semantics": [
+        "stat",
+        "passive",
+        "magicDamage"
+      ],
+      "source": {
+        "text": "aramkit/items.json#6616"
+      }
+    },
+    {
+      "id": "lol.item.6617",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 6617,
+      "name": "月石再生器",
+      "icon": "assets/item/6617-270bc330f467.webp",
+      "priceTotal": 2200,
+      "sellPrice": 1540,
+      "purchasable": true,
+      "isFinal": true,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "3067",
+        "4642"
+      ],
+      "to": null,
+      "categories": [
+        "Health",
+        "SpellDamage",
+        "ManaRegen",
+        "CooldownReduction",
+        "AbilityHaste"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "法术强度25法术强度",
+        "生命值200生命值",
+        "技能急速20技能急速",
+        "基础法力回复125%基础法力回复",
+        "星光恩典",
+        "对一名友军的治疗或护盾会连锁至另一名友方英雄(你自己除外)，提供相当于30%原治疗值的治疗效果或35%原护盾值的护盾效果。"
+      ],
+      "semantics": [
+        "stat",
+        "passive",
+        "heal",
+        "shield"
+      ],
+      "source": {
+        "text": "aramkit/items.json#6617"
+      }
+    },
+    {
+      "id": "lol.item.6620",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 6620,
+      "name": "海力亚的回响",
+      "icon": "assets/item/6620-f541dae7c628.webp",
+      "priceTotal": 2200,
+      "sellPrice": 1540,
+      "purchasable": true,
+      "isFinal": true,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "3067",
+        "4642"
+      ],
+      "to": null,
+      "categories": [
+        "Health",
+        "SpellDamage",
+        "ManaRegen",
+        "CooldownReduction",
+        "AbilityHaste"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "法术强度35法术强度",
+        "生命值200生命值",
+        "技能急速20技能急速",
+        "基础法力回复125%基础法力回复",
+        "灵魂吸取",
+        "获得【灵魂充能】，数额相当于对英雄的30%折前伤害值，至多至80–250等级层充能。为一位友军提供治疗或护盾时，会消耗所有灵魂充能来回复相当于100%该数值的生命值。",
+        "'如果你仔细听，你还能在尖叫声中听到城市的喧嚣。'"
+      ],
+      "semantics": [
+        "stat",
+        "passive",
+        "heal",
+        "flavorText"
+      ],
+      "source": {
+        "text": "aramkit/items.json#6620"
+      }
+    },
+    {
+      "id": "lol.item.6621",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 6621,
+      "name": "黎明核心",
+      "icon": "assets/item/6621-316af0ed458a.webp",
+      "priceTotal": 2500,
+      "sellPrice": 1750,
+      "purchasable": true,
+      "isFinal": true,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "1026",
+        "3114",
+        "3114"
+      ],
+      "to": null,
+      "categories": [
+        "SpellDamage",
+        "ManaRegen"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "法术强度45法术强度",
+        "治疗与护盾强度16%治疗和护盾强度",
+        "基础法力回复100%基础法力回复",
+        "最初之光",
+        "每100%基础法力回复获得2%治疗和护盾强度和15法术强度。",
+        "“世界上所有的能量都来自群星——至少说是这么说的。”"
+      ],
+      "semantics": [
+        "stat",
+        "passive",
+        "heal",
+        "abilityPower",
+        "flavorText"
+      ],
+      "source": {
+        "text": "aramkit/items.json#6621"
+      }
+    },
+    {
+      "id": "lol.item.6631",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 6631,
+      "name": "挺进破坏者",
+      "icon": "assets/item/6631-6d85bd8de725.webp",
+      "priceTotal": 3300,
+      "sellPrice": 2310,
+      "purchasable": true,
+      "isFinal": true,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "3077",
+        "3044",
+        "1042"
+      ],
+      "to": null,
+      "categories": [
+        "Health",
+        "Damage",
+        "AttackSpeed",
+        "Slow"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "攻击力40攻击力",
+        "攻击速度25%攻击速度",
+        "生命值450生命值",
+        "顺劈",
+        "攻击会对附近的敌人们造成近战(40%攻击力) /远程(20%攻击力)物理伤害。",
+        "主动破阵冲击波冷却时间(15秒)",
+        "对附近的敌人们造成(100%攻击力)物理伤害和35%减速。",
+        "每命中一个英雄就会获得持续衰减的45%移动速度，持续3秒。",
+        "顺劈不会在建筑物上触发。",
+        "你在施放破阵冲击波期间可以移动。"
+      ],
+      "semantics": [
+        "stat",
+        "passive",
+        "physicalDamage",
+        "attackDamage",
+        "active",
+        "status",
+        "movementSpeed"
+      ],
+      "source": {
+        "text": "aramkit/items.json#6631"
+      }
+    },
+    {
+      "id": "lol.item.6653",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 6653,
+      "name": "兰德里的折磨",
+      "icon": "assets/item/6653-b9135a38a6d5.webp",
+      "priceTotal": 3000,
+      "sellPrice": 2100,
+      "purchasable": true,
+      "isFinal": true,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "3147",
+        "2508"
+      ],
+      "to": null,
+      "categories": [
+        "Health",
+        "SpellDamage"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "法术强度60法术强度",
+        "生命值300生命值",
+        "折磨",
+        "伤害型技能会灼烧敌人，每秒造成1.8%最大生命值的魔法伤害，持续3秒。",
+        "受苦",
+        "在与敌方英雄作战时，每过1秒，就会造成2%额外伤害，至多至6%。"
+      ],
+      "semantics": [
+        "stat",
+        "passive",
+        "magicDamage"
+      ],
+      "source": {
+        "text": "aramkit/items.json#6653"
+      }
+    },
+    {
+      "id": "lol.item.6655",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 6655,
+      "name": "卢登的回声",
+      "icon": "assets/item/6655-09fa4c555646.webp",
+      "priceTotal": 2750,
+      "sellPrice": 1925,
+      "purchasable": true,
+      "isFinal": true,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "3802",
+        "3145"
+      ],
+      "to": null,
+      "categories": [
+        "SpellDamage",
+        "Mana",
+        "CooldownReduction",
+        "AbilityHaste"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "法术强度100法术强度",
+        "最大法力值600法力",
+        "技能急速10技能急速",
+        "回声冷却时间(12秒)",
+        "伤害型技能会发射6道回声，对目标和附近的敌人造成额外的(75+5%法术强度)魔法伤害。剩余回声会对主要目标发射，造成20%伤害。(最大值：(150+10%法术强度))"
+      ],
+      "semantics": [
+        "stat",
+        "passive",
+        "magicDamage",
+        "totalValue",
+        "abilityPower"
+      ],
+      "source": {
+        "text": "aramkit/items.json#6655"
+      }
+    },
+    {
+      "id": "lol.item.6657",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 6657,
+      "name": "时光之杖",
+      "icon": "assets/item/6657-801dc52b89d8.webp",
+      "priceTotal": 2600,
+      "sellPrice": 1820,
+      "purchasable": true,
+      "isFinal": true,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "1026",
+        "3803"
+      ],
+      "to": null,
+      "categories": [
+        "Health",
+        "HealthRegen",
+        "SpellDamage",
+        "Mana",
+        "ManaRegen"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "法术强度45法术强度",
+        "生命值350生命值",
+        "最大法力值500法力",
+        "时无限",
+        "这件装备每40秒获得10生命值、30法力值和3法术强度，至多至10层。在达到最大层数时，还会使英雄等级提升1级。",
+        "永恒",
+        "承受来自英雄的伤害时，回复相当于10%伤害值的法力值。",
+        "施放一个技能时，为自身治疗相当于25%法力消耗的生命值。"
+      ],
+      "semantics": [
+        "stat",
+        "passive",
+        "health",
+        "mana",
+        "abilityPower",
+        "heal"
+      ],
+      "source": {
+        "text": "aramkit/items.json#6657"
+      }
+    },
+    {
+      "id": "lol.item.6660",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 6660,
+      "name": "斑比的熔渣",
+      "icon": "assets/item/6660-c14f65a3fae5.webp",
+      "priceTotal": 900,
+      "sellPrice": 630,
+      "purchasable": true,
+      "isFinal": false,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "1028",
+        "2022"
+      ],
+      "to": [
+        "3068",
+        "6664"
+      ],
+      "categories": [
+        "Health",
+        "AbilityHaste"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "生命值150生命值",
+        "技能急速5技能急速",
+        "献祭",
+        "承受或造成伤害后，每秒对附近敌人造成15魔法伤害，持续3秒。"
+      ],
+      "semantics": [
+        "stat",
+        "passive",
+        "magicDamage"
+      ],
+      "source": {
+        "text": "aramkit/items.json#6660"
+      }
+    },
+    {
+      "id": "lol.item.6662",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 6662,
+      "name": "冰脉护手",
+      "icon": "assets/item/6662-9058b6290c51.webp",
+      "priceTotal": 2900,
+      "sellPrice": 2030,
+      "purchasable": true,
+      "isFinal": true,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "3057",
+        "1028",
+        "1031"
+      ],
+      "to": null,
+      "categories": [
+        "Health",
+        "Armor",
+        "CooldownReduction",
+        "Slow",
+        "OnHit",
+        "AbilityHaste"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "生命值300生命值",
+        "护甲50护甲",
+        "技能急速15技能急速",
+        "咒刃冷却时间(1.5秒)",
+        "在施放一个技能后，你的下一次攻击造成额外的(150%基础攻击力基础攻击力)物理伤害攻击特效攻击特效并生成一个持续2秒的冰冷地带，这个地带可造成近战25% /远程12.5%减速。"
+      ],
+      "semantics": [
+        "stat",
+        "passive",
+        "physicalDamage",
+        "attackDamage",
+        "onHit",
+        "status"
+      ],
+      "source": {
+        "text": "aramkit/items.json#6662"
+      }
+    },
+    {
+      "id": "lol.item.6664",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 6664,
+      "name": "璀璨回响",
+      "icon": "assets/item/6664-e9013d508efc.webp",
+      "priceTotal": 2800,
+      "sellPrice": 1960,
+      "purchasable": true,
+      "isFinal": true,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "6660",
+        "3211"
+      ],
+      "to": null,
+      "categories": [
+        "Health",
+        "SpellBlock",
+        "HealthRegen",
+        "Aura",
+        "MagicResist",
+        "AbilityHaste"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "生命值400生命值",
+        "魔法抗性40魔法抗性",
+        "技能急速10技能急速",
+        "基础生命回复100%基础生命回复",
+        "献祭",
+        "承受或造成伤害后，每秒对附近敌人造成(15+1%额外生命值额外生命值)魔法伤害，持续3秒。",
+        "荒弃",
+        "击杀一个敌人时，会在其周围造成(30+2%额外生命值额外生命值)魔法伤害。",
+        "艾卡西亚的一件圣物，重制版。",
+        "献祭对小兵造成的伤害提升25%并且对野怪造成的伤害提升25%。"
+      ],
+      "semantics": [
+        "stat",
+        "passive",
+        "magicDamage",
+        "totalValue",
+        "health",
+        "flavorText"
+      ],
+      "source": {
+        "text": "aramkit/items.json#6664"
+      }
+    },
+    {
+      "id": "lol.item.6665",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 6665,
+      "name": "千变者贾修",
+      "icon": "assets/item/6665-3a29a273ed4d.webp",
+      "priceTotal": 3200,
+      "sellPrice": 2240,
+      "purchasable": true,
+      "isFinal": true,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "1011",
+        "1031",
+        "1057"
+      ],
+      "to": null,
+      "categories": [
+        "Health",
+        "SpellBlock",
+        "Armor",
+        "MagicResist"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "生命值350生命值",
+        "护甲45护甲",
+        "魔法抗性45魔法抗性",
+        "虚空生物的复原力",
+        "在与英雄战斗5秒后，使你的额外护甲和魔法抗性提升30%，持续到战斗结束为止。",
+        "“他也许会被叫做很多种东西。一件甲壳头盔。一层护膜。一座活体坟墓……”"
+      ],
+      "semantics": [
+        "stat",
+        "passive",
+        "armor",
+        "magicResist",
+        "flavorText"
+      ],
+      "source": {
+        "text": "aramkit/items.json#6665"
+      }
+    },
+    {
+      "id": "lol.item.6670",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 6670,
+      "name": "正午箭袋",
+      "icon": "assets/item/6670-2da56922995a.webp",
+      "priceTotal": 1300,
+      "sellPrice": 910,
+      "purchasable": true,
+      "isFinal": false,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "1036",
+        "1018"
+      ],
+      "to": [
+        "2523",
+        "3036",
+        "6673"
+      ],
+      "categories": [
+        "Damage",
+        "CriticalStrike"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "攻击力15攻击力",
+        "暴击几率20%暴击几率"
+      ],
+      "semantics": [
+        "stat"
+      ],
+      "source": {
+        "text": "aramkit/items.json#6670"
+      }
+    },
+    {
+      "id": "lol.item.6672",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 6672,
+      "name": "海妖杀手",
+      "icon": "assets/item/6672-9250843b2057.webp",
+      "priceTotal": 3000,
+      "sellPrice": 2100,
+      "purchasable": true,
+      "isFinal": true,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "6690",
+        "3051",
+        "1043"
+      ],
+      "to": null,
+      "categories": [
+        "Damage",
+        "AttackSpeed",
+        "OnHit",
+        "NonbootsMovement"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "攻击力45攻击力",
+        "攻击速度40%攻击速度",
+        "移动速度4%移动速度",
+        "放倒它",
+        "每第三次攻击造成150–200等级额外物理伤害攻击特效攻击特效，基于目标的已损失生命值至多提升至262.5–350等级。"
+      ],
+      "semantics": [
+        "stat",
+        "passive",
+        "physicalDamage",
+        "onHit"
+      ],
+      "source": {
+        "text": "aramkit/items.json#6672"
+      }
+    },
+    {
+      "id": "lol.item.6673",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 6673,
+      "name": "不朽盾弓",
+      "icon": "assets/item/6673-e42f2c42f312.webp",
+      "priceTotal": 3000,
+      "sellPrice": 2100,
+      "purchasable": true,
+      "isFinal": true,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "1037",
+        "6670"
+      ],
+      "to": null,
+      "categories": [
+        "Damage",
+        "CriticalStrike"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "攻击力55攻击力",
+        "暴击几率25%暴击几率",
+        "救主灵刃冷却时间(75秒)",
+        "在受到将使你的生命值跌到30%以下的伤害时，提供持续3秒的近战400–700等级/远程320–560等级护盾值。"
+      ],
+      "semantics": [
+        "stat",
+        "passive",
+        "shield"
+      ],
+      "source": {
+        "text": "aramkit/items.json#6673"
+      }
+    },
+    {
+      "id": "lol.item.6675",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 6675,
+      "name": "纳沃利烁刃",
+      "icon": "assets/item/6675-a2882097dcfe.webp",
+      "priceTotal": 2650,
+      "sellPrice": 1855,
+      "purchasable": true,
+      "isFinal": true,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "1042",
+        "3086",
+        "1042"
+      ],
+      "to": null,
+      "categories": [
+        "CriticalStrike",
+        "AttackSpeed",
+        "NonbootsMovement"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "攻击速度40%攻击速度",
+        "暴击几率25%暴击几率",
+        "移动速度4%移动速度",
+        "超凡入圣",
+        "攻击会使各基础技能的冷却时间缩短15%剩余冷却时间。"
+      ],
+      "semantics": [
+        "stat",
+        "passive"
+      ],
+      "source": {
+        "text": "aramkit/items.json#6675"
+      }
+    },
+    {
+      "id": "lol.item.6676",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 6676,
+      "name": "收集者",
+      "icon": "assets/item/6676-08cb1586917a.webp",
+      "priceTotal": 3000,
+      "sellPrice": 2100,
+      "purchasable": true,
+      "isFinal": true,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "1037",
+        "3134",
+        "1018"
+      ],
+      "to": null,
+      "categories": [
+        "Damage",
+        "CriticalStrike",
+        "ArmorPenetration"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "攻击力50攻击力",
+        "穿甲10穿甲",
+        "暴击几率25%暴击几率",
+        "死",
+        "你的伤害会处决低于5%生命值的英雄。",
+        "税",
+        "击杀英雄时提供25额外金币。"
+      ],
+      "semantics": [
+        "stat",
+        "passive",
+        "gold"
+      ],
+      "source": {
+        "text": "aramkit/items.json#6676"
+      }
+    },
+    {
+      "id": "lol.item.6690",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 6690,
+      "name": "剑翎",
+      "icon": "assets/item/6690-bc8308a3afec.webp",
+      "priceTotal": 775,
+      "sellPrice": 543,
+      "purchasable": true,
+      "isFinal": false,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "1036"
+      ],
+      "to": [
+        "3142",
+        "4003",
+        "6672"
+      ],
+      "categories": [
+        "Damage",
+        "NonbootsMovement"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "攻击力15攻击力",
+        "移动速度4%移动速度"
+      ],
+      "semantics": [
+        "stat"
+      ],
+      "source": {
+        "text": "aramkit/items.json#6690"
+      }
+    },
+    {
+      "id": "lol.item.6692",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 6692,
+      "name": "星蚀",
+      "icon": "assets/item/6692-f1e35cdae848.webp",
+      "priceTotal": 2900,
+      "sellPrice": 2030,
+      "purchasable": true,
+      "isFinal": true,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "3133",
+        "1037",
+        "1036"
+      ],
+      "to": null,
+      "categories": [
+        "Damage",
+        "CooldownReduction",
+        "AbilityHaste"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "攻击力60攻击力",
+        "技能急速15技能急速",
+        "永升之月冷却时间(6秒)",
+        "在2秒内用2次独立的攻击或技能命中一名英雄时，会造成近战8% /远程5%最大生命值的物理伤害并为你提供持续2秒的近战(150+40%额外攻击力额外攻击力) /远程(75+20%额外攻击力额外攻击力)护盾值。"
+      ],
+      "semantics": [
+        "stat",
+        "passive",
+        "physicalDamage",
+        "shield",
+        "totalValue",
+        "attackDamage"
+      ],
+      "source": {
+        "text": "aramkit/items.json#6692"
+      }
+    },
+    {
+      "id": "lol.item.6694",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 6694,
+      "name": "赛瑞尔达的怨恨",
+      "icon": "assets/item/6694-c5e913224830.webp",
+      "priceTotal": 3000,
+      "sellPrice": 2100,
+      "purchasable": true,
+      "isFinal": true,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "3133",
+        "3035"
+      ],
+      "to": null,
+      "categories": [
+        "Damage",
+        "CooldownReduction",
+        "ArmorPenetration",
+        "AbilityHaste"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "攻击力45攻击力",
+        "穿甲35%护甲穿透",
+        "技能急速15技能急速",
+        "严寒",
+        "伤害型技能会对低于50%生命值的敌人造成持续1秒的30%减速。"
+      ],
+      "semantics": [
+        "stat",
+        "passive",
+        "status"
+      ],
+      "source": {
+        "text": "aramkit/items.json#6694"
+      }
+    },
+    {
+      "id": "lol.item.6695",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 6695,
+      "name": "巨蛇之牙",
+      "icon": "assets/item/6695-5012c30513e3.webp",
+      "priceTotal": 2500,
+      "sellPrice": 1750,
+      "purchasable": true,
+      "isFinal": true,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "3134",
+        "1037"
+      ],
+      "to": null,
+      "categories": [
+        "Damage",
+        "ArmorPenetration"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "攻击力55攻击力",
+        "穿甲15穿甲",
+        "掠盾者",
+        "对一名敌方英雄造成伤害时，会使其获得的护盾值降低近战50 /远程35%，持续3秒。",
+        "如果该敌方英雄尚未被掠盾者影响，会使其身上的所有护盾降低近战50 /远程35%。",
+        "魔法护盾不会被削减。"
+      ],
+      "semantics": [
+        "stat",
+        "passive"
+      ],
+      "source": {
+        "text": "aramkit/items.json#6695"
+      }
+    },
+    {
+      "id": "lol.item.6696",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 6696,
+      "name": "公理圆弧",
+      "icon": "assets/item/6696-d42a243c4f5e.webp",
+      "priceTotal": 2750,
+      "sellPrice": 1925,
+      "purchasable": true,
+      "isFinal": true,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "2020",
+        "3133"
+      ],
+      "to": null,
+      "categories": [
+        "Damage",
+        "ArmorPenetration",
+        "AbilityHaste"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "攻击力55攻击力",
+        "穿甲18穿甲",
+        "技能急速20技能急速",
+        "涌动",
+        "在你对一名敌方英雄造成伤害后，如果该英雄在3秒内阵亡，则会返还你(10+25%穿甲)%的终极技能总冷却时间。"
+      ],
+      "semantics": [
+        "stat",
+        "passive",
+        "totalValue",
+        "armorPenetration"
+      ],
+      "source": {
+        "text": "aramkit/items.json#6696"
+      }
+    },
+    {
+      "id": "lol.item.6698",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 6698,
+      "name": "亵渎九头蛇",
+      "icon": "assets/item/6698-93686d05b701.webp",
+      "priceTotal": 2850,
+      "sellPrice": 1995,
+      "purchasable": true,
+      "isFinal": true,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "3077",
+        "2020"
+      ],
+      "to": null,
+      "categories": [
+        "Damage",
+        "Active",
+        "CooldownReduction",
+        "ArmorPenetration",
+        "AbilityHaste"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "攻击力55攻击力",
+        "穿甲18穿甲",
+        "技能急速10技能急速",
+        "顺劈",
+        "攻击会对附近的敌人们造成近战(40%攻击力) /远程(20%攻击力)物理伤害。",
+        "主动邪斩冷却时间(10秒)",
+        "对你附近的敌人们造成(80%攻击力)物理伤害。",
+        "深渊需要祭品。",
+        "顺劈不会在建筑物上触发。"
+      ],
+      "semantics": [
+        "stat",
+        "passive",
+        "physicalDamage",
+        "attackDamage",
+        "active",
+        "flavorText"
+      ],
+      "source": {
+        "text": "aramkit/items.json#6698"
+      }
+    },
+    {
+      "id": "lol.item.6699",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 6699,
+      "name": "电震涡流剑",
+      "icon": "assets/item/6699-0c9c741f30a3.webp",
+      "priceTotal": 3000,
+      "sellPrice": 2100,
+      "purchasable": true,
+      "isFinal": true,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "2020",
+        "1036",
+        "1036"
+      ],
+      "to": null,
+      "categories": [
+        "Damage",
+        "Active",
+        "CooldownReduction",
+        "ArmorPenetration",
+        "AbilityHaste"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "攻击力55攻击力",
+        "穿甲10穿甲",
+        "技能急速10技能急速",
+        "通电",
+        "用技能对一名敌人造成伤害会触发盈能(充能完毕时)。",
+        "苍穹",
+        "你的盈能攻击造成相当于近战9 /远程7%目标当前生命值的额外物理伤害，并为你提供持续4秒的穿甲近战15 /远程12穿甲。"
+      ],
+      "semantics": [
+        "stat",
+        "passive",
+        "keyword",
+        "physicalDamage",
+        "armorPenetration"
+      ],
+      "source": {
+        "text": "aramkit/items.json#6699"
+      }
+    },
+    {
+      "id": "lol.item.8010",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 8010,
+      "name": "放血者的诅咒",
+      "icon": "assets/item/8010-e5c0673e1926.webp",
+      "priceTotal": 2900,
+      "sellPrice": 2030,
+      "purchasable": true,
+      "isFinal": true,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "3147",
+        "3108"
+      ],
+      "to": null,
+      "categories": [
+        "Health",
+        "SpellDamage",
+        "CooldownReduction",
+        "MagicPenetration"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "法术强度65法术强度",
+        "生命值400生命值",
+        "技能急速15技能急速",
+        "恶劣衰朽",
+        "用技能或被动对英雄造成魔法伤害时，会对其造成持续6秒的7.5%魔法抗性削减。(可叠加4次)。",
+        "每段技能施放仅会对每个英雄施加一层【恶劣衰朽】，且每0.3秒仅限一次。"
+      ],
+      "semantics": [
+        "stat",
+        "passive",
+        "magicDamage",
+        "magicResist"
+      ],
+      "source": {
+        "text": "aramkit/items.json#8010"
+      }
+    },
+    {
+      "id": "lol.item.8020",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 8020,
+      "name": "深渊面具",
+      "icon": "assets/item/8020-76267a5f50ed.webp",
+      "priceTotal": 2650,
+      "sellPrice": 1855,
+      "purchasable": true,
+      "isFinal": true,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "3067",
+        "1057"
+      ],
+      "to": null,
+      "categories": [
+        "Health",
+        "SpellBlock",
+        "CooldownReduction",
+        "MagicResist",
+        "AbilityHaste"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "生命值350生命值",
+        "魔法抗性45魔法抗性",
+        "技能急速15技能急速",
+        "损毁",
+        "使附近的敌方英雄承受12%额外魔法伤害。"
+      ],
+      "semantics": [
+        "stat",
+        "passive",
+        "magicDamage"
+      ],
+      "source": {
+        "text": "aramkit/items.json#8020"
+      }
+    },
+    {
+      "id": "lol.item.123430",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 123430,
+      "name": "毁坏仪式",
+      "icon": "assets/item/123430-bdb415ba7940.webp",
+      "priceTotal": 3000,
+      "sellPrice": 2100,
+      "purchasable": true,
+      "isFinal": true,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "1018",
+        "3113",
+        "3108"
+      ],
+      "to": null,
+      "categories": [
+        "CriticalStrike",
+        "SpellDamage",
+        "CooldownReduction",
+        "NonbootsMovement"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "法术强度55法术强度",
+        "技能急速10技能急速",
+        "暴击几率25%暴击几率",
+        "移动速度4%移动速度",
+        "怒火与破坏",
+        "在施放技能时，获得持续6秒的暴击几率2.5%暴击几率，最多可叠加至暴击几率20%。",
+        "打捞残骸",
+        "你的技能有几率(等同于你的暴击几率暴击几率)给你或你的目标友军提供持续3秒的(70–210等级+15%法术强度+25%额外攻击力额外攻击力)护盾值。"
+      ],
+      "semantics": [
+        "stat",
+        "passive",
+        "shield",
+        "abilityPower",
+        "attackDamage"
+      ],
+      "source": {
+        "text": "aramkit/items.json#123430"
+      }
+    },
+    {
+      "id": "lol.item.124011",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 124011,
+      "name": "花晓之剑",
+      "icon": "assets/item/124011-6ef8baffbbbe.webp",
+      "priceTotal": 2350,
+      "sellPrice": 1645,
+      "purchasable": true,
+      "isFinal": true,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "3114",
+        "1052",
+        "3067"
+      ],
+      "to": null,
+      "categories": [
+        "Health",
+        "SpellDamage",
+        "CooldownReduction",
+        "OnHit",
+        "AbilityHaste"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "法术强度45法术强度",
+        "生命值200生命值",
+        "治疗与护盾强度12%治疗和护盾强度",
+        "技能急速15技能急速",
+        "欢腾",
+        "你每拥有治疗与护盾强度1%治疗和护盾强度，就会获得+攻击速度1.2%攻击速度。",
+        "薄荷",
+        "攻击特效攻击特效，为你附近生命值最低的那个友方英雄治疗(15–45等级+10%额外攻击力额外攻击力+7%法术强度)生命值，优先治疗更低生命值的友军。"
+      ],
+      "semantics": [
+        "stat",
+        "passive",
+        "heal",
+        "attackSpeed",
+        "onHit",
+        "attackDamage",
+        "abilityPower"
+      ],
+      "source": {
+        "text": "aramkit/items.json#124011"
+      }
+    },
+    {
+      "id": "lol.item.126697",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 126697,
+      "name": "狂妄",
+      "icon": "assets/item/126697-03089e4db5e1.webp",
+      "priceTotal": 2950,
+      "sellPrice": 2065,
+      "purchasable": true,
+      "isFinal": true,
+      "maxStacks": 1,
+      "requirements": {},
+      "from": [
+        "3134",
+        "3133"
+      ],
+      "to": null,
+      "categories": [
+        "Damage",
+        "Active",
+        "CooldownReduction",
+        "ArmorPenetration",
+        "AbilityHaste"
+      ],
+      "acquisition": "shop",
+      "tooltipText": [
+        "攻击力55攻击力",
+        "穿甲18穿甲",
+        "技能急速10技能急速",
+        "盛名",
+        "如果一名在过去3秒内曾被你造成过伤害的英雄阵亡，则获得持续近战90 /远程45秒的近战15 /远程10+近战2 /远程1x已击杀英雄数的攻击力。",
+        "已征服的英雄：当前对局数值"
+      ],
+      "semantics": [
+        "stat",
+        "passive",
+        "physicalDamage",
+        "flavorText"
+      ],
+      "source": {
+        "text": "aramkit/items.json#126697"
+      }
+    },
+    {
+      "id": "lol.item.223069",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 223069,
+      "name": "虚空献祭",
+      "icon": "assets/item/223069-0e8bbb4249f7.webp",
+      "priceTotal": 6000,
+      "sellPrice": 4200,
+      "purchasable": true,
+      "isFinal": true,
+      "maxStacks": 1,
+      "requirements": {
+        "spell": "CanPurchase"
+      },
+      "from": null,
+      "to": null,
+      "categories": [
+        "Health",
+        "SpellBlock",
+        "HealthRegen",
+        "Armor",
+        "Aura",
+        "CooldownReduction",
+        "MagicResist",
+        "AbilityHaste"
+      ],
+      "acquisition": "conditional",
+      "tooltipText": [
+        "生命值1000生命值",
+        "护甲100护甲",
+        "魔法抗性80魔法抗性",
+        "技能急速25技能急速",
+        "基础生命回复200%基础生命回复",
+        "献祭",
+        "承受或造成伤害后，灼烧附近的敌人们，每秒造成(20+3.5%额外生命值额外生命值)魔法伤害，持续5秒。",
+        "荒弃",
+        "击杀一个敌人时会在其周围造成(20+2%额外生命值额外生命值)魔法伤害。",
+        "我们将吞噬一切……",
+        "献祭对小兵和野怪造成的伤害提升50%。"
+      ],
+      "semantics": [
+        "stat",
+        "passive",
+        "keywordMajor",
+        "magicDamage",
+        "totalValue",
+        "health",
+        "flavorText"
+      ],
+      "source": {
+        "text": "aramkit/items.json#223069"
+      }
+    },
+    {
+      "id": "lol.item.226668",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 226668,
+      "name": "终极九头蛇",
+      "icon": "assets/item/226668-78b0011277de.webp",
+      "priceTotal": 6000,
+      "sellPrice": 4200,
+      "purchasable": true,
+      "isFinal": true,
+      "maxStacks": 1,
+      "requirements": {
+        "spell": "CanPurchase"
+      },
+      "from": null,
+      "to": null,
+      "categories": [
+        "Damage",
+        "LifeSteal",
+        "AbilityHaste"
+      ],
+      "acquisition": "conditional",
+      "tooltipText": [
+        "攻击力200攻击力",
+        "技能急速25技能急速",
+        "穿甲25穿甲",
+        "生命值1000生命值",
+        "全能吸血15%全能吸血",
+        "终极顺劈",
+        "攻击对附近敌人造成近战(80%攻击力) /远程(40%攻击力)外加近战(2%最大生命值最大生命值) /远程(1%最大生命值最大生命值)物理伤害。",
+        "主动终极九头蛇冷却时间(10秒)",
+        "主动使用以强化你的下次普攻，对你周围的敌人们造成(160%攻击力)物理伤害。它还会附带近战(6%最大生命值最大生命值) /远程(3%最大生命值最大生命值)物理伤害并对目标身后的敌人们造成近战(10%最大生命值最大生命值) /远程(5%最大生命值最大生命值)物理伤害。",
+        "嘶……杀！",
+        "顺劈会受益于生命偷取。",
+        "顺劈不会在建筑物上触发。"
+      ],
+      "semantics": [
+        "stat",
+        "passive",
+        "physicalDamage",
+        "attackDamage",
+        "health",
+        "active",
+        "flavorText"
+      ],
+      "source": {
+        "text": "aramkit/items.json#226668"
+      }
+    },
+    {
+      "id": "lol.item.228002",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 228002,
+      "name": "沃格勒特的巫师帽",
+      "icon": "assets/item/228002-9c1cb7ffc7c9.webp",
+      "priceTotal": 6000,
+      "sellPrice": 4200,
+      "purchasable": true,
+      "isFinal": true,
+      "maxStacks": 1,
+      "requirements": {
+        "spell": "CanPurchase"
+      },
+      "from": null,
+      "to": null,
+      "categories": [
+        "Armor",
+        "SpellDamage",
+        "Active"
+      ],
+      "acquisition": "conditional",
+      "tooltipText": [
+        "法术强度300法术强度",
+        "护甲50护甲",
+        "技能急速20技能急速",
+        "魔法乐章：",
+        "使你的总法术强度提升50%(当前对局数值)。",
+        "主动主动冷却时间(20秒)",
+        "凝滞",
+        "在2.5秒里免疫伤害且不可被选取，但在此期间里无法采取任何其它行动。"
+      ],
+      "semantics": [
+        "ornnBonus",
+        "passive",
+        "abilityPower",
+        "active",
+        "status"
+      ],
+      "source": {
+        "text": "aramkit/items.json#228002"
+      }
+    },
+    {
+      "id": "lol.item.994403",
+      "game": "lol",
+      "kind": "item",
+      "version": "16.22",
+      "riotId": 994403,
+      "name": "金铲铲",
+      "icon": "assets/item/994403-0cf576782d54.webp",
+      "priceTotal": 2500,
+      "sellPrice": 1750,
+      "purchasable": true,
+      "isFinal": true,
+      "maxStacks": 1,
+      "requirements": {
+        "spell": "CanPurchase"
+      },
+      "from": null,
+      "to": null,
+      "categories": [
+        "Health",
+        "SpellBlock",
+        "HealthRegen",
+        "Armor",
+        "Damage",
+        "CriticalStrike",
+        "AttackSpeed",
+        "LifeSteal",
+        "SpellDamage",
+        "Mana",
+        "ManaRegen",
+        "CooldownReduction",
+        "NonbootsMovement"
+      ],
+      "acquisition": "conditional",
+      "tooltipText": [
+        "攻击力90攻击力",
+        "法术强度110法术强度",
+        "攻击速度40%攻击速度",
+        "暴击几率15%暴击几率",
+        "生命值200生命值",
+        "护甲20护甲",
+        "魔法抗性20魔法抗性",
+        "最大法力值200法力",
+        "技能急速20技能急速",
+        "移动速度10%移动速度",
+        "生命偷取10%生命偷取",
+        "基础生命回复50%基础生命回复",
+        "基础法力回复100%基础法力回复",
+        "正在搞事",
+        "你正处在永久的火力全开中！",
+        "“它必须做点儿什么……”",
+        "“错了，它什么都做得到！”"
+      ],
+      "semantics": [
+        "stat",
+        "passive",
+        "flavorText"
+      ],
+      "source": {
+        "text": "aramkit/items.json#994403"
+      }
+    }
+  ]
+}

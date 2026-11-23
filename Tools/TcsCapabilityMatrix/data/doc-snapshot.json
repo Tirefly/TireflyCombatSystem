@@ -1,0 +1,1975 @@
+{
+ "schema": 1,
+ "generatedAt": "2026-11-19T03:55:47.198Z",
+ "projectRoot": "E:\\Projects_Crazy\\ProjectU",
+ "git": {
+  "repo": "Plugins/TireflyCombatSystem",
+  "branch": "remake",
+  "head": "17f18c7f41b75c4a54b9dab8daca30184c1cc845",
+  "headShort": "17f18c7",
+  "dirty": true,
+  "dirtyFiles": [
+   "M Documents/tcs-remake-v2-drafts/领域-Parameter-草稿.md",
+   "?? Documents/tcs-remake-v2-drafts/调研-Snapshot-业界对照.md"
+  ]
+ },
+ "docs": {
+  "Plugins/TireflyCombatSystem/Documents/tcs-remake-v2/02-核心基线/战斗实体.md": {
+   "sha256": "3977ad2ded14328a",
+   "lines": 244,
+   "sections": {
+    "0": {
+     "level": 2,
+     "title": "0. 边界",
+     "line": 8,
+     "own": "7c58a78c63d860b1",
+     "tree": "7c58a78c63d860b1"
+    },
+    "1": {
+     "level": 2,
+     "title": "1. 身份句柄 `FTcsCombatEntityHandle`",
+     "line": 21,
+     "own": "b2f82fe6f25d5982",
+     "tree": "b2f82fe6f25d5982"
+    },
+    "2": {
+     "level": 2,
+     "title": "2. 目标有效性",
+     "line": 71,
+     "own": "cc1a78fb76d589e4",
+     "tree": "e3606421b88e4869"
+    },
+    "3": {
+     "level": 2,
+     "title": "3. 查询契约 `ITcsEntityQuery`",
+     "line": 103,
+     "own": "00e650141620c2f9",
+     "tree": "00e650141620c2f9"
+    },
+    "4": {
+     "level": 2,
+     "title": "4. 存储形态判定规则",
+     "line": 129,
+     "own": "adfa44e8c14ef8bd",
+     "tree": "509b00b761ebc8d8"
+    },
+    "5": {
+     "level": 2,
+     "title": "5. 载体形态",
+     "line": 161,
+     "own": "e3b0c44298fc1c14",
+     "tree": "86f5804699dc3a7a"
+    },
+    "6": {
+     "level": 2,
+     "title": "6. 批处理后端",
+     "line": 205,
+     "own": "7a4c802257751032",
+     "tree": "7a4c802257751032"
+    },
+    "7": {
+     "level": 2,
+     "title": "7. 边界清单",
+     "line": 224,
+     "own": "a66884cf6acaf55f",
+     "tree": "a66884cf6acaf55f"
+    },
+    "T:核心基线 · 战斗实体（Entity）": {
+     "level": 1,
+     "title": "核心基线 · 战斗实体（Entity）",
+     "line": 1,
+     "own": "5a870a118a9758f2",
+     "tree": "5cff7bc25c82236d"
+    },
+    "2.1": {
+     "level": 3,
+     "title": "2.1 延迟施加的三形态",
+     "line": 75,
+     "own": "5b967eceb57f91da",
+     "tree": "5b967eceb57f91da"
+    },
+    "2.2": {
+     "level": 3,
+     "title": "2.2 级联清理是硬保证",
+     "line": 83,
+     "own": "c7037d57b1580f52",
+     "tree": "c7037d57b1580f52"
+    },
+    "2.3": {
+     "level": 3,
+     "title": "2.3 施加失败只有一种读数",
+     "line": 97,
+     "own": "366cba4fc200e4de",
+     "tree": "366cba4fc200e4de"
+    },
+    "4.1": {
+     "level": 3,
+     "title": "4.1 两条互相独立的轴",
+     "line": 133,
+     "own": "db999d3e588d7358",
+     "tree": "db999d3e588d7358"
+    },
+    "4.2": {
+     "level": 3,
+     "title": "4.2 存储形态：按收益判定",
+     "line": 142,
+     "own": "439b102416a5e119",
+     "tree": "439b102416a5e119"
+    },
+    "4.3": {
+     "level": 3,
+     "title": "4.3 契约只收句柄、元素引用或 Visitor",
+     "line": 155,
+     "own": "3da6db76fbb468e8",
+     "tree": "3da6db76fbb468e8"
+    },
+    "5.1": {
+     "level": 3,
+     "title": "5.1 数量决定载体",
+     "line": 163,
+     "own": "6a955298fecc2599",
+     "tree": "6a955298fecc2599"
+    },
+    "5.2": {
+     "level": 3,
+     "title": "5.2 框架只持句柄",
+     "line": 175,
+     "own": "0a9b4c47d0f8e66c",
+     "tree": "0a9b4c47d0f8e66c"
+    },
+    "5.3": {
+     "level": 3,
+     "title": "5.3 表现、反馈、位移、区域归宿主",
+     "line": 183,
+     "own": "f8fac3b1b35d3d4d",
+     "tree": "f8fac3b1b35d3d4d"
+    },
+    "5.4": {
+     "level": 3,
+     "title": "5.4 判定与动作由宿主提供",
+     "line": 194,
+     "own": "835e115391d57036",
+     "tree": "835e115391d57036"
+    },
+    "T:待决": {
+     "level": 2,
+     "title": "待决",
+     "line": 241,
+     "own": "ba3170c7845f27ec",
+     "tree": "ba3170c7845f27ec"
+    }
+   }
+  },
+  "Plugins/TireflyCombatSystem/Documents/tcs-remake-v2/02-核心基线/运行时实例.md": {
+   "sha256": "27030a51fff7ba05",
+   "lines": 472,
+   "sections": {
+    "0": {
+     "level": 2,
+     "title": "0. 本域的三样东西",
+     "line": 12,
+     "own": "bf7b947e344d120c",
+     "tree": "bf7b947e344d120c"
+    },
+    "T:核心基线 · 运行时实例（Instance）": {
+     "level": 1,
+     "title": "核心基线 · 运行时实例（Instance）",
+     "line": 1,
+     "own": "b86d8ae02b474e2f",
+     "tree": "c328046ea3fe88cf"
+    },
+    "1.1": {
+     "level": 2,
+     "title": "1.1 实例句柄 ✅",
+     "line": 24,
+     "own": "e3b0c44298fc1c14",
+     "tree": "c5e0ef87c5fabe47"
+    },
+    "1.1.1": {
+     "level": 3,
+     "title": "1.1.1 形态：三段，不是模板",
+     "line": 26,
+     "own": "a0d124f303f0b4f2",
+     "tree": "a0d124f303f0b4f2"
+    },
+    "1.1.2": {
+     "level": 3,
+     "title": "1.1.2 每种句柄是一个独立 `USTRUCT`，MUST NOT 用模板 ✅",
+     "line": 73,
+     "own": "c02ca3b889789dde",
+     "tree": "c02ca3b889789dde"
+    },
+    "1.1.3": {
+     "level": 3,
+     "title": "1.1.3 `InstanceId` 是身份，不是版本号 ✅",
+     "line": 81,
+     "own": "46368a2d600e2329",
+     "tree": "46368a2d600e2329"
+    },
+    "1.1.4": {
+     "level": 3,
+     "title": "1.1.4 需要句柄的类型 ✅",
+     "line": 91,
+     "own": "5a6b44397afbf676",
+     "tree": "5a6b44397afbf676"
+    },
+    "1.1.5": {
+     "level": 3,
+     "title": "1.1.5 `InstanceId` 宽度：`int64` ✅",
+     "line": 103,
+     "own": "7b62df4f376b98ce",
+     "tree": "7b62df4f376b98ce"
+    },
+    "1.1.6": {
+     "level": 3,
+     "title": "1.1.6 句柄 → 实例：定位是领域义务 ✅",
+     "line": 109,
+     "own": "54e2c1833a6f5f85",
+     "tree": "54e2c1833a6f5f85"
+    },
+    "1.2": {
+     "level": 2,
+     "title": "1.2 实例池 `TTcsInstancePool` ✅",
+     "line": 132,
+     "own": "e3b0c44298fc1c14",
+     "tree": "d9ec025a0ed6facc"
+    },
+    "1.2.1": {
+     "level": 3,
+     "title": "1.2.1 形态",
+     "line": 134,
+     "own": "b00c5b4a99bbd52d",
+     "tree": "c5465074d8c15b04"
+    },
+    "T:借用与遍历契约": {
+     "level": 4,
+     "title": "借用与遍历契约",
+     "line": 238,
+     "own": "a3eea78122ac0fc7",
+     "tree": "a3eea78122ac0fc7"
+    },
+    "T:池元素的 UObject 引用": {
+     "level": 4,
+     "title": "池元素的 `UObject` 引用",
+     "line": 253,
+     "own": "41ab3ae6e53a5b28",
+     "tree": "41ab3ae6e53a5b28"
+    },
+    "1.2.2": {
+     "level": 3,
+     "title": "1.2.2 池的两职责 ✅",
+     "line": 261,
+     "own": "5a3d6e8a6d0ca848",
+     "tree": "5a3d6e8a6d0ca848"
+    },
+    "1.2.3": {
+     "level": 3,
+     "title": "1.2.3 `PoolId` 的发号 ✅",
+     "line": 270,
+     "own": "74ca5d9ffcec31da",
+     "tree": "74ca5d9ffcec31da"
+    },
+    "1.2.4": {
+     "level": 3,
+     "title": "1.2.4 发号器 ✅",
+     "line": 281,
+     "own": "57881838b9be531a",
+     "tree": "57881838b9be531a"
+    },
+    "1.3": {
+     "level": 2,
+     "title": "1.3 来源句柄 `FTcsSourceHandle` ✅",
+     "line": 325,
+     "own": "e3b0c44298fc1c14",
+     "tree": "4e8a50feb3c9ce90"
+    },
+    "1.3.1": {
+     "level": 3,
+     "title": "1.3.1 形态",
+     "line": 327,
+     "own": "78b8bc31983e89c5",
+     "tree": "78b8bc31983e89c5"
+    },
+    "1.3.2": {
+     "level": 3,
+     "title": "1.3.2 归属：Instance，不是 Entity ✅",
+     "line": 360,
+     "own": "918289bdcb72b3da",
+     "tree": "918289bdcb72b3da"
+    },
+    "1.3.3": {
+     "level": 3,
+     "title": "1.3.3 一柄两角：施加方来源 / 撤销锚点 ✅",
+     "line": 368,
+     "own": "91ea6281944540c6",
+     "tree": "91ea6281944540c6"
+    },
+    "1.3.4": {
+     "level": 3,
+     "title": "1.3.4 进程唯一与只增不减 ✅",
+     "line": 394,
+     "own": "bace62cc383e71ff",
+     "tree": "bace62cc383e71ff"
+    },
+    "1.3.5": {
+     "level": 3,
+     "title": "1.3.5 设计克制 ✅",
+     "line": 414,
+     "own": "4a9dab98ac20101a",
+     "tree": "4a9dab98ac20101a"
+    },
+    "1.4": {
+     "level": 2,
+     "title": "1.4 观测面 ✅",
+     "line": 426,
+     "own": "893ae1b8fa70078c",
+     "tree": "893ae1b8fa70078c"
+    },
+    "T:待决": {
+     "level": 2,
+     "title": "待决",
+     "line": 439,
+     "own": "9c1b8db5cd6db12a",
+     "tree": "9c1b8db5cd6db12a"
+    },
+    "T:已裁定（速查）": {
+     "level": 2,
+     "title": "已裁定（速查）",
+     "line": 445,
+     "own": "30d053b9929a235a",
+     "tree": "30d053b9929a235a"
+    }
+   }
+  },
+  "Plugins/TireflyCombatSystem/Documents/tcs-remake-v2/02-核心基线/统一时钟.md": {
+   "sha256": "0bc0297b09c7b29b",
+   "lines": 310,
+   "sections": {
+    "0": {
+     "level": 2,
+     "title": "0. 本域的两样东西",
+     "line": 12,
+     "own": "f91909a94d1dca82",
+     "tree": "f91909a94d1dca82"
+    },
+    "T:核心基线 · 统一时钟（Clock）": {
+     "level": 1,
+     "title": "核心基线 · 统一时钟（Clock）",
+     "line": 1,
+     "own": "c475cdd7772958d8",
+     "tree": "a44652bd5d08b445"
+    },
+    "1.1": {
+     "level": 2,
+     "title": "1.1 战斗时钟与泵 ✅",
+     "line": 21,
+     "own": "e3b0c44298fc1c14",
+     "tree": "533851c287b6dbe5"
+    },
+    "1.1.1": {
+     "level": 3,
+     "title": "1.1.1 形态",
+     "line": 23,
+     "own": "4d01737a943f9b28",
+     "tree": "4d01737a943f9b28"
+    },
+    "1.1.2": {
+     "level": 3,
+     "title": "1.1.2 泵的三步序 ✅",
+     "line": 33,
+     "own": "f8994f84249554ae",
+     "tree": "f8994f84249554ae"
+    },
+    "1.1.3": {
+     "level": 3,
+     "title": "1.1.3 不设 per-component tick ✅",
+     "line": 51,
+     "own": "1567b4ef1f59d682",
+     "tree": "1567b4ef1f59d682"
+    },
+    "1.1.4": {
+     "level": 3,
+     "title": "1.1.4 时间源不设接口 ✅",
+     "line": 57,
+     "own": "433241827e7180a3",
+     "tree": "433241827e7180a3"
+    },
+    "1.2": {
+     "level": 2,
+     "title": "1.2 到期堆 `FTcsExpiryHeap` ✅",
+     "line": 67,
+     "own": "e3b0c44298fc1c14",
+     "tree": "46578ce78e7d0f08"
+    },
+    "1.2.1": {
+     "level": 3,
+     "title": "1.2.1 形态",
+     "line": 69,
+     "own": "d2447f661261564f",
+     "tree": "d2447f661261564f"
+    },
+    "1.2.2": {
+     "level": 3,
+     "title": "1.2.2 核心纪律：先换出，再回调 ✅",
+     "line": 101,
+     "own": "d9cac40b77be8a75",
+     "tree": "d9cac40b77be8a75"
+    },
+    "1.2.3": {
+     "level": 3,
+     "title": "1.2.3 槽位态与取消窗口 ✅",
+     "line": 126,
+     "own": "0af6d3c41373859b",
+     "tree": "0af6d3c41373859b"
+    },
+    "1.2.4": {
+     "level": 3,
+     "title": "1.2.4 载荷由回调捕获自带 ✅",
+     "line": 170,
+     "own": "b68ad6757fe7ddf4",
+     "tree": "b68ad6757fe7ddf4"
+    },
+    "1.2.5": {
+     "level": 3,
+     "title": "1.2.5 捕获预算 ✅",
+     "line": 203,
+     "own": "deb3fc12c05cf7a5",
+     "tree": "deb3fc12c05cf7a5"
+    },
+    "1.2.6": {
+     "level": 3,
+     "title": "1.2.6 已知边界 ✅",
+     "line": 273,
+     "own": "43f0fdbe6d76940d",
+     "tree": "43f0fdbe6d76940d"
+    },
+    "T:待决": {
+     "level": 2,
+     "title": "待决",
+     "line": 283,
+     "own": "9c1b8db5cd6db12a",
+     "tree": "9c1b8db5cd6db12a"
+    },
+    "T:已裁定（速查）": {
+     "level": 2,
+     "title": "已裁定（速查）",
+     "line": 289,
+     "own": "7815791e7fee029d",
+     "tree": "7815791e7fee029d"
+    }
+   }
+  },
+  "Plugins/TireflyCombatSystem/Documents/tcs-remake-v2/02-核心基线/事件总线.md": {
+   "sha256": "0fce0389ed3bc3be",
+   "lines": 671,
+   "sections": {
+    "0": {
+     "level": 2,
+     "title": "0. 本域只回答一件事",
+     "line": 12,
+     "own": "6348a27a7514fe5a",
+     "tree": "d53b5abef8778951"
+    },
+    "T:核心基线 · 事件总线（EventBus）": {
+     "level": 1,
+     "title": "核心基线 · 事件总线（EventBus）",
+     "line": 1,
+     "own": "21affe0be0b6e5ca",
+     "tree": "8f19b12aaf356ab4"
+    },
+    "0.1": {
+     "level": 3,
+     "title": "0.1 投放语义",
+     "line": 16,
+     "own": "5a975c9d292b32b6",
+     "tree": "5a975c9d292b32b6"
+    },
+    "1.1": {
+     "level": 2,
+     "title": "1.1 事件总线 ✅",
+     "line": 39,
+     "own": "e3b0c44298fc1c14",
+     "tree": "5ab6032aca087a65"
+    },
+    "1.1.1": {
+     "level": 3,
+     "title": "1.1.1 形态总览",
+     "line": 41,
+     "own": "f43bbd36d8f01f54",
+     "tree": "f43bbd36d8f01f54"
+    },
+    "1.1.2": {
+     "level": 3,
+     "title": "1.1.2 载荷：类型擦除 + 注册期绑定",
+     "line": 53,
+     "own": "523b82ba360749ec",
+     "tree": "523b82ba360749ec"
+    },
+    "1.1.3": {
+     "level": 3,
+     "title": "1.1.3 底层回调：手写零堆分配函数对象 ✅",
+     "line": 83,
+     "own": "aa18c4de061ffeb9",
+     "tree": "aa18c4de061ffeb9"
+    },
+    "1.1.4": {
+     "level": 3,
+     "title": "1.1.4 订阅：句柄式生命周期 ✅",
+     "line": 163,
+     "own": "c5b72def863a4390",
+     "tree": "c5b72def863a4390"
+    },
+    "1.1.5": {
+     "level": 3,
+     "title": "1.1.5 两条注册路径 ✅",
+     "line": 218,
+     "own": "727c5047f92117a0",
+     "tree": "727c5047f92117a0"
+    },
+    "1.1.6": {
+     "level": 3,
+     "title": "1.1.6 派发：稳定下标 + 身份索引 + 深度归零 ✅",
+     "line": 245,
+     "own": "68dc6b75fdf11d5b",
+     "tree": "7aa2d7ae4f3a2ee9"
+    },
+    "T:存储形态": {
+     "level": 4,
+     "title": "存储形态",
+     "line": 251,
+     "own": "bf3d9621e5af6968",
+     "tree": "bf3d9621e5af6968"
+    },
+    "T:四个入口": {
+     "level": 4,
+     "title": "四个入口",
+     "line": 291,
+     "own": "62096b15b5f1d0a6",
+     "tree": "62096b15b5f1d0a6"
+    },
+    "T:下标不变量 ✅": {
+     "level": 4,
+     "title": "下标不变量 ✅",
+     "line": 471,
+     "own": "21495ca1b62398b0",
+     "tree": "21495ca1b62398b0"
+    },
+    "T:注销为什么是 O(1) ✅": {
+     "level": 4,
+     "title": "注销为什么是 O(1) ✅",
+     "line": 481,
+     "own": "cbc98b70e445d6b9",
+     "tree": "cbc98b70e445d6b9"
+    },
+    "T:Matches 的定义 ✅": {
+     "level": 4,
+     "title": "`Matches` 的定义 ✅",
+     "line": 514,
+     "own": "8470f0dc51320aee",
+     "tree": "8470f0dc51320aee"
+    },
+    "1.1.7": {
+     "level": 3,
+     "title": "1.1.7 频道层级匹配：显式开启 ✅",
+     "line": 534,
+     "own": "8a20e206775b2356",
+     "tree": "8a20e206775b2356"
+    },
+    "1.1.8": {
+     "level": 3,
+     "title": "1.1.8 载荷生命周期：受控借用 ✅",
+     "line": 552,
+     "own": "dfe3a6ce66c452fa",
+     "tree": "dfe3a6ce66c452fa"
+    },
+    "1.1.9": {
+     "level": 3,
+     "title": "1.1.9 订阅生命周期闭合 ✅",
+     "line": 566,
+     "own": "f5316bf16f824615",
+     "tree": "f5316bf16f824615"
+    },
+    "1.1.10": {
+     "level": 3,
+     "title": "1.1.10 业务需求",
+     "line": 589,
+     "own": "08fc61281581c409",
+     "tree": "08fc61281581c409"
+    },
+    "1.1.11": {
+     "level": 3,
+     "title": "1.1.11 路由结构不预设",
+     "line": 597,
+     "own": "e5ac00d24fbd9605",
+     "tree": "e5ac00d24fbd9605"
+    },
+    "1.2": {
+     "level": 2,
+     "title": "1.2 帧末派发通道：**不建** ✅",
+     "line": 605,
+     "own": "e3b0c44298fc1c14",
+     "tree": "2c45fe4b3df73a67"
+    },
+    "1.2.1": {
+     "level": 3,
+     "title": "1.2.1 它要解决的问题",
+     "line": 607,
+     "own": "250fbea93aab9cb4",
+     "tree": "250fbea93aab9cb4"
+    },
+    "1.2.2": {
+     "level": 3,
+     "title": "1.2.2 不建的判据",
+     "line": 611,
+     "own": "bf7b10f9610abd9d",
+     "tree": "bf7b10f9610abd9d"
+    },
+    "1.2.3": {
+     "level": 3,
+     "title": "1.2.3 与动作游戏的冲突",
+     "line": 617,
+     "own": "424ec2875a428d41",
+     "tree": "424ec2875a428d41"
+    },
+    "1.2.4": {
+     "level": 3,
+     "title": "1.2.4 重开此通道的触发条件",
+     "line": 623,
+     "own": "24f2d7e5d2f6cf5f",
+     "tree": "24f2d7e5d2f6cf5f"
+    },
+    "1.2.5": {
+     "level": 3,
+     "title": "1.2.5 被否的是「通道」，不是「合并语义」 ✅",
+     "line": 627,
+     "own": "4bdf01a545f2de8a",
+     "tree": "4bdf01a545f2de8a"
+    },
+    "T:待决": {
+     "level": 2,
+     "title": "待决",
+     "line": 644,
+     "own": "59efa5665ac414bc",
+     "tree": "59efa5665ac414bc"
+    }
+   }
+  },
+  "Plugins/TireflyCombatSystem/Documents/tcs-remake-v2/02-核心基线/数值聚合器.md": {
+   "sha256": "6d650e047c974eb7",
+   "lines": 829,
+   "sections": {
+    "1": {
+     "level": 2,
+     "title": "1. 它是什么",
+     "line": 12,
+     "own": "eeb06719cc485042",
+     "tree": "eeb06719cc485042"
+    },
+    "2": {
+     "level": 2,
+     "title": "2. 算法",
+     "line": 22,
+     "own": "e3b0c44298fc1c14",
+     "tree": "56c5f58c625669a0"
+    },
+    "3": {
+     "level": 2,
+     "title": "3. 接口形态（最终）✅",
+     "line": 97,
+     "own": "3c80f607b84a5523",
+     "tree": "c75e9b559de53965"
+    },
+    "4": {
+     "level": 2,
+     "title": "4. 三个消费场景 ✅",
+     "line": 552,
+     "own": "e3b0c44298fc1c14",
+     "tree": "6e287a6f31f829cb"
+    },
+    "5": {
+     "level": 2,
+     "title": "5. 比较器与决胜规则 ✅",
+     "line": 674,
+     "own": "e3b0c44298fc1c14",
+     "tree": "6f21c699cfbbd60d"
+    },
+    "6": {
+     "level": 2,
+     "title": "6. 同源多条 Override 的处置 ✅",
+     "line": 759,
+     "own": "2eb39d434c35cc46",
+     "tree": "2eb39d434c35cc46"
+    },
+    "7": {
+     "level": 2,
+     "title": "7. 三域接线责任表 ✅",
+     "line": 780,
+     "own": "3d35c0165032f4b0",
+     "tree": "3d35c0165032f4b0"
+    },
+    "8": {
+     "level": 2,
+     "title": "8. 归属与形态 ✅",
+     "line": 798,
+     "own": "e3b0c44298fc1c14",
+     "tree": "8ab71c824c1e327c"
+    },
+    "9": {
+     "level": 2,
+     "title": "9. 未决项",
+     "line": 817,
+     "own": "6e04af8c30a15a07",
+     "tree": "6e04af8c30a15a07"
+    },
+    "10": {
+     "level": 2,
+     "title": "10. 可推广到其它基线的四条",
+     "line": 823,
+     "own": "731b5607d50450b7",
+     "tree": "731b5607d50450b7"
+    },
+    "T:核心基线 · 数值聚合器（NumericAggregator）": {
+     "level": 1,
+     "title": "核心基线 · 数值聚合器（NumericAggregator）",
+     "line": 1,
+     "own": "7043e218d8e28245",
+     "tree": "f62dc92859989b84"
+    },
+    "2.1": {
+     "level": 3,
+     "title": "2.1 唯一的算法 ✅",
+     "line": 24,
+     "own": "43af84e174ba9189",
+     "tree": "43af84e174ba9189"
+    },
+    "2.2": {
+     "level": 3,
+     "title": "2.2 它不做什么（同等重要）✅",
+     "line": 76,
+     "own": "8a6bf1cb8dda80c0",
+     "tree": "8a6bf1cb8dda80c0"
+    },
+    "2.3": {
+     "level": 3,
+     "title": "2.3 它保障的两件事",
+     "line": 89,
+     "own": "8d478757e1c62a60",
+     "tree": "8d478757e1c62a60"
+    },
+    "3.1": {
+     "level": 3,
+     "title": "3.1 单级互斥 ✅",
+     "line": 422,
+     "own": "9cd70011a4dc7ce3",
+     "tree": "9cd70011a4dc7ce3"
+    },
+    "3.2": {
+     "level": 3,
+     "title": "3.2 施加序用 `uint64 OrderSeq`，不持有 `FTcsSourceHandle` ✅",
+     "line": 434,
+     "own": "85b50b5dffb8c85f",
+     "tree": "85b50b5dffb8c85f"
+    },
+    "3.3": {
+     "level": 3,
+     "title": "3.3 明细：与公式同构，MUST NOT 合并层 ✅",
+     "line": 480,
+     "own": "3ecff65d9df79173",
+     "tree": "2d0184c878b7604a"
+    },
+    "T:明细只放「调用方拿不到的量」": {
+     "level": 4,
+     "title": "明细只放「调用方拿不到的量」",
+     "line": 491,
+     "own": "e16d89427bb91b2c",
+     "tree": "e16d89427bb91b2c"
+    },
+    "T:明细结构 MUST 与公式逐项对应": {
+     "level": 4,
+     "title": "明细结构 MUST 与公式逐项对应",
+     "line": 504,
+     "own": "013d80cbf32d502d",
+     "tree": "013d80cbf32d502d"
+    },
+    "T:三种覆盖下的明细语义": {
+     "level": 4,
+     "title": "三种覆盖下的明细语义",
+     "line": 516,
+     "own": "7afa0a5b02d363a0",
+     "tree": "7afa0a5b02d363a0"
+    },
+    "T:成本：默认路径一分不付": {
+     "level": 4,
+     "title": "成本：默认路径一分不付",
+     "line": 530,
+     "own": "075731c81209f7f3",
+     "tree": "075731c81209f7f3"
+    },
+    "T:谁消费（铁律 ①）": {
+     "level": 4,
+     "title": "谁消费（铁律 ①）",
+     "line": 538,
+     "own": "a271829a81327ffa",
+     "tree": "a271829a81327ffa"
+    },
+    "4.0": {
+     "level": 3,
+     "title": "4.0 一张总表",
+     "line": 554,
+     "own": "578bca072f24216d",
+     "tree": "578bca072f24216d"
+    },
+    "4.1": {
+     "level": 3,
+     "title": "4.1 属性聚合",
+     "line": 567,
+     "own": "bca6b08c91360837",
+     "tree": "bca6b08c91360837"
+    },
+    "4.2": {
+     "level": 3,
+     "title": "4.2 参数链",
+     "line": 630,
+     "own": "0336095ebb434318",
+     "tree": "0336095ebb434318"
+    },
+    "4.3": {
+     "level": 3,
+     "title": "4.3 流程属性",
+     "line": 646,
+     "own": "a9b5dfd59fd92841",
+     "tree": "a9b5dfd59fd92841"
+    },
+    "5.1": {
+     "level": 3,
+     "title": "5.1 两级比较",
+     "line": 676,
+     "own": "dc540c24b099bbec",
+     "tree": "dc540c24b099bbec"
+    },
+    "5.2": {
+     "level": 3,
+     "title": "5.2 Priority 的可见性 ✅",
+     "line": 697,
+     "own": "6f4f5e28cb96a100",
+     "tree": "6f4f5e28cb96a100"
+    },
+    "5.3": {
+     "level": 3,
+     "title": "5.3 不提供「带权数字」",
+     "line": 713,
+     "own": "560fdb90856e1e3e",
+     "tree": "560fdb90856e1e3e"
+    },
+    "5.4": {
+     "level": 3,
+     "title": "5.4 输入域与特殊值 ✅",
+     "line": 719,
+     "own": "7559aa2070eaaefe",
+     "tree": "7559aa2070eaaefe"
+    },
+    "5.5": {
+     "level": 3,
+     "title": "5.5 三种覆盖的作用域与合法组合 ✅",
+     "line": 734,
+     "own": "1bd9661695c64eda",
+     "tree": "1bd9661695c64eda"
+    },
+    "8.1": {
+     "level": 3,
+     "title": "8.1 归属",
+     "line": 800,
+     "own": "1e8b112c71b778ba",
+     "tree": "1e8b112c71b778ba"
+    },
+    "8.2": {
+     "level": 3,
+     "title": "8.2 载体形态：不预设",
+     "line": 809,
+     "own": "e76588d0d3c4f44e",
+     "tree": "e76588d0d3c4f44e"
+    }
+   }
+  },
+  "Plugins/TireflyCombatSystem/Documents/tcs-remake-v2/02-核心基线/GameplayTag.md": {
+   "sha256": "8575ee33becfbe45",
+   "lines": 143,
+   "sections": {
+    "0": {
+     "level": 2,
+     "title": "0. 本文件只回答一件事",
+     "line": 14,
+     "own": "38168420cf8732db",
+     "tree": "38168420cf8732db"
+    },
+    "1": {
+     "level": 2,
+     "title": "1. `FTcsTagRequirements` ✅",
+     "line": 30,
+     "own": "e3b0c44298fc1c14",
+     "tree": "1f0894deb970cc69"
+    },
+    "2": {
+     "level": 2,
+     "title": "2. 消费者（铁律 ①）",
+     "line": 112,
+     "own": "36c16a310735efdf",
+     "tree": "36c16a310735efdf"
+    },
+    "3": {
+     "level": 2,
+     "title": "3. 归属",
+     "line": 125,
+     "own": "959d369629e5df95",
+     "tree": "959d369629e5df95"
+    },
+    "4": {
+     "level": 2,
+     "title": "4. 未决",
+     "line": 140,
+     "own": "1fc6588b7d3e910e",
+     "tree": "1fc6588b7d3e910e"
+    },
+    "T:核心基线 · 游戏标签（GameplayTag）": {
+     "level": 1,
+     "title": "核心基线 · 游戏标签（GameplayTag）",
+     "line": 1,
+     "own": "08073a5f472c3b12",
+     "tree": "9b6dc33d0ed7dffa"
+    },
+    "1.1": {
+     "level": 3,
+     "title": "1.1 形状",
+     "line": 32,
+     "own": "5ee79133e5fb5f1a",
+     "tree": "5ee79133e5fb5f1a"
+    },
+    "1.2": {
+     "level": 3,
+     "title": "1.2 三条语义边界（MUST 读）",
+     "line": 83,
+     "own": "acba190b66c557f4",
+     "tree": "acba190b66c557f4"
+    },
+    "1.3": {
+     "level": 3,
+     "title": "1.3 Why 自建而不直接用 GAS 的",
+     "line": 95,
+     "own": "8db0ef68ec4f1b1b",
+     "tree": "8db0ef68ec4f1b1b"
+    },
+    "1.4": {
+     "level": 3,
+     "title": "1.4 Why Not 搬 `FGameplayTagQuery` 位",
+     "line": 101,
+     "own": "9b4666a3edd1c171",
+     "tree": "9b4666a3edd1c171"
+    }
+   }
+  },
+  "Plugins/TireflyCombatSystem/Documents/tcs-remake-v2/04-领域/Attribute.md": {
+   "sha256": "ccde80b4e64b10cb",
+   "lines": 1283,
+   "sections": {
+    "0": {
+     "level": 2,
+     "title": "0. 它是什么 ✅",
+     "line": 10,
+     "own": "e9dbfbb5b68bee2c",
+     "tree": "e9dbfbb5b68bee2c"
+    },
+    "1": {
+     "level": 2,
+     "title": "1. 三段式结构 ✅",
+     "line": 30,
+     "own": "5899625ad72e62d6",
+     "tree": "474d5b322fa6a895"
+    },
+    "2": {
+     "level": 2,
+     "title": "2. 值的权威与缓存 ✅",
+     "line": 207,
+     "own": "e3b0c44298fc1c14",
+     "tree": "c1ab85823b975ef7"
+    },
+    "3": {
+     "level": 2,
+     "title": "3. 聚合接线（对接《数值聚合器》）✅",
+     "line": 248,
+     "own": "e3b0c44298fc1c14",
+     "tree": "45c16c5441699231"
+    },
+    "4": {
+     "level": 2,
+     "title": "4. 值域收口 ✅",
+     "line": 405,
+     "own": "e3b0c44298fc1c14",
+     "tree": "9d313192842f1857"
+    },
+    "5": {
+     "level": 2,
+     "title": "5. 依赖图 ✅",
+     "line": 449,
+     "own": "e3b0c44298fc1c14",
+     "tree": "aa8ee01ed0fc7615"
+    },
+    "6": {
+     "level": 2,
+     "title": "6. 存在性与变更通知 ✅",
+     "line": 868,
+     "own": "e3b0c44298fc1c14",
+     "tree": "f692d2922ca4759d"
+    },
+    "7": {
+     "level": 2,
+     "title": "7. 修正器的施加与撤销 ✅",
+     "line": 946,
+     "own": "e3b0c44298fc1c14",
+     "tree": "f6b0dc27c5a8f9ec"
+    },
+    "8": {
+     "level": 2,
+     "title": "8. 读口 ✅",
+     "line": 1209,
+     "own": "e3b0c44298fc1c14",
+     "tree": "ad202ca1dbc2aef9"
+    },
+    "9": {
+     "level": 2,
+     "title": "9. 边界清单 ✅",
+     "line": 1242,
+     "own": "e3b0c44298fc1c14",
+     "tree": "561cc3042d9e3b70"
+    },
+    "10": {
+     "level": 2,
+     "title": "10. 未决",
+     "line": 1275,
+     "own": "d181792d99700e22",
+     "tree": "d181792d99700e22"
+    },
+    "T:领域 · Attribute（属性）": {
+     "level": 1,
+     "title": "领域 · Attribute（属性）",
+     "line": 1,
+     "own": "4601c7388db1c625",
+     "tree": "39648334f88ac9ef"
+    },
+    "1.1": {
+     "level": 3,
+     "title": "1.1 定义：`UTcsAttributeDef`",
+     "line": 34,
+     "own": "3ec11c898939bb93",
+     "tree": "3ec11c898939bb93"
+    },
+    "1.2": {
+     "level": 3,
+     "title": "1.2 实例：`FTcsAttributeInstance`",
+     "line": 86,
+     "own": "f7ef4d35dc94ffe0",
+     "tree": "f7ef4d35dc94ffe0"
+    },
+    "1.3": {
+     "level": 3,
+     "title": "1.3 依赖图：节点是「求值单元」，不是属性",
+     "line": 118,
+     "own": "d016d458ab036b4c",
+     "tree": "19b100de15b0d99b"
+    },
+    "T:节点种类": {
+     "level": 4,
+     "title": "节点种类",
+     "line": 133,
+     "own": "455f63fe56271195",
+     "tree": "455f63fe56271195"
+    },
+    "T:容器的三层职责保持不变": {
+     "level": 4,
+     "title": "容器的三层职责保持不变",
+     "line": 154,
+     "own": "b0298d3dea1f065a",
+     "tree": "b0298d3dea1f065a"
+    },
+    "2.1": {
+     "level": 3,
+     "title": "2.1 权威是「基值 + 修正器」，不是缓存",
+     "line": 209,
+     "own": "1324e02049ba5148",
+     "tree": "1324e02049ba5148"
+    },
+    "2.2": {
+     "level": 3,
+     "title": "2.2 写时重算，帧末派发",
+     "line": 219,
+     "own": "e2c62a10a62f29bd",
+     "tree": "e2c62a10a62f29bd"
+    },
+    "3.1": {
+     "level": 3,
+     "title": "3.1 两段 + 全局层",
+     "line": 250,
+     "own": "011e5a58e7497e19",
+     "tree": "011e5a58e7497e19"
+    },
+    "3.2": {
+     "level": 3,
+     "title": "3.2 修正器的落点：`ETcsAttrLayer`",
+     "line": 272,
+     "own": "00bc0f82bef15a8d",
+     "tree": "00bc0f82bef15a8d"
+    },
+    "3.3": {
+     "level": 3,
+     "title": "3.3 合法矩阵（`IsDataValid` 直接查）",
+     "line": 286,
+     "own": "0d47a93035398122",
+     "tree": "0d47a93035398122"
+    },
+    "3.4": {
+     "level": 3,
+     "title": "3.4 收集与求值",
+     "line": 297,
+     "own": "c5113ad25e40e462",
+     "tree": "04ad570cbb25b18b"
+    },
+    "T:收集：按层分组": {
+     "level": 4,
+     "title": "收集：按层分组",
+     "line": 301,
+     "own": "2a5b2f582b19bce0",
+     "tree": "2a5b2f582b19bce0"
+    },
+    "T:折叠：两段 + 全局层": {
+     "level": 4,
+     "title": "折叠：两段 + 全局层",
+     "line": 326,
+     "own": "8ea7e224734edf06",
+     "tree": "8ea7e224734edf06"
+    },
+    "T:缓存与节点值的关系": {
+     "level": 4,
+     "title": "缓存与节点值的关系",
+     "line": 368,
+     "own": "5e1f0331ea41ffd4",
+     "tree": "5e1f0331ea41ffd4"
+    },
+    "3.5": {
+     "level": 3,
+     "title": "3.5 三种读取粒度",
+     "line": 378,
+     "own": "a92ecad32efc73cb",
+     "tree": "a92ecad32efc73cb"
+    },
+    "4.1": {
+     "level": 3,
+     "title": "4.1 边界：`FTcsAttributeBounds`",
+     "line": 407,
+     "own": "ca066a5395e2b029",
+     "tree": "ca066a5395e2b029"
+    },
+    "4.2": {
+     "level": 3,
+     "title": "4.2 越界语义：只两种",
+     "line": 428,
+     "own": "796828768a347bf8",
+     "tree": "796828768a347bf8"
+    },
+    "4.3": {
+     "level": 3,
+     "title": "4.3 钳制时机：写时收口",
+     "line": 441,
+     "own": "71f115a4eceda54b",
+     "tree": "71f115a4eceda54b"
+    },
+    "5.1": {
+     "level": 3,
+     "title": "5.1 依赖只有两个来源",
+     "line": 451,
+     "own": "54e428af34d5bfbc",
+     "tree": "54e428af34d5bfbc"
+    },
+    "5.2": {
+     "level": 3,
+     "title": "5.2 建图：先建节点，再连边",
+     "line": 478,
+     "own": "e02c8fab5978a4c6",
+     "tree": "afc090d73dcf5378"
+    },
+    "T:第一段：建节点": {
+     "level": 4,
+     "title": "第一段：建节点",
+     "line": 529,
+     "own": "0e430f7f8d4f6a33",
+     "tree": "0e430f7f8d4f6a33"
+    },
+    "T:第二段：连边": {
+     "level": 4,
+     "title": "第二段：连边",
+     "line": 559,
+     "own": "17d0c664536a9ce4",
+     "tree": "17d0c664536a9ce4"
+    },
+    "T:RebuildGraph = 建节点 + 连边 + 交给图": {
+     "level": 4,
+     "title": "`RebuildGraph` = 建节点 + 连边 + 交给图",
+     "line": 691,
+     "own": "dde75230b2c318bf",
+     "tree": "dde75230b2c318bf"
+    },
+    "5.3": {
+     "level": 3,
+     "title": "5.3 结算：沿反向边扩散，按拓扑序重算",
+     "line": 729,
+     "own": "431c9cb66e83ca97",
+     "tree": "4364659b7583e4df"
+    },
+    "T:写入口登记的是节点，不是槽位": {
+     "level": 4,
+     "title": "写入口登记的是**节点**，不是槽位",
+     "line": 804,
+     "own": "6208734c2b9092cf",
+     "tree": "6208734c2b9092cf"
+    },
+    "5.4": {
+     "level": 3,
+     "title": "5.4 环检测与拓扑序",
+     "line": 816,
+     "own": "b1115ca52ce99b45",
+     "tree": "587021ae62634a43"
+    },
+    "T:运行期兜底：断言 + 补齐，不阻塞": {
+     "level": 4,
+     "title": "运行期兜底：断言 + 补齐，不阻塞",
+     "line": 833,
+     "own": "eef66dceea5df74c",
+     "tree": "eef66dceea5df74c"
+    },
+    "6.1": {
+     "level": 3,
+     "title": "6.1 属性的「存在」是引用计数",
+     "line": 870,
+     "own": "b097cec3be5c05d8",
+     "tree": "b097cec3be5c05d8"
+    },
+    "6.2": {
+     "level": 3,
+     "title": "6.2 `bRemovable`：常驻属性",
+     "line": 884,
+     "own": "3e153b49f0a1dc74",
+     "tree": "3e153b49f0a1dc74"
+    },
+    "6.3": {
+     "level": 3,
+     "title": "6.3 存在性变化：`FTcsAttributePresenceChangedEvent`",
+     "line": 897,
+     "own": "6171cc404ff3393a",
+     "tree": "6171cc404ff3393a"
+    },
+    "6.4": {
+     "level": 3,
+     "title": "6.4 值变更：`FTcsAttributesChangeEvent`（按实体合批）",
+     "line": 916,
+     "own": "5c87d17c09467d83",
+     "tree": "5c87d17c09467d83"
+    },
+    "7.0": {
+     "level": 3,
+     "title": "7.0 五个写入口",
+     "line": 948,
+     "own": "50359eaca8dfe373",
+     "tree": "50359eaca8dfe373"
+    },
+    "7.1": {
+     "level": 3,
+     "title": "7.1 属性集：唯一的增删入口",
+     "line": 964,
+     "own": "bfc0f53b1dcc0860",
+     "tree": "bfc0f53b1dcc0860"
+    },
+    "7.2": {
+     "level": 3,
+     "title": "7.2 修正器的值：`FTcsParamValue` 在实例上",
+     "line": 1011,
+     "own": "e6bf1ac376833b7b",
+     "tree": "e6bf1ac376833b7b"
+    },
+    "7.3": {
+     "level": 3,
+     "title": "7.3 求值时机：模式归参数域，冻结位归本域",
+     "line": 1066,
+     "own": "e77f3485b20b9149",
+     "tree": "e77f3485b20b9149"
+    },
+    "7.4": {
+     "level": 3,
+     "title": "7.4 派生属性 = 内置修正器",
+     "line": 1093,
+     "own": "0f84c616c3f02d3e",
+     "tree": "0f84c616c3f02d3e"
+    },
+    "7.5": {
+     "level": 3,
+     "title": "7.5 单条修正器：`AttachMod` / `DetachMod`",
+     "line": 1141,
+     "own": "71f4044087d5fd63",
+     "tree": "71f4044087d5fd63"
+    },
+    "7.6": {
+     "level": 3,
+     "title": "7.6 直写基值：`SetBaseValue`",
+     "line": 1173,
+     "own": "067cce1663aa8e3f",
+     "tree": "067cce1663aa8e3f"
+    },
+    "8.1": {
+     "level": 3,
+     "title": "8.1 总值",
+     "line": 1211,
+     "own": "a5329a77be79f8dc",
+     "tree": "a5329a77be79f8dc"
+    },
+    "8.2": {
+     "level": 3,
+     "title": "8.2 段值（供技能系数引用）",
+     "line": 1218,
+     "own": "68854ff716f3e54f",
+     "tree": "68854ff716f3e54f"
+    },
+    "8.3": {
+     "level": 3,
+     "title": "8.3 明细（UI / 调试）",
+     "line": 1230,
+     "own": "1a1e62ef3d16bad1",
+     "tree": "1a1e62ef3d16bad1"
+    },
+    "9.1": {
+     "level": 3,
+     "title": "9.1 资源属性 MUST NOT 挂修正器",
+     "line": 1244,
+     "own": "5598cee62b3f976e",
+     "tree": "5598cee62b3f976e"
+    },
+    "9.2": {
+     "level": 3,
+     "title": "9.2 它不做什么",
+     "line": 1257,
+     "own": "9e96520fe27df8be",
+     "tree": "9e96520fe27df8be"
+    },
+    "9.3": {
+     "level": 3,
+     "title": "9.3 可重放约束",
+     "line": 1267,
+     "own": "2dea7bac00e68d8a",
+     "tree": "2dea7bac00e68d8a"
+    }
+   }
+  },
+  "Plugins/TireflyCombatSystem/Documents/tcs-remake-v2-drafts/领域-Parameter-草稿.md": {
+   "sha256": "bc8e5a38d2e0567e",
+   "lines": 964,
+   "sections": {
+    "0": {
+     "level": 2,
+     "title": "0. 本文的写法约定",
+     "line": 11,
+     "own": "654f6ab10ca0d641",
+     "tree": "654f6ab10ca0d641"
+    },
+    "1": {
+     "level": 2,
+     "title": "1. 问题：那道落差",
+     "line": 23,
+     "own": "31faade43e041a23",
+     "tree": "31faade43e041a23"
+    },
+    "2": {
+     "level": 2,
+     "title": "2. 四块范围",
+     "line": 43,
+     "own": "b38b6ecc1f464b43",
+     "tree": "06be824fe9504811"
+    },
+    "3": {
+     "level": 2,
+     "title": "3. 两对象劈开",
+     "line": 71,
+     "own": "dc92936716ba4149",
+     "tree": "5e7304093a021197"
+    },
+    "4": {
+     "level": 2,
+     "title": "4. 求值器",
+     "line": 255,
+     "own": "1d0166f2cac6fe1a",
+     "tree": "def1e840fca87966"
+    },
+    "5": {
+     "level": 2,
+     "title": "5. 出生",
+     "line": 726,
+     "own": "e7443f93547e42d4",
+     "tree": "4b438d4e0b260504"
+    },
+    "6": {
+     "level": 2,
+     "title": "6. 引用与环",
+     "line": 783,
+     "own": "e3b0c44298fc1c14",
+     "tree": "607088635dec99d8"
+    },
+    "7": {
+     "level": 2,
+     "title": "7. 引用链上的混合行为",
+     "line": 827,
+     "own": "0c56a8e65cd8e335",
+     "tree": "7535189b5280d554"
+    },
+    "8": {
+     "level": 2,
+     "title": "8. 未裁清单",
+     "line": 886,
+     "own": "d6656359df6db737",
+     "tree": "d6656359df6db737"
+    },
+    "9": {
+     "level": 2,
+     "title": "9. 已裁一览（从零重做之后）",
+     "line": 899,
+     "own": "f9fa603df1d688b0",
+     "tree": "f9fa603df1d688b0"
+    },
+    "10": {
+     "level": 2,
+     "title": "10. 与族内现状的关系",
+     "line": 934,
+     "own": "ab1e3884404f7903",
+     "tree": "ab1e3884404f7903"
+    },
+    "11": {
+     "level": 2,
+     "title": "11. 下一步",
+     "line": 947,
+     "own": "ee03c58704d6f147",
+     "tree": "ee03c58704d6f147"
+    },
+    "T:领域草稿 · Parameter（参数域）": {
+     "level": 1,
+     "title": "领域草稿 · Parameter（参数域）",
+     "line": 1,
+     "own": "6406d7186ac47d3a",
+     "tree": "85df06eaf19b3dc5"
+    },
+    "2.1": {
+     "level": 3,
+     "title": "2.1 这一块最关键的分界",
+     "line": 54,
+     "own": "bdc18c9693c90569",
+     "tree": "bdc18c9693c90569"
+    },
+    "2.2": {
+     "level": 3,
+     "title": "2.2 与核心基线判据的关系",
+     "line": 60,
+     "own": "468b920d613530ab",
+     "tree": "468b920d613530ab"
+    },
+    "3.1": {
+     "level": 3,
+     "title": "3.1 为什么必须劈开（三条反证）",
+     "line": 80,
+     "own": "640a93f5356e92da",
+     "tree": "640a93f5356e92da"
+    },
+    "3.2": {
+     "level": 3,
+     "title": "3.2 可推广的规则",
+     "line": 90,
+     "own": "b21455cf26c5271c",
+     "tree": "b21455cf26c5271c"
+    },
+    "3.3": {
+     "level": 3,
+     "title": "3.3 形态",
+     "line": 104,
+     "own": "02249b25f2d5d15c",
+     "tree": "02249b25f2d5d15c"
+    },
+    "3.4": {
+     "level": 3,
+     "title": "3.4 布尔开关：独立代数，只记覆盖",
+     "line": 140,
+     "own": "ce1eae18ef989885",
+     "tree": "ce1eae18ef989885"
+    },
+    "3.5": {
+     "level": 3,
+     "title": "3.5 基数从哪来",
+     "line": 202,
+     "own": "a4fed9e16ff8f074",
+     "tree": "a4fed9e16ff8f074"
+    },
+    "3.5.1": {
+     "level": 3,
+     "title": "3.5.1 参数键 MUST NOT 镜像别的域的状态字段",
+     "line": 219,
+     "own": "8f9a9bdd72cf500b",
+     "tree": "8f9a9bdd72cf500b"
+    },
+    "3~2": {
+     "level": 2,
+     "title": "3A. 运算枚举归谁",
+     "line": 238,
+     "own": "c3d6f7c1538108bc",
+     "tree": "c3d6f7c1538108bc"
+    },
+    "4.1": {
+     "level": 3,
+     "title": "4.1 从这段代码直接得出的结论",
+     "line": 323,
+     "own": "68070124fc23f7ce",
+     "tree": "68070124fc23f7ce"
+    },
+    "4.2": {
+     "level": 3,
+     "title": "4.2 为什么求值器优于值表",
+     "line": 329,
+     "own": "8dedadeed1e837c3",
+     "tree": "8dedadeed1e837c3"
+    },
+    "4.3": {
+     "level": 3,
+     "title": "4.3 环境里装什么",
+     "line": 336,
+     "own": "365379016f3fe1af",
+     "tree": "c54f744c51d52eca"
+    },
+    "4.3.1": {
+     "level": 4,
+     "title": "4.3.1 判据：什么该进环境，什么不该",
+     "line": 352,
+     "own": "c045e5108188270f",
+     "tree": "c045e5108188270f"
+    },
+    "4.3.2": {
+     "level": 4,
+     "title": "4.3.2 一个被删掉的字段：外部参数表",
+     "line": 380,
+     "own": "0c965f7e58b5450f",
+     "tree": "0c965f7e58b5450f"
+    },
+    "4.3.3": {
+     "level": 4,
+     "title": "4.3.3 属性源怎么读（含一条跨域前置条件）",
+     "line": 396,
+     "own": "441e85008ac44de2",
+     "tree": "441e85008ac44de2"
+    },
+    "4.3.4": {
+     "level": 4,
+     "title": "4.3.4 只有一个等级字段",
+     "line": 419,
+     "own": "bb05e7907b094693",
+     "tree": "bb05e7907b094693"
+    },
+    "4.3.5": {
+     "level": 4,
+     "title": "4.3.5 等级从哪来：战斗实体契约",
+     "line": 453,
+     "own": "032f91b8c6714c7c",
+     "tree": "032f91b8c6714c7c"
+    },
+    "4.3.6": {
+     "level": 4,
+     "title": "4.3.6 `FTcsParamSource_ContextLevel`：把等级暴露给表达式",
+     "line": 487,
+     "own": "fc3430460f3b34ee",
+     "tree": "fc3430460f3b34ee"
+    },
+    "4.3.7": {
+     "level": 4,
+     "title": "4.3.7 无 `Key` 的值：消费点自己冻",
+     "line": 556,
+     "own": "8c5629e05e8eac0e",
+     "tree": "8c5629e05e8eac0e"
+    },
+    "4.4": {
+     "level": 3,
+     "title": "4.4 派生环境机制退场",
+     "line": 626,
+     "own": "954ab1fae5e3e268",
+     "tree": "954ab1fae5e3e268"
+    },
+    "4.5": {
+     "level": 3,
+     "title": "4.5 与属性域的接缝",
+     "line": 657,
+     "own": "b118f11baaddd39f",
+     "tree": "b118f11baaddd39f"
+    },
+    "5.1": {
+     "level": 3,
+     "title": "5.1 出生是一段职责，不是一个副作用",
+     "line": 732,
+     "own": "1ab47548f721b771",
+     "tree": "1ab47548f721b771"
+    },
+    "5.2": {
+     "level": 3,
+     "title": "5.2 门只存在于一处",
+     "line": 753,
+     "own": "76d237dc0360e730",
+     "tree": "76d237dc0360e730"
+    },
+    "5.3": {
+     "level": 3,
+     "title": "5.3 时序契约（唯一要守的东西）",
+     "line": 759,
+     "own": "0795231a975bb82e",
+     "tree": "0795231a975bb82e"
+    },
+    "5.4": {
+     "level": 3,
+     "title": "5.4 默认 `Bind` = `Born` 的理由",
+     "line": 765,
+     "own": "f0c5f75a38ba6072",
+     "tree": "f0c5f75a38ba6072"
+    },
+    "6.1": {
+     "level": 3,
+     "title": "6.1 表达式可以引用同一份定义内的另一个参数",
+     "line": 785,
+     "own": "fb45ff9a22a91dfd",
+     "tree": "fb45ff9a22a91dfd"
+    },
+    "6.2": {
+     "level": 3,
+     "title": "6.2 走查一：三行参数",
+     "line": 793,
+     "own": "800204d97dc9a0e5",
+     "tree": "800204d97dc9a0e5"
+    },
+    "6.3": {
+     "level": 3,
+     "title": "6.3 环：配置期检测 + 运行期兜底",
+     "line": 812,
+     "own": "bb7345c4603ca872",
+     "tree": "bb7345c4603ca872"
+    },
+    "7.1": {
+     "level": 3,
+     "title": "7.1 情形一：`Born` 引用 `Live`",
+     "line": 831,
+     "own": "44a3bc08ebc58565",
+     "tree": "44a3bc08ebc58565"
+    },
+    "7.2": {
+     "level": 3,
+     "title": "7.2 情形二：`Live` 引用 `Born`",
+     "line": 845,
+     "own": "43bbfbd4dabd644f",
+     "tree": "43bbfbd4dabd644f"
+    },
+    "7.3": {
+     "level": 3,
+     "title": "7.3 由此推出一条不变量",
+     "line": 859,
+     "own": "59896f5b56e42784",
+     "tree": "59896f5b56e42784"
+    },
+    "7.4": {
+     "level": 3,
+     "title": "7.4 一条必须明说的推论",
+     "line": 869,
+     "own": "59c655b4e79a8e0b",
+     "tree": "59c655b4e79a8e0b"
+    },
+    "T:附：归档文件里仍然有效的东西": {
+     "level": 2,
+     "title": "附：归档文件里仍然有效的东西",
+     "line": 957,
+     "own": "3d7d20fe76883dbd",
+     "tree": "3d7d20fe76883dbd"
+    }
+   }
+  },
+  "Plugins/TireflyCombatSystem/Documents/tcs-remake-v2-drafts/领域-Action-草稿.md": {
+   "sha256": "ebf257d1d9396731",
+   "lines": 139,
+   "sections": {
+    "0": {
+     "level": 2,
+     "title": "0. 起点：问题是什么",
+     "line": 13,
+     "own": "307c62e515ea33e2",
+     "tree": "307c62e515ea33e2"
+    },
+    "1": {
+     "level": 2,
+     "title": "1. 逻辑落地：单步链 ✅",
+     "line": 21,
+     "own": "dba6448a1a48a24e",
+     "tree": "dba6448a1a48a24e"
+    },
+    "2": {
+     "level": 2,
+     "title": "2. 步骤类型：Struct / Object 二选一 ✅",
+     "line": 37,
+     "own": "e3b0c44298fc1c14",
+     "tree": "278ade677ab888a0"
+    },
+    "3": {
+     "level": 2,
+     "title": "3. 实例化策略 ✅",
+     "line": 85,
+     "own": "7261ba59ed5e5f30",
+     "tree": "85e1eb96d3ee8524"
+    },
+    "4": {
+     "level": 2,
+     "title": "4. 命名",
+     "line": 129,
+     "own": "68e4b84147dfd052",
+     "tree": "68e4b84147dfd052"
+    },
+    "5": {
+     "level": 2,
+     "title": "5. 本文的来源",
+     "line": 135,
+     "own": "dfa4e271c795b683",
+     "tree": "dfa4e271c795b683"
+    },
+    "T:领域草稿 · Action（原 Effect）": {
+     "level": 1,
+     "title": "领域草稿 · Action（原 Effect）",
+     "line": 1,
+     "own": "b93bf9b8fcc3c0cb",
+     "tree": "615ad82aebbe987a"
+    },
+    "2.1": {
+     "level": 3,
+     "title": "2.1 注册表键统一到 `UStruct*`",
+     "line": 39,
+     "own": "eff3b49557958596",
+     "tree": "eff3b49557958596"
+    },
+    "2.2": {
+     "level": 3,
+     "title": "2.2 步骤引用",
+     "line": 48,
+     "own": "529ae9181789e480",
+     "tree": "529ae9181789e480"
+    },
+    "2.3": {
+     "level": 3,
+     "title": "2.3 实例化：每次运行创建一个对象 ✅",
+     "line": 61,
+     "own": "617b6b86d7bc487a",
+     "tree": "617b6b86d7bc487a"
+    },
+    "2.4": {
+     "level": 3,
+     "title": "2.4 对象池复用：全局机制 ✅",
+     "line": 71,
+     "own": "4b606412fe048714",
+     "tree": "4b606412fe048714"
+    },
+    "2.5": {
+     "level": 3,
+     "title": "2.5 流程步骤接 UObject 步骤",
+     "line": 77,
+     "own": "0dda7345261080dc",
+     "tree": "0dda7345261080dc"
+    },
+    "3.1": {
+     "level": 3,
+     "title": "3.1 `bRetriggerableInRun`（默认 `false`）",
+     "line": 97,
+     "own": "e86096d2c2c0aac8",
+     "tree": "e86096d2c2c0aac8"
+    },
+    "3.2": {
+     "level": 3,
+     "title": "3.2 回收时机由 Scope 推导 ✅",
+     "line": 108,
+     "own": "5c1522f3b91a751b",
+     "tree": "5c1522f3b91a751b"
+    },
+    "3.3": {
+     "level": 3,
+     "title": "3.3 `InstancePerEntity` 的持有容器（派生结论）",
+     "line": 117,
+     "own": "4ed60aea1136b284",
+     "tree": "4ed60aea1136b284"
+    }
+   }
+  },
+  "Plugins/TireflyCombatSystem/Documents/tcs-remake-v2/01-定位与判据.md": {
+   "sha256": "b25a42389c492b63",
+   "lines": 276,
+   "sections": {
+    "1": {
+     "level": 2,
+     "title": "1. V2 的定位",
+     "line": 7,
+     "own": "e0940216aa83a042",
+     "tree": "b1f8e747195828d5"
+    },
+    "2": {
+     "level": 2,
+     "title": "2. V2 的四条铁律",
+     "line": 47,
+     "own": "e3b0c44298fc1c14",
+     "tree": "99b5b421861fcfba"
+    },
+    "3": {
+     "level": 2,
+     "title": "3. 零消费者的三档判据",
+     "line": 101,
+     "own": "9163c2c8b0f2b468",
+     "tree": "6cc04eb13de2a793"
+    },
+    "4": {
+     "level": 2,
+     "title": "4. 判据的直接产物",
+     "line": 121,
+     "own": "e47091c514851be5",
+     "tree": "e47091c514851be5"
+    },
+    "5": {
+     "level": 2,
+     "title": "5. 写文档的八条纪律",
+     "line": 133,
+     "own": "e3b0c44298fc1c14",
+     "tree": "bb52e1f8deffdcdd"
+    },
+    "6": {
+     "level": 2,
+     "title": "6. 未决",
+     "line": 273,
+     "own": "d58d45ceef5a68c6",
+     "tree": "d58d45ceef5a68c6"
+    },
+    "T:定位与判据": {
+     "level": 1,
+     "title": "定位与判据",
+     "line": 1,
+     "own": "b3333e8f049f6d6d",
+     "tree": "b35cad7c35018890"
+    },
+    "1.1": {
+     "level": 3,
+     "title": "1.1 基准消费者是 LAC，但目标是「通吃」",
+     "line": 21,
+     "own": "7ac52572f3d9aa5d",
+     "tree": "7ac52572f3d9aa5d"
+    },
+    "1.2": {
+     "level": 3,
+     "title": "1.2 非目标：明确不建的东西 ✅",
+     "line": 27,
+     "own": "35cd13dc9c21d935",
+     "tree": "35cd13dc9c21d935"
+    },
+    "T:铁律 1｜通用性来自「接口只依赖它自己需要的东西」": {
+     "level": 3,
+     "title": "铁律 1｜通用性来自「接口只依赖它自己需要的东西」",
+     "line": 49,
+     "own": "fc66e0aca5e48567",
+     "tree": "fc66e0aca5e48567"
+    },
+    "T:铁律 2｜一个实现者不写接口（先分类，再计数）": {
+     "level": 3,
+     "title": "铁律 2｜一个实现者不写接口（**先分类，再计数**）",
+     "line": 56,
+     "own": "3272e72094272376",
+     "tree": "3272e72094272376"
+    },
+    "T:铁律 3｜注册口必须能直接收回调": {
+     "level": 3,
+     "title": "铁律 3｜注册口必须能直接收回调",
+     "line": 82,
+     "own": "dfd1e5f021400879",
+     "tree": "dfd1e5f021400879"
+    },
+    "T:铁律 4｜注释只写当前契约": {
+     "level": 3,
+     "title": "铁律 4｜注释只写当前契约",
+     "line": 90,
+     "own": "c6f58cc0d3504794",
+     "tree": "c6f58cc0d3504794"
+    },
+    "3.1": {
+     "level": 3,
+     "title": "3.1 第二道判据：业务向入口不能是死代码",
+     "line": 111,
+     "own": "5588c71b6d7c3030",
+     "tree": "5588c71b6d7c3030"
+    },
+    "3.2": {
+     "level": 3,
+     "title": "3.2 一条连带推论",
+     "line": 115,
+     "own": "a77ceb0524b242bb",
+     "tree": "a77ceb0524b242bb"
+    },
+    "5.1": {
+     "level": 3,
+     "title": "5.1 权威与草稿严格分离",
+     "line": 135,
+     "own": "9d23ade8a61adaef",
+     "tree": "9d23ade8a61adaef"
+    },
+    "5.2": {
+     "level": 3,
+     "title": "5.2 只写最终设计",
+     "line": 141,
+     "own": "bc522a2ec87ebce8",
+     "tree": "bc522a2ec87ebce8"
+    },
+    "5.3": {
+     "level": 3,
+     "title": "5.3 不确定就写族外的「缺什么裁决」",
+     "line": 149,
+     "own": "0febc903fb9b863a",
+     "tree": "0febc903fb9b863a"
+    },
+    "5.4": {
+     "level": 3,
+     "title": "5.4 Why Not 写「致命理由」，不写论证存档",
+     "line": 159,
+     "own": "9c40c2667b62b2db",
+     "tree": "9c40c2667b62b2db"
+    },
+    "5.5": {
+     "level": 3,
+     "title": "5.5 该写 MUST NOT 就写 MUST NOT",
+     "line": 179,
+     "own": "88fe7db0f6e1a984",
+     "tree": "88fe7db0f6e1a984"
+    },
+    "5.6": {
+     "level": 3,
+     "title": "5.6 需求能证明「要不要」，不能证明「长什么样」，也不能证明「放哪」",
+     "line": 187,
+     "own": "87ad1ddb038a3d08",
+     "tree": "87ad1ddb038a3d08"
+    },
+    "5.7": {
+     "level": 3,
+     "title": "5.7 技术断言必须可回溯到源码，且不得依赖可变的实现细节",
+     "line": 220,
+     "own": "a035ae1d403c2bb6",
+     "tree": "a035ae1d403c2bb6"
+    },
+    "5.8": {
+     "level": 3,
+     "title": "5.8 伪代码必须自洽，且每条路径可推演",
+     "line": 236,
+     "own": "7a0d54f1a513b0d9",
+     "tree": "7a0d54f1a513b0d9"
+    }
+   }
+  }
+ }
+}

@@ -1,0 +1,4848 @@
+{
+  "corpus": "lol",
+  "kind": "augment",
+  "version": "16.20",
+  "items": [
+    {
+      "id": "lol.augment.titan-s-resolve",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1001,
+      "slug": "titan-s-resolve",
+      "name": "泰坦的坚决",
+      "icon": "assets/augment/1001-13be65bb70a5.webp",
+      "rarity": "prismatic",
+      "tooltipText": [
+        "在造成或承受英雄伤害时为你提供1层持续6秒的战神附体。每10层战神附体，你获得25–75等级适应之力、5–10等级护甲、5–10等级魔法抗性、10%体型和8%韧性。",
+        "你拥有的层数越多，层数就衰减得越快。",
+        "最大战神附体等级：当前对局数值"
+      ],
+      "semantics": [
+        "keyword",
+        "stat",
+        "armor",
+        "magicResist",
+        "status"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1001"
+      }
+    },
+    {
+      "id": "lol.augment.apex-inventor",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1002,
+      "slug": "apex-inventor",
+      "name": "尖端发明家",
+      "icon": "assets/augment/1002-9040c4b5ae90.webp",
+      "rarity": "gold",
+      "tooltipText": [
+        "获得100装备急速(相当于50%装备冷却缩减)。",
+        "装备急速可缩减所有装备技能的冷却时间冷却时间。"
+      ],
+      "semantics": [],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1002"
+      }
+    },
+    {
+      "id": "lol.augment.back-to-basics",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1004,
+      "slug": "back-to-basics",
+      "name": "回归基本功",
+      "icon": "assets/augment/1004-78e8488ef120.webp",
+      "rarity": "prismatic",
+      "tooltipText": [
+        "你的终极技能已被封印。获得35%技能伤害、治疗效果、护盾和70技能急速。"
+      ],
+      "semantics": [
+        "heal",
+        "shield"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1004"
+      }
+    },
+    {
+      "id": "lol.augment.wee-woo-wee-woo",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1005,
+      "slug": "wee-woo-wee-woo",
+      "name": "喂呜喂呜",
+      "icon": "assets/augment/1005-62181e64467f.webp",
+      "rarity": "gold",
+      "tooltipText": [
+        "朝着附近友军移动时，获得至多50%移动速度，基于其已损失生命值。你的治疗和护盾也会提升至多50%，基于目标的已损失生命值。",
+        "额外治疗：当前对局数值",
+        "额外护盾：当前对局数值"
+      ],
+      "semantics": [
+        "movementSpeed",
+        "health",
+        "heal",
+        "shield"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1005"
+      }
+    },
+    {
+      "id": "lol.augment.blade-waltz",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1006,
+      "slug": "blade-waltz",
+      "name": "利刃华尔兹",
+      "icon": "assets/augment/1006-18fc95dd019b.webp",
+      "rarity": "prismatic",
+      "tooltipText": [
+        "让你进入不可被选取状态，在此期间对敌人进行突进并造成(30–150等级+10%额外攻击力额外攻击力+6%法术强度)伤害8次(造成50%附带伤害)。"
+      ],
+      "semantics": [
+        "attackDamage",
+        "abilityPower"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1006"
+      }
+    },
+    {
+      "id": "lol.augment.blunt-force",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1007,
+      "slug": "blunt-force",
+      "name": "大力",
+      "icon": "assets/augment/1007-e8489122815a.webp",
+      "rarity": "silver",
+      "tooltipText": [
+        "获得20% (当前对局数值)攻击力。"
+      ],
+      "semantics": [
+        "attackDamage"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1007"
+      }
+    },
+    {
+      "id": "lol.augment.can-t-touch-this",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1011,
+      "slug": "can-t-touch-this",
+      "name": "你摸不到",
+      "icon": "assets/augment/1011-f8be5ec3a4ae.webp",
+      "rarity": "prismatic",
+      "tooltipText": [
+        "施放你的终极技能会使你进入持续2秒的的免疫伤害状态(8秒冷却时间)。"
+      ],
+      "semantics": [
+        "stat",
+        "status"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1011"
+      }
+    },
+    {
+      "id": "lol.augment.celestial-body",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1013,
+      "slug": "celestial-body",
+      "name": "星界躯体",
+      "icon": "assets/augment/1013-209f1a55c02e.webp",
+      "rarity": "gold",
+      "tooltipText": [
+        "获得1500生命值，但你造成的伤害降低10%。"
+      ],
+      "semantics": [
+        "health"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1013"
+      }
+    },
+    {
+      "id": "lol.augment.circle-of-death",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1015,
+      "slug": "circle-of-death",
+      "name": "死亡之环",
+      "icon": "assets/augment/1015-5781994f4c36.webp",
+      "rarity": "prismatic",
+      "tooltipText": [
+        "你的治疗效果和生命回复效果会对相距最近的那个敌方英雄造成70%该数额的魔法伤害。",
+        "已造成的伤害：当前对局数值"
+      ],
+      "semantics": [
+        "health",
+        "magicDamage"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1015"
+      }
+    },
+    {
+      "id": "lol.augment.courage-of-the-colossus",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1018,
+      "slug": "courage-of-the-colossus",
+      "name": "巨像的勇气",
+      "icon": "assets/augment/1018-7b7f72557f6a.webp",
+      "rarity": "prismatic",
+      "tooltipText": [
+        "定身或缚地一个敌方英雄后获得(150–450等级+4%最大生命值最大生命值)护盾值。",
+        "已生成的护盾值：当前对局数值"
+      ],
+      "semantics": [
+        "status",
+        "shield",
+        "health"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1018"
+      }
+    },
+    {
+      "id": "lol.augment.dashing",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1019,
+      "slug": "dashing",
+      "name": "全凭身法",
+      "icon": "assets/augment/1019-2508e6d53008.webp",
+      "rarity": "prismatic",
+      "tooltipText": [
+        "你的冲刺、跳跃、闪烁或传送类技能获得175技能急速。"
+      ],
+      "semantics": [],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1019"
+      }
+    },
+    {
+      "id": "lol.augment.dawnbringer-s-resolve",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1020,
+      "slug": "dawnbringer-s-resolve",
+      "name": "黎明使者的坚决",
+      "icon": "assets/augment/1020-e7617309f1a4.webp",
+      "rarity": "gold",
+      "tooltipText": [
+        "在跌到50%生命值以下时，在3秒里持续回复共30%最大生命值。",
+        "阵亡时或每45秒重置。"
+      ],
+      "semantics": [
+        "health",
+        "heal"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1020"
+      }
+    },
+    {
+      "id": "lol.augment.deft",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1022,
+      "slug": "deft",
+      "name": "灵巧",
+      "icon": "assets/augment/1022-fbb099861fc1.webp",
+      "rarity": "silver",
+      "tooltipText": [
+        "获得攻击速度60%攻击速度。"
+      ],
+      "semantics": [
+        "movementSpeed"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1022"
+      }
+    },
+    {
+      "id": "lol.augment.dive-bomber",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1025,
+      "slug": "dive-bomber",
+      "name": "俯冲轰炸",
+      "icon": "assets/augment/1025-64b004860500.webp",
+      "rarity": "silver",
+      "tooltipText": [
+        "在你阵亡时爆炸，对附近的敌人们造成目标20%最大生命值的真实伤害。",
+        "已造成的伤害：当前对局数值"
+      ],
+      "semantics": [
+        "trueDamage"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1025"
+      }
+    },
+    {
+      "id": "lol.augment.don-t-blink",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1026,
+      "slug": "don-t-blink",
+      "name": "唯快不破",
+      "icon": "assets/augment/1026-dde63cebffda.webp",
+      "rarity": "silver",
+      "tooltipText": [
+        "你每比目标多10移动速度，就会获得1%额外伤害。",
+        "额外伤害：当前对局数值"
+      ],
+      "semantics": [
+        "movementSpeed"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1026"
+      }
+    },
+    {
+      "id": "lol.augment.earthwake",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1027,
+      "slug": "earthwake",
+      "name": "大地苏醒",
+      "icon": "assets/augment/1027-7fe65390618d.webp",
+      "rarity": "prismatic",
+      "tooltipText": [
+        "你的冲刺、跳跃、闪烁或传送类技能会留下一条在1秒后爆炸的轨迹，造成(90–250等级+60%法术强度+125%额外攻击力额外攻击力)物理伤害。",
+        "已造成伤害的总和：当前对局数值"
+      ],
+      "semantics": [
+        "physicalDamage",
+        "abilityPower",
+        "attackDamage"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1027"
+      }
+    },
+    {
+      "id": "lol.augment.erosion",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1028,
+      "slug": "erosion",
+      "name": "侵蚀",
+      "icon": "assets/augment/1028-79b3ffe6e1ca.webp",
+      "rarity": "silver",
+      "tooltipText": [
+        "对敌人造成伤害时会施加一层持续4秒的1.5%护甲和魔法抗性击碎效果，至多在20层时击碎30%。"
+      ],
+      "semantics": [
+        "armor",
+        "magicResist"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1028"
+      }
+    },
+    {
+      "id": "lol.augment.ethereal-weapon",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1029,
+      "slug": "ethereal-weapon",
+      "name": "虚幻武器",
+      "icon": "assets/augment/1029-89e4ee24d1b3.webp",
+      "rarity": "gold",
+      "tooltipText": [
+        "你的技能可施加攻击特效攻击特效。每个目标有1秒冷却时间。",
+        "已触发的次数：当前对局数值"
+      ],
+      "semantics": [
+        "onHit"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1029"
+      }
+    },
+    {
+      "id": "lol.augment.eureka",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1030,
+      "slug": "eureka",
+      "name": "尤里卡",
+      "icon": "assets/augment/1030-2b3ae4eb6da0.webp",
+      "rarity": "prismatic",
+      "tooltipText": [
+        "获得(30%法术强度)技能急速。"
+      ],
+      "semantics": [
+        "abilityPower"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1030"
+      }
+    },
+    {
+      "id": "lol.augment.veil-of-warding",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1034,
+      "slug": "veil-of-warding",
+      "name": "防护面纱",
+      "icon": "assets/augment/1034-78fc076c9a5a.webp",
+      "rarity": "silver",
+      "tooltipText": [
+        "每30秒获得一层法术护盾来格挡下一个敌方技能。"
+      ],
+      "semantics": [
+        "stat"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1034"
+      }
+    },
+    {
+      "id": "lol.augment.firebrand",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1036,
+      "slug": "firebrand",
+      "name": "火上浇油",
+      "icon": "assets/augment/1036-9a597b8f056d.webp",
+      "rarity": "gold",
+      "tooltipText": [
+        "你的攻击还会灼烧敌人，在5秒的持续时间里每秒持续造成0.4%最大生命值的魔法伤害。这个灼烧可无限叠加。",
+        "已造成的伤害：当前对局数值"
+      ],
+      "semantics": [
+        "keywordMajor",
+        "magicDamage"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1036"
+      }
+    },
+    {
+      "id": "lol.augment.first-aid-kit",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1037,
+      "slug": "first-aid-kit",
+      "name": "急救用具",
+      "icon": "assets/augment/1037-086f5fcde9c6.webp",
+      "rarity": "silver",
+      "tooltipText": [
+        "获得20%治疗和护盾强度。"
+      ],
+      "semantics": [
+        "heal"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1037"
+      }
+    },
+    {
+      "id": "lol.augment.from-beginning-to-end",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1038,
+      "slug": "from-beginning-to-end",
+      "name": "有始有终",
+      "icon": "assets/augment/1038-690f382aede7.webp",
+      "rarity": "gold",
+      "tooltipText": [
+        "获得先攻和黑暗收割基石符文。",
+        "先攻：当你率先进入英雄战斗后，在3秒内可以造成10%额外伤害，并且基于造成的伤害获得金币。",
+        "黑暗收割：伤害一名低生命值的英雄时会造成自适应伤害并从该猎物身上收割灵魂。",
+        "已造成伤害的总和：当前对局数值",
+        "已获得金币的总和：当前对局数值"
+      ],
+      "semantics": [
+        "spellName"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1038"
+      }
+    },
+    {
+      "id": "lol.augment.goliath",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1041,
+      "slug": "goliath",
+      "name": "歌利亚巨人",
+      "icon": "assets/augment/1041-cfd8bf576f2f.webp",
+      "rarity": "prismatic",
+      "tooltipText": [
+        "体型变大，获得35%生命值和15%适应之力。"
+      ],
+      "semantics": [
+        "health"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1041"
+      }
+    },
+    {
+      "id": "lol.augment.ice-cold",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1044,
+      "slug": "ice-cold",
+      "name": "冰寒",
+      "icon": "assets/augment/1044-614ccbbac976.webp",
+      "rarity": "silver",
+      "tooltipText": [
+        "你的减速效果可使移动速度降低额外的75。"
+      ],
+      "semantics": [
+        "status",
+        "movementSpeed"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1044"
+      }
+    },
+    {
+      "id": "lol.augment.infernal-conduit",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1045,
+      "slug": "infernal-conduit",
+      "name": "炼狱导管",
+      "icon": "assets/augment/1045-fa858042b40c.webp",
+      "rarity": "prismatic",
+      "tooltipText": [
+        "你的技能会施加一层可无限叠加的灼烧，在3秒的持续时间里每秒造成(2–20等级+1.2%法术强度+2.8%额外攻击力额外攻击力)魔法伤害。",
+        "你的所有灼烧效果会在对敌方英雄造成伤害时使你的各基础技能的冷却时间缩短0.08秒。",
+        "已造成的伤害：当前对局数值"
+      ],
+      "semantics": [
+        "keywordMajor",
+        "magicDamage",
+        "abilityPower",
+        "attackDamage"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1045"
+      }
+    },
+    {
+      "id": "lol.augment.infernal-soul",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1046,
+      "slug": "infernal-soul",
+      "name": "炼狱龙魂",
+      "icon": "assets/augment/1046-3d72c5bca4e9.webp",
+      "rarity": "silver",
+      "tooltipText": [
+        "你获得炼狱龙魂，使用技能或攻击命中敌人时造成额外伤害。",
+        "已造成的伤害：当前对局数值"
+      ],
+      "semantics": [],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1046"
+      }
+    },
+    {
+      "id": "lol.augment.it-s-critical",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1047,
+      "slug": "it-s-critical",
+      "name": "关键暴击",
+      "icon": "assets/augment/1047-b7138ede6d6d.webp",
+      "rarity": "gold",
+      "tooltipText": [
+        "获得暴击几率50%暴击几率。"
+      ],
+      "semantics": [],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1047"
+      }
+    },
+    {
+      "id": "lol.augment.jeweled-gauntlet",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1048,
+      "slug": "jeweled-gauntlet",
+      "name": "珠光护手",
+      "icon": "assets/augment/1048-da59c87ce7e9.webp",
+      "rarity": "prismatic",
+      "tooltipText": [
+        "你的技能可以造成暴击，造成145%总伤害。",
+        "获得暴击几率(25%+4.5%法术强度)暴击几率。",
+        "额外伤害：当前对局数值"
+      ],
+      "semantics": [
+        "totalValue",
+        "abilityPower"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1048"
+      }
+    },
+    {
+      "id": "lol.augment.light-em-up",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1051,
+      "slug": "light-em-up",
+      "name": "点亮他们！",
+      "icon": "assets/augment/1051-5f06ad76c1ec.webp",
+      "rarity": "silver",
+      "tooltipText": [
+        "每第4次攻击发射4个飞弹以造成(44–320等级+140%额外攻击力额外攻击力+76%法术强度)魔法伤害。",
+        "已造成的伤害：当前对局数值"
+      ],
+      "semantics": [
+        "magicDamage",
+        "attackDamage",
+        "abilityPower"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1051"
+      }
+    },
+    {
+      "id": "lol.augment.mad-scientist",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1053,
+      "slug": "mad-scientist",
+      "name": "科学狂人",
+      "icon": "assets/augment/1053-4b1ffcd2837d.webp",
+      "rarity": "prismatic",
+      "tooltipText": [
+        "每次重生时，你的体型要么变大(获得30%适应之力和20%生命值)，要么变小(获得70技能急速和40%移动速度)。"
+      ],
+      "semantics": [
+        "legacyText",
+        "health",
+        "movementSpeed"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1053"
+      }
+    },
+    {
+      "id": "lol.augment.master-of-duality",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1054,
+      "slug": "master-of-duality",
+      "name": "物法皆修",
+      "icon": "assets/augment/1054-932805c0c0d6.webp",
+      "rarity": "prismatic",
+      "tooltipText": [
+        "你的每次攻击为你提供可叠加的6–18等级法术强度，并且你的每次技能在伤害敌人时为你提供可叠加的3–9等级攻击力，",
+        "这个增益可无限叠加并刷新，但有5秒的持续时间。"
+      ],
+      "semantics": [
+        "abilityPower",
+        "attackDamage"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1054"
+      }
+    },
+    {
+      "id": "lol.augment.mind-to-matter",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1056,
+      "slug": "mind-to-matter",
+      "name": "由心及物",
+      "icon": "assets/augment/1056-ccf22ae8f4f1.webp",
+      "rarity": "silver",
+      "tooltipText": [
+        "获得(50%最大法力值最大法力值)生命值。"
+      ],
+      "semantics": [
+        "health",
+        "mana"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1056"
+      }
+    },
+    {
+      "id": "lol.augment.mountain-soul",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1057,
+      "slug": "mountain-soul",
+      "name": "山脉龙魂",
+      "icon": "assets/augment/1056-ccf22ae8f4f1.webp",
+      "rarity": "silver",
+      "tooltipText": [
+        "你获得【山脉龙魂】，在脱离战斗之后获得持续一小段时间的护盾值。",
+        "已生成的护盾值总和：当前对局数值"
+      ],
+      "semantics": [
+        "shield"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1057"
+      }
+    },
+    {
+      "id": "lol.augment.mystic-punch",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1058,
+      "slug": "mystic-punch",
+      "name": "秘术冲拳",
+      "icon": "assets/augment/1058-9450203898b2.webp",
+      "rarity": "prismatic",
+      "tooltipText": [
+        "攻击特效攻击特效使你的各个技能的冷却时间缩减1.25秒技能急速。"
+      ],
+      "semantics": [
+        "onHit"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1058"
+      }
+    },
+    {
+      "id": "lol.augment.ocean-soul",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1060,
+      "slug": "ocean-soul",
+      "name": "海洋龙魂",
+      "icon": "assets/augment/1060-306fc8125fa8.webp",
+      "rarity": "silver",
+      "tooltipText": [
+        "获得【海洋龙魂】，在对敌方英雄造成伤害后提供高额的生命和法力回复。",
+        "已造成的治疗效果：当前对局数值"
+      ],
+      "semantics": [
+        "heal",
+        "mana"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1060"
+      }
+    },
+    {
+      "id": "lol.augment.ok-boomerang",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1061,
+      "slug": "ok-boomerang",
+      "name": "回力OK镖",
+      "icon": "assets/augment/1061-21a15b387f77.webp",
+      "rarity": "gold",
+      "tooltipText": [
+        "每7秒朝着一个附近的敌人自动施放投掷一个回力镖，对命中的敌人们造成(40–200等级+30%额外攻击力额外攻击力+20%法术强度)自适应伤害。",
+        "已造成的伤害：当前对局数值"
+      ],
+      "semantics": [
+        "keywordMajor",
+        "attackDamage",
+        "abilityPower"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1061"
+      }
+    },
+    {
+      "id": "lol.augment.omni-soul",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1062,
+      "slug": "omni-soul",
+      "name": "全能龙魂",
+      "icon": "assets/augment/1062-9f9b2fab21b3.webp",
+      "rarity": "prismatic",
+      "tooltipText": [
+        "获得3个随机龙魂。"
+      ],
+      "semantics": [
+        "stat"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1062"
+      }
+    },
+    {
+      "id": "lol.augment.outlaw-s-grit",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1063,
+      "slug": "outlaw-s-grit",
+      "name": "狂徒豪气",
+      "icon": "assets/augment/1063-5e7e900df7c9.webp",
+      "rarity": "gold",
+      "tooltipText": [
+        "在使用一次冲刺、闪烁或传送之后，你获得12护甲和魔法抗性，这个效果至多可在5层时叠加至60。",
+        "每15秒重置。"
+      ],
+      "semantics": [
+        "armor",
+        "magicResist"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1063"
+      }
+    },
+    {
+      "id": "lol.augment.rejuvenation",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1067,
+      "slug": "rejuvenation",
+      "name": "活力焕发",
+      "icon": "assets/augment/1067-0fa58d507c21.webp",
+      "rarity": "gold",
+      "tooltipText": [
+        "使用【所选技能】技能时回复当前对局数值生命值",
+        "已获得的总治疗量：当前对局数值",
+        "治疗量等同于(30–100等级+5%额外生命值额外生命值+15%法术强度+25%额外攻击力额外攻击力)，对于冷却时间较长的技能，该数值还会提升至50%。"
+      ],
+      "semantics": [
+        "legacyText",
+        "heal",
+        "health",
+        "abilityPower",
+        "attackDamage"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1067"
+      }
+    },
+    {
+      "id": "lol.augment.recursion",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1068,
+      "slug": "recursion",
+      "name": "循环往复",
+      "icon": "assets/augment/1068-733174aeefa7.webp",
+      "rarity": "gold",
+      "tooltipText": [
+        "获得60技能急速。"
+      ],
+      "semantics": [],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1068"
+      }
+    },
+    {
+      "id": "lol.augment.scopier-weapons",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1071,
+      "slug": "scopier-weapons",
+      "name": "更万用的瞄准镜",
+      "icon": "assets/augment/1071-b4ba5d0361a4.webp",
+      "rarity": "gold",
+      "tooltipText": [
+        "获得近战150 /远程100攻击距离。"
+      ],
+      "semantics": [],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1071"
+      }
+    },
+    {
+      "id": "lol.augment.searing-dawn",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1072,
+      "slug": "searing-dawn",
+      "name": "炽烈黎明",
+      "icon": "assets/augment/1072-9e307e83ff86.webp",
+      "rarity": "gold",
+      "tooltipText": [
+        "你的技能会标记敌人，使其在被你的友军的下一个攻击或技能命中时会受到额外40–200等级魔法伤害。",
+        "已造成伤害的总和：当前对局数值"
+      ],
+      "semantics": [
+        "magicDamage"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1072"
+      }
+    },
+    {
+      "id": "lol.augment.shadow-runner",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1073,
+      "slug": "shadow-runner",
+      "name": "暗影疾奔",
+      "icon": "assets/augment/1073-b45581017747.webp",
+      "rarity": "silver",
+      "tooltipText": [
+        "在使用一个冲刺、闪烁或传送类技能或离开潜行状态之后，获得持续2秒的300移动速度。"
+      ],
+      "semantics": [
+        "movementSpeed"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1073"
+      }
+    },
+    {
+      "id": "lol.augment.shrink-ray",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1074,
+      "slug": "shrink-ray",
+      "name": "缩小射线",
+      "icon": "assets/augment/1074-b11be0a74d87.webp",
+      "rarity": "gold",
+      "tooltipText": [
+        "你的攻击会对敌人造成持续3秒的15%伤害削减效果。",
+        "已削减的伤害：当前对局数值"
+      ],
+      "semantics": [],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1074"
+      }
+    },
+    {
+      "id": "lol.augment.sonic-boom",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1076,
+      "slug": "sonic-boom",
+      "name": "天音爆",
+      "icon": "assets/augment/1076-291ea12514d9.webp",
+      "rarity": "silver",
+      "tooltipText": [
+        "在为你的友军提供增益效果、治疗效果或护盾效果时，会对其附近的敌人们造成30–150等级真实伤害和持续2秒的30%减速。(2秒冷却时间)",
+        "已造成的伤害：当前对局数值"
+      ],
+      "semantics": [
+        "heal",
+        "shield",
+        "trueDamage",
+        "status"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1076"
+      }
+    },
+    {
+      "id": "lol.augment.soul-siphon",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1077,
+      "slug": "soul-siphon",
+      "name": "灵魂虹吸",
+      "icon": "assets/augment/1077-4675568cbcfb.webp",
+      "rarity": "gold",
+      "tooltipText": [
+        "获得25%暴击几率和作用于暴击的12%生命偷取。",
+        "已造成治疗效果的总和：当前对局数值"
+      ],
+      "semantics": [
+        "lifeSteal"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1077"
+      }
+    },
+    {
+      "id": "lol.augment.symphony-of-war",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1079,
+      "slug": "symphony-of-war",
+      "name": "战争交响乐",
+      "icon": "assets/augment/1079-83034a21ada8.webp",
+      "rarity": "prismatic",
+      "tooltipText": [
+        "获得致命节奏和征服者基石符文。",
+        "致命节奏 - 攻击英雄提供攻击速度，至多叠加6层。在6层时，你的攻击发射造成额外伤害的一个弩箭。",
+        "征服者：攻击敌方英雄时提供适应之力层数。在达到12层后，将你的一部分伤害转化为等额的治疗效果。"
+      ],
+      "semantics": [
+        "spellName",
+        "attackSpeed"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1079"
+      }
+    },
+    {
+      "id": "lol.augment.tank-it-or-leave-it",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1080,
+      "slug": "tank-it-or-leave-it",
+      "name": "会心防御",
+      "icon": "assets/augment/1080-66e314cd54a0.webp",
+      "rarity": "silver",
+      "tooltipText": [
+        "你可以使用你的暴击几率(最大50%几率)来进行会心防御，使你有一定几率来使所受伤害降低20%。获得25%暴击几率。",
+        "已降低的伤害：当前对局数值"
+      ],
+      "semantics": [],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1080"
+      }
+    },
+    {
+      "id": "lol.augment.tap-dancer",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1081,
+      "slug": "tap-dancer",
+      "name": "踢踏舞",
+      "icon": "assets/augment/1081-86b9e8628bdc.webp",
+      "rarity": "prismatic",
+      "tooltipText": [
+        "你的攻击会为你提供10移动速度。获得(10%移动速度)攻击速度。",
+        "这个增益可无限叠加并刷新，但有5秒的持续时间。"
+      ],
+      "semantics": [
+        "movementSpeed",
+        "attackSpeed"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1081"
+      }
+    },
+    {
+      "id": "lol.augment.thread-the-needle",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1084,
+      "slug": "thread-the-needle",
+      "name": "穿针引线",
+      "icon": "assets/augment/1084-4a38c02c1593.webp",
+      "rarity": "gold",
+      "tooltipText": [
+        "获得18%穿甲护甲穿透和法术穿透法术穿透。"
+      ],
+      "semantics": [],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1084"
+      }
+    },
+    {
+      "id": "lol.augment.typhoon",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1087,
+      "slug": "typhoon",
+      "name": "台风",
+      "icon": "assets/augment/1087-3da5def36ac0.webp",
+      "rarity": "silver",
+      "tooltipText": [
+        "你的攻击会对一个额外目标发射一个飞弹，从而造成30%伤害并施加攻击特效攻击特效。"
+      ],
+      "semantics": [
+        "onHit"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1087"
+      }
+    },
+    {
+      "id": "lol.augment.ultimate-revolution",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1088,
+      "slug": "ultimate-revolution",
+      "name": "终极刷新",
+      "icon": "assets/augment/1088-a4fe98cff861.webp",
+      "rarity": "prismatic",
+      "tooltipText": [
+        "在施放终极技能后刷新你的终极技能(75秒冷却时间或阵亡时重置)。"
+      ],
+      "semantics": [
+        "stat"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1088"
+      }
+    },
+    {
+      "id": "lol.augment.vulnerability",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1092,
+      "slug": "vulnerability",
+      "name": "易损",
+      "icon": "assets/augment/1092-0b8b62f849df.webp",
+      "rarity": "gold",
+      "tooltipText": [
+        "你的装备效果和持续伤害效果可以暴击来造成145%额外伤害。",
+        "获得暴击几率25%暴击几率。",
+        "已造成的伤害：当前对局数值"
+      ],
+      "semantics": [],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1092"
+      }
+    },
+    {
+      "id": "lol.augment.windspeaker-s-blessing",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1095,
+      "slug": "windspeaker-s-blessing",
+      "name": "风语者的祝福",
+      "icon": "assets/augment/1095-2e883b01ba1d.webp",
+      "rarity": "prismatic",
+      "tooltipText": [
+        "你的治疗效果和护盾效果还会提升目标30–60等级护甲和魔法抗性，这些加成持续3秒。"
+      ],
+      "semantics": [
+        "heal",
+        "shield",
+        "armor",
+        "magicResist"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1095"
+      }
+    },
+    {
+      "id": "lol.augment.witchful-thinking",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1097,
+      "slug": "witchful-thinking",
+      "name": "巫师式思考",
+      "icon": "assets/augment/1097-d0ccd0179d75.webp",
+      "rarity": "silver",
+      "tooltipText": [
+        "获得法术强度20–80等级法术强度。"
+      ],
+      "semantics": [
+        "abilityPower"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1097"
+      }
+    },
+    {
+      "id": "lol.augment.with-haste",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1098,
+      "slug": "with-haste",
+      "name": "急急小子",
+      "icon": "assets/augment/1098-c7145b9290dd.webp",
+      "rarity": "gold",
+      "tooltipText": [
+        "获得(70%技能急速)移动速度。"
+      ],
+      "semantics": [
+        "movementSpeed",
+        "abilityHaste"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1098"
+      }
+    },
+    {
+      "id": "lol.augment.bread-and-butter",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1103,
+      "slug": "bread-and-butter",
+      "name": "面包和黄油",
+      "icon": "assets/augment/1103-1a5a4c6f853b.webp",
+      "rarity": "gold",
+      "tooltipText": [
+        "你的【所选技能】技能获得100技能急速。"
+      ],
+      "semantics": [
+        "legacyText"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1103"
+      }
+    },
+    {
+      "id": "lol.augment.minionmancer",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1104,
+      "slug": "minionmancer",
+      "name": "仆从大师",
+      "icon": "assets/augment/1104-d576328e79a2.webp",
+      "rarity": "gold",
+      "tooltipText": [
+        "你的召唤物获得40%体型提升、生命值和伤害。"
+      ],
+      "semantics": [],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1104"
+      }
+    },
+    {
+      "id": "lol.augment.homeguard",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1105,
+      "slug": "homeguard",
+      "name": "家园卫士",
+      "icon": "assets/augment/1105-c5b3a9a91c8d.webp",
+      "rarity": "silver",
+      "tooltipText": [
+        "获得100%移动速度，在受到伤害后失效6秒。"
+      ],
+      "semantics": [
+        "movementSpeed"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1105"
+      }
+    },
+    {
+      "id": "lol.augment.ultimate-unstoppable",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1112,
+      "slug": "ultimate-unstoppable",
+      "name": "终极不可阻挡",
+      "icon": "assets/augment/1112-1e270722f837.webp",
+      "rarity": "silver",
+      "tooltipText": [
+        "在你使用你的终极技能后，你获得持续3秒的控制免疫。 (8秒冷却时间)。"
+      ],
+      "semantics": [
+        "status"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1112"
+      }
+    },
+    {
+      "id": "lol.augment.skilled-sniper",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1113,
+      "slug": "skilled-sniper",
+      "name": "老练狙神",
+      "icon": "assets/augment/1113-f8804b4f3077.webp",
+      "rarity": "gold",
+      "tooltipText": [
+        "用一个非终极技能狙击一个敌人时，返还该技能80%冷却时间(周期性技能返还65%)。",
+        "狙击 - 从600码外对敌人造成伤害"
+      ],
+      "semantics": [
+        "keywordMajor"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1113"
+      }
+    },
+    {
+      "id": "lol.augment.scopiest-weapons",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1115,
+      "slug": "scopiest-weapons",
+      "name": "最万用的瞄准镜",
+      "icon": "assets/augment/1115-b6112dedde59.webp",
+      "rarity": "prismatic",
+      "tooltipText": [
+        "获得近战250 /远程150攻击距离。"
+      ],
+      "semantics": [],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1115"
+      }
+    },
+    {
+      "id": "lol.augment.flashy",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1116,
+      "slug": "flashy",
+      "name": "闪现向前",
+      "icon": "assets/augment/1116-0e6113129477.webp",
+      "rarity": "gold",
+      "tooltipText": [
+        "你的闪现有3层充能。在120秒后，再次获得所有充能。"
+      ],
+      "semantics": [],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1116"
+      }
+    },
+    {
+      "id": "lol.augment.critical-healing",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1118,
+      "slug": "critical-healing",
+      "name": "会心治疗",
+      "icon": "assets/augment/1118-f08fe4813a13.webp",
+      "rarity": "gold",
+      "tooltipText": [
+        "你的治疗和护盾可以暴击，造成40%额外数额的效果。获得暴击几率25%暴击几率。"
+      ],
+      "semantics": [
+        "heal",
+        "shield"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1118"
+      }
+    },
+    {
+      "id": "lol.augment.marksmage",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1129,
+      "slug": "marksmage",
+      "name": "神射法师",
+      "icon": "assets/augment/1129-687d87460265.webp",
+      "rarity": "gold",
+      "tooltipText": [
+        "你的攻击造成额外(75%法术强度)物理伤害。",
+        "已造成的伤害：当前对局数值"
+      ],
+      "semantics": [
+        "physicalDamage",
+        "abilityPower"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1129"
+      }
+    },
+    {
+      "id": "lol.augment.magic-missile",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1133,
+      "slug": "magic-missile",
+      "name": "魔法飞弹",
+      "icon": "assets/augment/1133-5847ee435c02.webp",
+      "rarity": "gold",
+      "tooltipText": [
+        "造成技能伤害会对命中的每个敌人发射3个飞弹，基于飞行距离，每个造成至多1%最大生命值的真实伤害。",
+        "已造成的伤害：当前对局数值"
+      ],
+      "semantics": [
+        "trueDamage"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1133"
+      }
+    },
+    {
+      "id": "lol.augment.draw-your-sword",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1134,
+      "slug": "draw-your-sword",
+      "name": "亮出你的剑",
+      "icon": "assets/augment/1134-e20875a22664.webp",
+      "rarity": "prismatic",
+      "tooltipText": [
+        "你现在是近战状态。获得24%攻击力、24%生命值、20%攻击速度、20%生命偷取和20%移动速度 (每个属性都已基于攻击距离的损失而进一步提升)。"
+      ],
+      "semantics": [
+        "physicalDamage",
+        "heal",
+        "attackSpeed",
+        "lifeSteal",
+        "movementSpeed"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1134"
+      }
+    },
+    {
+      "id": "lol.augment.slap-around",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1136,
+      "slug": "slap-around",
+      "name": "扇巴掌",
+      "icon": "assets/augment/1136-d8a575f7a127.webp",
+      "rarity": "silver",
+      "tooltipText": [
+        "每当你定身或缚地一个敌人时，获得一层可叠加的10适应之力。阵亡时损失50%层数。"
+      ],
+      "semantics": [
+        "status"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1136"
+      }
+    },
+    {
+      "id": "lol.augment.goredrink",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1138,
+      "slug": "goredrink",
+      "name": "渴血",
+      "icon": "assets/augment/1138-cb2ab7c1dbe0.webp",
+      "rarity": "silver",
+      "tooltipText": [
+        "获得15%全能吸血。"
+      ],
+      "semantics": [
+        "lifeSteal"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1138"
+      }
+    },
+    {
+      "id": "lol.augment.all-for-you",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1141,
+      "slug": "all-for-you",
+      "name": "全心为你",
+      "icon": "assets/augment/1141-c929b33cb97f.webp",
+      "rarity": "gold",
+      "tooltipText": [
+        "你的治疗和护盾在用在一个友军身上时会变强30%。"
+      ],
+      "semantics": [
+        "heal",
+        "shield"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1141"
+      }
+    },
+    {
+      "id": "lol.augment.impassable",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1149,
+      "slug": "impassable",
+      "name": "不动如山",
+      "icon": "assets/augment/1149-3476208ce504.webp",
+      "rarity": "gold",
+      "tooltipText": [
+        "获得余震和冰川增幅基石符文。",
+        "余震：在你定身一个敌方英雄后提供防御属性，稍后会在你的周围造成爆发性的魔法伤害。",
+        "冰川增幅：定身一名敌方英雄时会生成3道冰川射线来减速附近的敌人们并降低他们对你的队友们的伤害。"
+      ],
+      "semantics": [
+        "spellName"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1149"
+      }
+    },
+    {
+      "id": "lol.augment.bread-and-jam",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1150,
+      "slug": "bread-and-jam",
+      "name": "面包和果酱",
+      "icon": "assets/augment/1103-1a5a4c6f853b.webp",
+      "rarity": "gold",
+      "tooltipText": [
+        "你的【所选技能】技能获得100技能急速。"
+      ],
+      "semantics": [
+        "legacyText"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1150"
+      }
+    },
+    {
+      "id": "lol.augment.bread-and-cheese",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1151,
+      "slug": "bread-and-cheese",
+      "name": "面包和奶酪",
+      "icon": "assets/augment/1103-1a5a4c6f853b.webp",
+      "rarity": "gold",
+      "tooltipText": [
+        "你的【所选技能】技能获得100技能急速。"
+      ],
+      "semantics": [
+        "legacyText"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1151"
+      }
+    },
+    {
+      "id": "lol.augment.steel-your-heart",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1152,
+      "slug": "steel-your-heart",
+      "name": "钢化你心",
+      "icon": "assets/augment/1152-d5bd0056d96c.webp",
+      "rarity": "gold",
+      "tooltipText": [
+        "任务：持有【心之钢】且层数在300层或以上。",
+        "奖励：将你的【心之钢】层数乘以3。",
+        "【心之钢】层数：当前任务进度/300"
+      ],
+      "semantics": [
+        "legacyText"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1152"
+      }
+    },
+    {
+      "id": "lol.augment.urf-s-champion",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1154,
+      "slug": "urf-s-champion",
+      "name": "海牛阿福的勇士",
+      "icon": "assets/augment/1154-b8256230009b.webp",
+      "rarity": "prismatic",
+      "tooltipText": [
+        "任务：参与击杀18次。",
+        "奖励：获得金铲铲。",
+        "参与击杀数：当前任务进度/18",
+        "参与击杀：当前对局数值"
+      ],
+      "semantics": [
+        "legacyText",
+        "stat"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1154"
+      }
+    },
+    {
+      "id": "lol.augment.wooglet-s-witchcap",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1156,
+      "slug": "wooglet-s-witchcap",
+      "name": "沃格勒特的巫师帽",
+      "icon": "assets/augment/1154-b8256230009b.webp",
+      "rarity": "prismatic",
+      "tooltipText": [
+        "任务：持有灭世者的死亡之帽和中娅沙漏。",
+        "奖励：获得沃格勒特的巫师帽。",
+        "装备进度：当前任务进度/2"
+      ],
+      "semantics": [
+        "legacyText",
+        "stat"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1156"
+      }
+    },
+    {
+      "id": "lol.augment.scoped-weapons",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1170,
+      "slug": "scoped-weapons",
+      "name": "万用瞄准镜",
+      "icon": "assets/augment/1170-42e9818c9562.webp",
+      "rarity": "silver",
+      "tooltipText": [
+        "获得近战75 /远程50攻击距离。"
+      ],
+      "semantics": [],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1170"
+      }
+    },
+    {
+      "id": "lol.augment.big-brain",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1180,
+      "slug": "big-brain",
+      "name": "超强大脑",
+      "icon": "assets/augment/1180-aa4787dd284f.webp",
+      "rarity": "gold",
+      "tooltipText": [
+        "获得(300%法术强度)护盾值。阵亡时或耗尽后70秒重置。"
+      ],
+      "semantics": [
+        "shield",
+        "abilityPower"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1180"
+      }
+    },
+    {
+      "id": "lol.augment.heavy-hitter",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1181,
+      "slug": "heavy-hitter",
+      "name": "重量级打击手",
+      "icon": "assets/augment/1051-5f06ad76c1ec.webp",
+      "rarity": "silver",
+      "tooltipText": [
+        "你的攻击造成额外(3.5%最大生命值最大生命值)物理伤害。"
+      ],
+      "semantics": [
+        "physicalDamage",
+        "health"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1181"
+      }
+    },
+    {
+      "id": "lol.augment.flashbang",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1187,
+      "slug": "flashbang",
+      "name": "闪光弹",
+      "icon": "assets/augment/1187-3a3fc8393a6b.webp",
+      "rarity": "silver",
+      "tooltipText": [
+        "你的【闪现】会引发一次爆炸，造成(70–240等级+60%法术强度+70%攻击力)伤害和减速（阵亡时重置）。",
+        "已造成的伤害：当前对局数值"
+      ],
+      "semantics": [
+        "abilityPower",
+        "attackDamage",
+        "status"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1187"
+      }
+    },
+    {
+      "id": "lol.augment.fey-magic",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1194,
+      "slug": "fey-magic",
+      "name": "精怪魔法",
+      "icon": "assets/augment/1194-757ca8800cf3.webp",
+      "rarity": "prismatic",
+      "tooltipText": [
+        "你的终极技能的伤害会对敌人造成2秒变形效果(15秒冷却时间)。"
+      ],
+      "semantics": [
+        "stat",
+        "status"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1194"
+      }
+    },
+    {
+      "id": "lol.augment.giant-slayer",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1195,
+      "slug": "giant-slayer",
+      "name": "巨人杀手",
+      "icon": "assets/augment/1195-79c205221d4e.webp",
+      "rarity": "prismatic",
+      "tooltipText": [
+        "体型变小，获得20%移动速度，并基于敌方英雄体型大于你的程度造成10%到30%额外伤害。",
+        "已造成的伤害：当前对局数值"
+      ],
+      "semantics": [
+        "movementSpeed"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1195"
+      }
+    },
+    {
+      "id": "lol.augment.stackosaurus-rex",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1204,
+      "slug": "stackosaurus-rex",
+      "name": "叠角龙",
+      "icon": "assets/augment/1204-97970f9dc5dc.webp",
+      "rarity": "silver",
+      "tooltipText": [
+        "在你获得一个技能的永久层数时，多获得100%！"
+      ],
+      "semantics": [
+        "keywordMajor"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1204"
+      }
+    },
+    {
+      "id": "lol.augment.adapt",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1205,
+      "slug": "adapt",
+      "name": "物理转魔法",
+      "icon": "assets/augment/1205-5119d952d699.webp",
+      "rarity": "silver",
+      "tooltipText": [
+        "将额外攻击力转化为法术强度，并获得(15%法术强度)法术强度。",
+        "当前转化：当前对局数值",
+        "每点攻击力转化为1.67法术强度。"
+      ],
+      "semantics": [
+        "attackDamage",
+        "abilityPower"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1205"
+      }
+    },
+    {
+      "id": "lol.augment.escapade",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1206,
+      "slug": "escapade",
+      "name": "魔法转物理",
+      "icon": "assets/augment/1205-5119d952d699.webp",
+      "rarity": "silver",
+      "tooltipText": [
+        "将法术强度转化为额外攻击力，并获得(15%攻击力)攻击力。",
+        "当前转化：当前对局数值",
+        "每点法术强度转化为0.6攻击力。"
+      ],
+      "semantics": [
+        "abilityPower",
+        "attackDamage"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1206"
+      }
+    },
+    {
+      "id": "lol.augment.it-s-killing-time",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1211,
+      "slug": "it-s-killing-time",
+      "name": "杀戮时间到了",
+      "icon": "assets/augment/1211-b5704b6cb0cf.webp",
+      "rarity": "gold",
+      "tooltipText": [
+        "在施放你的终极技能后，标记所有敌人并存储你对他们的40%造成伤害。在5秒之后，引爆储量伤害(8秒冷却时间)。",
+        "已造成的伤害：当前对局数值"
+      ],
+      "semantics": [],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1211"
+      }
+    },
+    {
+      "id": "lol.augment.spin-to-win",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1214,
+      "slug": "spin-to-win",
+      "name": "旋转至胜",
+      "icon": "assets/augment/1022-fbb099861fc1.webp",
+      "rarity": "silver",
+      "tooltipText": [
+        "你的旋转类技能获得技能急速30技能急速并且造成30%额外伤害，对于终极技能，该额外伤害提升至50%。",
+        "已造成的伤害：当前对局数值"
+      ],
+      "semantics": [],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1214"
+      }
+    },
+    {
+      "id": "lol.augment.fan-the-hammer",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1220,
+      "slug": "fan-the-hammer",
+      "name": "连拨击锤",
+      "icon": "assets/augment/1220-085ff10855ef.webp",
+      "rarity": "prismatic",
+      "tooltipText": [
+        "在你攻击敌方英雄时，发射5个飞弹，每个造成(8–50.5等级+14%额外攻击力额外攻击力)物理伤害，基于移动的距离至多提升至50%。每个基本方向都有单独的8秒冷却时间。",
+        "每个弩箭都能暴击并且附带20%效能的攻击特效。",
+        "已造成的伤害：当前对局数值"
+      ],
+      "semantics": [
+        "physicalDamage",
+        "attackDamage"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1220"
+      }
+    },
+    {
+      "id": "lol.augment.dual-wield",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1225,
+      "slug": "dual-wield",
+      "name": "双刀流",
+      "icon": "assets/augment/1225-086df6ea7fc1.webp",
+      "rarity": "prismatic",
+      "tooltipText": [
+        "在你攻击时，发射一个弩箭，它造成40%伤害并以40%效能施加你的攻击特效攻击特效。",
+        "获得10%总攻击速度。"
+      ],
+      "semantics": [
+        "onHit",
+        "attackSpeed"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1225"
+      }
+    },
+    {
+      "id": "lol.augment.transmute-gold",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1237,
+      "slug": "transmute-gold",
+      "name": "质变：黄金阶",
+      "icon": "assets/augment/1237-b02fe6bddeec.webp",
+      "rarity": "silver",
+      "tooltipText": [
+        "获得1个随机强化符文位阶黄金阶强化符文。"
+      ],
+      "semantics": [
+        "keywordMajor"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1237"
+      }
+    },
+    {
+      "id": "lol.augment.transmute-prismatic",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1238,
+      "slug": "transmute-prismatic",
+      "name": "质变：棱彩阶",
+      "icon": "assets/augment/1238-c7cbc3ca11d2.webp",
+      "rarity": "gold",
+      "tooltipText": [
+        "获得1个随机强化符文位阶棱彩阶强化符文。"
+      ],
+      "semantics": [
+        "keywordMajor"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1238"
+      }
+    },
+    {
+      "id": "lol.augment.transmute-chaos",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1243,
+      "slug": "transmute-chaos",
+      "name": "质变：混沌",
+      "icon": "assets/augment/1243-ab12380e62b4.webp",
+      "rarity": "prismatic",
+      "tooltipText": [
+        "获得2个随机强化符文位阶强化符文。"
+      ],
+      "semantics": [
+        "keywordMajor"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1243"
+      }
+    },
+    {
+      "id": "lol.augment.divine-intervention",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1301,
+      "slug": "divine-intervention",
+      "name": "神圣干预",
+      "icon": "assets/augment/1301-a7ef9876fdfb.webp",
+      "rarity": "gold",
+      "tooltipText": [
+        "每35秒，自动施放一颗护体星星缓慢降临在你身上。在它着陆时，你和附近的友军们进入持续2.5秒的免疫伤害状态。"
+      ],
+      "semantics": [
+        "keywordMajor"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1301"
+      }
+    },
+    {
+      "id": "lol.augment.leg-day",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1305,
+      "slug": "leg-day",
+      "name": "练腿日",
+      "icon": "assets/augment/1305-948b0c4d17d1.webp",
+      "rarity": "silver",
+      "tooltipText": [
+        "获得50移动速度和50%减速抗性。"
+      ],
+      "semantics": [
+        "movementSpeed"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1305"
+      }
+    },
+    {
+      "id": "lol.augment.firefox",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1308,
+      "slug": "firefox",
+      "name": "火狐",
+      "icon": "assets/augment/1308-870464553a20.webp",
+      "rarity": "silver",
+      "tooltipText": [
+        "自动施放：每9秒，获得25%移动速度并召唤3道烈焰环绕于你，瞄准距离内相距最近的那个可见英雄并造成(35–160等级+25%法术强度+25%额外攻击力额外攻击力)自适应伤害。后续命中造成30%伤害。",
+        "已造成伤害的总和：当前对局数值"
+      ],
+      "semantics": [
+        "keywordMajor",
+        "movementSpeed",
+        "abilityPower",
+        "attackDamage"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1308"
+      }
+    },
+    {
+      "id": "lol.augment.clown-college",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1310,
+      "slug": "clown-college",
+      "name": "小丑学院",
+      "icon": "assets/augment/1310-b018695fd945.webp",
+      "rarity": "prismatic",
+      "tooltipText": [
+        "背刺：你从背后袭击敌人时，会造成(20–35等级+35%法术强度+50%额外攻击力额外攻击力)额外物理伤害。",
+        "欺诈魔术：你传送并变为隐形，持续3秒。你在隐形状态下的第一次攻击将造成额外的(100+150%额外攻击力额外攻击力+55%法术强度)物理伤害。如果从背后进行打击，那么这个攻击会暴击，造成(155% + 额外暴击伤害)伤害。",
+        "幻像：阵亡：在阵亡时，在你周围造成25%最大生命值的真实伤害以及1秒恐惧。"
+      ],
+      "semantics": [
+        "spellName",
+        "abilityPower",
+        "attackDamage",
+        "physicalDamage",
+        "keyword",
+        "totalValue",
+        "trueDamage"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1310"
+      }
+    },
+    {
+      "id": "lol.augment.overflow",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1311,
+      "slug": "overflow",
+      "name": "溢流",
+      "icon": "assets/augment/1311-03ebbd6fc66c.webp",
+      "rarity": "gold",
+      "tooltipText": [
+        "你的法力值消耗翻倍。你的技能的治疗效果、护盾效果和伤害的效能提升(10%+0.5%最大法力值最大法力值)。"
+      ],
+      "semantics": [
+        "mana",
+        "heal",
+        "shield",
+        "totalValue"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1311"
+      }
+    },
+    {
+      "id": "lol.augment.mighty-shield",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1314,
+      "slug": "mighty-shield",
+      "name": "强力护盾",
+      "icon": "assets/augment/1314-161a37626be6.webp",
+      "rarity": "silver",
+      "tooltipText": [
+        "当你获得护盾时，获得适应之力40–100等级适应之力，持续3秒。(5秒冷却时间)"
+      ],
+      "semantics": [
+        "legacyText"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1314"
+      }
+    },
+    {
+      "id": "lol.augment.swift-and-safe",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1315,
+      "slug": "swift-and-safe",
+      "name": "快中求稳",
+      "icon": "assets/augment/1315-6cc281f38cf4.webp",
+      "rarity": "silver",
+      "tooltipText": [
+        "在冲刺或闪烁后，获得持续2秒的(65–290等级+26%法术强度+65%额外攻击力额外攻击力)护盾值。 (5秒冷却时间)"
+      ],
+      "semantics": [
+        "shield",
+        "abilityPower",
+        "attackDamage"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1315"
+      }
+    },
+    {
+      "id": "lol.augment.upgrade-zhonya-s",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1318,
+      "slug": "upgrade-zhonya-s",
+      "name": "升级：中娅",
+      "icon": "assets/augment/1318-0b5105f59053.webp",
+      "rarity": "silver",
+      "tooltipText": [
+        "【中娅沙漏】的冷却时间降低至45秒。你现在可以在【中娅沙漏】、【探索者的护臂】或【沃格勒特的巫师帽】凝滞状态持续期间移动并获得50%移动速度。"
+      ],
+      "semantics": [
+        "stat",
+        "movementSpeed"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1318"
+      }
+    },
+    {
+      "id": "lol.augment.upgrade-immolate",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1319,
+      "slug": "upgrade-immolate",
+      "name": "升级：献祭",
+      "icon": "assets/augment/1319-3bf07388fb01.webp",
+      "rarity": "silver",
+      "tooltipText": [
+        "【璀璨回响】和【日炎圣盾】每当有目标受到【献祭】效果影响时，提供12金币 。获得250金币。",
+        "已赚得金币：当前对局数值"
+      ],
+      "semantics": [
+        "stat",
+        "gold"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1319"
+      }
+    },
+    {
+      "id": "lol.augment.upgrade-collector",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1320,
+      "slug": "upgrade-collector",
+      "name": "升级：收集者",
+      "icon": "assets/augment/1320-077efbc99eeb.webp",
+      "rarity": "silver",
+      "tooltipText": [
+        "在每次使用【收集者】的被动处决敌人时，会使处决阈值提升0.5%，并且提供额外50金币。",
+        "获得250金币。"
+      ],
+      "semantics": [
+        "gold"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1320"
+      }
+    },
+    {
+      "id": "lol.augment.get-excited",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1322,
+      "slug": "get-excited",
+      "name": "罪恶快感",
+      "icon": "assets/augment/1322-ffcd94555c14.webp",
+      "rarity": "gold",
+      "tooltipText": [
+        "参与击杀后，获得持续4秒的100%移动速度和15%攻击速度。"
+      ],
+      "semantics": [
+        "movementSpeed",
+        "attackSpeed"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1322"
+      }
+    },
+    {
+      "id": "lol.augment.cruelty",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1323,
+      "slug": "cruelty",
+      "name": "残忍",
+      "icon": "assets/augment/1323-f0291b92242d.webp",
+      "rarity": "prismatic",
+      "tooltipText": [
+        "定身或缚地一个敌方英雄时，召唤一颗彗星至敌人上方。彗星会在1秒后着陆，对附近的敌人们造成(50–150等级+40%法术强度+4%最大生命值最大生命值)魔法伤害。",
+        "这个效果对每次技能施放和每个目标都有6秒冷却时间。",
+        "已造成伤害：当前对局数值"
+      ],
+      "semantics": [
+        "status",
+        "magicDamage",
+        "abilityPower",
+        "health"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1323"
+      }
+    },
+    {
+      "id": "lol.augment.protein-shake",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1324,
+      "slug": "protein-shake",
+      "name": "蛋白粉奶昔",
+      "icon": "assets/augment/1324-a096cddd0f06.webp",
+      "rarity": "prismatic",
+      "tooltipText": [
+        "获得治疗与护盾强度(25+35%额外护甲额外护甲+35%额外魔法抗性额外魔法抗性)%治疗和护盾强度，基于额外护甲和魔抗。"
+      ],
+      "semantics": [
+        "heal",
+        "totalValue",
+        "armor",
+        "magicResist"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1324"
+      }
+    },
+    {
+      "id": "lol.augment.glass-cannon",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1325,
+      "slug": "glass-cannon",
+      "name": "玻璃大炮",
+      "icon": "assets/augment/1325-04db4dc329c7.webp",
+      "rarity": "prismatic",
+      "tooltipText": [
+        "减少30%最大生命值。造成额外的近战25% /远程15%伤害作为真实伤害。",
+        "已造成的伤害：当前对局数值"
+      ],
+      "semantics": [
+        "health",
+        "trueDamage"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1325"
+      }
+    },
+    {
+      "id": "lol.augment.nightstalking",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1326,
+      "slug": "nightstalking",
+      "name": "夜狩",
+      "icon": "assets/augment/1326-ef1e6258adb9.webp",
+      "rarity": "gold",
+      "tooltipText": [
+        "在对敌人造成伤害的3秒内参与击杀该敌人会为你提供40%移动速度并使你进入隐身状态1.5秒。"
+      ],
+      "semantics": [
+        "movementSpeed"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1326"
+      }
+    },
+    {
+      "id": "lol.augment.critical-rhythm",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1328,
+      "slug": "critical-rhythm",
+      "name": "暴击律动",
+      "icon": "assets/augment/1322-ffcd94555c14.webp",
+      "rarity": "gold",
+      "tooltipText": [
+        "你的普攻在暴击时获得可叠加的6%攻击速度，至多至10层。",
+        "获得暴击几率25%暴击几率。"
+      ],
+      "semantics": [
+        "attackSpeed"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1328"
+      }
+    },
+    {
+      "id": "lol.augment.biggest-snowball-ever",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1329,
+      "slug": "biggest-snowball-ever",
+      "name": "史上最大雪球",
+      "icon": "assets/augment/1329-9b00fda99cad.webp",
+      "rarity": "prismatic",
+      "tooltipText": [
+        "你的雪球获得100技能急速。",
+        "你的雪球现在变得非常大，并且可以穿过小兵。它会对敌人造成持续2秒的20%减速， 将他们击飞0.75秒，并造成额外(200–350等级+60%法术强度+100%额外攻击力额外攻击力)伤害。",
+        "如果你没有雪球，则获得一个雪球。"
+      ],
+      "semantics": [
+        "spellName",
+        "stat",
+        "status",
+        "magicDamage",
+        "abilityPower",
+        "attackDamage"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1329"
+      }
+    },
+    {
+      "id": "lol.augment.empyrean-promise",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1331,
+      "slug": "empyrean-promise",
+      "name": "至高天诺言",
+      "icon": "assets/augment/1331-1e67ac371b94.webp",
+      "rarity": "prismatic",
+      "tooltipText": [
+        "获得治疗与护盾强度15%治疗和护盾强度。获得至高天诺言作为一个召唤师技能。",
+        "警惕",
+        "传送至你的友军并在着陆时提供持续3秒的(100–250等级+100%法术强度+10%额外生命值额外生命值)护盾值。"
+      ],
+      "semantics": [
+        "spellName",
+        "active",
+        "shield",
+        "abilityPower",
+        "health"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1331"
+      }
+    },
+    {
+      "id": "lol.augment.ominous-pact",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1332,
+      "slug": "ominous-pact",
+      "name": "不祥契约",
+      "icon": "assets/augment/1332-1112b86bca30.webp",
+      "rarity": "prismatic",
+      "tooltipText": [
+        "基于已损失生命值，获得75–150等级法术强度，50%移动速度和20%全能吸血。施放技能会消耗你的5%当前生命值。",
+        "在30%生命值时获得最大增益。"
+      ],
+      "semantics": [
+        "health",
+        "magicDamage",
+        "movementSpeed",
+        "omnivamp"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1332"
+      }
+    },
+    {
+      "id": "lol.augment.escape-plan",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1333,
+      "slug": "escape-plan",
+      "name": "逃跑计划",
+      "icon": "assets/augment/1333-65beedee9861.webp",
+      "rarity": "silver",
+      "tooltipText": [
+        "在降至35%生命值时，获得巨量(65%最大生命值最大生命值)持续衰减的护盾、持续衰减的150%移动速度和持续衰减的缩小效果。(75秒冷却时间)"
+      ],
+      "semantics": [
+        "health",
+        "shield",
+        "movementSpeed"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1333"
+      }
+    },
+    {
+      "id": "lol.augment.goldrend",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1335,
+      "slug": "goldrend",
+      "name": "夺金",
+      "icon": "assets/augment/1335-543e3b676e4b.webp",
+      "rarity": "prismatic",
+      "tooltipText": [
+        "用攻击或技能对一个英雄造成伤害时会造成额外(50–150等级+20%法术强度+40%额外攻击力额外攻击力)魔法伤害，并为你提供30金币和持续1.5秒的25%移动速度(每个英雄有30秒冷却时间)。",
+        "已造成的伤害：当前对局数值",
+        "已赚得金币：当前对局数值"
+      ],
+      "semantics": [
+        "magicDamage",
+        "abilityPower",
+        "attackDamage",
+        "gold",
+        "movementSpeed"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1335"
+      }
+    },
+    {
+      "id": "lol.augment.upgrade-infinity-edge",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1336,
+      "slug": "upgrade-infinity-edge",
+      "name": "升级：无尽之刃",
+      "icon": "assets/augment/1336-5c08d46d4f99.webp",
+      "rarity": "gold",
+      "tooltipText": [
+        "获得500金币。",
+        "装备【无尽之刃】后，可使你的暴击造成随机的额外暴击伤害，最高可至你暴击几率的50%。",
+        "已造成的暴击伤害：当前对局数值"
+      ],
+      "semantics": [
+        "gold",
+        "keyword",
+        "stat"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1336"
+      }
+    },
+    {
+      "id": "lol.augment.king-me",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1337,
+      "slug": "king-me",
+      "name": "尊我为王",
+      "icon": "assets/augment/1337-508a6c4b3121.webp",
+      "rarity": "prismatic",
+      "tooltipText": [
+        "当你第一次携带一件传说级装备并乘坐敌人的传送门时，你会加冕为王，升级你的装备并获得一个随机棱彩阶强化符文。"
+      ],
+      "semantics": [
+        "stat",
+        "legacyText"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1337"
+      }
+    },
+    {
+      "id": "lol.augment.sneakerhead",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1343,
+      "slug": "sneakerhead",
+      "name": "王中王，靴中靴",
+      "icon": "assets/augment/1343-fd16195528ad.webp",
+      "rarity": "prismatic",
+      "tooltipText": [
+        "完成以下的任务即可获得一份超级大奖：",
+        "任务1：装备【狂战士胫甲】时，攻击当前对局数值/25次",
+        "任务2：装备【轻灵之靴】时，移动当前对局数值/300步",
+        "任务3：装备【明朗之靴】时，施放当前对局数值/20次技能",
+        "任务4：装备【水银之靴】时，受到控制效果当前对局数值/5次",
+        "任务5：装备【铁板靴】时，减少当前对局数值/200攻击伤害",
+        "任务6：装备【法师之靴】时，造成当前对局数值/1500技能伤害"
+      ],
+      "semantics": [
+        "legacyText",
+        "attackSpeed",
+        "movementSpeed",
+        "abilityPower",
+        "status",
+        "attackDamage",
+        "stat"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1343"
+      }
+    },
+    {
+      "id": "lol.augment.final-form",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1344,
+      "slug": "final-form",
+      "name": "最终形态",
+      "icon": "assets/augment/1344-09f77ddbe0e0.webp",
+      "rarity": "prismatic",
+      "tooltipText": [
+        "在施放你的终极技能时，获得持续10秒的50%最大生命值护盾、20%全能吸血和30%额外移动速度。(20秒冷却时间)。"
+      ],
+      "semantics": [
+        "stat",
+        "shield",
+        "lifeSteal",
+        "movementSpeed"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1344"
+      }
+    },
+    {
+      "id": "lol.augment.spiritual-purification",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1345,
+      "slug": "spiritual-purification",
+      "name": "心灵净化",
+      "icon": "assets/augment/1345-e9496d887534.webp",
+      "rarity": "gold",
+      "tooltipText": [
+        "参与击杀时，产生一次爆炸，对附近敌人们造成相当于他们15%当前生命值的伤害并留下一个减速区域。区域内的敌人们会受到持续1.5秒的60%减速。"
+      ],
+      "semantics": [
+        "health",
+        "status"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1345"
+      }
+    },
+    {
+      "id": "lol.augment.poltergeist",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1347,
+      "slug": "poltergeist",
+      "name": "吵闹鬼",
+      "icon": "assets/augment/1034-78fc076c9a5a.webp",
+      "rarity": "silver",
+      "tooltipText": [
+        "获得【吵闹鬼】作为一个召唤师技能。",
+        "吵闹鬼会同时施放召唤师技能【屏障】和【幽灵疾步】。"
+      ],
+      "semantics": [],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1347"
+      }
+    },
+    {
+      "id": "lol.augment.flash-2",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1348,
+      "slug": "flash-2",
+      "name": "闪闪现现",
+      "icon": "assets/augment/1348-6548de8adfdf.webp",
+      "rarity": "silver",
+      "tooltipText": [
+        "获得第二个【闪现】召唤师技能和70召唤师技能急速。"
+      ],
+      "semantics": [],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1348"
+      }
+    },
+    {
+      "id": "lol.augment.ultimate-awakening",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1349,
+      "slug": "ultimate-awakening",
+      "name": "终极唤醒",
+      "icon": "assets/augment/1349-1f756043e709.webp",
+      "rarity": "prismatic",
+      "tooltipText": [
+        "获得30终极技能急速。",
+        "在施放你的终极技能后，刷新你的所有基础技能并获得持续15秒的300基础技能急速。(20秒冷却时间)"
+      ],
+      "semantics": [
+        "keyword"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1349"
+      }
+    },
+    {
+      "id": "lol.augment.tank-engine",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1353,
+      "slug": "tank-engine",
+      "name": "坦克引擎",
+      "icon": "assets/augment/1353-60ac8c306de3.webp",
+      "rarity": "gold",
+      "tooltipText": [
+        "参与击杀时，获得一个层数，使你的体型增大5%并提升5%最大生命值。阵亡时损失65%层数。",
+        "已获得生命值的总和：当前对局数值"
+      ],
+      "semantics": [
+        "health"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1353"
+      }
+    },
+    {
+      "id": "lol.augment.critical-missile",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1356,
+      "slug": "critical-missile",
+      "name": "暴击飞弹",
+      "icon": "assets/augment/1356-e41c1b829da7.webp",
+      "rarity": "gold",
+      "tooltipText": [
+        "当你暴击时，发射1+(2%暴击几率)个飞弹，每个造成15–65等级魔法伤害。",
+        "获得暴击几率25%暴击几率。"
+      ],
+      "semantics": [
+        "criticalStrike",
+        "magicDamage"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1356"
+      }
+    },
+    {
+      "id": "lol.augment.pinball",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1358,
+      "slug": "pinball",
+      "name": "弹球",
+      "icon": "assets/augment/1358-79dd927c8caa.webp",
+      "rarity": "gold",
+      "tooltipText": [
+        "你的雪球获得50技能急速，造成额外的100–500等级真实伤害并且可以从墙体上反弹。每次反弹会提升它 25%体型、20%造成伤害，并且缩短它30%冷却时间。",
+        "反弹次数：当前对局数值"
+      ],
+      "semantics": [
+        "spellName",
+        "trueDamage"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1358"
+      }
+    },
+    {
+      "id": "lol.augment.icathia-s-fall",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1361,
+      "slug": "icathia-s-fall",
+      "name": "艾卡西亚的陷落",
+      "icon": "assets/augment/1361-e65c2ca7ec6d.webp",
+      "rarity": "prismatic",
+      "tooltipText": [
+        "任务：持有日炎圣盾和璀璨回响。",
+        "奖励：获得虚空献祭。",
+        "装备进度：当前任务进度/2"
+      ],
+      "semantics": [
+        "legacyText",
+        "keywordMajor",
+        "stat"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1361"
+      }
+    },
+    {
+      "id": "lol.augment.shrink-engine",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1373,
+      "slug": "shrink-engine",
+      "name": "缩小引擎",
+      "icon": "assets/augment/1373-5aece6a8d862.webp",
+      "rarity": "gold",
+      "tooltipText": [
+        "参与击杀后会让你变小4%，每次提供8技能急速和1%移动速度。",
+        "阵亡时损失65%层数。",
+        "------------------------------------------------------------",
+        "你目前有当前对局数值层，为你提供：",
+        "+ 当前对局数值技能急速",
+        "+ 当前对局数值%移动速度"
+      ],
+      "semantics": [
+        "movementSpeed",
+        "legacyText"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1373"
+      }
+    },
+    {
+      "id": "lol.augment.soul-eater",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1375,
+      "slug": "soul-eater",
+      "name": "吞噬灵魂",
+      "icon": "assets/augment/1375-e9376d568bf5.webp",
+      "rarity": "gold",
+      "tooltipText": [
+        "定身一个敌方英雄时会提供20最大生命值。",
+        "总生命值获取：20 × 当前对局数值",
+        "如果是你的第二个强化符文，会自带300生命值。"
+      ],
+      "semantics": [
+        "status",
+        "health"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1375"
+      }
+    },
+    {
+      "id": "lol.augment.upgrade-sword-of-blossoming-dawn",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1379,
+      "slug": "upgrade-sword-of-blossoming-dawn",
+      "name": "升级：花晓之剑",
+      "icon": "assets/augment/1379-bec7221e6280.webp",
+      "rarity": "prismatic",
+      "tooltipText": [
+        "获得100%攻击速度。",
+        "你对英雄的攻击会使来自【花晓之剑】的治疗效果提升250%。"
+      ],
+      "semantics": [
+        "movementSpeed",
+        "health"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1379"
+      }
+    },
+    {
+      "id": "lol.augment.donation",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1384,
+      "slug": "donation",
+      "name": "捐赠",
+      "icon": "assets/augment/1384-b2b46c4129ca.webp",
+      "rarity": "gold",
+      "tooltipText": [
+        "收到1750金币。谢了！ :)"
+      ],
+      "semantics": [
+        "legacyText"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1384"
+      }
+    },
+    {
+      "id": "lol.augment.spin-me-right-round",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1386,
+      "slug": "spin-me-right-round",
+      "name": "转得我眩晕了",
+      "icon": "assets/augment/1386-261d533b4611.webp",
+      "rarity": "silver",
+      "tooltipText": [
+        "将一个召唤师技能替换为骄行荡寇。",
+        "骄行荡寇发射一根钩爪，吸附在地形上，在此之后，你可以再次施放来绕着它摆荡。在摆荡状态下，自动攻击相距最近的那个敌人。在与一个敌方英雄碰撞或再次施放时结束摆荡。"
+      ],
+      "semantics": [
+        "spellName",
+        "recast"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1386"
+      }
+    },
+    {
+      "id": "lol.augment.infinite-recursion",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1388,
+      "slug": "infinite-recursion",
+      "name": "无限循环往复",
+      "icon": "assets/augment/1388-e1ad00bef168.webp",
+      "rarity": "prismatic",
+      "tooltipText": [
+        "获得60技能急速，外加每次参与击杀3技能急速。",
+        "当前技能急速：(60+3 × 当前对局数值)"
+      ],
+      "semantics": [],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1388"
+      }
+    },
+    {
+      "id": "lol.augment.hand-of-baron",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1389,
+      "slug": "hand-of-baron",
+      "name": "男爵之手",
+      "icon": "assets/augment/1389-7472d9ea0245.webp",
+      "rarity": "prismatic",
+      "tooltipText": [
+        "获得25%适应之力。附近友方小兵都获得极大增强。"
+      ],
+      "semantics": [
+        "abilityPower"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1389"
+      }
+    },
+    {
+      "id": "lol.augment.phenomenal-evil",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1390,
+      "slug": "phenomenal-evil",
+      "name": "超凡邪恶",
+      "icon": "assets/augment/1390-75884958b665.webp",
+      "rarity": "gold",
+      "tooltipText": [
+        "在你用技能对敌人造成伤害时永久获得1法术强度。",
+        "如果是作为你的第二个强化符文，则自带40法术强度。",
+        "你已获得当前对局数值法术强度。维迦会感到自豪的！"
+      ],
+      "semantics": [
+        "abilityPower"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1390"
+      }
+    },
+    {
+      "id": "lol.augment.holy-snowball",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1392,
+      "slug": "holy-snowball",
+      "name": "神圣雪球",
+      "icon": "assets/augment/1392-2f303ffdcb99.webp",
+      "rarity": "prismatic",
+      "tooltipText": [
+        "雪球获得100技能急速。",
+        "你在用【雪球】冲刺后会免疫伤害1.5秒。",
+        "如果你没有雪球，获得一个雪球。"
+      ],
+      "semantics": [
+        "spellName",
+        "keywordMajor"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1392"
+      }
+    },
+    {
+      "id": "lol.augment.growth-spurt",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1401,
+      "slug": "growth-spurt",
+      "name": "生机迸发",
+      "icon": "assets/augment/1401-461b41a1dac5.webp",
+      "rarity": "gold",
+      "tooltipText": [
+        "获得生机迸发作为一个召唤师技能。",
+        "生机迸发会猛然提升你的体型，击飞附近的敌人们1秒并提供持续7秒的(300+20%最大生命值最大生命值)最大生命值。"
+      ],
+      "semantics": [
+        "active",
+        "status",
+        "health",
+        "totalValue"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1401"
+      }
+    },
+    {
+      "id": "lol.augment.stats-on-stats-on-stats",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1402,
+      "slug": "stats-on-stats-on-stats",
+      "name": "属性叠属性叠属性！",
+      "icon": "assets/augment/1402-96738a4429eb.webp",
+      "rarity": "prismatic",
+      "tooltipText": [
+        "获得4个【属性锻造器】，有更高几率出现黄金阶和棱彩阶锻造器！",
+        "在你的下一次强化符文选取时，每个栏位获得一次额外的刷新。"
+      ],
+      "semantics": [],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1402"
+      }
+    },
+    {
+      "id": "lol.augment.stats-on-stats",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1403,
+      "slug": "stats-on-stats",
+      "name": "属性叠属性！",
+      "icon": "assets/augment/1403-dd64e5044442.webp",
+      "rarity": "gold",
+      "tooltipText": [
+        "获得3个【属性锻造器】，有更高几率出现黄金阶和棱彩阶锻造器！"
+      ],
+      "semantics": [],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1403"
+      }
+    },
+    {
+      "id": "lol.augment.stats",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1404,
+      "slug": "stats",
+      "name": "属性！",
+      "icon": "assets/augment/1404-d79ef13743d6.webp",
+      "rarity": "silver",
+      "tooltipText": [
+        "获得2个属性锻造器【属性锻造器】！"
+      ],
+      "semantics": [],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1404"
+      }
+    },
+    {
+      "id": "lol.augment.stuck-in-here-with-me",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1413,
+      "slug": "stuck-in-here-with-me",
+      "name": "和我一起困在这里",
+      "icon": "assets/augment/1413-2bffff8b44e9.webp",
+      "rarity": "prismatic",
+      "tooltipText": [
+        "在使用你的终极技能后，获得持续2秒的50%伤害减免，然后你嘲讽其中的敌人们2秒。",
+        "获得30终极技能急速。"
+      ],
+      "semantics": [
+        "keywordMajor",
+        "status"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1413"
+      }
+    },
+    {
+      "id": "lol.augment.twin-fire",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1415,
+      "slug": "twin-fire",
+      "name": "双生火焰",
+      "icon": "assets/augment/1415-951957af348f.webp",
+      "rarity": "silver",
+      "tooltipText": [
+        "造成技能伤害时，发射1+(3%暴击几率)个飞弹，每个造成(10–30等级+7%额外攻击力额外攻击力+7%法术强度)魔法伤害。",
+        "此外，获得暴击几率25%暴击几率。"
+      ],
+      "semantics": [
+        "criticalStrike",
+        "magicDamage",
+        "attackDamage",
+        "abilityPower",
+        "stat"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1415"
+      }
+    },
+    {
+      "id": "lol.augment.hextech-soul",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1416,
+      "slug": "hextech-soul",
+      "name": "海克斯科技龙魂",
+      "icon": "assets/augment/1046-3d72c5bca4e9.webp",
+      "rarity": "silver",
+      "tooltipText": [
+        "周期性地使你的下一个伤害型技能或攻击触发一道闪电爆裂，连锁穿过敌人以造成伤害和减速。"
+      ],
+      "semantics": [
+        "status"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1416"
+      }
+    },
+    {
+      "id": "lol.augment.sonata",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1420,
+      "slug": "sonata",
+      "name": "咏叹奏鸣",
+      "icon": "assets/augment/1420-436348f38794.webp",
+      "rarity": "gold",
+      "tooltipText": [
+        "每10秒，以一个不断交替的旋律来自动施放坚毅咏叹调和迅捷奏鸣曲。",
+        "坚毅咏叹调治疗附近友军并提供一个临时的护盾光环。",
+        "迅捷奏鸣曲提供一个临时光环来提供额外移动速度。"
+      ],
+      "semantics": [
+        "keywordMajor",
+        "spellName",
+        "heal",
+        "shield",
+        "movementSpeed"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1420"
+      }
+    },
+    {
+      "id": "lol.augment.prom-queen",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1421,
+      "slug": "prom-queen",
+      "name": "舞会女王",
+      "icon": "assets/augment/1421-5babf50c92c2.webp",
+      "rarity": "prismatic",
+      "tooltipText": [
+        "每35秒，自动施放一道闪亮宝冠降临在你头上。当它着陆时，获得洛的终极技能，魅惑你碰到的敌人们。"
+      ],
+      "semantics": [
+        "keywordMajor"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1421"
+      }
+    },
+    {
+      "id": "lol.augment.upgrade-sheen",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 1996,
+      "slug": "upgrade-sheen",
+      "name": "升级：耀光",
+      "icon": "assets/augment/1996-2b94cf210960.webp",
+      "rarity": "gold",
+      "tooltipText": [
+        "你的咒刃效果造成相当于目标4%生命值的额外伤害，并治疗你自身，治疗效果相当于目标3.5%生命值。此外，获得250金币。",
+        "已造成的伤害：当前对局数值",
+        "已造成的治疗总和：当前对局数值"
+      ],
+      "semantics": [
+        "passive",
+        "physicalDamage",
+        "heal",
+        "gold"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#1996"
+      }
+    },
+    {
+      "id": "lol.augment.empowered-by-the-faithful",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 2004,
+      "slug": "empowered-by-the-faithful",
+      "name": "信念者的强化",
+      "icon": "assets/augment/2004-8ad211748432.webp",
+      "rarity": "prismatic",
+      "tooltipText": [
+        "为友军提供治疗或护盾会赐福他们8秒。当被赐福的友军对敌方英雄造成伤害时，你获得虔诚层数。在50虔诚时，释放一道冲击波来造成(50–300等级+750%治疗与护盾强度治疗与护盾强度)魔法伤害并处决低于(25%治疗与护盾强度治疗与护盾强度)生命值的敌人们。",
+        "已造成的伤害：当前对局数值",
+        "已击杀的敌人数：当前对局数值"
+      ],
+      "semantics": [
+        "heal",
+        "shield",
+        "keywordMajor",
+        "magicDamage",
+        "health"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#2004"
+      }
+    },
+    {
+      "id": "lol.augment.triggered-inferno",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 2005,
+      "slug": "triggered-inferno",
+      "name": "扳机炼狱",
+      "icon": "assets/augment/1053-4b1ffcd2837d.webp",
+      "rarity": "prismatic",
+      "tooltipText": [
+        "使用与前一个不同的技能或攻击对敌人造成伤害时，会获得评价等级 (从F到S)。",
+        "从每评价等级中获得4.25–5等级%移动速度。",
+        "在S评价等级时，消耗你的评价等级来倾泻出大量的子弹，在2秒里持续对周围的所有敌人进行10次射击。每颗子弹造成(20–40等级+40%攻击力+25%法术强度)物理伤害。低于30%生命值的敌人们会被暴击，受到20–40等级物理伤害。这个效果有0秒冷却时间。",
+        "子弹会施加生命偷取并对小兵造成25%伤害。",
+        "已造成的伤害：当前对局数值",
+        "炼狱扳机 触发次数：当前对局数值"
+      ],
+      "semantics": [
+        "keywordMajor",
+        "movementSpeed",
+        "physicalDamage",
+        "attackDamage",
+        "abilityPower",
+        "health"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#2005"
+      }
+    },
+    {
+      "id": "lol.augment.dropkick",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 2006,
+      "slug": "dropkick",
+      "name": "飞身踢",
+      "icon": "assets/augment/2006-86b21e879f43.webp",
+      "rarity": "prismatic",
+      "tooltipText": [
+        "你的攻击和技能会处决低于(4%+0.1%额外生命值额外生命值+5.5%基础攻击力基础攻击力)最大生命值的敌方英雄, 回复你(100–300等级+25%额外生命值额外生命值)生命值并击退该目标。",
+        "在与一个敌人或地形产生碰撞、或达到其终点时，这个被击退的敌人将爆炸，对附近的敌人们造成(150–500等级+100%额外护甲额外护甲+100%额外魔法抗性额外魔法抗性)魔法伤害。",
+        "这些爆炸可以连锁。",
+        "被飞身踢的敌人数量：当前对局数值",
+        "获得治疗的总和：当前对局数值",
+        "已造成的伤害：当前对局数值"
+      ],
+      "semantics": [
+        "health",
+        "totalValue",
+        "attackDamage",
+        "heal",
+        "status",
+        "magicDamage",
+        "armor",
+        "magicResist"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#2006"
+      }
+    },
+    {
+      "id": "lol.augment.zealot",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 2009,
+      "slug": "zealot",
+      "name": "狂热者",
+      "icon": "assets/augment/2009-82fd94a019c6.webp",
+      "rarity": "silver",
+      "tooltipText": [
+        "获得(25%+5%法术强度)暴击几率和(35%+5%法术强度)攻击速度（随法术强度变化）。"
+      ],
+      "semantics": [
+        "stat",
+        "totalValue",
+        "abilityPower",
+        "attackSpeed"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#2009"
+      }
+    },
+    {
+      "id": "lol.augment.double-tap",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 2010,
+      "slug": "double-tap",
+      "name": "双发快射",
+      "icon": "assets/augment/1225-086df6ea7fc1.webp",
+      "rarity": "prismatic",
+      "tooltipText": [
+        "你的暴击施加一次额外的攻击特效攻击特效。",
+        "获得暴击几率25%暴击几率。"
+      ],
+      "semantics": [
+        "onHit",
+        "stat"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#2010"
+      }
+    },
+    {
+      "id": "lol.augment.juiced",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 2016,
+      "slug": "juiced",
+      "name": "注魔",
+      "icon": "assets/augment/2016-a1825eb7e131.webp",
+      "rarity": "silver",
+      "tooltipText": [
+        "攻击特效攻击特效造成近战(7%最大法力值最大法力值) /远程(5.6%最大法力值最大法力值)魔法伤害，这个伤害可以暴击。",
+        "已造成的伤害：当前对局数值"
+      ],
+      "semantics": [
+        "onHit",
+        "magicDamage",
+        "mana"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#2016"
+      }
+    },
+    {
+      "id": "lol.augment.purist-caster",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 2018,
+      "slug": "purist-caster",
+      "name": "纯粹主义者 - 术师",
+      "icon": "assets/augment/2018-54fb9c31e680.webp",
+      "rarity": "silver",
+      "tooltipText": [
+        "获得10%冷却缩减并将你的所有攻击速度转化为技能急速。(当前：当前对局数值技能急速)。",
+        "转化率：0.65技能急速每1%攻击速度"
+      ],
+      "semantics": [
+        "attackSpeed"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#2018"
+      }
+    },
+    {
+      "id": "lol.augment.crit-n-cast",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 2024,
+      "slug": "crit-n-cast",
+      "name": "由暴生急",
+      "icon": "assets/augment/2024-31127c2f2da6.webp",
+      "rarity": "silver",
+      "tooltipText": [
+        "获得当前对局数值技能急速(40%暴击几率)。"
+      ],
+      "semantics": [],
+      "source": {
+        "text": "aramkit/16.20/augments.json#2024"
+      }
+    },
+    {
+      "id": "lol.augment.kill-secured",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 2026,
+      "slug": "kill-secured",
+      "name": "杀意翻涌",
+      "icon": "assets/augment/2026-ad659ace54ae.webp",
+      "rarity": "silver",
+      "tooltipText": [
+        "在朝着低于40%生命值的敌人时，获得60%移动速度。"
+      ],
+      "semantics": [
+        "health",
+        "movementSpeed"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#2026"
+      }
+    },
+    {
+      "id": "lol.augment.dropbear",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 2031,
+      "slug": "dropbear",
+      "name": "空投熊",
+      "icon": "assets/augment/2031-a531d6d6dbb2.webp",
+      "rarity": "prismatic",
+      "tooltipText": [
+        "阵亡时，召唤提伯斯，从而对你周围的敌人们造成(250–750等级+100%法术强度+200%法术穿透+500%穿透百分比)魔法伤害和0.5秒晕眩。提伯斯随后会追击你的击杀者。",
+        "提伯斯还会拥有你的所有强化符文。"
+      ],
+      "semantics": [
+        "magicDamage",
+        "abilityPower",
+        "magicPenetration",
+        "stat",
+        "status",
+        "legacyText"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#2031"
+      }
+    },
+    {
+      "id": "lol.augment.shark-bait",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 2032,
+      "slug": "shark-bait",
+      "name": "鲨鱼诱饵",
+      "icon": "assets/augment/2032-9f4340e66521.webp",
+      "rarity": "gold",
+      "tooltipText": [
+        "阵亡时，变成一个鲨鱼诱饵。你不能采取除了移动之外的任何其它行动，会对附近的敌人们造成40%减速。在若干秒之后，一头鲨鱼会浮现，击飞所有附近的敌人们并啃咬他们，对范围内的所有敌人造成120–350等级+ 30%已损失生命值的魔法伤害。",
+        "鲨鱼击杀敌方英雄的次数：当前对局数值"
+      ],
+      "semantics": [
+        "keyword",
+        "status",
+        "magicDamage",
+        "stat"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#2032"
+      }
+    },
+    {
+      "id": "lol.augment.shark-tempest",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 2034,
+      "slug": "shark-tempest",
+      "name": "鲨鱼暴风",
+      "icon": "assets/augment/2034-15a01ae97925.webp",
+      "rarity": "gold",
+      "tooltipText": [
+        "鲨鱼们环绕着你的【雪球】，对它们途经的敌人们造成减速和100–200等级魔法伤害。如果你的【雪球】命中了一个英雄，鲨鱼们会吸附至其身上并生成一阵鲨鱼暴风，从而对附近的敌人们造成每秒(30–90等级+25%额外攻击力额外攻击力+15%法术强度)魔法伤害和持续3秒的40%减速。"
+      ],
+      "semantics": [
+        "keyword",
+        "status",
+        "magicDamage",
+        "attackDamage",
+        "abilityPower"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#2034"
+      }
+    },
+    {
+      "id": "lol.augment.hide-on-bush",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 2042,
+      "slug": "hide-on-bush",
+      "name": "藏身草丛",
+      "icon": "assets/augment/2042-6709f7d6b24d.webp",
+      "rarity": "gold",
+      "tooltipText": [
+        "进入草丛时提供持续2秒的草丛能量。在草丛能量处于激活状态时，你多造成20%伤害。",
+        "已造成的伤害：当前对局数值",
+        "待在草丛中会刷新【草丛能量】。"
+      ],
+      "semantics": [
+        "keyword",
+        "spellName",
+        "stat"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#2042"
+      }
+    },
+    {
+      "id": "lol.augment.nature-is-healing",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 2043,
+      "slug": "nature-is-healing",
+      "name": "自然即是治愈",
+      "icon": "assets/augment/2043-93a27a7ca8ab.webp",
+      "rarity": "gold",
+      "tooltipText": [
+        "进入草丛时回复40–300等级+ 15%已损失生命值，每个草丛有20秒冷却时间。",
+        "总治疗量：当前对局数值"
+      ],
+      "semantics": [
+        "keyword",
+        "heal"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#2043"
+      }
+    },
+    {
+      "id": "lol.augment.poro-stampede",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 2046,
+      "slug": "poro-stampede",
+      "name": "魄罗蛮冲",
+      "icon": "assets/augment/2046-72d782b82e8e.webp",
+      "rarity": "prismatic",
+      "tooltipText": [
+        "任务：收集5个【魄罗佳肴】并将它们喂给魄罗。",
+        "奖励：解锁【魄罗冲锋】召唤师技能。",
+        "已投喂的魄罗：当前任务进度/5",
+        "【魄罗佳肴】会每25–15等级秒出现在你周围。",
+        "“噢吼！它们可真萌啊！”——魄罗驯养人",
+        "【魄罗冲锋】会朝敌方队伍发射当前对局数值波魄罗。",
+        "任务：收集12个【魄罗佳肴】并将它们喂给魄罗。",
+        "奖励：【魄罗冲锋】会额外发射1波魄罗。",
+        "已投喂的魄罗：当前任务进度/12",
+        "【魄罗佳肴】会每25–15等级秒出现在你周围。",
+        "“噢吼！它们可真萌啊！”——魄罗驯养人",
+        "【魄罗冲锋】会朝敌方队伍发射当前对局数值波魄罗。",
+        "任务：收集20个【魄罗佳肴】并将它们喂给魄罗。",
+        "奖励：【魄罗冲锋】会额外发射1波魄罗。",
+        "已投喂的魄罗：当前任务进度/20",
+        "【魄罗佳肴】会每25–15等级秒出现在你周围。",
+        "“噢吼！它们可真萌啊！”——魄罗驯养人",
+        "【魄罗冲锋】会朝敌方队伍发射当前对局数值波魄罗。",
+        "任务：收集30个【魄罗佳肴】并将它们喂给魄罗。",
+        "奖励：【魄罗冲锋】会额外发射1波魄罗。",
+        "已投喂的魄罗：当前任务进度/30",
+        "【魄罗佳肴】会每25–15等级秒出现在你周围。",
+        "“噢吼！它们可真萌啊！”——魄罗驯养人",
+        "【魄罗冲锋】会朝敌方队伍发射当前对局数值波魄罗。",
+        "任务：收集44个【魄罗佳肴】并将它们喂给魄罗。",
+        "奖励：【魄罗冲锋】会额外发射1波魄罗。",
+        "已投喂的魄罗：当前任务进度/44",
+        "【魄罗佳肴】会每25–15等级秒出现在你周围。",
+        "“噢吼！它们可真萌啊！”——魄罗驯养人",
+        "【魄罗冲锋】会朝敌方队伍发射当前对局数值波魄罗。",
+        "任务：收集63个【魄罗佳肴】并将它们喂给魄罗。",
+        "奖励：【魄罗冲锋】会额外发射1波魄罗。",
+        "已投喂的魄罗：当前任务进度/63",
+        "【魄罗佳肴】会每25–15等级秒出现在你周围。",
+        "“噢吼！它们可真萌啊！”——魄罗驯养人",
+        "【魄罗冲锋】会朝敌方队伍发射当前对局数值波魄罗。",
+        "任务：收集90个【魄罗佳肴】并将它们喂给魄罗。",
+        "奖励：【魄罗冲锋】会额外发射1波魄罗。",
+        "已投喂的魄罗：当前任务进度/90",
+        "【魄罗佳肴】会每25–15等级秒出现在你周围。",
+        "“噢吼！它们可真萌啊！”——魄罗驯养人",
+        "【魄罗冲锋】会朝敌方队伍发射当前对局数值波魄罗。",
+        "任务：收集129个【魄罗佳肴】并将它们喂给魄罗。",
+        "奖励：【魄罗冲锋】会额外发射1波魄罗。",
+        "已投喂的魄罗：当前任务进度/129",
+        "【魄罗佳肴】会每25–15等级秒出现在你周围。",
+        "“噢吼！它们可真萌啊！”——魄罗驯养人",
+        "【魄罗冲锋】会朝敌方队伍发射当前对局数值波魄罗。",
+        "任务：收集187个【魄罗佳肴】并将它们喂给魄罗。",
+        "奖励：【魄罗冲锋】会额外发射1波魄罗。",
+        "已投喂的魄罗：当前任务进度/187",
+        "【魄罗佳肴】会每25–15等级秒出现在你周围。",
+        "“噢吼！它们可真萌啊！”——魄罗驯养人",
+        "【魄罗冲锋】会朝敌方队伍发射当前对局数值波魄罗。",
+        "任务：收集275个【魄罗佳肴】并将它们喂给魄罗。",
+        "奖励：【魄罗冲锋】会额外发射1波魄罗。",
+        "已投喂的魄罗：当前任务进度/275",
+        "【魄罗佳肴】会每25–15等级秒出现在你周围。",
+        "“噢吼！它们可真萌啊！”——魄罗驯养人"
+      ],
+      "semantics": [
+        "legacyText",
+        "stat",
+        "flavorText"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#2046"
+      }
+    },
+    {
+      "id": "lol.augment.tripleshot",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 2054,
+      "slug": "tripleshot",
+      "name": "三重射击",
+      "icon": "assets/augment/2054-43e817f1deef.webp",
+      "rarity": "prismatic",
+      "tooltipText": [
+        "你的【所选技能】技能会瞄准你前方2个额外的敌人。",
+        "额外命中的目标数：当前对局数值",
+        "单位从同一技能中承受伤害会减少。"
+      ],
+      "semantics": [
+        "legacyText"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#2054"
+      }
+    },
+    {
+      "id": "lol.augment.multishot",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 2055,
+      "slug": "multishot",
+      "name": "多重射击",
+      "icon": "assets/augment/2054-43e817f1deef.webp",
+      "rarity": "prismatic",
+      "tooltipText": [
+        "任务：用【所选技能】技能命中敌方英雄50 / 250 / 700 / 2000 / 4000 / 8000次。",
+        "奖励：发射数量基于任务等级的额外飞弹。"
+      ],
+      "semantics": [
+        "legacyText"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#2055"
+      }
+    },
+    {
+      "id": "lol.augment.echo-cast",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 2062,
+      "slug": "echo-cast",
+      "name": "回响施放",
+      "icon": "assets/augment/2054-43e817f1deef.webp",
+      "rarity": "prismatic",
+      "tooltipText": [
+        "施放你的【所选技能】技能时会朝你的鼠标位置派出一个复制体并且在0.25秒之后再次施放该技能。"
+      ],
+      "semantics": [
+        "legacyText"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#2062"
+      }
+    },
+    {
+      "id": "lol.augment.dimension-shift",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 2063,
+      "slug": "dimension-shift",
+      "name": "位面转移",
+      "icon": "assets/augment/2063-7d0f4d8fef65.webp",
+      "rarity": "prismatic",
+      "tooltipText": [
+        "获得召唤师技能当黑暗到来。",
+        "当黑暗到来：发射一道灿烂之光到一个位置。当它着陆时，区域内的所有活着的单位都将在接下来的8秒期间被送到一个不同的领域。",
+        "在你处于这个领域时，你获得：",
+        "生命值300–1500等级生命值",
+        "法术强度35–150等级法术强度",
+        "攻击力35–150等级攻击力",
+        "体型35%体型",
+        "所有单位在该领域中都能自由地移动和行动，但不能以战略点(诸如防御塔或召唤水晶)为目标。",
+        "“跟随你的光明……”——一个迷失的灵魂"
+      ],
+      "semantics": [
+        "spellName",
+        "stat",
+        "health",
+        "abilityPower",
+        "attackDamage",
+        "flavorText"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#2063"
+      }
+    },
+    {
+      "id": "lol.augment.quickstep",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 2064,
+      "slug": "quickstep",
+      "name": "快步",
+      "icon": "assets/augment/1103-1a5a4c6f853b.webp",
+      "rarity": "gold",
+      "tooltipText": [
+        "当你使用【所选技能】技能时，朝你的鼠标指针进行冲刺。"
+      ],
+      "semantics": [
+        "legacyText"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#2064"
+      }
+    },
+    {
+      "id": "lol.augment.terror",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 2065,
+      "slug": "terror",
+      "name": "惊惧",
+      "icon": "assets/augment/2065-63aa53f07ea1.webp",
+      "rarity": "gold",
+      "tooltipText": [
+        "每当你施放【所选技能】技能时，恐惧你周围的敌人们1.75秒。"
+      ],
+      "semantics": [
+        "legacyText",
+        "status"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#2065"
+      }
+    },
+    {
+      "id": "lol.augment.spell-split",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 2072,
+      "slug": "spell-split",
+      "name": "咒语裂变",
+      "icon": "assets/augment/2054-43e817f1deef.webp",
+      "rarity": "prismatic",
+      "tooltipText": [
+        "在命中时、最大距离时或再次施放时，你的【所选技能】技能的飞弹会分裂为两部分。",
+        "额外命中的目标：当前对局数值",
+        "敌人被同一技能命中时，承受伤害会减少。"
+      ],
+      "semantics": [
+        "recast",
+        "legacyText"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#2072"
+      }
+    },
+    {
+      "id": "lol.augment.siphon",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 2073,
+      "slug": "siphon",
+      "name": "虹吸",
+      "icon": "assets/augment/2073-14e01c99935a.webp",
+      "rarity": "silver",
+      "tooltipText": [
+        "治疗相当于用【所选技能】技能对敌方英雄的30%造成伤害的生命值。"
+      ],
+      "semantics": [
+        "heal",
+        "legacyText"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#2073"
+      }
+    },
+    {
+      "id": "lol.augment.stay-resolute",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 2076,
+      "slug": "stay-resolute",
+      "name": "保持坚定",
+      "icon": "assets/augment/2073-14e01c99935a.webp",
+      "rarity": "silver",
+      "tooltipText": [
+        "用【所选技能】技能对敌方英雄造成伤害会基于其适应之力伤害类型为你提供1–3等级护甲或魔抗。",
+        "额外护甲：当前对局数值",
+        "额外魔抗：当前对局数值",
+        "如果这不是你的第一个强化符文，获得20护甲和魔抗。"
+      ],
+      "semantics": [
+        "legacyText",
+        "armor",
+        "magicResist"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#2076"
+      }
+    },
+    {
+      "id": "lol.augment.ravenous-bind",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 2077,
+      "slug": "ravenous-bind",
+      "name": "贪欲束缚",
+      "icon": "assets/augment/2077-b2da19f78965.webp",
+      "rarity": "gold",
+      "tooltipText": [
+        "用你的【所选技能】技能定身或缚地敌方英雄时造成额外(15–90等级+10%法术强度+0.5%最大生命值最大生命值)魔法伤害并治疗你当前对局数值生命值。",
+        "伤害总和：当前对局数值",
+        "最小治疗：(50–200等级+5%法术强度+10%额外生命值额外生命值)",
+        "治疗总和：当前对局数值",
+        "治疗效果基于技能冷却时间至多提升至50%。"
+      ],
+      "semantics": [
+        "legacyText",
+        "status",
+        "magicDamage",
+        "abilityPower",
+        "health",
+        "heal"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#2077"
+      }
+    },
+    {
+      "id": "lol.augment.chain-reaction",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 2078,
+      "slug": "chain-reaction",
+      "name": "连锁反应",
+      "icon": "assets/augment/1103-1a5a4c6f853b.webp",
+      "rarity": "gold",
+      "tooltipText": [
+        "如果你用【所选技能】技能击退的一个英雄命中了另一个英雄，二者都会被击飞0.5秒并且受到100–400等级魔法伤害。如果敌方英雄们与地形产生碰撞，则会被击飞0.75秒并受到额外150–800等级伤害。",
+        "被击飞的敌人数：当前对局数值",
+        "墙体命中次数：当前对局数值",
+        "击飞时长和高度受益于你的技能的冷却时间。",
+        "对于终极技能，该伤害值提升至250%。"
+      ],
+      "semantics": [
+        "legacyText",
+        "status",
+        "magicDamage"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#2078"
+      }
+    },
+    {
+      "id": "lol.augment.snowblast",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 2080,
+      "slug": "snowblast",
+      "name": "冰雪爆裂",
+      "icon": "assets/augment/2080-5c3d118f1d4e.webp",
+      "rarity": "gold",
+      "tooltipText": [
+        "你的雪球获得100技能急速。这个技能的再次施放造成100%提升伤害、击飞该目标、并击退附近的敌人们。",
+        "已击退的单位数：当前对局数值"
+      ],
+      "semantics": [
+        "spellName",
+        "magicDamage",
+        "status"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#2080"
+      }
+    },
+    {
+      "id": "lol.augment.our-healing",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 2082,
+      "slug": "our-healing",
+      "name": "我们的治疗",
+      "icon": "assets/augment/2082-a92cc23e269d.webp",
+      "rarity": "gold",
+      "tooltipText": [
+        "每当你周围的某人进行治疗时，你获得相当于其15%治疗效果的治疗效果。从敌方治疗中获得双倍。"
+      ],
+      "semantics": [
+        "heal"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#2082"
+      }
+    },
+    {
+      "id": "lol.augment.tooth-fairy",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 2083,
+      "slug": "tooth-fairy",
+      "name": "牙仙子",
+      "icon": "assets/augment/2083-13225062f1bb.webp",
+      "rarity": "gold",
+      "tooltipText": [
+        "当你在2.5秒内对一个敌方英雄造成大于其25%生命值的伤害时，其会掉落一颗牙齿。",
+        "你的当前对局数值颗牙齿藏品目前给予你(3 ×KiwiAugmentBurstingTeeth)穿甲和(3 ×KiwiAugmentBurstingTeeth)法术穿透。",
+        "对每个目标有4秒冷却时间"
+      ],
+      "semantics": [
+        "stat",
+        "keyword",
+        "armorPenetration"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#2083"
+      }
+    },
+    {
+      "id": "lol.augment.archmage",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 2087,
+      "slug": "archmage",
+      "name": "大法师",
+      "icon": "assets/augment/1030-2b3ae4eb6da0.webp",
+      "rarity": "prismatic",
+      "tooltipText": [
+        "施放一个技能会返还另一个随机技能的花费，数额相当于30%原技能冷却时间。"
+      ],
+      "semantics": [],
+      "source": {
+        "text": "aramkit/16.20/augments.json#2087"
+      }
+    },
+    {
+      "id": "lol.augment.snowday",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 2088,
+      "slug": "snowday",
+      "name": "下雪天",
+      "icon": "assets/augment/2088-c49a0ace6add.webp",
+      "rarity": "silver",
+      "tooltipText": [
+        "雪球获得100技能急速并且造成伤害提升100%。"
+      ],
+      "semantics": [
+        "spellName",
+        "magicDamage"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#2088"
+      }
+    },
+    {
+      "id": "lol.augment.yowch-my-coins",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 2089,
+      "slug": "yowch-my-coins",
+      "name": "哎哟，我的硬币！",
+      "icon": "assets/augment/2089-327246512d16.webp",
+      "rarity": "gold",
+      "tooltipText": [
+        "在参与击杀敌方英雄后，该英雄会在附近掉落6–10等级枚硬币，你和友军可以收集它们。每枚硬币价值15金币。",
+        "当前对局数值位好心人们“自愿”捐出了总共当前对局数值枚硬币，你的队伍已经获得了当前对局数值金币，其中当前对局数值金币由你自己拾取。"
+      ],
+      "semantics": [
+        "gold"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#2089"
+      }
+    },
+    {
+      "id": "lol.augment.endless-decimation",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 2091,
+      "slug": "endless-decimation",
+      "name": "无尽大杀四方",
+      "icon": "assets/augment/1061-21a15b387f77.webp",
+      "rarity": "gold",
+      "tooltipText": [
+        "在战斗中每8秒自动施放一次环形斧头挥舞来造成物理伤害。被斧刃命中的敌人们受到额外伤害((100–400等级+40%法术强度+60%攻击力))并治疗你18%已损失生命值。用斧刃命中的每个敌人，都会将这个技能的冷却时间缩短10%，最小值为3秒。"
+      ],
+      "semantics": [
+        "keywordMajor",
+        "physicalDamage",
+        "abilityPower",
+        "attackDamage",
+        "heal"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#2091"
+      }
+    },
+    {
+      "id": "lol.augment.high-roller",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 2095,
+      "slug": "high-roller",
+      "name": "掷骰狂人",
+      "icon": "assets/augment/2095-dc86c4a68051.webp",
+      "rarity": "prismatic",
+      "tooltipText": [
+        "附近敌人在阵亡时有几率掉落【属性锻造器】。"
+      ],
+      "semantics": [],
+      "source": {
+        "text": "aramkit/16.20/augments.json#2095"
+      }
+    },
+    {
+      "id": "lol.augment.lil-extra-help",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 2096,
+      "slug": "lil-extra-help",
+      "name": "小小的额外帮助",
+      "icon": "assets/augment/1103-1a5a4c6f853b.webp",
+      "rarity": "gold",
+      "tooltipText": [
+        "在你的【所选技能】技能持续期间获得近战150 /远程100攻击距离和近战75% /远程40%攻击速度。"
+      ],
+      "semantics": [
+        "legacyText",
+        "attackSpeed"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#2096"
+      }
+    },
+    {
+      "id": "lol.augment.en-passant",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 2098,
+      "slug": "en-passant",
+      "name": "吃过路兵",
+      "icon": "assets/augment/1019-2508e6d53008.webp",
+      "rarity": "prismatic",
+      "tooltipText": [
+        "周期性地识别出敌方英雄身上的破绽。 用攻击或技能命中破绽时，会造成额外的6% + 每层1.5%最大生命值真实伤害、回复50–200等级+ 5%已损失生命值，并提供在2秒里持续衰减的50%+每层5%额外移动速度。",
+        "连着命中的最大破绽数：当前对局数值"
+      ],
+      "semantics": [
+        "keywordMajor",
+        "trueDamage",
+        "heal",
+        "movementSpeed"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#2098"
+      }
+    },
+    {
+      "id": "lol.augment.rite-of-ascension",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 2099,
+      "slug": "rite-of-ascension",
+      "name": "飞升仪式",
+      "icon": "assets/augment/1325-04db4dc329c7.webp",
+      "rarity": "prismatic",
+      "tooltipText": [
+        "参与击杀你在过去3秒内造成过伤害的英雄，会使其留下其精华，持续8秒。攻击一个精华会消耗它。",
+        "消耗一个精华会使你闪烁至它的位置、让你变为不可被选取和不可阻挡、提供在2秒里持续衰减的100%移动速度、治疗你(75–300等级+50%额外攻击力额外攻击力+25%法术强度)到(150–600等级+100%额外攻击力额外攻击力+50%法术强度)生命值(基于已损失生命值)、并重置你的基础技能冷却时间。",
+        "治疗：当前对局数值",
+        "已返还的冷却时间：当前对局数值",
+        "今天，你们将一睹飞升之威能！——沙漠皇帝 阿兹尔"
+      ],
+      "semantics": [
+        "keywordMajor",
+        "stat",
+        "movementSpeed",
+        "heal",
+        "attackDamage",
+        "abilityPower",
+        "flavorText"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#2099"
+      }
+    },
+    {
+      "id": "lol.augment.pursuit-of-haste",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 2100,
+      "slug": "pursuit-of-haste",
+      "name": "急速之追求",
+      "icon": "assets/augment/1103-1a5a4c6f853b.webp",
+      "rarity": "gold",
+      "tooltipText": [
+        "任务：用【所选技能】技能命中敌方英雄10次。",
+        "奖励：你的【所选技能】技能获得永久的80技能急速",
+        "任务进度：当前任务进度/10",
+        "任务：用【所选技能】技能命中敌方英雄30次。",
+        "奖励：你的【所选技能】技能获得永久的80技能急速。",
+        "任务进度：当前任务进度/30",
+        "【所选技能】技能总共获得的技能急速：当前对局数值"
+      ],
+      "semantics": [
+        "legacyText"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#2100"
+      }
+    },
+    {
+      "id": "lol.augment.pressure-cooker",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 2102,
+      "slug": "pressure-cooker",
+      "name": "高压锅",
+      "icon": "assets/augment/2102-100dc6e0b25d.webp",
+      "rarity": "gold",
+      "tooltipText": [
+        "每一秒，对附近的敌方英雄们施加一层可无限叠加的灼烧，在2秒的持续时间里每秒造成(0.5%最大生命值最大生命值)魔法伤害。",
+        "任务：对敌方英雄造成1500灼烧伤害。",
+        "奖励：提高你周围的灼烧伤害的距离。",
+        "已造成的灼烧伤害：当前任务进度 / 1500",
+        "任务：对敌方英雄造成15000灼烧伤害。",
+        "奖励：将【高压锅】施加的灼烧速率翻倍。",
+        "已造成的灼烧伤害：当前任务进度 / 15000",
+        "任务：对敌方英雄造成30000灼烧伤害。",
+        "奖励：提高你周围的灼烧伤害的距离。",
+        "已造成的灼烧伤害：当前任务进度 / 30000"
+      ],
+      "semantics": [
+        "keywordMajor",
+        "magicDamage",
+        "health",
+        "legacyText"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#2102"
+      }
+    },
+    {
+      "id": "lol.augment.from-downtown",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 2103,
+      "slug": "from-downtown",
+      "name": "狙神飞星",
+      "icon": "assets/augment/2103-f7960fe4af92.webp",
+      "rarity": "gold",
+      "tooltipText": [
+        "任务：用技能狙击15个敌方英雄。",
+        "狙击 - 从600码外对敌人造成伤害",
+        "奖励：一颗流星会飞向你狙击的那个敌方英雄，在其周围的一个区域内造成(75–200等级+50%额外攻击力额外攻击力+20%法术强度)伤害。伤害和区域规模会基于敌人远离你的程度而提升。",
+        "任务进度：当前任务进度 / 15",
+        "砰！砰！噢，这枪打得好啊！"
+      ],
+      "semantics": [
+        "legacyText",
+        "keywordMajor",
+        "attackDamage",
+        "abilityPower",
+        "flavorText"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#2103"
+      }
+    },
+    {
+      "id": "lol.augment.spirit-bomb",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 2104,
+      "slug": "spirit-bomb",
+      "name": "灵魄炸弹",
+      "icon": "assets/augment/2104-30c85212d18f.webp",
+      "rarity": "prismatic",
+      "tooltipText": [
+        "提供治疗和护盾时会为你积攒一颗灵魄炸弹。在满层时，投掷该灵魄炸弹至你生命值最低的那个友军。在接触到该目标后，它会治疗附近友军们各自的(12%+2.5%法术强度)已损失生命值并为他们提供持续2秒的(15%+2%法术强度)当前生命值的护盾值。",
+        "已投掷的灵魄炸弹数量：当前对局数值",
+        "治疗：当前对局数值",
+        "护盾：当前对局数值"
+      ],
+      "semantics": [
+        "heal",
+        "shield",
+        "keywordMajor",
+        "health",
+        "totalValue",
+        "abilityPower"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#2104"
+      }
+    },
+    {
+      "id": "lol.augment.hellbent",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 2107,
+      "slug": "hellbent",
+      "name": "濒死悟道",
+      "icon": "assets/augment/2107-bb06033a7f71.webp",
+      "rarity": "prismatic",
+      "tooltipText": [
+        "用攻击或技能打击敌方英雄时会提供给你一层持续6秒的复活限度(最大层数：10)。在满层时变为濒死悟道。",
+        "濒死悟道：在濒临死亡时，在4秒里复活至35–75等级%最大生命值。在此之后，你获25–200等级适应之力、朝着敌方英雄时的20–40等级%移动速度、以及15–30等级%全能吸血，持续15秒。",
+        "这个效果有0秒冷却时间。"
+      ],
+      "semantics": [
+        "stat",
+        "health",
+        "movementSpeed",
+        "lifeSteal"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#2107"
+      }
+    },
+    {
+      "id": "lol.augment.support-main",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 2108,
+      "slug": "support-main",
+      "name": "主玩辅助",
+      "icon": "assets/augment/2108-44ef2ee4a626.webp",
+      "rarity": "silver",
+      "tooltipText": [
+        "任务：治疗友方英雄3000生命值。",
+        "奖励：你提供的任何治疗效果现在还会在3秒里提供相当于25%初始治疗量的持续治疗效果。",
+        "已造成的治疗：当前任务进度 / 3000"
+      ],
+      "semantics": [
+        "legacyText",
+        "heal"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#2108"
+      }
+    },
+    {
+      "id": "lol.augment.snap-back",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 2109,
+      "slug": "snap-back",
+      "name": "复位",
+      "icon": "assets/augment/1103-1a5a4c6f853b.webp",
+      "rarity": "gold",
+      "tooltipText": [
+        "再次施放【所选技能】技能时会产生爆炸，造成(100–300等级+20%法术强度+20%攻击力)魔法伤害，并回到你的原本位置。"
+      ],
+      "semantics": [
+        "legacyText",
+        "abilityPower",
+        "attackDamage"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#2109"
+      }
+    },
+    {
+      "id": "lol.augment.bonk",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 2111,
+      "slug": "bonk",
+      "name": "邦！",
+      "icon": "assets/augment/1415-951957af348f.webp",
+      "rarity": "gold",
+      "tooltipText": [
+        "被【所选技能】技能强化的攻击或技能会对目标和附近的敌人们造成额外的30%伤害。",
+        "被“邦”的额外英雄数量：当前对局数值"
+      ],
+      "semantics": [
+        "legacyText"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#2111"
+      }
+    },
+    {
+      "id": "lol.augment.squishy-slappy-grab",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 2115,
+      "slug": "squishy-slappy-grab",
+      "name": "软弹啪叽抓",
+      "icon": "assets/augment/2115-77044b0fe640.webp",
+      "rarity": "prismatic",
+      "tooltipText": [
+        "偶尔对所有附近的敌方英雄放出软弹啪叽的手，然后用灵链系住4秒。当你处于系住敌人的状态时，你的下一次攻击将拉拽其到你的位置，对其造成(50–150等级+15%额外生命值额外生命值)魔法伤害和0.25秒晕眩。你每拉拽到一个敌人就会获得持续2.5秒的(50–200等级+50%额外护甲额外护甲+50%额外魔法抗性额外魔法抗性)护盾值。",
+        "这个效果有0秒冷却时间。",
+        "已抓到的敌人数：当前对局数值",
+        "已造成的伤害：当前对局数值",
+        "已获得的护盾值：当前对局数值"
+      ],
+      "semantics": [
+        "status",
+        "magicDamage",
+        "health",
+        "shield",
+        "armor",
+        "magicResist"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#2115"
+      }
+    },
+    {
+      "id": "lol.augment.pursuit-of-power",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 2116,
+      "slug": "pursuit-of-power",
+      "name": "威能之追求",
+      "icon": "assets/augment/1129-687d87460265.webp",
+      "rarity": "gold",
+      "tooltipText": [
+        "任务：用【所选技能】技能命中敌方英雄10次",
+        "奖励：使【所选技能】技能伤害永久提升30%。",
+        "任务进度：当前任务进度/10"
+      ],
+      "semantics": [
+        "legacyText"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#2116"
+      }
+    },
+    {
+      "id": "lol.augment.ult-bot",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 2118,
+      "slug": "ult-bot",
+      "name": "大招工具人",
+      "icon": "assets/augment/2118-1bb29c160855.webp",
+      "rarity": "prismatic",
+      "tooltipText": [
+        "你的技能急速仅作用于终极技能，但效果多50%。获得100技能急速。"
+      ],
+      "semantics": [
+        "keyword"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#2118"
+      }
+    },
+    {
+      "id": "lol.augment.overextender",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 2119,
+      "slug": "overextender",
+      "name": "过量延伸者",
+      "icon": "assets/augment/2119-7c07d4b3fc78.webp",
+      "rarity": "gold",
+      "tooltipText": [
+        "你的加农炮发射器的距离、飞行速度和伤害已经得到显著提升。回城并进入到你的加农炮发射器。",
+        "旅途经过的单位数：当前对局数值"
+      ],
+      "semantics": [],
+      "source": {
+        "text": "aramkit/16.20/augments.json#2119"
+      }
+    },
+    {
+      "id": "lol.augment.overloaded",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 2123,
+      "slug": "overloaded",
+      "name": "超负荷",
+      "icon": "assets/augment/2054-43e817f1deef.webp",
+      "rarity": "prismatic",
+      "tooltipText": [
+        "使用另一个技能会重置【所选技能】技能的冷却时间。",
+        "重置次数：当前对局数值",
+        "有用的重置次数：当前对局数值",
+        "重置效率：当前对局数值%",
+        "“它们来找卷轴了……按计划来……EQEQEQ……” —— 那个蓝人"
+      ],
+      "semantics": [
+        "legacyText",
+        "flavorText"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#2123"
+      }
+    },
+    {
+      "id": "lol.augment.it-s-go-time",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 2125,
+      "slug": "it-s-go-time",
+      "name": "前进时间到",
+      "icon": "assets/augment/2073-14e01c99935a.webp",
+      "rarity": "silver",
+      "tooltipText": [
+        "激活【所选技能】技能会在其持续期间为你提供25–45等级%移动速度。"
+      ],
+      "semantics": [
+        "legacyText",
+        "movementSpeed"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#2125"
+      }
+    },
+    {
+      "id": "lol.augment.reload",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 2126,
+      "slug": "reload",
+      "name": "装填",
+      "icon": "assets/augment/1084-4a38c02c1593.webp",
+      "rarity": "gold",
+      "tooltipText": [
+        "在【所选技能】技能期间的普攻攻击特效攻击特效会降低其当前对局数值秒冷却时间。",
+        "已节省的秒数：当前对局数值"
+      ],
+      "semantics": [
+        "legacyText",
+        "onHit"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#2126"
+      }
+    },
+    {
+      "id": "lol.augment.forged-by-the-master",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 2127,
+      "slug": "forged-by-the-master",
+      "name": "大师铸就",
+      "icon": "assets/augment/2127-92016b8fa7e1.webp",
+      "rarity": "silver",
+      "tooltipText": [
+        "你的装备和强化符文伤害提升45%。",
+        "额外伤害：当前对局数值"
+      ],
+      "semantics": [
+        "stat"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#2127"
+      }
+    },
+    {
+      "id": "lol.augment.combusting-interest",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 2128,
+      "slug": "combusting-interest",
+      "name": "炽燃利息",
+      "icon": "assets/augment/2128-7bceb3f12922.webp",
+      "rarity": "gold",
+      "tooltipText": [
+        "英雄身上的灼烧和持续伤害会生成1–3等级+0.75%造成伤害的金币。",
+        "已生成的金币：当前对局数值"
+      ],
+      "semantics": [
+        "gold"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#2128"
+      }
+    },
+    {
+      "id": "lol.augment.terrain-d",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 2129,
+      "slug": "terrain-d",
+      "name": "地形专家",
+      "icon": "assets/augment/1084-4a38c02c1593.webp",
+      "rarity": "gold",
+      "tooltipText": [
+        "由你的【所选技能】技能生成的地形会每秒对附近的敌人们造成(20–180等级+20%法术强度)魔法伤害。",
+        "地形伤害：当前对局数值",
+        "如果是终极技能，那么此伤害提升200%。"
+      ],
+      "semantics": [
+        "legacyText",
+        "magicDamage",
+        "abilityPower"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#2129"
+      }
+    },
+    {
+      "id": "lol.augment.don-t-change-the-channel",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 2131,
+      "slug": "don-t-change-the-channel",
+      "name": "别停止引导",
+      "icon": "assets/augment/2131-65ff46f30779.webp",
+      "rarity": "silver",
+      "tooltipText": [
+        "在引导状态下，每秒获得(50–200等级+50%攻击力+25%法术强度+10%额外生命值额外生命值)护盾值。它会在你未处于引导状态时不断衰减。",
+        "总护盾值：当前对局数值"
+      ],
+      "semantics": [
+        "stat",
+        "shield",
+        "attackDamage",
+        "abilityPower",
+        "health"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#2131"
+      }
+    },
+    {
+      "id": "lol.augment.warlock-juicebox",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 2132,
+      "slug": "warlock-juicebox",
+      "name": "术士果汁盒",
+      "icon": "assets/augment/2132-cab711f3510b.webp",
+      "rarity": "gold",
+      "tooltipText": [
+        "获得(10%+3.5%法术强度)全能吸血。"
+      ],
+      "semantics": [
+        "lifeSteal",
+        "totalValue",
+        "abilityPower"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#2132"
+      }
+    },
+    {
+      "id": "lol.augment.mercy-s-strike",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 2133,
+      "slug": "mercy-s-strike",
+      "name": "仁慈打击",
+      "icon": "assets/augment/1103-1a5a4c6f853b.webp",
+      "rarity": "gold",
+      "tooltipText": [
+        "在使用【所选技能】技能为你的友军提供治疗或护盾之后之后，你的下一次普攻获得300额外攻击距离、75%攻击速度并造成额外的(2.5%+20%治疗与护盾强度治疗与护盾强度)最大生命值魔法伤害。",
+        "已造成伤害的总和：当前对局数值",
+        "防御塔受到2.5%最大生命值魔法伤害。"
+      ],
+      "semantics": [
+        "legacyText",
+        "stat",
+        "movementSpeed",
+        "magicDamage",
+        "totalValue",
+        "heal"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#2133"
+      }
+    },
+    {
+      "id": "lol.augment.surge-field",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 2134,
+      "slug": "surge-field",
+      "name": "电涌力场",
+      "icon": "assets/augment/1344-09f77ddbe0e0.webp",
+      "rarity": "prismatic",
+      "tooltipText": [
+        "在施放终极技能时，在你周围生成一个地带。在它其中时，获得50技能急速和40%移动速度，并发射若干飞弹来对敌人们造成20%已造成伤害。",
+        "这个地带会在你第一次离开它时跟随你，并且在你第二次离开它时，它会在短暂持续之后消散。",
+        "飞弹伤害：当前对局数值"
+      ],
+      "semantics": [
+        "keywordMajor",
+        "movementSpeed",
+        "magicDamage"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#2134"
+      }
+    },
+    {
+      "id": "lol.augment.pin-cushion",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 2135,
+      "slug": "pin-cushion",
+      "name": "针插垫",
+      "icon": "assets/augment/1079-83034a21ada8.webp",
+      "rarity": "prismatic",
+      "tooltipText": [
+        "在【所选技能】技能期间进行攻击会对你的目标凿下大钉。",
+        "大钉会在【所选技能】技能到期时引爆，每层造成20–60等级物理伤害并提供持续3秒的10移动速度。如果已积累的伤害足以击杀该敌方英雄，则大钉将提前引爆并将其处决。",
+        "最多大钉引爆数：当前对局数值"
+      ],
+      "semantics": [
+        "legacyText",
+        "keywordMajor",
+        "physicalDamage",
+        "movementSpeed"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#2135"
+      }
+    },
+    {
+      "id": "lol.augment.trusty-weapon",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 2136,
+      "slug": "trusty-weapon",
+      "name": "可靠武器",
+      "icon": "assets/augment/2073-14e01c99935a.webp",
+      "rarity": "silver",
+      "tooltipText": [
+        "在你用所选技能打击一个敌方英雄时，铸造一条友谊纽带来为该技能提供5%提升伤害，持续6秒。这个效果可以叠加。",
+        "额外伤害：当前对局数值",
+        "最大友谊等级：当前对局数值",
+        "“我——我才不是喜欢你呢！”——所选技能"
+      ],
+      "semantics": [
+        "legacyText",
+        "keyword",
+        "stat",
+        "flavorText"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#2136"
+      }
+    },
+    {
+      "id": "lol.augment.pat-on-the-back",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 2137,
+      "slug": "pat-on-the-back",
+      "name": "轻拍背部",
+      "icon": "assets/augment/2137-f98ce4f470da.webp",
+      "rarity": "gold",
+      "tooltipText": [
+        "友军会在你走过时鼓励你，为你提供持续3秒的(50–150等级+25%移动速度)护盾和30%移动速度。这个效果可以叠加。",
+        "每个友军需要经过9秒冷却时间才能重新轻拍你的背部。",
+        "已受到的鼓励次数：当前对局数值"
+      ],
+      "semantics": [
+        "shield",
+        "movementSpeed"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#2137"
+      }
+    },
+    {
+      "id": "lol.augment.adaptive-ward",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 2138,
+      "slug": "adaptive-ward",
+      "name": "自适应防护",
+      "icon": "assets/augment/2073-14e01c99935a.webp",
+      "rarity": "silver",
+      "tooltipText": [
+        "用【所选技能】技能打击一个敌方英雄时，为你提供持续6秒的7–12等级护甲或魔法抗性，基于该技能的伤害类型。这个效果可以叠加。",
+        "最大防护等级：当前对局数值"
+      ],
+      "semantics": [
+        "legacyText",
+        "stat",
+        "armor",
+        "magicResist"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#2138"
+      }
+    },
+    {
+      "id": "lol.augment.porcupine",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 2139,
+      "slug": "porcupine",
+      "name": "豪猪",
+      "icon": "assets/augment/2139-0e6460e07b5d.webp",
+      "rarity": "gold",
+      "tooltipText": [
+        "承受来自英雄的伤害会积攒一次尖针迸发。当达到临界质量时，尖针就会爆裂，对附近敌人们造成(75–200等级+125%额外护甲额外护甲+125%额外魔法抗性额外魔法抗性)物理伤害和持续2秒的30%减速。",
+        "爆裂次数：当前对局数值",
+        "伤害：当前对局数值"
+      ],
+      "semantics": [
+        "physicalDamage",
+        "armor",
+        "magicResist",
+        "status"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#2139"
+      }
+    },
+    {
+      "id": "lol.augment.upgrade-ravenous-hydra",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 2140,
+      "slug": "upgrade-ravenous-hydra",
+      "name": "升级：贪欲九头蛇",
+      "icon": "assets/augment/1996-2b94cf210960.webp",
+      "rarity": "gold",
+      "tooltipText": [
+        "你对敌人的技能命中会触发顺劈。提升【贪欲九头蛇】的生命偷取至20%。",
+        "获得500金币."
+      ],
+      "semantics": [
+        "gold"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#2140"
+      }
+    },
+    {
+      "id": "lol.augment.ultra-hydra",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 2141,
+      "slug": "ultra-hydra",
+      "name": "终极九头蛇",
+      "icon": "assets/augment/2141-c2ea91ee4ebe.webp",
+      "rarity": "prismatic",
+      "tooltipText": [
+        "在完成一个【九头蛇】装备时，获得一个提亚马特。",
+        "任务：拥有巨型九头蛇，贪欲九头蛇和亵渎九头蛇。",
+        "奖励：获得终极九头蛇。",
+        "装备进度：当前任务进度/3"
+      ],
+      "semantics": [
+        "stat",
+        "legacyText",
+        "keywordMajor"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#2141"
+      }
+    },
+    {
+      "id": "lol.augment.upgrade-sundered-sky",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 2143,
+      "slug": "upgrade-sundered-sky",
+      "name": "升级：焚天",
+      "icon": "assets/augment/1336-5c08d46d4f99.webp",
+      "rarity": "gold",
+      "tooltipText": [
+        "将【焚天】对每个目标的冷却时间缩短至5秒，并且治疗你9%已损失生命值。",
+        "获得500金币。"
+      ],
+      "semantics": [
+        "gold"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#2143"
+      }
+    },
+    {
+      "id": "lol.augment.bolstered",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 2144,
+      "slug": "bolstered",
+      "name": "加固护盾",
+      "icon": "assets/augment/2073-14e01c99935a.webp",
+      "rarity": "silver",
+      "tooltipText": [
+        "来自【所选技能】技能的护盾变强至多60%，受益于目标的已损失生命值。",
+        "额外护盾：当前对局数值",
+        "在30%最大生命值时达到最大效能。"
+      ],
+      "semantics": [
+        "legacyText"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#2144"
+      }
+    },
+    {
+      "id": "lol.augment.double-strike",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 2148,
+      "slug": "double-strike",
+      "name": "双重打击",
+      "icon": "assets/augment/2148-ef4c43b24e21.webp",
+      "rarity": "silver",
+      "tooltipText": [
+        "【所选技能】技能施加一次额外的攻击特效攻击特效。"
+      ],
+      "semantics": [
+        "legacyText",
+        "onHit"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#2148"
+      }
+    },
+    {
+      "id": "lol.augment.upgrade-death-s-dance",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 2157,
+      "slug": "upgrade-death-s-dance",
+      "name": "升级：死亡之舞",
+      "icon": "assets/augment/2157-7bb302c40721.webp",
+      "rarity": "silver",
+      "tooltipText": [
+        "获得goldCoins250。",
+        "死亡之舞的无视痛苦提升至近战40% /远程15%所受伤害，并且在参与一次击杀后，即刻治疗(125%额外攻击力额外攻击力)生命值。"
+      ],
+      "semantics": [
+        "gold",
+        "keywordMajor",
+        "passive",
+        "heal",
+        "attackDamage"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#2157"
+      }
+    },
+    {
+      "id": "lol.augment.pandora-s-box",
+      "game": "lol",
+      "kind": "augment",
+      "version": "16.20",
+      "riotId": 12317,
+      "slug": "pandora-s-box",
+      "name": "潘朵拉的盒子",
+      "icon": "assets/augment/12317-869ff11c3a23.webp",
+      "rarity": "prismatic",
+      "tooltipText": [
+        "将你的所有强化符文变为随机的棱彩阶强化符文位阶强化符文。"
+      ],
+      "semantics": [
+        "keywordMajor"
+      ],
+      "source": {
+        "text": "aramkit/16.20/augments.json#12317"
+      }
+    }
+  ]
+}

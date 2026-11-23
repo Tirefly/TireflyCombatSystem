@@ -88,3 +88,10 @@ Script/**/Properties/launchSettings.json
 
 # Git worktrees created inside the TCS submodule
 .worktrees/
+
+# Tools/TcsCapabilityMatrix：宿主侧能力矩阵测试工具（LOL 符文/英雄/技能/装备数据能否被 TCS 实现）。
+# data/raw/ 是 `node fetch-corpora.mjs --refresh` 从 DDragon / CDragon / AramKit 重抓的原始语料
+# （约 15 MB、350+ 文件），不入库；页面运行只依赖入库的 data/corpora.js 与 data/doc-snapshot.js。
+Tools/TcsCapabilityMatrix/data/raw/
+# data/_doc-review.md 由 check-docs.mjs 在检出文档变更时生成，属临时待办清单，不入库。
+Tools/TcsCapabilityMatrix/data/_doc-review.md

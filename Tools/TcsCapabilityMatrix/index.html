@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TCS 能力覆盖度矩阵</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header>
+  <h1>TCS 能力覆盖度矩阵</h1>
+  <span class="sub" id="meta">加载中…</span>
+  <span class="spacer"></span>
+  <button class="btn" onclick="TCM.exportMarkdown()">导出 Markdown 报告</button>
+  <button class="btn" onclick="window.print()">打印 / 存 PDF</button>
+</header>
+
+<nav class="tabs">
+  <div class="tab active" data-view="matrix">能力矩阵</div>
+  <div class="tab" data-view="requirements">需求覆盖</div>
+  <div class="tab" data-view="gaps">缺口报告</div>
+  <div class="tab" data-view="diff">版本差分</div>
+  <div class="tab" data-view="docs">文档状态<span class="dot" id="docDot" style="display:none"></span></div>
+  <div class="tab" data-view="about">方法与说明</div>
+</nav>
+
+<div id="docBanner" class="banner" style="display:none"></div>
+
+<main>
+
+  <!-- 能力矩阵 -->
+  <section class="view active" id="view-matrix">
+    <div class="note">
+      <b>读法：</b>行＝效果原语（一项能力），列＝判定单元（TCS 文档里的一块契约）。每格回答「这条原语需要的能力，这一块文档能不能承接」。
+      格子里是 <span class="mono">—</span> 表示该原语与这个单元无关，不是缺口。
+    </div>
+    <div class="legend" id="legend"></div>
+    <div class="matrix-wrap"><table class="matrix" id="matrixTable"></table></div>
+  </section>
+
+  <!-- 需求覆盖 -->
+  <section class="view" id="view-requirements">
+    <div class="note">
+      <b>裁决含义：</b>「可实现」＝用到的原语全部命中正式文档；「需宿主配合」＝TCS 不提供但设计上归宿主，不算缺口；
+      「受阻」＝至少一项原语卡在缺口上。点任意一行展开，看它卡在哪一格、为什么。
+    </div>
+    <div class="filters" id="filters"></div>
+    <div id="reqSummary" class="cards"></div>
+    <div style="overflow:auto"><table class="req-table" id="reqTable"></table></div>
+    <div class="pager" id="pager"></div>
+  </section>
+
+  <!-- 缺口报告 -->
+  <section class="view" id="view-gaps">
+    <div class="note warn">
+      <b>「缺什么」分四类，处置动作完全不同：</b>
+      缺机制＝框架确实没有这类能力，要新建；缺裁决＝被未决项挡住，先裁；缺文档＝已裁或有草稿，只差正式化；
+      缺依据＝该域既无文档也无草稿，现在判不了，要先写文档。混在一起报会失去可执行性。
+    </div>
+    <div class="cards" id="gapCards"></div>
+    <h2 style="font-size:14px;margin:18px 0 10px">补哪块文档收益最大</h2>
+    <div style="overflow:auto"><table id="impactTable"></table></div>
+    <h2 style="font-size:14px;margin:22px 0 10px">按判定单元的缺口明细</h2>
+    <div id="gapUnits"></div>
+  </section>
+
+  <!-- 版本差分 -->
+  <section class="view" id="view-diff">
+    <div class="note">
+      <b>海克斯大乱斗 16.20 → 16.22：</b>海克斯增幅在新旧版本之间是<b>整池替换</b>（新增 41 条全在 3xxx 号段，移除 18 条全在 12xx–21xx），不是两套并存。
+    </div>
+    <div class="cards" id="diffCards"></div>
+    <div id="diffBody"></div>
+  </section>
+
+  <!-- 文档状态 -->
+  <section class="view" id="view-docs">
+    <div class="note">
+      <b>这一页回答：TCS 文档改动之后，哪些判定格必须重看。</b>
+      判定格的依据写在 <span class="mono">data/model.js</span> 的备注里（形如「数值聚合器.md §2.1」），
+      <span class="mono">check-docs.mjs</span> 把这些章节号解析成锚点，记录每个章节的内容哈希。
+      文档一变，就能落到「哪一格」上。<b>它只告诉你该复核哪里，不替你重判</b>——判定语义是否还成立，只能人读文档后改 model.js。
+    </div>
+    <div class="cards" id="docCards"></div>
+    <div id="docBody"></div>
+  </section>
+
+  <!-- 说明 -->
+  <section class="view" id="view-about">
+    <div id="aboutBody"></div>
+  </section>
+
+</main>
+
+<script src="data/model.js"></script>
+<script src="data/annotate.js"></script>
+<script src="core.js"></script>
+<script src="data/corpora.js"></script>
+<script src="data/doc-snapshot.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
