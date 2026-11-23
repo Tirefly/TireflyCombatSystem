@@ -4,7 +4,7 @@
 >
 > **2026-11-17 起从零重做。** 用户原话（m02148）：「我现在像完全刨除 V1 的原有内容和代码，不再做任何参考，从零和你探讨 Parameter 的设计。」
 >
-> **旧草稿已整体归档** → [领域-Parameter-草稿-归档-20261113.md](领域-Parameter-草稿-归档-20261113.md)。那份文件里有 **D1–D50 裁决流水（含用户原话）** 与**全部 `文件:行号` 实证**，两者都是**记录**而非设计，仍然有效、仍然可查；但它的**设计段落**（§6 的 `Live`/`Snapshot` 归属、§8.8 冻结机制、§9 架构三选一、§10 确认清单）**不再是 V2 的依据**。
+> **旧草稿已整体归档，2026-11-23 按用户裁决从工作区移除。**那份文件里有 **D1–D50 裁决流水（含用户原话）** 与**全部 `文件:行号` 实证**，两者都是**记录**而非设计，仍然有效；需要核对原文时按 `git show HEAD:Documents/tcs-remake-v2-drafts/领域-Parameter-草稿-归档-20261113.md` 取。但它的**设计段落**（§6 的 `Live`/`Snapshot` 归属、§8.8 冻结机制、§9 架构三选一、§10 确认清单）**不再是 V2 的依据**。
 
 ---
 
@@ -95,8 +95,11 @@
 |---|---|---|---|
 | **Skill** | 学会（Entry） | 一次施法（Instance） | **两个对象** |
 | **State / Buff** | 那次效果本身 | 那次效果本身 | **同一个对象**（层数为 1 的退化解） |
+| **Area** | 那一次放置 | 那一次放置 | **同一个对象**（同上退化解） |
 
 ⚠️ 退化解**不是另一个方案**：Buff 没有「学会」概念，施加即建档，所以「最长的参数生命周期」与「读值上下文」是同一个东西。劈开规则在有层差的域上表现为两个对象，在无层差的域上塌成一个。
+
+⚠️ **Area 行只记参数域对它要满足的形态，不裁它归哪个域。** Area 在本文与族内全库**零命中**——它是 V2 新概念，归属未定。这一行要说明的只有一件事：**Area 的读值上下文是「那一次放置」，与施法实例不是同一个生命周期**（Area 生成后施法可以结束、可以被打断，而 Area 仍在跳）。⇒ Area 的参数 **MUST NOT** 引用施法实例的出生切片，跨界只能在生成 Area 的那一刻把值取出来。
 
 ### 3.3 形态
 
@@ -134,6 +137,64 @@ struct FTcsParamBorn
 
 > **注二**：条目形状照**族内已裁**的 `FTcsAggregateEntry`（《数值聚合器》§3）——`Op` / `Value` / `Priority` / `OrderSeq` 四列，**没有第三个排序键**（定序靠 `(OrderSeq, Value)`）。参数域若自造一个 `SortKey`，折叠器就得吃两种条目、或者写第二份排序——两条都违反《数值聚合器》§2.3「单一实现」。
 
+### 3.3.1 按来源摘除：六条契约
+
+**【已裁 R29｜m04949】** 用户原话：「这几条我都审核过了，完全没什么问题」。
+
+`RemoveBySource` 是账本的**唯一撤销入口**。撤销的最小单元是「**一次施加**」，不是一个键。
+
+**为什么条目必须带 `Source`**：账面里三条 `{Key = DamageRate, Op = Add, Value = +0.3}` 可能来自三个不同来源。按 `Key` 撤会连坐，按 `Value` 撤会误伤同值的那一条，**唯一可辨的一列是「这一次施加是谁」**。
+
+**为什么是「这一次施加」而不是「这个 buff」**：同一个 buff 叠两层是**两次**施加，要能分别撤。族内《运行时实例》那套「一柄两角」说的就是这个——当句柄表示「谁施加的」时，它 MUST NOT 当撤销锚点；撤销认的是**这一次施加**产生的编号。
+
+```cpp
+void FTcsParamState::Add(const FTcsParamMod& M)
+{
+    checkf(M.Source.IsValid(), TEXT("账本条目必须带来源：没有来源就摘不掉"));
+    FTcsParamMod Copy = M;
+    Copy.OrderSeq = M.Source.Id;      // 覆写：施加序只能由发号器给
+    Mods.Add(Copy);
+}
+
+int32 FTcsParamState::RemoveBySource(FTcsSourceHandle S)
+{
+    if (!S.IsValid()) { return 0; }
+    const uint64 Id = S.Id;
+    int32 Removed = Mods.RemoveAll      ([Id](const FTcsParamMod&      M) { return M.Source.Id == Id; });
+    Removed      += SwitchMods.RemoveAll([Id](const FTcsBoolSwitchMod& M) { return M.Source.Id == Id; });
+    return Removed;
+}
+```
+
+**六条契约**：
+
+| # | 契约 | 为什么 |
+|---|---|---|
+| ① | **只做全摘，不提供「单 Key 撤销」** | 撤销的粒度由「一次施加」定义；「这次施加里只撤某一个键」没有消费者（铁律 1） |
+| ② | 返回**摘掉的条目数**；摘到 `0` **不报错** | 重复撤销是正常路径：卸装备撤一次、角色死亡再撤一次 |
+| ③ | **配对责任在施加方**；参数域不追踪来源存活 | 与属性域 `DetachMod` 同一纪律：谁 `Attach` 谁 `Detach`。漏调 = 条目留在账本里，**静默残留** |
+| ④ | `Add` 两条不变式：覆写 `OrderSeq = Source.Id`；`Source` 无效直接拒绝 | `OrderSeq` 是「施加序」，只能由发号器给，调用方填的必然是错的 |
+| ⑤ | **撤销动不了出生切片** | `Bind == Born` 的键值在出生时已抄进 `FTcsParamBorn`；撤账本只影响此后出生的实例 |
+| ⑥ | 一次施加写多份账本时，**施加方逐份撤**；参数域不建引用计数 | 参数域不知道也不该知道「这次施加还写了哪些账本」 |
+
+**③ 与 ⑥ 是同一个取舍的两面**：参数域不跟踪「施加方还活着吗」。换来的是它不需要认识施加方是什么——装备、buff、技能、天赋都不必在参数域登记；代价是漏调**静默残留**，不报错。要发现漏调，靠施加方自己的生命周期纪律（开发期可以在撤销处断言「返回 > 0」），参数域**不提供**超时清理——那需要它知道各来源的生命周期，正是 ⑥ 拒绝的那件事。
+
+**⑤ 常引起一个疑问**：「buff 加了 `+0.3`，我撤了账本，为什么这一发的伤害没变？」——因为它已经被出生冻结了。这不是没撤掉，是撤销的作用域到此为止：要影响那一发只能重算它，而重算不存在（§4.1）；等下一发。
+
+**`RemoveBySource` MUST 同时扫两个数组**：布尔条目（§3.4）有完全相同的残留问题——一个 buff 关掉某个开关，撤销时若不扫 `SwitchMods`，开关会永远停在被覆盖的状态上，而且不报错。
+
+**走查**（`Tag_TcsParam_CooldownReduction` 基础 `-2`，`Bind = Live`）：
+
+| 时刻 | 事件 | 读到的值 |
+|---|---|---|
+| T0 | 学会技能 A | `-2` |
+| T1 | 天赋（`Source = S1`）`Add(-2)` | `-4` |
+| T2 | 装备（`Source = S2`）`Add(-3)` | `-7` |
+| T3 | 施法，读到 `-7`，交给 SkillModifier 给 B 减 7 秒 | `-7` |
+| T4 | 卸装备 ⇒ `RemoveBySource(S2)` 返回 `1` | `-4` |
+| T5 | 天赋被移除 ⇒ `RemoveBySource(S1)` 返回 `1` | `-2` |
+| T6 | 再撤一次（重复）⇒ 返回 `0`，不报错 | `-2` |
+
 ### 3.4 布尔开关：独立代数，只记覆盖
 
 **【已裁 m01574】** 用户原话：「门管不管 布尔参数？**管的，必须要管的**。」
@@ -170,7 +231,7 @@ enum class ETcsBoolTieStrategy : uint8
 
 **为什么 B4 必须补第二级**（这是 N4 里唯一不能省的一条）：数值域能用「有符号值大者胜」收尾（《数值聚合器》§3.2 `IsStronger` 的第 254 行决胜级），因为数值有大小。**布尔只有两个值，打平就真的打平了** ⇒ 两条覆盖同 `Priority` 而一 `true` 一 `false` 时，赢家会取决于数组遍历顺序。补 `OrderSeq` 才让它成为全序，结果与遍历顺序无关。
 
-**`OrderSeq` 从哪来**：来源句柄的 `Id`。族内《数值聚合器》§3.2 表里「参数：`Handle.Id`」那一行已经定了这个口径——发号器是**进程唯一、原子递增**的，`OrderSeq` 直接取它即可，**不需要另建发号器**。（该表引用的具体实现已随 V1 代码一并删除，原文见族外 [证据快照 — V1 引用出处](证据快照-V1引用出处.md) §2.4。）
+**`OrderSeq` 从哪来**：来源句柄的 `Id`。族内《数值聚合器》§3.2 表里「参数：`Handle.Id`」那一行已经定了这个口径——发号器是**进程唯一、原子递增**的，`OrderSeq` 直接取它即可，**不需要另建发号器**。（该表引用的具体实现已随 V1 代码一并删除，原文见 `git show HEAD:Documents/tcs-remake-v2-drafts/证据快照-V1引用出处.md` §2.4。）
 
 **为什么不做 OR / AND**：`true` 与 `false` 之间没有 `Add` 那样的代数——「两个来源都说不许，叠加起来等于什么」没有自然答案。用户裁三值策略，等价于说：**布尔上只允许「谁说了算」，不允许「多个来源共同决定」**。
 
@@ -196,24 +257,69 @@ struct FTcsBoolSwitchDef
 
 **布尔没有「假跟随」问题**（对照 §7.3）：布尔的基数是行上的 `Base` 常量，不引用别的键 ⇒ 引用闭包里不可能出现 `Born` 键 ⇒ §7 那一整节的不变量对布尔不适用。
 
-### 3.5 基数可以不由参数行提供
+### 3.5 基数从哪来
 
-**【已裁 甲｜m03179】** 用户原话：「Q1：甲」。该裁决的实质是：**账本要能折叠一个「基数住在别人字段里」的键**。
+**【已裁 甲｜m03179】** 用户原话：「Q1：甲」。该裁决的实质是：**键不必在参数表里有一行，`FoldNumeric(Key, Base)` 的 `Base` 是形参**。
 
-`FoldNumeric(Key, Base)` 的 `Base` 是**形参**，不是从 `Defs` 里查出来的。这带来两种合法用法，它们共用同一份折叠与同一份账本：
+`Base` 不从 `Defs` 查，这带来两种合法用法，它们共用同一份折叠与同一份账本：
 
 | 用法 | 基数从哪来 | 例子 |
 |---|---|---|
-| **参数行** | `Defs` 里同键那一行的表达式 | 伤害基数、射程 |
-| **字段基数** | 调用方传进来的一个 `double` | 冷却时长、消耗金额、时段时长 |
+| **参数行** | `Defs` 里同键那一行的表达式 | 伤害加成、射程加成 |
+| **运行时基数** | 调用方当场算出来的一个 `double` | 这一跳的原始伤害、这一发的原始护盾 |
 
-**这不是新增能力，是`Base` 本来就是形参的直接后果**——本文从未把折叠器定义成「只能折参数行上的键」。把它写成一条，是因为它决定了**键的来源不限于参数表**：
+**这不是新增能力，是 `Base` 本来就是形参的直接后果**——本文从未把折叠器定义成「只能折参数行上的键」。把它写成一条，是因为它决定了**键的来源不限于参数表**：
 
 > 一个 `FGameplayTag` 只要「有人在读它、有人在写它」，它就是一个合法参数键；它**不需要**在参数表里有一行。
 
 **参数表里没有行**与**参数表里有行**的差别只有一条：有没有表达式可求。没有表达式 ⇒ 基数必须由调用方给。**账本、折叠算术、按来源摘除三件事对两者完全一致**——这也是「账本不认载体」的落点。
 
-⚠️ 由此产生一条**交给消费方域的纪律**（本文不裁它，只登记）：一个键若「既在参数表里有行、又由字段基数折叠」，那么它有**两个基数来源**，作者会不知道该改哪个。这是消费方域在定义自己的契约键时必须回答的问题（现状见 §8 的 **N10**）。
+### 3.5.1 参数键 MUST NOT 镜像别的域的状态字段
+
+**【已裁 R28｜m04864 / m04879】** 用户原话：「如果你说的是，ParameterModifier 修改 State-Level、Skill-Cooldown 这种没有 Key 的 Parameter 类型，我强烈反对 创建一个 对应的 参数键 Tag」。
+
+**判据**：参数键装的是「**施加给别人的改动量**」，不是「**别人身上那个值**」。被改的东西留在它自己的域里，由那个域自己的入口承受改动。
+
+| 反例（MUST NOT） | 正例 |
+|---|---|
+| 给技能冷却建 `Tag_TcsSkillParam_CooldownDuration`，在参数域里镜像 Skill 资产上那个 `double` | 建 `Tag_TcsParam_CooldownReduction`，值是 `-2`；施加方把它应用到**被改的那个域的入口**上（技能冷却的入口是 SkillModifier，不是参数域） |
+| 给状态层数建 `Tag_TcsStateParam_StackCount`，镜像状态的 `StackCount` 字段 | 建 `Tag_TcsParam_StackBonus`，值是 `+1`；施加方调状态域的加层入口 |
+
+**为什么立这条**：镜像键会让同一个数在两处各配一份，作者不知道该改哪个；而它换来的「统一读口」并不需要——**参数域出的是算术与账本，不是这些值的保管处**。
+
+**它注销了原 N10**（「一个键既有参数行、又由字段基数折叠时谁是基数」）：那条问题只在有人建镜像键时才存在。禁掉镜像键，问题**不诞生**，不需要回答。
+
+**它与「运行时基数」不冲突**：运行时基数不是别人域里的字段，是这一发 / 这一跳当场算出来的数，那个键没有参数行，因此也不存在第二个来源。
+
+### 3.5.2 同一个数，谁承受
+
+**【已裁｜m04911 / m04918】** 用户原话：「SkillModifier 应该修改的是 SkillEntry 的参数值，或者 SkillEntry 的 ActionChain」；「那确实只应该通过 Skill Modifier 来执行，不能通过 Parameter，但是可以用 Parameter 设置数值，执行时传给 Skill Modifier」。
+
+以「天赋：让技能 A 的冷却变短」为例，「变短」有三种互不相同的语义，承受它们的地方也不同：
+
+| 需求 | 语义 | 谁承受 | 参数域出什么 |
+|---|---|---|---|
+| **正在冷却**的那一条变短 | 改 Skill 域里已经起冷的那条计时 | Skill 域的 `AdjustCooldown` 一类入口 | 需要缩放时出一个数 |
+| **以后每一发**的冷却变短 | 改 SkillEntry 的参数值，下一发施法按新值起冷 | **SkillModifier** | 出「减多少」这个数 |
+| **这一发**的冷却变短（已出生） | 不可行（见下） | 不存在 | 不存在 |
+
+三行里参数域都只做一件事：**出一个数**。它不保管「技能 A 当前冷却多少」——那住在 Skill 域。这与 §3.5.1 是同一条判据的两面：镜像键是把别人的值搬进来（禁），这里是把别人的值留在原处、只出改动量（正例）。
+
+**第二行怎么落地**：参数域算出 `Resolve(Tag_TcsParam_CooldownReduction)` 得 `-2`，施加方把这个数交给 SkillModifier，由它去改 SkillEntry 的参数。参数域既不知道、也不需要知道这个数最后被用在了哪个技能上。
+
+#### 冻结的范围是「这一发」，不是「这个技能」
+
+`Bind = Born` 常被误读成「这个技能的冷却被定死了」。它不是。
+
+| 时刻 | 事件 | 技能 A 下一次施法读到的冷却 |
+|---|---|---|
+| T0 | 施法一号，实例出生，读到 `10` | 一号起冷 10 秒 |
+| T0.5 | 天赋施加（SkillModifier 给 A 的账本写 `-2`） | 一号**不变**，仍在跑 10 秒 |
+| T1 | 施法二号 —— **新实例、新出生** | 读到 `8` |
+
+⇒ 冻结的边界是**实例**：已出生的那一发不跟随，之后每一发都重新出生、重新读一次账本。
+
+**由此得到一条观测不可区分性**：对「每发只读一次」的参数（冷却时长、消耗金额），`Born` 与 `Live` **在观测上完全一样**——两者都是「施法那一刻读一次账本」。差别只在「实例存续期内有第二次读它」的场合（例如链走到第 2 秒又去读一次冷却）。这反过来说明：这类参数不需要任何额外机制。
 
 ---
 
@@ -230,7 +336,7 @@ struct FTcsBoolSwitchDef
 | `FTcsAggregateEntry` 的字段集 | 同上 `§3` | `FTcsParamMod` 与之同构（多一个 `Key` 与 `Source`） |
 | `EvaluateAggregatedValue(Base, Entries, Strategy)` | 同上 §3 单段重载 | 参数折叠**就是**它，参数域不写第二份公式 |
 
-⚠️ **与 V1 代码现状的落差（不是设计缺陷，是待同步项）**：V1 的运算枚举只五带、无段级/全局覆盖，且名字带着属性域前缀。族内已裁的名字是 `ETcsAggregateOp`。**这是将来的实现追赶文档，不是文档改口**。V1 代码已按 2026-11-18 的裁决删除，需要核对原文时按族外 [证据快照 — V1 引用出处](证据快照-V1引用出处.md) §1 恢复。
+⚠️ **与 V1 代码现状的落差（不是设计缺陷，是待同步项）**：V1 的运算枚举只五带、无段级/全局覆盖，且名字带着属性域前缀。族内已裁的名字是 `ETcsAggregateOp`。**这是将来的实现追赶文档，不是文档改口**。V1 代码已按 2026-11-18 的裁决删除，需要核对原文时按 `git show HEAD:Documents/tcs-remake-v2-drafts/证据快照-V1引用出处.md` §1 恢复。
 
 ---
 
@@ -255,14 +361,14 @@ double FTcsParamResolver::Resolve(FGameplayTag Key)
     if (Born)
         if (const double* Hit = Born->Values.Find(Key)) return *Hit;
 
-    // ② 环检测（运行期兜底）
-    if (InFlight.Contains(Key)) return /* 兜底值，见 §8 N1 */ 0.0;
+    // ② 环检测（运行期兜底）：命中 ⇒ 返回 0 + 打 Error（§6.3）。正常永不触发
+    if (InFlight.Contains(Key)) { /* Error 日志，见 §6.3 */ return 0.0; }
     InFlight.Add(Key);
     ON_SCOPE_EXIT { InFlight.Remove(Key); };
 
     // ③ 基数：表达式求值
     const FTcsParamDef* D = Defs ? Defs->Find(Key) : nullptr;
-    const double Base = D ? D->Expr.Evaluate(*this) : 0.0;
+    const double Base = D ? D->Expr.Evaluate(Env, *this) : 0.0;
 
     // ④ 折叠挂在本键上的修正器（七带，复用长在核心基线的同一份算术）
     const double Final = State
@@ -315,41 +421,127 @@ bool FTcsParamResolver::ResolveSwitch(FGameplayTag Key)
 | 切片里装什么 | **必须装全键**，否则任一键查不到就落空 | 只装 `Bind == Born` 的键 |
 | `Live` 键怎么办 | 逼你在出生时也冻一份副本，而读口又不认它 ⇒ **一张表里放两种语义不同的格子** | 现场算，不进切片 |
 
+#### 4.2.1 源族：被求值的东西长什么样
+
+求值器求的不是「数」，也不是「表」，是**一份值描述**。值描述只有一种基类：
+
+```cpp
+// 源基类：把「这个数怎么来」变成一个可求值的对象。宿主扩展入口就是派生它（§4.3.2）
+USTRUCT(Abstract)
+struct FTcsParamSource
+{
+    GENERATED_BODY()
+
+    // Env：这一刻的求值上下文（纯数据四字段，§4.3）
+    // R  ：求值器——递归问别的键、复用同一份环检测与切片命中
+    virtual double Evaluate(const FTcsParamEnv& Env, FTcsParamResolver& R) const { return 0.0; }
+};
+```
+
+**为什么是两个形参而不是一个**：
+
+| 如果只给 `Env` | `ParamRef` 做不了。`Env` 是纯数据四字段，里面没有 `Defs`、没有 `InFlight`、没有切片——引用型源拿到它**递归不了**。要让 `Env` 装得下这些，它就从「这一刻的上下文」变成「求值会话」，与 `FTcsParamResolver` 的职责边界消失；而且 `Resolver` 已持 `Env`（§4 开头），两者互相指。 |
+| 如果只给 `R` | 技术上够用（`R.Env` 就在上面）。但那样每个源都要写 `R.Env.Target`，把「我只要上下文」和「我要递归」两件事混成同一个入口；且纯求值路径（Area 出生、属性域派生表达式）也被迫先造一个 `Resolver` 才能读一个常量。 |
+
+⇒ 两个形参各自对应一件不同的事：**`Env` 是「我读什么」，`R` 是「我问谁」**。只有 `ParamRef` 真用到 `R`，其余源收着不用——这是形式上的代价，换来「引用型源不需要任何旁路设施」，与 §4.3.2 删掉外部参数表是同一个理由。
+
+> 裁决出处：m05249 用户原话「Context 是要的，你说的 Resolver 也可以加进去，后续可能还会有调整，目前先暂时这么裁定」。**形参表属可调整项**，调整时此节与 §4 求值器、§4.3.3、§4.3.6、§4.3.7 四处实现签名一并改。
+
+#### 4.2.2 值描述：`FTcsParamValue`
+
+源的基类之上还需要一层容器——因为**配置字段装的是「一份值描述」，不是「一个源」**：同一个字段今天装常量、明天装属性读、后天装组合，类型必须在运行时可换。
+
+```cpp
+USTRUCT()
+struct FTcsParamValue
+{
+    GENERATED_BODY()
+
+    // 一份「这个数怎么来」的描述。只装 FTcsParamSource 的派生（由 BaseStruct 约束）
+    UPROPERTY(EditAnywhere, meta = (BaseStruct = "/Script/<Module>/FTcsParamSource", ExcludeBaseStruct))
+    FInstancedStruct Source;
+
+    bool IsValid() const { return Source.IsValid(); }
+
+    template <typename TSource>
+    const TSource* GetSource() const { return Source.GetPtr<TSource>(); }
+
+    // 唯一求值入口：转发给源（R34）
+    double Evaluate(const FTcsParamEnv& Env, FTcsParamResolver& R) const
+    {
+        const FTcsParamSource* S = Source.GetPtr<FTcsParamSource>();
+        return S ? S->Evaluate(Env, R) : 0.0;
+    }
+};
+```
+
+> `<Module>` 是 UHT 要求的资产路径前缀；模块名尚未定（族内 `INDEX.md` §2.4 明确核心基线 MUST NOT 预设为独立模块），此处不代它决定。
+
+**为什么包一层，而不用 `using FTcsParamValue = FInstancedStruct`**：
+
+| 理由 | 说明 |
+|---|---|
+| 属性域有个 `UPROPERTY` 等着它 | 族内 `领域-Attribute-草稿.md` §1.1 的 `DeriveExpression` 是 `UPROPERTY(EditAnywhere)`。别名过不了 UHT 的类型识别 |
+| 「只能装源」要能被执行 | `meta = (BaseStruct = …)` 让编辑器只列 `FTcsParamSource` 的派生；裸 `FInstancedStruct` 什么都能装，约束只剩一句注释 |
+| 需要门面 | `IsValid()` / `GetSource<T>()` / `Evaluate()` 三件事若散在调用点，就是每处各写一遍 `Source.GetPtr<FTcsParamSource>()` |
+
+**为什么求值入口挂在值描述上，而不是求值器上的 `ResolveExpr`**：
+
+`Env` 已经在调用点手上，`R` 也已经在手上。`Operand.Evaluate(Env, R)` 读起来是「求这个值」；`R.ResolveExpr(Operand)` 是把值交回求值器再取回结果——同一个动作多一次转手，主语从「这个值」变成「求值器」。
+
+R22 当年写的是「MUST NOT 做成**源族自带的自由函数**」。`FTcsParamValue::Evaluate` 是成员方法，不是自由函数；「表达式求值有两个入口」的风险仍被挡住，因为**只有这一个成员方法，`ResolveExpr` 这个名字不再存在**。
+
+> 裁决出处：m05269 用户原话「先用你给的两个方案吧」。
+
 ### 4.3 环境里装什么
 
-求值器带到每一次 `Evaluate` 调用里的，只有下面五项。**这份清单是封闭的**——加字段 MUST 先过 4.3.1 的判据。
+求值器带到每一次 `Evaluate` 调用里的，只有下面四项。**这份清单是封闭的**——加字段 MUST 先过 4.3.1 的判据。
 
 （类型名本文沿用草稿的 `FTcsParamEnv`；正式命名属命名项，与本文其他命名一并裁。）
 
 ```cpp
 struct FTcsParamEnv
 {
-    TObjectPtr<UWorld>     WorldContext = nullptr;   // ① 世界：世界级子系统从这里按类型取
-    FTcsCombatEntityHandle Subject;                  // ② 本次求值的主体
-    FTcsCombatEntityHandle Instigator;               // ③ 本次求值的施加者
-    int32                  EffectiveLevel  = 0;      // ④ 本次求值的主体等级（技能等级 / 效果等级）
-    int32                  InstigatorLevel = 0;      // ⑤ 施加者的实体等级（与 ④ 是两个不同的数，见 4.3.4）
+    TObjectPtr<UWorld>     WorldContext   = nullptr;   // ① 世界：世界级子系统从这里按类型取
+    FTcsCombatEntityHandle Target;                     // ② 本次求值为谁（宽义，见 §4.3.1）
+    FTcsCombatEntityHandle Instigator;                 // ③ 本次求值的施加者
+    int32                  EffectiveLevel = 0;         // ④ 「这个东西」多强（技能等级 / 效果等级），见 §4.3.4
 };
 ```
 
 #### 4.3.1 判据：什么该进环境，什么不该
 
-> **能在世界里按类型找到的，就别往环境里塞；只有「世界里没有、由宿主塞进来的东西」才值得占一个字段。**
+> **环境里只放「能被句柄指到的参与者」的句柄，不放它们的任何值；只有「句柄指不到」的东西，才配占一个值字段。**
 
 | 种类 | 例子 | 怎么拿 | 进不进环境 |
 |---|---|---|---|
 | **世界级子系统** | 属性账本 | `WorldContext` 上按类型取 | **不占字段**——由用到它的那个源自己取 |
-| **本次求值的值** | 主体 / 施加者 / 两个等级 | 调用方在求值前填 | **占字段** |
+| **参与者** | `Target` / `Instigator` | 调用方在求值前填句柄 | **占字段**（装的是句柄，不是值） |
+| **句柄指不到的量** | `EffectiveLevel` | 调用方在求值前填 | **占字段**——没有别的来源 |
 
-这条判据不是审美：字段一旦进环境，**每一个**求值调用点都得填它。把世界能取到的东西做成字段，等于逼 12 个调用点各自重复一次「子系统在哪」的判断，而且判断错了不报错、只静默落兜底。
+**`Target` 取宽义**：不是「被打的那个实体」，而是「**这份参数为谁求值**」。技能参数以它的持有者（施法者）为 `Target`，buff 参数以被施加者为 `Target`，Area 参数以施法者为 `Target`。窄义在两处直接失效——AoE 技能读「半径」时没有单一目标；而技能参数的主体本来就不是受击者。
 
-**第三种已于 `m03179` 消失**：判据原来的中间一类是「宿主注入的可替换实例」，唯一的例子是等级提供者。Q2 = 甲把等级改成环境上的一个 `int32` 之后，这一类零成员 ⇒ 上表只剩两类。环境因此是**纯数据**（无虚函数、无派生类）——那套「派生环境 + 源内 checked cast」机制的退场见 §4.4。
+这条判据挡的是**字段随参与者数量膨胀**：只要允许「参与者的某个值」进环境，角色每多一种就要多一个字段——今天是 `InstigatorLevel`，明天要 `TargetLevel`，后天还有 `OwnerLevel`、`SummonerLevel`。而它们全都是**同一个问题的同一个答案**：问 `ITcsEntityQuery::TryGetEntityLevel`（§4.3.5）。句柄已经在环境里了，值不必再来一份。
+
+**`EffectiveLevel` 为什么留下**——它不是「参与者的值」，是「**这个东西自己的值**」。技能、buff、Area **都不是 `FTcsCombatEntityHandle`**，没有句柄能指到它们，`TryGetEntityLevel` 也问不出来。这不是「暂时没有句柄」，是结构上没有：
+
+| | 持有者**是**实体 | 持有者**不是**实体 |
+|---|---|---|
+| 谁 | 施法者 / 目标 / 宠物 / 主人 | 技能 / buff / Area |
+| 等级怎么取 | **问 `ITcsEntityQuery`**（句柄已在环境里） | **只能由装配方填进环境** |
+| 环境里有没有对应字段 | 无 | `EffectiveLevel` |
+
+⇒ 去掉 `InstigatorLevel` 与留下 `EffectiveLevel` **不是取舍，是同一条判据的两个必然结果**。
+
+判据还有一条非审美理由：字段一旦进环境，**每一个**求值调用点都得填它。把世界能取到的东西做成字段，等于逼每一个调用点各自重复一次「子系统在哪」的判断，而且判断错了不报错、只静默落兜底。
+
+环境因此仍是**纯数据**（无虚函数、无派生类）——那套「派生环境 + 源内 checked cast」机制的退场见 §4.4。
 
 #### 4.3.2 一个被删掉的字段：外部参数表
 
 从零看，引用型源（`ParamRef`）要的是「**同一份 `Defs` 里的另一个键**」。这件事已经由 `Resolve(Key)` 提供——递归、环检测、切片命中全在它里面。再留一个「只能查数」的旁路表，等于同一件事两套表示，而两套表示迟早会在「谁是权威」上分叉。
 
-⇒ **环境里没有外部参数表字段**。引用型源的求值走 `D->Expr.Evaluate(*this)`——它拿到的是**求值器**，问「另一个键是多少」就 `Resolve(Key)`。
+⇒ **环境里没有外部参数表字段**。引用型源的求值走 `D->Expr.Evaluate(Env, *this)`——它拿到的是**求值器**，问「另一个键是多少」就 `Resolve(Key)`。
 
 连带退场的三样（不是决定，是这一个字段消失的后果）：
 
@@ -364,51 +556,81 @@ struct FTcsParamEnv
 #### 4.3.3 属性源怎么读（含一条跨域前置条件）
 
 ```cpp
-double FTcsParamSource_AttributeScaled::Evaluate(const FTcsParamEnv& Env) const
+double FTcsParamSource_AttributeScaled::Evaluate(const FTcsParamEnv& Env, FTcsParamResolver& R) const
 {
     UTcsAttributeSubsystem* Attrs = UTcsAttributeSubsystem::Resolve(Env.WorldContext);
-    if (!Attrs) return Fallback;                                              // 没有世界 ⇒ 兜底，不报错
+    if (!Attrs) return Fallback;                                    // 没有世界 ⇒ 兜底，不报错
+
+    // Side 决定读谁的属性：与属性域同名的 ETcsAttrReadSide 一套词汇（见下）
+    const FTcsCombatEntityHandle Who = (Side == ETcsAttrReadSide::Instigator) ? Env.Instigator : Env.Target;
+
     double V = 0.0;
-    if (!Attrs->TryGetCurrentValue(Env.Subject, Attribute, V)) return Fallback;   // 取不到 ⇒ 兜底
+    if (!Attrs->TryGetValue(Who, Attribute, V)) return Fallback;   // 取不到 ⇒ 兜底
     return Coefficient * V;
 }
 ```
 
+**`Side` 这个字段是「`Target` 宽义」的直接收益**：属性域的同一个源早就能读两侧（`Attribute.md` §3.5 的 `ETcsAttrReadSide`，`{ Target, Attr.Strength, 2.0 }` 那种写法），而参数域原先只读主体一侧（该字段旧名 `Subject`，现名 `Target`）。两边词汇对齐成 `Target` / `Instigator` 之后，参数域补这一个字段就与属性域逐字同构——**不需要新概念，只是把已裁的形状搬过来**。
+
 ⚠️ **前置条件（跨域请求，本文不改任何代码）**：属性侧今天只提供「取值」形式的口，**缺一个「取不到能报出来」的 Try 口**。缺了它，上面第二行的兜底永远不生效——实体未注册、属性未定义时取回 `0`，与「属性确实是 0」不可区分，作者配的 `Fallback` 被静默吞掉。
 
-⇒ **属性域 MUST 补一个 `TryGetCurrentValue(Entity, Attribute, double& Out) const`**。本文只把它记成「`AttributeScaled` 这条路真能用」的前提，落地时由属性域那一轮补（见 §10）。属性域内部已有现成的非确保查询路径与「未定义返回 nullptr」的语义，补这个口只是把同一次订正搬到「当前值」上。
+⇒ **这个读口属性域已经有了，不需要新补**。族内 `领域-Attribute-草稿.md` §8.1：
 
-#### 4.3.4 两个等级不是一个等级
+```cpp
+// 返回 CachedCurrent。不重算、不发事件
+bool TryGetValue(FTcsCombatEntityHandle Entity, FGameplayTag Attribute, double& OutValue) const;
+```
 
-**【已裁 甲｜m03179】** 用户原话：「Q2：甲」。裁决内容两半：① 环境加 `InstigatorLevel` 这个字段；② 读「施加者等级」的那一类源**改读这个字段**，不再自己去问等级提供者。
+`bool` 正好区分「取不到」与「确实是 0」——`Fallback` 因此有个明确的触发条件；`CachedCurrent` 正是「当前值」，正好是本源要的东西。它「不重算」也正合适：本源是在属性域的结算**内部**被调用的，若它反过来触发重算就是求值中途重入（族内 §2.2 已否决过）。
 
-**为什么必须分成两个字段**——它们回答的是两个不同的问题：
+#### 4.3.4 只有一个等级字段
 
-| 字段 | 回答 | 谁受它影响 |
+**【裁决修订｜m04670】** 用户原话：「我忽然意识到之前的裁决有问题，ParamEvaluateContext 里 会有 Instigator、Target（也就是Subject，我还是觉得Target更合适），现在我觉得不需要添加 Instigator，因为如果需要，可以直接在 Param 自己的 Evaluate 函数中，通过 Instigator 获取到；况且万一需要的时 TargetLevel呢，那岂不是又要给 ParamEvaluateContext 添加内容」
+
+⇒ **R18 的「环境加 `InstigatorLevel` 字段」那一半撤回**。环境只留 `EffectiveLevel`（§4.3 的四项）。
+
+**「两种等级」这个事实不变，变的是它们各自的表达方式。** 等级确实有两种语义：
+
+| 语义 | 「**这个东西**多强」 | 「**那个人**多强」 |
 |---|---|---|
-| `EffectiveLevel` | 「**这个东西**多强」——技能练到几级、这份效果叠到几层 | 技能自己的参数（伤害、射程、冷却）按等级取档 |
-| `InstigatorLevel` | 「**那个人**多强」——施法者 / 施加者这个实体本身多少级 | 「随施法者等级成长」的那部分数值 |
+| 例子 | 技能练到几级、这份效果叠到几层 | 施法者 / 施加者这个实体本身多少级 |
+| 受它影响的数值 | 技能自己的参数（伤害、射程、冷却）按等级取档 | 「随施法者等级成长」的那部分数值 |
+| 怎么表达 | **环境字段** `EffectiveLevel` | **源** `FTcsParamSource_ContextLevel{ Instigator }`（§4.3.6） |
+| 为什么是这个 | 技能 / buff / Area **不是实体**，没有句柄指得到 | 施法者**是实体**，句柄已在环境里 |
 
-两者在引导技能、宠物技能、装备授予技能这三类里**必然不同**（技能等级与主人的角色等级毫无关系）。合成一个字段，就得规定「谁赢」——而没有任何一方有权赢。
+两者在引导技能、宠物技能、装备授予技能这三类里**必然不同**（技能等级与主人的角色等级毫无关系）。⇒ 它们**仍然是两个数**，只是取值路径按「持有者是不是实体」分了岔——判据和那张表在 §4.3.1。
 
-**这一改的实质：把「等级从哪来」从求值期搬回装配期。**
+**为什么 R18 当年的理由现在不成立**：R18 的实质理由是「源不需要认识宿主；等级提供者是『宿主注入的可替换实例』，属于装配期知识」。它反对的是一个**宿主注入的可替换实例**。
 
-改前：等级源在 `Evaluate` 内部自己去找等级提供者（一个可被宿主替换的接口对象），取不到就落兜底。
-改后：等级是环境上的一个 `int32`；源只读字段，**不知道也不关心那个数是怎么来的**。
+而 R19（`m03403`，**在 R18 之后**）把取等级搬进了 `ITcsEntityQuery`。族内 `02-核心基线/战斗实体.md` §3 原文：「**它是 (a) 类依赖倒置缝**：核心不能反向依赖宿主，故不受『2 个实现者』限制」。⇒ 等级的来源从「宿主注入的可替换实例」变成了**核心基线自己的依赖倒置缝**，源读它是在用框架语义，不是宿主词汇。**R18 的理由被它之后的一条裁决消解掉了。**
 
-三处收益，都是结构性而非风格性的：
+**成本对比（这才是决定性的）**：
 
-1. **源不需要认识宿主**。等级提供者是「宿主注入的可替换实例」，属于装配期知识。把它埋进 `Evaluate` 里，等于让每一个源都持有一条通往宿主的隐式路径。
-2. **求值变成纯函数的前提才成立**。同一个环境、同一个源、同一个结果——「等级会不会在中途变」这个问题在源里彻底消失。
-3. **§4.3.1 的判据表少一类**（见上）：环境里不再有「宿主注入实例」这一种类。
+| | 加字段（R18） | 走源（本节） |
+|---|---|---|
+| 今天 | 一个 `int32` | 一个源类型，零状态 |
+| 角色多一种（要读目标等级） | **再加一个字段**，且 `FTcsParamEnv` 的**每个**调用点都得填 | 已覆盖：`ContextLevel{ Target }` |
+| 角色再多一种（要读主人等级） | 再加一个字段 | 已覆盖：源里加一个枚举值，环境不动 |
+| 加错/漏填 | 静默落兜底 | 兜底同样静默，但**只有用到它的那个源**要填 |
 
-**「那个 `int32` 由谁填」**：由装配方填；装配方从哪取等级见 **§4.3.5**（已裁 丁）。
+⇒ 字段方案的成本随角色种类**线性增长**，且增长的是「每个调用点都要维护」的那一层；源方案的增长只落在一个类型内部。
+
+**边界要写清**：`EffectiveLevel` **仍然**由装配方填，因为没有任何句柄能指到技能 / buff / Area。这不是「还没做」，是结构上没有（§4.3.1 第二张表）。
 
 #### 4.3.5 等级从哪来：战斗实体契约
 
 **【已裁 丁｜m03403】** 用户原话：「我个人倾向于 方案【丁】，虽然 EntityLevel 确实算是 宿主词汇，但我能想到的所有需要技能系统的游戏，几乎都需要这个功能，所以可以说是从宿主需求中提炼出来的通用功能；再者，你提到的 宠物跟主人等级、这个完全可以靠 接口重载；而装备授予的技能按装备等级，首先按照我的理解，装备不能算 Entity，其次就算要实现这个需求，也应该是配置方案解决，比如 LearnSkill 时，直接读取装备等级，设置技能等级；」
 
-**裁决**：环境里那两个 `int32`（`EffectiveLevel` / `InstigatorLevel`）由**装配方**填；装配方取「施法者实体等级」的唯一来源是**战斗实体查询契约**——它加一支取等级。
+**裁决**：取「某个实体多少级」的唯一来源是**战斗实体查询契约**——它加一支取等级。
+
+**两个调用方**（R18 撤回后，两个等级字段只剩一个，但问契约的位置从一个变两个）：
+
+| 谁问 | 什么时候问 | 为什么 |
+|---|---|---|
+| 装配方 | 装配技能 / 效果实例时 | 填 `EffectiveLevel`——但注意它填的**不是实体等级**，是「技能几级 / 效果几层」（§4.3.1 第二张表） |
+| **源**（`FTcsParamSource_ContextLevel`，§4.3.6） | 每次 `Evaluate` | 读 `Target` / `Instigator` 的实体等级 |
+
+⚠️ 上表第一行容易被读错：`EffectiveLevel` **不是**从契约来的。技能 / buff / Area 没有句柄，装配方填的是它们自己的档位（技能练到几级），来源由装配方自己决定。契约只管「**实体**多少级」。
 
 ```cpp
 // 核心基线 · 战斗实体契约（ITcsEntityQuery），新增一支
@@ -427,7 +649,146 @@ virtual bool TryGetEntityLevel(FTcsCombatEntityHandle Entity, int32& OutLevel) =
 
 ⚠️ **这不构成对 R16 的推翻**：R16 收的是「**读参数值**的宿主扩展」，那条路收敛为「提供一种 `FTcsParamSource` 派生」；取等级是「**读世界**」，属战斗实体契约那一路。两个口各自封闭，不是同一件事的两种表示。
 
-**连带**：宿主侧的等级提供者接口随之失去唯一职责，环境派生机制随之失去最后一个字段——处置见 §4.4。
+**连带**：宿主侧的「等级提供者」接口失去唯一职责（取等级改问战斗实体契约），环境派生机制随之失去全部字段——处置见 §4.4。
+
+#### 4.3.6 `FTcsParamSource_ContextLevel`：把等级暴露给表达式
+
+**【新增｜m04651】** 用户原话：「可以直接新增一个 Param 类型，类型名就叫 ContextLevel，三种选项，Instigator、Target、State」；第三值的定名见下（`m04671` 定为 `StateSelf`）。
+
+```cpp
+UENUM()
+enum class ETcsContextLevelSource : uint8
+{
+    Instigator,   // 施加者实体等级 —— 问 ITcsEntityQuery(Env.Instigator)
+    Target,       // 主体实体等级   —— 问 ITcsEntityQuery(Env.Target)
+    StateSelf,    // 这个东西自己的档位 —— 读 Env.EffectiveLevel，不走契约
+};
+
+USTRUCT()
+struct FTcsParamSource_ContextLevel : public FTcsParamSource
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere)
+    ETcsContextLevelSource LevelOf = ETcsContextLevelSource::StateSelf;
+
+    UPROPERTY(EditAnywhere)
+    double Fallback = 0.0;
+
+    virtual double Evaluate(const FTcsParamEnv& Env, FTcsParamResolver& R) const override
+    {
+        // 「这个东西自己的档位」（技能几级 / 效果几层）：没有句柄，只能读环境字段，不走契约
+        if (LevelOf == ETcsContextLevelSource::StateSelf)
+        {
+            return static_cast<double>(Env.EffectiveLevel);
+        }
+
+        // 「某个实体的等级」：句柄已在环境里，问契约要值（不把值再存一份进环境）
+        const ITcsEntityQuery* Query = GetEntityQuery(Env.WorldContext);
+        if (!Query) return Fallback;
+
+        const FTcsCombatEntityHandle Who =
+            (LevelOf == ETcsContextLevelSource::Instigator) ? Env.Instigator : Env.Target;
+
+        int32 Level = 0;
+        if (!Query->TryGetEntityLevel(Who, Level)) return Fallback;   // 取不到 ⇒ 兜底，不报错
+        return static_cast<double>(Level);
+    }
+};
+```
+
+四件事要说清：
+
+**一、`StateSelf` 这个名字。** 用户原话倾向「State」，`m04671` 定为 `StateSelf`——取「这个东西自己的档位」以避开与 V2 七个领域名里的 **State 域** 撞词。⚠️ 它是**建议名**，命名属命名项，可随时改。
+
+**二、不加 `Coefficient`。** `AttributeScaled` 有系数，是因为它常被用作「× 2.0」；`ContextLevel` 的乘法由外层组合完成。⇒ 不加系数，源族才一致：
+
+```cpp
+// HeroAttackPower × HeroLevel × 0.3
+// Terms 的元素类型是 FTcsParamValue（与属性域 §7.4 的写法同形）
+FTcsParamValue Dmg = FTcsParamSource_Composite{
+    CombineOp = ETcsAggregateOp::Mul,
+    Terms = {
+        FTcsParamValue{ Source = FTcsParamSource_AttributeScaled{ Side = Target, Attribute = Attr.AttackPower, Coefficient = 1.0 } },
+        FTcsParamValue{ Source = FTcsParamSource_ContextLevel{ LevelOf = ETcsContextLevelSource::Instigator } },
+        FTcsParamValue{ Source = FTcsParamSource_Literal{ Value = 0.3 } },
+    },
+};
+```
+
+**三、⚠️ 一个尚未定的接缝**：`ITcsEntityQuery` 从 `Env.WorldContext` 怎么拿到实例？族内 `02-核心基线/战斗实体.md` §3 只定义了接口形状（「宿主创建、宿主销毁；框架只持非拥有引用」），没写获取路径。`AttributeScaled` 走的是 `UTcsAttributeSubsystem::Resolve(Env.WorldContext)` 这条同类路。⇒ 该路径要么已存在、要么要补一句，**族内落地时与战斗实体契约一并定**，本文不替它决定。
+
+**四、它不受 R27 限制（原 N13）。** R27 禁的是「属性修正器的值描述读**参数账本**」。`ContextLevel` 读的是**实体等级**与**环境字段**，两者都不是参数账本——所以这个源可以在参数域的表达式里自由使用，与「属性修正器的表达式里能不能出现 `ParamRef`」是两件事。
+
+#### 4.3.7 无 `Key` 的值：消费点自己冻
+
+**【已裁 甲｜m04671】** 用户原话：「N5，暂时可以先这么裁决」。裁决内容：**参数域不为「无 `Key` 的值」提供冻结设施，冻结归消费点自己。**
+
+**问题**：`Bind` 只能配在 `FTcsParamDef`（参数行）上，切片 `FTcsParamBorn` 是 `TMap<FGameplayTag, double>`。而无 `Key` 的值（Area 的每跳伤害、某时段时长、冷却时长、消耗金额、链步骤内联值）既没地方配 `Bind`，也没格子在切片里。⇒ 它们要「生成那一刻定死」时，靠什么？
+
+**形态**：消费点自己两行——Def 上一个 `ETcsParamBind`，实例上一个 `double`。
+
+```cpp
+// Def 侧（共享，配置期）
+struct FTcsAreaDef
+{
+    FGameplayTag   Id;
+    FTcsParamValue TickDamageExpr;                      // 一份值描述，无 Key
+    ETcsParamBind  TickDamageBind = ETcsParamBind::Born;
+    double         Interval = 2.0;
+};
+
+// 实例侧（每个 Area 一份）
+struct FTcsAreaInstance
+{
+    const FTcsAreaDef*     Def = nullptr;
+    FTcsCombatEntityHandle Instigator;
+    double                 BornTickDamage = 0.0;        // 一个 double，没有任何「有没有冻」的标记
+
+    // 由「一次放置」的时刻调用，形参是那一刻有效的环境与求值器
+    void Birth(const FTcsParamEnv& Env, FTcsParamResolver& R)
+    {
+        if (Def->TickDamageBind == ETcsParamBind::Born)
+        {
+            BornTickDamage = Def->TickDamageExpr.Evaluate(Env, R);
+        }
+    }
+
+    double GetTickDamage(const FTcsParamEnv& Env, FTcsParamResolver& R) const
+    {
+        return (Def->TickDamageBind == ETcsParamBind::Born)
+            ? BornTickDamage
+            : Def->TickDamageExpr.Evaluate(Env, R);
+    }
+};
+```
+
+**为什么这不是 R22 撤掉的那种「一位两形状」**：R22 撤的是同一个 `FTcsAttrModInstance` 里既放变量又放它的副本，于是必须回答「副本何时失效、怎么保持一致、要不要登记依赖边」。这里的 `FTcsAreaInstance` **全程只有一个形状**（一个 `double`）；它什么时候被填，由 **Def 上的配置**决定，实例自己不问、也不存那个判断。⇒ 一个配置 + 一个缓存，不是「一个位表达两种形状」。
+
+**为什么消费点自己管是正解，而不是「参数域偷懒」**：
+
+| 判据 | 为什么指向甲 |
+|---|---|
+| §4.1 已裁 | 「**冻结不是机制，是『把算好的 `double` 存起来』这个动作的副产品**」。单个值不需要容器，存字段就是冻结 |
+| 铁律 1 | 乙（统一槽）的消费者是「多个消费点的相同两行」，但那两行**本来就不一样**——算的时刻不同（Area 是 Spawn、时段是进入、冷却是起冷）、存放位置不同。统一它们得不到任何东西 |
+| 概念纯度 | 丙（给无 Key 值发内部 Key）会让「只有人读、没有人写」的参数行出现，直接作废 R17 的判据（「有人在读它、有人在写它，才是合法参数键」） |
+
+**走查表**（配置：`AttackPower` T0 = 100，T0+1s 吃 +20% buff ⇒ 120；`Level` = 10，T0+4s 升 11 级；`Interval` = 2 秒；`TickDamageExpr` = `AttackPower × Level × 0.3`）：
+
+| 时刻 | `Bind = Born` | `Bind = Live` |
+|---|---|---|
+| T0 生成 | `Birth` 算 `100 × 10 × 0.3 = 300` 存进字段 | 不算 |
+| T0+2s 第一跳 | **300** | `120 × 10 × 0.3 = 360` |
+| T0+4s 第二跳（已 11 级） | **300** | `120 × 11 × 0.3 = 396` |
+| 中途热重载把 `0.3` 改掉 | **300**（已生成的 Area 不受影响） | 跟随新配置 |
+| 作者要写多少代码 | `Birth` 里一个 `if`；每多一个要冻的值多一行 | 不写 |
+
+⚠️ 注意第一跳两者**就已经不同**（`Born` 用的是生成那一刻的 100，`Live` 用的是 buff 后的 120）——不是「第二跳才分岔」。
+
+**规模边界（要写清，否则甲会被滥用）**：单个消费点要冻的量 **≤ 3～5 个** 时用字段；超过就应当**发键**——那时它其实是在建一张表，用丙（局部发键，进 `Defs` + 切片）更省。判据是「少量就字段，多了就该建表」，不是「甲永远对」。
+
+**一处 ⚠️ 待族内落地时才定**：`FTcsParamSource_ContextLevel` 怎么从 `Env.WorldContext` 拿到 `ITcsEntityQuery`（§4.3.6 第三条）。Area 的 `Birth` 要读等级，就依赖这条路径。
+---
 
 ### 4.4 派生环境机制退场
 
@@ -435,12 +796,12 @@ virtual bool TryGetEntityLevel(FTcsCombatEntityHandle Entity, int32& OutLevel) =
 
 它是为「某个字段不能住基类环境」而生的：基类不得反向依赖域，于是域把字段挂在自己的派生结构体上，源在 `Evaluate` 里用 `GetScriptStruct()` 判定是不是自己认识的那个派生类型，不是就落兜底。整套机制的**唯一存在理由**是那个「基类装不下的字段」。
 
-R14（世界级东西走 `WorldContext`）与 R18（两个等级是纯 `int32`）之后，这类字段**一个不剩**：
+R14（世界级东西走 `WorldContext`）之后，这类字段**就已经一个不剩**；`m04670` 撤回 `InstigatorLevel` 只是把这个结论补严（§4.3.4）：
 
 | 曾经的派生环境 | 它挂的字段 | 现在从哪来 |
 |---|---|---|
 | 属性派生环境 | 属性提供者 | `WorldContext` → 属性账本，由源自己取（§4.3.3） |
-| 等级派生环境 | 等级提供者 | 环境上的 `InstigatorLevel`（§4.3.4），由装配方填 |
+| 等级派生环境 | 等级提供者 | 源问 `ITcsEntityQuery::TryGetEntityLevel`（§4.3.5），**不进环境** |
 | 属性派生环境 | （无其它字段） | — |
 
 ⇒ 两个派生环境**各自的唯一字段都没了**，机制失去全部消费者。
@@ -454,11 +815,11 @@ R14（世界级东西走 `WorldContext`）与 R18（两个等级是纯 `int32`�
 | 等级提供者接口，及其注入面（设置 / 读取 / 持有） | 取等级改走 §4.3.5 的战斗实体契约 |
 | 各源 `Evaluate` 里的类型判定与兜底分支 | 同上：无派生类型可判 |
 
-**源只认一个环境结构体**（§4.3 那五项）。这条是退场的直接收益：所有源的函数签名同形，「这次求值看得见什么」在类型上只有一种答案，调用点不可能填错结构体。
+**源只认一个环境结构体**（§4.3 那四项）。这条是退场的直接收益：所有源的函数签名同形，「这次求值看得见什么」在类型上只有一种答案，调用点不可能填错结构体。
 
 ⚠️ **代价**（记录，不是反对）：将来若真出现「世界里取不到、又必须按类型分派」的环境字段，这套机制要重新引入。判据是**那时有没有那个字段**，不是「这套机制曾经有用」——今天它是一个零消费者设施。
 
-**【推导】为什么等级源这种「按等级取档」的便利源不算判据**：它们读的 `EffectiveLevel` / `InstigatorLevel` 都是环境上的普通 `int32`，不需要按类型分派，因此与派生环境无关，一并留下。
+**【推导】为什么等级这种「按等级取档」的便利源不算判据**：它读的 `EffectiveLevel` 是环境上的普通 `int32`，而「某个实体多少级」走 `ITcsEntityQuery`（§4.3.5），两者都不需要**按类型分派到不同的环境结构体**，因此与派生环境无关，一并留下。
 
 ### 4.5 与属性域的接缝
 
@@ -485,19 +846,57 @@ R14（世界级东西走 `WorldContext`）与 R18（两个等级是纯 `int32`�
 
 这不是「那个位没用所以删」，是**那个位在制造一个本来不存在的问题**：用一个位加一种形状去表达两种形状（常量 / 依赖别处的量），于是「冻」的那一支必须在同一个结构体里同时放「变量」和「它算出来的副本」，立刻要回答副本何时失效、怎么保持一致、要不要登记依赖边。删掉位，两种形状各是一种，**一致性问题不诞生**——不是被解决。
 
-**冻结语义的归属只剩两处，一处都不在修正器上**：
+**【已裁 甲｜2026-11-19】N13：属性修正器的值描述 MUST NOT 读参数账本。**
+
+用户原话（问答自定义回答）：「先不能吧，我暂时也没想到 真实业务案例。」
+
+⇒ 「值描述里能出现什么」因此是一条**封闭清单**：
+
+| 源 | 能不能出现在属性修正器的值描述里 |
+|---|---|
+| `FTcsParamSource_Literal` | ✅ 字面量，本身就是常量 |
+| `FTcsParamSource_AttributeScaled` | ✅ 读一条属性。**但 `Side` 只能取 `Target`**——本域的求值环境里 `Instigator` 恒无效（R30，族内 `领域-Attribute-草稿.md` §7.2.1）。要读施法者的属性有两条路，都不经过修正器的 `Operand`：**一次算完**的（伤害、护盾）写在参数行里（`Bind = Born`，参数行的环境两个句柄都齐）；**要长期跟随**的走施加方订阅重挂（R32） |
+| `FTcsParamSource_Composite` | ✅ 上述两类递归组合 |
+| `FTcsParamSource_ParamRef` | ❌ **MUST NOT**。它只能出现在参数行自己的表达式里——那里有求值器 |
+
+⇒ 冻结语义的归属只剩两处，都在修正器之外：
 
 | 值描述引用了什么 | 「冻不冻」由谁定 |
 |---|---|
-| 一个参数键 | **那个键的 `Bind`**（§3.3）。修正器调 `Resolve(Key)`，拿到的已经是冻过或活的值 |
 | 一条属性 | **没有冻结概念**——读属性天然跟随。要定死，施加方先算成一个常量再挂 |
 | 字面量 | 本身就是常量 |
 
 ⇒ 属性修正器上没有任何东西可放，它就是「一份值描述 + 运算带 + 优先级」。
 
-**「把一份值描述求成一个数」的入口不是新设施**：参数域 `Resolve(Key)` 的第 ③ 步本来就是「取表达式 → 求值」，把这个动作单独暴露成 `ResolveExpr(const FTcsParamExpr&)`，**复用同一个环境、同一个 `InFlight`、同一份环检测**，零新实现。⚠️ MUST NOT 做成「源族自带的自由函数」——那样表达式求值有两个入口，而环检测与切片都住在求值器上，裸求值两样都没有。
+**要一个「此刻的参数值」，唯一写法是在 `AttachMod` 之前取出来、当字面量传**：
 
-⚠️ **一处悬空，见 §8**：**N13** 属性修正器的表达式里能不能出现「读参数账本」这类源。（注意它与上表第一行不同：第一行说的是「引用一个键时谁定冻不冻」，N13 问的是「这份值描述允不允许出现那类源」。）
+```cpp
+const double Amp = SkillInstance.TryGetParam(Tag_TcsSkillParam_IgniteAmp);   // 账本读数
+Attrs->AttachMod(Target, ModDef_IgniteVuln,
+                 FTcsParamValue{ Source = FTcsParamSource_Literal{ Value = Amp } },
+                 SourceHandle, /*Priority*/ 0);
+```
+
+**为什么不能允许**——四条判据，没有一条是「V1 没这么干」：
+
+1. **属性域的每一次读 MUST 能被 `ForEachAttributeRead` 抽成一条依赖边**。属性是写时重算 + `CachedCurrent` 缓存（族内 `领域-Attribute-草稿.md` §2.2，读路径原文「不重算、不发事件、零副作用」），缓存正确性**完全**靠边维持。而建边机制只认属性词汇（同文档 §5.2 的 `ForEachAttributeRead(Mod.Operand, …)`，回调三参数是 `SrcTag` / `ETcsAttrReadSide` / `ETcsAttrReadPart`）——参数键混进 `Operand` 抽不出任何边，**且不报错、静默失效**。这等于给自己写的不变式（同文档 §5.4「不变式把『漏』变成『不可能』」）开口子。
+2. **能承受「不维持的跨域读」的只有读时求值的域**。参数域已经有这么一处：`FTcsParamSource_AttributeScaled` 读属性、而属性变化不触发参数键重算（§4.3.3）。**反方向不行**——这不是对称的两个方向，是两个形状不同的域各有一条自己能承受的读法。
+3. **没有真实消费者**（铁律 1）。用户明确：暂时想不出「只活在参数账本里、从不写进属性、却必须被属性修正器读到」的量。
+4. 业界可查的五家（UE GAS / AbilityKit / WoW / LoL / Dota2）**无一家**实现「允许读但不建依赖边」；GAS 用 `bSnapshot` 的两个分支把这个中间态直接排除了。
+
+⚠️ **「跟随」有三种，出路不同——MUST NOT 把前两种当成第三种**：
+
+| 想要的效果 | 出路 | 配置即生效吗 |
+|---|---|---|
+| 加成跟着**自己身上**的属性走 | `Side = Target` 的 `AttributeScaled`，进依赖图（族内 `领域-Attribute-草稿.md` §5.1） | ✅ 是 |
+| 加成跟着**施法者**的属性走 | **D15 订阅**：施法者那条属性变 ⇒ 回调里 `DetachMod` + `AttachMod`（R32） | ❌ 要写订阅代码 |
+| 加成跟着**参数账本**走 | ❌ 这个组合没有消费者 | — |
+
+**第三行为什么没有消费者**——完备二分：账本里的每一个数，来源只有三种（配置常量 / 从某条属性读来 / 被另一个 `FTcsParamMod` 改出来），而第三种的 `Value` 又只能是前两种。⇒ 账本里的数**要么已经落在某条属性上，要么它的消费者不在属性域**（冷却缩减、消耗减免、前摇时间）。前者读属性就行，还额外拿到聚合后的值与依赖边；后者属性修正器根本不参与。
+
+⇒ **被 R27 挡住的不是需求，是「跟随参数账本」这一种写法。** 若将来真出现反例，翻案的方向是「允许 **且建边**」，**不是**「允许但不建边」：后者给不出「什么时候刷新」的确定答案（同一个写法在「`Operand` 纯 `ParamRef`」与「混了一个属性读」两种情况下行为完全不同）。
+
+**「把一份值描述求成一个数」的入口不是新设施**：参数域 `Resolve(Key)` 的第 ③ 步本来就是「取表达式 → 求值」，这个动作就是 `FTcsParamValue::Evaluate(Env, R)`（§4.2.2），转手调源的 `Evaluate`——**复用同一个环境、同一个 `InFlight`、同一份环检测**，零新实现。⚠️ MUST NOT 另造一个同义入口（自由函数，或求值器上的 `ResolveExpr`）——那样表达式求值有两个入口，而环检测与切片都住在求值器上，裸求值两样都没有。
 
 ---
 
@@ -594,11 +993,15 @@ Params:
 | 时机 | 做法 |
 |---|---|
 | **配置期** | 对每个键做 DFS，看是否回到自身 ⇒ 是则报错（资产校验期） |
-| **运行期** | `InFlight` 兜一次：命中已在栈上的键 ⇒ 返回兜底值 + 打 Warning |
+| **运行期** | `InFlight` 兜一次：命中已在栈上的键 ⇒ 返回 `0.0` + 打 **Error** |
 
 运行期兜底**不是**为了容纳配置错误（配置期已经拦了），是为了「配置期漏检时不要崩、不要死循环」。
 
-**【未裁 N1】** 运行期兜底返回什么值：`0.0` / 表达式自己的兜底字段 / 上一个切片值。三者后果不同，见 §8。
+**【已裁 甲｜m05106】** 用户原话：「我也倾向甲，不过不应该给 Warning，我觉得应该给 Error」。⇒ 命中 `InFlight` ⇒ 返回 `0.0` + 打 **Error**。
+
+**为什么不做得更精细**：R4 已裁「表达式只能引用**同一份** `Defs` 内的另一个参数」，而同一份 `Defs` 内的环在配置期 DFS 里是**完备可检**的 ⇒ 运行期这条路径正常永不触发，它只需要满足 R5 的「不要崩、不要死循环」，不需要更精细的返回值。返回「上一个切片值」更糟：出生那一刻根本没有上一个值。
+
+⚠️ **连带后果，也是它必须是 Error 的原因**：返回的 `0.0` 会参与上层计算，并按 `Bind == Born` 被**写进切片**——这一发的该键从此就是 0。Warning 会被日志淹掉，Error 才能让它在开发期就被看见，而不是变成一条「伤害莫名其妙是 0」的工单。
 
 ---
 
@@ -663,17 +1066,11 @@ DamageOut   ParamRef(DamageBase)      Bind: Live
 
 ## 8. 未裁清单
 
-> 本节只列**当前确实悬空**的问题。已裁的见 §9。N3（运算枚举归谁）与 N4（布尔开关）已裁，分别落在 §3A 与 §3.4；N9（派生环境机制）与 N11（等级从哪来）已裁，分别落在 §4.4 与 §4.3.5；N7（与属性域的接缝）与 N12（属性修正器的冻结位）已裁，都落在 §4.5。
+> 本节只列**当前确实悬空**的问题。已裁的见 §9。N3（运算枚举归谁）与 N4（布尔开关）已裁，分别落在 §3A 与 §3.4；N7（与属性域的接缝）与 N12（属性修正器的冻结位）已裁，都落在 §4.5；N9（派生环境机制）与 N11（等级从哪来）已裁，分别落在 §4.4 与 §4.3.5；**N5 已裁（R25），落在 §4.3.7**；**N13 已裁（R27），落在 §4.5**；**N6 已裁（R29），落在 §3.3.1**；环境判据（什么该进环境）已裁（R23/R24），落在 §4.3.1 与 §4.3.4；**N8 已裁（R30）**——族内 `Attribute.md` §7.2 / §7.3 已按 R21 / R22 / R27 重写落盘；**N1 已裁（R31），落在 §6.3**；**N10 已注销（R28）**——禁掉镜像键之后它的问题不诞生。
 
 | # | 问题 | 影响面 | 我的倾向 |
 |---|---|---|---|
-| **N1** | 运行期兜环返回什么值 | 配置期漏检时的行为 | 未定；倾向「返回该表达式自身的兜底值」，因为作者至少能控制它 |
 | **N2** | 「假跟随」要不要配置期提示（§7.3） | 作者意图与配置不符时能否被发现 | 倾向提示、不报错 |
-| **N5** | 无 `Key` 的值怎么算 | 时段时长、冷却时长、消耗金额、链步骤内联值——它们不是键值对，进不了账本 | 它们由**源类型**决定冻结语义（字面量天然冻结；引用型跟随其引用的对象），不需要 `Key` 也不需要门 |
-| **N6** | 账本按来源摘除 | 修正器带 `Source`，MUST 能被按来源整体摘掉 | 倾向：`RemoveBySource` 是 `FTcsParamState` 的必备方法，成对性是其正确性判据 |
-| **N8** | 族内 `Attribute.md` §7.2 / §7.3 失去依据 | 它们建的正是「参数载体 + 模式位」，从零重做后无依据 | **需用户点头才能动族内文档**。重写方向已由 R21 / R22 定下（§4.5），剩下的只是动笔 |
-| **N10** | 一个键「既有参数行、又由字段基数折叠」时谁是基数 | 消费方域定义契约键时必须回答（§3.5） | 倾向：**定义契约键的那个域 MUST 声明它属哪一类**，且同一键 MUST NOT 两属。**不靠校验器兜底**——校验器只能查「参数表里有没有这行」，查不出「这个键的语义属于哪一侧」 |
-| **N13** | 属性修正器的表达式里能不能出现「读参数账本」这类源 | §4.5 裁了「属性修正器持值描述」，但值描述的**源可以是哪些**没裁 | 倾向：**只能是「不依赖任何账本」的源**（字面量 / 读属性）。理由：属性域的值一旦依赖参数账本，谁先算谁后算就没有答案了——属性变要触发参数重算，参数变要触发属性重算，两个账本互相等待，正是 §6.3 那个环在域间的翻版 |
 
 ---
 
@@ -695,14 +1092,26 @@ DamageOut   ParamRef(DamageBase)      Bind: Live
 | **R12** | **`HighestPriority` 打平比施加序，较新者胜**（B4） | 选「甲：Priority 大者胜，打平比注册序」 |
 | **R13** | **布尔写入通道现在建**，与数值对称（B5） | 选「甲：现在建，与数值对称」 |
 | **R14** | **环境里装 `WorldContext`**：世界级子系统经它按类型取，不各占字段 | 「它是 WorldSubsystem啊，只要让 TcsParamEvaluateContext 中新增一个 WorldContext 就可以了」（m02834） |
-| **R15** | **环境里不装外部参数表**：引用型源向求值器要值 | ask_user_question 选「甲：上下文只留 WorldContext / Subject / Instigator / Level，删 ParamTable」（m02955） |
+| **R15** | **环境里不装外部参数表**：引用型源向求值器要值 | ask_user_question 选「甲：上下文只留 WorldContext / 主体 / Instigator / Level，删 ParamTable」（m02955）；主体字段现名 `Target`，见 R24 |
 | **R16** | **宿主扩展入口收敛为「提供一种 `FTcsParamSource` 派生」** | R15 的直接后果，见 §4.3.2 |
-| **R17** | **参数键不需要在参数表里有一行**：折叠的基数既可以来自同键的参数行表达式，也可以来自调用方传进来的 `double`。两种用法共用同一份折叠与同一份账本 | 「Q1：甲」（m03179），见 §3.5 |
-| **R18** | **环境分两个等级字段**：`EffectiveLevel`（这个东西多强）与 `InstigatorLevel`（那个人多强）。读「施加者等级」的源改读字段，不再自己去问等级提供者 | 「Q2：甲」（m03179），见 §4.3.4 |
-| **R19** | **等级进战斗实体契约**：`ITcsEntityQuery` 加 `TryGetEntityLevel(Entity, int32& Out)`；签名为 `bool` + 出参（「取不到」与「就是 0 级」可区分）。两个等级字段都由装配方填。取等级是「读世界」，与 R16 的「读参数值」是两个各自封闭的口，不构成推翻 | 「我个人倾向于 方案【丁】…可以说是从宿主需求中提炼出来的通用功能」（m03403）；签名选「甲」（m03431），见 §4.3.5 |
+| **R17** | **参数键不需要在参数表里有一行**：折叠的基数既可以来自同键的参数行表达式，也可以来自调用方传进来的 `double`（**运行时基数**，不是别的域的字段——见 R28）。两种用法共用同一份折叠与同一份账本 | 「Q1：甲」（m03179），见 §3.5 |
+| ~~**R18**~~ | ~~**环境分两个等级字段**：`EffectiveLevel`（这个东西多强）与 `InstigatorLevel`（那个人多强）。读「施加者等级」的源改读字段，不再自己去问等级提供者~~ ⇒ **已被 R23 取代**：后半（`InstigatorLevel` 也进环境）撤销，理由（「源不需要认识宿主」）被 R19 消解——取等级搬进 `ITcsEntityQuery` 之后，源问契约，不问宿主 | 「Q2：甲」（m03179），见 §4.3.4 |
+| **R19** | **等级进战斗实体契约**：`ITcsEntityQuery` 加 `TryGetEntityLevel(Entity, int32& Out)`；签名为 `bool` + 出参（「取不到」与「就是 0 级」可区分）。**实体等级一律问契约**；`EffectiveLevel` 由装配方填（它不是实体等级，是「这个东西」自己的档位，见 R23）。取等级是「读世界」，与 R16 的「读参数值」是两个各自封闭的口，不构成推翻 | 「我个人倾向于 方案【丁】…可以说是从宿主需求中提炼出来的通用功能」（m03403）；签名选「甲」（m03431），见 §4.3.5 |
 | **R20** | **派生环境机制整机制退场**：源只认一个环境结构体；两个派生环境、基类「自报类型」虚函数、等级提供者接口及其注入面、各源的类型判定分支一并退场 | ask_user_question 选「甲：整机制退场」（m03431），见 §4.4 |
 | **R21** | **属性修正器持「值描述」，不存算好的数**：属性域要支持「同实体 A 属性变化触发 B 属性重算」，依赖边靠「修正器自己说得出它读了谁」建立，值一旦算成数该信息就没了。属性域原有的运算数种类退场，只留「一份表达式 + 运算带 + 优先级」 | 「同一实体内部『属性 A 变化要触发属性 B 重算』这个需求 是属性域必须支持的硬性需求，所以应该选择乙方案」（m03526），见 §4.5 |
-| **R22** | **属性修正器不带冻结位**：A（跟随）与 B（定死）由值描述自身表达——引用参数键归该键的 `Bind`，引用属性天然跟随，要定死则施加方先算成常量。另：`ResolveExpr` 作为「把一份值描述求成一个数」的唯一入口，复用求值器的环境与环检测，MUST NOT 做成源族自由函数 | 「这个功能不是已经被 Parameter 自己的 Born 语义取代了吗，所以应该是 方案【甲】吧」（m03601），见 §4.5 |
+| **R22** | **属性修正器不带冻结位**：A（跟随）与 B（定死）由值描述自身表达——引用参数键归该键的 `Bind`，引用属性天然跟随，要定死则施加方先算成常量。另：「把一份值描述求成一个数」的唯一入口是 `FTcsParamValue::Evaluate(Env, R)`（R34，§4.2.2），复用求值器的环境与环检测，MUST NOT 另造源族自由函数或 `ResolveExpr` | 「这个功能不是已经被 Parameter 自己的 Born 语义取代了吗，所以应该是 方案【甲】吧」（m03601），见 §4.5 |
+| **R23** | **环境只放「能被句柄指到的参与者」的句柄，不放它们的任何值；只有「句柄指不到」的东西才配占一个值字段**。⇒ `InstigatorLevel` 退场（施加者的等级问 `ITcsEntityQuery`，§4.3.5）；`EffectiveLevel` 留下（技能 / buff / Area 不是 `FTcsCombatEntityHandle`，结构上没有句柄）。**撤 R18 的后半** | 「1.5 我认为没问题」（m04671），见 §4.3.1 与 §4.3.4 |
+| **R24** | **`Target` 取宽义**：「这份参数为谁求值」，不限于「被攻击者」。它是 `Subject` 的改名，并让参数域与属性域词汇对齐（属性域早有 `Target` / `Instigator` 两侧） | 「Target 语义，可以按照你说的，取宽义（「这份参数为谁求值」）」（m04671），见 §4.3.1 与 §4.3.3 |
+| **R25** | **无 `Key` 的值：冻结归消费点自己**（N5 = 甲）。`Bind` 只配在参数行上、切片按 `Key` 索引，无 `Key` 的值结构上放不进去。⇒ 消费点自己两行：Def 上一个 `ETcsParamBind`、实例上一个 `double` | 「N5，暂时可以先这么裁决，其实 Area 之后具体如何实现还不好说」（m04671），见 §4.3.7 |
+| **R26** | **等级进表达式 = `FTcsParamSource_ContextLevel`**，三值 `Instigator` / `Target` / `StateSelf`。`StateSelf` 读环境字段 `EffectiveLevel`，另两值问战斗实体契约。不带 `Coefficient`（乘法交外层 `Composite{Mul}`） | 「ContextLevel 第三个枚举值叫什么，我还是倾向 State，不过可以和你的结合一下，叫 StateSelf」（m04671），见 §4.3.6 |
+| **R27** | **属性修正器的值描述 MUST NOT 读参数账本**：允许的源只有字面量 / 读属性 / 两者的组合。要「此刻的参数值」就在 `AttachMod` 之前取一次、当字面量传。判据：属性域缓存正确性完全靠依赖边，而建边只认属性词汇——参数键混进 `Operand` 抽不出边且不报错；且无真实消费者 | 问答自定义回答「先不能吧，我暂时也没想到 真实业务案例。」（2026-11-19），见 §4.5 |
+| **R28** | **参数键 MUST NOT 镜像别的域的状态字段**：参数键装「施加给别人的改动量」，不装「别人身上那个值」。被改的东西留在它自己的域里，由那个域自己的入口承受改动（建 `CooldownReduction = -2`，不建 `CooldownDuration`；建 `StackBonus = +1`，不建 `StackCount`）。⇒ **注销 N10**：那条问题只在镜像键存在时才有意义 | 「我强烈反对 创建一个 对应的 参数键 Tag…这个 ParamMod 在哪儿配置；我能想到的，就是后续要落地的 SkillModifier」（m04864 / m04879），见 §3.5.1 |
+| **R29** | **账本按来源摘除**（N6）：`RemoveBySource` 是唯一撤销入口，撤销的最小单元是「一次施加」而非一个键。六条契约——只做全摘；返回摘掉条数、`0` 不报错；配对责任在施加方（参数域不追踪来源存活，漏调 = 静默残留）；`Add` 覆写 `OrderSeq = Source.Id` 并拒绝无效 `Source`；撤销动不了出生切片；一次施加写多份账本由施加方逐份撤，参数域不建引用计数 | 「这几条我都审核过了，完全没什么问题」（m04949），见 §3.3.1 |
+| **R30** | **属性修正器只读本实体（`Side == Target`）**（N8 的第二半）：`FTcsAttrModInstance` 只持 `FTcsSourceHandle`，而它按《运行时实例》§1.3 是生命周期概念、不携带发出者实体 ⇒ 修正器手上没有任何东西能指到施法者。MUST NOT 为让 `Side == Instigator` 可用而往实例上补实体字段——那会造出一条「读了但不会因它重算」的读，与 R27 同一条判据。跨实体跟随走既有订阅路径（`DetachMod` + `AttachMod`）。⇒ 属性域的求值环境里 `Instigator` 恒无效、`EffectiveLevel` 恒 `0` | 「我也想不到 Side == Instigator 的 应用场景，先用你倾向的 甲 方案吧」（m05046），见族内 `领域-Attribute-草稿.md` §7.2.1 与 §5.1。**场景后由 m05152 补上**（友军身上挂 buff、加成跟施法者移速走），**结论不变、理由替换**：从「想不出场景」改为「本域的求值环境与依赖图都给不了它」，见 R32 |
+| **R31** | **运行期兜环：返回 `0.0` + 打 Error**（N1 = 甲）。配置期 DFS 对同一份 `Defs` 是完备的（R4 限定表达式只能引用同一份 `Defs`），所以这条路径正常永不触发，只需要「不崩 + 有声音」。MUST NOT 返回「上一个切片值」（同一份 `Defs` 不同发次数值不同，且出生期没有上一个值） | 「我也倾向甲，不过不应该给 Warning，我觉得应该给 Error」（m05106），见 §4 第 ② 步与 §6.3 |
+| **R32** | **属性修正器不跨实体读属性；跨实体的「跟随」走订阅**。`FTcsParamSource_AttributeScaled` 的 `Side` 在修正器的 `Operand` 里只能取 `Target`。要「施法者的属性变 ⇒ 我身上的修正器跟着变」，唯一路径是 D15：施加方订阅那条属性的变更，回调里 `DetachMod` + `AttachMod` 重新算成字面量挂上。三条理由：① `FTcsAttrModInstance` 只持 `FTcsSourceHandle`，按《运行时实例》§1.3 它是生命周期概念、不携带发出者实体 ⇒ 修正器手上没有能指到施法者的东西 ② 依赖图 MUST 停在实体边界内（族内 `领域-Attribute-草稿.md` §5.1），跨实体边会让一次属性写入连锁唤醒另一实体结算、递归深度不可控 ③ 跨实体读若允许而不建边，会退化成「读了但不重算」——它能配得出来、跑得通、结果是静默的旧值。⇒ 修正器 `Operand` 里写 `Side == Instigator` 属**配置错误**，配置期校验 SHOULD 拒绝 | 「我接受 Case B 走订阅」（m05171），见 §4.5 与族内 `领域-Attribute-草稿.md` §5.1 |
+| **R33** | **源族求值形参 = `Evaluate(const FTcsParamEnv& Env, FTcsParamResolver& R)`**：两个形参对应两件事——`Env` 是「我读什么」（纯数据上下文），`R` 是「我问谁」（递归、环检测、切片命中、`Defs` 全在它手上）。MUST NOT 把 `Defs` 或 `Resolver` 塞进 `Env`：那会让环境从「纯数据快照」变成「求值会话」，`FTcsParamEnv` 与 `FTcsParamResolver` 的职责边界消失 | 「FTcsParamSource::Evaluate 的形参是什么，Context 是要的，你说的 Resolver 也可以加进去，后续可能还会有调整，目前先暂时这么裁定」（m05249），见 §4.2.1 |
+| **R34** | **`FTcsParamValue` = `USTRUCT` 包一层 `FInstancedStruct Source`（`meta = (BaseStruct = FTcsParamSource)`），求值入口是这个结构体自身的 `Evaluate(Env, R)`；`FTcsParamResolver::ResolveExpr` 这个名字退场**。不用 `using` 别名（过不了 UHT 类型识别，且「只能装源」的约束消失）；不把求值入口放回求值器（`Env` 与 `R` 已在调用点手上，多一次转手只让主语变远） | 「先用你给的两个方案吧」（m05269），见 §4.2.2 |
 
 ---
 
@@ -713,17 +1122,19 @@ DamageOut   ParamRef(DamageBase)      Bind: Live
 | `01-定位与判据.md` | ✅ 全裁 | **无**。本文的四条铁律引用照旧有效 |
 | `INDEX.md` §2.2 / §4 | ✅ 全裁 | **无**。§2.2 的判据正是本文 §2.2「Parameter 要缩不是要没」的依据 |
 | `02-核心基线/数值聚合器.md` | ✅ 全裁 | **无**。七带折叠是本文 §4 第 ④ 步直接复用的算术 |
-| `02-核心基线/战斗实体.md` | ✅ 全裁 | **有，且需用户点头**：R19 要在 §3 的契约上**新增一支** `TryGetEntityLevel`（既有两支 `EnumerateEntities` / `GetLocation` 不动）。⚠️ 现有代码里另有 `IsAlive` / `IsEntityReady` 两支，属待废弃的旧实现——族内 §7 边界清单已把它们判为「不进本域」，文档 MUST NOT 据代码补齐它们 |
-| `04-领域/Attribute.md` | ✅ 全裁 | **有，且需用户点头**：§7.2 与 §7.3 建的正是「参数载体 + 模式位」，另有 §2.1 与 §7.4 引用同一套类型。从零重做后这些段落依据失效，见 **N8**。**重写方向已由 R21 与 R22 定下**：属性修正器持值描述（借参数域的源族）、**不带冻结位**，属性域原有运算数种类退场。⚠️ §7.3 在族内还写着「快照 MUST NOT 登记依赖边」那套规矩，R22 之后它没有对应机制了；而「值依赖读即登记」那条（V1 属性管线的现行为，原文出处已随代码删除，恢复方式见族外 [证据快照 — V1 引用出处](证据快照-V1引用出处.md) §1）反而成为唯一形态 |
-| `04-领域/Attribute.md`（**跨域请求**） | 待补 | **须补一个 `TryGetCurrentValue(Entity, Attribute, double& Out) const`**。理由见 §4.3.3：没有它，`AttributeScaled` 的 `Fallback` 永不生效（取不到与「确实是 0」不可区分）。这不是本文的设计项，是本文要真能用所依赖的前置条件 |
+| `02-核心基线/战斗实体.md` | ✅ 全裁 | **有，且需用户点头**：R19 要在 §3 的契约上**新增一支** `TryGetEntityLevel(Entity, int32& Out)`（既有两支 `EnumerateEntities` / `GetLocation` 不动）。它是**实体等级的唯一来源**（R23）：环境里的 `EffectiveLevel` 不是实体等级，不进这条契约。另有 ⚠️ 待定：`ITcsEntityQuery` 从 `Env.WorldContext` 怎么取到实例（§4.3.6）。⚠️ 现有代码里另有 `IsAlive` / `IsEntityReady` 两支，属待废弃的旧实现——族内 §7 边界清单已把它们判为「不进本域」，文档 MUST NOT 据代码补齐它们 |
+| `领域-Attribute-草稿.md` | ✅ 全裁 | **已落盘（R30 / N8）**：§7.2 删掉 `ETcsParamMode Mode` 与 `SnapshotValue` / `bHasSnapshot` 两个冻结位，`EvalModValue` 改为只做 `Operand.Evaluate(Env, R)`（形参同 R33，属性域一并收 `FTcsParamResolver&`）；§7.3 整节重写为「修正器求值：没有冻结位」；新增 §7.2.1「求值环境从哪来」；§5.1 的 `Side == Instigator` 行由「不进图」改为「不允许」。属性修正器仍持值描述（R21），只是不再有任何模式位 |
+| `领域-Attribute-草稿.md`（**跨域依赖**） | ✅ 已具备 | 本域的 `FTcsParamSource_AttributeScaled` 读属性走的是族内 §8.1 既有的 `bool TryGetValue(Entity, Attribute, double& OutValue) const`（「返回 `CachedCurrent`。不重算、不发事件」）。**无需为本域新增任何读口**（见 §4.3.3） |
 
 ---
 
 ## 11. 下一步
 
-按用户裁定的工作方式（「调研 → 记录 → 逐条确认 → 最后裁架构」），下一议题从 §8 的 **N13 → N10 → N5 → N6 → N8** 顺序推进；N1/N2 是次要项，可随时插入。N3、N4 已裁（§3A、§3.4），N9 已裁（§4.4），N11 已裁（§4.3.5），N7 与 N12 已裁（§4.5）。
+按用户裁定的工作方式（「调研 → 记录 → 逐条确认 → 最后裁架构」），**N8 已落盘**；**N1 已裁（R31）**；剩下 **N2** 一个口径。已裁：N3、N4（§3A、§3.4）、N7（§4.5）、N9（§4.4）、N11（§4.3.5）、N12（§4.5）、N5（§4.3.7）、N13（§4.5）、**N6（R29，§3.3.1）**、**N10 已注销（R28，§3.5.1）**；另环境判据已裁（§4.3.1 与 §4.3.4）。
 
-**N13 排在最前**，它是 R21 的欠账：R21 说「属性修正器持值描述」，但一份值描述里的源可以是哪些，决定了属性账本与参数账本之间有没有一条环——而那条环是 §6.3 那个环在域间的翻版，配置期检测管不到跨域。
+**只剩 N2 一件**：假跟随要不要配置期提示。它不阻塞任何既有形态，可随时插入。
+
+⚠️ 关于已裁的 N13：它的理由是「值描述的源可以是哪些」决定属性域那些「靠依赖边维持的缓存」会不会被一类抽不出边的读法污染——**不是「会成环」**，跨域读成不了环，只会形成一条单向的、不被维持的读。
 
 ---
 
